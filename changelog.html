@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3ec4e62">
-<link rel="stylesheet" href="tokens.css?v=3ec4e62">
-<link rel="stylesheet" href="docs.css?v=3ec4e62">
-<link rel="stylesheet" href="cmdk.css?v=3ec4e62">
+<link rel="stylesheet" href="fonts.css?v=60d8cb6">
+<link rel="stylesheet" href="tokens.css?v=60d8cb6">
+<link rel="stylesheet" href="docs.css?v=60d8cb6">
+<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,7 +51,17 @@
 <p>All notable changes to contextlake will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
-<h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="730-2026-08-13">[7.3.0] - 2026-08-13<a class="anchor" href="#730-2026-08-13" title="Link to this section">#</a></h2>
+<p><strong>All 24 accessibility violations, and a favicon you can actually see.</strong> An audit of the dashboard and
+the graph viewer found 24 WCAG 2.2 AA failures; every one is fixed, with each contrast ratio computed
+from the real token values and then re-read from the rendered page. The graph canvas had an accessible
+name and no accessible content at all, and now has a parallel text view wired to the same handlers a
+mouse tap calls.</p>
+<p>The favicon changed: below 64px the mark is the context-pebble rather than a picture of the mascot,
+because a character cannot survive 16 pixels however it is simplified. Pebble is unchanged at 180px
+and above. Browsers cache favicons hard, so a tab you already had open may keep showing the old one
+until you force a reload.</p>
+<p>Nothing to re-index and nothing to re-embed.</p>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Repository content handed to a language model is now explicitly framed as untrusted data.</strong>
@@ -77,13 +87,59 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   smallest.</p>
 <h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
 <ul>
-<li><strong>The published vocabulary diagram documented 16 of 40 node kinds, and the embeddable graph page
+<li><strong>Thirteen accessibility defects in the dashboard, fixed against measured contrast rather than
+  judgement.</strong> Seven Level A and six Level AA, from a WCAG 2.2 AA audit of the whole UI.</li>
+</ul>
+<p><code>--cl-line</code> was carrying both decorative and load-bearing borders at one value, so it is split, with
+  <code>--cl-line-strong</code> measured at 3.25-4.51:1 across every surface it appears on. Dark theme gained its
+  own <code>--cl-lake</code> with a paired <code>--cl-on-lake</code> (5.13:1 fill, 5.79:1 label). And <strong>opacity is no longer
+  used to encode state</strong> -- a dimmed row said "excluded" only to someone who could compare it with an
+  undimmed one, which meant a low-vision reader could not tell whether the counts they were reading
+  were complete. It is now strike-through (5.65/5.91:1) and a hatched fill (13.85/11.41:1).</p>
+<p>Two fixes needed structure rather than attributes: lists that were styled to look like lists are now
+  real <code>&lt;ul&gt;</code>/<code>&lt;li&gt;</code>, and the search results stopped nesting interactive controls inside each other.
+  Keyboard behaviour was confirmed by key sequence: Enter lands focus on the opened panel's Close
+  button, and the <code>p</code> shortcut no longer fires inside a <code>&lt;select&gt;</code> or a <code>contenteditable</code>.</p>
+<p>Every ratio is computed from the real token values in both themes <strong>and then re-read from the
+  rendered page</strong> with <code>getComputedStyle</code>, because a declared value and a composited value are not the
+  same number. That distinction found two things the audit had not: one ring was failing in <em>light</em>
+  theme too once measured against its own tint rather than the card behind it, and the obvious fix for
+  another would have introduced a fresh 1.4.3 failure. 34 tests pin the tokens and roles.</p>
+<ul>
+<li><strong>Eleven accessibility defects in the graph viewer, including a canvas a screen reader could not use
+  at all.</strong> Its accessible name was the single string "Knowledge graph" and its measured <code>innerText</code>
+  was empty, so a non-visual user got a node graph with nothing in it.</li>
+</ul>
+<p>A force-directed diagram cannot be made meaningful by adding attributes to a canvas, so it now has a
+  <strong>parallel text view</strong> rendering the same visible nodes, kinds and per-node connections as real
+  buttons, wired to the <em>same</em> handlers a mouse tap calls -- namespace drill-in and neighbour expansion
+  work from the keyboard. <code>role="application"</code> is gone, and the canvas pans, zooms and fits with the
+  arrow keys, <code>+</code>/<code>-</code> and <code>0</code>. Verified from page load in the collapsed-namespace state, the case where
+  a naive text view would list nothing usable.</p>
+<p>The contrast work needed structure too: <strong>edges were drawn at 0.45 opacity, at which no hue can reach
+  3:1</strong>, so they are opaque now with a per-theme palette, and every relation clears 3.40:1 against the
+  worst gradient stop of its theme. The node stroke became theme-aware, which closed a hole the audit
+  had missed -- the old border was navy on navy at <strong>1.03:1</strong> in dark.</p>
+<p>Five adjacent defects were fixed in passing and are named rather than absorbed: the focus ring
+  (2.60 -&gt; 5.02:1), a chip that was white on a pale hue (1.70:1), two link groups that only looked like
+  buttons, the PNG export ground, and a bug the new palette itself introduced where legend swatches kept
+  light hues on a dark first paint.</p>
+<ul>
+<li>
+<p><strong>The CLI pointed users at a documentation anchor that no longer exists.</strong> <code>contextlake completion</code>
+  and the unrecognised-shell warning both printed <code>docs/usage.md#shell-completion</code>; the docs restructure
+  moved that section to <code>docs/cli-reference.md</code>, and <code>docs/usage.md</code> itself now links there. Anyone who
+  followed the instruction the tool printed landed on a page without the steps.</p>
+</li>
+<li>
+<p><strong>The published vocabulary diagram documented 16 of 40 node kinds, and the embeddable graph page
   17 of 40.</strong> 7.0.0 consolidated sixteen drifted kind vocabularies into one registry because that
   drift had caused real invisible harm: kinds with no colour got no legend button on the graph page,
   so they could not be isolated or filtered. The parity tests added then covered the vocabularies
   <em>inside Python</em> and stopped at the boundary. Everything generated, the committed SVG diagram, its
   PNG raster, both site copies, and the colour map inlined into <code>site/graph-embed.html</code>, was free to
-  drift on, and had: the diagram still showed the verbatim pre-registry taxonomy, 5 bands of 9.</li>
+  drift on, and had: the diagram still showed the verbatim pre-registry taxonomy, 5 bands of 9.</p>
+</li>
 </ul>
 <p>Both are regenerated from the registry, and both are now gated. The new check <strong>recomputes</strong> from
   the real generator into a temp directory and compares bytes, rather than restating a list that
@@ -5139,7 +5195,7 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a><ul>
+<li><a href="#730-2026-08-13">[7.3.0] - 2026-08-13</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#fixed">Fixed</a></li>
 </ul>
@@ -5800,6 +5856,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3ec4e62"></script>
+<script defer src="cmdk.js?v=60d8cb6"></script>
 </body>
 </html>

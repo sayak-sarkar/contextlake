@@ -3,8 +3,16 @@
     --deepwater:#0E2A33;--lake:#137A8B;--current:#2BB3A3;--mist:#EAF4F4;
     --shore:#D7C5A0;--sun:#E7B53C;
     --bg:#f5fafb;--surface:#ffffff;--surface-2:#eef6f7;--line:#dce8ea;--line-2:#c6d8db;
-    --text:#0E2A33;--muted:#5b7177;--subtle:#8aa2a6;--brand:#137A8B;--brand-h:#0f6473;
-    --accent:#2BB3A3;--focus:#2BB3A3;--canvas-label:#0E2A33;--surface-solid:#ffffff;
+    /* --subtle was #8aa2a6, which is 2.69:1 on white and carries 10px count badges --
+       real information, unreadable. Darkened to clear 4.5:1 on both light surfaces. */
+    --text:#0E2A33;--muted:#5b7177;--subtle:#5f767c;--brand:#137A8B;--brand-h:#0f6473;
+    /* --focus was #2BB3A3, which is 2.60:1 on the white surface the ring is drawn
+       against -- a focus indicator that fails 1.4.11 is not an indicator. #137A8B
+       holds 5.02:1. The dark theme keeps #2BB3A3 (5.13:1 there) via its own block. */
+    --accent:#2BB3A3;--focus:#137A8B;--canvas-label:#0E2A33;--surface-solid:#ffffff;
+    /* ink that reads ON a --brand fill: white holds 5.02:1 over the light teal, but
+       only 2.60:1 over the dark theme's lighter --brand, so the ink flips with it */
+    --on-brand:#ffffff;
     --faded-opacity:0.08;
     --cy-bg:radial-gradient(120% 90% at 50% -10%,#ffffff 0%,#f1fafb 45%,#e3f1f2 100%);
     --e1:0 1px 2px rgba(14,42,51,.07);--e2:0 4px 14px -4px rgba(14,42,51,.18);
@@ -16,7 +24,7 @@
   body[data-theme="dark"]{
     --bg:#0C2438;--surface:#15314C;--surface-2:#18344F;--line:#274864;--line-2:#375672;
     --text:#EAF4F4;--muted:#A4B3B6;--subtle:#8FA1A5;--brand:#2BB3A3;--brand-h:#3fc6b6;
-    --canvas-label:#EAF4F4;--surface-solid:#15314C;
+    --canvas-label:#EAF4F4;--surface-solid:#15314C;--on-brand:#0E2A33;
     --faded-opacity:0.16;
     --cy-bg:radial-gradient(120% 90% at 50% -10%,#123351 0%,#0C2438 45%,#081D30 100%);
     --e1:0 1px 2px rgba(0,0,0,.4);--e2:0 6px 18px -6px rgba(0,0,0,.55);
@@ -58,13 +66,13 @@
   .segbtn{font:inherit;font-size:12px;padding:6px 13px;border:0;background:transparent;
     color:var(--muted);cursor:pointer;transition:background var(--dur),color var(--dur)}
   .segbtn+.segbtn{border-left:1px solid var(--line)}
-  .segbtn.on{background:var(--brand);color:#fff;font-weight:500}
+  .segbtn.on{background:var(--brand);color:var(--on-brand);font-weight:500}
   .segbtn:not(.on):hover{background:var(--surface);color:var(--text)}
   .tog{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;
     color:var(--muted);cursor:pointer}
   .tog[hidden]{display:none}
   .tog input{accent-color:var(--brand);cursor:pointer;margin:0}
-  .tog .cnt{color:var(--subtle);font-variant-numeric:tabular-nums}
+  .tog .cnt{color:var(--muted);font-variant-numeric:tabular-nums}
   label{font-size:11px;color:var(--muted)}
   select,.btn,.ibtn{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;
     background:var(--surface);color:var(--text);cursor:pointer;
@@ -76,9 +84,15 @@
   .ibtn svg,.btn svg{width:15px;height:15px}
   .btn:hover,.ibtn:hover{background:var(--surface-2);border-color:var(--line-2)}
   .btn:active,.ibtn:active{transform:translateY(1px)}
-  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--e1)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand);
+    box-shadow:var(--e1)}
   .btn.primary:hover{background:var(--brand-h);border-color:var(--brand-h)}
   :focus-visible{outline:none;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--focus)}
+  /* The inspector is focused programmatically when it is opened from the keyboard, and
+     a container has no text or border to carry the ring -- so it gets an explicit inset
+     one rather than relying on :focus-visible's last-interaction heuristic. --brand,
+     not --focus: it holds 5.02:1 light / 5.13:1 dark against the panel. */
+  #info:focus{outline:none;box-shadow:inset 0 0 0 2px var(--brand)}
   #legend,#edgelegend{display:flex;flex-wrap:wrap;gap:5px}
   .lg{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
     border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;
@@ -86,9 +100,19 @@
   .lg:hover{background:var(--surface-2);border-color:var(--line-2)}
   .lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
   .lg.rel i{border-radius:1px;width:12px;height:3px}
-  .lg .cnt{color:var(--subtle);font-variant-numeric:tabular-nums;font-size:10px}
-  .lg.off{opacity:.4}
-  .lg.off .lbl{text-decoration:line-through}
+  /* --muted, not --subtle: the count sits inside a chip that changes background on
+     hover, and --subtle clears 4.5:1 on --surface but not on --surface-2. */
+  .lg .cnt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:10px}
+  /* "filtered off" used to be opacity:.4, which dropped the 11px label to 2.38:1 and
+     the 10px count to 1.43:1 -- unreadable exactly when you need to read it to undo
+     the filter. The off state is now carried by a dashed border, a recessed fill, a
+     hollow swatch and the strike-through, none of which touch text contrast, plus
+     aria-pressed for anyone not looking at it. */
+  .lg.off{background:var(--surface-2);border-style:dashed;border-color:var(--line-2)}
+  .lg.off .lbl{text-decoration:line-through;color:var(--muted)}
+  .lg.off i,.lg.off .gl{background:transparent!important;
+    box-shadow:inset 0 0 0 1.5px var(--muted)}
+  .lg.off .gl img{opacity:.45}
   .gl{width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;
     justify-content:center;flex:none;box-shadow:inset 0 0 0 1px rgba(14,42,51,.12)}
   .gl img{width:11px;height:11px;display:block}
@@ -103,7 +127,7 @@
     text-transform:uppercase;letter-spacing:.05em}
   .ck{display:flex;align-items:center;gap:7px;margin:5px 0;font-size:11px;line-height:1.3}
   .ck .lbl{color:var(--text);flex:none}
-  .ck .cnt{color:var(--subtle);font-size:10px}
+  .ck .cnt{color:var(--muted);font-size:10px}
   .ck .ln{width:18px;height:0;border-top:2px solid var(--muted);flex:none}
   .ck .ln.dashed{border-top-style:dashed}
   .ck .ln.dotted{border-top-style:dotted}
@@ -127,8 +151,8 @@
   #info .trust .blurb{color:var(--muted)}
   #info .copy-prov{margin-top:10px}
   #info .gopage{display:inline-block;margin:10px 0 2px;padding:7px 12px;border-radius:8px;
-    background:var(--brand);color:#fff;text-decoration:none;font-size:12px;font-weight:500;
-    box-shadow:var(--e1)}
+    background:var(--brand);color:var(--on-brand);text-decoration:none;font-size:12px;
+    font-weight:500;box-shadow:var(--e1)}
   #info .gopage:hover{background:var(--brand-h)}
   .sitenav{display:flex;gap:4px;margin-left:2px}
   .sitenav a{font-size:12px;color:var(--muted);text-decoration:none;padding:3px 9px;
@@ -142,13 +166,22 @@
   #info .conns li{display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.3}
   #info .conns .rdot{width:8px;height:8px;border-radius:50%;flex:none}
   #info .conns .rl{color:var(--muted);white-space:nowrap;flex:none}
+  /* .rn / .rmore are real <button>s now (they navigate, so they must be operable
+     without a mouse); these rules keep them looking exactly like the spans they were */
   #info .conns .rn{color:var(--brand);cursor:pointer;word-break:break-all;
+    font:inherit;font-size:11px;background:none;border:0;padding:0;text-align:left;
     text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color var(--dur)}
   #info .conns .rn:hover{text-decoration-color:currentColor}
-  #info .conns .rmore{color:var(--brand);font-style:italic;cursor:pointer}
+  #info .conns .rmore{color:var(--brand);font-style:italic;cursor:pointer;
+    font:inherit;font-size:11px;font-style:italic;background:none;border:0;padding:0}
   #info .conns .rmore:hover{text-decoration:underline}
-  .rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;
-    font-size:12px;font-weight:600}
+  /* The relation hue is a 3:1 *boundary* here, not a text background. It used to be
+     the fill under white 12px/600 text, which lands at 1.70:1 on the pale
+     "publishes" hue -- the inspector only opens on click, so the audit's sweep never
+     saw it. Hue kept as a left bar; the label reads on the surface. */
+  .rel-chip{display:inline-block;padding:2px 9px 2px 8px;border-radius:4px;
+    background:var(--surface-2);color:var(--text);font-size:12px;font-weight:600;
+    border-left:4px solid var(--rel,var(--brand))}
   #statusbar{grid-area:status;display:flex;align-items:center;gap:10px;padding:0 12px;
     background:var(--surface);border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
   #statusbar .l{color:var(--brand)}
@@ -182,9 +215,13 @@
   .cl-card.faded{opacity:var(--faded-opacity)}
   .cl-card.hi{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),var(--e2)}
   .cl-card.found{border-color:var(--sun);box-shadow:0 0 0 2px var(--sun),var(--e2)}
-  #tip{position:absolute;z-index:40;pointer-events:none;display:none;background:var(--deepwater);
-    color:var(--mist);font-size:11px;padding:4px 8px;border-radius:6px;max-width:42ch;
-    box-shadow:var(--e2)}
+  /* pointer-events:auto is a 1.4.13 requirement, not a style choice: with `none` the
+     pointer cannot travel onto the tooltip, so a magnifier user can never read a long
+     provenance string. The tooltip is offset from the cursor and follows it, so it
+     does not sit under the pointer and steal the hover it depends on. */
+  #tip{position:absolute;z-index:40;pointer-events:auto;display:none;
+    background:var(--deepwater);color:var(--mist);font-size:11px;padding:4px 8px;
+    border-radius:6px;max-width:42ch;box-shadow:var(--e2)}
   #minimap{position:absolute;right:10px;bottom:10px;z-index:6;width:180px;height:130px;
     background:var(--surface);border:1px solid var(--line);border-radius:8px;
     box-shadow:var(--e2);cursor:crosshair;opacity:.92;transition:opacity var(--dur)}
@@ -199,3 +236,46 @@
     background:var(--accent);animation:ld 1s var(--ease) infinite}
   @keyframes ld{0%{left:-28%}100%{left:100%}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---- Text view: the graph as navigable text ---------------------------------
+     A force-directed canvas has no accessible content -- #cy's innerText is empty and
+     its whole accessible name was the string "Knowledge graph". This is the parallel
+     rendering: the same visible nodes, their kinds, and each one's relationships as
+     real focusable HTML. It is also the keyboard interaction model -- activating an
+     item runs the very handler a mouse tap runs -- so it answers 1.1.1 and 2.1.1 with
+     one structure instead of bolting a fake description onto a canvas. */
+  .cl-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .cl-skip{position:absolute;left:6px;top:-40px;z-index:60;background:var(--surface);
+    color:var(--brand);border:1px solid var(--brand);border-radius:8px;padding:6px 10px;
+    font-size:12px;text-decoration:none;transition:top var(--dur)}
+  .cl-skip:focus{top:6px}
+  #textview{margin-top:2px}
+  #textview>summary{cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.06em;user-select:none;list-style:none;
+    padding:2px 0}
+  #textview>summary::-webkit-details-marker{display:none}
+  #textview>summary::before{content:"▸ ";color:var(--muted)}
+  #textview[open]>summary::before{content:"▾ "}
+  .tv-note{color:var(--muted);font-size:10px;margin:5px 0 6px;line-height:1.35}
+  .tv-list,.tv-conns{list-style:none;margin:0;padding:0}
+  .tv-list>li{border-top:1px solid var(--line);padding:2px 0}
+  .tv-list>li:first-child{border-top:0}
+  .tv-n{display:flex;align-items:center;gap:6px;width:100%;text-align:left;font:inherit;
+    font-size:11px;color:var(--text);background:none;border:0;border-radius:6px;
+    padding:4px 5px;cursor:pointer}
+  .tv-n:hover{background:var(--surface-2)}
+  .tv-dot{width:9px;height:9px;border-radius:50%;flex:none;
+    box-shadow:inset 0 0 0 1px rgba(14,42,51,.25)}
+  .tv-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tv-k{margin-left:auto;color:var(--muted);font-size:10px;flex:none}
+  .tv-conns{margin:0 0 4px 14px}
+  .tv-ed{display:flex;align-items:center;gap:5px;width:100%;text-align:left;font:inherit;
+    font-size:10.5px;color:var(--muted);background:none;border:0;border-radius:6px;
+    padding:3px 5px;cursor:pointer}
+  .tv-ed:hover{background:var(--surface-2);color:var(--text)}
+  .tv-ed .tv-rel{color:var(--text);flex:none}
+  .tv-ed .tv-nb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tv-bar{width:3px;align-self:stretch;border-radius:2px;flex:none;
+    background:var(--rel,var(--muted))}
+  .tv-more{font-size:10px;color:var(--muted);padding:2px 5px}

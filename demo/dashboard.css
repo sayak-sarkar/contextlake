@@ -47,8 +47,22 @@
   --cl-ink: #0E2A33;
   --cl-ink-muted: #4a6670;
   --cl-line: #d4e3e3;
+  /* --cl-line is DECORATIVE only (card edges, table rules, dividers). A control's
+     own fill is the same colour as the surface behind it, so its border is the
+     only thing that says "this is a text box / a button" -- and #d4e3e3 measures
+     1.32:1 against #ffffff, well under WCAG 1.4.11's 3:1 for a component
+     boundary. Every input, select, secondary button and other bounded control
+     uses --cl-line-strong instead: 3.53:1 vs #ffffff, 3.25:1 vs the #f0f7f7
+     control fill, 3.31:1 vs the page background. Keep the two separate -- reusing
+     the strong value for decoration would visually shout every card edge. */
+  --cl-line-strong: #6f8e91;
   --cl-primary: #0f6675;
   --cl-focus: #137A8B;
+  /* text/glyph colour for anything painted ON a --cl-lake fill (primary button,
+     lettermark, selected segment). Paired with --cl-lake per theme: white clears
+     4.5:1 on the light lake, but not on the lighter dark-theme lake, which needs
+     deep ink instead. */
+  --cl-on-lake: #ffffff;
   --cl-shadow: 0 6px 20px rgba(14,42,51,.10);
 }
 
@@ -60,6 +74,14 @@
   --cl-ink: #EAF4F4;
   --cl-ink-muted: #A4B3B6;
   --cl-line: #274864;
+  --cl-line-strong: #5e8fa8;
+  /* The light-theme lake painted onto moonlit navy measured 2.66:1 -- under 3:1,
+     so in dark mode the primary button, the selected-tab underline, the edge-weight
+     bar and the path step ring all stopped reading as anything at all. This is the
+     dark-theme lake: 5.13:1 against the card surface, and deep ink on top of it
+     clears 5.79:1. */
+  --cl-lake: #45AEC2;
+  --cl-on-lake: #0E2A33;
   --cl-primary: #4fc7d6;
   --cl-focus: #2BB3A3;
   --cl-shadow: 0 6px 24px rgba(0,0,0,.40);
@@ -128,7 +150,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-pinchip, .cl-cmdk, .cl-iconbtn, .cl-gt {
   display: inline-flex; align-items: center; gap: var(--sp-2);
   min-height: 32px; padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--cl-line); background: var(--cl-surface-2);
+  border: 1px solid var(--cl-line-strong); background: var(--cl-surface-2);
   color: var(--cl-ink); font: inherit; font-size: var(--fs-300); cursor: pointer;
 }
 .cl-iconbtn { padding: 6px 10px; }
@@ -140,12 +162,20 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 /* the [hidden] attr must beat display:inline-flex, else the pin chip never clears */
 .cl-pinchip[hidden] { display: none; }
 
-.cl-groundtruth { display: inline-flex; border: 1px solid var(--cl-line);
+.cl-groundtruth { display: inline-flex; border: 1px solid var(--cl-line-strong);
   border-radius: 999px; overflow: hidden; }
-.cl-gt { border: 0; border-radius: 0; border-left: 1px solid var(--cl-line);
+.cl-gt { border: 0; border-radius: 0; border-left: 1px solid var(--cl-line-strong);
   min-height: 30px; }
 .cl-gt:first-child { border-left: 0; }
-.cl-gt[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+/* "off" is NOT encoded with opacity. At opacity .45 the chip's own label measured
+   2.62:1 light / 3.59:1 dark -- a user could no longer read which filter they had
+   just switched off (WCAG 1.4.3). The off state is now carried by a strike-through
+   (a non-colour cue) plus muted ink that still clears 4.5:1 (5.65:1 light, 5.91:1
+   dark), and the confidence dot drops its hue so it does not read as "on". */
+.cl-gt[aria-pressed="false"] { color: var(--cl-ink-muted); text-decoration: line-through;
+  text-decoration-thickness: 2px; }
+.cl-gt[aria-pressed="false"]::before { border-color: var(--cl-ink-muted); }
+.cl-gt--extracted[aria-pressed="false"]::before { background: var(--cl-ink-muted); }
 .cl-gt::before { content: ""; width: 9px; height: 9px; border-radius: 50%;
   border: 2px solid; display: inline-block; }
 .cl-gt--extracted::before { background: var(--cl-conf-extracted); border-color: var(--cl-conf-extracted); }
@@ -167,6 +197,12 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-infopop__body dt .cl-ic { width: 16px; height: 16px; color: var(--cl-lake); }
 .cl-infopop__body dd { margin: 4px 0 0; font-size: var(--fs-300); color: var(--cl-ink-muted);
   line-height: 1.5; }
+/* Single-key shortcut opt-out. WCAG 2.1.4 needs a way to turn character-key
+   shortcuts off, and this popover is the one place that exists in BOTH the live
+   server and the static export (the Settings lens is live-only). */
+.cl-infopop__pref { margin-top: var(--sp-4); padding-top: var(--sp-3);
+  border-top: 1px solid var(--cl-line); font-size: var(--fs-300); }
+.cl-infopop__pref label { display: flex; align-items: center; gap: var(--sp-2); }
 .cl-infopop code { font-family: var(--cl-font-mono); font-size: .9em;
   background: var(--cl-surface-2); padding: 1px 5px; border-radius: 4px; }
 .cl-conf__glyph--extracted { display: inline-block; width: 11px; height: 11px;
@@ -250,7 +286,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
    hit box - 2*4px padding = 18px visible, vs. the original 16px). */
 .cl-trustbar { display: flex; flex-direction: column; gap: var(--sp-2); }
 .cl-trustbar__track { display: flex; height: 28px; border-radius: 999px; overflow: hidden;
-  border: 1px solid var(--cl-line); }
+  border: 1px solid var(--cl-line-strong); }
 .cl-trustbar__seg { border: 0; cursor: pointer; padding: 4px 0; background-clip: content-box; }
 /* background-COLOR, deliberately not the `background` shorthand: the shorthand
    resets every sub-property it doesn't mention (including background-clip)
@@ -259,7 +295,21 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-trustbar__seg--extracted { background-color: var(--cl-conf-extracted); }
 .cl-trustbar__seg--inferred { background-color: var(--cl-conf-inferred); }
 .cl-trustbar__seg--ambiguous { background-color: var(--cl-conf-ambiguous); }
-.cl-trustbar__seg[aria-pressed="false"] { opacity: .3; }
+/* The segments are toggle buttons, and opacity: .3 was their ONLY state cue --
+   the filtered-out fills composited to 1.21-1.83:1 against their backdrop, so a
+   low-vision user could not tell which confidence levels had been excluded, and
+   therefore could not tell whether the counts they were reading were complete
+   (WCAG 1.4.11). "Off" is now an emptied segment carrying a diagonal hatch:
+   hatch vs its own fill is 13.85:1 light / 11.41:1 dark, and the emptied fill
+   itself sits 4.13-6.74:1 from every "on" fill in dark, 4.86-7.92:1 hatch-to-fill
+   in light -- so the state survives in both themes without opacity.
+   background-COLOR + background-IMAGE, never the `background` shorthand: the
+   shorthand would reset background-clip and undo the content-box hit-box clip. */
+.cl-trustbar__seg[aria-pressed="false"] {
+  background-color: var(--cl-surface-2);
+  background-image: repeating-linear-gradient(135deg,
+    var(--cl-ink) 0 1.5px, transparent 1.5px 5px);
+}
 .cl-trustbar__keys { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-200); }
 
 /* ---- Confidence chip (fill + border-style + glyph + ink label) ---------- */
@@ -280,7 +330,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 
 /* ---- Citation affordance + provenance ----------------------------------- */
 .cl-cite { display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--cl-line);
+  width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--cl-line-strong);
   background: var(--cl-surface-2); color: var(--cl-primary); cursor: pointer;
   font-size: var(--fs-200); }
 .cl-cite:hover { border-color: var(--cl-lake); }
@@ -289,7 +339,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-lettermark { display: inline-flex; align-items: center; justify-content: center;
   min-width: 24px; height: 22px; padding: 0 5px; border-radius: 6px;
   font-family: var(--cl-font-mono); font-size: var(--fs-200); font-weight: 700;
-  color: #fff; background: var(--cl-lake); }
+  color: var(--cl-on-lake); background: var(--cl-lake); }
 .cl-healthchip { display: inline-flex; align-items: center; gap: 6px; min-height: 24px;
   padding: 1px 9px; border-radius: 999px; font-size: var(--fs-200); font-weight: 600;
   border: 1px solid var(--cl-line); }
@@ -311,8 +361,17 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-band__name { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-band__count { color: var(--cl-ink-muted); font-size: var(--fs-300); }
 .cl-band__bar { width: 120px; margin-left: auto; }
+/* Real <ul>/<li>. The cards used to be <button role="listitem">, and an explicit
+   role REPLACES the host-language one -- Chrome's accessibility tree exposed the
+   fleet's primary navigation as plain list items with no button role at all, so a
+   "list all controls" pass skipped every repo (WCAG 4.1.2). The list semantics are
+   worth keeping at fleet scale, so the <li> is now a real wrapper and the button
+   stays a button inside it. */
 .cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+  gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  margin: 0; list-style: none; }
+.cl-grid > li, .cl-repolist > li { display: flex; min-width: 0; }
+.cl-grid > li > .cl-repocard, .cl-repolist > li > .cl-reporow { width: 100%; }
 .cl-repocard { display: flex; flex-direction: column; gap: 4px; text-align: left;
   background: var(--cl-surface-2); border: 1px solid var(--cl-line);
   border-radius: var(--cl-radius-sm); padding: var(--sp-3); cursor: pointer;
@@ -341,7 +400,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-fleettools__label { font-size: var(--fs-200); color: var(--cl-ink-muted);
   text-transform: uppercase; letter-spacing: .06em; }
 .cl-repolist { display: flex; flex-direction: column; gap: 2px;
-  padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+  padding: var(--sp-3) var(--sp-4) var(--sp-4); margin: 0; list-style: none; }
 .cl-reporow { display: flex; align-items: center; gap: var(--sp-3); width: 100%;
   text-align: left; background: var(--cl-surface-2); border: 1px solid var(--cl-line);
   border-radius: var(--cl-radius-sm); padding: var(--sp-2) var(--sp-3); cursor: pointer;
@@ -380,11 +439,19 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-table tr.cl-amb td:first-child { box-shadow: inset 3px 0 0 var(--cl-coral); }
 .cl-flowbar { display: inline-block; height: 8px; border-radius: 999px;
   background: var(--cl-lake); min-width: 3px; vertical-align: middle; }
+/* the bar is decoration beside the number, never the number itself -- see the
+   Weight cell in the relation tables (WCAG 1.1.1) */
+.cl-flowcell { display: inline-flex; align-items: center; gap: var(--sp-2);
+  justify-content: flex-end; }
 .cl-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--cl-line);
   flex-wrap: wrap; }
 .cl-tab { border: 0; background: none; padding: var(--sp-2) var(--sp-3); cursor: pointer;
   font: inherit; color: var(--cl-ink-muted); border-bottom: 2px solid transparent; }
-.cl-tab[aria-selected="true"] { color: var(--cl-primary); font-weight: 600;
+/* aria-PRESSED, not aria-selected: these strips announced role="tab" but the
+   document had no tabpanel, no aria-controls and no roving tabindex, so AT
+   promised a tab structure that did not exist (WCAG 4.1.2 / 1.3.1). They are
+   toggle buttons in a labelled group, which is what they have always behaved as. */
+.cl-tab[aria-pressed="true"] { color: var(--cl-primary); font-weight: 600;
   border-bottom-color: var(--cl-lake); }
 .cl-more { align-self: flex-start; margin-top: var(--sp-2); }
 
@@ -392,7 +459,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-diagram-scope__label { display: flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) 0; font-size: var(--fs-300); color: var(--cl-ink-muted); }
 .cl-select { font: inherit; color: var(--cl-ink); background: var(--cl-surface);
-  border: 1.5px solid var(--cl-line); border-radius: var(--cl-radius-sm);
+  border: 1.5px solid var(--cl-line-strong); border-radius: var(--cl-radius-sm);
   padding: var(--sp-1) var(--sp-2); cursor: pointer; }
 .cl-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1);
   padding: var(--sp-2) 0 0; font-size: var(--fs-300); }
@@ -406,13 +473,17 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-pathform { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
   margin: var(--sp-3) 0; }
 .cl-pathinput { flex: 1; min-width: 200px; font: inherit; color: var(--cl-ink);
-  background: var(--cl-surface); border: 1.5px solid var(--cl-line);
+  background: var(--cl-surface); border: 1.5px solid var(--cl-line-strong);
   border-radius: var(--cl-radius-sm); padding: var(--sp-2) var(--sp-3); }
 .cl-pathsteps { display: flex; flex-direction: column; }
+/* The hop number is read ON the ring's own 16% lake tint, not on the bare card,
+   so that tint is the backdrop that counts: --cl-lake on it measures only
+   4.05:1 light / 3.91:1 dark, under 1.4.3's 4.5:1. --cl-primary is the readable
+   teal role and clears it (5.33:1 / 5.06:1); the ring keeps the lake accent. */
 .cl-stepnum { width: 22px; height: 22px; border-radius: 50%; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: var(--fs-200); background: color-mix(in srgb, var(--cl-lake) 16%, transparent);
-  border: 1px solid var(--cl-lake); color: var(--cl-lake); }
+  border: 1px solid var(--cl-lake); color: var(--cl-primary); }
 .cl-patharrow { color: var(--cl-ink-muted); margin: 2px 0 var(--sp-2) 11px; font-size: var(--fs-300); }
 
 /* ---- Blast lanes -------------------------------------------------------- */
@@ -423,6 +494,8 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   flex-direction: column; gap: var(--sp-2); }
 .cl-lane__head { font-family: var(--cl-font-display); font-weight: 600;
   font-size: var(--fs-300); color: var(--cl-ink-muted); }
+.cl-lane__items { display: flex; flex-direction: column; gap: var(--sp-2);
+  margin: 0; padding: 0; list-style: none; }
 .cl-hit { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2);
   border-radius: var(--cl-radius-sm); border: 1.5px solid var(--cl-line);
   background: var(--cl-surface-2); cursor: pointer; font: inherit; text-align: left;
@@ -440,20 +513,29 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   border-left: 4px solid var(--cl-sun); background: color-mix(in srgb, var(--cl-sun) 10%, var(--cl-surface)); }
 
 /* ---- Search / palette --------------------------------------------------- */
-.cl-modeseg { display: inline-flex; border: 1px solid var(--cl-line); border-radius: 999px;
+.cl-modeseg { display: inline-flex; border: 1px solid var(--cl-line-strong); border-radius: 999px;
   overflow: hidden; }
 .cl-modeseg button { border: 0; background: none; padding: 6px 14px; cursor: pointer;
   font: inherit; color: var(--cl-ink); display: inline-flex; align-items: center; gap: 6px; }
 .cl-modeseg button .cl-ic { width: 15px; height: 15px; }
-.cl-modeseg button[aria-pressed="true"] { background: var(--cl-lake); color: #fff; }
+.cl-modeseg button[aria-pressed="true"] { background: var(--cl-lake); color: var(--cl-on-lake); }
 .cl-searchfield { width: 100%; max-width: 560px; padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--cl-line); border-radius: var(--cl-radius); font: inherit;
+  border: 1px solid var(--cl-line-strong); border-radius: var(--cl-radius); font: inherit;
   background: var(--cl-surface); color: var(--cl-ink); }
+/* A search result is a ROW, not a button. It used to be a <button> with the
+   "Blast" <button> nested inside it, which is invalid HTML and made the outer
+   control's accessible name swallow the inner label -- screen-reader users were
+   offered a name that advertised an action the row does not perform, and voice
+   users saying "click Blast" matched two nested controls (WCAG 4.1.2). The row
+   is now a plain container holding two sibling buttons. */
 .cl-result { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--cl-line); border-radius: var(--cl-radius-sm);
-  background: var(--cl-surface); cursor: pointer; width: 100%; font: inherit;
+  background: var(--cl-surface); width: 100%; font: inherit;
   text-align: left; color: var(--cl-ink); }
-.cl-result:hover, .cl-result:focus-visible { border-color: var(--cl-lake); }
+.cl-result__main { display: flex; align-items: center; gap: var(--sp-3); flex: 1;
+  min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer; }
+.cl-result:hover, .cl-result:focus-within { border-color: var(--cl-lake); }
 .cl-result__meta { font-size: var(--fs-200); color: var(--cl-ink-muted); }
 
 .cl-palette-wrap { position: fixed; inset: 0; z-index: 60; background: rgba(14,42,51,.35);
@@ -516,9 +598,9 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 @keyframes cl-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 
 .cl-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px;
-  padding: 5px 14px; border-radius: var(--cl-radius-sm); border: 1px solid var(--cl-line);
+  padding: 5px 14px; border-radius: var(--cl-radius-sm); border: 1px solid var(--cl-line-strong);
   background: var(--cl-surface); color: var(--cl-ink); cursor: pointer; font: inherit; font-size: var(--fs-300); }
-.cl-btn--primary { background: var(--cl-lake); border-color: var(--cl-lake); color: #fff; }
+.cl-btn--primary { background: var(--cl-lake); border-color: var(--cl-lake); color: var(--cl-on-lake); }
 .cl-btn[aria-pressed="true"] { border-color: var(--cl-lake); color: var(--cl-primary); }
 .cl-btn:disabled { opacity: 0.55; cursor: default; }
 .cl-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }

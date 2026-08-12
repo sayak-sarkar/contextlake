@@ -70,7 +70,11 @@
   <nav class="cl-breadcrumb" aria-label="Breadcrumb"><ol id="cl-crumbs" class="cl-crumbs"></ol></nav>
   <button type="button" id="cl-pinchip" class="cl-pinchip" hidden></button>
   <div class="cl-ctxbar__spacer"></div>
-  <button type="button" id="cl-cmdk" class="cl-cmdk" aria-label="Search the lake (Ctrl-K)">
+  <!-- No aria-label: it read "Search the lake (Ctrl-K)" while the button says
+       "Ask the lake", so a speech-input user reading the screen and saying
+       "click Ask the lake" matched nothing (WCAG 2.5.3). The visible text is the
+       name now, which is both correct and shorter. -->
+  <button type="button" id="cl-cmdk" class="cl-cmdk">
     <svg class="cl-ic" aria-hidden="true"><use href="#ui-search"/></svg>
     <span>Ask the lake</span><kbd class="cl-kbd">Ctrl K</kbd>
   </button>
@@ -85,13 +89,20 @@
   <button type="button" id="cl-info" class="cl-iconbtn" aria-label="What am I looking at?" aria-expanded="false" title="What am I looking at?">
     <svg class="cl-ic" aria-hidden="true"><use href="#ui-info"/></svg>
   </button>
-  <button type="button" id="cl-density" class="cl-iconbtn" aria-label="Toggle density">Compact</button>
+  <button type="button" id="cl-density" class="cl-iconbtn">Compact</button>
   <button type="button" id="cl-theme" class="cl-iconbtn" aria-label="Toggle dark mode">
     <svg class="cl-ic" aria-hidden="true"><use href="#ui-theme"/></svg>
   </button>
 </header>
 
-<div id="cl-infopop" class="cl-infopop" role="dialog" aria-label="What am I looking at?" hidden>
+<!-- role="group", not role="dialog": nothing about this panel is modal, it traps
+     nothing, and announcing a dialog the user is never placed inside over-promises.
+     It stays outside <header> on purpose — it is position: fixed with z-index 70,
+     and nesting it inside the sticky z-index-30 bar would drop it behind the
+     provenance drawer (z-index 40) whenever both are open. Focus order is fixed in
+     JS instead: opening it moves focus into the panel, so Tab no longer walks
+     through the density and theme buttons first (WCAG 2.4.3). -->
+<div id="cl-infopop" class="cl-infopop" role="group" aria-label="Reading this dashboard" hidden>
   <div class="cl-infopop__head">
     <strong>Reading this dashboard</strong>
     <button type="button" id="cl-info-close" class="cl-iconbtn" aria-label="Close">
@@ -112,6 +123,10 @@
       export (a representative slice) — run <code>contextlake kb dashboard --serve</code> for the
       complete, always-current view.</dd>
   </dl>
+  <div class="cl-infopop__pref">
+    <label><input type="checkbox" id="cl-shortcuts-toggle" checked>
+      Single-key shortcuts (<kbd class="cl-kbd">/</kbd> search, <kbd class="cl-kbd">P</kbd> provenance)</label>
+  </div>
 </div>
 
 <div class="cl-shell">
