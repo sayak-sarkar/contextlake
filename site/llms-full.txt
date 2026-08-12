@@ -2531,6 +2531,31 @@ source" becomes a number, not a vibe. Score any retriever with `--retriever fts|
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.
 
+### Are the citations real?
+
+Those metrics answer one question: did the right node come back? They say nothing about whether the
+`file:line` it carries still points at that symbol, and the citation is what an agent is actually told to
+go and read. A wrong citation is worse than a miss, because it looks like an answer.
+
+`--verify-citations` opens every returned node's file at its recorded line and checks the symbol's name is
+there:
+
+```console
+$ contextlake kb eval --golden queries.json --verify-citations
+Citations: 178/180 verified (98.9%) of 184 distinct nodes
+  4 unverifiable (no local checkout for the repo)
+  name_absent: 2
+    src/billing/refund.py:88  (name_absent)
+```
+
+Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
+(the file shrank under a stale index), `name_absent` (the line exists, the symbol is not on it),
+`no_citation` (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
+this machine is reported as **unverifiable** and kept out of the rate, so a run without the mirror reads as
+"nothing was checked" rather than as a pass.
+
+It is off by default: it does filesystem work proportional to the results and needs the checkout present.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
@@ -5676,6 +5701,42 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **`kb eval --verify-citations` checks that a cited `file:line` actually contains the symbol.**
+  Every retrieval metric here answered one question -- did the right node come back? None asked
+  whether the citation attached to it still points at that symbol, and the citation is the product:
+  an agent is not handed a node id, it is told to go read `src/thing.cpp:412`. A wrong citation is
+  worse than a miss, because it looks like an answer.
+
+  Failures are named, not counted: `file_missing` (the graph outlived the file),
+  `line_out_of_range` (the file shrank under a stale index), `name_absent` (the line is there, the
+  symbol is not on it), `no_citation` (a symbol node with no file or line at all). A repository
+  whose recorded clone is not on this machine is **unverifiable** and stays out of the rate, so a
+  run without the mirror reports "nothing was checked" rather than a pass. Off by default: it does
+  filesystem work per result and needs the checkout.
+
+  Measured on a large legacy C/C++ tree, all 48,556 citable nodes: **48,552 verified, 4 broken**.
+  Two things worth knowing came out of that run rather than out of the feature.
+
+  **It found a bug in the checker, in the good sense.** SQL table citations verified at 7.7%. Every
+  failure had the name absent case-sensitively and present on exactly the cited line
+  case-insensitively, because `kb/sql.py` casefolds DDL object names on purpose -- SQL identifiers
+  are case-insensitive and foreign-key attribution matches on the normalised form. The citations
+  were right; the comparison was wrong. It is now case-insensitive for languages whose identifiers
+  are, keyed on the node's language rather than its kind, and emphatically not global: in C++
+  `Draw` and `draw` are different symbols.
+
+  **And it contradicted its own design note.** The two-line window either side of `line_start`
+  exists because a definition's start line can precede its name (a C++ return type on its own line,
+  a decorator above a `def`). Measured, widening from 0 to 2 reclaims **one node in 3,000**, and 5
+  reclaims nothing further. The comment now carries that number instead of the story. The four
+  remaining failures all sit in one file with the name exactly 3 lines below the cited line, which a
+  window of 3 would paper over -- left at 2 on purpose, because tuning a check until it passes is
+  how a check becomes decoration.
 
 ## [7.1.0] - 2026-08-12
 

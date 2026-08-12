@@ -91,6 +91,168 @@ def _result_tokens(store, ids: list) -> int:
     return total
 
 
+# --- citation verification ------------------------------------------------------
+#
+# Retrieval metrics score whether the right node came back. They say nothing about
+# whether the `file:line` that node carries still points at the symbol -- and that
+# citation is the whole promise: an agent is told to go read it. A stale or wrong
+# citation is worse than a miss, because it looks like an answer.
+#
+# Three outcomes, never two. "verified" and "broken" are the interesting pair, but a
+# node whose repository has no local checkout is **unverifiable**, and folding that
+# into either one is how a harness starts lying: counted as broken it invents defects
+# on a machine that simply lacks the mirror, counted as ok it reports a clean bill of
+# health for checks that never ran.
+
+_CITE_WINDOW = 2
+"""Lines either side of ``line_start`` that may carry the name.
+
+The reasoning is that a definition's recorded start line is the start of the
+*construct*, so the name can sit a line or two in: a C++ return type on its own line, a
+template header, a decorator above a Python ``def``.
+
+Measured rather than asserted, and the measurement is unflattering: on a 3,000-node
+sample of a large legacy C/C++ tree, going from a window of 0 to 2 reclaimed **one**
+node. Widening to 5 reclaimed nothing more. So this is cheap insurance against a real
+idiom, not a fix for a widespread problem -- and it is deliberately kept at 2, because
+the cost of a window is that it can bless a citation pointing a couple of lines off
+target."""
+
+_CASE_INSENSITIVE_LANGS = frozenset({"sql"})
+"""Languages whose identifiers do not distinguish case, so neither may the check.
+
+This is not leniency, it is the language. ``kb/sql.py``'s ``_norm_name`` casefolds
+every DDL object name on purpose (SQL identifiers are case-insensitive, and foreign-key
+attribution matches on the normalised form), so a table declared ``CREATE TABLE Foo``
+is stored as ``foo``. Measured on a real tree, a case-sensitive check called **12 of 13**
+table citations broken while every one of them pointed at exactly the right line: a
+checker's first job is not to invent defects."""
+
+_CITE_MAX_LINES = 200_000
+"""Give up rather than read an unbounded file into memory. Generated headers and
+god-files in legacy trees really do run past this, and a checker that can hang on one
+node is a checker nobody runs."""
+
+
+@dataclass
+class CitationCheck:
+    node_id: str
+    status: str   # "verified" | "broken" | "unverifiable"
+    reason: str   # "" when verified
+    cite: str     # "path:line" as the answer would present it, or ""
+
+
+def _read_upto(path: Path, upto: int) -> list[str] | None:
+    """The file's lines up to ``upto`` (1-based), or None if it cannot be read.
+
+    Reads lazily and stops: verifying line 40 of a 40,000-line file should cost 40
+    lines, not the file."""
+    from itertools import islice
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            return list(islice(fh, min(upto, _CITE_MAX_LINES)))
+    except (OSError, ValueError):
+        return None
+
+
+def verify_citations(store: Store, node_ids: list, *,
+                     window: int = _CITE_WINDOW) -> list[CitationCheck]:
+    """Check that each node's ``file:line`` really contains its name, on disk, now.
+
+    Per-node reasons, all of them things that have actually gone wrong in this project's
+    history rather than hypotheticals: ``node_missing`` (a retriever returned an id the
+    store does not hold), ``no_citation`` (a symbol node with no file or no line -- an
+    answer that cannot be cited at all), ``file_missing`` (the graph outlived the file),
+    ``line_out_of_range`` (the file shrank under a stale index) and ``name_absent`` (the
+    line exists but the symbol is not on it, the failure mode a size or line check
+    cannot see).
+
+    Two reasons are *unverifiable* rather than broken. ``checkout_missing`` is the one
+    that matters: the recorded clone path is not on this machine, which ``doctor``
+    already reports as an ``unreadable`` repo. It has to be separated from
+    ``file_missing``, because when the whole checkout is gone every file under it is
+    gone too -- calling that a stale graph would manufacture a defect per result.
+    ``file_unreadable`` (a directory where a file is recorded, an unreadable mode) is
+    the same kind of "could not look".
+    """
+    out: list[CitationCheck] = []
+    roots: dict[str, Path | None] = {}
+    file_cache: dict[tuple[str, int], list[str] | None] = {}
+    for nid in node_ids:
+        node = store.get_node(nid)
+        if node is None:
+            out.append(CitationCheck(nid, "broken", "node_missing", ""))
+            continue
+        if node.repo not in roots:
+            r = store.get_repo(node.repo)
+            p = Path(r.path) if r and r.path else None
+            roots[node.repo] = p if (p and p.is_dir()) else None
+        root = roots[node.repo]
+        cite = f"{node.file}:{node.line_start}" if node.file else ""
+        if not node.file:
+            out.append(CitationCheck(nid, "broken", "no_citation", ""))
+            continue
+        if root is None:
+            out.append(CitationCheck(nid, "unverifiable", "checkout_missing", cite))
+            continue
+        path = root / node.file
+        if not path.is_file():
+            out.append(CitationCheck(nid, "broken", "file_missing", cite))
+            continue
+        # A file node's citation IS the path; there is no name to find on a line.
+        if node.kind == "file" or not node.line_start:
+            status, reason = (("verified", "") if node.kind == "file"
+                              else ("broken", "no_citation"))
+            out.append(CitationCheck(nid, status, reason, cite))
+            continue
+        want = node.line_start + window
+        key = (str(path), want)
+        if key not in file_cache:
+            file_cache[key] = _read_upto(path, want)
+        lines = file_cache[key]
+        if lines is None:
+            out.append(CitationCheck(nid, "unverifiable", "file_unreadable", cite))
+            continue
+        if node.line_start > len(lines):
+            out.append(CitationCheck(nid, "broken", "line_out_of_range", cite))
+            continue
+        lo = max(0, node.line_start - 1 - window)
+        hay = "".join(lines[lo:node.line_start + window])
+        needle = node.name
+        if (node.lang or "") in _CASE_INSENSITIVE_LANGS:
+            hay, needle = hay.casefold(), needle.casefold()
+        ok = needle in hay
+        out.append(CitationCheck(nid, "verified" if ok else "broken",
+                                 "" if ok else "name_absent", cite))
+    return out
+
+
+def citation_summary(checks: list[CitationCheck]) -> dict:
+    """Aggregate checks, keeping the three outcomes separate.
+
+    ``verified_rate`` is over the **verifiable** ones only, and ``unverifiable`` is
+    reported beside it, so a run on a machine with no mirror reads as "nothing was
+    checked" rather than as a pass or a failure."""
+    reasons: dict[str, int] = {}
+    for c in checks:
+        if c.reason:
+            reasons[c.reason] = reasons.get(c.reason, 0) + 1
+    verified = sum(1 for c in checks if c.status == "verified")
+    broken = sum(1 for c in checks if c.status == "broken")
+    unver = sum(1 for c in checks if c.status == "unverifiable")
+    checkable = verified + broken
+    return {
+        "checked": len(checks),
+        "verified": verified,
+        "broken": broken,
+        "unverifiable": unver,
+        "verified_rate": round(verified / checkable, 4) if checkable else None,
+        "reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1])),
+        "broken_examples": [{"node": c.node_id, "cite": c.cite, "reason": c.reason}
+                            for c in checks if c.status == "broken"][:10],
+    }
+
+
 def _keys(retrieved: list, gq: GoldenQuery, store: Store) -> list:
     if gq.match == "name":
         return [(n.name if (n := store.get_node(nid)) else nid) for nid in retrieved]
@@ -121,34 +283,46 @@ def reciprocal_rank(retrieved_keys: list, expected: list) -> float:
 
 
 def evaluate(store: Store, golden: list[GoldenQuery], *, k: int = 10,
-             retriever: Retriever | None = None) -> dict:
+             retriever: Retriever | None = None, verify: bool = False) -> dict:
     """Run every golden query and aggregate precision@k / recall@k / MRR — plus a
     **cost** dimension (estimated tokens to return the answer, and precision per
     1k tokens), so "route to the cheapest sufficient source" becomes measurable.
 
     ``retriever`` defaults to the FTS baseline (``make_fts_retriever(store)``).
+
+    ``verify`` additionally checks every returned node's ``file:line`` against the
+    checkout (see :func:`verify_citations`). It is off by default because it does
+    filesystem work proportional to the results and needs the mirror present, and
+    because a metric nobody can reproduce offline should not be in the headline
+    numbers by default.
     """
     if retriever is None:
         retriever = make_fts_retriever(store)
     per = []
+    all_checks: list[CitationCheck] = []
     for gq in golden:
         # fetch a few extra so recall isn't capped by k when expected has many ids
         retrieved = retriever(gq.query, max(k, len(gq.expected)), gq.kind, gq.repo)
         keys = _keys(retrieved, gq, store)
         rr = reciprocal_rank(keys, gq.expected)
         tokens = _result_tokens(store, retrieved[:k]) if store is not None else 0
-        per.append({
+        row = {
             "query": gq.query,
             "precision@k": precision_at_k(keys, gq.expected, k),
             "recall@k": recall_at_k(keys, gq.expected, k),
             "rr": rr,
             "hit": rr > 0,
             "est_tokens": tokens,
-        })
+        }
+        if verify and store is not None:
+            checks = verify_citations(store, list(retrieved[:k]))
+            all_checks.extend(checks)
+            row["citations"] = citation_summary(checks)
+        per.append(row)
     n = len(per) or 1
     mean_prec = sum(p["precision@k"] for p in per) / n
     mean_tokens = sum(p["est_tokens"] for p in per) / n
-    return {
+    out = {
         "k": k,
         "n": len(per),
         "precision@k": round(mean_prec, 4),
@@ -161,3 +335,13 @@ def evaluate(store: Store, golden: list[GoldenQuery], *, k: int = 10,
                                     if mean_tokens else 0.0),
         "per_query": per,
     }
+    if verify:
+        # Deduplicated: one node cited by five queries is one citation, and counting it
+        # five times would let a single popular symbol carry the whole rate.
+        seen, unique = set(), []
+        for c in all_checks:
+            if c.node_id not in seen:
+                seen.add(c.node_id)
+                unique.append(c)
+        out["citations"] = citation_summary(unique)
+    return out

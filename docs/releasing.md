@@ -51,15 +51,29 @@ pip install -e ".[release]"        # build + twine
 3. **Update `CHANGELOG.md`:** move the items under `## [Unreleased]` into a new
    `## [X.Y.Z] - YYYY-MM-DD` section.
 
-4. **Commit + tag** (annotated) and push:
+4. **Commit and push `main` first. Then wait for `ci.yml` to go green on that exact
+   commit. Only then push the tag.**
 
    ```bash
    git add src/contextlake/__init__.py CHANGELOG.md
    git commit -m "chore(release): X.Y.Z"
-   git tag -a vX.Y.Z -m "contextlake X.Y.Z"
    git push origin main
+
+   # wait for the full Python matrix to finish on the commit you just pushed
+   gh run list --workflow=ci.yml --commit "$(git rev-parse HEAD)"
+
+   git tag -a vX.Y.Z -m "contextlake X.Y.Z"
    git push origin vX.Y.Z
    ```
+
+   The order is not stylistic. Both `release.yml` and `binaries.yml` open with a
+   gate that asks the API for a **completed** `ci.yml` run on the tagged commit and
+   refuses to publish otherwise. Push the tag while CI is still running and that
+   gate reads `missing`, both workflows fail immediately, and every real job is
+   skipped. Nothing is broken and nothing is published: re-run the two failed runs
+   once CI is green (`gh run rerun <id> --failed`) and they proceed normally. This
+   is the gate doing its job, and it is easy to trip because the tag push is fast
+   and the matrix is not.
 
 5. **Build and validate** the distribution:
 

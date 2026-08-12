@@ -132,6 +132,31 @@ source" becomes a number, not a vibe. Score any retriever with `--retriever fts|
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.
 
+### Are the citations real?
+
+Those metrics answer one question: did the right node come back? They say nothing about whether the
+`file:line` it carries still points at that symbol, and the citation is what an agent is actually told to
+go and read. A wrong citation is worse than a miss, because it looks like an answer.
+
+`--verify-citations` opens every returned node's file at its recorded line and checks the symbol's name is
+there:
+
+```console
+$ contextlake kb eval --golden queries.json --verify-citations
+Citations: 178/180 verified (98.9%) of 184 distinct nodes
+  4 unverifiable (no local checkout for the repo)
+  name_absent: 2
+    src/billing/refund.py:88  (name_absent)
+```
+
+Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
+(the file shrank under a stale index), `name_absent` (the line exists, the symbol is not on it),
+`no_citation` (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
+this machine is reported as **unverifiable** and kept out of the rate, so a run without the mirror reads as
+"nothing was checked" rather than as a pass.
+
+It is off by default: it does filesystem work proportional to the results and needs the checkout present.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)

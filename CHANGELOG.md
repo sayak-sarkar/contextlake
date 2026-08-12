@@ -5,6 +5,42 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`kb eval --verify-citations` checks that a cited `file:line` actually contains the symbol.**
+  Every retrieval metric here answered one question -- did the right node come back? None asked
+  whether the citation attached to it still points at that symbol, and the citation is the product:
+  an agent is not handed a node id, it is told to go read `src/thing.cpp:412`. A wrong citation is
+  worse than a miss, because it looks like an answer.
+
+  Failures are named, not counted: `file_missing` (the graph outlived the file),
+  `line_out_of_range` (the file shrank under a stale index), `name_absent` (the line is there, the
+  symbol is not on it), `no_citation` (a symbol node with no file or line at all). A repository
+  whose recorded clone is not on this machine is **unverifiable** and stays out of the rate, so a
+  run without the mirror reports "nothing was checked" rather than a pass. Off by default: it does
+  filesystem work per result and needs the checkout.
+
+  Measured on a large legacy C/C++ tree, all 48,556 citable nodes: **48,552 verified, 4 broken**.
+  Two things worth knowing came out of that run rather than out of the feature.
+
+  **It found a bug in the checker, in the good sense.** SQL table citations verified at 7.7%. Every
+  failure had the name absent case-sensitively and present on exactly the cited line
+  case-insensitively, because `kb/sql.py` casefolds DDL object names on purpose -- SQL identifiers
+  are case-insensitive and foreign-key attribution matches on the normalised form. The citations
+  were right; the comparison was wrong. It is now case-insensitive for languages whose identifiers
+  are, keyed on the node's language rather than its kind, and emphatically not global: in C++
+  `Draw` and `draw` are different symbols.
+
+  **And it contradicted its own design note.** The two-line window either side of `line_start`
+  exists because a definition's start line can precede its name (a C++ return type on its own line,
+  a decorator above a `def`). Measured, widening from 0 to 2 reclaims **one node in 3,000**, and 5
+  reclaims nothing further. The comment now carries that number instead of the story. The four
+  remaining failures all sit in one file with the name exactly 3 lines below the cited line, which a
+  window of 3 would paper over -- left at 2 on purpose, because tuning a check until it passes is
+  how a check becomes decoration.
+
 ## [7.1.0] - 2026-08-12
 
 **Grounding, and the cost of 7.0.0's bigger graphs.** Three of these follow directly from 7.0.0

@@ -1286,6 +1286,10 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
                    help="which retriever to score (default: fts; semantic/hybrid "
                         "need embeddings)")
     p.add_argument("--limit", type=_COUNT, default=_S, help="k for precision@k (default 10)")
+    p.add_argument("--verify-citations", action="store_true", default=_S,
+                   help="also check every returned node's file:line still contains that "
+                        "symbol on disk — retrieval metrics say the right node came back, "
+                        "this says the citation an agent is told to go read is real")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text "
                         "(for CI: parse a metric and gate on a threshold)")

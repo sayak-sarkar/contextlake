@@ -29,7 +29,7 @@ def cmd_eval(args) -> int:
     golden_path = getattr(args, "golden", None)
     if not golden_path:
         usage = ("contextlake kb eval --golden FILE.json [--limit K] "
-                 "[--retriever fts|semantic|hybrid] [--json]")
+                 "[--retriever fts|semantic|hybrid] [--verify-citations] [--json]")
         if as_json:
             print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
         else:
@@ -69,7 +69,8 @@ def cmd_eval(args) -> int:
             factory = (kb_eval.make_semantic_retriever if retr_kind == "semantic"
                        else kb_eval.make_hybrid_retriever)
             retriever = factory(store, vs, embedder)
-        result = kb_eval.evaluate(store, golden, k=k, retriever=retriever)
+        result = kb_eval.evaluate(store, golden, k=k, retriever=retriever,
+                                  verify=bool(getattr(args, "verify_citations", False)))
     finally:
         if vs is not None:
             vs.close()
@@ -88,4 +89,19 @@ def cmd_eval(args) -> int:
         mark = style.ok() if p["hit"] else style.fail()
         log(f"  {mark} {p['query'][:60]:60s} P={p['precision@k']:.2f} "
             f"R={p['recall@k']:.2f} rr={p['rr']:.2f}")
+
+    cit = result.get("citations")
+    if cit:
+        rate = ("n/a" if cit["verified_rate"] is None
+                else f"{cit['verified_rate'] * 100:.1f}%")
+        head = (f"Citations: {cit['verified']}/{cit['verified'] + cit['broken']} "
+                f"verified ({rate}) of {cit['checked']} distinct nodes")
+        log(style.ok(head) if cit["broken"] == 0 else style.warn(head))
+        if cit["unverifiable"]:
+            # Said out loud rather than folded into the rate: these were not checked.
+            log(f"  {cit['unverifiable']} unverifiable (no local checkout for the repo)")
+        for reason, count in cit["reasons"].items():
+            log(f"  {reason}: {count}")
+        for ex in cit["broken_examples"]:
+            log(f"    {style.fail()} {ex['cite'] or ex['node']}  ({ex['reason']})")
     return 0
