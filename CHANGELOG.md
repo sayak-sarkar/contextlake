@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Every cited node now says whether the file moved under it.** The staleness this package tracked
+  was keyed on the head commit and the parser version — right for the graph as a whole, and blind to
+  the case that bites hardest: an agent editing files *between* index runs, inside the same commit.
+  The graph says `line 88`, twenty lines get inserted above it, and the answer still says 88. A
+  confidently wrong citation is worse than a miss, because the agent goes and reads it.
+
+  Every node an MCP tool returns carries **`citation_status`** — `verified`, `stale`, or
+  `unverifiable` — plus a `citation_note` when it is not verified. The answer is still returned
+  either way: the guard **discloses**, it never withholds a result. `unverifiable` is a real third
+  state and not a polite `verified`: no local checkout, an unreadable file, or a repo carrying no
+  index timestamp all mean nothing was checked.
+
+  Two stages, because either alone is useless. The gate is one `stat()` per **distinct file** in a
+  response, against the repo's `indexed_at`; only files that really were written after indexing
+  escalate to a confirming read, which is `eval.verify_citations` **called rather than
+  reimplemented**, so "does this citation still hold" keeps one definition and gains a second
+  caller. A gate alone would fire on everything (a `git checkout` moves mtimes on identical files);
+  a confirmation alone would read a file per node.
+
+  Measured on 43 nodes across 10 real files: **+1.7% on a full tool call when nothing changed**,
+  +28.6% in the worst case where every file was modified, about 1.5 tokens per node. Past 32
+  confirming reads in one request the rest are reported `stale` with `modified_after_index` rather
+  than quietly passed — a budget nobody is told about reads as a clean bill of health for work that
+  never ran.
+
 - **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
   records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
   the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It

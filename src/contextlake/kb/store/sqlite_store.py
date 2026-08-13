@@ -222,6 +222,21 @@ class SqliteStore(Store):
         ).fetchone()
         return row["parser_version"] if row else None
 
+    def get_repo_indexed_at(self, repo_id: str) -> str | None:
+        """When this repo was last indexed, as written by :meth:`mark_indexed`.
+
+        The stale-slice guard's baseline: every file whose mtime is newer than this was
+        written after the graph was built, so any line number the graph holds for it is a
+        candidate for having moved. None for a repo that was registered but never indexed
+        (``upsert_repo`` does not write the column) and for a repo id that does not
+        exist -- both are "no baseline", which the guard reports as *unverifiable*, never
+        as fine.
+        """
+        row = self.conn.execute(
+            "SELECT indexed_at FROM repos WHERE repo_id=?", (repo_id,)
+        ).fetchone()
+        return row["indexed_at"] if row else None
+
     def list_repos(self) -> list[Repo]:
         rows = self.conn.execute("SELECT * FROM repos ORDER BY repo_id").fetchall()
         return [

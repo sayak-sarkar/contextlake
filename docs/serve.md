@@ -321,6 +321,41 @@ is not a positive integer is ignored rather than fatal, whichever of the two it 
 (`resolve_tool_concurrency`): this is a performance knob on a server your editor launches, and
 refusing to start over a typo in a shell profile is worse than serving at the default.
 
+## Every cited node says whether the file moved under it
+
+The staleness contextlake tracked until now is per **repo**: has the head commit or the parser
+version moved since this graph was built ([Keep it fresh](keep-fresh.md)). That is the right
+question for the graph as a whole and it is blind to the one that bites hardest in practice, an
+agent editing files *between* index runs, inside the same commit. The graph says
+`src/billing/refund.py:88`, twenty lines get inserted above it, and the answer still says 88. A
+confidently wrong citation is worse than a miss, because the agent goes and reads it.
+
+Every node a tool returns therefore carries **`citation_status`**, decided against the file on disk
+as the answer is built:
+
+| value | what it means |
+|---|---|
+| `verified` | the file has not been written since the repo was indexed |
+| `stale` | it has, and the line number may have moved. The **file is still the right one**, so find the symbol by name |
+| `unverifiable` | the citation could not be checked at all: no local checkout, an unreadable file, or a repo that carries no index timestamp |
+
+When the status is not `verified` a **`citation_note`** says which of those it is, in a sentence
+meant for the agent reading it. `unverifiable` is not a polite `verified`: it means nothing was
+checked, and the two are kept apart for the same reason `kb eval --verify-citations` keeps them
+apart ([Semantic search](semantic-search.md#are-the-citations-real)). The answer is still returned
+either way: the guard discloses, it never withholds a result or refuses.
+
+**What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
+really were written after indexing escalate to a confirming read, which asks the same question
+`--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
+costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
+the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request
+the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
+budget nobody is told about would read as a clean bill of health for work that never ran.
+
+The fields are `null` on surfaces that do not run the guard, which again is not a synonym for fine:
+the dashboard reads the graph directly and does not install a probe.
+
 ## Once connected
 
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or

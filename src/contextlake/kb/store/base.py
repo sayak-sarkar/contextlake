@@ -49,6 +49,22 @@ class Store(ABC):
     def get_repo_parser_version(self, repo_id: str) -> str | None:
         """The parser version of the repo's last index, or None if unstamped."""
 
+    def get_repo_indexed_at(self, repo_id: str) -> str | None:
+        """ISO-8601 timestamp of the repo's last index, or None when unstamped.
+
+        Kept off :class:`~contextlake.kb.model.Repo` for the same reason as
+        ``get_repo_parser_version`` above: only ``mark_indexed`` writes the column, so a
+        model field would be writable-looking and silently read-only on the
+        ``upsert_repo`` path.
+
+        This is the baseline the stale-slice guard compares file mtimes against (see
+        ``store/drift.py``), which is why it is **concrete with a None default** rather
+        than abstract: a backend that cannot answer must degrade to "I could not check"
+        rather than fail to instantiate, and None is already the value that means exactly
+        that everywhere this is read.
+        """
+        return None
+
     @abstractmethod
     def get_meta(self, key: str) -> str | None: ...
 

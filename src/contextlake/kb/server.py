@@ -25,6 +25,7 @@ import re
 import secrets
 import threading
 from collections import deque
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Literal
 
@@ -36,6 +37,21 @@ from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
 from .security import sanitize_label
 from .store.base import Store
+from .store.drift import DriftProbe
+
+# The stale-slice guard's per-request scope (see store/drift.py).
+#
+# A ContextVar rather than a parameter threaded through eleven call sites, for one
+# reason that decides it: `ask` calls find_definition/find_callers/blast_radius as bare
+# functions, so a parameter would have to be plumbed through every internal caller too,
+# and the first one anybody forgot would silently serve unchecked citations that look
+# checked. Set once by the tool wrapper below, read by `_node_out`, reset in a finally.
+#
+# Unset means "the guard did not run on this surface" -- NOT "the citations are fine".
+# The dashboard imports `_node_out` directly and gets exactly that, which is why the
+# fields are null there rather than "verified".
+_DRIFT_PROBE: ContextVar[DriftProbe | None] = ContextVar("contextlake_drift_probe",
+                                                        default=None)
 
 # Transports that open a socket, and so need authenticating. The values are the
 # SDK's own transport names, not the CLI's (`kb serve --transport http` maps to
@@ -141,7 +157,12 @@ _NEEDS_SYMBOL = ("Pass the symbol as `node_id` or `name` -- either a node id "
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
     "(source file + verified date) and confidence-tagged: treat EXTRACTED edges as "
-    "ground truth and verify INFERRED/AMBIGUOUS ones against the cited file."
+    "ground truth and verify INFERRED/AMBIGUOUS ones against the cited file. "
+    "Every cited node carries citation_status, checked against the file on disk as the "
+    "answer is built: 'verified' = the file has not been written since indexing, "
+    "'stale' = it has and the line number may have moved (the file is still the right "
+    "one -- find the symbol by name), 'unverifiable' = the file could not be checked at "
+    "all, which is NOT the same as fine."
 )
 
 
@@ -190,6 +211,23 @@ class NodeOut(BaseModel):
     # whose relation its name describes, so no result ever carries both.
     edge_file: str | None = None
     edge_line: int | None = None
+    # WHETHER THE FILE STILL LOOKS LIKE WHAT WAS INDEXED, decided per response against
+    # the file on disk (see store/drift.py). "verified" | "stale" | "unverifiable".
+    #
+    # The staleness this package tracked until now was keyed on the head commit and the
+    # parser version, which is right for derived artefacts and blind to the case that
+    # actually bites: a developer or an agent editing files BETWEEN index runs. The line
+    # number above then points at whatever moved into its place, and every other field
+    # here still reads as authoritative.
+    #
+    # Three values, never two. `unverifiable` is not a polite `verified`: it means the
+    # file could not be stat'd or the repo carries no index timestamp, so nothing was
+    # checked. Null means the guard did not run at all (no citation on this node, or a
+    # surface that does not install a probe) -- also not a synonym for fine.
+    citation_status: str | None = None
+    # The disclosure in words, populated only when the status is not "verified", so a
+    # clean result does not pay for a sentence that says nothing.
+    citation_note: str | None = None
 
 
 class EdgeOut(BaseModel):
@@ -509,9 +547,16 @@ def _node_out(n: Node, *, score: float | None = None,
     instead, for relations that are not calls: a `depends_on` edge's provenance is the
     manifest line declaring the dependency, an `inherits` edge's is where the base
     class is named. Naming either one a "call_line" would be a plausible-looking lie.
+
+    This is also the single funnel every NodeOut passes through, which is why the
+    stale-slice guard hangs off it: one place to weigh the citation, and no verb can
+    forget to. The probe is per-request and comes from the ambient context rather than
+    an argument (see `_DRIFT_PROBE`); when there is none, the citation fields stay null.
     """
     s = sanitize_label
     attrs = getattr(n, "attrs", None) or {}
+    probe = _DRIFT_PROBE.get()
+    check = probe.check(n) if probe is not None else None
     return NodeOut(
         id=s(n.id), repo=s(n.repo), kind=s(n.kind), name=s(n.name),
         qualified_name=s(n.qualified_name) or None, file=s(n.file) or None,
@@ -527,6 +572,15 @@ def _node_out(n: Node, *, score: float | None = None,
                    if edge and as_edge_provenance else None),
         edge_line=(edge.provenance.source_line
                    if edge and as_edge_provenance else None),
+        citation_status=check.status if check else None,
+        # Not passed through `sanitize_label` like every field above it, and the
+        # difference is the point: those carry indexed repository content, which is
+        # hostile input, while this is one of a handful of fixed strings this package
+        # wrote itself, with nothing interpolated into it. Sanitising it would buy
+        # nothing and would silently truncate at MAX_LABEL_LEN the day a note grows
+        # past 256 characters -- a disclosure cut off mid-sentence is a worse failure
+        # than the one it was defending against.
+        citation_note=check.note if check else None,
     )
 
 
@@ -628,8 +682,18 @@ def build_server(
     def bounded_tool(fn):
         @functools.wraps(fn)
         def guarded(*args, **kwargs):
-            with _tool_slots:
-                return fn(*args, **kwargs)
+            # One stale-slice probe per call over the wire, and only over the wire:
+            # its caches (one stat per distinct file, one verdict per node) are only
+            # sound for the instant this request is answered, because the whole point
+            # is that the file may have changed a second ago. Set here rather than in
+            # each tool so `ask`, which fans out to several bare tool functions, shares
+            # a single probe instead of re-statting the same files per leg.
+            token = _DRIFT_PROBE.set(DriftProbe(store))
+            try:
+                with _tool_slots:
+                    return fn(*args, **kwargs)
+            finally:
+                _DRIFT_PROBE.reset(token)
 
         mcp.add_tool(guarded)
         return fn
