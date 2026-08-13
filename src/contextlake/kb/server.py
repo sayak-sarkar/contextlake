@@ -37,7 +37,7 @@ from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
 from .security import sanitize_label
 from .store.base import Store
-from .store.drift import DriftProbe
+from .store.drift import Cited, DriftProbe
 
 # The stale-slice guard's per-request scope (see store/drift.py).
 #
@@ -305,6 +305,13 @@ class BlastHit(BaseModel):
     # How many same-named definitions this reference could have meant (None when
     # the store predates the stamp). "1 of 5" is a fact; "ambiguous" alone is not.
     name_candidates: int | None = None
+    # The same disclosure `NodeOut` carries, for the same reason: `file`/`line` above
+    # are a citation, and this says whether the file has been written since indexing.
+    # A hit is not a `Node`, so it reaches the probe through `drift.Cited` rather than
+    # through `_node_out` -- one verb silently omitting the field would read as
+    # "checked and fine" beside every verb that has it.
+    citation_status: str | None = None
+    citation_note: str | None = None
 
 
 class BlastRadiusOut(BaseModel):
@@ -580,6 +587,31 @@ def _node_out(n: Node, *, score: float | None = None,
         # nothing and would silently truncate at MAX_LABEL_LEN the day a note grows
         # past 256 characters -- a disclosure cut off mid-sentence is a worse failure
         # than the one it was defending against.
+        citation_note=check.note if check else None,
+    )
+
+
+def _blast_hit(h) -> BlastHit:
+    """One :class:`~contextlake.kb.impact.ImpactHit` as a wire result.
+
+    Separate from :func:`_node_out` because a hit is not a node: it carries the hop
+    count and the traversed relation, and its citation is already on it rather than
+    needing a store lookup. It goes through the same drift probe all the same, via
+    :class:`~contextlake.kb.store.drift.Cited`, so ``blast_radius`` is not the one verb
+    that hands back a ``file`` and a ``line`` with nothing said about whether they still
+    hold. An absent disclosure beside twenty present ones reads as a clean bill of health.
+    """
+    s = sanitize_label
+    probe = _DRIFT_PROBE.get()
+    check = probe.check(Cited(id=h.id, repo=h.repo, kind=h.kind,
+                              file=h.file, line_start=h.line)) if probe is not None else None
+    return BlastHit(
+        id=s(h.id), repo=s(h.repo), kind=s(h.kind), name=s(h.name),
+        hop=h.hop, via=s(h.via), confidence=h.confidence,
+        file=s(h.file) if h.file else None, line=h.line,
+        via_file=s(h.via_file) if h.via_file else None,
+        via_line=h.via_line, name_candidates=h.name_candidates,
+        citation_status=check.status if check else None,
         citation_note=check.note if check else None,
     )
 
@@ -1054,13 +1086,7 @@ def build_server(
         return BlastRadiusOut(
             seed=nid, hops=hops, total=len(hits), truncated=truncated,
             note=(f"Blast radius of {node_id!r}{why}." if why else None),
-            hits=[BlastHit(id=sanitize_label(h.id), repo=sanitize_label(h.repo),
-                           kind=sanitize_label(h.kind), name=sanitize_label(h.name),
-                           hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence,
-                           file=sanitize_label(h.file) if h.file else None, line=h.line,
-                           via_file=sanitize_label(h.via_file) if h.via_file else None,
-                           via_line=h.via_line, name_candidates=h.name_candidates)
-                  for h in hits])
+            hits=[_blast_hit(h) for h in hits])
 
     def _cluster_is_stale(page: str, namespace: str) -> bool:
         """Whether a cluster page describes members that have since moved on.

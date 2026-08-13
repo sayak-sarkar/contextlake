@@ -277,6 +277,37 @@ def test_clean_result_on_the_wire_says_verified_and_carries_no_note(store):
     assert node["citation_note"] is None
 
 
+def test_blast_radius_hits_are_disclosed_too(store, clone):
+    """`blast_radius` returns `ImpactHit`, not `Node`, so it bypasses `_node_out` and was
+    the one verb handing back a file and a line with nothing said about either.
+
+    That is worse than it sounds: an agent seeing `citation_status` on every other verb
+    reads its absence here as "checked, fine" rather than as "not checked". The gap is
+    invisible in isolation and only shows up beside the verbs that have the field, which
+    is exactly why it needs a test rather than a reading."""
+    body = "\n".join(f"# padding {i}" for i in range(20)) + "\ndef alpha():\n    return 1\n"
+    (clone / SOURCE).write_text(body, encoding="utf-8")
+    os.utime(clone / SOURCE, ns=_at(+3600))
+    # `beta` has no citation of its own; `alpha` calls it, so alpha is the hit, and
+    # alpha's citation is the one that just moved.
+    res = asyncio.run(_call(build_server(store), "blast_radius", {"node_id": "nofile"}))
+    assert res.is_error is False
+    [hit] = res.structured_content["hits"]
+    assert hit["id"] == "n1"
+    assert hit["file"] == SOURCE and hit["line"] == 1     # still cited
+    assert hit["citation_status"] == "stale"
+    assert hit["citation_note"] == _NOTES["name_absent"]
+
+
+def test_blast_radius_hit_on_an_untouched_file_says_verified(store):
+    """The other half: the field is populated, not merely present-when-broken. Without
+    this, wiring that returned None on the happy path would pass the test above."""
+    res = asyncio.run(_call(build_server(store), "blast_radius", {"node_id": "nofile"}))
+    [hit] = res.structured_content["hits"]
+    assert hit["citation_status"] == "verified"
+    assert hit["citation_note"] is None
+
+
 def test_probe_is_per_request(store, clone):
     """Two calls, one file, and the file changes between them: the second call must not
     serve the first call's verdict. The caches are only sound for the instant the request

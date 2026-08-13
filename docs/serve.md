@@ -356,6 +356,11 @@ budget nobody is told about would read as a clean bill of health for work that n
 The fields are `null` on surfaces that do not run the guard, which again is not a synonym for fine:
 the dashboard reads the graph directly and does not install a probe.
 
+`blast_radius` returns hits rather than nodes and carries the same two fields, so no verb hands
+back a `file` and a `line` with nothing said about whether they still hold. `contextlake kb steer`
+writes the same three-value explanation into the generated agent skills, so an agent that reads
+only its steering files still knows what a `stale` result means.
+
 ## Once connected
 
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or

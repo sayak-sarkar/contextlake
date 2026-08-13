@@ -27,6 +27,18 @@ AGENTS.md). Before grepping or guessing:
    are enabled).
 4. Open the cited files and read them — never describe code you have not read.
 
+Every result carries `citation_status`, checked against the file on disk as the answer
+is built:
+
+- `verified` — the file has not been written since the graph was indexed.
+- `stale` — it has, and the **line number may have moved**. The file is still the right
+  one: find the symbol by name rather than trusting the line, and say so if you quote it.
+- `unverifiable` — the citation could not be checked at all (no local checkout, an
+  unreadable file). This is **not** a quieter `verified`: nothing was checked.
+
+A missing `citation_status` means the guard did not run on that surface, which is also
+not the same as fine.
+
 Treat the graph as the starting point and the source files as the source of truth.""",
     },
     {

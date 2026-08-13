@@ -148,6 +148,29 @@ def parse_indexed_at(stamp: str | None) -> int | None:
     return int(dt.timestamp() * 1_000_000_000)
 
 
+@dataclass(frozen=True)
+class Cited:
+    """The five fields :meth:`DriftProbe.check` reads, for a result that is not a ``Node``.
+
+    ``blast_radius`` returns :class:`~contextlake.kb.impact.ImpactHit`, which carries the
+    same citation a node does and spells the line ``line`` rather than ``line_start``.
+    Adapting here rather than re-fetching the node keeps the guard's cost at what it
+    claims: the hit already holds the citation, and ``blast_radius`` already paid the
+    ``get_node`` that produced it.
+
+    It exists so that "every cited result says whether its file moved" has no exceptions.
+    A single verb quietly returning ``file`` and ``line`` with no ``citation_status`` is
+    the shape this package keeps having to fix: the field's absence reads as "checked and
+    fine" to anything that only looks at the ones that are present.
+    """
+
+    id: str
+    repo: str
+    kind: str
+    file: str | None
+    line_start: int | None
+
+
 @dataclass
 class ProbeStats:
     """What the guard actually did, so "bounded" is a number rather than a claim."""

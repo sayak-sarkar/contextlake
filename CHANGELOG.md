@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than quietly passed — a budget nobody is told about reads as a clean bill of health for work that
   never ran.
 
+  `blast_radius` carries the fields too. It returns hits rather than nodes, so it bypasses the
+  funnel every other verb goes through and would have been the one verb handing back a `file` and a
+  `line` with nothing said about either — and an absent disclosure beside twenty present ones reads
+  as "checked, fine". `kb steer` writes the three-value explanation into the generated agent skills
+  as well, so an agent that reads only its steering files still knows what `stale` means.
+
 - **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
   records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
   the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It
