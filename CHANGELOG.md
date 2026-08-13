@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **"This is a timeout, not an empty history" was printed for things that were not timeouts.**
+  The ownership walk can fail three ways, and all three collapsed into one boolean; the caller then
+  narrated every one of them as the slowest. A path that is not a git repository exits `128` in
+  **three milliseconds**, and the warning claimed a 30-second timeout that never happened. The
+  sentence exists specifically to stop one misreading, and it was creating another.
+
+  Found by reading the output of a real site deploy, where it fired seven times over the bundled
+  sample fleet, which is not a git repository at all. Had one of those been a genuine timeout it
+  would have read identically.
+
+  The three causes are now distinct. A real timeout and an unrunnable `git` each say so in their
+  own words; "not a repository" is silent, because it is the ordinary state of an indexed tree that
+  was never a clone, it is already visible as an empty owners list, and warning per repository per
+  request is what buried the other two. A pair of tests pins both directions, and they capture at
+  the `log` seam rather than through `caplog` or `capsys`: `logging_setup` sets `propagate = False`,
+  so `caplog.text` is always empty here, and a `capsys` assertion passes or fails on whether an
+  earlier test installed a stream handler. Both were written and both were wrong before this landed.
+
 ## [7.4.0] - 2026-08-13
 
 ### Added

@@ -59,6 +59,62 @@ def test_empty_for_non_repo(tmp_path):
     assert compute_owners(tmp_path / "nope") == []
 
 
+
+def _warnings(monkeypatch, fn) -> str:
+    """Everything the call under test passed to `log`, as one string.
+
+    Not `caplog`: `logging_setup` sets `propagate = False` on the `contextlake` logger,
+    so caplog's root handler never sees these records and every assertion built on
+    `caplog.text` passes vacuously. Not `capsys` either -- whether the message also
+    reaches stdout depends on whether an earlier test in the file installed a stream
+    handler, which makes the assertion depend on test ORDER rather than on behaviour.
+    Both were tried here and both were wrong. Patching the seam the module itself calls
+    tests the decision (which cause is named) and leaves the transport to the tests that
+    own it.
+    """
+    said = []
+    monkeypatch.setattr("contextlake.kb.ownership.log",
+                        lambda msg, *a, **kw: said.append(str(msg)))
+    fn()
+    return "\n".join(said)
+
+
+def test_a_non_repo_is_not_narrated_as_a_timeout(tmp_path, monkeypatch):
+    """The three ways the walk can fail were one boolean, and the caller narrated all of
+    them as the slowest one: "could not be read within 30s ... This is a timeout, not an
+    empty history." A path that is not a git repository exits 128 in THREE MILLISECONDS.
+
+    So the message asserted a cause nobody observed, in a sentence written specifically to
+    stop a different misreading. It fired seven times in one site deploy, over a bundled
+    sample fleet that is not a git repository at all -- and had it ever been a real
+    timeout, it would have read identically.
+    """
+    assert "timeout" not in _warnings(monkeypatch, lambda: compute_owners(
+        tmp_path / "not-a-clone")).lower(), (
+        "a non-repository was reported as a timeout: the warning names a cause that was "
+        "never measured")
+
+
+def test_a_real_timeout_is_still_narrated_as_one(repo, monkeypatch):
+    """The pair. Silencing the non-repo case must not silence the case the message was
+    written for, which is the failure that actually costs a user 30 seconds."""
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    ownership._CACHE.clear()
+    real = ownership.subprocess.run
+
+    def timing_out(cmd, *a, **kw):
+        if "log" in cmd:
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout", 30))
+        return real(cmd, *a, **kw)
+
+    monkeypatch.setattr(ownership.subprocess, "run", timing_out)
+    said = _warnings(monkeypatch, lambda: ownership.compute_owners(repo))
+    assert "timeout" in said.lower(), (
+        "the one failure worth 30 seconds of a user's time went unreported")
+
+
 def test_cmd_owners_cli_lists_contributors(repo, capsys):
     _commit(repo, "a.py", 3, "Alice", "alice@x.io", "2026-05-01 10:00:00 +0000")
     with pytest.raises(SystemExit) as e:

@@ -110,16 +110,24 @@ def compute_owners(repo_path, subpath: str | None = None, *,
 
     fmt = "%x1f%an%x1f%ae%x1f%at"
 
-    def _walk(since_days: float | None) -> tuple[list, bool]:
-        """``(rows, ok)``. ``ok`` is False when git could not be asked at all -- a
-        timeout, a spawn failure, a non-zero exit.
+    def _walk(since_days: float | None) -> tuple[list, bool, str]:
+        """``(rows, ok, reason)``. ``ok`` is False when git could not be asked at all.
 
-        The distinction is the whole point. The first version returned a bare list, so
-        the caller's ``bounded or unbounded`` could not tell "this repo genuinely has no
-        commits in the window" (a fast, correct empty) from "the walk timed out" (a
+        The ok/not-ok distinction drives control flow. The first version returned a bare
+        list, so the caller's ``bounded or unbounded`` could not tell "this repo genuinely
+        has no commits in the window" (a fast, correct empty) from "the walk timed out" (a
         30-second failure). It therefore ran the *unbounded* walk after a timeout, which
         is strictly more work on a repository that had just proved it cannot finish the
-        cheaper one. Measured on real clones: 60.1 seconds, two timeouts back to back."""
+        cheaper one. Measured on real clones: 60.1 seconds, two timeouts back to back.
+
+        ``reason`` exists because ``ok`` alone was being *narrated* as a timeout. Every
+        one of the three failures collapsed into ``False``, and the caller then printed
+        "could not be read within 30s ... This is a timeout, not an empty history" for
+        all of them. A path that is not a git repository exits 128 in three
+        milliseconds, and the warning claimed a 30-second timeout that never happened --
+        stating a cause nobody observed, in a message written specifically to stop a
+        different misreading. Seen 7 times in one site deploy over the bundled sample
+        fleet, which is not a git repository at all."""
         cmd = ["git", "-C", str(repo_path), "log", "--no-merges",
                f"--format={fmt}", "--numstat"]
         if since_days is not None:
@@ -135,24 +143,28 @@ def compute_owners(repo_path, subpath: str | None = None, *,
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True,
                                   errors="replace", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return [], False, "timeout"
         except (OSError, subprocess.SubprocessError):
-            return [], False
+            # git is not installed, or could not be spawned at all.
+            return [], False, "git_unavailable"
         if proc.returncode != 0:
-            return [], False
-        return list(_parse_log(proc.stdout)), True
+            # Overwhelmingly: not a git repository. Exits 128, in milliseconds.
+            return [], False, "not_a_repo"
+        return list(_parse_log(proc.stdout)), True, ""
 
     # Bounded first, then fall back. The fallback is not defensive padding: a repo whose
     # newest commit predates the window returns NOTHING from the bounded walk, and
     # answering "no owners" for a dormant-but-real repository would be a worse bug than
     # the slowness this bound removes. Same prefer-then-fall-back shape as the
     # internal-linkage candidate filter in the parser.
-    rows, ok = _walk(_WALK_DAYS)
+    rows, ok, reason = _walk(_WALK_DAYS)
     if ok and not rows:
         # The bounded walk SUCCEEDED and found nothing, so this repo's newest commit
         # predates the window. That is the one case the unbounded fallback exists for:
         # answering "no owners" for a dormant-but-real repository would be worse than
         # the slowness the bound removes.
-        rows, ok = _walk(None)
+        rows, ok, reason = _walk(None)
     if not rows:
         # Cached either way, and that is the fix. Before this, a repo whose walk timed
         # out returned here without writing the cache, so every later request paid the
@@ -160,11 +172,20 @@ def compute_owners(repo_path, subpath: str | None = None, *,
         # this on every repo-detail request. The cache is per-process and keyed on HEAD,
         # so a restart or a new commit retries; that bounds how long a transient failure
         # can be remembered, which is what makes caching a failure acceptable here.
-        if not ok:
+        if reason == "timeout":
             log(style.warn(
                 f"owners: git history for {repo_path} could not be read within "
                 f"{timeout}s, so no owners are reported for this commit. This is a "
                 "timeout, not an empty history."))
+        elif reason == "git_unavailable":
+            log(style.warn(
+                f"owners: git could not be run for {repo_path}, so no owners are "
+                "reported. Install git, or ignore this if ownership is not wanted."))
+        # `not_a_repo` is deliberately silent. It is the ordinary state of an indexed
+        # tree that was never a clone (the bundled sample fleet, an extracted archive),
+        # it is already visible as an empty owners list, and warning per repository
+        # per request would bury the two failures above -- which is what happened when
+        # all three shared one message.
         if cache_key[3] is not None:
             if len(_CACHE) >= _CACHE_MAX:
                 _CACHE.pop(next(iter(_CACHE)))
