@@ -5986,6 +5986,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The dashboard's health panel re-walked every edge in the store on every request.** `lint_result`
+  parses each repo's shard and resolves both endpoints of every edge to find dangling ones, and the
+  panel called it per page load. Measured on a 39-repo store: **26.54 seconds**, for 1,613,081 edges,
+  repeated on every refresh of a page nothing had changed behind. It is now cached on the same
+  `(path, mtime_ns, size)` identity the shard cache already uses, so a warm request is stats only:
+  **0.00s**.
+
+  The cache is deliberately **store-wide, not per repo**. A per-repo cache invalidates more precisely
+  and would also let a stale count for one repo sit inside a single reported total beside a fresh one
+  for another, a quietly-mixed number, which is the class of bug this codebase keeps having to fix.
+
+  It also refuses to cache a run it could not fully observe: if any repo's shard cannot be stat'd, the
+  result is returned and **not** stored, because encoding "I could not see this" into a fingerprint is
+  how a cache becomes confident about a store it never read.
+
+  What was **not** done is worth recording. Computing this from SQLite instead would be faster still,
+  since the edges are already in a table, but the investigation behind this change observed a real
+  store whose shards had been deleted while the `edges` table held zero rows, where a SQL anti-join
+  answers "0 dangling edges" about a graph with no edges left. This changes *when* the walk happens,
+  never *what* it measures.
+
 - **Nothing checked that a documentation link still pointed at anything, so they rotted silently.**
   `site/build_docs.py` validated its own navigation and the Next-steps targets; the body text of every
   page went unchecked. That is how a pointer the CLI *printed at users* survived a restructure that

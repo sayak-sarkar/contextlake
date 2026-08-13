@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -13,6 +14,70 @@ from ._common import (
     _git_head,
     _open_store,
 )
+
+_lint_cache: dict[str, tuple] = {}
+_LINT_CACHE_MAX = 8   # a handful of stores per process; bounded so a long-lived server cannot grow
+
+
+def _invalidate_for_shard(_path_key: str) -> None:
+    """Drop everything when this process rewrites any shard.
+
+    The stat-based fingerprint already catches a rewrite in almost every case, but
+    "almost" is doing real work in that sentence: a rewrite landing in the same
+    nanosecond with an identical size would be invisible to it. This process knows
+    when it wrote, so it does not have to infer it. Clearing everything rather than
+    one entry is right because the fingerprint spans the whole store: a single
+    shard's rewrite invalidates the store-wide answer it contributed to, and the
+    cache holds at most eight of them.
+    """
+    _lint_cache.clear()
+
+
+_invalidator_registered = False
+
+
+def _ensure_invalidator_registered() -> None:
+    """Register once, lazily -- ``store.shards`` imports tree-sitter transitively in
+    some paths, and this module is imported by the CLI's help text."""
+    global _invalidator_registered
+    if _invalidator_registered:
+        return
+    from ..store.shards import register_shard_invalidator
+
+    register_shard_invalidator(_invalidate_for_shard)
+    _invalidator_registered = True
+
+
+def _lint_cache_key(store_dir) -> str:
+    return str(store_dir)
+
+
+def _store_fingerprint(store, store_dir, resolve_shard):
+    """Every repo's shard identity, or ``None`` if the answer must not be cached.
+
+    ``None`` means "do not cache this run", and it is returned whenever anything
+    could not be observed -- a repo whose shard cannot be stat'd at all. An
+    unobservable input must never be folded into a fingerprint that then looks
+    settled: that is how a cache starts serving a confident answer about a store it
+    could not actually see. Repos are sorted so the fingerprint does not depend on
+    the order the store happened to list them in.
+    """
+    try:
+        repos = store.list_repos()
+    except Exception:  # noqa: BLE001 - a health check must not fail on a store read
+        return None
+    parts = []
+    for r in sorted(repos, key=lambda r: r.id):
+        identity, _load = resolve_shard(store_dir, r.id)
+        if identity is None:
+            # No readable shard. That is a legitimate state (a repo indexed from a
+            # source, a shard deleted), and the walk below handles it -- but its
+            # absence is not something a stat can detect a change in, so the safe
+            # answer is to not cache rather than to encode "absent" as if it were
+            # a stable observation.
+            return None
+        parts.append((r.id, identity))
+    return tuple(parts)
 
 
 def lint_result(store, store_dir) -> dict:
@@ -41,7 +106,32 @@ def lint_result(store, store_dir) -> dict:
     those repositories really are uncitable.
     """
     from ..parse import PARSER_VERSION  # lazy: tree-sitter, and only for this check
-    from ..store.shards import read_shard
+    from ..store.shards import read_shard, resolve_shard
+
+    _ensure_invalidator_registered()
+
+    # Answer from cache when every shard is byte-for-byte the file we last walked.
+    # The dashboard calls this on EVERY request and the walk costs a full parse per
+    # repo plus a `get_node` per endpoint -- measured at seconds on a large store,
+    # paid again on each refresh of a page nobody had changed anything behind.
+    #
+    # Keyed on the same `(path, mtime_ns, size)` identity the shard cache already
+    # uses, for every repo at once: if any shard has been rewritten, the whole
+    # answer is recomputed. That is deliberately coarse. A per-repo cache would be
+    # cheaper to invalidate and would also let a stale count for repo A sit beside
+    # a fresh one for repo B in a single reported total, which is the kind of
+    # quietly-mixed number this codebase keeps having to fix.
+    #
+    # NOT computed from SQLite instead, though the edges are there and it would be
+    # faster still: a store was observed during this investigation whose shards had
+    # been deleted while `edges` held 0 rows, where a SQL anti-join answers
+    # "0 dangling edges" about a graph with no edges left. This cache changes WHEN
+    # the walk happens, never WHAT it measures.
+    fingerprint = _store_fingerprint(store, store_dir, resolve_shard)
+    if fingerprint is not None:
+        cached = _lint_cache.get(_lint_cache_key(store_dir))
+        if cached is not None and cached[0] == fingerprint:
+            return copy.deepcopy(cached[1])
 
     repos = store.list_repos()
     stale_repos: list[str] = []
@@ -87,7 +177,7 @@ def lint_result(store, store_dir) -> dict:
             if not _exists(e.src) or not _exists(e.dst):
                 dangling.append({"repo": r.id, "src": e.src,
                                  "relation": e.relation, "dst": e.dst})
-    return {"repos": len(repos), "checked": checked,
+    result = {"repos": len(repos), "checked": checked,
             "stale": len(stale_repos), "dangling": len(dangling),
             "parser_stale": len(parser_stale_repos),
             "empty": len(empty_repos), "unreadable": len(unreadable_repos),
@@ -98,6 +188,13 @@ def lint_result(store, store_dir) -> dict:
             "unreadable_repos": unreadable_repos,
             "parser_stale_repos": parser_stale_repos,
             "dangling_sample": dangling[:20]}
+    if fingerprint is not None:
+        # Copied in and out, so a caller that mutates the dict it was handed cannot
+        # corrupt the entry the next caller receives.
+        _lint_cache[_lint_cache_key(store_dir)] = (fingerprint, copy.deepcopy(result))
+        while len(_lint_cache) > _LINT_CACHE_MAX:
+            _lint_cache.pop(next(iter(_lint_cache)))
+    return result
 
 
 def cmd_lint(args) -> int:
