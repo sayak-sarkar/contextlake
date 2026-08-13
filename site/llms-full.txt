@@ -5986,6 +5986,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Nothing checked that a documentation link still pointed at anything, so they rotted silently.**
+  `site/build_docs.py` validated its own navigation and the Next-steps targets; the body text of every
+  page went unchecked. That is how a pointer the CLI *printed at users* survived a restructure that
+  had moved the section it named.
+
+  There is now a test that resolves every in-repo link and every `#anchor` on it, including the
+  absolute GitHub blob URLs README and QUICKSTART use so their links work on PyPI. External URLs are
+  deliberately not fetched: a test that reaches the network fails for reasons unrelated to the change
+  in front of you. It found two more dead anchors on its first run, changelog cross-references into
+  the dashboard guide, whose numbered sections had shifted underneath them, and both are repointed.
+
 - **Forty-three documentation defects, most of them a stated fact the code contradicts.** An audit of
   every page found 53; these are the 44 that needed no decision from anyone. The worst were the ones a
   reader would act on: `docs/install.md` documented parser version `3` when the shipped value is `4`,
@@ -8875,7 +8886,7 @@ spec-cli-simplification.md`.
   - `--llm-chat` mints the same per-launch token `--allow-mutations` uses, and every chat request while
     it's active must carry it -- a page other than this dashboard can't silently trigger a paid call. The
     free layer needs no token, same risk level as any other read-only `/api/*` route.
-  - See [`docs/dashboard.md` §11](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#11-chat).
+  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#12-chat).
 
 ## [2.59.1] - 2026-07-29
 
@@ -9011,7 +9022,7 @@ spec-cli-simplification.md`.
   duration only, so a concurrent CLI command sees a clean `409` instead of an
   interleaved write. New `kb/dashboard/mutations.py`. Verified against a real
   git repo (not mocks) end-to-end, including a live curl pass against the
-  playground store. See [dashboard.md §10](docs/dashboard.md#10-mutating-routes---allow-mutations).
+  playground store. See [dashboard.md §11](docs/dashboard.md#11-mutating-routes).
 
 - **Per-symbol ticket attribution.** `tracked_by` edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
