@@ -5986,6 +5986,8 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
 ### Added
 
 - **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
@@ -6000,8 +6002,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line while the index still reports success, which would cost a first-time contributor an hour. And
   it says what **not** to touch: the golden-query fixture and `PARSER_VERSION` should not move for a
   pure addition, with the cost of doing so stated.
-
-## [Unreleased]
 
 ### Fixed
 
