@@ -231,7 +231,7 @@ workflow on an otherwise-successful release:
 
 | Artefact | Produced by | What it covers |
 | --- | --- | --- |
-| CycloneDX SBOM, `contextlake-<version>.cdx.json` | `release.yml`, the SBOM job | The dependency closure of `contextlake[kb-full]`. **Not** `kb-fastembed` and **not** `llm-local`, so it does not span the Docker images or the binaries, which both carry `llm-local`. `security.yml`'s `pip-audit-resolved` is what watches that set |
+| CycloneDX SBOM, `contextlake-<version>.cdx.json` | `release.yml`, the SBOM job | The dependency closure of `contextlake[kb-full]`. **Not** `kb-fastembed`, **not** `kb-pdf` and **not** `llm-local`, so it does not span the Docker images or the binaries, which both carry `llm-local`. `security.yml`'s `pip-audit-resolved` is what watches that set |
 | SLSA build provenance on both images | `release.yml`, `provenance: true` on the image build | The image bytes pushed to ghcr.io. The images are also `cosign`-signed |
 | Sigstore build-provenance attestation on the three launchers | `binaries.yml`, `actions/attest-build-provenance` | The **launcher** only. The Python payload is fetched from PyPI on the user's machine at first run, after any signature here, so the attestation says nothing about it. `docs/install.md` states that limit to users too, and the release notes must not imply otherwise |
 

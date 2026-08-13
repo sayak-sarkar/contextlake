@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
+  records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
+  the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It
+  now reads a PDF's **text layer** through `pypdf`, behind a new optional `kb-pdf` extra imported
+  lazily, so nothing changes for anyone who never ingests one.
+
+  The refusals are the point. A PDF that yields nothing is never ingested as an empty document — an
+  empty node is indistinguishable from a real one in search results and in the wiki. Each of the four
+  ways it can decline says which one by name: the extra is missing (reported once per run, not once
+  per file), the file is over `max_bytes`, the PDF cannot be parsed, or it has **no text layer at
+  all** — a scanned page is reported as having none rather than silently ingested blank, because
+  contextlake does not OCR. Page numbers travel with the document as `pages` / `pages_read` /
+  `page_offsets`: a PDF's page number is what a line number is to source, so flattening it away would
+  lose the citation.
+
+  `kb-pdf` is deliberately **not** folded into `kb-full`, and `pypdf` rides in the `dev` extra as
+  well: the tests skip themselves when it is absent, and a CI job that skips them is green without
+  having exercised the feature at all.
+
 - **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
   contextlake's clearest measurable gap — 14 grammars against a competitor's 23 and another's 40 — and
   the architecture was never the obstacle: a grammar is a handful of table entries. What was missing

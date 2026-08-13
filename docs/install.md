@@ -79,6 +79,7 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
+| `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See

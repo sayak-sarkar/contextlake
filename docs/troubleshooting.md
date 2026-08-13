@@ -73,6 +73,30 @@ depends on.
 If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
 
+## `kb ingest` skipped my PDFs
+
+```
+files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (pypdf),
+  which is not installed. Install it with: pip install 'contextlake[kb-pdf]'.
+```
+
+Do that, then re-run the ingest. `[kb-pdf]` is a small pure-Python extra and is not part of
+`[kb-full]`, see [the extras table](install.md#the-extras-and-which-one-you-want).
+
+A different message means the PDFs were read and refused for a stated reason, one per file:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake
+  reads a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
+to ingest, and it declines rather than storing an empty document that would look like knowledge in
+search results. Run the file through an OCR tool of your choice first, or ingest the source
+document the PDF was made from. The other two refusals name themselves the same way: a PDF that
+cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
+you can raise on the source. See [Aggregating documents](connect-enrich.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+
 ## A Docker run fails with a permission error on the mount
 
 The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is

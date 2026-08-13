@@ -842,6 +842,7 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
+| `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
@@ -2376,6 +2377,44 @@ name = "handbook"
 path = "~/notes"
 include = ["*.md", "*.txt"]
 ```
+
+### PDFs: the text layer, and nothing pretending to be more
+
+Design docs, RFCs and architecture decisions genuinely arrive as PDFs, so the `files` source reads
+them as well. `*.pdf` is one of its default globs, and the text comes from the PDF's **text layer**
+via `pypdf`, which rides in its own extra so the core stays a single dependency:
+
+```bash
+pip install "contextlake[kb-pdf]"
+```
+
+`[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
+table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
+in it, a custom `include` replaces the defaults rather than adding to them.
+
+What it does **not** do is the load-bearing half. There is no OCR, no vision model and no network
+call. A scanned or image-only PDF has no text layer, and contextlake says so and stores nothing,
+rather than aggregating an empty document that would look like knowledge in search results and in
+the wiki:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
+  a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same: the extra not being installed (one line per run, naming the count and the
+install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
+file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
+use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
+it. Reading stops at the first page boundary past the cap and the document is kept and marked
+`truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
+`max_bytes` on the source to take more.
+
+Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
+document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character
+offset in the document's text where each page starts) in the `attrs` that land on its graph node.
+The document's `uri` stays the plain file path, so it is still a citable path on disk.
 
 **Writing a plugin** is just a class with `iter_documents()` and one entry point, no fork, no core
 dependency:
@@ -5901,6 +5940,30 @@ depends on.
 If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
 
+## `kb ingest` skipped my PDFs
+
+```
+files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (pypdf),
+  which is not installed. Install it with: pip install 'contextlake[kb-pdf]'.
+```
+
+Do that, then re-run the ingest. `[kb-pdf]` is a small pure-Python extra and is not part of
+`[kb-full]`, see [the extras table](install.md#the-extras-and-which-one-you-want).
+
+A different message means the PDFs were read and refused for a stated reason, one per file:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake
+  reads a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
+to ingest, and it declines rather than storing an empty document that would look like knowledge in
+search results. Run the file through an OCR tool of your choice first, or ingest the source
+document the PDF was made from. The other two refusals name themselves the same way: a PDF that
+cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
+you can raise on the source. See [Aggregating documents](connect-enrich.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+
 ## A Docker run fails with a permission error on the mount
 
 The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is
@@ -5989,6 +6052,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
+  records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
+  the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It
+  now reads a PDF's **text layer** through `pypdf`, behind a new optional `kb-pdf` extra imported
+  lazily, so nothing changes for anyone who never ingests one.
+
+  The refusals are the point. A PDF that yields nothing is never ingested as an empty document, an
+  empty node is indistinguishable from a real one in search results and in the wiki. Each of the four
+  ways it can decline says which one by name: the extra is missing (reported once per run, not once
+  per file), the file is over `max_bytes`, the PDF cannot be parsed, or it has **no text layer at
+  all**, a scanned page is reported as having none rather than silently ingested blank, because
+  contextlake does not OCR. Page numbers travel with the document as `pages` / `pages_read` /
+  `page_offsets`: a PDF's page number is what a line number is to source, so flattening it away would
+  lose the citation.
+
+  `kb-pdf` is deliberately **not** folded into `kb-full`, and `pypdf` rides in the `dev` extra as
+  well: the tests skip themselves when it is absent, and a CI job that skips them is green without
+  having exercised the feature at all.
 
 - **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
   contextlake's clearest measurable gap, 14 grammars against a competitor's 23 and another's 40, and

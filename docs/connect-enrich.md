@@ -151,6 +151,44 @@ path = "~/notes"
 include = ["*.md", "*.txt"]
 ```
 
+### PDFs: the text layer, and nothing pretending to be more
+
+Design docs, RFCs and architecture decisions genuinely arrive as PDFs, so the `files` source reads
+them as well. `*.pdf` is one of its default globs, and the text comes from the PDF's **text layer**
+via `pypdf`, which rides in its own extra so the core stays a single dependency:
+
+```bash
+pip install "contextlake[kb-pdf]"
+```
+
+`[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
+table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
+in it, a custom `include` replaces the defaults rather than adding to them.
+
+What it does **not** do is the load-bearing half. There is no OCR, no vision model and no network
+call. A scanned or image-only PDF has no text layer, and contextlake says so and stores nothing,
+rather than aggregating an empty document that would look like knowledge in search results and in
+the wiki:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
+  a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same: the extra not being installed (one line per run, naming the count and the
+install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
+file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
+use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
+it. Reading stops at the first page boundary past the cap and the document is kept and marked
+`truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
+`max_bytes` on the source to take more.
+
+Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
+document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character
+offset in the document's text where each page starts) in the `attrs` that land on its graph node.
+The document's `uri` stays the plain file path, so it is still a citable path on disk.
+
 **Writing a plugin** is just a class with `iter_documents()` and one entry point, no fork, no core
 dependency:
 
