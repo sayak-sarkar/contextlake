@@ -30,7 +30,7 @@
 - [Ask the graph](https://sayak.in/contextlake/ask-the-graph): Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.
 - [Serve (MCP)](https://sayak.in/contextlake/serve): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
 - [Dashboard](https://sayak.in/contextlake/dashboard): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
-- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
+- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.
 
 ## Operate it
 
@@ -53,6 +53,7 @@
 - [Formatting](https://sayak.in/contextlake/style-guide-formatting): Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.
 - [Word reference](https://sayak.in/contextlake/style-guide-reference): The house-style decision cache, before and after rewrites, and the A-to-Z term reference.
 - [Brand overview](https://sayak.in/contextlake/brand): contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, the palette, and the mark, with the full spec linked.
+- [Adding a language](https://sayak.in/contextlake/contributing-languages): The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.
 
 ## Source
 

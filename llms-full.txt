@@ -61,7 +61,8 @@ each layer above it is optional.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
-Each layer has its own guide: the mirror in **[Usage & config](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, the knowledge
+Each layer has its own guide: the mirror in **[Mirror repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**,
+settings in **[Configuration](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, the knowledge
 layer and serving in **[Knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, and the whole flow start to
 finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**.
 
@@ -94,8 +95,8 @@ If an install misbehaves, see
 (`GITLAB_TOKEN` with `read_api` + `read_repository`, or `GITHUB_TOKEN` /
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
 [`glab`](https://gitlab.com/gitlab-org/cli) works instead. The knowledge layer needs
-neither. Once installed, `contextlake`, `python -m contextlake`, and
-`python3 run-contextlake.py` are equivalent.
+neither. Once installed, `contextlake` and `python -m contextlake` are equivalent;
+`python3 run-contextlake.py` is a source-checkout launcher and is not part of the installed package.
 
 ## Quickstart: one repo, no setup
 
@@ -170,10 +171,19 @@ Run any command as `contextlake <command>`; each has scoped help via
 mirroring git repositories, `kb` for the knowledge layer, except `init`, `bootstrap`,
 `version`, `completion`, and `doctor`, which span both tiers or neither. Per-command docs live
 with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
-the **knowledge-layer** build commands (`kb index`, `kb embed`, `kb connect`, `kb wiki`, …) in
-**[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**; the query commands
+the **knowledge-layer** build commands one page each, `kb index` in
+**[index-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/index-code-graph.md)**,
+`kb connect`/`kb ingest`/`kb enrich` in
+**[connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**,
+`kb embed`/`kb eval` in
+**[semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**
+and `kb wiki` in
+**[generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**
+(with **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**
+as the map over all four); the query commands
 (`kb query`, `kb impact`, `kb owners`) in **[ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**;
 and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
+The full flag-by-flag list is **[cli-reference.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**.
 
 | Command | What it does |
 | --- | --- |
@@ -190,7 +200,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install) |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -200,15 +210,18 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 
-Global options apply to any command: `--dry-run` (preview without changing anything),
-`-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
-a TTY and plain when piped; set `NO_COLOR` to force-disable.
+Global options apply to any command: `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`.
+Two more read like globals and are not. `--dry-run` (preview without changing anything) belongs to
+the 8 `mirror` commands plus `bootstrap`, `doctor` and `kb forget`; `--version` belongs to the bare
+`contextlake` only, and `contextlake version` is the form that works everywhere. Pass either
+somewhere it does not exist and the command exits `2` and names the commands that do take it.
+Output is colorized on a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
-For runs nobody watches, the systemd timer in [`examples/`](examples/), cron, CI, there is a
+For runs nobody watches, the systemd timer in [`examples/`](https://github.com/sayak-sarkar/contextlake/tree/main/examples), cron, CI, there is a
 second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
 `--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
 is already scrubbed of workspace paths, group and repo names), and `--access-log`. See
-[Reading the console output](docs/console-output.md).
+[Reading the console output](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md).
 
 ## Knowledge layer
 
@@ -288,8 +301,17 @@ everything and opens in an air-gapped browser.
 - **[docs/install.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**, every install channel, upgrading, and uninstalling
 - **[docs/troubleshooting.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
 - **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
+- **[docs/cli-reference.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**, every command and flag, plus shell completion
+- **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
+- **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
 - **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, the mirror commands and branch safety
-- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki
+- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
+- **[docs/index-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/index-code-graph.md)**, `kb index`, and what the graph captures
+- **[docs/connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
+- **[docs/semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
+- **[docs/generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
+- **[docs/visualize.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualize.md)**, `kb graph`, all 11 formats and the C4 diagram
 - **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
 - **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
 - **[docs/keep-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keep-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
@@ -297,6 +319,8 @@ everything and opens in an air-gapped browser.
 - **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
+- **[docs/style-guide.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/style-guide.md)**, the documentation style guide (voice, structure, formatting, terms)
+- **[docs/brand.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/brand.md)**, palette, mascot, and asset usage
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
 
 ## License
@@ -535,10 +559,10 @@ agents already speak, so wiring contextlake into one is a config entry rather th
 integration. (That is an observation about the protocol, not a decision record; the codebase does
 not argue the case against an API of its own.)
 
-Twenty tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
-twenty-two, and register only when an embedder and a vector store both exist
+21 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
+23, and register only when an embedder and a vector store both exist
 (`build_server` in `src/contextlake/kb/server.py`). A server started without embeddings says so
-and serves the other twenty rather than failing.
+and serves the other 21 rather than failing.
 
 ### Why the network transports are authenticated and stdio is not
 
@@ -719,7 +743,7 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** The tool schemas (20, or 22 once embeddings exist) load once
+- **A fixed cost per agent session.** The tool schemas (21, or 23 once embeddings exist) load once
   whether or not a tool is called, which can be net-negative if the agent calls it for questions it
   does not help with.
 
@@ -778,8 +802,9 @@ environment you already manage.
   authenticated [`glab`](https://gitlab.com/gitlab-org/cli) works instead. Indexing a repo
   you already have on disk needs no token at all.
 
-None of the channels below need a C or C++ compiler. If a command starts building one, see
-[Troubleshooting](troubleshooting.md).
+None of the channels below need a C or C++ compiler. If an install starts building from source
+anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+[The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
 ## Install
 
@@ -803,8 +828,10 @@ command on your PATH, which is what you want for a tool rather than a library.
 mirror only, and it pulls exactly one dependency (`argcomplete`, for shell completion), so it
 stays viable on a locked-down machine.
 
-However you install it, `contextlake`, `python -m contextlake`, and
-`python3 run-contextlake.py` are equivalent entry points.
+However you install it, `contextlake` and `python -m contextlake` are equivalent entry points.
+`python3 run-contextlake.py` is a third one, but it only exists in a source checkout: the wheel
+declares a single console script and ships no top-level launcher, so it is not there after a
+`pip`, `pipx` or `uv` install.
 
 ### The extras, and which one you want
 
@@ -815,6 +842,7 @@ However you install it, `contextlake`, `python -m contextlake`, and
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
+| `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
@@ -849,6 +877,11 @@ the built-in CPU models (the embedder and a small wiki LLM), so it runs with no 
 API key, and no model download at runtime. Reach for it on locked-down or offline machines;
 the PyPI wheel stays the primary install. It runs as a non-root user.
 
+One thing the default image does **not** carry is the `sqlite-vec` ANN backend (`[kb-vec]`): it is
+built from `[kb,kb-local,llm-local]`. Semantic search still works there, on the pure-Python exact
+scan, which is the slower path on a large store. If that matters more to you than a baked-in wiki
+LLM, `:slim` is the tag that ships `kb-vec`.
+
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
@@ -875,8 +908,9 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published: no `openvino-genai`, no baked wiki-LLM model, a much
-smaller pull. Semantic search still works, because the embedder is pure Python. Point the
+A `:slim` tag is also published, built from `[kb,kb-local,kb-vec]`: no `openvino-genai`, no baked
+wiki-LLM model, a much smaller pull, and the `sqlite-vec` ANN backend the default image leaves out.
+Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
 ```bash
@@ -888,8 +922,8 @@ docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 If the machine has no Python at all, the release assets are self-contained launchers built
 with [PyApp](https://ofek.dev/pyapp/). The launcher bootstraps a private Python plus
 `contextlake[kb-full,llm-local]` into its own cache on first run, which needs network once;
-every run after that is instant. The bootstrap already points pip at the prebuilt CPU wheel
-index, so there is no compiler to install and nothing for you to pass.
+every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
+PyPI, so there is no compiler to install and nothing for you to pass.
 
 Three assets are published per release, one per build platform:
 
@@ -922,6 +956,10 @@ first run, which happens after any signature here. If you want the payload check
 with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
 [PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
 also publishes a CycloneDX SBOM listing that dependency closure.
+
+The SBOM does not close the gap on its own, either. Its subject is `contextlake[kb-full]`, while the
+launcher installs `contextlake[kb-full,llm-local]`, so the wiki-LLM runtime and everything under it
+is outside what the SBOM enumerates.
 
 ### From source
 
@@ -972,7 +1010,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 | Flag | Effect |
 | --- | --- |
 | `--fix` | Install every missing dependency the resolved config calls for |
-| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `[kb-local]` otherwise) |
 | `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
 | `--skip-interactive` | Never prompt: privileged commands are printed, not run |
 
@@ -1028,25 +1066,31 @@ insist on it.
 `contextlake kb index --force` still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.
 
-### Parser version `3` rebuilds every existing store
+### Parser version `4` rebuilds every existing store
 
-`PARSER_VERSION` is now `3`, which means **every store built before that release reports stale**,
-under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index` rebuilds all
-of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs what your
-first one did, once, rather than the near-instant no-op an unchanged workspace usually gets. Budget
-for it before you run it inside a hook or a CI job on a large mirror.
+`PARSER_VERSION` is now `4` (raised in 7.0.0), which means **every store built before that release
+reports stale**, under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index`
+rebuilds all of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs
+what your first one did, once, rather than the near-instant no-op an unchanged workspace usually
+gets. Budget for it before you run it inside a hook or a CI job on a large mirror.
 
-The bump earns that. Version `3` is language-aware name resolution
-(`_LANG_FAMILY` in `src/contextlake/kb/parse.py`): a `calls` or `inherits` reference no longer
-resolves to a same-named definition in an unrelated language, and an `AMBIGUOUS` edge now records
-how many candidates it was one of. That is what makes `kb impact` able to say a JavaScript
-`close()` is not the Python `close()` you meant, and to count how much of an answer rests on
-name-only matching (see [Ask the graph](ask-the-graph.md#see-what-breaks-kb-impact)).
+The bump earns that. Version `4` is the largest output change this stamp has ever covered
+(`src/contextlake/kb/parse.py`, the comment above `PARSER_VERSION`):
 
-The catch is that the fix lives in the parser, so it reaches an already-built store only when the
+- node ids became file- and line-independent, so **every id changed**, and a header and its `.cpp`
+  finally describe one symbol rather than two;
+- config keys, SQL and XML gained file nodes and `contains` edges;
+- five symbol kinds are emitted that never existed before: data members, macros, typedefs, enum
+  constants and file-scope variables;
+- `calls` edges are stored per call site rather than per caller/callee pair;
+- C++ internal linkage is honoured in both identity and resolution, so two files' `static` or
+  anonymous-namespace symbols stop merging into one.
+
+The catch is that all of it lives in the parser, so it reaches an already-built store only when the
 shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
-you to know it was needed: a graph carried forward untouched would keep answering with the old
-resolution, and every surface would keep calling it healthy.
+you to know it was needed: every change above is invisible to a commit-keyed check, so a graph
+carried forward untouched would keep answering with ids this build no longer produces, and every
+surface would keep calling it healthy.
 
 ## Uninstall
 
@@ -1067,6 +1111,13 @@ rm -f  ~/.contextlake.ini    # mirror config
 rm -rf ~/.cache/contextlake  # the mirror's repository-list cache
 # your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:
 # rm -rf ~/work
+```
+
+`~/.cache/contextlake` is only the default. If `XDG_CACHE_HOME` is set in your shell, the cache is at
+`$XDG_CACHE_HOME/contextlake` instead, so remove that path:
+
+```bash
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/contextlake"
 ```
 
 `~/.contextlake` covers the built-in CPU models too: they download to
@@ -1102,10 +1153,11 @@ The flags worth knowing when you write one of these by hand:
   Without it, pip sees the package installed and does nothing.
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
-  "no matching distribution" message. Name the one native package rather than using the
-  `:all:` token when you still want a source fallback for everything else.
-- **`--extra-index-url URL`** also looks for wheels at `URL`. This is what
-  `doctor --fix llm-local` adds for you.
+  "no matching distribution" message. Name the one native package when you still want a source
+  fallback for everything else; `--only-binary :all:` is the blunt version, for the row above where
+  a build has already failed and you do not know which package broke. `doctor --fix` always scopes
+  to a single package and never uses `:all:`, because forbidding a source fallback everywhere lets
+  one missing wheel anywhere fail the whole install.
 
 ## See also
 
@@ -1143,7 +1195,8 @@ pipx install "contextlake[kb-full]"
 `[kb-full]` is the batteries-included bundle: the knowledge layer plus the built-in CPU
 embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so semantic search works
 the moment you turn embeddings on. That gives you the `contextlake` command
-(`python -m contextlake` and `python3 run-contextlake.py` work too).
+(`python -m contextlake` works too; `python3 run-contextlake.py` is a source-checkout launcher and
+is not shipped in the package).
 
 Using pip, uv, Docker, or a standalone binary instead, or picking extras individually? Every
 channel, the extras table, upgrading, and uninstalling are on one page:
@@ -1260,8 +1313,11 @@ moved and never touches an in-progress working tree, so it's safe to run on a
 schedule. Use cron:
 
 ```cron
-*/30 * * * * contextlake bootstrap >> ~/.contextlake/refresh.log 2>&1
+*/30 * * * * contextlake --log-file ~/.contextlake/refresh.log bootstrap
 ```
+
+Use `--log-file`, not a `>>` shell redirect: the handler behind `--log-file` rotates itself
+(5 MB, 3 backups) and a redirect grows without limit until you notice.
 
 or the systemd user units in [`examples/`](examples/). See the
 [README](README.md) for the full command reference and configuration.
@@ -1779,7 +1835,13 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `group` | The group / org / workspace / owner to mirror (`gitlab_group` is its alias) | none | `your-org` |
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
 | `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
+| `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN` | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
+| `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it | `gitlab.com` | `gitlab.example.com` |
+| `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](usage.md)) | none, meaning every repository | `team/*,shared-libs` |
+| `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
+| `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
+| `dns_attempts` | DNS retry attempts, set alongside `dns_timeout` and subject to the same `RES_OPTIONS` rule | `3` | `5` |
 | `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
@@ -1906,6 +1968,12 @@ The repository is re-indexed under the id it was already filed as, never a secon
 name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
 checkout is gone, the error names the path it was indexed from.
 
+For a checkout that has no usable `origin`, or one you want filed under a different name, `--repo` sets
+the id explicitly: `contextlake kb index --source ./widgets --repo team/widgets`. Without it the id
+falls back to the directory name, which is exactly the fragile, path-dependent id this section exists to
+avoid, so name it once rather than living with a repo filed as `widgets` because that is what the folder
+happened to be called.
+
 ## Parallelism and noise-pruning
 
 Repositories are parsed across **worker processes** (CPU-bound work) while the SQLite store is written
@@ -1913,8 +1981,10 @@ serially from the parent. The `spawn` start method is used on every platform, so
 Linux, macOS, and Windows, with an automatic serial fallback if a worker pool can't start. It defaults to
 `cpu_count - 1` workers (capped at 8); set `[kb] index_workers` to tune it (`1` forces serial).
 
-The parser also **skips machine-generated and derived files** (`*.designer.cs`, `*.min.js`,
-`AssemblyInfo.cs`, and `@generated` / `<auto-generated>` headers) plus code files larger than `[kb]
+The parser also **skips machine-generated and derived files**: names like `*.designer.cs`, `*.min.js`
+and `AssemblyInfo.cs`, and any of four case-insensitive header markers in the first 2048 bytes,
+`<auto-generated`, `@generated`, `do not edit` and `code generated by`. That last pair catches more than
+it looks: a file whose banner just says "DO NOT EDIT" is skipped too. Also skipped are code files larger than `[kb]
 max_file_bytes` (5 MB). That's derived noise, not real source, and every skip is reported (no silent gaps).
 Set `[kb] skip_generated = false` or raise `max_file_bytes` to index them anyway. Discovery also skips
 **vendored nested repos**: an upstream clone carried inside the mirror with its own `.git` under a
@@ -1956,11 +2026,15 @@ either of them:
 Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
 interfaces, imports, an intra-repo **call graph**, and an **inheritance graph** (`inherits` edges for
 `extends` / `implements` / base classes), so "what extends `BaseController`?" is one hop, and changing a
-base class shows its subclasses in `blast_radius`. Every node kind and edge relation below is colored and
-styled the same way here, in `contextlake kb graph`, and in the dashboard:
+base class shows its subclasses in `blast_radius`. The diagram below imports its colors from the same
+module `contextlake kb graph` and the dashboard render with, so node kinds match everywhere. Edge
+relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `contains`, `depends_on`,
+`publishes`, `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`), while `inherits` and
+`references` ride the neutral default edge color, and `reads`, `writes` and `transitions_to`, which
+this page documents further down, are real edges the diagram does not show at all:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: node kinds (symbols like class/function/method, containers like file/module/package/repo, service surfaces like endpoint/topic, cross-source issue/page/design, and the namespace boundary) each with their color, and edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, inherits, references) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 40 node kinds in 9 bands (symbols, containers, service surfaces, data model, infrastructure, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
 
 ### Languages
@@ -1978,6 +2052,10 @@ parser registry is pluggable:
 
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
+
+Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
+entries. [Adding a language](contributing-languages.md) is the ordered recipe, with the verification
+commands that prove a new grammar works.
 
 #### C++ completeness
 
@@ -2007,7 +2085,8 @@ Resolution is repo-wide, so a block address defined identically in separate root
 example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS` edge; directory-scoped
 resolution is a future refinement. Render it with `contextlake kb graph --repo <repo> --format
 deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
-database/security/module), see [Visualize](visualize.md).
+database/security/other/module, where `other` catches any resource type none of the keyword lists
+claims), see [Visualize](visualize.md).
 
 ### Databases: SQL DDL
 
@@ -2039,8 +2118,10 @@ target already met.
 
 ### Architecture decisions (ADRs)
 
-A repo's own decision records, under common conventions (`docs/adr/`, `docs/decisions/`,
-`decisions/`, `adr/`, one file per decision), become first-class `adr` nodes in that repo's shard,
+A repo's own decision records become first-class `adr` nodes in that repo's shard. The match is any
+`.md` file with a directory segment named `adr`, `adrs` or `decisions` anywhere in its path, case
+insensitively, so `docs/adr/`, `docs/decisions/`, `decisions/`, `adrs/` and `architecture/adr/` all
+qualify, one file per decision. Each node takes its
 title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
 content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
 into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
@@ -2077,9 +2158,20 @@ answers "what code touches this table" out of the box.
 
 Two web-topology layers sit on top of the definitions.
 
-**HTTP endpoints** a repo exposes or calls (Express/Fastify/Nest, FastAPI/Flask, ASP.NET minimal-API, and
-Next.js App Router `route.ts` handlers) become shared `endpoint` nodes that join across repos into `flow`
-edges, from the caller repo to the exposer repo.
+**HTTP endpoints** a repo exposes or calls become shared `endpoint` nodes that join across repos into
+`flow` edges, from the caller repo to the exposer repo. Detection is regex-based and framework-targeted,
+so read the list as what is actually matched:
+
+- **Python**: FastAPI and Flask decorator routing (`@app.get("...")`, `@router.route("...")`).
+- **JavaScript and TypeScript**: the Express-shaped call form,
+  `app`/`router`/`api`/`server` `.get|.post|.put|.delete|.patch("...")`. Fastify code that happens to
+  use one of those variable names is caught incidentally. **NestJS is not supported**: its
+  `@Controller` / `@Get()` decorator routing matches nothing here.
+- **C#**: minimal-API `MapGet`/`MapPost`/… **and** attribute routing, `[HttpGet("...")]` and
+  `[Route("...")]`, so a conventional MVC or Web API controller is picked up too.
+- Next.js App Router `route.ts` handlers, via the file convention.
+
+Every one of these edges is `INFERRED` by construction, a likely undercount rather than an assertion.
 
 **Frontend routes** become repo-scoped, embeddable `route` nodes from three frameworks:
 
@@ -2090,7 +2182,8 @@ edges, from the caller repo to the exposer repo.
 | Angular | `Routes` tables | `redirectTo` skipped; lazy `loadChildren` captured as the mount path |
 
 The object-literal forms use a tree-sitter AST walk anchored on the route-table container (a
-`Routes`-typed declarator, or the array argument to `forRoot` / `provideRouter` / `create*Router`), so
+`Routes`-typed declarator, or the array argument to `RouterModule.forRoot` / `RouterModule.forChild` /
+`provideRouter` / `create*Router`), so
 nested `children` compose into full paths and bare `{path:...}` config objects are never mis-read as routes.
 
 > [!NOTE]
@@ -2284,6 +2377,44 @@ name = "handbook"
 path = "~/notes"
 include = ["*.md", "*.txt"]
 ```
+
+### PDFs: the text layer, and nothing pretending to be more
+
+Design docs, RFCs and architecture decisions genuinely arrive as PDFs, so the `files` source reads
+them as well. `*.pdf` is one of its default globs, and the text comes from the PDF's **text layer**
+via `pypdf`, which rides in its own extra so the core stays a single dependency:
+
+```bash
+pip install "contextlake[kb-pdf]"
+```
+
+`[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
+table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
+in it, a custom `include` replaces the defaults rather than adding to them.
+
+What it does **not** do is the load-bearing half. There is no OCR, no vision model and no network
+call. A scanned or image-only PDF has no text layer, and contextlake says so and stores nothing,
+rather than aggregating an empty document that would look like knowledge in search results and in
+the wiki:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
+  a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same: the extra not being installed (one line per run, naming the count and the
+install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
+file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
+use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
+it. Reading stops at the first page boundary past the cap and the document is kept and marked
+`truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
+`max_bytes` on the source to take more.
+
+Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
+document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character
+offset in the document's text where each page starts) in the `attrs` that land on its graph node.
+The document's `uri` stays the plain file path, so it is still a citable path on disk.
 
 **Writing a plugin** is just a class with `iter_documents()` and one entry point, no fork, no core
 dependency:
@@ -2505,6 +2636,20 @@ symbols going from unreachable to findable. If your tree is C++-heavy and you wo
 sharper ranking than the reach, `kb query --kind` narrows any single query, and the trade-off is recorded
 per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
 
+**Five more kinds are embedded, from outside the code itself**: frontend `route` nodes, SQL `table` and
+`view` definitions, Terraform `resource` nodes, and `adr` architecture decision records. That makes 17
+embeddable kinds in all, which is why
+[Index the code graph](index-code-graph.md) can promise that a route, a table or a decision record is
+semantically searchable, and it is worth knowing before you write off a natural-language query about
+your schema or your infrastructure as out of scope.
+
+`kb embed --limit N` caps how many nodes are embedded per repository in one pass: the first `N`
+embeddable nodes of each repo's shard, in shard order. Read it as a **sampling** knob, not a resumable
+one. It takes the same first `N` every time, it replaces that repo's vectors rather than adding to
+them, and a limited pass deliberately never stamps the repo as fully embedded, so nothing is skipped as
+up to date afterwards and a later plain `kb embed` does the whole repository. Use it to try the
+pipeline on a large fleet before committing to a full run, not to embed a repo in instalments.
+
 ## Which model?
 
 The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a
@@ -2638,8 +2783,10 @@ which is what makes publishing from a cheap local generator safe.
 
 Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
 machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables the tier
-inline and scopes generation to the named repo(s).
+`anthropic` | `cli` | `auto`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables
+the tier inline and scopes generation to the named repo(s). `auto` picks for you: a reachable local
+Ollama that already has the model pulled, else the built-in CPU model, else it skips the tier (see
+[Model providers](model-providers.md)).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
 (see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
@@ -2743,10 +2890,14 @@ covers only that module, not the repository as a whole. Subsystem pages live und
 `wiki/_modules/` and get their own `@wiki:<repo>::<module>` partition, so a natural-language
 question can land on a subsystem's own explanation, cited back to its own page file.
 
-Generation is capped at the 20 largest qualifying subsystems per run (largest first, by node
-count) so one `wiki` invocation on a very large repo stays bounded, a repo with far more than 20
-qualifying subsystems only gets pages for its 20 largest; the rest go unwritten across runs (the
-run logs how many were skipped, rather than going silent about it). When subsystem pages exist,
+Generation is capped at 20 subsystem pages per run, so one `wiki` invocation on a very large repo
+stays bounded. Which 20 depends on what is already on disk: subsystems with no page yet are taken
+first, in largest-first node-count order, and only then the already-paged ones. A repo's first run
+has no pages at all, so it degrades to exactly "the 20 largest"; every run after that works through
+the never-paged tail, which is how repeated `wiki` runs cover the whole repo instead of re-picking
+the same top 20 forever. The run logs how many are still waiting
+(`N qualifying modules, generating 20 this run (M deferred to a later run)`), rather than going
+silent about it. When subsystem pages exist,
 the whole-repo overview page's Architecture section names and briefly describes each one instead
 of trying to summarize their internals inline, and points the reader to its dedicated page. The
 overview page only picks this up the next time it's actually regenerated, though, a repo already
@@ -3830,6 +3981,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 |---|---|
 | `--serve` | Run it **live** against your store (everything on demand, no caps). |
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
+| `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
 | `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
 | `--open` | Open the result in your browser. |
@@ -3837,6 +3989,8 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
 | `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
+| `--host HOST` | `--serve` only: bind address (default `127.0.0.1`). See §11 for what a non-loopback host costs you. |
+| `--port PORT` | `--serve` only: bind port (default `8765`), so the default URL is `http://127.0.0.1:8765`. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -3886,7 +4040,8 @@ A repo's **Diagrams** tab renders the same Mermaid text `contextlake kb graph --
 always available), **Classes** (classes/interfaces/structs/enums and their methods),
 **States** (an entity's guarded state-machine transitions), **Data model** (SQL `table`/
 `view` definitions and their foreign keys), and **Deployment** (Terraform/HCL resources
-grouped by inferred category: network/compute/storage/database/security/module).
+grouped by inferred category: network/compute/storage/database/security/other/module, `other` being
+the fall-through for a resource type no keyword list claims).
 
 A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol as its
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
@@ -3921,6 +4076,10 @@ an endpoint, a topic), but a table/view definition is only ever known within the
 that defines it, so a file's read/write only ever resolves inside its own repo. Data
 flow is therefore always scoped to the repo you're looking at, never cross-repo.
 
+Data flow is also **live-only**. It is a separate fetch with its own row shape, and a `--site` export
+has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
+"(0)": nothing is missing from your graph, it just is not in the export.
+
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
 ## 7. Change impact (blast radius)
@@ -3950,6 +4109,36 @@ the candidates and asks you to narrow (a node id, or a name unique to one repo, 
 straight through); if there's no route within the hop limit, it says so plainly rather
 than showing an empty diagram.
 
+## 8b. Search
+
+The **Search** rail item is a lens in its own right, not just the box that feeds the other tabs.
+It has two modes, **Symbols** and **Semantic**, and a scope toggle that flips between the whole
+fleet and the repo you were last looking at. Each result row carries the symbol's kind, its
+qualified name and its repo; clicking the row opens that repo's anatomy tab, and each row also has
+its own **Blast** button so you can go straight from a search hit to its blast radius without a
+detour.
+
+Semantic mode is **live-only**: in a `--site` export it says so and points you at the running
+server. On a live server with no embedder wired up it does not fail either: it returns lexical
+matches and labels them as such, saying semantic is unavailable, so a result set never claims to be
+something it is not.
+
+## 8c. Health
+
+The **Health** rail item is the dashboard's view of the same audit `contextlake kb lint` performs.
+Four stat tiles (**Checked**, **Stale repos**, **Unreadable**, **Dangling edges**), and then, only
+when something is wrong, the detail:
+
+- **Stale repos**, whose HEAD moved since indexing. Each row links to the repo and shows the fix,
+  `contextlake kb index`.
+- **Unreadable repos**, whose checkout is gone. A separate tile from stale on purpose, because
+  re-indexing does not fix it; re-clone it or drop it from the store.
+- **Dangling edges**, a sample table of edges whose target node no longer exists.
+
+A clean store gets a single "Clear water" panel instead of empty tables. Unlike most of the
+dashboard, Health is in a `--site` export too, so a shared snapshot carries the same verdict the
+live server would have given at export time.
+
 ## 9. Generate a wiki
 
 No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
@@ -3977,7 +4166,7 @@ always visible, not tucked behind anything.
 **Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
-subsystem's own page, or "Whole repo, overview" to go back, without leaving the tab. The dropdown
+subsystem's own page, or the **Whole repo** option to go back, without leaving the tab. The dropdown
 only ever lists subsystems that actually have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
@@ -4418,6 +4607,51 @@ is not a positive integer is ignored rather than fatal, whichever of the two it 
 (`resolve_tool_concurrency`): this is a performance knob on a server your editor launches, and
 refusing to start over a typo in a shell profile is worse than serving at the default.
 
+## Every cited node says whether the file moved under it
+
+The staleness contextlake tracked until now is per **repo**: has the head commit or the parser
+version moved since this graph was built ([Keep it fresh](keep-fresh.md)). That is the right
+question for the graph as a whole and it is blind to the one that bites hardest in practice, an
+agent editing files *between* index runs, inside the same commit. The graph says
+`src/billing/refund.py:88`, twenty lines get inserted above it, and the answer still says 88. A
+confidently wrong citation is worse than a miss, because the agent goes and reads it.
+
+Every node a tool returns therefore carries **`citation_status`**, decided against the file on disk
+as the answer is built:
+
+| value | what it means |
+|---|---|
+| `verified` | the file has not been written since the repo was indexed |
+| `stale` | it has, and the line number may have moved. The **file is still the right one**, so find the symbol by name |
+| `unverifiable` | the citation could not be checked at all: no local checkout, an unreadable file, or a repo that carries no index timestamp |
+
+When the status is not `verified` a **`citation_note`** says which of those it is, in a sentence
+meant for the agent reading it. `unverifiable` is not a polite `verified`: it means nothing was
+checked, and the two are kept apart for the same reason `kb eval --verify-citations` keeps them
+apart ([Semantic search](semantic-search.md#are-the-citations-real)). The answer is still returned
+either way: the guard discloses, it never withholds a result or refuses.
+
+**What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
+really were written after indexing escalate to a confirming read, which asks the same question
+`--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
+costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
+the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request
+the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
+budget nobody is told about would read as a clean bill of health for work that never ran.
+
+**"One request" means one call over the wire, including every leg of an `ask`.** `ask` routes to
+several tools internally and they share one probe on purpose, so a file cited by three legs costs
+one `stat()` rather than three. The budget is shared for the same reason, which is worth knowing
+before reading it as per-verb.
+
+The fields are `null` on surfaces that do not run the guard, which again is not a synonym for fine:
+the dashboard reads the graph directly and does not install a probe.
+
+`blast_radius` returns hits rather than nodes and carries the same two fields, so no verb hands
+back a `file` and a `line` with nothing said about whether they still hold. `contextlake kb steer`
+writes the same three-value explanation into the generated agent skills, so an agent that reads
+only its steering files still knows what a `stale` result means.
+
 ## Once connected
 
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
@@ -4474,15 +4708,21 @@ search, and a minimap; it opens straight from `file://`:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
+Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. `--limit` (default
+`20`) caps how many seed nodes a `--name` or `--search` match contributes, before the walk starts, and
+the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
+only want a view of the first few". Bound the result
 with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
 every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
 nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (no cap by default, which is what the `html` and `dot` renderers want,
+leave unused), `--max-edges` (**`--repo` views only**, see the mode list below; no cap by default,
+which is what the `html` and `dot` renderers want,
 and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
 `deploymentdiagram` -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means it always renders, possibly truncated, never errors), and `--max-fanout` (a per-node cap that
+capping edges there means a `--repo` view always renders, possibly truncated, never errors. A **seeded**
+Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with `--hops` or
+`--max-nodes` instead), and `--max-fanout` (a per-node cap that
 stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
 pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
 is dropped is **logged**, never silently truncated.
@@ -4490,14 +4730,20 @@ is dropped is **logged**, never silently truncated.
 `--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
 to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
 outward from a seed, so passing those three with either of them has no effect. What each mode does
-take: a seeded view, all of them; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
+take: a seeded view, all of them except `--max-edges`, which the seeded path never receives, so it is
+accepted and then ignored; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
 `--overview`, `--max-nodes` alone.
 
 For a `--repo` view over `--max-nodes`, which nodes
-survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
+survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets
-a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.
+instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
+the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
+completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource` nodes), which made
+`erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
+dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
+and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
+arbitrary slice (see [The dashboard](dashboard.md)).
 
 ## Output formats
 
@@ -4507,7 +4753,9 @@ Output is chosen with `--format`:
   from `file://` with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
   by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
   the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
-  `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`. `--open` launches the
+  `breadthfirst`, `circle`, `grid`, `dagre`) in the page, set the initial one with `--layout`. `dagre` is
+  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
+  an HTML card instead of a dot. `--open` launches the
   browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
   the single-file export.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
@@ -4538,7 +4786,9 @@ Output is chosen with `--format`:
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
   text anywhere) renders an empty diagram with guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
-  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  definitions grouped by an inferred category
+  (network/compute/storage/database/security/other/module; a resource type matching none of the
+  keyword lists lands in `other` and gets its own subgraph),
   from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake kb graph --repo
   acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
@@ -4560,7 +4810,11 @@ Output is chosen with `--format`:
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
+pre-rendering all of it. With `--overview` it serves something larger: the whole cross-linked site,
+overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
+live counterpart of `--site`. It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so
+with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a request only when the
+`Host` header names the
 address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
 you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
@@ -4586,6 +4840,9 @@ compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered 
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
 `statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
 with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
+`--format graphml` and `--format cypher` are neither rejected nor honoured: `--c4` falls through to the
+HTML renderer and, because the output path is only defaulted for `--format html`, prints that HTML to
+stdout. Pass `--output <path>` if you hit it, and use `dot` or `json` for a real C4 export.
 
 ### C1: external systems
 
@@ -4679,8 +4936,8 @@ a single file. contextlake answers the same question from its index in one bound
 
 ## The one fixed cost
 
-Any session pays for the tool schemas once, whether or not it calls a tool: **20 of them on a
-graph-only store** (19 unconditional plus the `ask` router) and **22 once embeddings exist**, all
+Any session pays for the tool schemas once, whether or not it calls a tool: **21 of them on a
+graph-only store** (20 graph tools plus the `ask` router) and **23 once embeddings exist**, all
 listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
 reaches for the server on questions it does not help with. There is no published token figure for it
 here for the reason at the top of the page; the recipe in
@@ -5244,8 +5501,12 @@ These work on every command, before or after it:
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
 | `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
 
-The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
-wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
+`--log-file`, `--log-format`, `--metrics-file`, `--redact` / `--no-redact` and `--access-log` exist
+for unattended operation, the systemd service + timer in `examples/`, a cron wrapper, CI, where
+nobody watches the run and what it leaves behind is all there is. The last two are not:
+`--plain` is a piping and TTY switch, and `--offline` is a locality guarantee you can turn on for a
+single run to prove one, or leave on permanently (its env-var form, `CONTEXTLAKE_OFFLINE=1`, is
+there for exactly that).
 [Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
 the metric names.
 
@@ -5263,7 +5524,7 @@ tier to reveal, and there is no top-level `contextlake --help-advanced` either.
 
 ## The command surface
 
-Thirty commands: 5 top-level, 8 under `mirror`, 17 under `kb`. `contextlake --help` groups them by
+32 commands: 5 top-level, 8 under `mirror`, 19 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -5306,11 +5567,11 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
-| `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
+| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualize.md) |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
@@ -5418,8 +5679,8 @@ what answers the retired flat spellings: `contextlake fetch` no longer parses, s
 other unknown command and is pointed at `mirror fetch`.
 
 Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
-`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
-treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
+`✗ Unknown flag: '--work-d' (on 'kb index')` rather than silently guessing you meant `--workspace`: a
+prefix is treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
 
 A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
 letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:
@@ -5667,7 +5928,7 @@ is wrong, so it is almost always faster than reading down this page:
 flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
   Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
-  Q -->|"a compiler error"| C["llm-local tries<br/>to compile C++"]
+  Q -->|"a compiler error"| I
   Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
   Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
   Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
@@ -5689,7 +5950,14 @@ leaving you a half-working one. Check with
 
 The extra also pulls a tree-sitter grammar per supported language, several with native
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
-than broken.
+than broken. **This is the only place a compiler error can come from**, so if a build starts and
+fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]` is an
+ordinary wheel, see the next section). Either install your platform's build tools and let it
+finish, or pin the install to wheels only:
+
+```bash
+pip install -U --only-binary :all: "contextlake[kb-full]"
+```
 
 ## The built-in wiki LLM is not installed
 
@@ -5716,6 +5984,49 @@ depends on.
 
 If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
+
+## `kb ingest` skipped my PDFs
+
+```
+files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (pypdf),
+  which is not installed. Install it with: pip install 'contextlake[kb-pdf]'.
+```
+
+Do that, then re-run the ingest. `[kb-pdf]` is a small pure-Python extra and is not part of
+`[kb-full]`, see [the extras table](install.md#the-extras-and-which-one-you-want).
+
+A different message means the PDFs were read and refused for a stated reason, one per file:
+
+```
+files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake
+  reads a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+```
+
+That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
+to ingest, and it declines rather than storing an empty document that would look like knowledge in
+search results. Run the file through an OCR tool of your choice first, or ingest the source
+document the PDF was made from. The other two refusals name themselves the same way: a PDF that
+cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
+you can raise on the source. See [Aggregating documents](connect-enrich.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+
+## A Docker run fails with a permission error on the mount
+
+The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is
+not uid 1000 the container cannot write the store. Pass your own ids:
+
+```bash
+docker run -u "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+It fails rather than falling back on purpose. Before 5.1.0 the store went inside the container
+instead, so the run looked like it succeeded and the index vanished when the container exited.
+
+## There is no standalone binary for my platform
+
+Three assets are published per release: Linux x86-64, macOS Apple silicon, and Windows x86-64.
+macOS on Intel and Linux on arm64 are not among them, and no fourth asset is hiding under a
+different name. Install with `pipx`, `pip` or `uv` on those platforms, or use the Docker image.
+See [The standalone binary](install.md#the-standalone-binary).
 
 ## `contextlake doctor --fix` says the environment is externally managed
 
@@ -5750,7 +6061,7 @@ Symptoms specific to mirroring a fleet, and what to do about each.
 
 | Symptom | What to do |
 | --- | --- |
-| **"Cache file not found"** | Run `contextlake mirror fetch` first to populate the projects cache. |
+| **"No projects loaded, run 'fetch' first"** | Run `contextlake mirror fetch` to populate the projects cache. If instead you see "The cached project list covers only `--repos` …", the cache exists but was built at a narrower scope; the same `fetch` fixes it. A command allowed to fetch for itself prints "Cache not found or invalid, fetching fresh data…" and does it, so there is nothing to do on that path. |
 | **"Permission denied" during cloning** | Make sure `glab` is authenticated (`glab auth login`) and you can reach the repositories. |
 | **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
 | **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
@@ -5782,6 +6093,170 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [7.4.0] - 2026-08-13
+
+### Added
+
+- **Every cited node now says whether the file moved under it.** The staleness this package tracked
+  was keyed on the head commit and the parser version, right for the graph as a whole, and blind to
+  the case that bites hardest: an agent editing files *between* index runs, inside the same commit.
+  The graph says `line 88`, twenty lines get inserted above it, and the answer still says 88. A
+  confidently wrong citation is worse than a miss, because the agent goes and reads it.
+
+  Every node an MCP tool returns carries **`citation_status`**, `verified`, `stale`, or
+  `unverifiable`, plus a `citation_note` when it is not verified. The answer is still returned
+  either way: the guard **discloses**, it never withholds a result. `unverifiable` is a real third
+  state and not a polite `verified`: no local checkout, an unreadable file, or a repo carrying no
+  index timestamp all mean nothing was checked.
+
+  Two stages, because either alone is useless. The gate is one `stat()` per **distinct file** in a
+  response, against the repo's `indexed_at`; only files that really were written after indexing
+  escalate to a confirming read, which is `eval.verify_citations` **called rather than
+  reimplemented**, so "does this citation still hold" keeps one definition and gains a second
+  caller. A gate alone would fire on everything (a `git checkout` moves mtimes on identical files);
+  a confirmation alone would read a file per node.
+
+  Measured on 43 nodes across 10 real files: **+1.7% on a full tool call when nothing changed**,
+  +28.6% in the worst case where every file was modified, about 1.5 tokens per node. Past 32
+  confirming reads in one request the rest are reported `stale` with `modified_after_index` rather
+  than quietly passed, a budget nobody is told about reads as a clean bill of health for work that
+  never ran.
+
+  `blast_radius` carries the fields too. It returns hits rather than nodes, so it bypasses the
+  funnel every other verb goes through and would have been the one verb handing back a `file` and a
+  `line` with nothing said about either, and an absent disclosure beside twenty present ones reads
+  as "checked, fine". `kb steer` writes the three-value explanation into the generated agent skills
+  as well, so an agent that reads only its steering files still knows what `stale` means.
+
+- **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
+  records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
+  the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It
+  now reads a PDF's **text layer** through `pypdf`, behind a new optional `kb-pdf` extra imported
+  lazily, so nothing changes for anyone who never ingests one.
+
+  The refusals are the point. A PDF that yields nothing is never ingested as an empty document, an
+  empty node is indistinguishable from a real one in search results and in the wiki. Each of the four
+  ways it can decline says which one by name: the extra is missing (reported once per run, not once
+  per file), the file is over `max_bytes`, the PDF cannot be parsed, or it has **no text layer at
+  all**, a scanned page is reported as having none rather than silently ingested blank, because
+  contextlake does not OCR. Page numbers travel with the document as `pages` / `pages_read` /
+  `page_offsets`: a PDF's page number is what a line number is to source, so flattening it away would
+  lose the citation.
+
+  `kb-pdf` is deliberately **not** folded into `kb-full`, and `pypdf` rides in the `dev` extra as
+  well: the tests skip themselves when it is absent, and a CI job that skips them is green without
+  having exercised the feature at all. The floor is `pypdf>=5.0` because the suite was **run**
+  against 5.0.0, not because that is what happened to be installed while writing it.
+
+- **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
+  contextlake's clearest measurable gap, 14 grammars against a competitor's 23 and another's 40, and
+  the architecture was never the obstacle: a grammar is a handful of table entries. What was missing
+  was a written path. `docs/contributing-languages.md` is the nine numbered edits in the order a
+  contributor makes them, what each optional step costs if skipped, the verification commands with the
+  output that proves the grammar works, and a full worked example from a language already in the tree.
+
+  It names the pitfalls the code itself warns about rather than generic advice, the headline one being
+  a blanket `except` that turns a half-registered grammar into a single `skip <file>: parse error`
+  line while the index still reports success, which would cost a first-time contributor an hour. And
+  it says what **not** to touch: the golden-query fixture and `PARSER_VERSION` should not move for a
+  pure addition, with the cost of doing so stated.
+
+### Fixed
+
+- **The release checklist's own first step could not pass.** `docs/releasing.md` opened with
+  `ruff check .`, while `ci.yml`, `release.yml` and `.pre-commit-config.yaml` all lint
+  `src tests`. The repo-root launcher trips `S606` by design, so anyone following the checklist
+  literally hit a red gate CI does not have. Found by running the documented command instead of
+  the remembered one. A checklist whose first step fails gets skipped, which is worse than not
+  having one.
+
+- **A Scala file's node had no language glyph, and nothing noticed.** The lettermark map in the graph
+  viewer drifted from the parser's own language table: `scala` parses `.scala`/`.sc` and had no entry,
+  so its nodes rendered with no language marking at all, which reads as "this has no language" rather
+  than as a missing entry. Exactly the silent shape as the kind-colour drift fixed in 7.3.0, found the
+  same way, by comparing two lists by hand.
+
+  Both directions are now pinned by a test beside the kind-registry parity checks. The reverse
+  direction is deliberately loose: `c_sharp` is kept as an alias of the real id `csharp` for older
+  stores, so the test asserts the stray set is *exactly* the aliases chosen rather than banning strays,
+  and fails when a third appears without an explanation.
+
+- **A comment in the parser claimed `xml` was a node kind. It is not.** It is a *file* kind; the XML
+  extractor emits `config_key`, and `xml` appears nowhere in the kind registry. The comment was
+  describing a real collision risk in the file-kind registry and used the word "kind" for both, which
+  had already misled one reader into believing a kind existed.
+
+- **The dashboard's health panel re-walked every edge in the store on every request.** `lint_result`
+  parses each repo's shard and resolves both endpoints of every edge to find dangling ones, and the
+  panel called it per page load. Measured on a 39-repo store: **26.54 seconds**, for 1,613,081 edges,
+  repeated on every refresh of a page nothing had changed behind. It is now cached on the same
+  `(path, mtime_ns, size)` identity the shard cache already uses, so a warm request is stats only:
+  **0.00s**.
+
+  The cache is deliberately **store-wide, not per repo**. A per-repo cache invalidates more precisely
+  and would also let a stale count for one repo sit inside a single reported total beside a fresh one
+  for another, a quietly-mixed number, which is the class of bug this codebase keeps having to fix.
+
+  It also refuses to cache a run it could not fully observe: if any repo's shard cannot be stat'd, the
+  result is returned and **not** stored, because encoding "I could not see this" into a fingerprint is
+  how a cache becomes confident about a store it never read.
+
+  What was **not** done is worth recording. Computing this from SQLite instead would be faster still,
+  since the edges are already in a table, but the investigation behind this change observed a real
+  store whose shards had been deleted while the `edges` table held zero rows, where a SQL anti-join
+  answers "0 dangling edges" about a graph with no edges left. This changes *when* the walk happens,
+  never *what* it measures.
+
+- **Nothing checked that a documentation link still pointed at anything, so they rotted silently.**
+  `site/build_docs.py` validated its own navigation and the Next-steps targets; the body text of every
+  page went unchecked. That is how a pointer the CLI *printed at users* survived a restructure that
+  had moved the section it named.
+
+  There is now a test that resolves every in-repo link and every `#anchor` on it, including the
+  absolute GitHub blob URLs README and QUICKSTART use so their links work on PyPI. External URLs are
+  deliberately not fetched: a test that reaches the network fails for reasons unrelated to the change
+  in front of you. It found two more dead anchors on its first run, changelog cross-references into
+  the dashboard guide, whose numbered sections had shifted underneath them, and both are repointed.
+
+- **Forty-three documentation defects, most of them a stated fact the code contradicts.** An audit of
+  every page found 53; these are the 44 that needed no decision from anyone. The worst were the ones a
+  reader would act on: `docs/install.md` documented parser version `3` when the shipped value is `4`,
+  and its justifying paragraph explained what version 3 had changed, so the page arguing for a
+  re-index described the wrong reason for it. The MCP tool count was wrong in four lines across two
+  files while a third file had it right. `README.md` taught two flags as global options that exit `2`
+  on most commands.
+
+  The two headline numbers were **re-measured on this tree** rather than copied out of the audit, and
+  the command count is a good example of why: the CLI exposes 21 `kb` keys but only **19 distinct
+  commands**, because `impact`/`blast-radius` and `owners`/`who-knows` are alias pairs sharing one
+  parser. Counting keys gives 34 commands; counting parsers gives 32.
+
+  Where the *code* looked like the real defect rather than the doc, a stale `--help` string, a flag
+  that is documented as global and is not, the documented behaviour was made to match what the code
+  does today and the defect was recorded separately, rather than changing behaviour inside a docs pass.
+  Eight such items are now on a list for the owner.
+
+- **The dashboard's repo page re-parsed the whole graph on every request, even when its answer was
+  already cached.** The derived-brief cache was keyed on the shard file's identity, and that identity
+  was obtained *from* the parse, so a hit saved the aggregation and never the parse. On a large graph
+  the parse is the request.
+
+  The shard layer gained a way to resolve and stat a shard **without** reading it, and the cached core
+  now carries the last three things a hit still needed from the file: the head commit, the parser
+  version, and the shard-derived half of the setup signals. A cache hit now touches the file's
+  metadata and nothing else.
+
+  Measured on a 306.8 MB shard, counting real parses rather than trusting the clock: **7.00s cold with
+  one parse, 0.03s warm with zero.** The cold path is unchanged, because that parse is real work.
+
+  Two invariants were kept deliberately, and both had a reason already written into the code. The file
+  is still observed **exactly once per call**, so a cache entry can never pair one observation's `head`
+  with another's `node_count`, a test pins that. And the **live-checkout** reads still run every call:
+  only the shard-derived half of the setup signals is cached, because freezing the live scan would
+  reintroduce precisely the staleness that scan exists to catch.
 
 ## [7.3.0] - 2026-08-13
 
@@ -8635,7 +9110,7 @@ spec-cli-simplification.md`.
   - `--llm-chat` mints the same per-launch token `--allow-mutations` uses, and every chat request while
     it's active must carry it -- a page other than this dashboard can't silently trigger a paid call. The
     free layer needs no token, same risk level as any other read-only `/api/*` route.
-  - See [`docs/dashboard.md` §11](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#11-chat).
+  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#12-chat).
 
 ## [2.59.1] - 2026-07-29
 
@@ -8771,7 +9246,7 @@ spec-cli-simplification.md`.
   duration only, so a concurrent CLI command sees a clean `409` instead of an
   interleaved write. New `kb/dashboard/mutations.py`. Verified against a real
   git repo (not mocks) end-to-end, including a live curl pass against the
-  playground store. See [dashboard.md §10](docs/dashboard.md#10-mutating-routes---allow-mutations).
+  playground store. See [dashboard.md §11](docs/dashboard.md#11-mutating-routes).
 
 - **Per-symbol ticket attribution.** `tracked_by` edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
@@ -11753,3 +12228,533 @@ rules, see the full [brand guidelines spec](https://github.com/sayak-sarkar/cont
 
 - [Documentation style guide](style-guide.md)
 - [The full brand guidelines spec](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)
+
+---
+
+# Adding a language
+Source: https://sayak.in/contextlake/contributing-languages
+
+# Adding a language
+
+contextlake reads source with tree-sitter, and a language it understands is a handful of table entries
+in one file plus a grammar package. This page is the ordered recipe: the nine edits, in the order to
+make them, the parts of the repo to deliberately leave alone, and the commands that prove your grammar
+works before you open a pull request.
+
+The parser's own module docstring states the contract: "adding a language = registering its grammar
+loader, file extensions, and a query in the tables below; the rest of the pipeline is
+language-agnostic". That is true of the graph core. The four steps around it (the dependency, the
+tests, the published count, and the regenerated site) are what turns a working parser into a shipped
+language.
+
+## Prerequisites
+
+- **A development checkout**, set up as [CONTRIBUTING.md](../CONTRIBUTING.md#getting-set-up)
+  describes. The knowledge layer is an optional extra, so you need `pip install -e ".[dev,kb]"`, not
+  the core install.
+- **A tree-sitter grammar on PyPI** for your language, published as a `tree-sitter-<lang>` wheel that
+  exposes a `language()` function. If no maintained wheel exists, that is the blocker to solve first;
+  contextlake does not vendor or compile grammars.
+- **A language id**, which is the key every table below is keyed on and the value written onto every
+  node's `lang` field. Use the plain lowercase language name (`kotlin`, `scala`, `php`).
+- **A sample file** in your language, twenty or thirty lines covering a class, a method, a free
+  function, an import, a call, and a base type. You will parse it repeatedly while writing the query.
+
+One check before you commit to an id. The parser cache and the extraction-kind registry are both keyed
+by string, and they were once the same variable, so a language named after a node kind silently
+returned the wrong object. Confirm your id is not already a kind:
+
+```bash
+python -c "from contextlake.kb.kinds import KIND_REGISTRY; print('mylang' in KIND_REGISTRY)"
+```
+
+`False` is the answer you want. `data`, `local`, `output`, `state`, `table`, `variable` and `view` are
+among the names already taken.
+
+## The nine edits
+
+Five of the nine are in one file, `src/contextlake/kb/parse.py`, and three of those five must land
+together or the language fails one file at a time without failing the run. Read
+[A partial registration is a silent skip](#a-partial-registration-is-a-silent-skip) before you start,
+because it is the reason this list is ordered the way it is.
+
+### 1. Declare the grammar dependency
+
+In `pyproject.toml`, find the `kb` optional extra and its tree-sitter block, commented "Code parsing:
+the tree-sitter runtime plus per-language grammar packages". Add your grammar to that list:
+
+```toml
+"tree-sitter-<lang>>=X.Y",
+```
+
+Pin the floor to the version whose `language()` entry point you actually import against, not to a
+house number. The existing pins vary for that reason. Nothing else needs editing: the `kb-full` extra
+is defined in terms of `kb`, so it inherits the grammar, and `make install` runs the same
+`pip install -e ".[dev,kb]"` that CI does.
+
+### 2. Map the file extensions
+
+In `parse.py`, add one `LANG_BY_EXT` entry per extension your language uses. Several extensions may
+map to one id, the way `.kt` and `.kts` both map to `kotlin`.
+
+If your language is a superset of one already covered, reusing the existing id is a legitimate choice
+that costs nothing else on this list. `.h`, `.cu` and `.cuh` are all read with the C++ grammar for
+exactly that reason, and the in-table comments explain what each of those decisions does and does not
+capture. Write the same kind of note if you make the same kind of call.
+
+Nothing downstream needs an edit. The extension filter behind `kb.toml`'s `languages` setting, the
+router that decides which extractor owns a file, and the walk that stamps `SourceFile.lang` all read
+this one table.
+
+### 3. Map node types to kinds
+
+`_DEF_TYPES[lang]` maps a tree-sitter node type to a contextlake node kind. Every value must be a key
+of `KIND_REGISTRY`; a value that is not fails the parity test in step 7 with a named error.
+
+Collapsing several syntactic forms into one kind is normal and precedented. Go's `type_spec` becomes
+`struct`, Ruby's `module` becomes `class`, Kotlin's `object_declaration` becomes `class`, and each of
+those carries a comment saying why. Write yours the same way.
+
+One subtlety is worth knowing before you choose: a function defined inside a definition whose kind is
+exactly `class` is promoted from `function` to `method`. Map your class-like node to anything else and
+its members stay kinded `function`, which is a quiet quality loss rather than an error.
+
+If your language is an alias of one already registered, alias the row rather than retyping it, the way
+`_DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]` does.
+
+### 4. Write the tree-sitter query
+
+`_QUERIES[lang]` holds a tree-sitter query string, compiled lazily on first use. **The capture-name
+vocabulary is closed.** The parser reads exactly five capture names and ignores everything else,
+without a warning:
+
+| Capture | What it produces |
+| --- | --- |
+| `@def` | a definition node, kinded through `_DEF_TYPES` |
+| `@def_qi` | a C++-style out-of-line qualified definition (`Type Class::method()`). No other language needs it |
+| `@import` | a `module` node and an `imports` edge |
+| `@call` | an unresolved call reference, resolved repo-wide after every file is parsed |
+| `@base` | an unresolved `inherits` reference |
+
+Write one pattern per real syntactic shape rather than one clever pattern that tries to cover several.
+The Kotlin query carries two separate `@base` patterns because a Kotlin supertype list holds two
+different shapes, a constructor invocation and a bare interface name, and one pattern would have
+silently dropped the other.
+
+Two normalisations are already applied to every `@base` capture, so you do not need to handle either:
+a generic supertype such as `Comparable<Order>` and a dotted one such as `com.example.Base` both
+reduce to the bare name. If your language has neither shape, the strips are no-ops.
+
+Alias a shared query the same way you aliased the kinds: `_QUERIES["tsx"] = _QUERIES["typescript"]`.
+
+### 5. Load the grammar
+
+`_language()` is an explicit `if`/`elif` chain of lazy imports ending in
+`raise ValueError(f"unsupported language: {lang}")`. Add a branch:
+
+```python
+elif lang == "<lang>":
+    import tree_sitter_<lang> as g
+    fn = g.language
+```
+
+**Keep the import inside the function.** The laziness is load-bearing: the core tier of contextlake
+must work with no tree-sitter installed at all, and two tests police that boundary.
+
+Read the grammar package before you write `fn = g.language`. Some expose more than one entry point:
+the TypeScript wheel provides `language_typescript` and `language_tsx`, and the PHP wheel provides
+`language_php`.
+
+The parser cache and the query cache need no change. Both are keyed by the same language id and pick
+your language up for free.
+
+### 6. Decide the interop family
+
+This step is a decision, and "no edit" is one of its valid answers.
+
+`_LANG_FAMILY` groups languages that may resolve `calls` and `inherits` references into each other's
+definitions. Name resolution is repo-wide and name-based, so without the grouping a Python
+`conn.close()` matched a JavaScript `close()`; the comment above the table records the measurement
+that forced it, 282 false positives on one real repo, precision 1 in 282.
+
+Add your language to a group **only if it genuinely interoperates** with the languages already in it.
+The existing groups are `js` (JavaScript, TypeScript, TSX), `c` (C and C++), and `jvm` (Java, Kotlin,
+Scala). A language absent from the table is its own group, which is exactly what you want for a
+language that does not share a runtime with anything else, and is why Python, Go, Rust, C#, Ruby and
+PHP are all absent.
+
+Getting this wrong in the permissive direction is the expensive error. The false edges it creates are
+stamped `INFERRED`, so they read as fact. When in doubt, leave it out.
+
+### 7. Add the parse tests
+
+Two edits in `tests/kb/test_kb_parse.py`, both required:
+
+1. **A `test_parse_<lang>()`** that calls `parse_source(repo, path, src, lang)` directly on a source
+   string and asserts what came back. `test_parse_kotlin` is the template worth imitating: it asserts
+   every stream the parser produces (nodes by kind, module nodes from imports, callee names, base
+   names) and, more importantly, it asserts the **negatives**. `"Order" not in by_kind["function"]`
+   and `"Order" not in base_names` are what catch a query that captures one node too many. Write one
+   negative per normalisation your language relies on.
+2. **The extension assertion.** Add your extensions to the tuple in
+   `test_lang_by_ext_covers_target_languages`, and add an explicit mapping assertion for a secondary
+   extension if you have one, the way `assert LANG_BY_EXT[".kts"] == "kotlin"` does.
+
+The kind-registry parity test needs no edit. It introspects `_DEF_TYPES` directly, so it starts
+covering your language the moment the row exists, and fails immediately if you mapped a node type to a
+kind nobody registered.
+
+### 8. Update the published language count
+
+The [word reference](style-guide-reference.md#the-house-style-decision-cache) makes the wording of the
+language count a house rule, with one exact phrasing used everywhere. Adding a language moves it in
+five hand-written places:
+
+| File | What to change |
+| --- | --- |
+| `README.md` | the count in the feature list |
+| `ROADMAP.md` | the count in the knowledge-graph bullet |
+| `docs/index-code-graph.md` | the count in the [Languages](index-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/style-guide-reference.md` | the mandated phrasing itself |
+| `site/build_docs.py` | the "Index the code graph" page subtitle |
+
+The count distinguishes languages from grammars, because TypeScript and TSX share one. If your
+language shares a grammar with an existing id, the two numbers move independently.
+
+No test pins the phrase. This step is guarded by review, and it is the one most likely to be
+forgotten.
+
+### 9. Regenerate the site, then write the changelog
+
+`site/llms.txt` and `site/llms-full.txt` are generated from the docs, and a test recomputes them and
+compares byte for byte. Editing `README.md` or any `docs/*.md` fails that test until you regenerate:
+
+```bash
+python site/build_docs.py
+```
+
+Most of what the builder writes into `site/` is gitignored and rebuilt on every deploy, so the only
+generated file your commit needs to carry is `site/llms-full.txt`. If you added a page rather than
+editing one, add its rendered filename to `site/.gitignore` too, which lists the generated pages by
+name. Do not run `site/deploy.sh`; it publishes to the `gh-pages` branch and has nothing to do with
+this change.
+
+Then add an entry under `[Unreleased]` in `CHANGELOG.md`, naming the grammar package you pinned. The
+Kotlin entry is the precedent.
+
+## Optional extras, and what skipping each one costs
+
+None of these is required, and skipping all of them still ships a working language. Each has a stated
+consequence, so you can decide rather than guess.
+
+| Extra | Where | If you skip it |
+| --- | --- | --- |
+| Repo lettermark on graph pages | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend |
+| Repo lettermark in the dashboard | `LANG_LABELS` in `kb/dashboard/static/dashboard.js` | the same, in the dashboard. This table is a hand-kept mirror of the Python one and **no test compares them**, so change both or neither |
+| HTTP endpoints and clients | `_FAMILY` in `kb/flow/http.py` | no `endpoint` nodes and no `calls_http` edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do |
+| State machines | `_FAMILY` in `kb/flow/state.py` | no `state` nodes and no state diagram for your language |
+| Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language really hosts a JS-style router |
+| Docstrings and signatures | `_doc_sig` in `kb/parse.py` | signatures come from a `parameters` field lookup, docstrings from a Python first-statement string or a JSDoc / C# `///` leading comment. A language using another convention gets `doc=None`. It never raises, so this is a quality gap, not a failure |
+
+Event and topic extraction needs **nothing**: it is a language-agnostic scan over the file text, so
+topics work for your language the moment its files are indexed.
+
+## If your language needs a new node kind
+
+Most do not. The `_DEF_TYPES` tables across every supported language map into only `class`,
+`interface`, `struct`, `enum`, `function`, `method` and `namespace`, and the parser adds `test`, `file`
+and `module` of its own. (The five member-symbol kinds, `field`, `macro`, `typedef`, `enum_constant`
+and `global_variable`, come from a separate C and C++ pass, not from `_DEF_TYPES`.) Mapping into that
+first set is the cheap path and the normal one.
+
+If you genuinely need a new kind, add a row to `KIND_REGISTRY` in `src/contextlake/kb/kinds.py`.
+`KindSpec` is a frozen dataclass in which **no field has a default**, deliberately: a new kind cannot
+be added without answering every question a consumer asks about it, and a reviewer sees all of those
+answers in one hunk. Python refuses to construct a partial row, and a test asserts that no field ever
+gains a default.
+
+Four constraints on the values, each pinned by its own test:
+
+- `color` must be lowercase `#rrggbb`. A kind without a colour gets no filter button on the graph
+  page, so it cannot be isolated or hidden.
+- `group` must be a member of `KIND_GROUP_ORDER`.
+- `why_not_embeddable` must be non-empty when `embeddable` is `False`, and empty when it is `True`.
+  Write `""`, never `None`: several older rows pass `None` and get away with it only because they are
+  embeddable, and copying that shape onto a non-embeddable kind trades an informative test failure for
+  an `AttributeError`.
+- `embeddable=True` also means hand-editing the pinned `EMBEDDABLE_KINDS` frozenset in the same
+  commit, and bumping `EMBED_CONTENT_VERSION`. That set feeds the per-kind embedding budget floors, so
+  widening it evicts vectors that already exist and re-embedding is the only repair.
+
+`glyph=None` is a legitimate answer and most newer rows use it. Setting a glyph means four copies must
+agree (the registry, the styling projection, the dashboard sprite, and the dashboard's JS glyph map),
+because registering a kind in the JS map is what **disables** the generic file-icon fallback for it.
+Registering it there without the sprite renders a blank box, which is worse than being absent from
+both.
+
+## What not to touch
+
+Three parts of the repo look like they should grow with a new language and should not.
+
+**The golden parse shard**, `tests/kb/golden/parse_shard.json` and its `FIXTURE` dict. It only moves
+if you add a file to that dict, and doing so means regenerating the shard, updating an exact
+skip-counter string, and making a `PARSER_VERSION` judgement. Leave it alone and none of that arises.
+
+**`PARSER_VERSION`.** The stamp signals "the shards of already-indexed repos changed", which makes
+`doctor` recommend a fleet-wide re-index and makes `kb index` re-index every repo instead of treating
+it as unchanged. A new language changes no existing repo's output. Bump it only if you also changed
+shared definition, containment or resolution logic.
+
+**The retrieval evaluation set**, `examples/fixtures/golden-queries.json` and
+`examples/fixtures/eval-repo/`. This set is scored on every pull request against a declared hit-rate
+floor, and it deliberately does not cover every language: Kotlin and Scala are both supported and both
+absent. Adding fixture symbols without adding matching queries dilutes the corpus and can push the
+score under the floor, and one of its tests requires a perfect hit rate for single-word queries.
+Representing your language there is a separate, deliberate change that ratchets the floor up in the
+same commit. It is not part of adding a language.
+
+## Verify it
+
+Run these in order. The first three are offline and touch nothing outside the repo and a scratch
+directory.
+
+### The grammar loads and the query compiles
+
+```bash
+python -c "
+from contextlake.kb.parse import _language, _query, _parser
+_language('<lang>'); _query('<lang>'); _parser('<lang>')
+print('grammar + query OK')
+"
+```
+
+```
+grammar + query OK
+```
+
+This is the cheapest check and the one that separates the three most common failures from each other:
+it proves the `pyproject.toml` entry installed, that your `_language` branch names the right entry
+point, and that your query compiles against **that** grammar version.
+
+The compile step is genuinely strict, which is why it is worth a contributor's time. A node type your
+grammar does not have fails at construction, naming the row and column:
+
+```
+tree_sitter.QueryError: Invalid node type at row 0, column 1: no_such_node_type
+```
+
+A grammar upgrade that renames a node type therefore fails loudly here. Note the limit: this catches
+node **types**, not capture names. A capture name the parser does not read compiles cleanly and stays
+silent.
+
+### The parser produces the nodes, calls and bases you expect
+
+```bash
+python -c "
+from contextlake.kb.parse import parse_source
+src = open('/path/to/sample.<ext>','rb').read()
+nodes, edges, calls, inherits = parse_source('demo/<lang>', 'sample.<ext>', src, '<lang>')
+for n in nodes: print(n.kind, n.name, n.qualified_name, n.line_start)
+print('calls   ', sorted({c[1] for c in calls}))
+print('inherits', sorted({i[1] for i in inherits}))
+"
+```
+
+On a small Kotlin sample holding one class with one method, one import, one call and one base type:
+
+```
+file Svc.kt None None
+class CatalogService Svc.kt::CatalogService 5
+method process Svc.kt::CatalogService.process 6
+module com.example.Base None None
+calls    ['helper']
+inherits ['Base']
+```
+
+Read all four streams. `class` and `method` prove your `_DEF_TYPES` mapping and the method promotion;
+the `module` node proves `@import`; and the two lists prove `@call` and `@base` captured names with
+**no** spurious extras. Package segments and generic type arguments appearing in `inherits` are the
+two things to look for, because they are exactly what the normalisation strips.
+
+### The test suite
+
+```bash
+python -m pytest tests/kb/test_kb_parse.py tests/kb/test_kind_registry_parity.py \
+  tests/kb/test_languages_config.py tests/kb/test_kb_parse_golden.py \
+  tests/kb/test_retrieval_quality.py tests/kb/test_dashboard_kind_glyph_parity.py -q
+python -m pytest tests/test_llms_full_is_in_sync.py tests/test_no_emdash_in_docs.py \
+  tests/test_doc_links_resolve.py -q
+ruff check src tests
+```
+
+The golden and retrieval-quality tests are in that list not because they should change, but as proof
+that they did not: they are the two a language addition can move by accident.
+
+Then run the full gate, which is a copy of CI's own step, before you open anything:
+
+```bash
+make test
+```
+
+### End to end through the real CLI
+
+**Do not run `kb index` bare.** It resolves configuration against your real `~/.contextlake/` and
+would write into your live store. Point it at a throwaway config whose `store_dir` is somewhere
+disposable:
+
+```bash
+mkdir -p /tmp/lang-check/demo-repo /tmp/lang-check/store
+printf '[kb]\nstore_dir = "/tmp/lang-check/store"\n' > /tmp/lang-check/kb.toml
+cp sample.<ext> /tmp/lang-check/demo-repo/
+```
+
+Index it, and read the count:
+
+```bash
+contextlake kb --config /tmp/lang-check/kb.toml index \
+    --source /tmp/lang-check/demo-repo --repo demo/<lang>
+```
+
+```
+Indexed demo/kotlin: 4 nodes, 3 edges (store totals: 4 nodes, 3 edges)
+```
+
+A non-zero node count proves the directory walk classified your extension as code and the parse did
+not hit the blanket handler. Zero nodes means your extension never reached the parser.
+
+Query a definition by name, and read the kind:
+
+```bash
+contextlake kb --config /tmp/lang-check/kb.toml query CatalogService
+```
+
+```
+  demo/kotlin · Svc.kt:5 · class · CatalogService
+  demo/kotlin · Svc.kt:6 · method · process
+```
+
+Each `repo · file:line · kind · name` hit proves a node reached the SQLite store with the right kind
+and line. The method is a hit too because search matches qualified names, and `process` is qualified
+`CatalogService.process`; that second line is expected, not an over-capture by your query.
+
+Filter by kind, which is the strictest of the three:
+
+```bash
+contextlake kb --config /tmp/lang-check/kb.toml query --kind method process
+```
+
+```
+  demo/kotlin · Svc.kt:6 · method · process
+```
+
+A hit here proves the kind string your `_DEF_TYPES` row produces is exactly the one the registry and
+the store expect. A miss with the previous query still returning the node means you mapped it to a
+kind you did not intend.
+
+**A query that returns nothing after a successful index means the file was skipped, not that search is
+broken.** Re-run the index with `-v` and look for `skip <file>: parse error:`.
+
+## Pitfalls
+
+Ordered by how likely you are to hit them. Every one is drawn from a comment, docstring or test
+message in this repo.
+
+### A partial registration is a silent skip
+
+This is the headline, and it is the reason to run the cheap grammar check before the CLI. Every file's
+parse is wrapped in a blanket handler, because one bad file must not abort a repo:
+
+```python
+except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
+    log(f"  skip {sf.rel}: parse error: {e}")
+```
+
+So all three half-registered states collapse into one log line at normal verbosity, and the index
+still reports success:
+
+| What you forgot | What it raises |
+| --- | --- |
+| the `_language()` branch | `ValueError: unsupported language: <lang>` |
+| the `_DEF_TYPES` row | `KeyError` on `_DEF_TYPES[lang]` |
+| the `_QUERIES` row | `KeyError` on `_QUERIES[lang]` |
+
+The symptom is a normal-looking summary with no nodes for your files. Land steps 3, 4 and 5 together,
+run the grammar check first, and use `-v` to surface it afterwards.
+
+### Extra capture names are dropped without an error
+
+The parser reads `def`, `def_qi`, `import`, `call` and `base`. A query with `@decorator` or
+`@annotation` compiles, runs, matches, and contributes nothing. There is no warning and no test that
+would notice, so re-read your query against the capture table in step 4 rather than trusting a green
+run.
+
+### Never name a language after a node kind
+
+The parser cache and the extraction-kind registry are keyed by string and were once the same
+variable, which meant `_parser()` was inserting parser objects into the kind registry. It is harmless
+only while no language shares a name with a kind. Run the `KIND_REGISTRY` check from the
+[prerequisites](#prerequisites) before you settle on an id.
+
+### The interop family is the expensive one to get wrong
+
+Putting your language in a family it does not really interoperate with produces `INFERRED` `calls` and
+`inherits` edges to same-named symbols in another language, and `INFERRED` reads as fact to everything
+downstream. Omitting the language self-isolates it, which is always safe. See step 6.
+
+### Aliasing a grammar is three edits, not one
+
+If two ids share one grammar, all three tables need the pairing and each is a separate statement: the
+`_DEF_TYPES` alias, the `_QUERIES` alias, and a distinct `_language()` branch naming the grammar's
+other entry point. Missing the third is the first row of the silent-skip table above.
+
+### Do not introduce anything order-dependent
+
+Capture extraction is canonicalised on purpose: tree-sitter returns capture lists in an order that
+varies run to run and even within one process, and a test pins shard bytes across five consecutive
+indexes. Anything you add must not depend on capture order, and must never tiebreak on a node id,
+which is pointer-derived.
+
+### Never let an unhandled shape return empty
+
+A qualifier-segment helper was once a membership test with no `else`, so an unrecognised segment
+vanished and the resolver attached the symbol to whatever namespace matched next, a fabricated parent
+that reads as fact. If your query or any helper you add meets a shape it does not recognise, make that
+visible rather than returning nothing.
+
+## Worked example: Kotlin
+
+Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
+makes it a useful template: it shows which parts are genuinely required.
+
+**The mandatory set, in the order above:**
+
+| Step | File | What was added |
+| --- | --- | --- |
+| 1 | `pyproject.toml` | `"tree-sitter-kotlin>=1.1",` in the `kb` extra |
+| 2 | `kb/parse.py`, `LANG_BY_EXT` | `".kt": "kotlin", ".kts": "kotlin",` |
+| 3 | `kb/parse.py`, `_DEF_TYPES` | `class_declaration` and `object_declaration` to `class`, `function_declaration` to `function` |
+| 4 | `kb/parse.py`, `_QUERIES` | three `@def` patterns, one `@import`, one `@call`, two `@base` |
+| 5 | `kb/parse.py`, `_language()` | `elif lang == "kotlin": import tree_sitter_kotlin as g; fn = g.language` |
+| 6 | `kb/parse.py`, `_LANG_FAMILY` | `"kotlin": "jvm",` alongside Java and Scala |
+| 7 | `tests/kb/test_kb_parse.py` | `test_parse_kotlin()`, plus `".kt"`, `".kts"` and the `.kts` mapping assertion |
+| 8 | five doc sites | the published count moved by one in all five |
+| 9 | `site/llms-full.txt`, `CHANGELOG.md` | the regenerated site file, and a release note naming the grammar package |
+
+**The optional set it took:** the lettermark in both `_LANG_LABELS` tables, Python and JavaScript.
+
+**What it skipped, and correctly:** HTTP, state and route extraction, the golden fixture (so no
+`PARSER_VERSION` bump), the retrieval evaluation set, and `KIND_REGISTRY`, since Kotlin introduced no
+new kind at all.
+
+The Kotlin query is the piece worth reading line by line. Its two `@base` patterns exist for two
+different syntactic shapes, and its test asserts both of them plus a negative for each normalisation
+the parser applies. One pattern per real shape, plus one negative per normalisation, is the standard
+to hold your query to.
+
+## See also
+
+- [Index the code graph](index-code-graph.md#languages), what the graph looks like once your language
+  is in it
+- [CONTRIBUTING.md](../CONTRIBUTING.md), the development loop, commit style, and how to submit
+- [Word and term reference](style-guide-reference.md), the house rules the docs edits in step 8 follow
+- [Architecture and internals](internals.md), where the parser sits in the three layers

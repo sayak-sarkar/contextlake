@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Troubleshooting · contextlake docs">
 <meta name="twitter:description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=60d8cb6">
-<link rel="stylesheet" href="tokens.css?v=60d8cb6">
-<link rel="stylesheet" href="docs.css?v=60d8cb6">
-<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting" class="active">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting" class="active">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Operate it</span><span aria-hidden="true">/</span><span aria-current="page">Troubleshooting</span></nav>
     <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Operate it</div><h1>Troubleshooting</h1><p class="doc-sub">Install and mirror problems that have actually been hit, each with the fix and the reason behind it.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -60,7 +60,7 @@ is wrong, so it is almost always faster than reading down this page:</p>
 <pre class="mermaid">flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
   Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
-  Q -->|"a compiler error"| C["llm-local tries<br/>to compile C++"]
+  Q -->|"a compiler error"| I
   Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
   Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
   Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
@@ -78,7 +78,12 @@ leaving you a half-working one. Check with
 <code>python3 --version</code>.</p>
 <p>The extra also pulls a tree-sitter grammar per supported language, several with native
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
-than broken.</p>
+than broken. <strong>This is the only place a compiler error can come from</strong>, so if a build starts and
+fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (<code>[llm-local]</code> is an
+ordinary wheel, see the next section). Either install your platform's build tools and let it
+finish, or pin the install to wheels only:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span>
+</code></pre></div>
 <h2 id="the-built-in-wiki-llm-is-not-installed">The built-in wiki LLM is not installed<a class="anchor" href="#the-built-in-wiki-llm-is-not-installed" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>The built-in LLM needs the &#39;llm-local&#39; extra (openvino-genai).
 </code></pre></div>
@@ -96,6 +101,34 @@ C++ toolchain. If you are following older notes that tell you to pass <code>--ex
 depends on.</p>
 <p>If you would rather not run a local model at all, use Ollama for the wiki tier
 (<code>--llm ollama</code>).</p>
+<h2 id="kb-ingest-skipped-my-pdfs"><code>kb ingest</code> skipped my PDFs<a class="anchor" href="#kb-ingest-skipped-my-pdfs" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>files: skipped 4 PDF(s) -- reading a PDF&#39;s text layer needs the &#39;kb-pdf&#39; extra (pypdf),
+  which is not installed. Install it with: pip install &#39;contextlake[kb-pdf]&#39;.
+</code></pre></div>
+<p>Do that, then re-run the ingest. <code>[kb-pdf]</code> is a small pure-Python extra and is not part of
+<code>[kb-full]</code>, see <a href="install#the-extras-and-which-one-you-want">the extras table</a>.</p>
+<p>A different message means the PDFs were read and refused for a stated reason, one per file:</p>
+<div class="highlight"><pre><span></span><code>files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake
+  reads a PDF&#39;s text layer only; a scanned or image-only PDF has none and is not OCR&#39;d.
+</code></pre></div>
+<p>That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
+to ingest, and it declines rather than storing an empty document that would look like knowledge in
+search results. Run the file through an OCR tool of your choice first, or ingest the source
+document the PDF was made from. The other two refusals name themselves the same way: a PDF that
+cannot be parsed (encrypted files are not decrypted), and one over the source's <code>max_bytes</code>, which
+you can raise on the source. See <a href="connect-enrich#pdfs-the-text-layer-and-nothing-pretending-to-be-more">Aggregating documents</a>.</p>
+<h2 id="a-docker-run-fails-with-a-permission-error-on-the-mount">A Docker run fails with a permission error on the mount<a class="anchor" href="#a-docker-run-fails-with-a-permission-error-on-the-mount" title="Link to this section">#</a></h2>
+<p>The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is
+not uid 1000 the container cannot write the store. Pass your own ids:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+</code></pre></div>
+<p>It fails rather than falling back on purpose. Before 5.1.0 the store went inside the container
+instead, so the run looked like it succeeded and the index vanished when the container exited.</p>
+<h2 id="there-is-no-standalone-binary-for-my-platform">There is no standalone binary for my platform<a class="anchor" href="#there-is-no-standalone-binary-for-my-platform" title="Link to this section">#</a></h2>
+<p>Three assets are published per release: Linux x86-64, macOS Apple silicon, and Windows x86-64.
+macOS on Intel and Linux on arm64 are not among them, and no fourth asset is hiding under a
+different name. Install with <code>pipx</code>, <code>pip</code> or <code>uv</code> on those platforms, or use the Docker image.
+See <a href="install#the-standalone-binary">The standalone binary</a>.</p>
 <h2 id="contextlake-doctor-fix-says-the-environment-is-externally-managed"><code>contextlake doctor --fix</code> says the environment is externally managed<a class="anchor" href="#contextlake-doctor-fix-says-the-environment-is-externally-managed" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>error: externally-managed-environment
 </code></pre></div>
@@ -125,8 +158,8 @@ printed command, run it yourself, and re-run <code>contextlake doctor</code>.</p
 </thead>
 <tbody>
 <tr>
-<td><strong>"Cache file not found"</strong></td>
-<td>Run <code>contextlake mirror fetch</code> first to populate the projects cache.</td>
+<td><strong>"No projects loaded, run 'fetch' first"</strong></td>
+<td>Run <code>contextlake mirror fetch</code> to populate the projects cache. If instead you see "The cached project list covers only <code>--repos</code> …", the cache exists but was built at a narrower scope; the same <code>fetch</code> fixes it. A command allowed to fetch for itself prints "Cache not found or invalid, fetching fresh data…" and does it, so there is nothing to do on that path.</td>
 </tr>
 <tr>
 <td><strong>"Permission denied" during cloning</strong></td>
@@ -171,6 +204,9 @@ missing, which is most of what anyone would ask you for anyway.</p>
 <ul>
 <li><a href="#the-knowledge-layer-will-not-install">The knowledge layer will not install</a></li>
 <li><a href="#the-built-in-wiki-llm-is-not-installed">The built-in wiki LLM is not installed</a></li>
+<li><a href="#kb-ingest-skipped-my-pdfs">kb ingest skipped my PDFs</a></li>
+<li><a href="#a-docker-run-fails-with-a-permission-error-on-the-mount">A Docker run fails with a permission error on the mount</a></li>
+<li><a href="#there-is-no-standalone-binary-for-my-platform">There is no standalone binary for my platform</a></li>
 <li><a href="#contextlake-doctor-fix-says-the-environment-is-externally-managed">contextlake doctor --fix says the environment is externally managed</a></li>
 <li><a href="#doctor-fix-printed-a-sudo-command-instead-of-running-it">doctor --fix printed a sudo command instead of running it</a></li>
 <li><a href="#the-mirror">The mirror</a></li>
@@ -247,6 +283,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=60d8cb6"></script>
+<script defer src="cmdk.js?v=362c353"></script>
 </body>
 </html>

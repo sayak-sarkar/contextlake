@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Install and upgrade · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=60d8cb6">
-<link rel="stylesheet" href="tokens.css?v=60d8cb6">
-<link rel="stylesheet" href="docs.css?v=60d8cb6">
-<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install" class="active">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install" class="active">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Get started</span><span aria-hidden="true">/</span><span aria-current="page">Install and upgrade</span></nav>
     <header class="doc-hero" data-kind="start"><div class="doc-hero-text"><div class="doc-eyebrow">Get started</div><h1>Install and upgrade</h1><p class="doc-sub">Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -81,8 +81,9 @@ environment you already manage.</p>
   authenticated <a href="https://gitlab.com/gitlab-org/cli" target="_blank" rel="noopener"><code>glab</code><span class="ext-arrow" aria-hidden="true">↗</span></a> works instead. Indexing a repo
   you already have on disk needs no token at all.</li>
 </ul>
-<p>None of the channels below need a C or C++ compiler. If a command starts building one, see
-<a href="troubleshooting">Troubleshooting</a>.</p>
+<p>None of the channels below need a C or C++ compiler. If an install starts building from source
+anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+<a href="troubleshooting#the-knowledge-layer-will-not-install">The knowledge layer will not install</a>.</p>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
 <div class="tabs">
 <div class="tab" data-label="pipx"><pre><code>pipx install "contextlake[kb-full]"</code></pre></div>
@@ -102,8 +103,10 @@ command on your PATH, which is what you want for a tool rather than a library.</
 <p><code>[kb-full]</code> is the batteries-included bundle. A plain <code>pip install contextlake</code> gives you the
 mirror only, and it pulls exactly one dependency (<code>argcomplete</code>, for shell completion), so it
 stays viable on a locked-down machine.</p>
-<p>However you install it, <code>contextlake</code>, <code>python -m contextlake</code>, and
-<code>python3 run-contextlake.py</code> are equivalent entry points.</p>
+<p>However you install it, <code>contextlake</code> and <code>python -m contextlake</code> are equivalent entry points.
+<code>python3 run-contextlake.py</code> is a third one, but it only exists in a source checkout: the wheel
+declares a single console script and ships no top-level launcher, so it is not there after a
+<code>pip</code>, <code>pipx</code> or <code>uv</code> install.</p>
 <h3 id="the-extras-and-which-one-you-want">The extras, and which one you want<a class="anchor" href="#the-extras-and-which-one-you-want" title="Link to this section">#</a></h3>
 <table>
 <thead>
@@ -140,6 +143,11 @@ stays viable on a locked-down machine.</p>
 <td>Better semantic ranking, at a larger download</td>
 </tr>
 <tr>
+<td><code>[kb-pdf]</code></td>
+<td>The PDF text-layer reader for ingest (pypdf, pure Python)</td>
+<td>Design docs, RFCs and decision records that arrive as PDFs</td>
+</tr>
+<tr>
 <td><code>[llm-local]</code></td>
 <td>A built-in CPU model for the wiki (openvino-genai)</td>
 <td><code>kb wiki --llm builtin</code> with no Ollama and no API key</td>
@@ -166,6 +174,10 @@ which backend to choose and why, see
 the built-in CPU models (the embedder and a small wiki LLM), so it runs with no Ollama, no
 API key, and no model download at runtime. Reach for it on locked-down or offline machines;
 the PyPI wheel stays the primary install. It runs as a non-root user.</p>
+<p>One thing the default image does <strong>not</strong> carry is the <code>sqlite-vec</code> ANN backend (<code>[kb-vec]</code>): it is
+built from <code>[kb,kb-local,llm-local]</code>. Semantic search still works there, on the pure-Python exact
+scan, which is the slower path on a large store. If that matters more to you than a baked-in wiki
+LLM, <code>:slim</code> is the tag that ships <code>kb-vec</code>.</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>doctor
 docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
 </code></pre></div>
@@ -184,8 +196,9 @@ account is not uid 1000 the write fails with a permission error. Pass your own i
 <p>It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.</p>
-<p>A <code>:slim</code> tag is also published: no <code>openvino-genai</code>, no baked wiki-LLM model, a much
-smaller pull. Semantic search still works, because the embedder is pure Python. Point the
+<p>A <code>:slim</code> tag is also published, built from <code>[kb,kb-local,kb-vec]</code>: no <code>openvino-genai</code>, no baked
+wiki-LLM model, a much smaller pull, and the <code>sqlite-vec</code> ANN backend the default image leaves out.
+Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or <code>cli</code> instead of the built-in LLM.</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake:slim<span class="w"> </span>doctor
 </code></pre></div>
@@ -193,8 +206,8 @@ wiki tier at Ollama, OpenAI, Anthropic or <code>cli</code> instead of the built-
 <p>If the machine has no Python at all, the release assets are self-contained launchers built
 with <a href="https://ofek.dev/pyapp/" target="_blank" rel="noopener">PyApp<span class="ext-arrow" aria-hidden="true">↗</span></a>. The launcher bootstraps a private Python plus
 <code>contextlake[kb-full,llm-local]</code> into its own cache on first run, which needs network once;
-every run after that is instant. The bootstrap already points pip at the prebuilt CPU wheel
-index, so there is no compiler to install and nothing for you to pass.</p>
+every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
+PyPI, so there is no compiler to install and nothing for you to pass.</p>
 <p>Three assets are published per release, one per build platform:</p>
 <table>
 <thead>
@@ -235,6 +248,9 @@ first run, which happens after any signature here. If you want the payload check
 with <code>pipx</code> or <code>uv</code> instead: the wheel and sdist on PyPI carry their own
 <a href="https://peps.python.org/pep-0740/" target="_blank" rel="noopener">PEP 740<span class="ext-arrow" aria-hidden="true">↗</span></a> attestations, which pip verifies, and each release
 also publishes a CycloneDX SBOM listing that dependency closure.</p>
+<p>The SBOM does not close the gap on its own, either. Its subject is <code>contextlake[kb-full]</code>, while the
+launcher installs <code>contextlake[kb-full,llm-local]</code>, so the wiki-LLM runtime and everything under it
+is outside what the SBOM enumerates.</p>
 <h3 id="from-source">From source<a class="anchor" href="#from-source" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sayak-sarkar/contextlake<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>contextlake
 python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>.<span class="w"> </span>.venv/bin/activate
@@ -281,7 +297,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 </tr>
 <tr>
 <td><code>--fix &lt;capability&gt;</code></td>
-<td>Install one: <code>git</code>, <code>embedder</code>, <code>vectors</code>, <code>llm-local</code></td>
+<td>Install one: <code>git</code>, <code>embedder</code>, <code>vectors</code>, <code>llm-local</code> (<code>embedder</code> resolves against your config: <code>[kb-fastembed]</code> when <code>engine = "fastembed"</code>, <code>[kb-local]</code> otherwise)</td>
 </tr>
 <tr>
 <td><code>--dry-run</code> (<code>-n</code>)</td>
@@ -333,22 +349,29 @@ repositories silently and <code>--force</code> was the only way through, which i
 insist on it.</p>
 <p><code>contextlake kb index --force</code> still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.</p>
-<h3 id="parser-version-3-rebuilds-every-existing-store">Parser version <code>3</code> rebuilds every existing store<a class="anchor" href="#parser-version-3-rebuilds-every-existing-store" title="Link to this section">#</a></h3>
-<p><code>PARSER_VERSION</code> is now <code>3</code>, which means <strong>every store built before that release reports stale</strong>,
-under <code>doctor</code> and in <code>kb lint</code>'s advisory line, and the next <code>contextlake kb index</code> rebuilds all
-of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs what your
-first one did, once, rather than the near-instant no-op an unchanged workspace usually gets. Budget
-for it before you run it inside a hook or a CI job on a large mirror.</p>
-<p>The bump earns that. Version <code>3</code> is language-aware name resolution
-(<code>_LANG_FAMILY</code> in <code>src/contextlake/kb/parse.py</code>): a <code>calls</code> or <code>inherits</code> reference no longer
-resolves to a same-named definition in an unrelated language, and an <code>AMBIGUOUS</code> edge now records
-how many candidates it was one of. That is what makes <code>kb impact</code> able to say a JavaScript
-<code>close()</code> is not the Python <code>close()</code> you meant, and to count how much of an answer rests on
-name-only matching (see <a href="ask-the-graph#see-what-breaks-kb-impact">Ask the graph</a>).</p>
-<p>The catch is that the fix lives in the parser, so it reaches an already-built store only when the
+<h3 id="parser-version-4-rebuilds-every-existing-store">Parser version <code>4</code> rebuilds every existing store<a class="anchor" href="#parser-version-4-rebuilds-every-existing-store" title="Link to this section">#</a></h3>
+<p><code>PARSER_VERSION</code> is now <code>4</code> (raised in 7.0.0), which means <strong>every store built before that release
+reports stale</strong>, under <code>doctor</code> and in <code>kb lint</code>'s advisory line, and the next <code>contextlake kb index</code>
+rebuilds all of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs
+what your first one did, once, rather than the near-instant no-op an unchanged workspace usually
+gets. Budget for it before you run it inside a hook or a CI job on a large mirror.</p>
+<p>The bump earns that. Version <code>4</code> is the largest output change this stamp has ever covered
+(<code>src/contextlake/kb/parse.py</code>, the comment above <code>PARSER_VERSION</code>):</p>
+<ul>
+<li>node ids became file- and line-independent, so <strong>every id changed</strong>, and a header and its <code>.cpp</code>
+  finally describe one symbol rather than two;</li>
+<li>config keys, SQL and XML gained file nodes and <code>contains</code> edges;</li>
+<li>five symbol kinds are emitted that never existed before: data members, macros, typedefs, enum
+  constants and file-scope variables;</li>
+<li><code>calls</code> edges are stored per call site rather than per caller/callee pair;</li>
+<li>C++ internal linkage is honoured in both identity and resolution, so two files' <code>static</code> or
+  anonymous-namespace symbols stop merging into one.</li>
+</ul>
+<p>The catch is that all of it lives in the parser, so it reaches an already-built store only when the
 shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
-you to know it was needed: a graph carried forward untouched would keep answering with the old
-resolution, and every surface would keep calling it healthy.</p>
+you to know it was needed: every change above is invisible to a commit-keyed check, so a graph
+carried forward untouched would keep answering with ids this build no longer produces, and every
+surface would keep calling it healthy.</p>
 <h2 id="uninstall">Uninstall<a class="anchor" href="#uninstall" title="Link to this section">#</a></h2>
 <p>Remove the tool:</p>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
@@ -362,6 +385,10 @@ rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span cla
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/contextlake<span class="w">  </span><span class="c1"># the mirror&#39;s repository-list cache</span>
 <span class="c1"># your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:</span>
 <span class="c1"># rm -rf ~/work</span>
+</code></pre></div>
+<p><code>~/.cache/contextlake</code> is only the default. If <code>XDG_CACHE_HOME</code> is set in your shell, the cache is at
+<code>$XDG_CACHE_HOME/contextlake</code> instead, so remove that path:</p>
+<div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CACHE_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.cache</span><span class="si">}</span><span class="s2">/contextlake&quot;</span>
 </code></pre></div>
 <p><code>~/.contextlake</code> covers the built-in CPU models too: they download to
 <code>~/.contextlake/models</code> (<code>DEFAULT_CACHE_DIR</code> in <code>src/contextlake/kb/embeddings/builtin.py</code>
@@ -421,10 +448,11 @@ separate cache elsewhere in your home directory.</p>
   Without it, pip sees the package installed and does nothing.</li>
 <li><strong><code>--only-binary NAME</code></strong> installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
-  "no matching distribution" message. Name the one native package rather than using the
-  <code>:all:</code> token when you still want a source fallback for everything else.</li>
-<li><strong><code>--extra-index-url URL</code></strong> also looks for wheels at <code>URL</code>. This is what
-  <code>doctor --fix llm-local</code> adds for you.</li>
+  "no matching distribution" message. Name the one native package when you still want a source
+  fallback for everything else; <code>--only-binary :all:</code> is the blunt version, for the row above where
+  a build has already failed and you do not know which package broke. <code>doctor --fix</code> always scopes
+  to a single package and never uses <code>:all:</code>, because forbidding a source fallback everywhere lets
+  one missing wheel anywhere fail the whole install.</li>
 </ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
@@ -449,7 +477,7 @@ separate cache elsewhere in your home directory.</p>
 <li><a href="#verification">Verification</a></li>
 <li><a href="#installing-what-is-missing">Installing what is missing</a></li>
 <li><a href="#upgrade">Upgrade</a><ul>
-<li><a href="#parser-version-3-rebuilds-every-existing-store">Parser version 3 rebuilds every existing store</a></li>
+<li><a href="#parser-version-4-rebuilds-every-existing-store">Parser version 4 rebuilds every existing store</a></li>
 </ul>
 </li>
 <li><a href="#uninstall">Uninstall</a></li>
@@ -526,6 +554,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=60d8cb6"></script>
+<script defer src="cmdk.js?v=362c353"></script>
 </body>
 </html>

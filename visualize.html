@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Visualize the graph · contextlake docs</title>
-<meta name="description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
+<meta name="description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://sayak.in/contextlake/visualize">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
 <meta property="og:title" content="Visualize the graph · contextlake docs">
-<meta property="og:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
+<meta property="og:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta property="og:url" content="https://sayak.in/contextlake/visualize">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Visualize the graph · contextlake docs">
-<meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
+<meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=60d8cb6">
-<link rel="stylesheet" href="tokens.css?v=60d8cb6">
-<link rel="stylesheet" href="docs.css?v=60d8cb6">
-<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,10 +43,10 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize" class="active">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize" class="active">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Visualize the graph</span></nav>
-    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Visualize the graph</h1><p class="doc-sub">Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Visualize the graph</h1><p class="doc-sub">Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p><code>contextlake kb graph</code> draws a <strong>bounded</strong> slice of the graph. The whole thing (hundreds of thousands of
 nodes) is far too large to render, so every view is scoped from a seed and capped:</p>
@@ -83,28 +83,40 @@ search, and a minimap; it opens straight from <code>file://</code>:</p>
   <img src="img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-<p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> / <code>--overview</code>. Bound the result
+<p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> / <code>--overview</code>. <code>--limit</code> (default
+<code>20</code>) caps how many seed nodes a <code>--name</code> or <code>--search</code> match contributes, before the walk starts, and
+the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
+only want a view of the first few". Bound the result
 with <code>--max-nodes</code> (500, or 5000 on <code>--overview</code>, which is a fleet inventory and defaults to loading
 every repo so any of them is findable; it is a bound on the <strong>whole file</strong>: one-hop external
 nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), <code>--max-edges</code> (no cap by default, which is what the <code>html</code> and <code>dot</code> renderers want,
+leave unused), <code>--max-edges</code> (<strong><code>--repo</code> views only</strong>, see the mode list below; no cap by default,
+which is what the <code>html</code> and <code>dot</code> renderers want,
 and 400 for the Mermaid-rendered formats <code>mermaid</code> / <code>classdiagram</code> / <code>statediagram</code> / <code>erdiagram</code> /
 <code>deploymentdiagram</code> -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means it always renders, possibly truncated, never errors), and <code>--max-fanout</code> (a per-node cap that
+capping edges there means a <code>--repo</code> view always renders, possibly truncated, never errors. A <strong>seeded</strong>
+Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with <code>--hops</code> or
+<code>--max-nodes</code> instead), and <code>--max-fanout</code> (a per-node cap that
 stops hub nodes from exploding: 50 on a seeded view, uncapped on a <code>--repo</code> view unless you
 pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
 is dropped is <strong>logged</strong>, never silently truncated.</p>
 <p><code>--hops</code> (default 2), <code>--relation</code> and <code>--direction {in,out,both}</code> shape the <strong>walk</strong>, so they apply
 to the seeded modes (<code>--node</code> / <code>--name</code> / <code>--search</code>) only. <code>--overview</code> and <code>--repo</code> do not walk
 outward from a seed, so passing those three with either of them has no effect. What each mode does
-take: a seeded view, all of them; <code>--repo</code>, <code>--max-nodes</code> / <code>--max-edges</code> / <code>--max-fanout</code>;
+take: a seeded view, all of them except <code>--max-edges</code>, which the seeded path never receives, so it is
+accepted and then ignored; <code>--repo</code>, <code>--max-nodes</code> / <code>--max-edges</code> / <code>--max-fanout</code>;
 <code>--overview</code>, <code>--max-nodes</code> alone.</p>
 <p>For a <code>--repo</code> view over <code>--max-nodes</code>, which nodes
-survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
+survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets
-a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.</p>
+instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
+the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
+completely (on one measured repo it kept 0 of 412 <code>table</code> and 0 of 402 <code>resource</code> nodes), which made
+<code>erdiagram</code> and <code>deploymentdiagram</code> render empty for a repo that plainly had the data. On the
+dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
+and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
+arbitrary slice (see <a href="dashboard">The dashboard</a>).</p>
 <h2 id="output-formats">Output formats<a class="anchor" href="#output-formats" title="Link to this section">#</a></h2>
 <p>Output is chosen with <code>--format</code>:</p>
 <ul>
@@ -112,7 +124,9 @@ a "scope to one module" dropdown (its top-level path segments) instead of an arb
   from <code>file://</code> with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
   by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
   the view stays readable). Pan, zoom, drag, and a <strong>layout switcher</strong> (<code>cose</code>, <code>concentric</code>,
-  <code>breadthfirst</code>, <code>circle</code>, <code>grid</code>) in the page, set the initial one with <code>--layout</code>. <code>--open</code> launches the
+  <code>breadthfirst</code>, <code>circle</code>, <code>grid</code>, <code>dagre</code>) in the page, set the initial one with <code>--layout</code>. <code>dagre</code> is
+  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
+  an HTML card instead of a dot. <code>--open</code> launches the
   browser; <code>--cdn</code> produces a small online-only file instead, and applies to <code>--site</code> as well as
   the single-file export.</li>
 <li><strong><code>dot</code></strong>, Graphviz (<code>contextlake kb graph ... --format dot | dot -Tsvg &gt; g.svg</code>).</li>
@@ -143,7 +157,9 @@ a "scope to one module" dropdown (its top-level path segments) instead of an arb
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal <code>CREATE TABLE</code>
   text anywhere) renders an empty diagram with guidance, not a bug.</li>
 <li><strong><code>deploymentdiagram</code></strong>, a <strong>Mermaid flowchart</strong> of Terraform/HCL <code>resource</code>/<code>data</code>/<code>module</code>
-  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  definitions grouped by an inferred category
+  (network/compute/storage/database/security/other/module; a resource type matching none of the
+  keyword lists lands in <code>other</code> and gets its own subgraph),
   from the HCL extractor (see <a href="index-code-graph">Index &amp; Code Graph</a>): <code>contextlake kb graph --repo
   acme/infra --format deploymentdiagram</code>. Category is a keyword heuristic over the resource type prefix (e.g.
   <code>aws_security_group.web</code> -&gt; security); <code>depends_on</code> edges reconstructed from <code>var.</code>/<code>module.</code>/
@@ -165,7 +181,11 @@ a "scope to one module" dropdown (its top-level path segments) instead of an arb
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake kb graph --serve</code> runs a local web UI where
 clicking a node <strong>expands</strong> it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. Like the dashboard, it answers a request only when the <code>Host</code> header names the
+pre-rendering all of it. With <code>--overview</code> it serves something larger: the whole cross-linked site,
+overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
+live counterpart of <code>--site</code>. It binds <code>--host</code> (default <code>127.0.0.1</code>) and <code>--port</code> (default <code>8765</code>), so
+with no flags it is at <code>http://127.0.0.1:8765</code>. Like the dashboard, it answers a request only when the
+<code>Host</code> header names the
 address it was bound to (<code>--host</code>) or <code>localhost</code>, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to <code>127.0.0.1</code> from reading your graph cross-origin. Bind the address
 you intend to browse rather than a wildcard (see <a href="dashboard#11-mutating-routes">dashboard.md</a>).</p>
@@ -185,7 +205,10 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w
 compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot</code> (Graphviz clustered DOT with <code>subgraph
 cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
 <code>statediagram</code>, <code>erdiagram</code>, and <code>deploymentdiagram</code> aren't supported with <code>--c4</code> (the command exits
-with an error), and <code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.</p>
+with an error), and <code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.
+<code>--format graphml</code> and <code>--format cypher</code> are neither rejected nor honoured: <code>--c4</code> falls through to the
+HTML renderer and, because the output path is only defaulted for <code>--format html</code>, prints that HTML to
+stdout. Pass <code>--output &lt;path&gt;</code> if you hit it, and use <code>dot</code> or <code>json</code> for a real C4 export.</p>
 <h3 id="c1-external-systems">C1: external systems<a class="anchor" href="#c1-external-systems" title="Link to this section">#</a></h3>
 <p><code>--c4 --c1</code> adds a layer on top of the same view: one dashed box per distinct host an indexed repo
 calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
@@ -285,6 +308,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=60d8cb6"></script>
+<script defer src="cmdk.js?v=362c353"></script>
 </body>
 </html>

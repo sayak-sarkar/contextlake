@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=60d8cb6">
-<link rel="stylesheet" href="tokens.css?v=60d8cb6">
-<link rel="stylesheet" href="docs.css?v=60d8cb6">
-<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs" class="active">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs" class="active">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Understand it</span><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>
     <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake</h1><p class="doc-sub">A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -75,7 +75,8 @@ each layer above it is optional.</p>
 <li><strong>Serve</strong>: expose it all over <strong>MCP</strong> and an offline interactive <strong>graph visualizer</strong>, so
    agents can answer <em>"where is <code>X</code> defined?"</em> or <em>"who calls <code>Y</code>?"</em> instead of grepping.</li>
 </ol>
-<p>Each layer has its own guide: the mirror in <strong><a href="usage">Usage &amp; config</a></strong>, the knowledge
+<p>Each layer has its own guide: the mirror in <strong><a href="usage">Mirror repositories</a></strong>,
+settings in <strong><a href="configuration">Configuration</a></strong>, the knowledge
 layer and serving in <strong><a href="knowledge-layer">Knowledge layer</a></strong>, and the whole flow start to
 finish in <strong><a href="quickstart">QUICKSTART</a></strong>.</p>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
@@ -99,8 +100,8 @@ If an install misbehaves, see
 (<code>GITLAB_TOKEN</code> with <code>read_api</code> + <code>read_repository</code>, or <code>GITHUB_TOKEN</code> /
 <code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>); on GitLab an authenticated
 <a href="https://gitlab.com/gitlab-org/cli" target="_blank" rel="noopener"><code>glab</code><span class="ext-arrow" aria-hidden="true">↗</span></a> works instead. The knowledge layer needs
-neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>, and
-<code>python3 run-contextlake.py</code> are equivalent.</p>
+neither. Once installed, <code>contextlake</code> and <code>python -m contextlake</code> are equivalent;
+<code>python3 run-contextlake.py</code> is a source-checkout launcher and is not part of the installed package.</p>
 <h2 id="quickstart-one-repo-no-setup">Quickstart: one repo, no setup<a class="anchor" href="#quickstart-one-repo-no-setup" title="Link to this section">#</a></h2>
 <p>You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener"><code>uvx</code><span class="ext-arrow" aria-hidden="true">↗</span></a>: prefix any command
@@ -159,10 +160,19 @@ its own HTTP client, which tolerates the slow DNS where <code>glab</code>'s shor
 mirroring git repositories, <code>kb</code> for the knowledge layer, except <code>init</code>, <code>bootstrap</code>,
 <code>version</code>, <code>completion</code>, and <code>doctor</code>, which span both tiers or neither. Per-command docs live
 with their layer: the <strong>mirror</strong> commands in <strong><a href="usage">usage.md</a></strong>;
-the <strong>knowledge-layer</strong> build commands (<code>kb index</code>, <code>kb embed</code>, <code>kb connect</code>, <code>kb wiki</code>, …) in
-<strong><a href="knowledge-layer">knowledge-layer.md</a></strong>; the query commands
+the <strong>knowledge-layer</strong> build commands one page each, <code>kb index</code> in
+<strong><a href="index-code-graph">index-code-graph.md</a></strong>,
+<code>kb connect</code>/<code>kb ingest</code>/<code>kb enrich</code> in
+<strong><a href="connect-enrich">connect-enrich.md</a></strong>,
+<code>kb embed</code>/<code>kb eval</code> in
+<strong><a href="semantic-search">semantic-search.md</a></strong>
+and <code>kb wiki</code> in
+<strong><a href="generate-wiki">generate-wiki.md</a></strong>
+(with <strong><a href="knowledge-layer">knowledge-layer.md</a></strong>
+as the map over all four); the query commands
 (<code>kb query</code>, <code>kb impact</code>, <code>kb owners</code>) in <strong><a href="ask-the-graph">ask-the-graph.md</a></strong>;
-and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serve">serve.md</a></strong>.</p>
+and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serve">serve.md</a></strong>.
+The full flag-by-flag list is <strong><a href="cli-reference">cli-reference.md</a></strong>.</p>
 <table>
 <thead>
 <tr>
@@ -225,7 +235,7 @@ and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serve">serve
 </tr>
 <tr>
 <td><code>kb wiki [&lt;repo&gt;…]</code></td>
-<td>LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); <code>--llm builtin\|ollama\|openai\|anthropic\|cli</code> enables the LLM tier inline (<code>builtin</code> needs <code>doctor --fix llm-local</code> first on a <code>pip</code> install)</td>
+<td>LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); <code>--llm builtin\|ollama\|openai\|anthropic\|cli\|auto</code> enables the LLM tier inline (<code>builtin</code> needs <code>doctor --fix llm-local</code> first on a <code>pip</code> install)</td>
 </tr>
 <tr>
 <td><code>kb query</code></td>
@@ -261,10 +271,13 @@ and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serve">serve
 </tr>
 </tbody>
 </table>
-<p>Global options apply to any command: <code>--dry-run</code> (preview without changing anything),
-<code>-v</code>/<code>-q</code> (verbosity), <code>--log-file PATH</code>, <code>--config PATH</code>, <code>--version</code>. Output is colorized on
-a TTY and plain when piped; set <code>NO_COLOR</code> to force-disable.</p>
-<p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
+<p>Global options apply to any command: <code>-v</code>/<code>-q</code> (verbosity), <code>--log-file PATH</code>, <code>--config PATH</code>.
+Two more read like globals and are not. <code>--dry-run</code> (preview without changing anything) belongs to
+the 8 <code>mirror</code> commands plus <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>; <code>--version</code> belongs to the bare
+<code>contextlake</code> only, and <code>contextlake version</code> is the form that works everywhere. Pass either
+somewhere it does not exist and the command exits <code>2</code> and names the commands that do take it.
+Output is colorized on a TTY and plain when piped; set <code>NO_COLOR</code> to force-disable.</p>
+<p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/tree/main/examples" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
 second set: <code>--log-format json</code> (one JSON object per line, every line stamped with a run id),
 <code>--metrics-file PATH</code> (Prometheus textfile-collector output), <code>--redact</code> (the <code>--log-file</code> copy
 is already scrubbed of workspace paths, group and repo names), and <code>--access-log</code>. See
@@ -328,8 +341,17 @@ everything and opens in an air-gapped browser.</p>
 <li><strong><a href="install">docs/install.md</a></strong>, every install channel, upgrading, and uninstalling</li>
 <li><strong><a href="troubleshooting">docs/troubleshooting.md</a></strong>, it broke, now what</li>
 <li><strong><a href="dashboard">docs/dashboard.md</a></strong>, the dashboard, a guided tour with screenshots</li>
+<li><strong><a href="cli-reference">docs/cli-reference.md</a></strong>, every command and flag, plus shell completion</li>
+<li><strong><a href="console-output">docs/console-output.md</a></strong>, decoding a run: glyphs, exit codes, JSON logs, metrics</li>
+<li><strong><a href="configuration">docs/configuration.md</a></strong>, where settings live and which one wins</li>
 <li><strong><a href="usage">docs/usage.md</a></strong>, the mirror commands and branch safety</li>
-<li><strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>, the graph, connectors, search, wiki</li>
+<li><strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>, the map over the four build stages below</li>
+<li><strong><a href="index-code-graph">docs/index-code-graph.md</a></strong>, <code>kb index</code>, and what the graph captures</li>
+<li><strong><a href="connect-enrich">docs/connect-enrich.md</a></strong>, <code>kb connect</code> / <code>kb ingest</code> / <code>kb enrich</code>, the nine source types</li>
+<li><strong><a href="semantic-search">docs/semantic-search.md</a></strong>, <code>kb embed</code> / <code>kb eval</code>, vectors and retrieval quality</li>
+<li><strong><a href="generate-wiki">docs/generate-wiki.md</a></strong>, <code>kb wiki</code>, the review council, per-subsystem pages</li>
+<li><strong><a href="model-providers">docs/model-providers.md</a></strong>, choosing an embeddings and wiki backend</li>
+<li><strong><a href="visualize">docs/visualize.md</a></strong>, <code>kb graph</code>, all 11 formats and the C4 diagram</li>
 <li><strong><a href="ask-the-graph">docs/ask-the-graph.md</a></strong>, <code>kb query</code>, <code>kb impact</code>, <code>kb owners</code></li>
 <li><strong><a href="serve">docs/serve.md</a></strong>, serve the graph over MCP + wire your editor</li>
 <li><strong><a href="keep-fresh">docs/keep-fresh.md</a></strong>, bootstrap, scheduling, and re-indexing on commit</li>
@@ -337,6 +359,8 @@ everything and opens in an air-gapped browser.</p>
 <li><strong><a href="benchmarks">docs/benchmarks.md</a></strong>, where the token/cost/correctness impact comes from, and how to measure it yourself</li>
 <li><strong><a href="internals">docs/internals.md</a></strong>, architecture and internals</li>
 <li><strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md" target="_blank" rel="noopener">docs/releasing.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong>, maintainer runbook: versioning, tagging, publishing</li>
+<li><strong><a href="style-guide">docs/style-guide.md</a></strong>, the documentation style guide (voice, structure, formatting, terms)</li>
+<li><strong><a href="brand">docs/brand.md</a></strong>, palette, mascot, and asset usage</li>
 <li><strong><a href="changelog">CHANGELOG.md</a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md" target="_blank" rel="noopener">ROADMAP.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md" target="_blank" rel="noopener">BRANDING.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong></li>
 </ul>
 <h2 id="license">License<a class="anchor" href="#license" title="Link to this section">#</a></h2>
@@ -387,6 +411,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=60d8cb6"></script>
+<script defer src="cmdk.js?v=362c353"></script>
 </body>
 </html>

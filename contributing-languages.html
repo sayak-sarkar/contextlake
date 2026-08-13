@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Adding a language · contextlake docs</title>
+<meta name="description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/contributing-languages">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Adding a language · contextlake docs">
+<meta property="og:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
+<meta property="og:url" content="https://sayak.in/contextlake/contributing-languages">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Adding a language · contextlake docs">
+<meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/contributing-languages", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/contributing-languages"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages" class="active">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Project</span><span aria-hidden="true">/</span><span aria-current="page">Adding a language</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Project</div><h1>Adding a language</h1><p class="doc-sub">The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>contextlake reads source with tree-sitter, and a language it understands is a handful of table entries
+in one file plus a grammar package. This page is the ordered recipe: the nine edits, in the order to
+make them, the parts of the repo to deliberately leave alone, and the commands that prove your grammar
+works before you open a pull request.</p>
+<p>The parser's own module docstring states the contract: "adding a language = registering its grammar
+loader, file extensions, and a query in the tables below; the rest of the pipeline is
+language-agnostic". That is true of the graph core. The four steps around it (the dependency, the
+tests, the published count, and the regenerated site) are what turns a working parser into a shipped
+language.</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>A development checkout</strong>, set up as <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md#getting-set-up" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>
+  describes. The knowledge layer is an optional extra, so you need <code>pip install -e ".[dev,kb]"</code>, not
+  the core install.</li>
+<li><strong>A tree-sitter grammar on PyPI</strong> for your language, published as a <code>tree-sitter-&lt;lang&gt;</code> wheel that
+  exposes a <code>language()</code> function. If no maintained wheel exists, that is the blocker to solve first;
+  contextlake does not vendor or compile grammars.</li>
+<li><strong>A language id</strong>, which is the key every table below is keyed on and the value written onto every
+  node's <code>lang</code> field. Use the plain lowercase language name (<code>kotlin</code>, <code>scala</code>, <code>php</code>).</li>
+<li><strong>A sample file</strong> in your language, twenty or thirty lines covering a class, a method, a free
+  function, an import, a call, and a base type. You will parse it repeatedly while writing the query.</li>
+</ul>
+<p>One check before you commit to an id. The parser cache and the extraction-kind registry are both keyed
+by string, and they were once the same variable, so a language named after a node kind silently
+returned the wrong object. Confirm your id is not already a kind:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from contextlake.kb.kinds import KIND_REGISTRY; print(&#39;mylang&#39; in KIND_REGISTRY)&quot;</span>
+</code></pre></div>
+<p><code>False</code> is the answer you want. <code>data</code>, <code>local</code>, <code>output</code>, <code>state</code>, <code>table</code>, <code>variable</code> and <code>view</code> are
+among the names already taken.</p>
+<h2 id="the-nine-edits">The nine edits<a class="anchor" href="#the-nine-edits" title="Link to this section">#</a></h2>
+<p>Five of the nine are in one file, <code>src/contextlake/kb/parse.py</code>, and three of those five must land
+together or the language fails one file at a time without failing the run. Read
+<a href="#a-partial-registration-is-a-silent-skip">A partial registration is a silent skip</a> before you start,
+because it is the reason this list is ordered the way it is.</p>
+<h3 id="1-declare-the-grammar-dependency">1. Declare the grammar dependency<a class="anchor" href="#1-declare-the-grammar-dependency" title="Link to this section">#</a></h3>
+<p>In <code>pyproject.toml</code>, find the <code>kb</code> optional extra and its tree-sitter block, commented "Code parsing:
+the tree-sitter runtime plus per-language grammar packages". Add your grammar to that list:</p>
+<div class="highlight"><pre><span></span><code><span class="s2">&quot;tree-sitter-&lt;lang&gt;&gt;=X.Y&quot;</span><span class="err">,</span>
+</code></pre></div>
+<p>Pin the floor to the version whose <code>language()</code> entry point you actually import against, not to a
+house number. The existing pins vary for that reason. Nothing else needs editing: the <code>kb-full</code> extra
+is defined in terms of <code>kb</code>, so it inherits the grammar, and <code>make install</code> runs the same
+<code>pip install -e ".[dev,kb]"</code> that CI does.</p>
+<h3 id="2-map-the-file-extensions">2. Map the file extensions<a class="anchor" href="#2-map-the-file-extensions" title="Link to this section">#</a></h3>
+<p>In <code>parse.py</code>, add one <code>LANG_BY_EXT</code> entry per extension your language uses. Several extensions may
+map to one id, the way <code>.kt</code> and <code>.kts</code> both map to <code>kotlin</code>.</p>
+<p>If your language is a superset of one already covered, reusing the existing id is a legitimate choice
+that costs nothing else on this list. <code>.h</code>, <code>.cu</code> and <code>.cuh</code> are all read with the C++ grammar for
+exactly that reason, and the in-table comments explain what each of those decisions does and does not
+capture. Write the same kind of note if you make the same kind of call.</p>
+<p>Nothing downstream needs an edit. The extension filter behind <code>kb.toml</code>'s <code>languages</code> setting, the
+router that decides which extractor owns a file, and the walk that stamps <code>SourceFile.lang</code> all read
+this one table.</p>
+<h3 id="3-map-node-types-to-kinds">3. Map node types to kinds<a class="anchor" href="#3-map-node-types-to-kinds" title="Link to this section">#</a></h3>
+<p><code>_DEF_TYPES[lang]</code> maps a tree-sitter node type to a contextlake node kind. Every value must be a key
+of <code>KIND_REGISTRY</code>; a value that is not fails the parity test in step 7 with a named error.</p>
+<p>Collapsing several syntactic forms into one kind is normal and precedented. Go's <code>type_spec</code> becomes
+<code>struct</code>, Ruby's <code>module</code> becomes <code>class</code>, Kotlin's <code>object_declaration</code> becomes <code>class</code>, and each of
+those carries a comment saying why. Write yours the same way.</p>
+<p>One subtlety is worth knowing before you choose: a function defined inside a definition whose kind is
+exactly <code>class</code> is promoted from <code>function</code> to <code>method</code>. Map your class-like node to anything else and
+its members stay kinded <code>function</code>, which is a quiet quality loss rather than an error.</p>
+<p>If your language is an alias of one already registered, alias the row rather than retyping it, the way
+<code>_DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]</code> does.</p>
+<h3 id="4-write-the-tree-sitter-query">4. Write the tree-sitter query<a class="anchor" href="#4-write-the-tree-sitter-query" title="Link to this section">#</a></h3>
+<p><code>_QUERIES[lang]</code> holds a tree-sitter query string, compiled lazily on first use. <strong>The capture-name
+vocabulary is closed.</strong> The parser reads exactly five capture names and ignores everything else,
+without a warning:</p>
+<table>
+<thead>
+<tr>
+<th>Capture</th>
+<th>What it produces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@def</code></td>
+<td>a definition node, kinded through <code>_DEF_TYPES</code></td>
+</tr>
+<tr>
+<td><code>@def_qi</code></td>
+<td>a C++-style out-of-line qualified definition (<code>Type Class::method()</code>). No other language needs it</td>
+</tr>
+<tr>
+<td><code>@import</code></td>
+<td>a <code>module</code> node and an <code>imports</code> edge</td>
+</tr>
+<tr>
+<td><code>@call</code></td>
+<td>an unresolved call reference, resolved repo-wide after every file is parsed</td>
+</tr>
+<tr>
+<td><code>@base</code></td>
+<td>an unresolved <code>inherits</code> reference</td>
+</tr>
+</tbody>
+</table>
+<p>Write one pattern per real syntactic shape rather than one clever pattern that tries to cover several.
+The Kotlin query carries two separate <code>@base</code> patterns because a Kotlin supertype list holds two
+different shapes, a constructor invocation and a bare interface name, and one pattern would have
+silently dropped the other.</p>
+<p>Two normalisations are already applied to every <code>@base</code> capture, so you do not need to handle either:
+a generic supertype such as <code>Comparable&lt;Order&gt;</code> and a dotted one such as <code>com.example.Base</code> both
+reduce to the bare name. If your language has neither shape, the strips are no-ops.</p>
+<p>Alias a shared query the same way you aliased the kinds: <code>_QUERIES["tsx"] = _QUERIES["typescript"]</code>.</p>
+<h3 id="5-load-the-grammar">5. Load the grammar<a class="anchor" href="#5-load-the-grammar" title="Link to this section">#</a></h3>
+<p><code>_language()</code> is an explicit <code>if</code>/<code>elif</code> chain of lazy imports ending in
+<code>raise ValueError(f"unsupported language: {lang}")</code>. Add a branch:</p>
+<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">&quot;&lt;lang&gt;&quot;</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">tree_sitter_</span><span class="o">&lt;</span><span class="n">lang</span><span class="o">&gt;</span> <span class="k">as</span> <span class="n">g</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">language</span>
+</code></pre></div>
+<p><strong>Keep the import inside the function.</strong> The laziness is load-bearing: the core tier of contextlake
+must work with no tree-sitter installed at all, and two tests police that boundary.</p>
+<p>Read the grammar package before you write <code>fn = g.language</code>. Some expose more than one entry point:
+the TypeScript wheel provides <code>language_typescript</code> and <code>language_tsx</code>, and the PHP wheel provides
+<code>language_php</code>.</p>
+<p>The parser cache and the query cache need no change. Both are keyed by the same language id and pick
+your language up for free.</p>
+<h3 id="6-decide-the-interop-family">6. Decide the interop family<a class="anchor" href="#6-decide-the-interop-family" title="Link to this section">#</a></h3>
+<p>This step is a decision, and "no edit" is one of its valid answers.</p>
+<p><code>_LANG_FAMILY</code> groups languages that may resolve <code>calls</code> and <code>inherits</code> references into each other's
+definitions. Name resolution is repo-wide and name-based, so without the grouping a Python
+<code>conn.close()</code> matched a JavaScript <code>close()</code>; the comment above the table records the measurement
+that forced it, 282 false positives on one real repo, precision 1 in 282.</p>
+<p>Add your language to a group <strong>only if it genuinely interoperates</strong> with the languages already in it.
+The existing groups are <code>js</code> (JavaScript, TypeScript, TSX), <code>c</code> (C and C++), and <code>jvm</code> (Java, Kotlin,
+Scala). A language absent from the table is its own group, which is exactly what you want for a
+language that does not share a runtime with anything else, and is why Python, Go, Rust, C#, Ruby and
+PHP are all absent.</p>
+<p>Getting this wrong in the permissive direction is the expensive error. The false edges it creates are
+stamped <code>INFERRED</code>, so they read as fact. When in doubt, leave it out.</p>
+<h3 id="7-add-the-parse-tests">7. Add the parse tests<a class="anchor" href="#7-add-the-parse-tests" title="Link to this section">#</a></h3>
+<p>Two edits in <code>tests/kb/test_kb_parse.py</code>, both required:</p>
+<ol>
+<li><strong>A <code>test_parse_&lt;lang&gt;()</code></strong> that calls <code>parse_source(repo, path, src, lang)</code> directly on a source
+   string and asserts what came back. <code>test_parse_kotlin</code> is the template worth imitating: it asserts
+   every stream the parser produces (nodes by kind, module nodes from imports, callee names, base
+   names) and, more importantly, it asserts the <strong>negatives</strong>. <code>"Order" not in by_kind["function"]</code>
+   and <code>"Order" not in base_names</code> are what catch a query that captures one node too many. Write one
+   negative per normalisation your language relies on.</li>
+<li><strong>The extension assertion.</strong> Add your extensions to the tuple in
+   <code>test_lang_by_ext_covers_target_languages</code>, and add an explicit mapping assertion for a secondary
+   extension if you have one, the way <code>assert LANG_BY_EXT[".kts"] == "kotlin"</code> does.</li>
+</ol>
+<p>The kind-registry parity test needs no edit. It introspects <code>_DEF_TYPES</code> directly, so it starts
+covering your language the moment the row exists, and fails immediately if you mapped a node type to a
+kind nobody registered.</p>
+<h3 id="8-update-the-published-language-count">8. Update the published language count<a class="anchor" href="#8-update-the-published-language-count" title="Link to this section">#</a></h3>
+<p>The <a href="style-guide-reference#the-house-style-decision-cache">word reference</a> makes the wording of the
+language count a house rule, with one exact phrasing used everywhere. Adding a language moves it in
+five hand-written places:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What to change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code></td>
+<td>the count in the feature list</td>
+</tr>
+<tr>
+<td><code>ROADMAP.md</code></td>
+<td>the count in the knowledge-graph bullet</td>
+</tr>
+<tr>
+<td><code>docs/index-code-graph.md</code></td>
+<td>the count in the <a href="index-code-graph#languages">Languages</a> section, <strong>and</strong> a new row in the Ecosystem table</td>
+</tr>
+<tr>
+<td><code>docs/style-guide-reference.md</code></td>
+<td>the mandated phrasing itself</td>
+</tr>
+<tr>
+<td><code>site/build_docs.py</code></td>
+<td>the "Index the code graph" page subtitle</td>
+</tr>
+</tbody>
+</table>
+<p>The count distinguishes languages from grammars, because TypeScript and TSX share one. If your
+language shares a grammar with an existing id, the two numbers move independently.</p>
+<p>No test pins the phrase. This step is guarded by review, and it is the one most likely to be
+forgotten.</p>
+<h3 id="9-regenerate-the-site-then-write-the-changelog">9. Regenerate the site, then write the changelog<a class="anchor" href="#9-regenerate-the-site-then-write-the-changelog" title="Link to this section">#</a></h3>
+<p><code>site/llms.txt</code> and <code>site/llms-full.txt</code> are generated from the docs, and a test recomputes them and
+compares byte for byte. Editing <code>README.md</code> or any <code>docs/*.md</code> fails that test until you regenerate:</p>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>site/build_docs.py
+</code></pre></div>
+<p>Most of what the builder writes into <code>site/</code> is gitignored and rebuilt on every deploy, so the only
+generated file your commit needs to carry is <code>site/llms-full.txt</code>. If you added a page rather than
+editing one, add its rendered filename to <code>site/.gitignore</code> too, which lists the generated pages by
+name. Do not run <code>site/deploy.sh</code>; it publishes to the <code>gh-pages</code> branch and has nothing to do with
+this change.</p>
+<p>Then add an entry under <code>[Unreleased]</code> in <code>CHANGELOG.md</code>, naming the grammar package you pinned. The
+Kotlin entry is the precedent.</p>
+<h2 id="optional-extras-and-what-skipping-each-one-costs">Optional extras, and what skipping each one costs<a class="anchor" href="#optional-extras-and-what-skipping-each-one-costs" title="Link to this section">#</a></h2>
+<p>None of these is required, and skipping all of them still ships a working language. Each has a stated
+consequence, so you can decide rather than guess.</p>
+<table>
+<thead>
+<tr>
+<th>Extra</th>
+<th>Where</th>
+<th>If you skip it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repo lettermark on graph pages</td>
+<td><code>_LANG_LABELS</code> in <code>kb/visualize/styling.py</code></td>
+<td>the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend</td>
+</tr>
+<tr>
+<td>Repo lettermark in the dashboard</td>
+<td><code>LANG_LABELS</code> in <code>kb/dashboard/static/dashboard.js</code></td>
+<td>the same, in the dashboard. This table is a hand-kept mirror of the Python one and <strong>no test compares them</strong>, so change both or neither</td>
+</tr>
+<tr>
+<td>HTTP endpoints and clients</td>
+<td><code>_FAMILY</code> in <code>kb/flow/http.py</code></td>
+<td>no <code>endpoint</code> nodes and no <code>calls_http</code> edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do</td>
+</tr>
+<tr>
+<td>State machines</td>
+<td><code>_FAMILY</code> in <code>kb/flow/state.py</code></td>
+<td>no <code>state</code> nodes and no state diagram for your language</td>
+</tr>
+<tr>
+<td>Frontend routes</td>
+<td><code>_WEB_LANGS</code> in <code>kb/flow/web.py</code></td>
+<td>no <code>route</code> nodes. Correct to skip unless your language really hosts a JS-style router</td>
+</tr>
+<tr>
+<td>Docstrings and signatures</td>
+<td><code>_doc_sig</code> in <code>kb/parse.py</code></td>
+<td>signatures come from a <code>parameters</code> field lookup, docstrings from a Python first-statement string or a JSDoc / C# <code>///</code> leading comment. A language using another convention gets <code>doc=None</code>. It never raises, so this is a quality gap, not a failure</td>
+</tr>
+</tbody>
+</table>
+<p>Event and topic extraction needs <strong>nothing</strong>: it is a language-agnostic scan over the file text, so
+topics work for your language the moment its files are indexed.</p>
+<h2 id="if-your-language-needs-a-new-node-kind">If your language needs a new node kind<a class="anchor" href="#if-your-language-needs-a-new-node-kind" title="Link to this section">#</a></h2>
+<p>Most do not. The <code>_DEF_TYPES</code> tables across every supported language map into only <code>class</code>,
+<code>interface</code>, <code>struct</code>, <code>enum</code>, <code>function</code>, <code>method</code> and <code>namespace</code>, and the parser adds <code>test</code>, <code>file</code>
+and <code>module</code> of its own. (The five member-symbol kinds, <code>field</code>, <code>macro</code>, <code>typedef</code>, <code>enum_constant</code>
+and <code>global_variable</code>, come from a separate C and C++ pass, not from <code>_DEF_TYPES</code>.) Mapping into that
+first set is the cheap path and the normal one.</p>
+<p>If you genuinely need a new kind, add a row to <code>KIND_REGISTRY</code> in <code>src/contextlake/kb/kinds.py</code>.
+<code>KindSpec</code> is a frozen dataclass in which <strong>no field has a default</strong>, deliberately: a new kind cannot
+be added without answering every question a consumer asks about it, and a reviewer sees all of those
+answers in one hunk. Python refuses to construct a partial row, and a test asserts that no field ever
+gains a default.</p>
+<p>Four constraints on the values, each pinned by its own test:</p>
+<ul>
+<li><code>color</code> must be lowercase <code>#rrggbb</code>. A kind without a colour gets no filter button on the graph
+  page, so it cannot be isolated or hidden.</li>
+<li><code>group</code> must be a member of <code>KIND_GROUP_ORDER</code>.</li>
+<li><code>why_not_embeddable</code> must be non-empty when <code>embeddable</code> is <code>False</code>, and empty when it is <code>True</code>.
+  Write <code>""</code>, never <code>None</code>: several older rows pass <code>None</code> and get away with it only because they are
+  embeddable, and copying that shape onto a non-embeddable kind trades an informative test failure for
+  an <code>AttributeError</code>.</li>
+<li><code>embeddable=True</code> also means hand-editing the pinned <code>EMBEDDABLE_KINDS</code> frozenset in the same
+  commit, and bumping <code>EMBED_CONTENT_VERSION</code>. That set feeds the per-kind embedding budget floors, so
+  widening it evicts vectors that already exist and re-embedding is the only repair.</li>
+</ul>
+<p><code>glyph=None</code> is a legitimate answer and most newer rows use it. Setting a glyph means four copies must
+agree (the registry, the styling projection, the dashboard sprite, and the dashboard's JS glyph map),
+because registering a kind in the JS map is what <strong>disables</strong> the generic file-icon fallback for it.
+Registering it there without the sprite renders a blank box, which is worse than being absent from
+both.</p>
+<h2 id="what-not-to-touch">What not to touch<a class="anchor" href="#what-not-to-touch" title="Link to this section">#</a></h2>
+<p>Three parts of the repo look like they should grow with a new language and should not.</p>
+<p><strong>The golden parse shard</strong>, <code>tests/kb/golden/parse_shard.json</code> and its <code>FIXTURE</code> dict. It only moves
+if you add a file to that dict, and doing so means regenerating the shard, updating an exact
+skip-counter string, and making a <code>PARSER_VERSION</code> judgement. Leave it alone and none of that arises.</p>
+<p><strong><code>PARSER_VERSION</code>.</strong> The stamp signals "the shards of already-indexed repos changed", which makes
+<code>doctor</code> recommend a fleet-wide re-index and makes <code>kb index</code> re-index every repo instead of treating
+it as unchanged. A new language changes no existing repo's output. Bump it only if you also changed
+shared definition, containment or resolution logic.</p>
+<p><strong>The retrieval evaluation set</strong>, <code>examples/fixtures/golden-queries.json</code> and
+<code>examples/fixtures/eval-repo/</code>. This set is scored on every pull request against a declared hit-rate
+floor, and it deliberately does not cover every language: Kotlin and Scala are both supported and both
+absent. Adding fixture symbols without adding matching queries dilutes the corpus and can push the
+score under the floor, and one of its tests requires a perfect hit rate for single-word queries.
+Representing your language there is a separate, deliberate change that ratchets the floor up in the
+same commit. It is not part of adding a language.</p>
+<h2 id="verify-it">Verify it<a class="anchor" href="#verify-it" title="Link to this section">#</a></h2>
+<p>Run these in order. The first three are offline and touch nothing outside the repo and a scratch
+directory.</p>
+<h3 id="the-grammar-loads-and-the-query-compiles">The grammar loads and the query compiles<a class="anchor" href="#the-grammar-loads-and-the-query-compiles" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">from contextlake.kb.parse import _language, _query, _parser</span>
+<span class="s2">_language(&#39;&lt;lang&gt;&#39;); _query(&#39;&lt;lang&gt;&#39;); _parser(&#39;&lt;lang&gt;&#39;)</span>
+<span class="s2">print(&#39;grammar + query OK&#39;)</span>
+<span class="s2">&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>grammar + query OK
+</code></pre></div>
+<p>This is the cheapest check and the one that separates the three most common failures from each other:
+it proves the <code>pyproject.toml</code> entry installed, that your <code>_language</code> branch names the right entry
+point, and that your query compiles against <strong>that</strong> grammar version.</p>
+<p>The compile step is genuinely strict, which is why it is worth a contributor's time. A node type your
+grammar does not have fails at construction, naming the row and column:</p>
+<div class="highlight"><pre><span></span><code>tree_sitter.QueryError: Invalid node type at row 0, column 1: no_such_node_type
+</code></pre></div>
+<p>A grammar upgrade that renames a node type therefore fails loudly here. Note the limit: this catches
+node <strong>types</strong>, not capture names. A capture name the parser does not read compiles cleanly and stays
+silent.</p>
+<h3 id="the-parser-produces-the-nodes-calls-and-bases-you-expect">The parser produces the nodes, calls and bases you expect<a class="anchor" href="#the-parser-produces-the-nodes-calls-and-bases-you-expect" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">from contextlake.kb.parse import parse_source</span>
+<span class="s2">src = open(&#39;/path/to/sample.&lt;ext&gt;&#39;,&#39;rb&#39;).read()</span>
+<span class="s2">nodes, edges, calls, inherits = parse_source(&#39;demo/&lt;lang&gt;&#39;, &#39;sample.&lt;ext&gt;&#39;, src, &#39;&lt;lang&gt;&#39;)</span>
+<span class="s2">for n in nodes: print(n.kind, n.name, n.qualified_name, n.line_start)</span>
+<span class="s2">print(&#39;calls   &#39;, sorted({c[1] for c in calls}))</span>
+<span class="s2">print(&#39;inherits&#39;, sorted({i[1] for i in inherits}))</span>
+<span class="s2">&quot;</span>
+</code></pre></div>
+<p>On a small Kotlin sample holding one class with one method, one import, one call and one base type:</p>
+<div class="highlight"><pre><span></span><code>file Svc.kt None None
+class CatalogService Svc.kt::CatalogService 5
+method process Svc.kt::CatalogService.process 6
+module com.example.Base None None
+calls    [&#39;helper&#39;]
+inherits [&#39;Base&#39;]
+</code></pre></div>
+<p>Read all four streams. <code>class</code> and <code>method</code> prove your <code>_DEF_TYPES</code> mapping and the method promotion;
+the <code>module</code> node proves <code>@import</code>; and the two lists prove <code>@call</code> and <code>@base</code> captured names with
+<strong>no</strong> spurious extras. Package segments and generic type arguments appearing in <code>inherits</code> are the
+two things to look for, because they are exactly what the normalisation strips.</p>
+<h3 id="the-test-suite">The test suite<a class="anchor" href="#the-test-suite" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/kb/test_kb_parse.py<span class="w"> </span>tests/kb/test_kind_registry_parity.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tests/kb/test_languages_config.py<span class="w"> </span>tests/kb/test_kb_parse_golden.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tests/kb/test_retrieval_quality.py<span class="w"> </span>tests/kb/test_dashboard_kind_glyph_parity.py<span class="w"> </span>-q
+python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_llms_full_is_in_sync.py<span class="w"> </span>tests/test_no_emdash_in_docs.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tests/test_doc_links_resolve.py<span class="w"> </span>-q
+ruff<span class="w"> </span>check<span class="w"> </span>src<span class="w"> </span>tests
+</code></pre></div>
+<p>The golden and retrieval-quality tests are in that list not because they should change, but as proof
+that they did not: they are the two a language addition can move by accident.</p>
+<p>Then run the full gate, which is a copy of CI's own step, before you open anything:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+<h3 id="end-to-end-through-the-real-cli">End to end through the real CLI<a class="anchor" href="#end-to-end-through-the-real-cli" title="Link to this section">#</a></h3>
+<p><strong>Do not run <code>kb index</code> bare.</strong> It resolves configuration against your real <code>~/.contextlake/</code> and
+would write into your live store. Point it at a throwaway config whose <code>store_dir</code> is somewhere
+disposable:</p>
+<div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>/tmp/lang-check/demo-repo<span class="w"> </span>/tmp/lang-check/store
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[kb]\nstore_dir = &quot;/tmp/lang-check/store&quot;\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>/tmp/lang-check/kb.toml
+cp<span class="w"> </span>sample.&lt;ext&gt;<span class="w"> </span>/tmp/lang-check/demo-repo/
+</code></pre></div>
+<p>Index it, and read the count:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>index<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--source<span class="w"> </span>/tmp/lang-check/demo-repo<span class="w"> </span>--repo<span class="w"> </span>demo/&lt;lang&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>Indexed demo/kotlin: 4 nodes, 3 edges (store totals: 4 nodes, 3 edges)
+</code></pre></div>
+<p>A non-zero node count proves the directory walk classified your extension as code and the parse did
+not hit the blanket handler. Zero nodes means your extension never reached the parser.</p>
+<p>Query a definition by name, and read the kind:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>query<span class="w"> </span>CatalogService
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>  demo/kotlin · Svc.kt:5 · class · CatalogService
+  demo/kotlin · Svc.kt:6 · method · process
+</code></pre></div>
+<p>Each <code>repo · file:line · kind · name</code> hit proves a node reached the SQLite store with the right kind
+and line. The method is a hit too because search matches qualified names, and <code>process</code> is qualified
+<code>CatalogService.process</code>; that second line is expected, not an over-capture by your query.</p>
+<p>Filter by kind, which is the strictest of the three:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>query<span class="w"> </span>--kind<span class="w"> </span>method<span class="w"> </span>process
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>  demo/kotlin · Svc.kt:6 · method · process
+</code></pre></div>
+<p>A hit here proves the kind string your <code>_DEF_TYPES</code> row produces is exactly the one the registry and
+the store expect. A miss with the previous query still returning the node means you mapped it to a
+kind you did not intend.</p>
+<p><strong>A query that returns nothing after a successful index means the file was skipped, not that search is
+broken.</strong> Re-run the index with <code>-v</code> and look for <code>skip &lt;file&gt;: parse error:</code>.</p>
+<h2 id="pitfalls">Pitfalls<a class="anchor" href="#pitfalls" title="Link to this section">#</a></h2>
+<p>Ordered by how likely you are to hit them. Every one is drawn from a comment, docstring or test
+message in this repo.</p>
+<h3 id="a-partial-registration-is-a-silent-skip">A partial registration is a silent skip<a class="anchor" href="#a-partial-registration-is-a-silent-skip" title="Link to this section">#</a></h3>
+<p>This is the headline, and it is the reason to run the cheap grammar check before the CLI. Every file's
+parse is wrapped in a blanket handler, because one bad file must not abort a repo:</p>
+<div class="highlight"><pre><span></span><code><span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 - one bad file must not abort the repo</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  skip </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">rel</span><span class="si">}</span><span class="s2">: parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>So all three half-registered states collapse into one log line at normal verbosity, and the index
+still reports success:</p>
+<table>
+<thead>
+<tr>
+<th>What you forgot</th>
+<th>What it raises</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the <code>_language()</code> branch</td>
+<td><code>ValueError: unsupported language: &lt;lang&gt;</code></td>
+</tr>
+<tr>
+<td>the <code>_DEF_TYPES</code> row</td>
+<td><code>KeyError</code> on <code>_DEF_TYPES[lang]</code></td>
+</tr>
+<tr>
+<td>the <code>_QUERIES</code> row</td>
+<td><code>KeyError</code> on <code>_QUERIES[lang]</code></td>
+</tr>
+</tbody>
+</table>
+<p>The symptom is a normal-looking summary with no nodes for your files. Land steps 3, 4 and 5 together,
+run the grammar check first, and use <code>-v</code> to surface it afterwards.</p>
+<h3 id="extra-capture-names-are-dropped-without-an-error">Extra capture names are dropped without an error<a class="anchor" href="#extra-capture-names-are-dropped-without-an-error" title="Link to this section">#</a></h3>
+<p>The parser reads <code>def</code>, <code>def_qi</code>, <code>import</code>, <code>call</code> and <code>base</code>. A query with <code>@decorator</code> or
+<code>@annotation</code> compiles, runs, matches, and contributes nothing. There is no warning and no test that
+would notice, so re-read your query against the capture table in step 4 rather than trusting a green
+run.</p>
+<h3 id="never-name-a-language-after-a-node-kind">Never name a language after a node kind<a class="anchor" href="#never-name-a-language-after-a-node-kind" title="Link to this section">#</a></h3>
+<p>The parser cache and the extraction-kind registry are keyed by string and were once the same
+variable, which meant <code>_parser()</code> was inserting parser objects into the kind registry. It is harmless
+only while no language shares a name with a kind. Run the <code>KIND_REGISTRY</code> check from the
+<a href="#prerequisites">prerequisites</a> before you settle on an id.</p>
+<h3 id="the-interop-family-is-the-expensive-one-to-get-wrong">The interop family is the expensive one to get wrong<a class="anchor" href="#the-interop-family-is-the-expensive-one-to-get-wrong" title="Link to this section">#</a></h3>
+<p>Putting your language in a family it does not really interoperate with produces <code>INFERRED</code> <code>calls</code> and
+<code>inherits</code> edges to same-named symbols in another language, and <code>INFERRED</code> reads as fact to everything
+downstream. Omitting the language self-isolates it, which is always safe. See step 6.</p>
+<h3 id="aliasing-a-grammar-is-three-edits-not-one">Aliasing a grammar is three edits, not one<a class="anchor" href="#aliasing-a-grammar-is-three-edits-not-one" title="Link to this section">#</a></h3>
+<p>If two ids share one grammar, all three tables need the pairing and each is a separate statement: the
+<code>_DEF_TYPES</code> alias, the <code>_QUERIES</code> alias, and a distinct <code>_language()</code> branch naming the grammar's
+other entry point. Missing the third is the first row of the silent-skip table above.</p>
+<h3 id="do-not-introduce-anything-order-dependent">Do not introduce anything order-dependent<a class="anchor" href="#do-not-introduce-anything-order-dependent" title="Link to this section">#</a></h3>
+<p>Capture extraction is canonicalised on purpose: tree-sitter returns capture lists in an order that
+varies run to run and even within one process, and a test pins shard bytes across five consecutive
+indexes. Anything you add must not depend on capture order, and must never tiebreak on a node id,
+which is pointer-derived.</p>
+<h3 id="never-let-an-unhandled-shape-return-empty">Never let an unhandled shape return empty<a class="anchor" href="#never-let-an-unhandled-shape-return-empty" title="Link to this section">#</a></h3>
+<p>A qualifier-segment helper was once a membership test with no <code>else</code>, so an unrecognised segment
+vanished and the resolver attached the symbol to whatever namespace matched next, a fabricated parent
+that reads as fact. If your query or any helper you add meets a shape it does not recognise, make that
+visible rather than returning nothing.</p>
+<h2 id="worked-example-kotlin">Worked example: Kotlin<a class="anchor" href="#worked-example-kotlin" title="Link to this section">#</a></h2>
+<p>Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
+makes it a useful template: it shows which parts are genuinely required.</p>
+<p><strong>The mandatory set, in the order above:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>File</th>
+<th>What was added</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>pyproject.toml</code></td>
+<td><code>"tree-sitter-kotlin&gt;=1.1",</code> in the <code>kb</code> extra</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>kb/parse.py</code>, <code>LANG_BY_EXT</code></td>
+<td><code>".kt": "kotlin", ".kts": "kotlin",</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>kb/parse.py</code>, <code>_DEF_TYPES</code></td>
+<td><code>class_declaration</code> and <code>object_declaration</code> to <code>class</code>, <code>function_declaration</code> to <code>function</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>kb/parse.py</code>, <code>_QUERIES</code></td>
+<td>three <code>@def</code> patterns, one <code>@import</code>, one <code>@call</code>, two <code>@base</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>kb/parse.py</code>, <code>_language()</code></td>
+<td><code>elif lang == "kotlin": import tree_sitter_kotlin as g; fn = g.language</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>kb/parse.py</code>, <code>_LANG_FAMILY</code></td>
+<td><code>"kotlin": "jvm",</code> alongside Java and Scala</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>tests/kb/test_kb_parse.py</code></td>
+<td><code>test_parse_kotlin()</code>, plus <code>".kt"</code>, <code>".kts"</code> and the <code>.kts</code> mapping assertion</td>
+</tr>
+<tr>
+<td>8</td>
+<td>five doc sites</td>
+<td>the published count moved by one in all five</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>site/llms-full.txt</code>, <code>CHANGELOG.md</code></td>
+<td>the regenerated site file, and a release note naming the grammar package</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The optional set it took:</strong> the lettermark in both <code>_LANG_LABELS</code> tables, Python and JavaScript.</p>
+<p><strong>What it skipped, and correctly:</strong> HTTP, state and route extraction, the golden fixture (so no
+<code>PARSER_VERSION</code> bump), the retrieval evaluation set, and <code>KIND_REGISTRY</code>, since Kotlin introduced no
+new kind at all.</p>
+<p>The Kotlin query is the piece worth reading line by line. Its two <code>@base</code> patterns exist for two
+different syntactic shapes, and its test asserts both of them plus a negative for each normalisation
+the parser applies. One pattern per real shape, plus one negative per normalisation, is the standard
+to hold your query to.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="index-code-graph#languages">Index the code graph</a>, what the graph looks like once your language
+  is in it</li>
+<li><a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>, the development loop, commit style, and how to submit</li>
+<li><a href="style-guide-reference">Word and term reference</a>, the house rules the docs edits in step 8 follow</li>
+<li><a href="internals">Architecture and internals</a>, where the parser sits in the three layers</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="index-code-graph"><span>Index the code graph</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="style-guide"><span>Writing style</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#the-nine-edits">The nine edits</a><ul>
+<li><a href="#1-declare-the-grammar-dependency">1. Declare the grammar dependency</a></li>
+<li><a href="#2-map-the-file-extensions">2. Map the file extensions</a></li>
+<li><a href="#3-map-node-types-to-kinds">3. Map node types to kinds</a></li>
+<li><a href="#4-write-the-tree-sitter-query">4. Write the tree-sitter query</a></li>
+<li><a href="#5-load-the-grammar">5. Load the grammar</a></li>
+<li><a href="#6-decide-the-interop-family">6. Decide the interop family</a></li>
+<li><a href="#7-add-the-parse-tests">7. Add the parse tests</a></li>
+<li><a href="#8-update-the-published-language-count">8. Update the published language count</a></li>
+<li><a href="#9-regenerate-the-site-then-write-the-changelog">9. Regenerate the site, then write the changelog</a></li>
+</ul>
+</li>
+<li><a href="#optional-extras-and-what-skipping-each-one-costs">Optional extras, and what skipping each one costs</a></li>
+<li><a href="#if-your-language-needs-a-new-node-kind">If your language needs a new node kind</a></li>
+<li><a href="#what-not-to-touch">What not to touch</a></li>
+<li><a href="#verify-it">Verify it</a><ul>
+<li><a href="#the-grammar-loads-and-the-query-compiles">The grammar loads and the query compiles</a></li>
+<li><a href="#the-parser-produces-the-nodes-calls-and-bases-you-expect">The parser produces the nodes, calls and bases you expect</a></li>
+<li><a href="#the-test-suite">The test suite</a></li>
+<li><a href="#end-to-end-through-the-real-cli">End to end through the real CLI</a></li>
+</ul>
+</li>
+<li><a href="#pitfalls">Pitfalls</a><ul>
+<li><a href="#a-partial-registration-is-a-silent-skip">A partial registration is a silent skip</a></li>
+<li><a href="#extra-capture-names-are-dropped-without-an-error">Extra capture names are dropped without an error</a></li>
+<li><a href="#never-name-a-language-after-a-node-kind">Never name a language after a node kind</a></li>
+<li><a href="#the-interop-family-is-the-expensive-one-to-get-wrong">The interop family is the expensive one to get wrong</a></li>
+<li><a href="#aliasing-a-grammar-is-three-edits-not-one">Aliasing a grammar is three edits, not one</a></li>
+<li><a href="#do-not-introduce-anything-order-dependent">Do not introduce anything order-dependent</a></li>
+<li><a href="#never-let-an-unhandled-shape-return-empty">Never let an unhandled shape return empty</a></li>
+</ul>
+</li>
+<li><a href="#worked-example-kotlin">Worked example: Kotlin</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js?v=362c353"></script>
+</body>
+</html>

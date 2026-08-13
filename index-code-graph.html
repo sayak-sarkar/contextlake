@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-13"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=60d8cb6">
-<link rel="stylesheet" href="tokens.css?v=60d8cb6">
-<link rel="stylesheet" href="docs.css?v=60d8cb6">
-<link rel="stylesheet" href="cmdk.css?v=60d8cb6">
+<link rel="stylesheet" href="fonts.css?v=362c353">
+<link rel="stylesheet" href="tokens.css?v=362c353">
+<link rel="stylesheet" href="docs.css?v=362c353">
+<link rel="stylesheet" href="cmdk.css?v=362c353">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph" class="active">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph" class="active">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Index the code graph</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Index the code graph</h1><p class="doc-sub">Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -141,13 +141,20 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w
 <p>The repository is re-indexed under the id it was already filed as, never a second time under its directory
 name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
 checkout is gone, the error names the path it was indexed from.</p>
+<p>For a checkout that has no usable <code>origin</code>, or one you want filed under a different name, <code>--repo</code> sets
+the id explicitly: <code>contextlake kb index --source ./widgets --repo team/widgets</code>. Without it the id
+falls back to the directory name, which is exactly the fragile, path-dependent id this section exists to
+avoid, so name it once rather than living with a repo filed as <code>widgets</code> because that is what the folder
+happened to be called.</p>
 <h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
 <p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
 serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
 Linux, macOS, and Windows, with an automatic serial fallback if a worker pool can't start. It defaults to
 <code>cpu_count - 1</code> workers (capped at 8); set <code>[kb] index_workers</code> to tune it (<code>1</code> forces serial).</p>
-<p>The parser also <strong>skips machine-generated and derived files</strong> (<code>*.designer.cs</code>, <code>*.min.js</code>,
-<code>AssemblyInfo.cs</code>, and <code>@generated</code> / <code>&lt;auto-generated&gt;</code> headers) plus code files larger than <code>[kb]
+<p>The parser also <strong>skips machine-generated and derived files</strong>: names like <code>*.designer.cs</code>, <code>*.min.js</code>
+and <code>AssemblyInfo.cs</code>, and any of four case-insensitive header markers in the first 2048 bytes,
+<code>&lt;auto-generated</code>, <code>@generated</code>, <code>do not edit</code> and <code>code generated by</code>. That last pair catches more than
+it looks: a file whose banner just says "DO NOT EDIT" is skipped too. Also skipped are code files larger than <code>[kb]
 max_file_bytes</code> (5 MB). That's derived noise, not real source, and every skip is reported (no silent gaps).
 Set <code>[kb] skip_generated = false</code> or raise <code>max_file_bytes</code> to index them anyway. Discovery also skips
 <strong>vendored nested repos</strong>: an upstream clone carried inside the mirror with its own <code>.git</code> under a
@@ -184,10 +191,14 @@ either of them:</p>
 <p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
 <code>extends</code> / <code>implements</code> / base classes), so "what extends <code>BaseController</code>?" is one hop, and changing a
-base class shows its subclasses in <code>blast_radius</code>. Every node kind and edge relation below is colored and
-styled the same way here, in <code>contextlake kb graph</code>, and in the dashboard:</p>
+base class shows its subclasses in <code>blast_radius</code>. The diagram below imports its colors from the same
+module <code>contextlake kb graph</code> and the dashboard render with, so node kinds match everywhere. Edge
+relations mostly do: 10 of them carry a dedicated hue (<code>calls</code>, <code>imports</code>, <code>contains</code>, <code>depends_on</code>,
+<code>publishes</code>, <code>tracked_by</code>, <code>documented_by</code>, <code>flow</code>, <code>exposes</code>, <code>calls_http</code>), while <code>inherits</code> and
+<code>references</code> ride the neutral default edge color, and <code>reads</code>, <code>writes</code> and <code>transitions_to</code>, which
+this page documents further down, are real edges the diagram does not show at all:</p>
 <p align="center">
-  <img src="img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: node kinds (symbols like class/function/method, containers like file/module/package/repo, service surfaces like endpoint/topic, cross-source issue/page/design, and the namespace boundary) each with their color, and edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, inherits, references) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+  <img src="img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 40 node kinds in 9 bands (symbols, containers, service surfaces, data model, infrastructure, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
 
 <h3 id="languages">Languages<a class="anchor" href="#languages" title="Link to this section">#</a></h3>
@@ -225,6 +236,9 @@ parser registry is pluggable:</p>
 </table>
 <p>Frameworks are indexed through their base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X),
 <strong>Angular</strong> is TS (its templates are HTML), and <strong>.NET</strong> is C#.</p>
+<p>Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
+entries. <a href="contributing-languages">Adding a language</a> is the ordered recipe, with the verification
+commands that prove a new grammar works.</p>
 <h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
 <p>A method defined outside its class (<code>ReturnType Class::method(...) { ... }</code>, at any <code>::</code> qualification
 depth) resolves to a <code>method</code> contained by its class, repo-wide -- not just the file it's declared in --
@@ -249,7 +263,8 @@ references across files in a repo. <code>resource</code> nodes are semantically 
 example <code>environments/prod</code> and <code>environments/staging</code>) surfaces as an <code>AMBIGUOUS</code> edge; directory-scoped
 resolution is a future refinement. Render it with <code>contextlake kb graph --repo &lt;repo&gt; --format
 deploymentdiagram</code> (a Mermaid flowchart grouped by inferred category: network/compute/storage/
-database/security/module), see <a href="visualize">Visualize</a>.</p>
+database/security/other/module, where <code>other</code> catches any resource type none of the keyword lists
+claims), see <a href="visualize">Visualize</a>.</p>
 <h3 id="databases-sql-ddl">Databases: SQL DDL<a class="anchor" href="#databases-sql-ddl" title="Link to this section">#</a></h3>
 <p><code>.sql</code> files build a referential graph: <code>table</code> / <code>view</code> / <code>procedure</code> definitions with <code>references</code> edges
 from foreign-key <code>REFERENCES</code> clauses, resolved across files in a repo. <code>table</code> and <code>view</code> nodes are
@@ -275,8 +290,10 @@ test. These are the numbers to distrust a graph <code>INFERRED</code> SQL edge b
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.</p>
 <h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
-<p>A repo's own decision records, under common conventions (<code>docs/adr/</code>, <code>docs/decisions/</code>,
-<code>decisions/</code>, <code>adr/</code>, one file per decision), become first-class <code>adr</code> nodes in that repo's shard,
+<p>A repo's own decision records become first-class <code>adr</code> nodes in that repo's shard. The match is any
+<code>.md</code> file with a directory segment named <code>adr</code>, <code>adrs</code> or <code>decisions</code> anywhere in its path, case
+insensitively, so <code>docs/adr/</code>, <code>docs/decisions/</code>, <code>decisions/</code>, <code>adrs/</code> and <code>architecture/adr/</code> all
+qualify, one file per decision. Each node takes its
 title from the file's first <code>#</code> heading (or the filename otherwise). Unlike connector-sourced
 content (<code>enrich</code>/<code>connect</code>, external systems reached over the network), an ADR is authored, checked
 into the repo's own git history: a recorded fact, not something to attribute or hedge on. <code>adr</code> nodes
@@ -305,9 +322,20 @@ guessed link. <code>reads</code>/<code>writes</code> are in <code>impact</code>'
 answers "what code touches this table" out of the box.</p>
 <h3 id="web-topology-endpoints-and-routes">Web topology: endpoints and routes<a class="anchor" href="#web-topology-endpoints-and-routes" title="Link to this section">#</a></h3>
 <p>Two web-topology layers sit on top of the definitions.</p>
-<p><strong>HTTP endpoints</strong> a repo exposes or calls (Express/Fastify/Nest, FastAPI/Flask, ASP.NET minimal-API, and
-Next.js App Router <code>route.ts</code> handlers) become shared <code>endpoint</code> nodes that join across repos into <code>flow</code>
-edges, from the caller repo to the exposer repo.</p>
+<p><strong>HTTP endpoints</strong> a repo exposes or calls become shared <code>endpoint</code> nodes that join across repos into
+<code>flow</code> edges, from the caller repo to the exposer repo. Detection is regex-based and framework-targeted,
+so read the list as what is actually matched:</p>
+<ul>
+<li><strong>Python</strong>: FastAPI and Flask decorator routing (<code>@app.get("...")</code>, <code>@router.route("...")</code>).</li>
+<li><strong>JavaScript and TypeScript</strong>: the Express-shaped call form,
+  <code>app</code>/<code>router</code>/<code>api</code>/<code>server</code> <code>.get|.post|.put|.delete|.patch("...")</code>. Fastify code that happens to
+  use one of those variable names is caught incidentally. <strong>NestJS is not supported</strong>: its
+  <code>@Controller</code> / <code>@Get()</code> decorator routing matches nothing here.</li>
+<li><strong>C#</strong>: minimal-API <code>MapGet</code>/<code>MapPost</code>/… <strong>and</strong> attribute routing, <code>[HttpGet("...")]</code> and
+  <code>[Route("...")]</code>, so a conventional MVC or Web API controller is picked up too.</li>
+<li>Next.js App Router <code>route.ts</code> handlers, via the file convention.</li>
+</ul>
+<p>Every one of these edges is <code>INFERRED</code> by construction, a likely undercount rather than an assertion.</p>
 <p><strong>Frontend routes</strong> become repo-scoped, embeddable <code>route</code> nodes from three frameworks:</p>
 <table>
 <thead>
@@ -336,7 +364,8 @@ edges, from the caller repo to the exposer repo.</p>
 </tbody>
 </table>
 <p>The object-literal forms use a tree-sitter AST walk anchored on the route-table container (a
-<code>Routes</code>-typed declarator, or the array argument to <code>forRoot</code> / <code>provideRouter</code> / <code>create*Router</code>), so
+<code>Routes</code>-typed declarator, or the array argument to <code>RouterModule.forRoot</code> / <code>RouterModule.forChild</code> /
+<code>provideRouter</code> / <code>create*Router</code>), so
 nested <code>children</code> compose into full paths and bare <code>{path:...}</code> config objects are never mis-read as routes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -463,6 +492,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=60d8cb6"></script>
+<script defer src="cmdk.js?v=362c353"></script>
 </body>
 </html>
