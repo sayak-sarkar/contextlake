@@ -185,3 +185,45 @@ def test_every_kind_lands_in_exactly_one_doc_group():
     assert not empty, f"declared in KIND_GROUP_ORDER but holding no kinds: {empty}"
     strays = sorted({s.group for s in KIND_REGISTRY.values()} - set(KIND_GROUP_ORDER))
     assert not strays, f"kind groups missing from KIND_GROUP_ORDER: {strays}"
+
+
+def test_every_parsed_language_has_a_lettermark():
+    """The kind vocabulary is pinned above; the LANGUAGE vocabulary was not, and it drifted.
+
+    `visualize/styling._LANG_LABELS` supplies the lettermark overlaid on a repo node.
+    A language the parser emits but this map has never heard of gets no glyph at all,
+    which renders as "this node has no language" rather than as a missing entry --
+    silent in exactly the way the kind-colour drift was, and found the same way: by
+    someone comparing two lists by hand.
+
+    Scala was in that state. It parsed `.scala`/`.sc` files and carried no lettermark.
+    """
+    from contextlake.kb.parse import LANG_BY_EXT
+    from contextlake.kb.visualize.styling import _LANG_LABELS
+
+    parsed = set(LANG_BY_EXT.values())
+    missing = sorted(parsed - set(_LANG_LABELS))
+    assert not missing, (
+        f"languages the parser emits with no lettermark: {missing}. Add each to "
+        "`_LANG_LABELS` in kb/visualize/styling.py -- a repo node in that language "
+        "currently renders with no language glyph."
+    )
+
+
+def test_the_lettermark_map_holds_no_language_that_is_not_an_alias():
+    """The other direction, kept deliberately loose.
+
+    An entry for a language the parser does not emit is dead weight, not a defect --
+    `c_sharp` is retained on purpose as an alias of `csharp` for stores written before
+    the id settled. So this asserts the *set of strays is exactly the aliases we chose*,
+    which fails when somebody adds a third one without saying why, rather than banning
+    strays outright."""
+    from contextlake.kb.parse import LANG_BY_EXT
+    from contextlake.kb.visualize.styling import _LANG_LABELS
+
+    strays = set(_LANG_LABELS) - set(LANG_BY_EXT.values())
+    assert strays == {"c_sharp"}, (
+        f"unexpected lettermark entries for languages the parser never emits: "
+        f"{sorted(strays - {'c_sharp'})}. Either the language was removed and this "
+        "entry is dead, or a new alias needs a comment saying which id it stands in for."
+    )

@@ -5,9 +5,40 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Added
+
+- **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
+  contextlake's clearest measurable gap — 14 grammars against a competitor's 23 and another's 40 — and
+  the architecture was never the obstacle: a grammar is a handful of table entries. What was missing
+  was a written path. `docs/contributing-languages.md` is the nine numbered edits in the order a
+  contributor makes them, what each optional step costs if skipped, the verification commands with the
+  output that proves the grammar works, and a full worked example from a language already in the tree.
+
+  It names the pitfalls the code itself warns about rather than generic advice — the headline one being
+  a blanket `except` that turns a half-registered grammar into a single `skip <file>: parse error`
+  line while the index still reports success, which would cost a first-time contributor an hour. And
+  it says what **not** to touch: the golden-query fixture and `PARSER_VERSION` should not move for a
+  pure addition, with the cost of doing so stated.
+
 ## [Unreleased]
 
 ### Fixed
+
+- **A Scala file's node had no language glyph, and nothing noticed.** The lettermark map in the graph
+  viewer drifted from the parser's own language table: `scala` parses `.scala`/`.sc` and had no entry,
+  so its nodes rendered with no language marking at all — which reads as "this has no language" rather
+  than as a missing entry. Exactly the silent shape as the kind-colour drift fixed in 7.3.0, found the
+  same way, by comparing two lists by hand.
+
+  Both directions are now pinned by a test beside the kind-registry parity checks. The reverse
+  direction is deliberately loose: `c_sharp` is kept as an alias of the real id `csharp` for older
+  stores, so the test asserts the stray set is *exactly* the aliases chosen rather than banning strays,
+  and fails when a third appears without an explanation.
+
+- **A comment in the parser claimed `xml` was a node kind. It is not.** It is a *file* kind; the XML
+  extractor emits `config_key`, and `xml` appears nowhere in the kind registry. The comment was
+  describing a real collision risk in the file-kind registry and used the word "kind" for both, which
+  had already misled one reader into believing a kind existed.
 
 - **The dashboard's health panel re-walked every edge in the store on every request.** `lint_result`
   parses each repo's shard and resolves both endpoints of every edge to find dangling ones, and the

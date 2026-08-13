@@ -31,6 +31,7 @@ style-guide-structure.html
 style-guide-formatting.html
 style-guide-reference.html
 brand.html
+contributing-languages.html
 404.html
 
 # Shared brand assets are single-sourced in ../docs and synced in at build time

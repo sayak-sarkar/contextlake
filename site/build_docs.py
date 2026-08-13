@@ -227,6 +227,13 @@ PAGES = [
      "the palette, and the mark, with the full spec linked.",
      "pebble-doc.png",
      [("style-guide.html", "Writing style"), ("docs.html", "Overview")]),
+    ("contributing-languages.html", "docs/contributing-languages.md", "Adding a language",
+     "Adding a language",
+     "Project", "The ordered contributor recipe for teaching contextlake a new source "
+     "language: the nine edits, the parts to leave alone, and the commands that prove the "
+     "grammar works.",
+     "pebble-doc.png",
+     [("index-code-graph.html", "Index the code graph"), ("style-guide.html", "Writing style")]),
 ]
 TO_PAGE = {src: out for out, src, *_ in PAGES}
 TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
@@ -254,7 +261,8 @@ NAV_GROUPS = [
     ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
                    "changelog.html"]),
     ("Project", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
-                 "style-guide-formatting.html", "style-guide-reference.html", "brand.html"]),
+                 "style-guide-formatting.html", "style-guide-reference.html", "brand.html",
+                 "contributing-languages.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
 # Per-page-type hero accent: the learning-journey bands each get one brand hue (reused from the

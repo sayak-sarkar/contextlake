@@ -423,9 +423,14 @@ _LANGS: dict[str, ts.Language] = {}
 # extraction-kind registry further down, which is keyed by FILE KIND: both were
 # called _PARSERS, so the later definition rebound the name and `_parser()` was
 # inserting ts.Parser objects into the kind registry. Harmless only while no
-# language shares a name with a kind -- and "xml" is now both a kind and the
+# language shares a name with a FILE KIND -- and "xml" is a file kind here and the
 # obvious name for a future tree-sitter XML grammar, at which point `_parser("xml")`
 # would have returned the extraction callable instead of a parser.
+#
+# Stated exactly, because this comment misled a reader once: "xml" is a *file kind*
+# in the extraction registry below, not a NODE kind. The XML extractor emits
+# `config_key` nodes, and "xml" appears nowhere in `KIND_REGISTRY`. The collision
+# risk above is real; "kind" in it means the file-kind registry, nothing else.
 _TS_PARSERS: dict[str, ts.Parser] = {}
 _COMPILED: dict[str, ts.Query] = {}
 

@@ -150,10 +150,17 @@ def _kind_icons() -> dict:
 # generic repo glyph. White text reads on the dark navy repo fill.
 
 
+# One lettermark per language the parser can emit. Pinned by
+# `tests/kb/test_kind_registry_parity.py`: this map drifted from `LANG_BY_EXT` the
+# moment a grammar was added without it, and the failure is silent -- a Scala node
+# simply carried no language glyph, which reads as "no language" rather than as a
+# missing entry. `c_sharp` is kept as an alias of the real id `csharp` only because
+# older stores may carry it; it is not a language the parser produces today.
 _LANG_LABELS = {
     "python": "PY", "javascript": "JS", "typescript": "TS", "tsx": "TS",
     "csharp": "C#", "c_sharp": "C#", "java": "JV", "go": "GO", "ruby": "RB",
     "rust": "RS", "php": "PHP", "kotlin": "KT", "cpp": "C++", "c": "C",
+    "scala": "SC",
 }
 
 

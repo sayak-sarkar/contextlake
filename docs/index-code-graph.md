@@ -177,6 +177,10 @@ parser registry is pluggable:
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
 
+Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
+entries. [Adding a language](contributing-languages.md) is the ordered recipe, with the verification
+commands that prove a new grammar works.
+
 #### C++ completeness
 
 A method defined outside its class (`ReturnType Class::method(...) { ... }`, at any `::` qualification
