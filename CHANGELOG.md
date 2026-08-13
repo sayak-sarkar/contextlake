@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.0] - 2026-08-13
+
 ### Added
 
 - **Every cited node now says whether the file moved under it.** The staleness this package tracked
@@ -57,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   `kb-pdf` is deliberately **not** folded into `kb-full`, and `pypdf` rides in the `dev` extra as
   well: the tests skip themselves when it is absent, and a CI job that skips them is green without
-  having exercised the feature at all.
+  having exercised the feature at all. The floor is `pypdf>=5.0` because the suite was **run**
+  against 5.0.0, not because that is what happened to be installed while writing it.
 
 - **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
   contextlake's clearest measurable gap — 14 grammars against a competitor's 23 and another's 40 — and
@@ -73,6 +76,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pure addition, with the cost of doing so stated.
 
 ### Fixed
+
+- **The release checklist's own first step could not pass.** `docs/releasing.md` opened with
+  `ruff check .`, while `ci.yml`, `release.yml` and `.pre-commit-config.yaml` all lint
+  `src tests`. The repo-root launcher trips `S606` by design, so anyone following the checklist
+  literally hit a red gate CI does not have. Found by running the documented command instead of
+  the remembered one. A checklist whose first step fails gets skipped, which is worse than not
+  having one.
 
 - **A Scala file's node had no language glyph, and nothing noticed.** The lettermark map in the graph
   viewer drifted from the parser's own language table: `scala` parses `.scala`/`.sc` and had no entry,

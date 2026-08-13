@@ -38,9 +38,15 @@ pip install -e ".[release]"        # build + twine
 1. **Green build.** From a clean `main`:
 
    ```bash
-   ruff check .
+   ruff check src tests
    pytest
    ```
+
+   `src tests`, not `.`, because that is the scope `ci.yml`, `release.yml` and
+   `.pre-commit-config.yaml` all use. This step said `ruff check .` for a release cycle and
+   failed every time it was run: the repo-root launcher trips `S606` by design, so anyone
+   following the checklist literally hit a red gate that CI does not have. A checklist whose
+   first step cannot pass gets skipped, which is worse than not having it.
 
 2. **Bump the version** in one place: `src/contextlake/__init__.py` →
    `__version__ = "X.Y.Z"`. This is the single source of truth; `pyproject.toml`

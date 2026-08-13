@@ -101,8 +101,14 @@ kb-full = ["contextlake[kb]", "contextlake[kb-local]", "contextlake[kb-vec]"]
 # it reads a PDF's *text layer* only, so a scanned page is reported as having none
 # rather than ingested empty. Deliberately NOT folded into `kb-full`: that bundle
 # means "local semantic search works with no Ollama and no API key", not "every
-# optional reader ships". The floor is the version this was written and gated against.
-kb-pdf = ["pypdf>=6.15"]
+# optional reader ships".
+#
+# The floor is 5.0 because the suite was RUN against 5.0.0 and passes, not because that
+# is the version this was developed on. A floor set to whatever happened to be installed
+# excludes users on an older pin for no reason anybody measured; this code touches only
+# `PdfReader(path, strict=False)`, `.pages`, `.metadata` and `.extract_text()`, all of
+# which long predate it. Lower it further only with another run behind the change.
+kb-pdf = ["pypdf>=5.0"]
 # Optional built-in, CPU-only generative LLM for the wiki tier (no Ollama / API
 # key). Small auto-downloaded int4 model via openvino-genai. Heavier + slow on CPU;
 # off by default. See docs/knowledge-layer.md.

@@ -4639,6 +4639,11 @@ the response was modified, at roughly 1.5 tokens per node. Past 32 confirming re
 the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
 budget nobody is told about would read as a clean bill of health for work that never ran.
 
+**"One request" means one call over the wire, including every leg of an `ask`.** `ask` routes to
+several tools internally and they share one probe on purpose, so a file cited by three legs costs
+one `stat()` rather than three. The budget is shared for the same reason, which is worth knowing
+before reading it as per-verb.
+
 The fields are `null` on surfaces that do not run the guard, which again is not a synonym for fine:
 the dashboard reads the graph directly and does not install a probe.
 
@@ -6091,6 +6096,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.0] - 2026-08-13
+
 ### Added
 
 - **Every cited node now says whether the file moved under it.** The staleness this package tracked
@@ -6118,6 +6125,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than quietly passed, a budget nobody is told about reads as a clean bill of health for work that
   never ran.
 
+  `blast_radius` carries the fields too. It returns hits rather than nodes, so it bypasses the
+  funnel every other verb goes through and would have been the one verb handing back a `file` and a
+  `line` with nothing said about either, and an absent disclosure beside twenty present ones reads
+  as "checked, fine". `kb steer` writes the three-value explanation into the generated agent skills
+  as well, so an agent that reads only its steering files still knows what `stale` means.
+
 - **PDFs are ingested, so the design docs stop being the part the graph cannot see.** Decision
   records, RFCs and architecture write-ups arrive as PDFs more often than as markdown, and until now
   the `files` source read a PDF as a binary, failed to decode it, and skipped it without a word. It
@@ -6135,7 +6148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   `kb-pdf` is deliberately **not** folded into `kb-full`, and `pypdf` rides in the `dev` extra as
   well: the tests skip themselves when it is absent, and a CI job that skips them is green without
-  having exercised the feature at all.
+  having exercised the feature at all. The floor is `pypdf>=5.0` because the suite was **run**
+  against 5.0.0, not because that is what happened to be installed while writing it.
 
 - **A recipe for adding a language, so the work stops being the maintainer's.** Language coverage is
   contextlake's clearest measurable gap, 14 grammars against a competitor's 23 and another's 40, and
@@ -6151,6 +6165,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pure addition, with the cost of doing so stated.
 
 ### Fixed
+
+- **The release checklist's own first step could not pass.** `docs/releasing.md` opened with
+  `ruff check .`, while `ci.yml`, `release.yml` and `.pre-commit-config.yaml` all lint
+  `src tests`. The repo-root launcher trips `S606` by design, so anyone following the checklist
+  literally hit a red gate CI does not have. Found by running the documented command instead of
+  the remembered one. A checklist whose first step fails gets skipped, which is worse than not
+  having one.
 
 - **A Scala file's node had no language glyph, and nothing noticed.** The lettermark map in the graph
   viewer drifted from the parser's own language table: `scala` parses `.scala`/`.sc` and had no entry,

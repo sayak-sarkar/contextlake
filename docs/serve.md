@@ -353,6 +353,11 @@ the response was modified, at roughly 1.5 tokens per node. Past 32 confirming re
 the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
 budget nobody is told about would read as a clean bill of health for work that never ran.
 
+**"One request" means one call over the wire, including every leg of an `ask`.** `ask` routes to
+several tools internally and they share one probe on purpose, so a file cited by three legs costs
+one `stat()` rather than three. The budget is shared for the same reason, which is worth knowing
+before reading it as per-verb.
+
 The fields are `null` on surfaces that do not run the guard, which again is not a synonym for fine:
 the dashboard reads the graph directly and does not install a probe.
 

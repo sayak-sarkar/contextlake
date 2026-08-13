@@ -277,6 +277,29 @@ def test_clean_result_on_the_wire_says_verified_and_carries_no_note(store):
     assert node["citation_note"] is None
 
 
+@pytest.mark.parametrize("tool,args,key", [
+    ("find_definition", {"name": "alpha"}, "result"),
+    # Carries an edge and `as_edge_provenance`, so it takes a different branch of the
+    # same funnel...
+    ("find_callers", {"node_id": "nofile"}, "nodes"),
+    # ...and this one is a plain scored search. Neither should change whether the
+    # citation is weighed, but "they all go through `_node_out`" is a claim about the
+    # code, and the point of a wire test is to stop it being only that.
+    ("search_code", {"query": "alpha"}, "result"),
+])
+def test_every_node_returning_verb_carries_the_disclosure(store, clone, tool, args, key):
+    body = "\n".join(f"# padding {i}" for i in range(20)) + "\ndef alpha():\n    return 1\n"
+    (clone / SOURCE).write_text(body, encoding="utf-8")
+    os.utime(clone / SOURCE, ns=_at(+3600))
+    res = asyncio.run(_call(build_server(store), tool, args))
+    assert res.is_error is False, tool
+    nodes = [n for n in res.structured_content[key] if n["id"] == "n1"]
+    assert nodes, f"{tool} returned no citable node, so this proved nothing"
+    for n in nodes:
+        assert n["citation_status"] == "stale", tool
+        assert n["citation_note"] == _NOTES["name_absent"], tool
+
+
 def test_blast_radius_hits_are_disclosed_too(store, clone):
     """`blast_radius` returns `ImpactHit`, not `Node`, so it bypasses `_node_out` and was
     the one verb handing back a file and a line with nothing said about either.
@@ -306,6 +329,28 @@ def test_blast_radius_hit_on_an_untouched_file_says_verified(store):
     [hit] = res.structured_content["hits"]
     assert hit["citation_status"] == "verified"
     assert hit["citation_note"] is None
+
+
+def test_ask_shares_one_probe_across_its_legs(store, monkeypatch):
+    """`ask` routes to several tools internally, and they must share one probe.
+
+    Two things ride on it. A file cited by three legs costs one `stat()` rather than
+    three, and the confirmation budget is drawn down once for the whole call rather than
+    per leg. `serve.md` states both, and "one request" is easy to read as "one verb", so
+    the shape is asserted rather than described: `bounded_tool` installs the probe and
+    `ask` calls the other tools as bare functions, so exactly one is ever built.
+    """
+    import contextlake.kb.server as srv
+
+    built = []
+    real = srv.DriftProbe
+    monkeypatch.setattr(srv, "DriftProbe",
+                        lambda *a, **kw: built.append(1) or real(*a, **kw))
+    res = asyncio.run(_call(build_server(store), "ask", {"question": "who calls beta"}))
+    assert res.is_error is False
+    assert built == [1], (
+        f"{len(built)} probes built for one `ask`: the legs are not sharing one, so the "
+        "stat cache and the confirmation budget are per-leg, not per-request")
 
 
 def test_probe_is_per_request(store, clone):
