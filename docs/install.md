@@ -39,8 +39,9 @@ environment you already manage.
   authenticated [`glab`](https://gitlab.com/gitlab-org/cli) works instead. Indexing a repo
   you already have on disk needs no token at all.
 
-None of the channels below need a C or C++ compiler. If a command starts building one, see
-[Troubleshooting](troubleshooting.md).
+None of the channels below need a C or C++ compiler. If an install starts building from source
+anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+[The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
 ## Install
 
@@ -64,8 +65,10 @@ command on your PATH, which is what you want for a tool rather than a library.
 mirror only, and it pulls exactly one dependency (`argcomplete`, for shell completion), so it
 stays viable on a locked-down machine.
 
-However you install it, `contextlake`, `python -m contextlake`, and
-`python3 run-contextlake.py` are equivalent entry points.
+However you install it, `contextlake` and `python -m contextlake` are equivalent entry points.
+`python3 run-contextlake.py` is a third one, but it only exists in a source checkout: the wheel
+declares a single console script and ships no top-level launcher, so it is not there after a
+`pip`, `pipx` or `uv` install.
 
 ### The extras, and which one you want
 
@@ -110,6 +113,11 @@ the built-in CPU models (the embedder and a small wiki LLM), so it runs with no 
 API key, and no model download at runtime. Reach for it on locked-down or offline machines;
 the PyPI wheel stays the primary install. It runs as a non-root user.
 
+One thing the default image does **not** carry is the `sqlite-vec` ANN backend (`[kb-vec]`): it is
+built from `[kb,kb-local,llm-local]`. Semantic search still works there, on the pure-Python exact
+scan, which is the slower path on a large store. If that matters more to you than a baked-in wiki
+LLM, `:slim` is the tag that ships `kb-vec`.
+
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
@@ -136,8 +144,9 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published: no `openvino-genai`, no baked wiki-LLM model, a much
-smaller pull. Semantic search still works, because the embedder is pure Python. Point the
+A `:slim` tag is also published, built from `[kb,kb-local,kb-vec]`: no `openvino-genai`, no baked
+wiki-LLM model, a much smaller pull, and the `sqlite-vec` ANN backend the default image leaves out.
+Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
 ```bash
@@ -149,8 +158,8 @@ docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 If the machine has no Python at all, the release assets are self-contained launchers built
 with [PyApp](https://ofek.dev/pyapp/). The launcher bootstraps a private Python plus
 `contextlake[kb-full,llm-local]` into its own cache on first run, which needs network once;
-every run after that is instant. The bootstrap already points pip at the prebuilt CPU wheel
-index, so there is no compiler to install and nothing for you to pass.
+every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
+PyPI, so there is no compiler to install and nothing for you to pass.
 
 Three assets are published per release, one per build platform:
 
@@ -183,6 +192,10 @@ first run, which happens after any signature here. If you want the payload check
 with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
 [PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
 also publishes a CycloneDX SBOM listing that dependency closure.
+
+The SBOM does not close the gap on its own, either. Its subject is `contextlake[kb-full]`, while the
+launcher installs `contextlake[kb-full,llm-local]`, so the wiki-LLM runtime and everything under it
+is outside what the SBOM enumerates.
 
 ### From source
 
@@ -233,7 +246,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 | Flag | Effect |
 | --- | --- |
 | `--fix` | Install every missing dependency the resolved config calls for |
-| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `[kb-local]` otherwise) |
 | `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
 | `--skip-interactive` | Never prompt: privileged commands are printed, not run |
 
@@ -289,25 +302,31 @@ insist on it.
 `contextlake kb index --force` still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.
 
-### Parser version `3` rebuilds every existing store
+### Parser version `4` rebuilds every existing store
 
-`PARSER_VERSION` is now `3`, which means **every store built before that release reports stale**,
-under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index` rebuilds all
-of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs what your
-first one did, once, rather than the near-instant no-op an unchanged workspace usually gets. Budget
-for it before you run it inside a hook or a CI job on a large mirror.
+`PARSER_VERSION` is now `4` (raised in 7.0.0), which means **every store built before that release
+reports stale**, under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index`
+rebuilds all of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs
+what your first one did, once, rather than the near-instant no-op an unchanged workspace usually
+gets. Budget for it before you run it inside a hook or a CI job on a large mirror.
 
-The bump earns that. Version `3` is language-aware name resolution
-(`_LANG_FAMILY` in `src/contextlake/kb/parse.py`): a `calls` or `inherits` reference no longer
-resolves to a same-named definition in an unrelated language, and an `AMBIGUOUS` edge now records
-how many candidates it was one of. That is what makes `kb impact` able to say a JavaScript
-`close()` is not the Python `close()` you meant, and to count how much of an answer rests on
-name-only matching (see [Ask the graph](ask-the-graph.md#see-what-breaks-kb-impact)).
+The bump earns that. Version `4` is the largest output change this stamp has ever covered
+(`src/contextlake/kb/parse.py`, the comment above `PARSER_VERSION`):
 
-The catch is that the fix lives in the parser, so it reaches an already-built store only when the
+- node ids became file- and line-independent, so **every id changed**, and a header and its `.cpp`
+  finally describe one symbol rather than two;
+- config keys, SQL and XML gained file nodes and `contains` edges;
+- five symbol kinds are emitted that never existed before: data members, macros, typedefs, enum
+  constants and file-scope variables;
+- `calls` edges are stored per call site rather than per caller/callee pair;
+- C++ internal linkage is honoured in both identity and resolution, so two files' `static` or
+  anonymous-namespace symbols stop merging into one.
+
+The catch is that all of it lives in the parser, so it reaches an already-built store only when the
 shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
-you to know it was needed: a graph carried forward untouched would keep answering with the old
-resolution, and every surface would keep calling it healthy.
+you to know it was needed: every change above is invisible to a commit-keyed check, so a graph
+carried forward untouched would keep answering with ids this build no longer produces, and every
+surface would keep calling it healthy.
 
 ## Uninstall
 
@@ -328,6 +347,13 @@ rm -f  ~/.contextlake.ini    # mirror config
 rm -rf ~/.cache/contextlake  # the mirror's repository-list cache
 # your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:
 # rm -rf ~/work
+```
+
+`~/.cache/contextlake` is only the default. If `XDG_CACHE_HOME` is set in your shell, the cache is at
+`$XDG_CACHE_HOME/contextlake` instead, so remove that path:
+
+```bash
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/contextlake"
 ```
 
 `~/.contextlake` covers the built-in CPU models too: they download to
@@ -363,10 +389,11 @@ The flags worth knowing when you write one of these by hand:
   Without it, pip sees the package installed and does nothing.
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
-  "no matching distribution" message. Name the one native package rather than using the
-  `:all:` token when you still want a source fallback for everything else.
-- **`--extra-index-url URL`** also looks for wheels at `URL`. This is what
-  `doctor --fix llm-local` adds for you.
+  "no matching distribution" message. Name the one native package when you still want a source
+  fallback for everything else; `--only-binary :all:` is the blunt version, for the row above where
+  a build has already failed and you do not know which package broke. `doctor --fix` always scopes
+  to a single package and never uses `:all:`, because forbidding a source fallback everywhere lets
+  one missing wheel anywhere fail the whole install.
 
 ## See also
 

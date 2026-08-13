@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Forty-three documentation defects, most of them a stated fact the code contradicts.** An audit of
+  every page found 53; these are the 44 that needed no decision from anyone. The worst were the ones a
+  reader would act on: `docs/install.md` documented parser version `3` when the shipped value is `4`,
+  and its justifying paragraph explained what version 3 had changed — so the page arguing for a
+  re-index described the wrong reason for it. The MCP tool count was wrong in four lines across two
+  files while a third file had it right. `README.md` taught two flags as global options that exit `2`
+  on most commands.
+
+  The two headline numbers were **re-measured on this tree** rather than copied out of the audit, and
+  the command count is a good example of why: the CLI exposes 21 `kb` keys but only **19 distinct
+  commands**, because `impact`/`blast-radius` and `owners`/`who-knows` are alias pairs sharing one
+  parser. Counting keys gives 34 commands; counting parsers gives 32.
+
+  Where the *code* looked like the real defect rather than the doc — a stale `--help` string, a flag
+  that is documented as global and is not — the documented behaviour was made to match what the code
+  does today and the defect was recorded separately, rather than changing behaviour inside a docs pass.
+  Eight such items are now on a list for the owner.
+
 - **The dashboard's repo page re-parsed the whole graph on every request, even when its answer was
   already cached.** The derived-brief cache was keyed on the shard file's identity — and that identity
   was obtained *from* the parse, so a hit saved the aggregation and never the parse. On a large graph

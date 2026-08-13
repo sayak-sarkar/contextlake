@@ -72,8 +72,8 @@ what answers the retired flat spellings: `contextlake fetch` no longer parses, s
 other unknown command and is pointed at `mirror fetch`.
 
 Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
-`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
-treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
+`✗ Unknown flag: '--work-d' (on 'kb index')` rather than silently guessing you meant `--workspace`: a
+prefix is treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
 
 A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
 letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:

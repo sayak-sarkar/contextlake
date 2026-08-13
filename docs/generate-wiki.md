@@ -29,8 +29,10 @@ which is what makes publishing from a cheap local generator safe.
 
 Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
 machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables the tier
-inline and scopes generation to the named repo(s).
+`anthropic` | `cli` | `auto`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables
+the tier inline and scopes generation to the named repo(s). `auto` picks for you: a reachable local
+Ollama that already has the model pulled, else the built-in CPU model, else it skips the tier (see
+[Model providers](model-providers.md)).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
 (see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
@@ -134,10 +136,14 @@ covers only that module, not the repository as a whole. Subsystem pages live und
 `wiki/_modules/` and get their own `@wiki:<repo>::<module>` partition, so a natural-language
 question can land on a subsystem's own explanation, cited back to its own page file.
 
-Generation is capped at the 20 largest qualifying subsystems per run (largest first, by node
-count) so one `wiki` invocation on a very large repo stays bounded, a repo with far more than 20
-qualifying subsystems only gets pages for its 20 largest; the rest go unwritten across runs (the
-run logs how many were skipped, rather than going silent about it). When subsystem pages exist,
+Generation is capped at 20 subsystem pages per run, so one `wiki` invocation on a very large repo
+stays bounded. Which 20 depends on what is already on disk: subsystems with no page yet are taken
+first, in largest-first node-count order, and only then the already-paged ones. A repo's first run
+has no pages at all, so it degrades to exactly "the 20 largest"; every run after that works through
+the never-paged tail, which is how repeated `wiki` runs cover the whole repo instead of re-picking
+the same top 20 forever. The run logs how many are still waiting
+(`N qualifying modules, generating 20 this run (M deferred to a later run)`), rather than going
+silent about it. When subsystem pages exist,
 the whole-repo overview page's Architecture section names and briefly describes each one instead
 of trying to summarize their internals inline, and points the reader to its dedicated page. The
 overview page only picks this up the next time it's actually regenerated, though, a repo already

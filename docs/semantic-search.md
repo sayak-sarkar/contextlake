@@ -66,6 +66,20 @@ symbols going from unreachable to findable. If your tree is C++-heavy and you wo
 sharper ranking than the reach, `kb query --kind` narrows any single query, and the trade-off is recorded
 per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
 
+**Five more kinds are embedded, from outside the code itself**: frontend `route` nodes, SQL `table` and
+`view` definitions, Terraform `resource` nodes, and `adr` architecture decision records. That makes 17
+embeddable kinds in all, which is why
+[Index the code graph](index-code-graph.md) can promise that a route, a table or a decision record is
+semantically searchable, and it is worth knowing before you write off a natural-language query about
+your schema or your infrastructure as out of scope.
+
+`kb embed --limit N` caps how many nodes are embedded per repository in one pass: the first `N`
+embeddable nodes of each repo's shard, in shard order. Read it as a **sampling** knob, not a resumable
+one. It takes the same first `N` every time, it replaces that repo's vectors rather than adding to
+them, and a limited pass deliberately never stamps the repo as fully embedded, so nothing is skipped as
+up to date afterwards and a later plain `kb embed` does the whole repository. Use it to try the
+pipeline on a large fleet before committing to a full run, not to embed a repo in instalments.
+
 ## Which model?
 
 The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a

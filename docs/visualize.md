@@ -43,15 +43,21 @@ search, and a minimap; it opens straight from `file://`:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
+Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. `--limit` (default
+`20`) caps how many seed nodes a `--name` or `--search` match contributes, before the walk starts, and
+the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
+only want a view of the first few". Bound the result
 with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
 every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
 nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (no cap by default, which is what the `html` and `dot` renderers want,
+leave unused), `--max-edges` (**`--repo` views only**, see the mode list below; no cap by default,
+which is what the `html` and `dot` renderers want,
 and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
 `deploymentdiagram` -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means it always renders, possibly truncated, never errors), and `--max-fanout` (a per-node cap that
+capping edges there means a `--repo` view always renders, possibly truncated, never errors. A **seeded**
+Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with `--hops` or
+`--max-nodes` instead), and `--max-fanout` (a per-node cap that
 stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
 pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
 is dropped is **logged**, never silently truncated.
@@ -59,14 +65,20 @@ is dropped is **logged**, never silently truncated.
 `--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
 to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
 outward from a seed, so passing those three with either of them has no effect. What each mode does
-take: a seeded view, all of them; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
+take: a seeded view, all of them except `--max-edges`, which the seeded path never receives, so it is
+accepted and then ignored; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
 `--overview`, `--max-nodes` alone.
 
 For a `--repo` view over `--max-nodes`, which nodes
-survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
+survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets
-a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.
+instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
+the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
+completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource` nodes), which made
+`erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
+dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
+and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
+arbitrary slice (see [The dashboard](dashboard.md)).
 
 ## Output formats
 
@@ -76,7 +88,9 @@ Output is chosen with `--format`:
   from `file://` with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
   by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
   the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
-  `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`. `--open` launches the
+  `breadthfirst`, `circle`, `grid`, `dagre`) in the page, set the initial one with `--layout`. `dagre` is
+  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
+  an HTML card instead of a dot. `--open` launches the
   browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
   the single-file export.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
@@ -107,7 +121,9 @@ Output is chosen with `--format`:
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
   text anywhere) renders an empty diagram with guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
-  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  definitions grouped by an inferred category
+  (network/compute/storage/database/security/other/module; a resource type matching none of the
+  keyword lists lands in `other` and gets its own subgraph),
   from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake kb graph --repo
   acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
@@ -129,7 +145,11 @@ Output is chosen with `--format`:
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
+pre-rendering all of it. With `--overview` it serves something larger: the whole cross-linked site,
+overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
+live counterpart of `--site`. It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so
+with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a request only when the
+`Host` header names the
 address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
 you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
@@ -155,6 +175,9 @@ compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered 
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
 `statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
 with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
+`--format graphml` and `--format cypher` are neither rejected nor honoured: `--c4` falls through to the
+HTML renderer and, because the output path is only defaulted for `--format html`, prints that HTML to
+stdout. Pass `--output <path>` if you hit it, and use `dot` or `json` for a real C4 export.
 
 ### C1: external systems
 

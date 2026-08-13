@@ -59,8 +59,12 @@ These work on every command, before or after it:
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
 | `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
 
-The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
-wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
+`--log-file`, `--log-format`, `--metrics-file`, `--redact` / `--no-redact` and `--access-log` exist
+for unattended operation, the systemd service + timer in `examples/`, a cron wrapper, CI, where
+nobody watches the run and what it leaves behind is all there is. The last two are not:
+`--plain` is a piping and TTY switch, and `--offline` is a locality guarantee you can turn on for a
+single run to prove one, or leave on permanently (its env-var form, `CONTEXTLAKE_OFFLINE=1`, is
+there for exactly that).
 [Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
 the metric names.
 
@@ -78,7 +82,7 @@ tier to reveal, and there is no top-level `contextlake --help-advanced` either.
 
 ## The command surface
 
-Thirty commands: 5 top-level, 8 under `mirror`, 17 under `kb`. `contextlake --help` groups them by
+32 commands: 5 top-level, 8 under `mirror`, 19 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -121,11 +125,11 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
-| `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
+| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualize.md) |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |

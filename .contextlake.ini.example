@@ -19,6 +19,13 @@ work_dir = ~/work
 gitlab_group = your-gitlab-group
 # group = your-org
 
+# Limit every command to the repositories matching these comma-separated glob
+# patterns. This is the permanent form of `--repos`: set it here and you no
+# longer have to pass the same filter to fetch, clone, update, branches, verify
+# and status one by one. A command run at a different scope re-enumerates rather
+# than answering from a project list some other filter shaped.
+# repo_filter = team/*,shared-libs
+
 # Authentication for enumeration + cloning: set the platform's token env var
 # (GITLAB_TOKEN / GITHUB_TOKEN / BITBUCKET_TOKEN / GITEA_TOKEN) and contextlake
 # calls the platform's REST API directly and clones with plain git, passing the

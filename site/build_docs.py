@@ -156,8 +156,9 @@ PAGES = [
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("visualize.html", "Visualize the graph")]),
     ("visualize.html", "docs/visualize.md", "Visualize the graph", "Visualize the graph",
-     "Use it", "Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, "
-     "or a class diagram, plus the composed namespace C4 diagram.",
+     "Use it", "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, "
+     "HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed "
+     "namespace C4 diagram.",
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",

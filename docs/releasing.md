@@ -99,7 +99,10 @@ pip install -e ".[release]"        # build + twine
    # username: __token__   password: <your PyPI token>   (skipped if ~/.pypirc is set)
    ```
 
-7. **Cut a GitHub Release** from the tag (optional but recommended):
+7. **Cut a GitHub Release** from the tag, **only if you are publishing by hand.** A tag push already
+   creates one: `release.yml`'s `github-release` job runs whenever the build succeeded, and
+   `binaries.yml` uploads onto it, whichever finishes first creating it. Reach for this command only
+   when both workflows are out of the picture:
 
    ```bash
    gh release create vX.Y.Z --title "contextlake X.Y.Z" --notes-file <(sed -n '/## \[X.Y.Z\]/,/## \[/p' CHANGELOG.md)
@@ -160,17 +163,33 @@ docker run -v "$PWD/repositories:/work/repositories" \
   ghcr.io/sayak-sarkar/contextlake:slim doctor     # slim
 ```
 
-Tags published: the release version and `latest` for the full image (e.g. `2.1.5`,
+Tags published: the release version and `latest` for the full image (e.g. `7.3.0`,
 `latest`), and the release version + `-slim`, plus rolling `slim`/`latest-slim`
-aliases, for the slim image (e.g. `2.1.5-slim`, `slim`, `latest-slim`). PyPI remains
+aliases, for the slim image (e.g. `7.3.0-slim`, `slim`, `latest-slim`). PyPI remains
 the **primary** distribution; GitHub Packages does not
 host PyPI-style Python packages, so these images are the only relevant GitHub
 Packages artifacts. The full image is still large (it bundles the OpenVINO runtime
 and a ~349 MB model) and its build downloads the models from HuggingFace, fine on
-GitHub's runners. To **build locally behind a TLS-inspecting proxy**, pass your OS
-CA bundle so the in-build HF download trusts it, e.g. `docker build --network=host
---build-arg ... ` after baking `REQUESTS_CA_BUNDLE` into the build (or build on a
-network without interception).
+GitHub's runners. To **build locally behind a TLS-inspecting proxy**, the in-build Hugging Face
+download has to trust your OS CA bundle. The `Dockerfile` declares no build argument for this, so
+add one to your local copy, above the `python docker/prefetch_models.py` line in the `build-full`
+stage:
+
+```dockerfile
+ARG REQUESTS_CA_BUNDLE
+ENV REQUESTS_CA_BUNDLE=${REQUESTS_CA_BUNDLE}
+```
+
+Then pass your bundle's path (Debian and Ubuntu below; on Fedora it is
+`/etc/pki/tls/certs/ca-bundle.crt`):
+
+```bash
+docker build --network=host \
+  --build-arg REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+  --target full -t contextlake:full .
+```
+
+Building on a network without interception avoids the whole problem.
 
 Both images are **public by default for public repos**; check the package's
 visibility under the repo's *Packages* once published.
@@ -198,13 +217,36 @@ re-adding it would point at a package contextlake no longer depends on.
 To reproduce a build locally (needs a Rust toolchain, `rustup` on any platform):
 
 ```bash
-PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=2.56.0 \
+PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=7.3.0 \
   PYAPP_PROJECT_FEATURES=kb-full,llm-local PYAPP_EXEC_SPEC="contextlake.cli:main" \
   cargo install pyapp --root pyapp-out
 ./pyapp-out/bin/pyapp doctor   # first run bootstraps; every run after is instant
 ```
 
+## Supply-chain artefacts a tag push produces
+
+Three things ship alongside the wheel, the images and the binaries. None of them needs a manual
+step, but a maintainer should know they exist, because a failure in any of them shows up as a red
+workflow on an otherwise-successful release:
+
+| Artefact | Produced by | What it covers |
+| --- | --- | --- |
+| CycloneDX SBOM, `contextlake-<version>.cdx.json` | `release.yml`, the SBOM job | The dependency closure of `contextlake[kb-full]`. **Not** `kb-fastembed` and **not** `llm-local`, so it does not span the Docker images or the binaries, which both carry `llm-local`. `security.yml`'s `pip-audit-resolved` is what watches that set |
+| SLSA build provenance on both images | `release.yml`, `provenance: true` on the image build | The image bytes pushed to ghcr.io. The images are also `cosign`-signed |
+| Sigstore build-provenance attestation on the three launchers | `binaries.yml`, `actions/attest-build-provenance` | The **launcher** only. The Python payload is fetched from PyPI on the user's machine at first run, after any signature here, so the attestation says nothing about it. `docs/install.md` states that limit to users too, and the release notes must not imply otherwise |
+
 ## Troubleshooting
+
+**A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** Transient, and it has
+recurred often enough to expect it. The launchers themselves built fine; only the signing call
+failed. Re-run the failed jobs, the same remedy as a tripped CI gate:
+
+```bash
+gh run rerun <run-id> --failed
+```
+
+If it fails a second time in a row, check <https://status.sigstore.dev/> before looking at the
+workflow.
 
 **`SSLError: CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`**
 on upload or install. You're likely behind a TLS-inspecting proxy that re-signs

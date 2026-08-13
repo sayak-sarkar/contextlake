@@ -22,7 +22,8 @@ pipx install "contextlake[kb-full]"
 `[kb-full]` is the batteries-included bundle: the knowledge layer plus the built-in CPU
 embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so semantic search works
 the moment you turn embeddings on. That gives you the `contextlake` command
-(`python -m contextlake` and `python3 run-contextlake.py` work too).
+(`python -m contextlake` works too; `python3 run-contextlake.py` is a source-checkout launcher and
+is not shipped in the package).
 
 Using pip, uv, Docker, or a standalone binary instead, or picking extras individually? Every
 channel, the extras table, upgrading, and uninstalling are on one page:
@@ -139,8 +140,11 @@ moved and never touches an in-progress working tree, so it's safe to run on a
 schedule. Use cron:
 
 ```cron
-*/30 * * * * contextlake bootstrap >> ~/.contextlake/refresh.log 2>&1
+*/30 * * * * contextlake --log-file ~/.contextlake/refresh.log bootstrap
 ```
+
+Use `--log-file`, not a `>>` shell redirect: the handler behind `--log-file` rotates itself
+(5 MB, 3 backups) and a redirect grows without limit until you notice.
 
 or the systemd user units in [`examples/`](examples/). See the
 [README](README.md) for the full command reference and configuration.

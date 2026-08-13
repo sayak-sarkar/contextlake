@@ -58,6 +58,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 |---|---|
 | `--serve` | Run it **live** against your store (everything on demand, no caps). |
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
+| `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
 | `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
 | `--open` | Open the result in your browser. |
@@ -65,6 +66,8 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
 | `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
+| `--host HOST` | `--serve` only: bind address (default `127.0.0.1`). See §11 for what a non-loopback host costs you. |
+| `--port PORT` | `--serve` only: bind port (default `8765`), so the default URL is `http://127.0.0.1:8765`. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -114,7 +117,8 @@ A repo's **Diagrams** tab renders the same Mermaid text `contextlake kb graph --
 always available), **Classes** (classes/interfaces/structs/enums and their methods),
 **States** (an entity's guarded state-machine transitions), **Data model** (SQL `table`/
 `view` definitions and their foreign keys), and **Deployment** (Terraform/HCL resources
-grouped by inferred category: network/compute/storage/database/security/module).
+grouped by inferred category: network/compute/storage/database/security/other/module, `other` being
+the fall-through for a resource type no keyword list claims).
 
 A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol as its
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
@@ -149,6 +153,10 @@ an endpoint, a topic), but a table/view definition is only ever known within the
 that defines it, so a file's read/write only ever resolves inside its own repo. Data
 flow is therefore always scoped to the repo you're looking at, never cross-repo.
 
+Data flow is also **live-only**. It is a separate fetch with its own row shape, and a `--site` export
+has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
+"(0)": nothing is missing from your graph, it just is not in the export.
+
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
 ## 7. Change impact (blast radius)
@@ -178,6 +186,36 @@ the candidates and asks you to narrow (a node id, or a name unique to one repo, 
 straight through); if there's no route within the hop limit, it says so plainly rather
 than showing an empty diagram.
 
+## 8b. Search
+
+The **Search** rail item is a lens in its own right, not just the box that feeds the other tabs.
+It has two modes, **Symbols** and **Semantic**, and a scope toggle that flips between the whole
+fleet and the repo you were last looking at. Each result row carries the symbol's kind, its
+qualified name and its repo; clicking the row opens that repo's anatomy tab, and each row also has
+its own **Blast** button so you can go straight from a search hit to its blast radius without a
+detour.
+
+Semantic mode is **live-only**: in a `--site` export it says so and points you at the running
+server. On a live server with no embedder wired up it does not fail either: it returns lexical
+matches and labels them as such, saying semantic is unavailable, so a result set never claims to be
+something it is not.
+
+## 8c. Health
+
+The **Health** rail item is the dashboard's view of the same audit `contextlake kb lint` performs.
+Four stat tiles (**Checked**, **Stale repos**, **Unreadable**, **Dangling edges**), and then, only
+when something is wrong, the detail:
+
+- **Stale repos**, whose HEAD moved since indexing. Each row links to the repo and shows the fix,
+  `contextlake kb index`.
+- **Unreadable repos**, whose checkout is gone. A separate tile from stale on purpose, because
+  re-indexing does not fix it; re-clone it or drop it from the store.
+- **Dangling edges**, a sample table of edges whose target node no longer exists.
+
+A clean store gets a single "Clear water" panel instead of empty tables. Unlike most of the
+dashboard, Health is in a `--site` export too, so a shared snapshot carries the same verdict the
+live server would have given at export time.
+
 ## 9. Generate a wiki
 
 No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
@@ -205,7 +243,7 @@ always visible, not tucked behind anything.
 **Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
-subsystem's own page, or "Whole repo, overview" to go back, without leaving the tab. The dropdown
+subsystem's own page, or the **Whole repo** option to go back, without leaving the tab. The dropdown
 only ever lists subsystems that actually have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 

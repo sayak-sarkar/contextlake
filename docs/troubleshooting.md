@@ -16,7 +16,7 @@ is wrong, so it is almost always faster than reading down this page:
 flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
   Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
-  Q -->|"a compiler error"| C["llm-local tries<br/>to compile C++"]
+  Q -->|"a compiler error"| I
   Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
   Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
   Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
@@ -38,7 +38,14 @@ leaving you a half-working one. Check with
 
 The extra also pulls a tree-sitter grammar per supported language, several with native
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
-than broken.
+than broken. **This is the only place a compiler error can come from**, so if a build starts and
+fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]` is an
+ordinary wheel, see the next section). Either install your platform's build tools and let it
+finish, or pin the install to wheels only:
+
+```bash
+pip install -U --only-binary :all: "contextlake[kb-full]"
+```
 
 ## The built-in wiki LLM is not installed
 
@@ -65,6 +72,25 @@ depends on.
 
 If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
+
+## A Docker run fails with a permission error on the mount
+
+The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is
+not uid 1000 the container cannot write the store. Pass your own ids:
+
+```bash
+docker run -u "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+It fails rather than falling back on purpose. Before 5.1.0 the store went inside the container
+instead, so the run looked like it succeeded and the index vanished when the container exited.
+
+## There is no standalone binary for my platform
+
+Three assets are published per release: Linux x86-64, macOS Apple silicon, and Windows x86-64.
+macOS on Intel and Linux on arm64 are not among them, and no fourth asset is hiding under a
+different name. Install with `pipx`, `pip` or `uv` on those platforms, or use the Docker image.
+See [The standalone binary](install.md#the-standalone-binary).
 
 ## `contextlake doctor --fix` says the environment is externally managed
 
@@ -99,7 +125,7 @@ Symptoms specific to mirroring a fleet, and what to do about each.
 
 | Symptom | What to do |
 | --- | --- |
-| **"Cache file not found"** | Run `contextlake mirror fetch` first to populate the projects cache. |
+| **"No projects loaded, run 'fetch' first"** | Run `contextlake mirror fetch` to populate the projects cache. If instead you see "The cached project list covers only `--repos` …", the cache exists but was built at a narrower scope; the same `fetch` fixes it. A command allowed to fetch for itself prints "Cache not found or invalid, fetching fresh data…" and does it, so there is nothing to do on that path. |
 | **"Permission denied" during cloning** | Make sure `glab` is authenticated (`glab auth login`) and you can reach the repositories. |
 | **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
 | **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
