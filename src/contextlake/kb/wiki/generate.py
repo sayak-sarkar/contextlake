@@ -18,8 +18,8 @@ from ..model import PER_SITE_RELATIONS
 from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from ..store.shards import (
     read_shard,
-    read_shard_with_identity,
     register_shard_invalidator,
+    resolve_shard,
 )
 
 # Conventional entry-point/config filenames -- presence-only signal for the
@@ -124,7 +124,33 @@ def _is_setup_filename(base: str) -> bool:
     return base in _SETUP_FILENAMES or base.startswith("readme") or base.endswith(".csproj")
 
 
-def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> list[str]:
+def _setup_signals_from_shard(all_files: set) -> tuple[list[str], dict[str, int], list[str]]:
+    """The half of :func:`_setup_signals` that depends only on the shard.
+
+    Split out so ``repo_brief`` can cache it beside the rest of its shard-derived
+    core and stop parsing a whole graph just to recompute it. Deliberately *not*
+    the whole function: the other half reads the live checkout, and freezing that
+    would reintroduce exactly the staleness the live read exists to avoid.
+
+    Returns ``(found, by_ext, counted)`` -- all three bounded in practice. ``found``
+    is a set of bare filenames; ``by_ext`` and ``counted`` cover only legacy
+    build-tooling extensions, which are never parsed into graph nodes, so on a real
+    repo they are empty and exist to make the live walk's dedup correct rather than
+    to contribute counts.
+    """
+    found = sorted({f for f in all_files if _is_setup_filename(f.rsplit("/", 1)[-1])})
+    by_ext: dict[str, int] = {}
+    counted: list[str] = []
+    for f in all_files:
+        ext = "." + f.rsplit(".", 1)[-1].lower() if "." in f else ""
+        if ext in _LEGACY_BUILD_CATEGORIES:
+            by_ext[ext] = by_ext.get(ext, 0) + 1
+            counted.append(f)
+    return found, by_ext, sorted(counted)
+
+
+def _setup_signals(all_files: set, store=None, repo_id: str | None = None,
+                   *, from_shard=None) -> list[str]:
     """Which conventional entry-point/config filenames exist.
 
     Two sources, merged: (1) every file already in the shard (not the
@@ -147,7 +173,13 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
     guard as (2) above), merged with any matches already in ``all_files``
     without double-counting a file present in both.
     """
-    found = {f for f in all_files if _is_setup_filename(f.rsplit("/", 1)[-1])}
+    # ``from_shard`` lets a caller pass the pre-computed shard half (see
+    # _setup_signals_from_shard) so this function never needs the full file set --
+    # which is what lets repo_brief answer from cache without parsing the shard.
+    if from_shard is None:
+        from_shard = _setup_signals_from_shard(all_files)
+    shard_found, shard_by_ext, shard_counted = from_shard
+    found = set(shard_found)
     base = None
     if store is not None and repo_id is not None:
         r = store.get_repo(repo_id)
@@ -156,13 +188,8 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
             for entry in base.iterdir():
                 if entry.is_file() and _is_setup_filename(entry.name):
                     found.add(entry.name)
-    by_ext: dict[str, int] = {}
-    counted: set[str] = set()  # relative paths already counted, for merge dedup
-    for f in all_files:
-        ext = "." + f.rsplit(".", 1)[-1].lower() if "." in f else ""
-        if ext in _LEGACY_BUILD_CATEGORIES:
-            by_ext[ext] = by_ext.get(ext, 0) + 1
-            counted.add(f)
+    by_ext: dict[str, int] = dict(shard_by_ext)
+    counted: set[str] = set(shard_counted)  # relative paths already counted, for merge dedup
     if base is not None and base.is_dir():
         # Reuse the parser's own skip-dir set (never duplicate it here); imported
         # lazily, same as `_is_generated_name` below, so this file's module-level
@@ -362,6 +389,15 @@ def _scoped_nodes_edges(shard, path_prefix: str | None) -> tuple[list, list]:
 
 def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     nodes, edges = _scoped_nodes_edges(shard, path_prefix)
+    # Carried in the cache entry so a HIT needs nothing from the shard at all.
+    # These three were the last reason repo_brief had to parse a whole graph even
+    # when its answer was already cached: two short strings and a bounded summary.
+    # They are derived from THIS parse, so they stay consistent with the counts
+    # beside them by construction -- the same one-observation property
+    # `read_shard_with_identity` protects, kept rather than weakened.
+    _head = shard.head_commit
+    _parser_version = shard.parser_version
+    _setup_from_shard = _setup_signals_from_shard({n.file for n in nodes if n.file})
     by_id = {n.id: n for n in nodes}
     degree: Counter = Counter()
     in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
@@ -424,6 +460,9 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
         for f in all_files
     )
     return {
+        "head": _head,
+        "parser_version": _parser_version,
+        "setup_from_shard": _setup_from_shard,
         "node_count": len(nodes),
         "edge_count": len(edges),
         "grounded_count": len(grounded_ids),
@@ -444,6 +483,23 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
                       for n in nodes if n.kind == "adr"][:20],
         "generated_paths_detected": generated_paths_detected,
     }
+
+
+def _repo_brief_core_cached(identity, path_prefix: str | None = None):
+    """The cached core for ``identity``, or ``None`` if nothing is cached.
+
+    Exists so a caller can ask "do I already have this?" **before** paying to parse
+    the shard. Reading and writing go through the same lock and the same key shape
+    as :func:`_repo_brief_core`; this is a lookup, never a computation.
+    """
+    if identity is None:
+        return None
+    key = (*identity, path_prefix)
+    with _core_cache_lock:
+        cached = _core_cache.get(key)
+        if cached is not None:
+            _core_cache.move_to_end(key)
+        return cached
 
 
 def _repo_brief_core(
@@ -528,21 +584,28 @@ def repo_brief(
     have "subsystems", so callers building per-module pages should leave this
     ``None`` (``cmd_wiki`` does exactly that).
     """
-    shard, identity = read_shard_with_identity(store_dir, repo_id)
-    if shard is None:
-        return None
-    core = _repo_brief_core(identity, shard, path_prefix)
-    # Recomputed fresh (not part of the cached core -- see _core_cache's
-    # docstring): the full, uncapped file set, needed by _setup_signals.
-    nodes, _ = _scoped_nodes_edges(shard, path_prefix)
-    all_files = {n.file for n in nodes if n.file}
+    # Resolve and stat the shard, but DO NOT parse it yet. On a warm cache this
+    # request needs nothing from the file's contents, and parsing it anyway was the
+    # whole cost of a repo-detail page: measured at 4.2s warm on a 131,603-node
+    # graph, where the aggregation the cache already held was 3.7s of it and the
+    # parse the rest. The file is still observed exactly once per call, which is
+    # what `resolve_shard` preserves and what tests/kb/test_kb_wiki.py pins.
+    identity, load = resolve_shard(store_dir, repo_id)
+    core = _repo_brief_core_cached(identity, path_prefix)
+    if core is None:
+        shard, identity = load()
+        if shard is None:
+            return None
+        core = _repo_brief_core(identity, shard, path_prefix)
     return {
         "repo": repo_id,
-        "head": shard.head_commit,
+        "head": core["head"],
         # From the shard, which is the source of truth for what built this graph --
         # not from the running PARSER_VERSION, which would stamp a page with the
         # version that rendered it rather than the one that extracted its facts.
-        "parser_version": shard.parser_version,
+        # Carried through the cache entry so a hit still answers from the parse
+        # that produced the counts beside it.
+        "parser_version": core["parser_version"],
         "node_count": core["node_count"],
         "edge_count": core["edge_count"],
         "grounded_count": core["grounded_count"],
@@ -561,7 +624,11 @@ def repo_brief(
         "decisions": core["decisions"],
         "external": [] if path_prefix else external_context(store_dir, repo_id),
         "readme_excerpt": _readme_excerpt(store, repo_id),
-        "setup_signals": _setup_signals(all_files, store, repo_id),
+        # The live-checkout half still runs every call; only the shard-derived half
+        # comes from the cache. Freezing the live scan would reintroduce exactly the
+        # staleness that scan exists to catch.
+        "setup_signals": _setup_signals(
+            (), store, repo_id, from_shard=core["setup_from_shard"]),
         "generated_paths_detected": core["generated_paths_detected"],
         "subsystem_modules": subsystem_modules or [],
     }

@@ -190,6 +190,50 @@ def read_shard_with_identity(
     return shard, identity
 
 
+def resolve_shard(store_dir: str | Path, repo_id: str):
+    """``(identity, load)`` -- the shard's on-disk identity now, and a callable
+    that parses it only if you actually need the content.
+
+    For a caller whose expensive work is already memoized on ``identity``:
+    :func:`read_shard_with_identity` hands back the identity *and* the parsed
+    shard together, so such a caller pays the parse before it can discover that
+    its cache already holds the answer. On a large graph that parse is the whole
+    cost of the request. Splitting the two lets the caller ask "have I seen this
+    exact file before?" first, and parse only on a miss.
+
+    The single-observation guarantee that function's docstring describes is
+    preserved exactly, and for the same reason: the path is resolved and the file
+    stat'd **once, here**, and ``load()`` reuses that same observation rather than
+    re-stat'ing. So a cache entry can never pair one observation's ``head`` with
+    another's ``node_count``. ``load()`` returns ``(shard, identity)`` with the
+    identity it was resolved at, so a caller keying a new entry uses the
+    observation the content actually came from.
+
+    ``identity`` is ``None`` when there is no readable shard; ``load()`` then
+    returns ``(None, None)``.
+    """
+    try:
+        p = shard_path(store_dir, repo_id)
+    except ValueError:
+        return None, lambda: (None, None)
+    try:
+        st = p.stat()
+    except OSError:
+        return None, lambda: (None, None)
+    key = str(p)
+    identity = (key, st.st_mtime_ns, st.st_size)
+
+    def load():
+        cached = _cache_get(key, st.st_mtime_ns, st.st_size)
+        if cached is not None:
+            return cached, identity
+        shard = GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
+        _cache_put(key, st.st_mtime_ns, st.st_size, shard)
+        return shard, identity
+
+    return identity, load
+
+
 def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
     shard, _ = read_shard_with_identity(store_dir, repo_id)
     return shard

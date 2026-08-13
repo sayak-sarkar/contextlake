@@ -5,6 +5,29 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The dashboard's repo page re-parsed the whole graph on every request, even when its answer was
+  already cached.** The derived-brief cache was keyed on the shard file's identity — and that identity
+  was obtained *from* the parse, so a hit saved the aggregation and never the parse. On a large graph
+  the parse is the request.
+
+  The shard layer gained a way to resolve and stat a shard **without** reading it, and the cached core
+  now carries the last three things a hit still needed from the file: the head commit, the parser
+  version, and the shard-derived half of the setup signals. A cache hit now touches the file's
+  metadata and nothing else.
+
+  Measured on a 306.8 MB shard, counting real parses rather than trusting the clock: **7.00s cold with
+  one parse, 0.03s warm with zero.** The cold path is unchanged, because that parse is real work.
+
+  Two invariants were kept deliberately, and both had a reason already written into the code. The file
+  is still observed **exactly once per call**, so a cache entry can never pair one observation's `head`
+  with another's `node_count` — a test pins that. And the **live-checkout** reads still run every call:
+  only the shard-derived half of the setup signals is cached, because freezing the live scan would
+  reintroduce precisely the staleness that scan exists to catch.
+
 ## [7.3.0] - 2026-08-13
 
 **All 24 accessibility violations, and a favicon you can actually see.** An audit of the dashboard and
