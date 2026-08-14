@@ -7,6 +7,7 @@ from ...logging_setup import log
 from ..connectors.text_match import link_documents_to_symbols, symbol_nodes_for_repo
 from ..store.shards import GraphShard, write_shard
 from ._common import (
+    _guard_store,
     _open_store,
     kb_config,
 )
@@ -46,6 +47,9 @@ def cmd_ingest(args) -> int:
     from ..sources import build_source, discover_sources
 
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "ingest"):
+        store.close()
+        return 1
     try:
         cfg = kb_config(args)
         registry = discover_sources()

@@ -6,6 +6,7 @@ from ... import style
 from ...logging_setup import log
 from ._common import (
     _connect_targets,
+    _guard_store,
     _open_store,
     kb_config,
 )
@@ -19,6 +20,9 @@ def cmd_enrich(args) -> int:
     from ..connectors.enrich import run_enrich_repo
 
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "enrich"):
+        store.close()
+        return 1
     try:
         cfg = kb_config(args)
         term_searchable = [s for s in cfg.sources

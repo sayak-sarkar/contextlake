@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from ... import style
 from ...logging_setup import log
-from ._common import _open_store, kb_config
+from ._common import _guard_store, _open_store, kb_config
 
 
 def _wiki_pages(wiki_dir, repo_id: str) -> list:
@@ -184,6 +184,9 @@ def cmd_forget(args) -> int:
     dry_run = bool(getattr(args, "dry_run", False))
     cfg = kb_config(args)
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "forget"):
+        store.close()
+        return 1
     try:
         parts = _partitions(repo_id)
         counts = [store.repo_counts(p) for p in parts]

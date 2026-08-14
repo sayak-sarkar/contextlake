@@ -7,6 +7,7 @@ from ...logging_setup import log
 from .._util import _or_default
 from ._common import (
     _connect_targets,
+    _guard_store,
     _open_store,
     _watch_loop,
     kb_config,
@@ -155,6 +156,9 @@ def cmd_connect(args) -> int:
     from ..references import extract_issue_keys, scrape_links
 
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "connect"):
+        store.close()
+        return 1
     try:
         cfg = kb_config(args)
         sources = [s for s in cfg.sources
