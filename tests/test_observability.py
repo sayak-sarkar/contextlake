@@ -36,7 +36,7 @@ def clean_observability_state():
 
 @pytest.fixture
 def patched_config(monkeypatch):
-    monkeypatch.setattr(cli, "load_config", lambda path=None: dict(_FAKE_CFG))
+    monkeypatch.setattr(cli, "load_config", lambda path=None, **kw: dict(_FAKE_CFG))
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
 
 

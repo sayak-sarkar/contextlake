@@ -18,7 +18,11 @@ _FAKE_CFG = {"work_dir": "/tmp/x", "gitlab_group": "g"}
 
 
 def _patch_config(monkeypatch):
-    monkeypatch.setattr(cli, "load_config", lambda path=None: dict(_FAKE_CFG))
+    # **kw so this stub keeps accepting whatever load_config grows. It previously
+    # took only `path`, so adding the `cli_group` argument -- which exists to stop a
+    # false "no group found" warning on every --group invocation -- broke four tests
+    # that care about dispatch and nothing about config.
+    monkeypatch.setattr(cli, "load_config", lambda path=None, **kw: dict(_FAKE_CFG))
 
 
 def _stage_return(name):

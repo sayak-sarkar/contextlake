@@ -144,7 +144,7 @@ def _merge(config, path):
             config.update(parser[section])
 
 
-def load_config(config_path=None):
+def load_config(config_path=None, cli_group=None):
     """Load configuration with precedence: explicit --config > local > global > defaults.
 
     Sources are merged from lowest to highest precedence so the later (more
@@ -181,8 +181,13 @@ def load_config(config_path=None):
         if key in config:
             config[key] = expand_path(config[key])
 
+    # `cli_group` is `--group` as typed on the command line. It is merged into the
+    # effective group AFTER this function returns, so without it this warning fired on
+    # every single `--group` invocation of every mirror command -- telling a user who
+    # had just supplied the group that no group was found. A warning that is wrong on a
+    # correct invocation trains people to ignore warnings.
     if (config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']
-            and not config.get('group')):
+            and not config.get('group') and not cli_group):
         # No usable config was found -- show the exact paths searched (absolute)
         # and whether each exists, so a config that lives one directory up (or in
         # the wrong spot entirely) isn't a silent mystery.

@@ -1515,6 +1515,30 @@ def _audit_workers(config):
         return 8
 
 
+def _store_has_repos(kb_args) -> bool:
+    """Did indexing leave anything downstream can read?
+
+    Deliberately asks the store rather than trusting the stage's exit code: `cmd_index`
+    returns non-zero if ANY repo failed, so a fleet where one directory is unreadable and
+    every other repo indexed cleanly looks identical to a total failure from the outside.
+
+    Any error here answers True. This gate exists only to stop a *hollow* success, and
+    failing to read the store is not evidence that the store is empty -- refusing to run
+    the remaining stages because the check itself broke would be a worse outcome than the
+    bug it guards.
+    """
+    try:
+        from .kb.cmds._common import _open_store
+
+        store, _ = _open_store(kb_args)
+        try:
+            return bool(store.list_repos())
+        finally:
+            store.close()
+    except Exception:  # noqa: BLE001 - see the docstring: unknown means "keep going"
+        return True
+
+
 def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     """One-command turnkey setup: mirror repos, build the knowledge layer, and write
     editor steering. Optional/unconfigured stages are skipped; a failing stage warns
@@ -1669,9 +1693,16 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         if rc:
             failures.append(title)
             # The code graph is foundational — connect/embed/wiki/steer all read it.
-            # If indexing failed there is nothing downstream to build on, so stop
-            # honestly with a non-zero exit instead of reporting a hollow success.
-            if fn is kb.cmd_index:
+            # But "indexing returned non-zero" is not the same as "there is no graph":
+            # `cmd_index` fails the run if ANY repo failed, so one unreadable directory
+            # among many used to abort the whole bootstrap. Measured: 4 of 6 repos
+            # indexed perfectly and connect/embed/wiki/steer never ran.
+            #
+            # So the abort now turns on the question that actually matters downstream --
+            # is there a graph to build on? -- rather than on the exit code of the stage
+            # that built it. A partial graph is a usable one, and the failed repos are
+            # already reported by `cmd_index` itself.
+            if fn is kb.cmd_index and not _store_has_repos(kb_args):
                 log(style.warn("Bootstrap aborted — the code graph could not be built; "
                                "nothing downstream can run."))
                 log(f"  Indexed workspace: {kb_args.workspace}. If that is not where "
@@ -1932,7 +1963,7 @@ def _run(argv, metrics):
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.
     try:
-        config = load_config(args.config)
+        config = load_config(args.config, cli_group=getattr(args, "group", None))
     except ConfigError as e:
         log(str(e))
         sys.exit(1)

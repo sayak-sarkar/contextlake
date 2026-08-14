@@ -53,3 +53,45 @@ def test_bootstrap_refuses_a_kb_toml_passed_to_the_mirror_config_flag(tmp_path):
         f"CI read the refusal as a success.\n{out[-2000:]}")
     assert "--kb-config" in out, "the message must name the flag that would have worked"
     assert "mirror INI" in out
+
+
+# --- B0-5 / B0-6: a partial success is not a failure, and a supplied --group is a group --
+
+def test_the_no_config_warning_does_not_fire_when_group_was_supplied(tmp_path):
+    """`--group` is merged into the effective config AFTER `load_config` runs, so the
+    "no config with your group was found" warning fired on every single `--group`
+    invocation of every mirror command -- telling a user who had just supplied the group
+    that no group was found.
+
+    A warning that is wrong on a correct invocation is worse than no warning: it trains
+    people to ignore the channel that also carries the real ones.
+    """
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+
+    with_group = _run(["mirror", "status", "--group", "demo-org"], cwd=tmp_path, home=home)
+    assert "still the placeholder" not in (with_group.stdout + with_group.stderr), (
+        "the no-config warning fired even though --group was supplied")
+
+
+def test_the_no_config_warning_still_fires_when_there_is_genuinely_no_group(tmp_path):
+    """The near-miss. Suppressing the false alarm must not suppress the true one --
+    otherwise a user with no configuration at all gets no guidance."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+
+    without = _run(["mirror", "status"], cwd=tmp_path, home=home)
+    assert "still the placeholder" in (without.stdout + without.stderr), (
+        "a genuinely unconfigured run was left with no warning at all")
+
+
+def test_store_has_repos_answers_true_when_it_cannot_tell(tmp_path):
+    """`_store_has_repos` gates whether bootstrap aborts after a partial index. It must
+    fail OPEN: refusing to run the remaining stages because the check itself broke is a
+    worse outcome than the hollow success it guards against."""
+    from types import SimpleNamespace
+
+    from contextlake.cli import _store_has_repos
+
+    # A namespace that cannot resolve to any store at all.
+    assert _store_has_repos(SimpleNamespace(config="/nonexistent/nope.toml")) is True

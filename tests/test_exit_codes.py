@@ -29,7 +29,7 @@ _PROJECTS = {"g/a": {"archived": False, "http": "ha", "ssh": "sa", "default_bran
 
 @pytest.fixture(autouse=True)
 def patched_config(monkeypatch):
-    monkeypatch.setattr(cli, "load_config", lambda path=None: dict(_FAKE_CFG))
+    monkeypatch.setattr(cli, "load_config", lambda path=None, **kw: dict(_FAKE_CFG))
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
 
 
@@ -119,7 +119,7 @@ def test_keyboard_interrupt_still_exits_130(monkeypatch):
 
 
 def test_config_error_still_exits_1(monkeypatch):
-    def _raise(path=None):
+    def _raise(path=None, **kw):
         raise ConfigError("config file not found: /nope.ini")
 
     monkeypatch.setattr(cli, "load_config", _raise)
