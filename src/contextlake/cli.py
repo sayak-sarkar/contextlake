@@ -1610,6 +1610,33 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     workspace = expand_path(args.workspace) if getattr(args, "workspace", None) else work_dir
     kb_args = copy.copy(args)
     kb_args.config = getattr(args, "kb_config", None)
+    # `--config` is the mirror INI and `--kb-config` is the knowledge config, and a
+    # reasonable person passes their kb.toml to `--config`. That used to be silent in
+    # BOTH directions: the TOML was parsed as an INI (yielding the default work_dir and
+    # group), and the kb stages fell back to ~/.contextlake/kb.toml -- so bootstrap
+    # indexed into a store the user had not named. Measured: six repository rows written
+    # into a production store by a command carrying an explicit --config.
+    #
+    # Refusing rather than guessing. Silently reinterpreting the flag would be a second
+    # guess about which store the user meant, and guessing wrong is the whole defect.
+    if getattr(args, "config", None) and not getattr(args, "kb_config", None):
+        from pathlib import Path
+
+        given = Path(expand_path(args.config))
+        looks_like_kb = given.suffix.lower() == ".toml"
+        if not looks_like_kb and given.is_file():
+            try:
+                looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                looks_like_kb = False
+        if looks_like_kb:
+            log(style.fail(
+                f"--config {args.config} looks like a knowledge config, but on "
+                f"`bootstrap` --config is the mirror INI."))
+            log("  The knowledge stages take --kb-config, so as written this would "
+                "index into whatever store the default kb.toml names.")
+            log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
+            return 2
     kb_args.workspace = workspace
     kb_args.source = None
     kb_args.args = []  # defensive: bootstrap has no positional args; _connect_targets
@@ -2018,7 +2045,13 @@ def _run(argv, metrics):
         elif args.command == "status":
             show_status(work_dir, config, gitlab_group)
         elif args.command == "bootstrap":
-            _bootstrap(args, config, work_dir, gitlab_group, metrics=metrics)
+            # The return value is honoured. It used to be discarded, so a `_bootstrap`
+            # that refused still exited 0 -- reporting failure while claiming success,
+            # which is the class of defect this release is about. `None` is the ordinary
+            # "ran to the end" answer and maps to 0.
+            rc = _bootstrap(args, config, work_dir, gitlab_group, metrics=metrics)
+            if rc:
+                sys.exit(rc)
     except KeyboardInterrupt:
         log("Operation cancelled by user")
         sys.exit(130)

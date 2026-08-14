@@ -225,6 +225,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     local_config = find_ancestor_config(LOCAL_CONFIG)
     merged: dict = {}
     loaded_from: list[str] = []
+    store_dir_src: str | None = None   # which file actually decided the store
     # Described rather than resolved, because the interesting case is the one with
     # nothing to resolve: when no ancestor carries a local config, find_ancestor_config
     # returns None, and simply omitting it would hide the fact that a
@@ -247,6 +248,10 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         # command. Everything else in that file still applies. See kb/trust.py.
         privileged = is_privileged_source(src, config_path, global_config=GLOBAL_CONFIG)
         for table, values in _read_toml(src).items():
+            if table == "kb" and "store_dir" in values:
+                # Remember WHICH file set the store, not just what it was set to. The
+                # merge is last-wins, so this ends up naming the file that decided it.
+                store_dir_src = str(Path(expand_path(src)))
             if not privileged:
                 values = _drop_executable_keys(table, values, src)
             if table in _SCALAR_TABLES:
@@ -260,6 +265,27 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 
     kb = merged.get("kb", {})
     _warn_unknown_config(kb, merged)
+    if config_path:
+        # The other half of the hard-error above. That one catches a --config that does
+        # not EXIST; this one catches a --config that exists and simply does not set the
+        # store -- which reaches the identical outcome by a quieter route, because the
+        # merge then inherits `store_dir` from ~/.contextlake/kb.toml. Measured during
+        # an audit: two commands carrying an explicit --config wrote six repository rows
+        # into a production store, and nothing in the output said which store was used.
+        #
+        # A warning rather than a refusal: a --config that only tunes [embeddings] or
+        # [llm] is a legitimate and common thing to write, so refusing would break real
+        # usage to prevent a mistake. Naming the file that won is enough to make the
+        # mistake visible the moment it happens.
+        named = str(Path(expand_path(config_path)))
+        if store_dir_src != named:
+            from .. import style
+            from ..logging_setup import log
+            where = store_dir_src or "the built-in default"
+            log(style.warn(
+                f"{config_path} does not set [kb] store_dir, so the store comes from "
+                f"{where}: {Path(expand_path(kb.get('store_dir', default_store_dir())))}"))
+            log("  Set [kb] store_dir in that file to target a different store.")
     cfg = KbConfig(
         store_dir=kb.get("store_dir", default_store_dir()),
         languages=kb.get("languages") or None,
