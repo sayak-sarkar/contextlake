@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.1] - 2026-08-15
+
+**The command you were told to run, runs — and writes where you said it would.** Six defects,
+every one of them a documented path that silently did the wrong thing while reporting success.
+Two of them wrote into a production knowledge store during the audit that found them.
+
+### Fixed
+
+- **`kb refresh --refresh` indexed your home directory.** This is the SessionStart hook
+  `kb steer` installs, so it was the default experience of the documented "refresh when a
+  session starts" flow. It spawned a bare `kb index` with `cwd=$HOME`, and an index with no
+  target defaults to `.` — so it indexed `$HOME`, never touched the repos the freshness check
+  had just named as moved, and sat in uninterruptible I/O past 96 seconds **holding the store's
+  single-writer lock**, refusing every other write. Where `$HOME` is itself a git repo it would
+  have indexed your home into the knowledge store. It now names each stale repo explicitly,
+  repairs stale vectors with `embed` rather than `index`, and does not spawn at all when there
+  is nothing to repair.
+
+- **Every integration contextlake installs named a command that does not resolve.** The MCP
+  entries, the SessionStart hook and the git `post-commit` hook all wrote a bare `contextlake`.
+  Editors and git run hooks with a minimal environment, and on a venv install the console
+  script is not on it — so the hook ran, "command not found" went to a stream nobody reads, and
+  `kb hook status` still reported it present. Machine-local files now use the running
+  interpreter; `.mcp.json` and `.vscode/mcp.json`, which are committed and cloned, prefer the
+  portable spelling and fall back to it. The git hook also stopped sending stderr to
+  `/dev/null` — it appends to `$(git rev-parse --git-dir)/contextlake-index.log`.
+
+- **Four commands wrote the store without taking its single-writer lock**, while
+  `_guard_store`'s own docstring promised "two writers never interleave". `ingest`, `connect`,
+  `enrich` and `forget` all wrote rows and shard files unguarded. Proved by running it: with a
+  live lock held, `index` refused, `ingest` wrote, and `forget` **deleted**. The realistic
+  trigger is contextlake's own detached background index. Read-only verbs stay unguarded
+  deliberately.
+
+- **`--config` could send the knowledge stages to a store you never named**, by two doors, both
+  walked into accidentally during the audit. On `bootstrap`, `--config` is the mirror INI and
+  the knowledge stages take `--kb-config`; passing a `kb.toml` parsed TOML as INI and left the
+  kb stages on the default store. It now refuses and prints the corrected command. Separately,
+  a `--config` that exists but sets no `[kb] store_dir` is merged over the global config and
+  inherits the global store — the resolved store and the file that chose it are now both
+  printed. `load_kb_config` already hard-errored on a *missing* `--config` for exactly this
+  reason; these are the same hazard by quieter routes.
+
+- **A refused `bootstrap` exited 0.** `_bootstrap`'s return value was discarded at the
+  dispatch, so a refusal printed its message and still reported success.
+
+- **One unreadable directory discarded a good graph.** `cmd_index` fails the run if *any* repo
+  failed, and bootstrap aborted on that exit code — so 4 of 6 repos indexing perfectly still
+  meant connect, embed, wiki and steer never ran. The abort now asks whether there is a graph
+  to build on rather than trusting the exit code of the stage that built it.
+
+- **`--group` could not silence the "no group found" warning.** The flag is merged after
+  `load_config` runs, so the warning fired on every `--group` invocation of every mirror
+  command — telling a user who had just supplied the group that no group was found.
+
 ### Fixed
 
 - **"This is a timeout, not an empty history" was printed for things that were not timeouts.**
