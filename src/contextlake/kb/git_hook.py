@@ -38,15 +38,41 @@ def git_dir(repo_path: Path) -> Path | None:
     return None
 
 
+HOOK_LOG_NAME = "contextlake-index.log"
+"""Where the detached re-index writes. Inside the git dir, so it travels with the
+checkout, is ignored by git automatically, and is deleted with the repository."""
+
+
 def _block(repo_path: str, repo_id: str, config: str | None) -> str:
+    """The managed `post-commit` body.
+
+    Two things here are deliberate and were both wrong before.
+
+    **The command is the running interpreter, not a bare ``contextlake``.** Git runs
+    hooks with a minimal environment, and on a venv install the console script is not on
+    that PATH. Measured: the hook ran, the commit succeeded, the store head never moved,
+    and ``kb hook status`` still reported the hook as present -- a failure invisible from
+    every angle a user would check. See ``contextlake.launcher``; this file is
+    machine-local, so it takes the always-correct spelling rather than the portable one.
+
+    **Output goes to a log, not to ``/dev/null``.** The previous body sent stdout *and*
+    stderr to ``/dev/null``, so an indexing error left no trace anywhere. That is the
+    same defect ``cmds/refresh.py`` names in its own docstring -- "a background process
+    with nowhere to write its errors fails invisibly, which is the class of bug this
+    whole command exists to fight" -- and this hook was the counter-example to it.
+    """
+    from ..launcher import launch_command
+
     cfg = f' --config "{config}"' if config else ""
     return (
         f"{MARK_BEGIN}\n"
         "# Re-index this repository into the contextlake knowledge store after each\n"
         "# commit. Detached (&) so the commit returns immediately. Managed by\n"
         "#   contextlake kb hook install / uninstall  — do not hand-edit.\n"
-        f'( contextlake{cfg} kb index "{repo_path}" --repo "{repo_id}" '
-        ">/dev/null 2>&1 & ) </dev/null\n"
+        f'# Errors land in $(git rev-parse --git-dir)/{HOOK_LOG_NAME}.\n'
+        f'_cl_log="$(git rev-parse --git-dir)/{HOOK_LOG_NAME}"\n'
+        f'( {launch_command()}{cfg} kb index "{repo_path}" --repo "{repo_id}" '
+        '>>"$_cl_log" 2>&1 & ) </dev/null\n'
         f"{MARK_END}\n"
     )
 

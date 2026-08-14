@@ -604,7 +604,14 @@ def test_mcp_console_lists_the_real_tool_catalog(store_dir):
     assert "graph_stats" in names and "blast_radius" in names
     assert out["semantic_search_available"] is False  # no embeddings.sqlite in this fixture
     entry = out["mcp_json"]["mcpServers"]["contextlake"]
-    assert entry == {"command": "contextlake", "args": ["kb", "serve"]}
+    from contextlake.launcher import launch_argv
+    _p = launch_argv(portable=True)
+    assert entry == {"command": _p[0], "args": [*_p[1:], "kb", "serve"]}
+    # The head is whatever reliably starts contextlake on THIS machine; asserting the
+    # literal "contextlake" is what let an unresolvable launcher ship.
+    import shutil
+    from pathlib import Path as _P
+    assert shutil.which(entry["command"]) or _P(entry["command"]).exists()
     assert out["vscode_mcp_json"]["servers"]["contextlake"] == entry
 
 
@@ -614,7 +621,8 @@ def test_mcp_console_json_snippet_carries_an_explicit_config_path(store_dir):
     cfg.write_text(f'[kb]\nstore_dir = "{sd.as_posix()}"\n')
     out = kbdata.mcp_console(s, sd, config_path=str(cfg))
     args = out["mcp_json"]["mcpServers"]["contextlake"]["args"]
-    assert args == ["kb", "serve", "--config", str(cfg)]
+    from contextlake.launcher import launch_argv
+    assert args == [*launch_argv(portable=True)[1:], "kb", "serve", "--config", str(cfg)]
 
 
 def test_settings_shape_and_derived_fields(store_dir, tmp_path, monkeypatch):

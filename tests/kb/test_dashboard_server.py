@@ -395,8 +395,10 @@ def test_mcp_console_endpoint(served):
     assert body["tool_count"] > 0
     names = {t["name"] for t in body["tools"]}
     assert "graph_stats" in names and "who_knows" in names
-    assert body["mcp_json"]["mcpServers"]["contextlake"]["command"] == "contextlake"
-    assert body["vscode_mcp_json"]["servers"]["contextlake"]["command"] == "contextlake"
+    from contextlake.launcher import launch_argv
+    _cmd = launch_argv(portable=True)[0]
+    assert body["mcp_json"]["mcpServers"]["contextlake"]["command"] == _cmd
+    assert body["vscode_mcp_json"]["servers"]["contextlake"]["command"] == _cmd
 
 
 def test_settings_endpoint(served):

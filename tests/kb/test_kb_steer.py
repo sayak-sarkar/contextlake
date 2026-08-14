@@ -88,14 +88,52 @@ def test_generated_steering_points_at_the_namespaced_serve_command():
     not a terminal -- a stale command here fails opaquely inside the editor.
     `steer --force` rewrites them; this guards what it writes."""
     entry = mcp_server_entry(None)
-    assert entry["args"][:2] == ["kb", "serve"]
-    assert entry["args"][0] != "serve"
+    assert entry["args"][-2:] == ["kb", "serve"]
+    assert entry["args"][-1] != "serve" or entry["args"][-2] == "kb"
+
+
+def _launcher_prefix(portable):
+    from contextlake.launcher import launch_argv
+    return launch_argv(portable=portable)
 
 
 def test_mcp_server_entry():
+    """The entry's tail is the command; its head is whatever reliably starts contextlake.
+
+    This used to assert the literal string `"contextlake"`, which is exactly the defect
+    it should have caught: git and editors run these entries with a minimal PATH, and on
+    a venv install the bare console script is not on it. The entry is committed and
+    cloned, so it prefers the portable spelling and falls back to this interpreter.
+    """
+    prefix = _launcher_prefix(portable=True)
     assert mcp_server_entry("/c/kb.toml") == {
-        "command": "contextlake", "args": ["kb", "serve", "--config", "/c/kb.toml"]}
-    assert mcp_server_entry(None) == {"command": "contextlake", "args": ["kb", "serve"]}
+        "command": prefix[0],
+        "args": [*prefix[1:], "kb", "serve", "--config", "/c/kb.toml"]}
+    assert mcp_server_entry(None) == {
+        "command": prefix[0], "args": [*prefix[1:], "kb", "serve"]}
+
+
+def test_every_generated_launcher_names_something_that_actually_exists():
+    """THE LOAD-BEARING ASSERTION, and the one no literal-string test could make.
+
+    Whatever spelling is chosen, the executable it names must be resolvable -- otherwise
+    the host program runs it, the shell reports "command not found" into a stream nobody
+    reads, and every status check still says the integration is installed. That is the
+    measured failure: a post-commit hook ran, the commit succeeded, the store head never
+    moved, and `kb hook status` reported the hook present.
+    """
+    import shutil
+    from pathlib import Path
+
+    from contextlake.kb.steer.generate import session_hook_entry
+
+    cmd = mcp_server_entry(None)["command"]
+    assert shutil.which(cmd) or Path(cmd).exists(), (
+        f"the MCP entry names {cmd!r}, which does not resolve")
+
+    hook = session_hook_entry(None)["command"].split()[0]
+    assert shutil.which(hook) or Path(hook).exists(), (
+        f"the SessionStart hook names {hook!r}, which does not resolve")
 
 
 def test_render_agents_md_sanitizes_a_repo_id_and_package_name_that_embed_markers(tmp_path):
@@ -157,7 +195,7 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
 
     mcp = json.loads((out / ".mcp.json").read_text())
     assert "other" in mcp["mcpServers"]  # preserved
-    assert mcp["mcpServers"]["contextlake-kb"]["command"] == "contextlake"
+    assert mcp["mcpServers"]["contextlake-kb"]["command"] == _launcher_prefix(True)[0]
 
 
 def test_cmd_steer_writes_vscode_mcp_json_under_servers_key(tmp_path, monkeypatch):
@@ -176,8 +214,11 @@ def test_cmd_steer_writes_vscode_mcp_json_under_servers_key(tmp_path, monkeypatc
     vscode = json.loads((out / ".vscode" / "mcp.json").read_text())
     assert "mcpServers" not in vscode
     assert "other" in vscode["servers"]  # preserved
-    assert vscode["servers"]["contextlake-kb"]["command"] == "contextlake"
-    assert vscode["servers"]["contextlake-kb"]["args"][:2] == ["kb", "serve"]
+    assert vscode["servers"]["contextlake-kb"]["command"] == _launcher_prefix(True)[0]
+    _args = vscode["servers"]["contextlake-kb"]["args"]
+    assert any(_args[i:i + 2] == ["kb", "serve"] for i in range(len(_args))), (
+        f"`kb serve` must appear as a contiguous pair in {_args}; the launcher prefix "
+        "precedes it and --config may follow it")
 
 
 def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):
@@ -276,7 +317,7 @@ def test_merge_mcp_entry_self_heals_a_malformed_wrapper_key(tmp_path, monkeypatc
     rc = cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
     assert rc == 0
     mcp = json.loads((out / ".mcp.json").read_text())
-    assert mcp["mcpServers"]["contextlake-kb"]["command"] == "contextlake"
+    assert mcp["mcpServers"]["contextlake-kb"]["command"] == _launcher_prefix(True)[0]
 
 
 def test_cmd_steer_resolves_a_relative_config_path_to_absolute(tmp_path, monkeypatch):

@@ -181,10 +181,16 @@ def mcp_server_entry(config_path: str | None = None) -> dict:
     VS Code's ``.vscode/mcp.json`` -> ``servers``), so this one dict is reused
     for both.
     """
-    args = ["kb", "serve"]
+    from ...launcher import launch_argv
+
+    # `portable=True`: this entry lands in `.mcp.json`, which is committed and cloned.
+    # A bare `contextlake` is preferred when it resolves, and the running interpreter is
+    # the fallback -- see `launcher` for why a bare name alone is not safe here.
+    prefix = launch_argv(portable=True)
+    args = [*prefix[1:], "kb", "serve"]
     if config_path:
         args += ["--config", config_path]
-    return {"command": "contextlake", "args": args}
+    return {"command": prefix[0], "args": args}
 
 
 SESSION_HOOK_MARK = "kb refresh --hook"
@@ -209,7 +215,12 @@ def session_hook_entry(config_path: str | None = None) -> dict:
     """
     from shlex import quote
 
-    cmd = "contextlake kb refresh --hook --refresh"
+    from ...launcher import launch_command
+
+    # Machine-local, so correctness outright: a hook whose command is not on PATH is
+    # run by the editor, fails into a stream nobody reads, and leaves every status
+    # check still reporting the hook as installed.
+    cmd = f"{launch_command()} kb refresh --hook --refresh"
     if config_path:
         # Quoted: this string is handed to a shell, and a store path with a space in it
         # would otherwise install a hook that silently reads the wrong config.
