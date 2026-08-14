@@ -1545,6 +1545,43 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     but never aborts the rest."""
     import copy
 
+    # ARGUMENT VALIDATION FIRST, before the mirror or the audit runs. Placed after
+    # them originally, which cost the user a full mirror pass before the refusal --
+    # and, worse, sat after the `from .kb import commands` block, so on a core-only
+    # install the ImportError path returned before this ever ran and the refusal
+    # silently exited 0. CI's core tier caught exactly that.
+    #
+    # `--config` is the mirror INI and `--kb-config` is the knowledge config, and a
+    # reasonable person passes their kb.toml to `--config`. That used to be silent in
+    # BOTH directions: the TOML was parsed as an INI (yielding the default work_dir and
+    # group), and the kb stages fell back to ~/.contextlake/kb.toml -- so bootstrap
+    # indexed into a store the user had not named. Measured: six repository rows written
+    # into a production store by a command carrying an explicit --config.
+    #
+    # Refusing rather than guessing. Silently reinterpreting the flag would be a second
+    # guess about which store the user meant, and guessing wrong is the whole defect.
+    if getattr(args, "config", None) and not getattr(args, "kb_config", None):
+        from pathlib import Path
+
+        from . import style
+
+        given = Path(expand_path(args.config))
+        looks_like_kb = given.suffix.lower() == ".toml"
+        if not looks_like_kb and given.is_file():
+            try:
+                looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                looks_like_kb = False
+        if looks_like_kb:
+            log(style.fail(
+                f"--config {args.config} looks like a knowledge config, but on "
+                f"`bootstrap` --config is the mirror INI."))
+            log("  The knowledge stages take --kb-config, so as written this would "
+                "index into whatever store the default kb.toml names.")
+            log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
+            return 2
+
+
     from . import style
 
     def _stage(title):
@@ -1634,33 +1671,6 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     workspace = expand_path(args.workspace) if getattr(args, "workspace", None) else work_dir
     kb_args = copy.copy(args)
     kb_args.config = getattr(args, "kb_config", None)
-    # `--config` is the mirror INI and `--kb-config` is the knowledge config, and a
-    # reasonable person passes their kb.toml to `--config`. That used to be silent in
-    # BOTH directions: the TOML was parsed as an INI (yielding the default work_dir and
-    # group), and the kb stages fell back to ~/.contextlake/kb.toml -- so bootstrap
-    # indexed into a store the user had not named. Measured: six repository rows written
-    # into a production store by a command carrying an explicit --config.
-    #
-    # Refusing rather than guessing. Silently reinterpreting the flag would be a second
-    # guess about which store the user meant, and guessing wrong is the whole defect.
-    if getattr(args, "config", None) and not getattr(args, "kb_config", None):
-        from pathlib import Path
-
-        given = Path(expand_path(args.config))
-        looks_like_kb = given.suffix.lower() == ".toml"
-        if not looks_like_kb and given.is_file():
-            try:
-                looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                looks_like_kb = False
-        if looks_like_kb:
-            log(style.fail(
-                f"--config {args.config} looks like a knowledge config, but on "
-                f"`bootstrap` --config is the mirror INI."))
-            log("  The knowledge stages take --kb-config, so as written this would "
-                "index into whatever store the default kb.toml names.")
-            log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
-            return 2
     kb_args.workspace = workspace
     kb_args.source = None
     kb_args.args = []  # defensive: bootstrap has no positional args; _connect_targets

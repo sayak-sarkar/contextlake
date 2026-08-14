@@ -95,3 +95,40 @@ def test_store_has_repos_answers_true_when_it_cannot_tell(tmp_path):
 
     # A namespace that cannot resolve to any store at all.
     assert _store_has_repos(SimpleNamespace(config="/nonexistent/nope.toml")) is True
+
+
+def test_the_config_guard_runs_before_anything_else_in_bootstrap():
+    """Position matters, and CI proved it.
+
+    The guard was originally placed after the mirror, after the audit, and after
+    `from .kb import commands` -- whose ImportError path `return`s. So on a core-only
+    install (no `[kb]` extra) the refusal never ran and `bootstrap --config <kb.toml>`
+    exited 0. Every `core` job in the matrix failed on exactly that while every
+    `knowledge-layer` job passed, which is the signature of a core-tier-only defect.
+
+    Asserted by source position rather than by behaviour, because reproducing it needs
+    an interpreter without the kb extra -- which CI has and a developer machine does
+    not. A behavioural test here would pass locally forever.
+    """
+    import inspect
+
+    from contextlake import cli
+
+    src = inspect.getsource(cli._bootstrap)
+    # Anchored on the STATEMENTS, not on prose. The first version searched for
+    # "from .kb import commands" and matched this fix's own explanatory comment, which
+    # sits above the guard -- so the test failed against correct code. A source-position
+    # assertion is only as good as the uniqueness of what it looks for.
+    i_guard = src.find('if getattr(args, "config", None) and not getattr(args, "kb_config", None):')
+    i_kb_import = src.find("        from .kb import commands as kb")
+    i_mirror = src.find("Skipping the GitLab mirror step (--no-sync)")
+
+    assert i_guard > 0, "the --config/--kb-config guard is gone"
+    assert i_kb_import > 0, "the kb import moved; re-check this test's anchors"
+    assert i_guard < i_kb_import, (
+        "the guard sits below `from .kb import commands`, whose ImportError path "
+        "returns -- so on a core-only install the refusal is skipped and bootstrap "
+        "exits 0. This is the exact regression CI caught.")
+    assert i_guard < i_mirror, (
+        "argument validation runs after the mirror, so a user pays a full mirror pass "
+        "before being told their flags are wrong")
