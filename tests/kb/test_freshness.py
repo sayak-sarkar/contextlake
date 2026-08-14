@@ -152,3 +152,110 @@ def test_the_hook_can_be_switched_off_by_environment(tmp_path, capsys, monkeypat
     monkeypatch.setenv(DISABLE_ENV, "1")
     assert cmd_refresh(_args(tmp_path, hook=True)) == 0
     assert capsys.readouterr().out == ""
+
+
+# --- `--refresh` must repair the repos it named, and nothing else -------------------
+#
+# The bug these pin: `_spawn_refresh` used to run a bare `kb index` with
+# `cwd=Path.home()`, and `cmd_index` with no target defaults to `"."`. So the
+# "background update" indexed the user's HOME DIRECTORY, never touched the repos the
+# check had just reported as moved, and held the store's single-writer lock while doing
+# it. The message said "Updating in the background" throughout.
+
+def _captured_spawn(monkeypatch):
+    """Capture the shell script `_spawn_refresh` would run, without running it.
+
+    Patching `subprocess.Popen` rather than asserting on side effects: the defect is
+    entirely in the command line that gets built, so the command line is the thing to
+    assert on. A test that ran the child and checked the store would also pass on the
+    old code whenever `$HOME` happened to contain no git repo -- which is exactly how
+    this shipped.
+    """
+    seen = {}
+    from contextlake.kb.cmds import refresh as refresh_mod
+    real_popen = refresh_mod.subprocess.Popen
+
+    class _FakeProc:
+        # A context manager because `subprocess.run` uses `with Popen(...)`, and this
+        # patch lands on the shared stdlib module rather than a private handle.
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_popen(argv, **kw):
+        # Intercept ONLY the detached shell this function spawns. Everything else --
+        # notably the `git` calls the freshness check itself makes through
+        # `subprocess.run` -- must reach the real Popen, or the fixture stops being a
+        # fixture and the test measures the patch instead of the code.
+        if isinstance(argv, list) and argv[:2] == ["/bin/sh", "-c"]:
+            seen["argv"] = argv
+            seen["cwd"] = kw.get("cwd")
+            return _FakeProc()
+        return real_popen(argv, **kw)
+
+    monkeypatch.setattr(refresh_mod.subprocess, "Popen", fake_popen)
+    return seen
+
+
+def test_refresh_indexes_the_moved_repo_by_name_and_never_a_bare_directory(
+        tmp_path, monkeypatch, capsys):
+    """THE LOAD-BEARING ASSERTION. The spawned script must name the stale repo."""
+    from contextlake.kb.cmds.refresh import cmd_refresh
+
+    ws = tmp_path / "ws"
+    head = _repo(ws / "alpha")
+    store = _store(tmp_path)
+    store.upsert_repo(Repo(id="alpha", path=str(ws / "alpha"), head_commit=head))
+    store.close()
+
+    # Move HEAD, so the repo genuinely reads as stale. A second commit needs a real
+    # content change; committing the identical tree exits 1 with "nothing to commit".
+    (ws / "alpha" / "b.py").write_text("x = 1\n", encoding="utf-8")
+    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e",
+           "PATH": "/usr/bin:/bin"}
+    for cmd in (["add", "-A"], ["commit", "-qm", "two"]):
+        subprocess.run(["git", "-C", str(ws / "alpha"), *cmd], check=True, env=env,
+                       capture_output=True)
+
+    seen = _captured_spawn(monkeypatch)
+    assert cmd_refresh(_args(tmp_path, refresh=True)) == 0
+
+    script = seen["argv"][-1]
+    assert "--source alpha" in script, (
+        f"the background update did not name the stale repo; it would index whatever "
+        f"its working directory happens to be. script was: {script}")
+    # The old shape, spelled out so a regression cannot pass by accident: an `index`
+    # with no `--source` immediately followed by the end of the command or an `&&`.
+    assert " index &&" not in script and not script.rstrip().endswith(" index"), (
+        "an untargeted `kb index` is being spawned again")
+    assert seen["cwd"] == str(tmp_path), (
+        "the child inherits a working directory that a bare index would treat as its "
+        "source; it must be the store directory")
+
+
+def test_refresh_repairs_stale_vectors_with_embed_not_index(tmp_path, monkeypatch):
+    """A store whose ONLY staleness is its vectors was still spawning a bare index --
+    the single worst case, because indexing cannot repair a vector store at all."""
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(tmp_path, None, [], embed=True)
+    assert ok
+    script = seen["argv"][-1]
+    assert " embed" in script
+    assert " index" not in script, "vectors were 'repaired' by indexing something"
+
+
+def test_refresh_with_nothing_to_repair_does_not_claim_to_be_updating(
+        tmp_path, monkeypatch):
+    """Honesty pair: no targets and no stale vectors means there is nothing this can
+    do, so it must report that rather than spawn a command and promise an update."""
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(tmp_path, None, [], embed=False)
+    assert ok is False
+    assert "argv" not in seen, "a process was spawned with nothing to do"

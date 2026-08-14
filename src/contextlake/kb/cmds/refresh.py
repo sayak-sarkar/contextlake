@@ -38,21 +38,47 @@ def _env_disabled() -> bool:
     return os.environ.get(DISABLE_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def _spawn_refresh(store_dir: Path, config: str | None) -> tuple[bool, Path]:
-    """Start `kb index` then `kb steer` in the background, detached from this process.
+def _spawn_refresh(store_dir: Path, config: str | None,
+                   targets: list[str], embed: bool = False) -> tuple[bool, Path]:
+    """Start the repair commands in the background, detached from this process.
 
     Detached on purpose: the caller is often a session-start hook whose exit must not
     wait for, or kill, the work. Output goes to a file in the store because a
     background process with nowhere to write its errors fails invisibly, which is the
     class of bug this whole command exists to fight.
+
+    ``targets`` are the repo **ids** the freshness check found stale. Each becomes its
+    own ``index --source <id>``, which works because ``--source`` accepts an indexed
+    repo id as well as a path (``cmds/index.py``'s ``_resolve_source_by_id``).
+
+    **Naming the targets is the whole point of this function's signature.** It used to
+    run a bare ``kb index`` with ``cwd=Path.home()``, and ``cmd_index`` with no target
+    defaults to ``"."`` -- so the "update" indexed the user's HOME DIRECTORY and never
+    touched the repositories the check had just reported as moved. Measured: the message
+    said "Updating in the background", the store head never advanced, and the process sat
+    in uninterruptible I/O past 96 seconds still holding the store's single-writer lock,
+    so every other write was refused for the duration. On a machine where ``$HOME`` is
+    itself a git repo it would have indexed the home directory into the knowledge store.
+
+    So: never spawn an untargeted index, and never let the child's working directory
+    decide what gets indexed. ``cwd`` is the store directory now -- a path that is
+    guaranteed to exist and that no command interprets as a source.
+
+    Returns ``(False, logfile)`` when there is nothing this function can repair, so the
+    caller reports honestly rather than promising an update that will not happen.
     """
     logfile = Path(store_dir) / _LOG_NAME
     base = [sys.executable, "-m", "contextlake", "kb"]
     cfg = ["--config", config] if config else []
-    script = " && ".join([
-        " ".join(_quote(base + cfg + ["index"])),
-        " ".join(_quote(base + cfg + ["steer"])),
-    ])
+    steps = [base + cfg + ["index", "--source", t] for t in targets]
+    if embed:
+        # Stale vectors are not repaired by indexing; `embed` is their repair. Before
+        # this, a store whose ONLY staleness was its vectors still spawned a bare index.
+        steps.append(base + cfg + ["embed"])
+    if not steps:
+        return False, logfile
+    steps.append(base + cfg + ["steer"])
+    script = " && ".join(" ".join(_quote(s)) for s in steps)
     try:
         logfile.parent.mkdir(parents=True, exist_ok=True)
         fh = logfile.open("a", encoding="utf-8")
@@ -61,7 +87,7 @@ def _spawn_refresh(store_dir: Path, config: str | None) -> tuple[bool, Path]:
     try:
         subprocess.Popen(["/bin/sh", "-c", script], stdout=fh, stderr=subprocess.STDOUT,
                          stdin=subprocess.DEVNULL, start_new_session=True,
-                         cwd=str(Path.home()))
+                         cwd=str(store_dir))
     except (OSError, ValueError):
         fh.close()
         return False, logfile
@@ -102,7 +128,13 @@ def cmd_refresh(args) -> int:
     started = False
     logfile = Path(store_dir) / _LOG_NAME
     if getattr(args, "refresh", False) and f.is_stale:
-        started, logfile = _spawn_refresh(Path(store_dir), getattr(args, "config", None))
+        # Repair exactly what the check found stale, named by repo id. `moved` and
+        # `stale_parser` both mean "this repo's graph is out of date"; a repo can be in
+        # both lists, so dedupe while keeping the check's order. `unreadable` is
+        # deliberately excluded -- re-indexing a repo whose checkout is gone cannot help.
+        targets = list(dict.fromkeys(f.moved + f.stale_parser))
+        started, logfile = _spawn_refresh(Path(store_dir), getattr(args, "config", None),
+                                          targets, embed=bool(f.vectors_stale))
 
     line = f.summary()
     if f.is_stale:
