@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Public trees only, pinned to a commit, chosen for DIFFERENT SHAPES rather than for a",
+    "flattering result. Every tree listed here gets published whatever it shows.",
+    "Shapes: a template-heavy modern C++ header library; a mature portable C codebase with",
+    "heavy preprocessor use; a decorator-heavy Python package; a small JavaScript package."
+  ],
+  "trees": [
+    {
+      "key": "fmt",
+      "url": "https://github.com/fmtlib/fmt",
+      "commit": "cde18a38bbd960a2e803b76880fbbf4b4ffb3cd7",
+      "language": "C++",
+      "shape": "modern C++, header-and-template heavy, few macros"
+    },
+    {
+      "key": "curl",
+      "url": "https://github.com/curl/curl",
+      "commit": "26dadd9ea3be8c21909bd10e4677890af59011d9",
+      "language": "C",
+      "shape": "mature portable C, heavy #ifdef and macro use, decades of history"
+    },
+    {
+      "key": "flask",
+      "url": "https://github.com/pallets/flask",
+      "commit": "2a8a38b051fc248865730bf3511bf2e2ea325e81",
+      "language": "Python",
+      "shape": "small decorator-heavy Python package"
+    },
+    {
+      "key": "express",
+      "url": "https://github.com/expressjs/express",
+      "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
+      "language": "JavaScript",
+      "shape": "small CommonJS JavaScript package"
+    }
+  ]
+}

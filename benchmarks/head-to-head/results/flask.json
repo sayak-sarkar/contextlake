@@ -1,0 +1,41 @@
+{
+  "tree": {
+    "key": "flask",
+    "url": "https://github.com/pallets/flask",
+    "commit": "2a8a38b051fc248865730bf3511bf2e2ea325e81",
+    "language": "Python",
+    "shape": "small decorator-heavy Python package"
+  },
+  "runs": [
+    {
+      "tool": "contextlake",
+      "version": "contextlake 7.7.0",
+      "ok": true,
+      "seconds": 0.6,
+      "log_tail": "",
+      "nodes": {
+        "total": 1959
+      },
+      "edges": {
+        "rows": 5271,
+        "distinct_relationships": 4567,
+        "rows_per_relationship": 1.154
+      }
+    },
+    {
+      "tool": "@colbymchenry/codegraph@1.5.0",
+      "version": "1.5.0",
+      "ok": true,
+      "seconds": 1.33,
+      "log_tail": "",
+      "nodes": {
+        "total": 2705
+      },
+      "edges": {
+        "rows": 5171,
+        "distinct_relationships": 4692,
+        "rows_per_relationship": 1.102
+      }
+    }
+  ]
+}

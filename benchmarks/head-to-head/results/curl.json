@@ -1,0 +1,41 @@
+{
+  "tree": {
+    "key": "curl",
+    "url": "https://github.com/curl/curl",
+    "commit": "26dadd9ea3be8c21909bd10e4677890af59011d9",
+    "language": "C",
+    "shape": "mature portable C, heavy #ifdef and macro use, decades of history"
+  },
+  "runs": [
+    {
+      "tool": "contextlake",
+      "version": "contextlake 7.7.0",
+      "ok": true,
+      "seconds": 4.98,
+      "log_tail": "",
+      "nodes": {
+        "total": 18531
+      },
+      "edges": {
+        "rows": 47854,
+        "distinct_relationships": 38412,
+        "rows_per_relationship": 1.246
+      }
+    },
+    {
+      "tool": "@colbymchenry/codegraph@1.5.0",
+      "version": "1.5.0",
+      "ok": true,
+      "seconds": 5.49,
+      "log_tail": "",
+      "nodes": {
+        "total": 16521
+      },
+      "edges": {
+        "rows": 49010,
+        "distinct_relationships": 40793,
+        "rows_per_relationship": 1.201
+      }
+    }
+  ]
+}

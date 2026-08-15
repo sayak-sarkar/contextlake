@@ -1,0 +1,41 @@
+{
+  "tree": {
+    "key": "fmt",
+    "url": "https://github.com/fmtlib/fmt",
+    "commit": "cde18a38bbd960a2e803b76880fbbf4b4ffb3cd7",
+    "language": "C++",
+    "shape": "modern C++, header-and-template heavy, few macros"
+  },
+  "runs": [
+    {
+      "tool": "contextlake",
+      "version": "contextlake 7.7.0",
+      "ok": true,
+      "seconds": 1.92,
+      "log_tail": "",
+      "nodes": {
+        "total": 7721
+      },
+      "edges": {
+        "rows": 18672,
+        "distinct_relationships": 15273,
+        "rows_per_relationship": 1.223
+      }
+    },
+    {
+      "tool": "@colbymchenry/codegraph@1.5.0",
+      "version": "1.5.0",
+      "ok": true,
+      "seconds": 4.05,
+      "log_tail": "",
+      "nodes": {
+        "total": 7695
+      },
+      "edges": {
+        "rows": 18055,
+        "distinct_relationships": 14724,
+        "rows_per_relationship": 1.226
+      }
+    }
+  ]
+}
