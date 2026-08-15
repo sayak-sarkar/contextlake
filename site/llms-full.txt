@@ -6160,19 +6160,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.8.0] - 2026-08-16
+
+**Search stopped burying the answer, and the gate that should have caught it can now see it.**
+The two are one story: a symbol's own definition ranked 32nd of 153 on a live index, and the
+project's own retrieval harness scored the fix as changing nothing at all.
+
+
+### ⚠ Behaviour change: search results come back in a different order
+
+**`kb query`, and the MCP `search_code` tool that agents call, return the same matches ordered
+differently.** No re-index is needed and no result is dropped, but anything that depended on the
+previous ordering, including "take the first result", will see different output. The reason is in
+`Fixed` below: the previous order buried a symbol's own definition under files that merely mention
+its name.
+
 ### Changed
 
 - **The retrieval-quality gate now scores MRR as well as hit-rate, and the evaluation
   fixture gained the shape it was missing.** Discovered while checking that the search
-  ranking fix above did not regress the gate: the golden-set numbers were byte-identical
+  ranking fix below did not regress the gate: the golden-set numbers were byte-identical
   before and after it, so the harness meant to catch retrieval regressions could not see
   the largest retrieval defect this project has fixed, in either direction. Two reasons,
   both now closed. The fixture contained no test files at all, so the competing-noise
   shape that buries a definition could not occur in it; and the gate reads hit-rate, which
   only asks whether the answer landed inside `k`, never where. Measured on the fixture with
   the shape added: MRR is 0.80 with the current ordering and 0.77 with the bare FTS5 `rank`
-  that shipped until 7.7.0, while hit-rate reads 0.80 for both. The MRR floor sits at 0.79,
-  between those two measurements, so the pre-fix ordering fails it.
+  that shipped until 7.7.0, while hit-rate reads 0.80 for both. The MRR floor sits at 0.78,
+  between those two measurements, so the pre-fix ordering fails it. That 0.03 spread is the
+  whole range this gate can discriminate, and MRR over 30 queries moves in steps of about
+  1/30, so read the note beside the floor in the golden set before moving it.
 
 ### Fixed
 
