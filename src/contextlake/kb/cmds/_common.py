@@ -179,7 +179,13 @@ def _unknown_repo_msg(store, target: str) -> str:
     sugg = _repo_id_suggestions(store, target)
     if sugg:
         return f"Unknown repo {target!r}. Did you mean: {', '.join(sugg)}?"
-    return f"Unknown repo {target!r}: index it first, or pass a path on disk"
+    # It used to end "or pass a path on disk". Measured: no path form resolves here --
+    # not `.`, not an absolute path to the checkout -- so the message advertised a way
+    # in that does not exist and sent the reader off to try it. Naming where the ids
+    # come from is the thing that actually unblocks them.
+    return (f"Unknown repo {target!r}: nothing is indexed under that id. "
+            f"Run `contextlake kb index <path>` first, or `contextlake kb doctor` to "
+            f"list the ids this store holds.")
 
 
 def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.sleep) -> int:

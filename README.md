@@ -94,7 +94,7 @@ below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" co
 
 ```bash
 contextlake kb index                     # parse the current repo into a local knowledge graph
-contextlake kb graph --overview --open   # open the interactive graph in your browser
+contextlake kb graph --overview --open   # open the graph (it names your repo's own view next)
 contextlake kb serve                     # …or serve it to your AI IDE over MCP
 ```
 

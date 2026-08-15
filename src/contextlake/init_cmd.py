@@ -304,6 +304,22 @@ def cmd_completion(args) -> int:
     return 0
 
 
+def _kb_installed() -> bool:
+    """Whether the knowledge-layer extra is importable in THIS interpreter.
+
+    A function rather than an inline try/except so tests can state which branch they
+    are exercising. The tests that check WHICH extra is recommended (`kb` against
+    `kb-full`) only have something to assert when the extra is absent, and in a dev
+    checkout it is always present -- so they would have been asserting on a message
+    that no longer prints, for a reason unrelated to what they test.
+    """
+    try:
+        import contextlake.kb  # noqa: F401 - presence check, not a use
+    except ImportError:
+        return False
+    return True
+
+
 def cmd_init(args) -> int:
     """Generate mirror (+ optional knowledge-layer) config, interactively or from flags."""
     interactive = _interactive() and not getattr(args, "skip_interactive", False)
@@ -520,17 +536,28 @@ def cmd_init(args) -> int:
         # makes every embed fail. See the QUICKSTART install guidance.
         extra = "kb-full" if enable_embeddings else "kb"
         install = style.cyan(f'pip install "contextlake[{extra}]"')
+        # Telling somebody to install what they are already running reads as "your
+        # install was wrong", and the cautious response is to re-run pip and wonder.
+        # `doctor` has usually just exercised the knowledge layer by this point, which
+        # makes the advice look even stranger. Import is the check that matters: the
+        # extra being present in THIS interpreter is exactly what the next command needs.
+        have_kb = _kb_installed()
+        steps = [] if have_kb else [install]
         if no_mirror:
             # `bootstrap` mirrors first and refuses without a group, so pointing this
             # user at it would end their setup on an exit 2 -- the same "run this
             # command" / "that command cannot work" mismatch the group error had.
-            log("Next: install the knowledge layer and index what you already have:")
-            log(f"  {install}")
+            log("Next: index what you already have:" if have_kb
+                else "Next: install the knowledge layer and index what you already have:")
+            for step in steps:
+                log(f"  {step}")
             log(f"  {style.cyan('contextlake kb index --source PATH')}"
                 "   # or --workspace DIR for a tree of repos")
         else:
-            log("Next: install the knowledge layer and bootstrap everything:")
-            log(f"  {install}")
+            log("Next: bootstrap everything:" if have_kb
+                else "Next: install the knowledge layer and bootstrap everything:")
+            for step in steps:
+                log(f"  {step}")
             log(f"  {style.cyan('contextlake bootstrap')}")
     else:
         log("Next: mirror your repositories:")

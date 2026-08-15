@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A query against an empty store no longer answers like a genuine miss.** Querying also
+  creates the store file, so someone who had not indexed yet, or whose `--local` config pointed
+  somewhere other than the shell they were querying from, got a confident `No matches` with a
+  freshly made empty database behind it. It now says the store is empty and prints which store,
+  because the usual cause is the right command against the wrong one.
+
+- **Text search results show the qualified name that explains them.** Three functions all named
+  `hook` came back for one query and the printed lines differed only by line number; the reason
+  (their qualified names sit inside a test function) was carried by `--json` and by nothing a
+  human saw.
+
+- **`kb graph --overview` on a single-repository store says what it drew.** `--overview` is the
+  fleet map, with repositories as nodes, so on a one-repo store it is a single dot, and that was
+  the first picture the quickstart handed a new user. It now names that repository's own symbol
+  view.
+
+- **`init` no longer tells you to install what you are already running.** The closing advice
+  printed `pip install "contextlake[kb]"` even when the extra was importable in the running
+  interpreter.
+
+- **The unknown-repo error stopped promising something that does not work.** It ended "or pass a
+  path on disk"; measured, no path form resolves, neither `.` nor an absolute path to the
+  checkout. It now points at `kb index` and at `kb doctor` for the ids the store actually holds.
+
+
 - **`kb query <Symbol>` now ranks `<Symbol>`'s own definition first.** It did not. Measured on a
   clean 2,086-node index of a small public Python library, `kb query Context` returned 20
   test-file hits and the real class ranked 32nd of 153; `Command` ranked 44th of 191. The same

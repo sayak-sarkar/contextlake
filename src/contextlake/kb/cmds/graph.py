@@ -140,6 +140,23 @@ def cmd_graph(args) -> int:
         if overview:
             nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
             meta["mode"] = "overview"
+            # The fleet map draws REPOSITORIES as nodes, so on a store holding one it is
+            # correct and worthless: a single dot. That was the first picture the
+            # quickstart handed a new user. The command still does what was asked, and
+            # now names the one that has something in it.
+            if len(nodes) == 1:
+                # From the store, not from `nodes[0]`: the payload carries plain DICTS,
+                # so a `getattr(node, "id", ...)` reads as working and silently yields
+                # the default, which printed `--repo ` with nothing after it.
+                repos = [r.id for r in store.list_repos()]
+                log(style.warn("--overview draws the FLEET map, with repositories as "
+                               "nodes, and this store holds one."))
+                if len(repos) == 1:
+                    log(f"  For that repository's own symbols: "
+                        f"contextlake kb graph --repo {repos[0]}")
+                else:
+                    log("  For one repository's own symbols: "
+                        "contextlake kb graph --repo <id>  (ids: contextlake kb doctor)")
         elif getattr(args, "repo", None) and not _has_seed(args):
             nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes,
                                              max_edges=max_edges, max_fanout=fanout_arg,

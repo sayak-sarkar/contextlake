@@ -245,12 +245,19 @@ def test_init_reports_the_right_token_env(tmp_path, monkeypatch, gls_logs, platf
 def test_init_next_hint_matches_semantic_choice(tmp_path, monkeypatch, gls_logs):
     # Enabling semantic search must recommend [kb-full] (which ships the embedder),
     # not [kb] — otherwise the very next `bootstrap` embed step fails for every repo.
+    #
+    # The install line only prints when the extra is ABSENT, and a dev checkout always
+    # has it. Stated here rather than inherited: without this the assertion is about a
+    # message that never appears, and it would pass or fail on what the runner has
+    # installed rather than on which extra `init` chose.
+    monkeypatch.setattr(init_cmd, "_kb_installed", lambda: False)
     _run(tmp_path, monkeypatch, group="acme", embeddings=True)
     assert 'contextlake[kb-full]' in gls_logs.text
     assert 'contextlake[kb]"' not in gls_logs.text  # the bare-kb hint must not appear
 
 
 def test_init_next_hint_plain_kb_without_semantic(tmp_path, monkeypatch, gls_logs):
+    monkeypatch.setattr(init_cmd, "_kb_installed", lambda: False)   # see the test above
     _run(tmp_path, monkeypatch, group="acme", embeddings=False)
     assert 'contextlake[kb]' in gls_logs.text
     assert 'kb-full' not in gls_logs.text

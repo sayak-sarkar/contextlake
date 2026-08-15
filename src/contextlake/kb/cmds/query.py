@@ -14,8 +14,25 @@ from ._common import (
 
 
 def _print_hit(n) -> None:
+    """One hit, including the qualified name when it says something the name does not.
+
+    Search matches over name, qualified_name AND file, so a hit can be explained entirely
+    by a field the text output never printed: three functions all called `hook` came back
+    for `evolve` because their QUALIFIED names sit inside
+    `test_hook_evolve_name_updates_auto_alias`. From the printed line the result looked
+    arbitrary. `--json` carried `qualified_name` all along; this is the same fact reaching
+    the humans.
+
+    Only shown when it adds something. For a top-level symbol the qualified name is often
+    just the name again, and repeating it on every line would bury the cases where it is
+    the whole explanation.
+    """
     loc = f"{n.file}:{n.line_start}" if n.file and n.line_start else (n.file or "?")
-    log(f"  {style.cyan(n.repo)} · {loc} · {n.kind} · {style.bold(n.name)}")
+    line = f"  {style.cyan(n.repo)} · {loc} · {n.kind} · {style.bold(n.name)}"
+    qual = (n.qualified_name or "").strip()
+    if qual and qual != n.name:
+        line += f" · {style.dim(qual)}"
+    log(line)
 
 
 def _hit_json(n) -> dict:
@@ -136,7 +153,7 @@ def cmd_query(args) -> int:
     as_of = getattr(args, "as_of", None)
     if as_of:
         return _query_as_of(args, as_of, as_json=as_json)
-    store, _ = _open_store(args)
+    store, store_dir = _open_store(args)
     try:
         limit = _or_default(getattr(args, "limit", None), 20)
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
@@ -172,6 +189,17 @@ def cmd_query(args) -> int:
             return 0
         if not results:
             log(f"No matches for {text!r}")
+            # "nothing indexed" and "indexed, no such symbol" are different answers and
+            # they printed identically. A query also CREATES the store file, so a user
+            # who forgot to index, or whose --local config points somewhere else than
+            # the shell they are querying from, got a confident false negative with a
+            # freshly made empty database behind it. Naming the path is the load-bearing
+            # half: the usual cause is the right command against the wrong store.
+            if store.stats().nodes == 0:
+                log(style.warn(f"This store is empty (no repositories indexed): {store_dir}"))
+                log("  Run `contextlake kb index <path>` first, or `contextlake kb doctor` "
+                    "to see which store this config resolves to.")
+                return 0
             # A multi-word phrase reads as a natural-language question; a plain fts
             # query is keyword search, so point at --retriever semantic instead of a
             # bare dead-end. Already-semantic/hybrid runs skip this (they tried it).
