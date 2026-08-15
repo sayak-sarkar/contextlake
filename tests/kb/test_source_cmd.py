@@ -438,7 +438,9 @@ def test_verify_source_probes_a_files_source_for_real(tmp_path):
     ok, detail = source_cmd.verify_source(
         SourceCfg(type="files", name="handbook", path=str(tmp_path)))
     assert ok is True, detail
-    assert "document(s) available" in detail
+    # The probe stops at the FIRST document rather than counting them all,
+    # so it reports availability rather than a total.
+    assert "at least one document" in detail
 
 
 def test_verify_source_probes_an_unreachable_web_source(tmp_path):

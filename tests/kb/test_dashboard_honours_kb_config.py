@@ -67,15 +67,24 @@ def test_the_dashboard_path_indexes_by_the_same_rules_as_the_cli(mixed_repo):
 def test_a_broken_config_falls_back_loudly_not_to_a_third_policy(tmp_path, monkeypatch):
     """If the config cannot be read the button must use the documented defaults and say
     so — inventing a third indexing policy is how the two paths diverged originally."""
-    import contextlake.kb.dashboard.mutations as mut
-
     def boom(*a, **k):
         raise RuntimeError("unreadable config")
 
     monkeypatch.setattr("contextlake.kb.config.load_kb_config", boom)
+    # Patched at `logging_setup`, NOT on the mutations module: `_parse_opts` does
+    # `from ...logging_setup import log` INSIDE the function, so it binds the real
+    # function at call time and a module-attribute patch never takes. The first
+    # version of this test patched `mut.log`, collected nothing, and would have
+    # passed while asserting nothing -- the exact failure this release is about.
+    import contextlake.logging_setup as ls
+
     said: list[str] = []
-    monkeypatch.setattr(mut, "log", lambda msg, *a, **k: said.append(str(msg)),
-                        raising=False)
+    monkeypatch.setattr(ls, "log", lambda msg, *a, **k: said.append(str(msg)))
 
     opts = _parse_opts(tmp_path)
     assert opts == {}, "a failed config read must yield the documented defaults"
+    # The LOUD half, which this test's name promises and its first version never
+    # asserted -- it collected into `said` and then ignored it. A silent fallback is
+    # the same defect the surrounding release is about.
+    assert any("could not read" in s for s in said), (
+        f"the fallback was silent; said={said!r}")

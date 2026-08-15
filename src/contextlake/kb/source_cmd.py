@@ -361,16 +361,25 @@ def _verify_fetching_source(src, timeout: float | None = None) -> tuple[bool, st
             if k not in {"type", "name", "enabled", "mcp"}}
     if timeout is not None:
         opts.setdefault("timeout", timeout)
+    # A PROBE, not an ingest. `max_pages=1` stops a paginated API from walking its whole
+    # history, and the loop below breaks at the first document -- `iter_documents` is a
+    # generator, so nothing past that is fetched. Draining it here would make a command
+    # users expect to answer in a second take as long as the real run.
+    opts.setdefault("max_pages", 1)
     source = build_source(src.type, **opts)
     if source is None:
         return False, f"no builder for type {src.type!r}"
-    docs = list(source.iter_documents())
+    got = 0
+    for _doc in source.iter_documents():
+        got = 1
+        break
     misses = list(getattr(source, "failures", ()))
     if misses:
         first = "; ".join(f"{tgt} ({why})" for tgt, why in misses[:2])
         more = f" (+{len(misses) - 2} more)" if len(misses) > 2 else ""
         return False, f"{len(misses)} target(s) unreadable: {first}{more}"
-    return True, f"{len(docs)} document(s) available"
+    return True, ("at least one document available" if got
+                  else "reachable, but it returned no documents")
 
 
 def _verify_files(src, timeout: float | None = None) -> tuple[bool, str]:
@@ -391,10 +400,14 @@ def _verify_files(src, timeout: float | None = None) -> tuple[bool, str]:
     source = build_source("files", **opts)
     if source is None:
         return False, "no builder for type 'files'"
-    n = sum(1 for _ in source.iter_documents())
-    if n == 0:
+    # Same reason: stop at the first match rather than reading the whole tree.
+    got = 0
+    for _doc in source.iter_documents():
+        got = 1
+        break
+    if not got:
         return False, f"{path} exists but no file matched the configured globs"
-    return True, f"{n} document(s) available"
+    return True, "at least one document available"
 
 
 def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:

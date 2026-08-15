@@ -84,3 +84,24 @@ def test_a_reachable_but_empty_source_records_no_failure(monkeypatch):
     src = WebSource(url="http://example.invalid/empty")
     assert list(src.iter_documents()) == []
     assert src.failures == [], "an empty page was reported as a failure"
+
+
+# --- the escape hatch the release note promises must actually exist -----------------
+
+def test_the_exit_zero_flag_is_a_pre_command_global_and_the_message_says_so():
+    """The CHANGELOG promises `--exit-zero-on-partial` as the one-flag escape, so the
+    flag has to work AND the message has to show where it goes.
+
+    It is a pre-command global: `contextlake --exit-zero-on-partial kb ingest` exits 0,
+    while `kb ingest --exit-zero-on-partial` is rejected by argparse with exit 2 -- a
+    worse outcome than the exit code the user was trying to suppress. Naming the flag
+    bare, as the first version of the message did, sends people to the broken form.
+    """
+    import inspect
+
+    from contextlake.kb.cmds import ingest
+
+    src = inspect.getsource(ingest.cmd_ingest)
+    assert "contextlake --exit-zero-on-partial kb ingest" in src, (
+        "the message names the flag without its position, so a user will type it after "
+        "the subcommand and get an argparse error")

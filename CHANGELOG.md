@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.6.0] - 2026-08-15
 
+> **There is no 7.5.0.** The plan assigned 7.5.0 to the search and first-five-minutes
+> batch and 7.6.0 to this one; the owner reordered them so the honesty work shipped
+> first, and this release kept its planned number rather than moving. The search batch
+> keeps its content and takes the next free number. Recorded here so a reader looking
+> for 7.5.0 finds the reason instead of a hole.
+
 **Nothing reports success when it failed.** Twelve fixes, one defect: a surface reporting a
 result as complete when it was partial or failed. It turned up independently in the sources,
 the ingest summary, the diagnostics, the redaction flags, the dashboard buttons and the

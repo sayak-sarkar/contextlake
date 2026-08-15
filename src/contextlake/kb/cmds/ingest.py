@@ -210,8 +210,13 @@ def cmd_ingest(args) -> int:
                 log(style.summary_line(
                     "warn", f"Ingest incomplete: {total} document(s) aggregated{tail} "
                             f"({'; '.join(bits)})"))
-                log("  Nothing was silently dropped: each miss is logged above. Pass "
-                    "--exit-zero-on-partial if a scheduled run should tolerate this.")
+                # The flag is a PRE-command global, so the position has to be shown.
+                # Naming it bare sends a user to `kb ingest --exit-zero-on-partial`,
+                # which argparse rejects with exit 2 -- a worse outcome than the exit
+                # code they were trying to suppress.
+                log("  Nothing was silently dropped: each miss is logged above.")
+                log("  For a scheduled run that should tolerate this:")
+                log("    contextlake --exit-zero-on-partial kb ingest")
                 return 0 if getattr(args, "exit_zero_on_partial", False) else 1
             log(style.summary_line("ok", f"Ingest complete: {total} document(s) aggregated{tail}"))
             return 0
