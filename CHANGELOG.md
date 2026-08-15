@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The retrieval-quality gate now scores MRR as well as hit-rate, and the evaluation
+  fixture gained the shape it was missing.** Discovered while checking that the search
+  ranking fix above did not regress the gate: the golden-set numbers were byte-identical
+  before and after it, so the harness meant to catch retrieval regressions could not see
+  the largest retrieval defect this project has fixed, in either direction. Two reasons,
+  both now closed. The fixture contained no test files at all, so the competing-noise
+  shape that buries a definition could not occur in it; and the gate reads hit-rate, which
+  only asks whether the answer landed inside `k`, never where. Measured on the fixture with
+  the shape added: MRR is 0.80 with the current ordering and 0.77 with the bare FTS5 `rank`
+  that shipped until 7.7.0, while hit-rate reads 0.80 for both. The MRR floor sits at 0.79,
+  between those two measurements, so the pre-fix ordering fails it.
+
 ### Fixed
 
 - **A query against an empty store no longer answers like a genuine miss.** Querying also

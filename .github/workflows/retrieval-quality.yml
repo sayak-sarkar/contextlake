@@ -103,12 +103,21 @@ jobs:
           # The floor is READ FROM THE GOLDEN SET, not written here: a number in
           # two places drifts, and tests/kb/test_retrieval_quality.py gates on the
           # same value per PR so a regression does not wait a week for the cron.
-          floor = json.load(open("examples/fixtures/golden-queries.json",
-                                 encoding="utf-8"))["_floor_hit_rate"]
-          hit_rate = result["hit_rate"]
-          print(f"hit-rate {hit_rate} vs floor {floor}")
-          if hit_rate < floor:
-              print(f"::error::Retrieval quality regressed: hit-rate {hit_rate} "
-                    f"is below the {floor} floor.")
+          golden = json.load(open("examples/fixtures/golden-queries.json",
+                                  encoding="utf-8"))
+          failed = False
+          # BOTH floors. hit-rate cannot see a ranking regression: it only asks whether
+          # the answer landed inside k. Measured on this fixture, the ordering fix that
+          # moved a real definition from 32nd to 1st on a live index changed MRR from
+          # 0.77 to 0.80 and left hit-rate at 0.80 either way.
+          for metric, key in (("hit-rate", "_floor_hit_rate"), ("MRR", "_floor_mrr")):
+              value = result["hit_rate" if metric == "hit-rate" else "mrr"]
+              floor = golden[key]
+              print(f"{metric} {value} vs floor {floor}")
+              if value < floor:
+                  print(f"::error::Retrieval quality regressed: {metric} {value} "
+                        f"is below the {floor} floor.")
+                  failed = True
+          if failed:
               sys.exit(1)
           PY

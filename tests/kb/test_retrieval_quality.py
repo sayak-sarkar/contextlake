@@ -57,6 +57,16 @@ def test_golden_set_scores_at_or_above_its_declared_floor(tmp_path):
     result = evaluate(store, golden, k=10)
 
     assert result["n"] == len(golden)
+    # MRR too, and it is the one that matters for RANKING. hit-rate only asks whether
+    # the answer appeared inside k; it reads 0.80 both before and after the ordering fix
+    # that moved a real definition from 32nd to 1st on a live index. Measured on this
+    # fixture: MRR 0.80 with the current ordering, 0.77 with the bare FTS5 `rank` that
+    # shipped until 7.7.0. Gating on hit-rate alone let a whole class of regression past.
+    mrr_floor = json.loads(GOLDEN.read_text(encoding="utf-8"))["_floor_mrr"]
+    assert result["mrr"] >= mrr_floor, (
+        f"retrieval MRR {result['mrr']} fell below the declared floor {mrr_floor}; the "
+        f"answers are still being found but they are ranking lower. If this is a "
+        f"deliberate change, ratchet _floor_mrr, and never lower it to go green.")
     assert result["hit_rate"] >= floor, (
         f"retrieval hit-rate {result['hit_rate']} fell below the declared floor "
         f"{floor}; if this is a deliberate improvement, ratchet _floor_hit_rate up, "
