@@ -93,11 +93,29 @@ class RuleCfg(BaseModel):
 
 
 class EmbeddingsCfg(BaseModel):
-    """Semantic-search tier. Local-first and off by default; connector-specific
-    keys are allowed so providers can carry extra options without a schema bump."""
+    """Semantic-search tier. Local-first and **on by default**; connector-specific
+    keys are allowed so providers can carry extra options without a schema bump.
+
+    On by default since 7.7.0. It was opt-in, and the effect was that a new user's
+    natural-language questions returned nothing at all: measured on a real 39-repo
+    store, every purely conceptual question came back empty, and the same questions
+    answered correctly once vectors existed (name recall 0.375 -> 0.625). "Ask it in
+    English" is most of what this product promises, and it was switched off.
+
+    The cost is one embedding pass, and it is small: 7,719 vectors in ~1.7s on CPU with
+    the built-in model. It is NOT paid at index time -- `kb index` does not embed;
+    `kb embed` does, and `bootstrap` runs it as a stage -- so turning this on does not
+    slow the command people run most.
+
+    Local-first is unchanged. `provider = "auto"` still resolves to a local Ollama, then
+    the built-in CPU embedder, and otherwise embeds nothing rather than reaching for a
+    network service. With no embedder installed the run says exactly that and names the
+    one-line fix (see `_embed_unavailable_hint`), which is the point of flipping the
+    default rather than a reason against it: the failure is now loud instead of silent.
+    """
 
     model_config = ConfigDict(extra="allow")
-    enabled: bool = False
+    enabled: bool = True
     # auto | ollama | openai | builtin. "auto" resolves to a reachable local
     # Ollama, else the built-in CPU embedder (needs the `kb-local` extra), else
     # skips. Extra keys (engine, cache_dir, model_revision) ride along via extra="allow".

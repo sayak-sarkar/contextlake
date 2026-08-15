@@ -103,7 +103,7 @@ def _mcp_bind(payload: dict) -> tuple[str, int]:
 def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                            config_path: str | None = None, sample: bool = False,
                            allow_mutations: bool = False, workspace: str | None = None,
-                           llm_chat: bool = False):
+                           llm_chat: bool = False, anonymize: bool = False):
     """Build (but do not start) the dashboard HTTP server.
 
     Returned non-blocking so the CLI loop and tests drive ``serve_forever`` /
@@ -274,7 +274,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 limit = qs_int(q, "limit", 100, lo=1, hi=500)
                 repo = (q.get("repo") or [None])[0]
                 return 200, _json_bytes(
-                    kbdata.impact(req, nid, hops=hops, limit=limit, repo=repo))
+                    kbdata.impact(req, nid, hops=hops, limit=limit, repo=repo,
+                                  anonymize=anonymize))
             if path == "/api/impact/diagram":
                 nid = (q.get("node") or q.get("id") or [None])[0]
                 if not nid:
@@ -346,7 +347,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                         module = (q.get("module") or [None])[0]
                         return 200, _json_bytes(kbdata.repo_wiki(req, sd, repo_id, module=module))
                 repo_id = urllib.parse.unquote(rest)
-                return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
+                return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id,
+                                                           anonymize=anonymize))
             if path == "/api/mcp":
                 out = kbdata.mcp_console(req, sd, config_path=config_path, sample=sample)
                 mcp_status = kbmut.mcp_status(sd) if allow_mutations else {"running": False}
@@ -541,7 +543,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                     open_browser: bool = False, config_path: str | None = None,
                     sample: bool = False, allow_mutations: bool = False,
-                    workspace: str | None = None, llm_chat: bool = False) -> int:
+                    workspace: str | None = None, llm_chat: bool = False,
+                    anonymize: bool = False) -> int:
     """Serve the dashboard (blocking until Ctrl-C). Returns a process exit code."""
     from ... import style
     from ...logging_setup import log
@@ -562,6 +565,7 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
         check_schema(store)
         try:
             srv = build_dashboard_server(store, store_dir, host=host, port=port,
+                                         anonymize=anonymize,
                                          config_path=config_path, sample=sample,
                                          allow_mutations=allow_mutations, workspace=workspace,
                                          llm_chat=llm_chat)

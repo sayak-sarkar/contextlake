@@ -20,9 +20,11 @@ languages = ["csharp", "typescript", "python"]
 # index_workers = 8
 
 [embeddings]
-# Semantic/NL search tier. Off by default; when enabled, run `contextlake kb embed`
-# to vectorize indexed nodes and `serve` then exposes a `semantic_search` tool.
-enabled = false
+# Semantic/NL search tier. ON by default: run `contextlake kb embed` to vectorize
+# indexed nodes, and `serve` then exposes a `semantic_search` tool. Set false to keep
+# the graph keyword-only. Embedding is NOT part of `kb index` -- it is its own command,
+# and `bootstrap` runs it as a stage -- so this does not slow indexing.
+enabled = true
 # Provider: "auto" (default) | "builtin" | "ollama" | "openai".
 #   auto    -> a reachable local Ollama, else the built-in CPU embedder (if its
 #              extra is installed), else skip. Zero-config: works the moment you

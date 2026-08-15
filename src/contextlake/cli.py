@@ -853,8 +853,10 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="set up the knowledge layer (default: yes)")
     p.add_argument("--no-kb", dest="kb", action="store_false", default=_S,
                    help="write only the mirror config")
-    p.add_argument("--embeddings", action="store_true", default=_S,
-                   help="enable semantic search in the generated kb config")
+    p.add_argument("--embeddings", dest="embeddings", action="store_true", default=_S,
+                   help="enable semantic search in the generated kb config (the default)")
+    p.add_argument("--no-embeddings", dest="embeddings", action="store_false", default=_S,
+                   help="write a kb config with semantic search off")
     p.add_argument("--completion", dest="completion", action="store_true", default=_S,
                    help="register shell tab-completion (default: yes, on bash/zsh)")
     p.add_argument("--no-completion", dest="completion", action="store_false", default=_S,
@@ -1395,8 +1397,9 @@ Examples:
     p.add_argument("--group-depth", dest="group_depth", type=_DEPTH, default=_S,
                    help="domain-grouping depth from repo-id path prefixes (default 1)")
     p.add_argument("--anonymize", action="store_true", default=_S,
-                   help="--site: hash git-author identities + strip external link "
-                        "URLs for a shareable export")
+                   help="hash git-author identities + strip external link URLs. "
+                        "Works with --site (a shareable export) AND --serve (a live "
+                        "dashboard you are about to screen-share)")
     p.add_argument("--sample", action="store_true", default=_S,
                    help="use the bundled demo fleet instead of your local store "
                         "(fictional data; works with --serve and --site)")

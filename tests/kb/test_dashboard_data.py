@@ -706,8 +706,16 @@ def test_mcp_console_sample_mode_never_reads_the_real_ambient_config(
     s, sd = store_dir
     kbdata.mcp_console(s, sd, sample=True)
     assert len(seen_cfgs) == 1
-    assert seen_cfgs[0].enabled is False  # bare KbConfig default, not the real ambient config
-    assert seen_cfgs[0].provider != "builtin"
+    # Compared against the DERIVED bare default, not a literal. This asserted
+    # `enabled is False`, which was only incidentally the default -- when embeddings
+    # flipped on in 7.7.0 the test failed while the behaviour it guards (sample mode
+    # must not read the ambient config) was still correct. The point is "equals a
+    # fresh KbConfig", so say that.
+    from contextlake.kb.config import EmbeddingsCfg
+
+    bare = EmbeddingsCfg()
+    assert seen_cfgs[0].enabled is bare.enabled
+    assert seen_cfgs[0].provider == bare.provider != "builtin"
 
 
 # --- path (Finding 3: "how does A reach B") --------------------------------

@@ -39,7 +39,9 @@ def test_defaults_when_no_files(tmp_path, monkeypatch):
     # actually done. The former default of three languages described a filter that was
     # never applied; passing it through would have silently dropped eleven languages.
     assert c.languages is None
-    assert c.embeddings.enabled is False
+    # ON by default since 7.7.0: semantic search was opt-in, and the effect was that
+    # a new user's natural-language questions returned nothing at all.
+    assert c.embeddings.enabled is True
     assert c.sources == [] and c.rules == []
 
 

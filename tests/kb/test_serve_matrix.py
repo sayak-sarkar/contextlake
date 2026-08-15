@@ -62,6 +62,13 @@ def _kb_config(tmp_path, *, embeddings_enabled: bool) -> tuple[Path, Path]:
         # lazily, only on first embed() -- see BuiltinEmbedder's docstring) --
         # so "embedder present" below is a genuine working client, not a stub.
         text += '\n[embeddings]\nenabled = true\nprovider = "builtin"\n'
+    else:
+        # Written EXPLICITLY. This arm used to just omit the table, which worked
+        # only while the default was off; embeddings are on by default from 7.7.0,
+        # so omission now means "enabled" and this arm silently stopped testing the
+        # absent-embedder half. A default that a test infers rather than states is
+        # a test that changes meaning when the default does.
+        text += '\n[embeddings]\nenabled = false\n'
     cfg.write_text(text)
     return cfg, store_dir
 

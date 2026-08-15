@@ -117,4 +117,5 @@ def cmd_dashboard(args) -> int:
                     config_path=getattr(args, "config", None),
                     allow_mutations=allow_mutations,
                     workspace=getattr(args, "workspace", None),
+                    anonymize=bool(getattr(args, "anonymize", False)),
                     llm_chat=llm_chat)

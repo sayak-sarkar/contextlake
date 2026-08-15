@@ -373,12 +373,18 @@ def cmd_init(args) -> int:
         kb_default = True
     want_kb = _ask_yn("Set up the knowledge layer (graph + search)?", kb_default) \
         if interactive else kb_default
-    enable_embeddings = False
+    enable_embeddings = True
     store_dir = None
     if want_kb:
+        # Both paths default to ON, and they must agree. The interactive prompt
+        # defaulted to yes while `--skip-interactive` defaulted to NO, so the
+        # documented "all defaults" path produced a config the interactive path never
+        # would -- and QUICKSTART then promised a knowledge layer whose semantic half
+        # its own preceding step had switched off. `--no-embeddings` turns it off
+        # explicitly; absence of the flag is no longer a silent no.
         enable_embeddings = _ask_yn("  Enable semantic search (built-in CPU model)?",
                                     True) if interactive else \
-            bool(getattr(args, "embeddings", False))
+            bool(getattr(args, "embeddings", True))
         # --local scopes the mirror workspace to cwd, so the KB store should
         # live alongside it by default too -- otherwise "everything is scoped
         # to this directory" would be true for the repos but not for the

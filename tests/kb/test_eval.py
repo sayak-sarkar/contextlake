@@ -99,7 +99,8 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = tmp_path / "kbstore"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
 
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
@@ -149,12 +150,16 @@ def test_cmd_eval_bad_golden_set_json(tmp_path, capsys):
 
 
 def test_cmd_eval_semantic_without_embeddings_configured_reports_and_exits_1(tmp_path):
-    """Embeddings are disabled by default -- `--retriever semantic` without a
-    configured provider must fail with the same actionable hint `kb embed`
-    prints, not a stack trace, and must stay offline (no network call)."""
+    """`--retriever semantic` against a config with embeddings OFF must fail with the
+    same actionable hint `kb embed` prints, not a stack trace, and must stay offline.
+
+    The config now says `enabled = false` explicitly. It used to rely on the library
+    default being off, so when that flipped in 7.7.0 the test silently stopped
+    exercising the path its own name describes."""
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [{"query": "x", "expected": ["a"]}]}))
 
@@ -166,7 +171,8 @@ def test_cmd_eval_semantic_without_embeddings_configured_reports_and_exits_1(tmp
 def test_cmd_eval_semantic_without_embeddings_configured_json(tmp_path, capsys):
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [{"query": "x", "expected": ["a"]}]}))
 
@@ -193,7 +199,8 @@ def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monke
 
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
     s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
@@ -214,7 +221,8 @@ def test_cmd_eval_json_output_is_machine_readable(tmp_path, capsys):
     threshold check without scraping the colored, human-oriented log lines."""
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
 
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
@@ -239,7 +247,8 @@ def test_cmd_eval_json_output_is_machine_readable(tmp_path, capsys):
 def _store_and_golden(tmp_path):
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n'
+                   '\n[embeddings]\nenabled = false\n')
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
     s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])

@@ -199,7 +199,14 @@ def test_auto_llm_without_ollama_falls_back_to_the_local_runtime(
 
 
 def test_builtin_llm_is_in_the_plan(tmp_path, nothing_installed, git_present):
-    body = '[llm]\nenabled = true\nprovider = "builtin"\n'
+    """Embeddings are OFF here explicitly, so the plan isolates the LLM capability.
+
+    The config used to omit `[embeddings]` and rely on the default being off. From
+    7.7.0 embeddings default to ON, so omission planned an embedder too and this test
+    stopped being about the LLM alone. `test_installed_capability_is_not_replanned`
+    below already writes both tables explicitly, which is the pattern to follow."""
+    body = ('[llm]\nenabled = true\nprovider = "builtin"\n'
+            '[embeddings]\nenabled = false\n')
     assert _plan_keys(body, tmp_path) == ["llm-local"]
 
 
