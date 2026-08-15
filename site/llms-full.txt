@@ -6096,6 +6096,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.0] - 2026-08-15
+
+**Nothing reports success when it failed.** Twelve fixes, one defect: a surface reporting a
+result as complete when it was partial or failed. It turned up independently in the sources,
+the ingest summary, the diagnostics, the redaction flags, the dashboard buttons and the
+parser, so it ships as one release under one convention:
+
+> **An operation that could not observe its input says so in its summary line AND in its exit
+> code. A count printed as an outcome is measured after the operation, not before.**
+
+### ⚠ Behaviour change: partial failures now exit non-zero
+
+Several paths that printed a warning and exited `0` now exit non-zero. **This will break
+automation that was silently passing**, which is the point, a content pipeline degrading one
+source at a time was previously invisible until the answers got worse. Every affected command
+names **`--exit-zero-on-partial`** in its own output, and that flag already exists as a global
+option, so a scheduled run needs one flag rather than a rollback.
+
+### Fixed
+
+- **An unreachable source was a green tick.** Four of nine source types swallowed every fetch
+  exception with no log line, so a wrong URL, an expired token, an HTTP 500, a proxy block and
+  a genuinely empty page all produced the same `0 documents`, exit 0. `web`, `api`, `graphql`
+  and `mcp` now record each miss with its target and reason, the manners `sources/files.py`
+  already had, and `kb ingest` distinguishes *"reachable, nothing to ingest"* from *"could not
+  read 3 targets"*.
+
+- **`kb source test` could not probe five of the nine types and exited 0 regardless**, and the
+  three that swallowed all network errors were three of those five, so the diagnostic confirmed
+  that a broken source was fine. `web`, `api` and `graphql` are now probed by building the
+  source and reading the misses it records, which keeps one definition of "can this be read".
+  `files` is probed too: a path typo is that type's expired token. What genuinely cannot be
+  probed prints **NOT TESTED** instead of `(source is configured)`, which read like a pass.
+
+- **A partial embed printed a real count and an OK summary.** An embedder dying at batch 3 of
+  200 gave `128 embedded`, exit 0, and no line saying the phase ended early, semantic search
+  then answered confidently over a fraction of the corpus. The number was true; the impression
+  was not.
+
+- **`api` and `graphql` read page one and reported success.** They are the escape hatch people
+  reach for when pointing contextlake at an issue tracker, so a 4,000-issue tracker ingested
+  one page. `api` now follows the RFC 8288 `Link: rel="next"` header and an explicit
+  `next_field` cursor, capped by `max_pages` with the cap reported when hit. The header is
+  parsed rather than substring-matched: `prev` and `next` routinely share one header, and a
+  naive match walks backwards forever. GraphQL cursors cannot be followed generically, so
+  nothing is faked, a response whose `pageInfo.hasNextPage` is true says that more exists and
+  was not read, and an `errors` payload is recorded as a failure instead of returning silently.
+
+- **`kb ingest` defaulted to an orphan partition.** Without `--for-repo` the documents are
+  searchable by name and reachable by no traversal. A legitimate choice, but it was the silent
+  default: the flag is opt-in and was never suggested. It is named once up front with the
+  consequence spelled out, and a run that *was* given `--for-repo` and linked nothing says so.
+
+- **`--redact` leaked repository ids from four commands, and never covered module names.**
+  `_open_store` registered the store under a comment reading "Every kb command funnels through
+  here"; `cmds/doctor.py`, `dashboard/server.py` and `dashboard/site.py` did not. Measured:
+  `kb dashboard --site --redact` printed a raw repository id that `kb lint --redact` had just
+  redacted, on the artefact most likely to be shared. A redacted export also emitted
+  `repo-<hash>::<real-subsystem-dir>`, because only repository ids were registered. Both are
+  fixed and pinned by a parity sweep that derives the call sites from the source.
+
+- **`--redact` degraded silently when a store read failed** (`except Exception: pass`).
+  Redaction stays best-effort, but a run that could not enumerate what it was asked to hide now
+  says so, because an operator who reads a clean-looking log shares it.
+
+- **The dashboard's Sync and Add buttons ignored every `[kb]` indexing setting.** One click
+  permanently replaced a repo's filtered graph with an unfiltered one, in the same store, with
+  no message. Reproduced with `languages = ["python"]` on a two-language repo: the button wrote
+  6 nodes where the CLI wrote 3. A config that cannot be read now falls back to the documented
+  defaults and says so, rather than inventing a third policy.
+
+- **A repository in an unsupported language vanished without a trace.** A Swift, Dart or Vue
+  tree indexed to `0 nodes, 0 edges`, exit 0, reporting `skipped 0 generated, 0 oversized,
+  0 ignored`, every counter truthfully zero and the reason invisible, which reads as "this
+  repo is empty" rather than "this tool cannot read it". Unsupported files are now counted **by
+  extension**, because the same branch fires for READMEs and lockfiles and a bare total would
+  be noise.
+
+- **`kb forget` reported bytes it measured before the delete.** The figure was summed ahead of
+  a `shutil.rmtree(ignore_errors=True)` and printed as an outcome, so a removal that failed
+  still reported the full amount as reclaimed. Each path is measured after the attempt, and
+  anything left on disk is named.
+
+- **An invalid regex in `[[rules]]` disabled the rule with no message**, and `doctor` then
+  confirmed the rule was loaded, a configured rule that silently matched nothing, forever.
+  Both compile sites now name the pattern and the error. The rule is still skipped, since one
+  bad pattern must not abort the run.
+
+
 ## [7.4.1] - 2026-08-15
 
 **The command you were told to run, runs, and writes where you said it would.** Six defects,
