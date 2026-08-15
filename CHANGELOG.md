@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`kb query <Symbol>` now ranks `<Symbol>`'s own definition first.** It did not. Measured on a
+  clean 2,086-node index of a small public Python library, `kb query Context` returned 20
+  test-file hits and the real class ranked 32nd of 153; `Command` ranked 44th of 191. The same
+  ordering reached an agent through the MCP `search_code` tool, so it was not only a CLI
+  complaint.
+
+  FTS5's bare `rank` weights every indexed column equally and the default tokenizer splits on
+  `_`, so `test_context_meta` in `tests/test_context.py` matched the term in `name`,
+  `qualified_name` and `file` while the real `Context` matched twice. Longer, noisier rows won.
+  Results are now ordered by exact name, then by name prefix, then by a weighted bm25, so a
+  related `ContextMeta` also outranks a test file that merely mentions the word. Weighting alone
+  was measured and is not sufficient: it moved the real definition from 4th to 3rd and no
+  further.
+
+
 ## [7.7.0] - 2026-08-16
 
 **Turn on what was already built.** Four capabilities were present in the code, complete and

@@ -45,6 +45,23 @@ def parse_schema_version(raw: str | None):
         return UNREADABLE_SCHEMA
 
 
+# The FTS columns, in declaration order, and the bm25 weight each carries.
+#
+# Declared together because they MUST agree and nothing enforces that at runtime.
+# `bm25()` takes one weight per column INCLUDING the UNINDEXED one, and passing too few
+# does NOT raise: SQLite defaults the missing trailing columns to 1.0, so every weight
+# silently shifts one column left and `name` ends up carrying the weight meant for
+# `qualified_name`. Measured, and recorded precisely because the obvious symptom is
+# absent: the results are NOT identical to bare `rank`, they are subtly and plausibly
+# re-ordered, which is much harder to notice than an outright fallback would be.
+#
+# `node_id` is UNINDEXED and gets 0.0. `name` is what someone searching for a symbol
+# means. `qualified_name` is a weaker form of the same signal. `file` is the noisiest,
+# since the default tokenizer splits paths on `_`.
+FTS_COLUMNS = ("node_id", "name", "qualified_name", "file")
+FTS_WEIGHTS = (0.0, 10.0, 3.0, 1.0)
+_FTS_WEIGHTS_SQL = ", ".join(str(w) for w in FTS_WEIGHTS)
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kb_meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS repos (
@@ -321,8 +338,38 @@ class SqliteStore(Store):
         if repo:
             sql += " AND n.repo_id = ?"
             params.append(repo)
-        sql += " ORDER BY rank LIMIT ?"
-        params.append(limit)
+        # Rank the thing the user named, ahead of everything that merely mentions it.
+        #
+        # Bare `rank` is FTS5's default bm25 with EQUAL weight on every indexed column,
+        # and the default tokenizer splits on `_`. So on a real index a node called
+        # `test_context_meta` in `tests/test_context.py` matched "context" in `name`,
+        # again in `qualified_name`, and again in `file` -- three hits -- while the
+        # actual `class Context` matched twice. Longer, noisier documents won: measured
+        # on a clean 2,086-node index of a small public library, the real definition of
+        # `Context` ranked 32nd of 153. That ordering reaches an agent through the MCP
+        # `search_code` tool too, so it is not only a CLI complaint.
+        #
+        # Weighting alone does not fix it, which is why this is not just a bm25 call:
+        # measured on a fixture reproducing that shape, weighted bm25 moved the real
+        # definition from 4th to 3rd and no further, because both rows have exactly one
+        # `name` hit and the test row wins on the columns that remain. An exact-name
+        # term is the only thing that settles it. Prefix-of-name comes next so a
+        # genuinely related `ContextMeta` outranks a test file, and bm25 breaks the rest.
+        #
+        # TRAP: bm25() takes one weight per column INCLUDING the UNINDEXED one, and the
+        # wrong arity does NOT raise -- passing three weights to this four-column table
+        # returned results identical to bare `rank`. The leading 0.0 for `node_id` is
+        # load-bearing, which is why the test asserts the resulting ORDER and not merely
+        # that the query runs.
+        #
+        # These two boosts compare against the RAW query, not the `_fts_query()` form,
+        # since the latter carries FTS operators a column value would never equal.
+        sql += (" ORDER BY (lower(n.name) = lower(?)) DESC,"
+                " (lower(n.name) LIKE lower(?) || '%') DESC,"
+                f" bm25(node_fts, {_FTS_WEIGHTS_SQL})"
+                " LIMIT ?")
+        raw = query.strip()
+        params.extend([raw, raw, limit])
         try:
             rows = self.conn.execute(sql, params).fetchall()
         except sqlite3.OperationalError as e:
