@@ -62,9 +62,15 @@ The stages run in this order, and each can be skipped except the two marked othe
 | 5 | Build semantic vectors | `--no-embed` |
 | 6 | Enrich from connected sources | `--no-enrich` |
 | 7 | Generate the wiki | `--no-wiki` |
-| 8 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
+| 8 | Draw the architecture | `--no-diagrams` |
+| 9 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
 
-A failing knowledge-layer stage (3 to 8) warns, records the failure, and lets the rest of the run
+Stage 8 writes one HTML diagram into `<store>/graphs/`, choosing the view from the store's shape: a
+store holding a single repository gets that repository's symbol graph (`graph.html`), and a store
+holding several gets the fleet map (`overview.html`). It reports the node and edge counts it drew,
+so a diagram with nothing in it says so rather than reporting a bare success.
+
+A failing knowledge-layer stage (3 to 9) warns, records the failure, and lets the rest of the run
 continue. **Indexing is the exception**: the graph is what every later stage reads, so if `index`
 fails the run stops there and exits `1` rather than building vectors and prose on top of nothing. An
 unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets

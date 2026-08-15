@@ -437,6 +437,7 @@ _DEFAULTS = {
     # bootstrap
     "kb_config": None, "no_sync": False, "no_connect": False,
     "no_embed": False, "no_enrich": False, "no_wiki": False,
+    "no_diagrams": False,
     # knowledge layer
     "source": None, "workspace": None, "force": False, "out": None,
     "llm": None, "llm_model": None, "watch": False, "interval": None,
@@ -694,7 +695,8 @@ def _root_hidden_flags(p):
                  "--search", "--relation", "--output"):
         add(flag)
     for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-enrich",
-                 "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
+                 "--no-wiki", "--no-diagrams",
+                 "--force", "--watch", "--overview", "--open", "--cdn",
                  "--serve", "--anonymize", "--sample", "--c4", "--c1"):
         add(flag, action="store_true")
     # Same validating types as the leaf parsers: this pre-subparser spelling
@@ -976,6 +978,8 @@ Examples:
                    help="skip the connector-enrichment step")
     p.add_argument("--no-wiki", dest="no_wiki", action="store_true", default=_S,
                    help="skip the wiki-generation step")
+    p.add_argument("--no-diagrams", dest="no_diagrams", action="store_true", default=_S,
+                   help="skip the architecture-diagram step")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="power the wiki stage with this LLM provider; without it (and "
@@ -1521,6 +1525,61 @@ def _audit_workers(config):
         return 8
 
 
+def _diagram_stage(kb):
+    """`cmd_graph` bound to bootstrap's own argument shape (see `_diagrams_args`)."""
+    def _run(kb_args):
+        return kb.cmd_graph(_diagrams_args(kb_args))
+    return _run
+
+
+def _diagrams_args(kb_args):
+    """A dedicated namespace for bootstrap's diagram stage.
+
+    Built explicitly rather than by inheriting `kb_args`, because `cmd_graph` reads
+    `--format`, `--output`, `--serve`, `--site`, `--c4`, `--c1` and `--overview`, and
+    several of those are pre-command globals a user may have passed for a different
+    reason entirely. A stage that silently changes what it produces based on an unrelated
+    flag is not a stage anyone can rely on.
+
+    **Single-repo stores get the repo view, not the fleet view.** `--overview` is the
+    FLEET map -- repos as nodes -- so on a store holding one repository it is correct and
+    useless: one node, no edges. README pairs those two commands with a screenshot of a
+    dense symbol graph, which is the picture `--repo` produces. Choosing by store shape
+    means the stage emits the diagram that has something in it.
+    """
+    import copy
+
+    a = copy.copy(kb_args)
+    a.format = "html"
+    a.output = None
+    a.serve = False
+    a.site = None
+    a.c4 = False
+    a.c1 = False
+    a.open = False
+    a.overview = True
+    a.repo = None
+    try:
+        from .kb.cmds._common import _open_store
+
+        store, _ = _open_store(a)
+        try:
+            repos = [r.id for r in store.list_repos()]
+        finally:
+            store.close()
+        if len(repos) == 1:
+            a.overview = False
+            a.repo = repos[0]
+    except Exception as exc:  # noqa: BLE001 - the fleet view still renders; say why it was chosen
+        # Not silent: choosing the fleet view because the shape could not be read is a
+        # different outcome from choosing it because the store holds many repos, and a
+        # near-empty diagram with no explanation is the exact confusion this stage exists
+        # to remove.
+        log(f"  Could not tell how many repos this store holds ({exc}); "
+            f"drawing the fleet view.")
+    return a
+
+
 def _store_has_repos(kb_args) -> bool:
     """Did indexing leave anything downstream can read?
 
@@ -1692,6 +1751,12 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         stages.append(("Enrich from connected sources", kb.cmd_enrich))
     if not getattr(args, "no_wiki", False):
         stages.append(("Generate the curated wiki", kb.cmd_wiki))
+    if not getattr(args, "no_diagrams", False):
+        # Architecture drawings are one of the six outputs this product promises, and
+        # bootstrap -- the "one command from nothing to a wired workspace" -- never
+        # produced one. `cmd_graph` already reports its own node/edge counts, so an
+        # empty diagram announces itself rather than looking finished.
+        stages.append(("Draw the architecture", _diagram_stage(kb)))
     stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
 
     for title, fn in stages:

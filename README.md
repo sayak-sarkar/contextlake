@@ -181,7 +181,7 @@ The full flag-by-flag list is **[cli-reference.md](https://github.com/sayak-sark
 | `mirror fetch` · `mirror clone` · `mirror update` | The sync steps, individually |
 | `mirror branches` | Switch each repo to its most active branch |
 | `mirror verify` · `mirror audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
-| `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
+| `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + diagram + steer (`--no-enrich` to skip a stage) |
 | `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
