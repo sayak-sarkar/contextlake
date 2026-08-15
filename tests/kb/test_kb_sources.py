@@ -113,7 +113,11 @@ def test_api_source_uses_token_env_for_auth(monkeypatch):
     captured = {}
 
     class _Resp:
-        headers = type("H", (), {"get_content_charset": lambda self: "utf-8"})()
+        # A faithful stand-in for `http.client.HTTPMessage`: real response headers
+        # support `.get`, and the source reads `Link` from them to follow pagination.
+        # The narrower stub modelled only what the code happened to call at the time.
+        headers = type("H", (), {"get_content_charset": lambda self: "utf-8",
+                                 "get": lambda self, k, default=None: default})()
 
         def read(self):
             return b'[{"id":"a","text":"hi"}]'
@@ -175,7 +179,11 @@ def test_graphql_source_uses_token_env_and_posts_query(monkeypatch):
     captured = {}
 
     class _Resp:
-        headers = type("H", (), {"get_content_charset": lambda self: "utf-8"})()
+        # A faithful stand-in for `http.client.HTTPMessage`: real response headers
+        # support `.get`, and the source reads `Link` from them to follow pagination.
+        # The narrower stub modelled only what the code happened to call at the time.
+        headers = type("H", (), {"get_content_charset": lambda self: "utf-8",
+                                 "get": lambda self, k, default=None: default})()
 
         def read(self):
             return b'{"data": {"id": "a", "text": "hi"}}'

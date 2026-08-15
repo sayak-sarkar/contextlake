@@ -9,11 +9,32 @@ record-mapping shape so the two connectors are configured the same way.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.request
 
+from ...logging_setup import log
 from .api import _dig
 from .base import Document, FetchFailures, url_is_fetchable
+
+
+def _has_next_page(obj, _depth: int = 0) -> bool:
+    """Does any ``pageInfo`` in this response say ``hasNextPage``?
+
+    Relay's ``pageInfo`` shape is a convention rather than a rule, so this only ever
+    REPORTS -- it never changes what is read. Bounded depth because a GraphQL response
+    is arbitrarily nested and a full walk of a large payload is not worth the scan.
+    """
+    if _depth > 6:
+        return False
+    if isinstance(obj, dict):
+        info = obj.get("pageInfo")
+        if isinstance(info, dict) and info.get("hasNextPage") is True:
+            return True
+        return any(_has_next_page(v, _depth + 1) for v in obj.values())
+    if isinstance(obj, list):
+        return any(_has_next_page(v, _depth + 1) for v in obj[:50])
+    return False
 
 
 class GraphQLSource(FetchFailures):
@@ -74,7 +95,20 @@ class GraphQLSource(FetchFailures):
         # A GraphQL response can carry partial `data` alongside `errors`; treat
         # any reported error as untrustworthy rather than guess which fields
         # are safe to keep.
-        if not isinstance(payload, dict) or payload.get("errors"):
+        if not isinstance(payload, dict):
+            self._record_failure(self.url, TypeError("response was not a JSON object"),
+                                 what="graphql source")
+            return
+        if payload.get("errors"):
+            # An error payload used to return silently, so a query rejected by the
+            # server -- a bad field, an expired token, a rate limit -- was
+            # indistinguishable from a query that legitimately matched nothing.
+            errs = payload["errors"]
+            first = ""
+            if isinstance(errs, list) and errs and isinstance(errs[0], dict):
+                first = str(errs[0].get("message", ""))[:200]
+            self._record_failure(self.url, RuntimeError(first or "GraphQL errors"),
+                                 what="graphql source")
             return
         data = payload.get("data")
         records = _dig(data, self.items) if self.items else data
@@ -82,6 +116,15 @@ class GraphQLSource(FetchFailures):
             records = [records]
         if not isinstance(records, list):
             return
+        # GraphQL pagination needs the query itself to carry a cursor variable, so it
+        # cannot be followed generically the way an RFC 8288 `Link` header can. What CAN
+        # be done without guessing is to notice that the server said there is more, and
+        # say so -- rather than reporting a truncated read as a complete one.
+        if _has_next_page(data):
+            log(f"graphql source: the response reports more pages (pageInfo.hasNextPage), "
+                f"and GraphQL cursors cannot be followed generically. {len(records)} "
+                f"record(s) read. Add the cursor to your query to page through the rest.",
+                level=logging.WARNING)
         for i, rec in enumerate(records):
             if not isinstance(rec, dict):
                 continue
