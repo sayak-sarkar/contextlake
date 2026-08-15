@@ -11,6 +11,11 @@ repository it is correct and useless: one node and no edges. A store's shape dec
 which view the stage draws, and this file pins that choice by measuring both shapes in
 one run -- a test that only ever saw one workspace could not tell a working chooser
 from a hardcoded answer.
+
+Lives under ``tests/kb/`` because it needs the knowledge layer: the core CI job runs
+``pytest --ignore=tests/kb`` against an install carrying no kb extra, where `bootstrap`
+has no diagram stage to run at all. Placed at the top level first, it failed all four
+core jobs while passing every knowledge-layer one.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 
 # Both offline switches: `bootstrap` reaches the knowledge-layer stages without a forge
 # group only when the mirror AND audit steps are off (see cli._needs_group).

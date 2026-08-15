@@ -321,14 +321,27 @@ def test_sudo_is_not_prefixed_for_brew(monkeypatch):
     assert doctor_fix.system_install_command("git") == ["brew", "install", "git"]
 
 
-def test_no_package_manager_is_reported_not_guessed(tmp_path, monkeypatch):
+def test_no_package_manager_is_reported_not_guessed(tmp_path, monkeypatch,
+                                                    nothing_installed):
+    """No package manager on PATH means a NOTE, never an invented install command.
+
+    Both environment seams are held here on purpose. The config used to omit
+    ``[embeddings]`` and the test used the real ``_module_present``, so the plan was
+    empty only because this developer machine happens to have the embedder and
+    sqlite-vec installed. From 7.7.0 embeddings default to ON, and CI's
+    knowledge-layer job has neither module: the plan came back with two remedies and
+    this test failed for a reason that has nothing to do with package managers.
+    """
     from contextlake.kb.config import load_kb_config
 
     monkeypatch.setattr(doctor_fix.shutil, "which", lambda exe: None)
-    cfg = load_kb_config(_kb_config(tmp_path))
+    cfg = load_kb_config(_kb_config(tmp_path, "[embeddings]\nenabled = false\n"))
     plan, notes = doctor_fix.build_plan(cfg, "auto")
 
+    # No remedy at all, and specifically not a git one: git IS missing here, so a
+    # planner that guessed a package manager would put exactly that in the plan.
     assert plan == []
+    assert not any(r.key == "git" for r in plan)
     assert any("no supported system package manager" in n for n in notes)
 
 
