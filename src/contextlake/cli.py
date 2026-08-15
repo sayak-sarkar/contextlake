@@ -853,6 +853,9 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="set up the knowledge layer (default: yes)")
     p.add_argument("--no-kb", dest="kb", action="store_false", default=_S,
                    help="write only the mirror config")
+    p.add_argument("--no-mirror", dest="no_mirror", action="store_true", default=_S,
+                   help="no forge to mirror from: write only the knowledge config, and "
+                        "skip the --group requirement. For repositories already on disk")
     p.add_argument("--embeddings", dest="embeddings", action="store_true", default=_S,
                    help="enable semantic search in the generated kb config (the default)")
     p.add_argument("--no-embeddings", dest="embeddings", action="store_false", default=_S,

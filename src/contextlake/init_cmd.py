@@ -353,11 +353,26 @@ def cmd_init(args) -> int:
     # didn't fire, because it checks a different literal. Refusing to write a
     # placeholder at all makes that check's exact spelling stop mattering.
     group = getattr(args, "group", None) or ""
-    if interactive:
-        group = _ask("Group / org / workspace to mirror", group)
-    if not group:
+    # `--no-mirror`: the user has repositories on disk and no forge to mirror from.
+    # That persona is exactly who README's "Quickstart: one repo, no setup" addresses,
+    # and until now `init` had no path for them at all -- the group check ran before
+    # the knowledge-layer branch, so BOTH the interactive form (press Enter) and the
+    # documented `--skip-interactive` "all defaults" form exited 2 and wrote nothing.
+    no_mirror = bool(getattr(args, "no_mirror", False))
+    if interactive and not no_mirror:
+        group = _ask("Group / org / workspace to mirror (blank = local repos only)", group)
+        if not group:
+            # Enter-through now OFFERS the local path instead of failing. The prompt
+            # above says blank is meaningful, so this is a confirmation rather than a
+            # guess about what they meant.
+            no_mirror = _ask_yn("  No forge group given. Set up the knowledge layer for "
+                                "local repositories only?", True)
+    if not group and not no_mirror:
         log(f"{style.warn('group')} No group/org/workspace given -- pass "
             "--group or answer the prompt; there's no safe default to guess.")
+        log("  Indexing repositories that are already on disk? You do not need a group:")
+        log("    contextlake init --no-mirror        # knowledge layer only")
+        log("    contextlake kb index --source PATH  # or skip init entirely")
         return 2
     # cwd, not a fixed literal: `init` is run from wherever the user wants this
     # workspace to live (this is the whole point of --local), so "here" is the
@@ -398,7 +413,16 @@ def cmd_init(args) -> int:
 
     # --- write --------------------------------------------------------------
     log("")
-    wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group), force=force)
+    # With --no-mirror there is no forge, so writing a mirror INI would create a config
+    # naming a group that does not exist -- the exact placeholder problem the group
+    # check above refuses to create. The knowledge layer needs no mirror to work:
+    # `kb index --source PATH` reads repositories wherever they already are.
+    wrote_any = False
+    if not no_mirror:
+        wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group),
+                           force=force)
+    else:
+        want_kb = True          # the knowledge layer IS the point of this path
     if want_kb:
         wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir), force=force)
 
@@ -496,9 +520,18 @@ def cmd_init(args) -> int:
         # makes every embed fail. See the QUICKSTART install guidance.
         extra = "kb-full" if enable_embeddings else "kb"
         install = style.cyan(f'pip install "contextlake[{extra}]"')
-        log("Next: install the knowledge layer and bootstrap everything:")
-        log(f"  {install}")
-        log(f"  {style.cyan('contextlake bootstrap')}")
+        if no_mirror:
+            # `bootstrap` mirrors first and refuses without a group, so pointing this
+            # user at it would end their setup on an exit 2 -- the same "run this
+            # command" / "that command cannot work" mismatch the group error had.
+            log("Next: install the knowledge layer and index what you already have:")
+            log(f"  {install}")
+            log(f"  {style.cyan('contextlake kb index --source PATH')}"
+                "   # or --workspace DIR for a tree of repos")
+        else:
+            log("Next: install the knowledge layer and bootstrap everything:")
+            log(f"  {install}")
+            log(f"  {style.cyan('contextlake bootstrap')}")
     else:
         log("Next: mirror your repositories:")
         log(f"  {style.cyan('contextlake mirror sync')}")
