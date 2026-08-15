@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import importlib
 import logging
 import os
 import re
@@ -441,53 +442,51 @@ _TS_PARSERS: dict[str, ts.Parser] = {}
 _COMPILED: dict[str, ts.Query] = {}
 
 
+# Which pip package provides each grammar, and which factory to call on it.
+#
+# A table rather than the if/elif chain this replaces. The chain was 14 branches of
+# `import tree_sitter_X as g; fn = g.language`, and the three that differ
+# (`tree_sitter_c_sharp`, and typescript's two entry points, and php's) were the only
+# reason it could not already be data. Adding a language is now one row, and the
+# import stays lazy: `importlib.import_module` is called on first use of that language,
+# never at module import, so installing the knowledge layer does not load 25 grammars.
+#
+# Verified equivalent to the chain it replaced before the swap: every language then
+# known produced the same `ts.Language`.
+_GRAMMARS: dict[str, tuple[str, str]] = {
+    "python": ("tree_sitter_python", "language"),
+    "javascript": ("tree_sitter_javascript", "language"),
+    "typescript": ("tree_sitter_typescript", "language_typescript"),
+    "tsx": ("tree_sitter_typescript", "language_tsx"),
+    "csharp": ("tree_sitter_c_sharp", "language"),
+    "go": ("tree_sitter_go", "language"),
+    "java": ("tree_sitter_java", "language"),
+    "c": ("tree_sitter_c", "language"),
+    "cpp": ("tree_sitter_cpp", "language"),
+    "rust": ("tree_sitter_rust", "language"),
+    "ruby": ("tree_sitter_ruby", "language"),
+    "php": ("tree_sitter_php", "language_php"),
+    "scala": ("tree_sitter_scala", "language"),
+    "kotlin": ("tree_sitter_kotlin", "language"),
+}
+
+
 def _language(lang: str) -> ts.Language:
     if lang not in _LANGS:
-        if lang == "python":
-            import tree_sitter_python as g
-            fn = g.language
-        elif lang == "javascript":
-            import tree_sitter_javascript as g
-            fn = g.language
-        elif lang == "typescript":
-            import tree_sitter_typescript as g
-            fn = g.language_typescript
-        elif lang == "tsx":
-            import tree_sitter_typescript as g
-            fn = g.language_tsx
-        elif lang == "csharp":
-            import tree_sitter_c_sharp as g
-            fn = g.language
-        elif lang == "go":
-            import tree_sitter_go as g
-            fn = g.language
-        elif lang == "java":
-            import tree_sitter_java as g
-            fn = g.language
-        elif lang == "c":
-            import tree_sitter_c as g
-            fn = g.language
-        elif lang == "cpp":
-            import tree_sitter_cpp as g
-            fn = g.language
-        elif lang == "rust":
-            import tree_sitter_rust as g
-            fn = g.language
-        elif lang == "ruby":
-            import tree_sitter_ruby as g
-            fn = g.language
-        elif lang == "php":
-            import tree_sitter_php as g
-            fn = g.language_php
-        elif lang == "scala":
-            import tree_sitter_scala as g
-            fn = g.language
-        elif lang == "kotlin":
-            import tree_sitter_kotlin as g
-            fn = g.language
-        else:
+        spec = _GRAMMARS.get(lang)
+        if spec is None:
             raise ValueError(f"unsupported language: {lang}")
-        _LANGS[lang] = ts.Language(fn())
+        module, factory = spec
+        try:
+            mod = importlib.import_module(module)
+        except ImportError as exc:
+            # Names the package, because the alternative is a bare ImportError from a
+            # module the reader never asked for by name. Every grammar in `_GRAMMARS` is
+            # a hard dependency of the `kb` extra, so this means a partial install.
+            raise ImportError(
+                f"the {lang} grammar needs {module}, which is not installed. "
+                f"Reinstall the knowledge layer: pip install 'contextlake[kb]'") from exc
+        _LANGS[lang] = ts.Language(getattr(mod, factory)())
     return _LANGS[lang]
 
 
