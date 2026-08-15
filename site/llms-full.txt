@@ -2745,6 +2745,29 @@ source" becomes a number, not a vibe. Score any retriever with `--retriever fts|
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.
 
+### Which metric to gate on
+
+If you wire `kb eval` into CI, gate on **MRR**, not on hit-rate alone. Hit-rate asks whether the
+right node came back inside `k`. It cannot see a **ranking** regression, where the answer is still
+returned but sinks beneath noise, and that is the regression a search change is most likely to
+cause.
+
+This project learned it the expensive way. A change that lifted a real definition from 32nd of 153
+to 1st on a live index moved contextlake's own golden-set numbers **not at all**: the gate read
+hit-rate, and the answer had been inside `k` the whole time. On the fixture as it now stands, MRR
+reads 0.80 with the current ordering and 0.77 with the ordering that shipped before it, while
+hit-rate reads 0.80 for both.
+
+Two things make a golden set able to see this at all:
+
+- **Include the noise.** A fixture of clean, uniquely named symbols cannot express the failure. Real
+  repositories have `tests/test_thing.py` full of `test_thing_*` functions, which repeat a symbol's
+  token in the name, the qualified name and the path at once, and that is what outranks a
+  definition under an unweighted search.
+- **Put the floor between measured values.** Measure the broken behaviour and the fixed behaviour,
+  then set the floor between them, so the regression you are guarding against demonstrably fails.
+  A floor picked to sit under today's number only proves today's number.
+
 ### Are the citations real?
 
 Those metrics answer one question: did the right node come back? They say nothing about whether the
