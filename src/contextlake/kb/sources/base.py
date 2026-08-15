@@ -78,6 +78,40 @@ class Source(Protocol):
     def iter_documents(self) -> Iterable[Document]: ...
 
 
+class FetchFailures:
+    """Mixin: record what a source could not reach, so zero documents can be explained.
+
+    A source that swallows its own network errors and yields nothing is
+    indistinguishable, from the outside, from a source that is genuinely empty. Measured
+    before this existed: a wrong URL, an expired token, an HTTP 500, a proxy block and an
+    empty page all produced the same `✓ 0 documents`, exit 0. On a content pipeline that
+    means ingestion silently stops and nothing in CI can detect it.
+
+    `sources/files.py` was already the in-house standard -- it names every file it skips
+    and why. This gives the network sources the same manners plus a machine-readable
+    tally, because `cmds/ingest.py` has to be able to tell "empty" from "broken" without
+    parsing log lines.
+
+    A source still must not abort the run when ONE target fails: the remaining targets
+    are usually fine, and a whole ingest lost to a single dead URL is a worse outcome.
+    So failures are recorded and reported rather than raised.
+    """
+
+    #: ``(target, reason)`` for every target this source could not read, most recent run.
+    failures: list[tuple[str, str]]
+
+    def _reset_failures(self) -> None:
+        self.failures = []
+
+    def _record_failure(self, target: str, exc: BaseException, *, what: str) -> None:
+        """Log the miss the way `files.py` does, and remember it for the caller."""
+        reason = f"{type(exc).__name__}: {exc}"
+        if not hasattr(self, "failures"):
+            self.failures = []
+        self.failures.append((target, reason))
+        log(f"{what}: could not read {target} -- {reason}", level=logging.WARNING)
+
+
 def _builtin_sources() -> dict[str, type]:
     from .api import ApiSource
     from .files import FilesSource

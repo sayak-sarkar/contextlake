@@ -409,11 +409,47 @@ def test_verify_source_slack_without_channel_configured(monkeypatch):
 
 
 def test_verify_source_unknown_type(tmp_path):
+    """A type with genuinely nothing to dial reports False and names itself.
+
+    This used to use `files` as the example. `files` is now really probed (a path typo
+    is that type's version of an expired token), so the example moved to `gitlab`, whose
+    reachability belongs to the mirror tier. If gitlab ever gains a probe this test
+    should move again rather than be deleted -- the branch it covers is the honest
+    "nothing was tested" path, which must keep existing.
+    """
     from contextlake.kb.config import SourceCfg
 
-    ok, detail = source_cmd.verify_source(SourceCfg(type="files", name="handbook"))
+    ok, detail = source_cmd.verify_source(SourceCfg(type="gitlab", name="fleet"))
     assert ok is False
-    assert "files" in detail
+    assert "gitlab" in detail
+
+
+def test_verify_source_probes_a_files_source_for_real(tmp_path):
+    """`files` is one of the four types that had no probe. A path that does not exist
+    is the `files` equivalent of an expired token, and it used to report as configured."""
+    from contextlake.kb.config import SourceCfg
+
+    ok, detail = source_cmd.verify_source(
+        SourceCfg(type="files", name="handbook", path=str(tmp_path / "nope")))
+    assert ok is False
+    assert "does not exist" in detail
+
+    (tmp_path / "a.md").write_text("# hello\n\nbody\n", encoding="utf-8")
+    ok, detail = source_cmd.verify_source(
+        SourceCfg(type="files", name="handbook", path=str(tmp_path)))
+    assert ok is True, detail
+    assert "document(s) available" in detail
+
+
+def test_verify_source_probes_an_unreachable_web_source(tmp_path):
+    """The worst case of the four: `web`/`api`/`graphql` swallow every network error,
+    so they were also unprobed -- the diagnostic confirmed a broken source was fine."""
+    from contextlake.kb.config import SourceCfg
+
+    ok, detail = source_cmd.verify_source(
+        SourceCfg(type="web", name="docs", url="http://127.0.0.1:9/nope"))
+    assert ok is False, "an unreachable web source reported as reachable"
+    assert "unreadable" in detail
 
 
 def test_verify_source_atlassian_timeout_bounds_the_connector(monkeypatch):

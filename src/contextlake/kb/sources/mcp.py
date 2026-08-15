@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
-from .base import Document
+from .base import Document, FetchFailures
 
 
 def _texts(read_result) -> str:
@@ -23,7 +23,7 @@ def _texts(read_result) -> str:
     return "\n".join(parts)
 
 
-class McpSource:
+class McpSource(FetchFailures):
     """Ingest the resources of an MCP server.
 
     Config (``[[sources]] type="mcp"``):
@@ -40,11 +40,15 @@ class McpSource:
         self.timeout = int(timeout)
 
     def iter_documents(self):
+        self._reset_failures()
         if not self.command and not self.url:
             return
         try:
             docs = asyncio.run(asyncio.wait_for(self._collect(), self.timeout))
-        except Exception:  # noqa: BLE001 - an unreachable server yields nothing, never raises
+        except Exception as e:  # noqa: BLE001 - an unreachable server must not raise
+            # Recorded, not swallowed: a server that is down, one that refused the
+            # handshake, and one with nothing to serve were the same `0 documents`.
+            self._record_failure(self.command or self.url, e, what="mcp source")
             return
         yield from docs
 
@@ -55,16 +59,24 @@ class McpSource:
             from mcp.client.streamable_http import streamable_http_client
 
             async with streamable_http_client(self.url) as streams:
-                return await self._read_all(ClientSession, streams[0], streams[1])
+                return await self._read_all(ClientSession, streams[0], streams[1],
+                                            on_failure=self._record_failure)
 
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
         params = StdioServerParameters(command=self.command, args=self.args, env=self.env)
         async with stdio_client(params) as (read, write):
-            return await self._read_all(ClientSession, read, write)
+            return await self._read_all(ClientSession, read, write,
+                                        on_failure=self._record_failure)
 
     @staticmethod
-    async def _read_all(client_session_cls, read, write) -> list[Document]:
+    async def _read_all(client_session_cls, read, write, *, on_failure=None
+                        ) -> list[Document]:
+        """Read every resource the server offers.
+
+        Stays a staticmethod (it is exercised directly by the tests with a fake session),
+        so the failure recorder arrives as ``on_failure`` rather than through ``self``.
+        """
         out: list[Document] = []
         async with client_session_cls(read, write) as session:
             await session.initialize()
@@ -73,7 +85,9 @@ class McpSource:
                 uri = str(getattr(r, "uri", ""))
                 try:
                     result = await session.read_resource(getattr(r, "uri", uri))
-                except Exception:  # noqa: BLE001,S112 - one unreadable resource must not abort
+                except Exception as e:  # noqa: BLE001 - one bad resource must not abort
+                    if on_failure is not None:
+                        on_failure(uri, e, what="mcp resource")
                     continue
                 text = _texts(result)
                 if not text:

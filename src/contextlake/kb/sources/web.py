@@ -11,7 +11,7 @@ import re
 import urllib.request
 from html.parser import HTMLParser
 
-from .base import Document, url_is_fetchable
+from .base import Document, FetchFailures, url_is_fetchable
 
 # Note: do NOT drop <head> wholesale — <title> lives there; script/style/etc. inside
 # it are dropped individually below.
@@ -65,7 +65,7 @@ def html_to_text(html: str) -> tuple[str, str]:
     return r.title.strip(), r.text().strip()
 
 
-class WebSource:
+class WebSource(FetchFailures):
     """Fetch one or more URLs and yield each page's readable text as a Document.
 
     Config (``[[sources]] type="web"`` or a plugin): ``url`` (single) or ``urls`` (list),
@@ -77,6 +77,7 @@ class WebSource:
         self.timeout = int(timeout)
 
     def iter_documents(self):
+        self._reset_failures()
         for u in self.urls:
             # Checked outside the try: the `except Exception` below exists so one
             # unreachable URL cannot abort the source, and a refusal raised inside
@@ -88,7 +89,10 @@ class WebSource:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
                     charset = resp.headers.get_content_charset() or "utf-8"
                     html = resp.read().decode(charset, errors="replace")
-            except Exception:  # noqa: BLE001,S112 - one bad URL must not abort the source
+            except Exception as e:  # noqa: BLE001 - one bad URL must not abort the source
+                # Recorded and logged rather than swallowed: a wrong URL, an expired
+                # token, a 500 and an empty page used to be indistinguishable.
+                self._record_failure(u, e, what="web source")
                 continue
             title, text = html_to_text(html)
             if not text:

@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 
-from .base import Document, url_is_fetchable
+from .base import Document, FetchFailures, url_is_fetchable
 
 
 def _dig(obj, path: str):
@@ -25,7 +25,7 @@ def _dig(obj, path: str):
     return cur
 
 
-class ApiSource:
+class ApiSource(FetchFailures):
     """GET a JSON endpoint and map its records to documents.
 
     Config (``[[sources]] type="api"``):
@@ -59,6 +59,7 @@ class ApiSource:
             return json.loads(resp.read().decode(charset, errors="replace"))
 
     def iter_documents(self):
+        self._reset_failures()
         if not self.url:
             return
         # Before the try: a refusal raised inside it would be swallowed silently.
@@ -66,7 +67,10 @@ class ApiSource:
             return
         try:
             data = self._fetch()
-        except Exception:  # noqa: BLE001 - an unreachable/invalid endpoint yields nothing
+        except Exception as e:  # noqa: BLE001 - an unreachable endpoint must not raise
+            # Recorded, not swallowed. An unreachable endpoint, an expired token
+            # and a genuinely empty response used to be the same `0 documents`.
+            self._record_failure(self.url, e, what="api source")
             return
         records = _dig(data, self.items) if self.items else data
         if isinstance(records, dict):

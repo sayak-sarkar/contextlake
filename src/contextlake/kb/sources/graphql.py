@@ -13,10 +13,10 @@ import os
 import urllib.request
 
 from .api import _dig
-from .base import Document, url_is_fetchable
+from .base import Document, FetchFailures, url_is_fetchable
 
 
-class GraphQLSource:
+class GraphQLSource(FetchFailures):
     """POST a GraphQL query and map records in the response to documents.
 
     Config (``[[sources]] type="graphql"``):
@@ -58,6 +58,7 @@ class GraphQLSource:
             return json.loads(resp.read().decode(charset, errors="replace"))
 
     def iter_documents(self):
+        self._reset_failures()
         if not self.url or not self.query:
             return
         # Before the try: a refusal raised inside it would be swallowed silently.
@@ -65,7 +66,10 @@ class GraphQLSource:
             return
         try:
             payload = self._fetch()
-        except Exception:  # noqa: BLE001 - an unreachable/invalid endpoint yields nothing
+        except Exception as e:  # noqa: BLE001 - an unreachable endpoint must not raise
+            # Recorded, not swallowed. An unreachable endpoint, an expired token
+            # and a genuinely empty response used to be the same `0 documents`.
+            self._record_failure(self.url, e, what="graphql source")
             return
         # A GraphQL response can carry partial `data` alongside `errors`; treat
         # any reported error as untrustworthy rather than guess which fields

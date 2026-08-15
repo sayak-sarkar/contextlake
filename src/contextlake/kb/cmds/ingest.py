@@ -95,7 +95,7 @@ def cmd_ingest(args) -> int:
                     "warn", f"{name}: {for_repo!r} has no indexed symbols — its documents "
                             "will be stored but linked to nothing (index that repo first)"))
 
-        total = embedded = failed = 0
+        total = embedded = failed = partial = 0
         try:
             for name, stype, options, for_repo in jobs:
                 src = build_source(stype, **options)
@@ -116,8 +116,22 @@ def cmd_ingest(args) -> int:
                     log(f"  {name}: source failed ({e})", inline=True)
                     failed += 1
                     continue
+                misses = list(getattr(src, "failures", ()))
                 if not nodes:
-                    log(f"  {name}: no documents", inline=True)
+                    # "empty" and "broken" produced the SAME line here, and the network
+                    # sources swallowed their own errors so they never raised into the
+                    # handler above. A wrong URL, an expired token, a 500 and a proxy
+                    # block all read as a healthy source with nothing to say -- on a
+                    # content pipeline that means ingestion silently stops.
+                    if misses:
+                        first = ", ".join(f"{tgt} ({why})" for tgt, why in misses[:2])
+                        more = f" (+{len(misses) - 2} more)" if len(misses) > 2 else ""
+                        log(f"  {name}: FAILED — could not read {len(misses)} target(s): "
+                            f"{first}{more}", inline=True)
+                        failed += 1
+                    else:
+                        log(f"  {name}: no documents (source reachable, nothing to ingest)",
+                            inline=True)
                     continue
                 # Documents are ABOUT a repo (`--for-repo`); link each one to the
                 # symbols of that repo it names. Stored under this ingest
@@ -131,6 +145,11 @@ def cmd_ingest(args) -> int:
                                                   nodes=nodes, edges=edges))
                 total += len(nodes)
                 msg = f"  {name}: {len(nodes)} document(s)"
+                if misses:
+                    # Partial: real documents came back AND targets were missed. Counted
+                    # so the summary cannot call the run clean.
+                    msg += f", {len(misses)} target(s) unreadable"
+                    partial += len(misses)
                 if embedder is not None and vs is not None:
                     n = _embed_documents(vs, embedder, repo_id, nodes, texts,
                                          cfg.embeddings.batch_size)
@@ -138,8 +157,25 @@ def cmd_ingest(args) -> int:
                     msg += f", {n} embedded"
                 log(msg, inline=True)
             tail = f", {embedded} embedded into the semantic store" if embedded else ""
+            # The summary states what could not be observed, and the exit code agrees
+            # with it. Previously any run that produced a single document printed a
+            # clean "Ingest complete" and exited 0, however many targets were
+            # unreachable -- so a content pipeline degrading one source at a time was
+            # invisible until somebody noticed the answers had got worse.
+            if failed or partial:
+                bits = []
+                if failed:
+                    bits.append(f"{failed} source(s) failed")
+                if partial:
+                    bits.append(f"{partial} target(s) unreadable")
+                log(style.summary_line(
+                    "warn", f"Ingest incomplete: {total} document(s) aggregated{tail} "
+                            f"({'; '.join(bits)})"))
+                log("  Nothing was silently dropped: each miss is logged above. Pass "
+                    "--exit-zero-on-partial if a scheduled run should tolerate this.")
+                return 0 if getattr(args, "exit_zero_on_partial", False) else 1
             log(style.summary_line("ok", f"Ingest complete: {total} document(s) aggregated{tail}"))
-            return 1 if (failed and total == 0) else 0
+            return 0
         finally:
             if vs is not None:
                 vs.close()

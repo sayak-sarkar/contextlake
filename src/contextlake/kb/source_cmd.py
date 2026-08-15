@@ -342,6 +342,61 @@ def _verify_mcp(src, timeout: float | None = None) -> tuple[bool, str]:
     return True, f"{len(docs)} resource(s) listed"
 
 
+def _verify_fetching_source(src, timeout: float | None = None) -> tuple[bool, str]:
+    """Probe a `web` / `api` / `graphql` source by actually asking it for documents.
+
+    These three were the WORST case in the whole diagnostic: they swallow every network
+    error internally, so they were also three of the five types with no probe here. A
+    user whose token had expired ran `kb source test`, was told "(source is configured)",
+    and exited 0 -- the diagnostic tool confirming that a broken source is fine.
+
+    No connectivity logic is reimplemented: the source is built and asked to iterate, and
+    the misses it now records (`sources/base.FetchFailures`) are what gets reported. That
+    keeps one definition of "can this be read" and makes the probe agree, by construction,
+    with what an actual ingest would do.
+    """
+    from .sources.base import build_source
+
+    opts = {k: v for k, v in src.model_dump().items()
+            if k not in {"type", "name", "enabled", "mcp"}}
+    if timeout is not None:
+        opts.setdefault("timeout", timeout)
+    source = build_source(src.type, **opts)
+    if source is None:
+        return False, f"no builder for type {src.type!r}"
+    docs = list(source.iter_documents())
+    misses = list(getattr(source, "failures", ()))
+    if misses:
+        first = "; ".join(f"{tgt} ({why})" for tgt, why in misses[:2])
+        more = f" (+{len(misses) - 2} more)" if len(misses) > 2 else ""
+        return False, f"{len(misses)} target(s) unreadable: {first}{more}"
+    return True, f"{len(docs)} document(s) available"
+
+
+def _verify_files(src, timeout: float | None = None) -> tuple[bool, str]:
+    """Probe a `files` source: does its path exist, and does anything match?
+
+    A path typo is the `files` equivalent of an expired token, and it produced the same
+    silent zero.
+    """
+    from pathlib import Path
+
+    from .sources.base import build_source
+
+    path = Path(str(getattr(src, "path", ".") or ".")).expanduser()
+    if not path.exists():
+        return False, f"path does not exist: {path}"
+    opts = {k: v for k, v in src.model_dump().items()
+            if k not in {"type", "name", "enabled", "mcp"}}
+    source = build_source("files", **opts)
+    if source is None:
+        return False, "no builder for type 'files'"
+    n = sum(1 for _ in source.iter_documents())
+    if n == 0:
+        return False, f"{path} exists but no file matched the configured globs"
+    return True, f"{n} document(s) available"
+
+
 def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
     """Best-effort reachability check for a configured source. Never raises.
 
@@ -363,6 +418,10 @@ def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
             return _verify_slack(src)
         if src.type == "mcp":
             return _verify_mcp(src, timeout=timeout)
+        if src.type in {"web", "api", "graphql"}:
+            return _verify_fetching_source(src, timeout=timeout)
+        if src.type == "files":
+            return _verify_files(src, timeout=timeout)
         return False, f"no reachability check for type {src.type!r}"
     except Exception as e:  # noqa: BLE001 - test must report, never raise
         return False, str(e)
@@ -372,7 +431,8 @@ def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
 # tell "probed and unreachable" (a real test failure) apart from "no probe
 # available for this type" (the source may be perfectly valid; there's simply
 # nothing here to dial).
-_PROBED_TYPES = {"atlassian", "figma", "slack", "mcp"}
+_PROBED_TYPES = {"atlassian", "figma", "slack", "mcp",
+                 "web", "api", "graphql", "files"}
 
 
 def cmd_source_test(args) -> int:
@@ -389,9 +449,18 @@ def cmd_source_test(args) -> int:
     ok, detail = verify_source(src)
     label = f"{name} ({src.type})"
     if not ok and src.type not in _PROBED_TYPES:
-        # A neutral result, not a failure: this source type just has nothing
-        # to dial, e.g. `gitlab` -- the source is otherwise perfectly valid.
-        log(f"{label}: {detail} (source is configured)")
+        # A neutral result, not a failure: this source type has nothing to dial (e.g.
+        # `gitlab`, whose reachability belongs to the mirror tier). The source is
+        # otherwise perfectly valid.
+        #
+        # But it must not READ like a pass. This previously printed
+        # "(source is configured)" and exited 0, which is what a healthy probe looks
+        # like -- so the five unprobed types, three of which swallowed every network
+        # error, all reported success no matter what was wrong with them. Those three
+        # are now genuinely probed; what is left says plainly that nothing was tested.
+        log(f"{style.warn(label)}: NOT TESTED — {detail}")
+        log("  The source is configured and this command cannot verify it. Nothing "
+            "here says it works.")
         return 0
     log(f"{style.ok(label) if ok else style.fail(label)}: {detail}")
     return 0 if ok else 1
