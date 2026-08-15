@@ -10,7 +10,52 @@ from contextlake import core
 
 _CORE = ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
          "switch_repository_branches", "verify_structure"]
-_KB = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_enrich", "cmd_wiki", "cmd_steer"]
+
+
+def _kb_stages_referenced_by_cli() -> list[str]:
+    """Every ``kb.cmd_*`` the CLI can put in bootstrap's stage list, read from source.
+
+    This list used to be written out by hand, and adding a stage silently made these
+    tests run the REAL command instead of a stub: the stage tried to open a store at
+    the sentinel config path, failed, and bootstrap reported a failed stage. A hand-kept
+    mirror of a list that lives somewhere else goes stale in exactly one direction, and
+    the failure looks like a product bug rather than a stale test.
+
+    Both `_bootstrap` (which builds the stage list) and the module-level stage helpers
+    (which close over the same `kb` module) are scanned, since a stage can be wired from
+    either.
+    """
+    import ast
+    import inspect
+
+    tree = ast.parse(inspect.getsource(cli))
+    names = {node.attr
+             for node in ast.walk(tree)
+             if isinstance(node, ast.Attribute)
+             and isinstance(node.value, ast.Name) and node.value.id == "kb"
+             and node.attr.startswith("cmd_")}
+    return sorted(names)
+
+
+# Stubbing is driven by the SWEEP, so a newly wired stage is stubbed the day it lands.
+_KB = _kb_stages_referenced_by_cli()
+
+# Running ORDER is a contract these tests exist to pin, and a sorted sweep cannot state
+# it, so the sequence stays written out. The two check each other: the sweep cannot miss
+# a stage, and this list cannot silently drift from it.
+_KB_ORDER = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_enrich", "cmd_wiki",
+             "cmd_graph", "cmd_steer"]
+
+assert set(_KB_ORDER) == set(_KB), (
+    f"bootstrap's kb stages changed: cli.py wires {sorted(_KB)}, this file expects "
+    f"{sorted(_KB_ORDER)}. Put the new stage in _KB_ORDER at the position it runs.")
+
+# The sweep is only worth anything if it can actually see stages. Without this, a rename
+# of the `kb` alias would empty it, every stub would silently not be installed, and each
+# test below would pass while exercising nothing it claims to.
+assert {"cmd_index", "cmd_wiki", "cmd_steer"} <= set(_KB), (
+    f"the stage sweep found {_KB}, which is missing stages the CLI definitely wires; "
+    f"it is not reading cli.py the way it thinks it is")
 
 
 def _core_return(name):
@@ -39,8 +84,8 @@ def _record(monkeypatch):
 
 def _args(**over):
     base = dict(no_sync=False, no_connect=False, no_embed=False, no_enrich=False,
-                no_wiki=False, kb_config=None, config=None, workspace=None,
-                source=None, out=None)
+                no_wiki=False, no_diagrams=False, kb_config=None, config=None,
+                workspace=None, source=None, out=None)
     base.update(over)
     return Namespace(**base)
 
@@ -48,14 +93,15 @@ def _args(**over):
 def test_bootstrap_runs_every_stage_in_order(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(), {}, str(tmp_path), "grp")
-    assert calls == _CORE + _KB
+    assert calls == _CORE + _KB_ORDER
 
 
 def test_bootstrap_skip_flags(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(no_sync=True, no_connect=True, no_embed=True, no_enrich=True,
-                         no_wiki=True), {}, str(tmp_path), "grp")
-    # no sync; only the always-on kb stages: index + steer
+                         no_wiki=True, no_diagrams=True), {}, str(tmp_path), "grp")
+    # no sync; only the always-on kb stages: index + steer. Every skippable stage has
+    # its flag passed here, so a new stage that forgets to honour its own flag fails.
     assert calls == ["cmd_index", "cmd_steer"]
 
 
@@ -63,7 +109,7 @@ def test_bootstrap_no_enrich_flag_omits_only_enrich(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(no_enrich=True), {}, str(tmp_path), "grp")
     assert calls == _CORE + ["cmd_index", "cmd_connect", "cmd_embed", "cmd_wiki",
-                              "cmd_steer"]
+                              "cmd_graph", "cmd_steer"]
 
 
 def test_bootstrap_enrich_runs_between_embed_and_wiki(monkeypatch, tmp_path):
@@ -91,13 +137,13 @@ def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch
         raise RuntimeError("connect blew up")
 
     monkeypatch.setattr(kb, "cmd_connect", boom)
-    # a non-foundational stage failing must not abort the run -- index + steer still
-    # run -- but bootstrap must NOT report a hollow success: it exits non-zero.
+    # a non-foundational stage failing must not abort the run -- the stages after it
+    # still run -- but bootstrap must NOT report a hollow success: it exits non-zero.
     with pytest.raises(SystemExit) as exc:
         cli._bootstrap(_args(no_sync=True, no_embed=True, no_enrich=True, no_wiki=True),
                        {}, str(tmp_path), "grp")
     assert exc.value.code == 1
-    assert calls == ["cmd_index", "cmd_steer"]
+    assert calls == ["cmd_index", "cmd_graph", "cmd_steer"]
 
 
 def test_bootstrap_records_a_failed_mirror_stage_and_exits_nonzero(monkeypatch, tmp_path):
@@ -111,7 +157,7 @@ def test_bootstrap_records_a_failed_mirror_stage_and_exits_nonzero(monkeypatch, 
     with pytest.raises(SystemExit) as exc:
         cli._bootstrap(_args(), {}, str(tmp_path), "grp")
     assert exc.value.code == 1
-    assert calls == _CORE + _KB   # every stage still ran, in order
+    assert calls == _CORE + _KB_ORDER   # every stage still ran, in order
 
 
 def test_bootstrap_exit_zero_on_partial_forgives_a_failed_mirror_stage(monkeypatch, tmp_path):
@@ -128,7 +174,7 @@ def test_bootstrap_exits_nonzero_when_a_stage_returns_failure(monkeypatch, tmp_p
     with pytest.raises(SystemExit) as exc:
         cli._bootstrap(args, {}, str(tmp_path), "grp")
     assert exc.value.code == 1
-    assert calls == ["cmd_index", "cmd_wiki", "cmd_steer"]
+    assert calls == ["cmd_index", "cmd_wiki", "cmd_graph", "cmd_steer"]
 
 
 def test_bootstrap_aborts_when_index_fails(monkeypatch, tmp_path):

@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.7.0] - 2026-08-16
+
+**Turn on what was already built.** Four capabilities were present in the code, complete and
+tested, and unreachable from the path a user actually walks. Nothing here is a new feature;
+each change connects a built thing to the command that should have been calling it.
+
+A fifth item on the batch list, folding the wiki into the static site export, shipped no code:
+the whole-repo wiki was already carried there. See "Verified, no change needed" below.
+
+### Changed
+
+- **Semantic search is on by default.** `[embeddings] enabled` now defaults to `true`.
+  Opt-in meant a new user's natural-language questions returned nothing at all, with no hint
+  that a step was missing. Measured on a 39-repo store: every purely conceptual question came
+  back empty, and building vectors lifted name recall from 0.375 to 0.625 at a cost of about
+  1.7 seconds for 7,719 vectors on CPU. This is **not** paid at index time; `kb index` does not
+  embed, `kb embed` does. Local-first is unchanged: the provider chain stays
+  `auto -> Ollama -> builtin -> embed nothing`, and a run with no embedder available says so
+  and names the fix instead of failing quietly. Pass `--no-embeddings` to restore the old
+  default.
+
+- **`bootstrap` draws an architecture diagram.** Architecture drawings are one of the outputs
+  this product exists to generate, and the one command documented as taking a workspace from
+  nothing to a wired knowledge layer never produced one; `kb graph` was built and nothing called
+  it. The view is chosen from the store's shape, because `--overview` renders the fleet map with
+  repositories as nodes and is therefore correct and useless on a store holding one repository:
+  a single-repo store now gets that repository's symbol graph instead. Skip with
+  `--no-diagrams`. Cost measured on a real 39-repo store: 2.4s for the fleet view, 1.4s for the
+  symbol view, both bounded by node caps that report when they truncate.
+
+### Added
+
+- **`init --no-mirror`**, a local-only setup path. Someone with repositories already on disk and
+  no forge account could not complete `init` at all: the group check ran before the
+  knowledge-layer branch, so both the interactive form and the documented all-defaults form
+  exited 2 and wrote nothing, and `--no-kb` did not help. That persona is exactly who the
+  quickstart addresses. The local-only path writes a knowledge config and no mirror INI, since a
+  mirror INI would name a forge group that does not exist.
+
+### Fixed
+
+- **`--anonymize` now covers the served dashboard, not only `--site`.** The flag was documented
+  for both and implemented for one: the data layer accepted the argument on every
+  identity-bearing function and the server never passed it, so `dashboard --serve --anonymize`
+  rendered real author identities. Verified over real HTTP in both modes, because a test calling
+  the data function directly would have passed for the entire life of the bug.
+
+### Verified, no change needed
+
+- **The static site export already carries the wiki.** `dashboard --site` emits a
+  `graph/wiki-<repo>.html` page per repository and carries the rendered prose in the snapshot
+  payload. Measured on a real store with planted marker text rather than read from the code.
+  Per-module wiki pages are not exported, but nothing writes them on a real store yet, so
+  exporting them now would be a reader with no writer; it is tracked with the work that adds
+  the writer.
+
+
 ## [7.6.0] - 2026-08-15
 
 > **There is no 7.5.0.** The plan assigned 7.5.0 to the search and first-five-minutes
