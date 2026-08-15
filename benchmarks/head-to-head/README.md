@@ -97,6 +97,13 @@ as a result, not dropped: `run.py` exits non-zero and writes the failure into th
 `seconds` is wall clock for the index command only, on one machine, and is the least portable
 number here. Treat it as an order of magnitude.
 
+The harness deletes contextlake's store before each run, and that is load-bearing rather than
+tidiness. `kb index` is incremental and correctly skips a repository whose HEAD and parser version
+have not moved, so a second run against a surviving store timed a no-op: 0.19s where the first run
+of the same tree took 1.38s. Node and edge counts were identical either way, because they are read
+back from the store, which is what made it easy to miss. Only the seconds were wrong, and only on
+re-runs.
+
 ## If you get different numbers
 
 That is the point of committing the harness. Both tools change; a newer version of either will move

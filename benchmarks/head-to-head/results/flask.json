@@ -9,9 +9,9 @@
   "runs": [
     {
       "tool": "contextlake",
-      "version": "contextlake 7.8.0",
+      "version": "contextlake 7.9.0",
       "ok": true,
-      "seconds": 0.18,
+      "seconds": 0.63,
       "log_tail": "",
       "nodes": {
         "total": 2207
@@ -26,7 +26,7 @@
       "tool": "@colbymchenry/codegraph@1.5.0",
       "version": "1.5.0",
       "ok": true,
-      "seconds": 1.24,
+      "seconds": 1.47,
       "log_tail": "",
       "nodes": {
         "total": 2705

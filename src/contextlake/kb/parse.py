@@ -203,11 +203,17 @@ def _has_generated_header(source: bytes) -> bool:
 #   - node ids became file- and line-independent, so EVERY id changed;
 #   - config keys, SQL and XML gained file nodes and `contains` edges;
 #   - five symbol kinds are emitted that never existed before (data members,
-#     macros, typedefs, enum constants, file-scope variables);
+#     macros, typedefs, enum constants, file-scope variables) -- for C and C++;
+#     see "5" below, which is where the other language families got them;
 #   - `calls` edges are stored per call site rather than per caller/callee pair;
 #   - C++ internal linkage is honoured in both identity and resolution.
 # A user upgrading without re-indexing keeps a graph whose ids no longer match
 # anything this build produces, and nothing about their commit would say so.
+#
+# "5" is smaller but has the same invisibility: the extra-symbol pass described above
+# was C/C++ only, and now also runs for JavaScript, TypeScript, TSX and Python, so every
+# repository in those languages gains `global_variable` and `field` nodes plus their
+# `contains` edges. A commit-keyed check cannot see it, because no commit moved.
 PARSER_VERSION = "5"
 
 # tree-sitter node types that introduce a named definition, per language.

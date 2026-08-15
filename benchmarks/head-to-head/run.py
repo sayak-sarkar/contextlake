@@ -112,6 +112,14 @@ def run_contextlake(repo: Path, work: Path) -> dict:
     home = work / "cl-home"
     (home / ".contextlake").mkdir(parents=True, exist_ok=True)
     store = work / "cl-store"
+    # A FRESH store every run, or the timing measures the wrong thing. `kb index` is
+    # incremental and correctly skips a repository whose HEAD and parser version are
+    # unchanged, so a second run against a surviving store reported 0.19s where the first
+    # reported 1.38s -- a no-op timed as if it were a parse. Node and edge counts were
+    # unaffected (they are read from the store either way), which is what made it easy to
+    # miss: only the seconds were wrong, and only on re-runs.
+    if store.exists():
+        shutil.rmtree(store)
     # Embeddings off on BOTH sides of the comparison: the comparator has no vector tier,
     # so timing one tool with it on would be measuring a feature the other does not have.
     (home / ".contextlake" / "kb.toml").write_text(
