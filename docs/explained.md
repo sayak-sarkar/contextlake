@@ -389,6 +389,35 @@ If your problem is "one repository and I want a good wiki for it", those tools a
 If it is "hundreds of repositories and no single place that knows all of them", that is what this
 is built for.
 
+### Four differences that do not depend on which repository you try
+
+Graph size varies a lot with the shape of the tree, so any claim about it needs a benchmark and a
+caveat. These four do not. They are properties of the design, each one a line you can go and read.
+
+- **Every edge records where it came from.** `source_file` and `source_line` sit on the edge row
+  itself, not on the node (`src/contextlake/kb/store/sqlite_store.py:58`). That is what lets an
+  answer say which line made it believe two things are connected, instead of only that they are.
+- **Offline is a mode, not a hope.** `--offline`, or `CONTEXTLAKE_OFFLINE=1`, raises instead of
+  connecting (`src/contextlake/netguard.py`). You can turn the network off and watch it keep
+  working, which is a different claim from "it happens not to call out today".
+- **No telemetry, and it turns off someone else's.** contextlake reports nothing anywhere, and it
+  sets `HF_HUB_DISABLE_TELEMETRY=1` so a model download does not report on your behalf
+  (`src/contextlake/kb/_util.py:53`).
+- **Diagrams come out of the graph.** `kb graph` renders the same store you query, to HTML, DOT,
+  Mermaid, GraphML or Cypher, so the picture and the answers cannot disagree with each other.
+
+### And a benchmark that does not flatter us
+
+`benchmarks/head-to-head/` runs contextlake and a comparable local tool over four pinned public
+repositories and commits the harness, the tree list and the raw output. **contextlake leads on one
+tree of four.** It is ahead on a modern C++ tree, split on a mature C tree, and behind on Python
+and on JavaScript, where the gap is more than 3x.
+
+The largest gap has a cause worth stating: contextlake emits no node for a variable or a constant,
+in any language, and on the JavaScript tree that single missing category is most of the difference.
+Both tools read the same files. Read `benchmarks/head-to-head/RESULTS.md` for the numbers, and re-run
+it if you doubt them.
+
 ## What it is not good at
 
 The honest list, because a tool that only publishes its wins is being sold to you rather than

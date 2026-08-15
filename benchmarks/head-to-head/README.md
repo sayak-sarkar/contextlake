@@ -55,9 +55,10 @@ answer set, which this harness does not have. Read these numbers as "how much of
 tool represent", nothing more.
 
 Both tools are run with their optional tiers off, so neither is timed doing work the other cannot
-do. Embeddings are disabled on the contextlake side; the comparator has no vector tier. The
-comparator's telemetry, which is on by default in its own configuration, is explicitly disabled by
-the harness.
+do. Embeddings are disabled on the contextlake side; the comparator has no vector tier. The harness
+also sets `CODEGRAPH_TELEMETRY=0` and `DO_NOT_TRACK=1` so that nothing reports a benchmark run
+anywhere. (The comparator ships as a prebuilt binary with no readable source in the published
+package, so this file makes no claim about what its default would have been.)
 
 ## Why these trees
 
