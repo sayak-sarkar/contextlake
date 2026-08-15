@@ -25,6 +25,7 @@ checkable: ``no_citation`` may only appear on a node that genuinely has no file.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -122,7 +123,7 @@ def _indexed(tmp_path):
     store = SqliteStore(store_dir / "index.sqlite")
     repos = store.list_repos()
     assert len(repos) == 1, f"expected one indexed repo, got {[x.id for x in repos]}"
-    return store, repos[0].id
+    return store, repos[0].id, env
 
 
 def _nodes(store, repo_id):
@@ -140,7 +141,7 @@ def _checks(store, nodes):
 
 
 def test_every_citation_the_indexer_wrote_resolves_on_disk(tmp_path):
-    store, repo_id = _indexed(tmp_path)
+    store, repo_id, _env = _indexed(tmp_path)
     try:
         nodes = _nodes(store, repo_id)
         by_id = {n.id: n for n in nodes}
@@ -180,7 +181,7 @@ def test_the_check_catches_a_citation_that_stopped_resolving(tmp_path):
     ``name_absent`` -- the failure a file-exists or line-count check cannot see, and the
     one a drifting parser would actually produce.
     """
-    store, repo_id = _indexed(tmp_path)
+    store, repo_id, _env = _indexed(tmp_path)
     try:
         nodes = _nodes(store, repo_id)
         draw = next(n for n in nodes
@@ -200,3 +201,41 @@ def test_the_check_catches_a_citation_that_stopped_resolving(tmp_path):
             f"a citation pointing at the wrong line reported {check.status}/{check.reason}")
     finally:
         store.close()
+
+
+def test_the_verify_citations_FLAG_reports_citations(tmp_path):
+    """The library function is gated above; this gates the documented CLI flag.
+
+    `kb eval --verify-citations` is the only way a user reaches this check, and it is
+    a separate wire: `cmd_eval` reads the flag, passes `verify=` into `evaluate`, which
+    calls `verify_citations`. Gating only the function would leave that wire untested,
+    and a flag that silently stopped being passed would read exactly like a clean run
+    with nothing to report.
+    """
+    store, repo_id, env = _indexed(tmp_path)
+    try:
+        # Two queries whose answers are real symbols in the fixture, matched by name so
+        # the golden set does not have to hardcode generated node ids.
+        golden = tmp_path / "golden.json"
+        golden.write_text(json.dumps({"queries": [
+            {"query": "Draw", "expected": ["Draw"], "match": "name"},
+            {"query": "helper", "expected": ["helper"], "match": "name"},
+        ]}), encoding="utf-8")
+    finally:
+        store.close()
+
+    r = subprocess.run(
+        [sys.executable, "-m", "contextlake", "kb", "eval",
+         "--golden", str(golden), "--verify-citations", "--json"],
+        cwd=str(tmp_path), env=env, capture_output=True, text=True)
+    assert r.returncode == 0, f"eval failed:\n{(r.stdout + r.stderr)[-2000:]}"
+
+    out = json.loads(r.stdout)
+    assert "citations" in out, (
+        f"--verify-citations produced no citations block; keys were {sorted(out)}")
+    cits = out["citations"]
+    # Non-empty is the load-bearing part: a run that checked nothing would report a
+    # citations block full of zeros and look indistinguishable from a clean one.
+    checked = sum(v for k, v in cits.items() if isinstance(v, int) and k != "unverifiable")
+    assert checked > 0, f"the flag reported a citations block that checked nothing: {cits}"
+    assert cits.get("verified", 0) > 0, f"nothing verified: {cits}"
