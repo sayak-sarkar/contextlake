@@ -208,7 +208,7 @@ def _has_generated_header(source: bytes) -> bool:
 #   - C++ internal linkage is honoured in both identity and resolution.
 # A user upgrading without re-indexing keeps a graph whose ids no longer match
 # anything this build produces, and nothing about their commit would say so.
-PARSER_VERSION = "4"
+PARSER_VERSION = "5"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -1416,6 +1416,115 @@ def _is_file_scope(node: ts.Node) -> bool:
     return False
 
 
+_JS_LANGS = ("javascript", "typescript", "tsx")
+# A `const`/`let`/`var` binding, and the `var` spelling, at whatever scope we reached.
+_JS_BINDINGS = ("lexical_declaration", "variable_declaration")
+
+
+def _js_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Module-scope bindings and class fields for the JavaScript family.
+
+    Descends deliberately (module children, then class bodies) instead of walking the
+    whole tree and asking "is this file scope?". The C/C++ predicate `_is_file_scope`
+    cannot be reused here and could not simply be widened: it tests for
+    `function_definition`, `compound_statement` and `for_statement`, none of which the
+    JavaScript grammar produces. Descending says which scope we are in by construction,
+    so a `const` inside a function body is never reached rather than reached and then
+    rejected by a test that has to be right about every enclosing form.
+
+    Verified against the grammar rather than written from memory: `export const NAME`
+    arrives as an `export_statement` WRAPPING a `lexical_declaration`, so the export
+    keyword has to be stepped through or every exported binding is missed. Class members
+    are `field_definition`, whose name is a `property_identifier` (or a
+    `private_property_identifier` for a `#private` field).
+    """
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+
+    def _bindings(decl: ts.Node, kind: str) -> None:
+        for d in decl.children:
+            if d.type == "variable_declarator":
+                nm = d.child_by_field_name("name")
+                # Only a plain identifier. A destructuring pattern binds several names
+                # through an `object_pattern`/`array_pattern`, and inventing one node
+                # named after the whole pattern would be a symbol nobody wrote.
+                if nm is not None and nm.type == "identifier":
+                    out.append((kind, nm, decl))
+
+    def _class_fields(cls: ts.Node) -> None:
+        body = cls.child_by_field_name("body")
+        if body is None:
+            return
+        for member in body.children:
+            if member.type == "field_definition":
+                nm = member.child_by_field_name("property")
+                if nm is not None and nm.type in ("property_identifier",
+                                                  "private_property_identifier"):
+                    out.append(("field", nm, member))
+
+    def _scan_module_level(node: ts.Node) -> None:
+        for ch in node.children:
+            if ch.type == "export_statement":
+                _scan_module_level(ch)          # step through `export`
+            elif ch.type in _JS_BINDINGS:
+                _bindings(ch, "global_variable")
+            elif ch.type in ("class_declaration", "class"):
+                _class_fields(ch)
+
+    _scan_module_level(tree.root_node)
+    # Classes nested anywhere (inside a function, an IIFE, an export default) still have
+    # fields worth emitting, and their containment is resolved by the caller from the
+    # class ancestor, so reaching them here is enough.
+    stack = list(tree.root_node.children)
+    seen: set[int] = set()
+    while stack:
+        n = stack.pop()
+        if n.type in ("class_declaration", "class") and n.id not in seen:
+            seen.add(n.id)
+            _class_fields(n)
+        stack.extend(n.children)
+    return out
+
+
+def _py_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Module-level names and class attributes for Python.
+
+    The shape here is the one most easily got wrong from memory: a module-level
+    assignment is NOT an `assignment` child of the module. It is an
+    `expression_statement` WRAPPING an `assignment`, and the same is true inside a class
+    body. Checked against the grammar before this was written.
+
+    Annotated assignments (`x: int = 3`) arrive the same way, so both are covered by
+    reading the assignment's `left` field.
+    """
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+
+    def _assigned_names(stmt: ts.Node, kind: str) -> None:
+        for a in stmt.children:
+            if a.type != "assignment":
+                continue
+            lhs = a.child_by_field_name("left")
+            # A tuple target (`a, b = ...`) binds several names through a
+            # `pattern_list`; emitting one node for the pattern would name nothing.
+            if lhs is not None and lhs.type == "identifier":
+                out.append((kind, lhs, stmt))
+
+    for ch in tree.root_node.children:
+        if ch.type == "expression_statement":
+            _assigned_names(ch, "global_variable")
+
+    stack = list(tree.root_node.children)
+    while stack:
+        n = stack.pop()
+        if n.type == "class_definition":
+            body = n.child_by_field_name("body")
+            if body is not None:
+                for stmt in body.children:
+                    if stmt.type == "expression_statement":
+                        _assigned_names(stmt, "field")
+        stack.extend(n.children)
+    return out
+
+
 def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
     """`(kind, name_node, container)` for the symbol kinds the def query cannot express.
 
@@ -1428,6 +1537,10 @@ def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Nod
     a name (see `_declared_name`), and whether a declaration is file-scope or a local
     (see `_is_file_scope`).
     """
+    if lang in _JS_LANGS:
+        return _js_member_symbols(tree)
+    if lang == "python":
+        return _py_member_symbols(tree)
     if lang not in ("c", "cpp"):
         return []
     out: list[tuple[str, ts.Node, ts.Node]] = []

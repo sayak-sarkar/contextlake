@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.9.0] - 2026-08-16
+
+**Module-level variables and class fields are now extracted for JavaScript, TypeScript and
+Python.** They were extracted for C and C++ only. The head-to-head benchmark in
+`benchmarks/head-to-head/` is what put a number on that: on a small public JavaScript tree the
+comparator emitted 461 variable nodes where contextlake emitted none, and both tools had read the
+same 141 files.
+
+### ⚠ Re-index: your existing graphs are rebuilt on the next index
+
+`PARSER_VERSION` moves to `5`, so `kb index` re-indexes every repository whose recorded parser
+version differs even though its HEAD has not moved, and says so while it does. Nothing is required
+of you beyond running it. That mechanism exists because a previous parser bump left Python and
+TypeScript repositories stale indefinitely while every surface reported healthy.
+
+### Added
+
+- **`global_variable` and `field` nodes for the JavaScript family and Python.** JavaScript,
+  TypeScript and TSX: module-scope `const`, `let` and `var` bindings, including those behind
+  `export`, plus class fields including `#private` ones. Python: module-level assignments,
+  including annotated ones, plus class attributes. Measured on the pinned public trees in the
+  benchmark: `express` went from 320 nodes to 783 and `flask` from 1,959 to 2,207, which moved
+  `flask` into the lead on distinct relationships. Two trees carry Python helper scripts and so
+  moved slightly too, which the results file names rather than glosses.
+
+  Destructuring patterns and tuple targets are deliberately not emitted: they bind several names
+  at once, and a node named after the whole pattern would be a symbol nobody wrote. Locals inside
+  functions are not emitted either, which the tests assert as carefully as they assert the
+  positives.
+
+  What this does **not** claim: more nodes is not automatically better. A `const` holding a
+  `require()` alias is a weaker answer to "what is in this codebase" than a function is. The
+  benchmark measures coverage, not precision.
+
+
 ### Fixed
 
 - **The mirror banner names the forge you configured.** A GitHub run printed "Mirror

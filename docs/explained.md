@@ -409,14 +409,16 @@ caveat. These four do not. They are properties of the design, each one a line yo
 ### And a benchmark that does not flatter us
 
 `benchmarks/head-to-head/` runs contextlake and a comparable local tool over four pinned public
-repositories and commits the harness, the tree list and the raw output. **contextlake leads on one
-tree of four.** It is ahead on a modern C++ tree, split on a mature C tree, and behind on Python
-and on JavaScript, where the gap is more than 3x.
+repositories and commits the harness, the tree list and the raw output. **contextlake leads on both
+measures on one tree of four, on one of the two measures on two more, and on neither on the
+JavaScript tree.**
 
-The largest gap has a cause worth stating: contextlake emits no node for a variable or a constant,
-in any language, and on the JavaScript tree that single missing category is most of the difference.
-Both tools read the same files. Read `benchmarks/head-to-head/RESULTS.md` for the numbers, and re-run
-it if you doubt them.
+That benchmark has already paid for itself once. Its first run showed contextlake at 320 nodes to
+1,084 on a JavaScript tree where both tools read the same 141 files, and the cause turned out to be
+that one whole category of symbol, module-level bindings, was extracted for C and C++ only.
+Extending it took that tree from 320 nodes to 783 and flipped the Python tree into the lead on
+relationships. The remaining gap is now two named things rather than one unexplained number. Read
+`benchmarks/head-to-head/RESULTS.md`, and re-run it if you doubt it.
 
 ## What it is not good at
 

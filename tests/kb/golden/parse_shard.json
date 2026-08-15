@@ -36,6 +36,20 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
+      "dst": "app_e1aed911",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
       "dst": "basehandler_b6bb9b6b",
       "provenance": {
         "source_file": "svc/core/base.py",
@@ -1132,6 +1146,18 @@
     {
       "attrs": {},
       "file": "svc/api/routes.py",
+      "id": "app_e1aed911",
+      "kind": "global_variable",
+      "lang": "python",
+      "line_end": 3,
+      "line_start": 3,
+      "name": "app",
+      "qualified_name": "svc/api/routes.py::app",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "svc/api/routes.py",
       "id": "demo_fixture_svc_api_routes_py",
       "kind": "file",
       "lang": "python",
@@ -1298,6 +1324,6 @@
       "repo": "(shared)"
     }
   ],
-  "parser_version": "4",
+  "parser_version": "5",
   "repo": "demo/fixture"
 }
