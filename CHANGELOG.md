@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The mirror banner names the forge you configured.** A GitHub run printed "Mirror
+  repositories from GitLab", and "Active GitLab projects: 2", two lines above "Enumerating via
+  the GitHub REST API" proving the behaviour was right. Only the words were wrong, and in the
+  first minute of a tool whose pitch is precision that reads as "did it use the wrong platform?".
+  The label machinery already existed and these six sites never called it. The cache filename is
+  still `gitlab_projects.txt`: renaming it would make every existing user re-enumerate, so it
+  needs a legacy fallback and is a separate change.
+
+
 ## [7.8.0] - 2026-08-16
 
 **Search stopped burying the answer, and the gate that should have caught it can now see it.**

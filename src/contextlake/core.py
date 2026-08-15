@@ -1603,7 +1603,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     # defect, not the filtering.
     patterns = repo_filter_patterns(config)
     scope = f" matching --repos {','.join(patterns)}" if patterns else ""
-    log(f"Active GitLab projects{scope}: {active_count}")
+    log(f"Active {platform_label(config)} projects{scope}: {active_count}")
     log(f"Already cloned locally: {len(local_repos)}")
     log(f"To clone: {len(to_clone)}")
     if not to_clone:

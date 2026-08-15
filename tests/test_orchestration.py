@@ -515,3 +515,24 @@ def test_nested_detection_still_sees_a_clone_from_another_group(tmp_path, base_c
     assert re.search(r"Nested\s+1\b", gls_logs.text)
     assert "team/api/vendored" in gls_logs.text
     assert re.search(r"Extra\s+0\b", gls_logs.text)     # still not an Extra repo
+
+
+def test_mirror_banner_names_the_configured_forge(monkeypatch, capsys):
+    """A GitHub run said "Mirror repositories from GitLab" two lines above "Enumerating
+    via the GitHub REST API", which reads as "did it use the wrong platform?" in the
+    first minute of a tool whose pitch is precision.
+
+    The default-platform case is asserted by the order test above, and it passes whether
+    or not the label is derived, since the default IS gitlab. This is the case that can
+    only pass if it is derived.
+    """
+    _stub_stages(monkeypatch, _PIPELINE)
+    monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
+    # Same shape as _patch_config, with the one field this test is about.
+    monkeypatch.setattr(cli, "load_config",
+                        lambda path=None, **kw: dict(_FAKE_CFG, platform="github"))
+    cli.main(["mirror", "sync"])
+    out = capsys.readouterr().out
+    assert "Mirror repositories from GitHub" in out, (
+        f"the mirror banner did not name the configured forge:\n{out[:600]}")
+    assert "Mirror repositories from GitLab" not in out

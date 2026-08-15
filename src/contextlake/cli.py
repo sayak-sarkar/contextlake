@@ -1580,6 +1580,19 @@ def _diagrams_args(kb_args):
     return a
 
 
+def _mirror_stage_label(config) -> str:
+    """"Mirror repositories from <forge>", named for the forge actually configured.
+
+    Hardcoding "GitLab" here told a GitHub user their run had used the wrong platform,
+    two lines above "Enumerating via the GitHub REST API" proving it had not. The label
+    machinery already existed (`core.PLATFORM_LABELS`, added after this same confusion
+    was reported once before) and these banners simply never called it.
+    """
+    from .core import platform_label
+
+    return f"Mirror repositories from {platform_label(config)}"
+
+
 def _store_has_repos(kb_args) -> bool:
     """Did indexing leave anything downstream can read?
 
@@ -1663,11 +1676,11 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     # wants, and it is the same resumable state the FetchError path already produces.
     offline_mirror = netguard.offline(args)
     if not getattr(args, "no_sync", False) and offline_mirror:
-        _stage("Mirror repositories from GitLab")
+        _stage(_mirror_stage_label(config))
         log(style.warn(netguard.refuse("mirroring")))
         log("    → Continuing with the local stages; the mirror is left exactly as it is.")
     if not getattr(args, "no_sync", False) and not offline_mirror:
-        _stage("Mirror repositories from GitLab")
+        _stage(_mirror_stage_label(config))
         try:
             mirror = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
             mirror += clone_missing_repos(work_dir, config, gitlab_group)
@@ -1683,7 +1696,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             # failed to clone is not a completed stage. Recorded (not raised) so
             # the knowledge stages still run against what did land.
             if mirror.failed and not getattr(args, "exit_zero_on_partial", False):
-                failures.append(f"Mirror repositories from GitLab "
+                failures.append(f"{_mirror_stage_label(config)} "
                                 f"({mirror.failed} failed)")
         except FetchError as e:
             # Enumeration failed (often a VPN/proxy drop) after its own retries.
@@ -1701,7 +1714,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             log(style.bold(f"        {resume}"))
             log("      It is incremental and idempotent — it fetches/clones only what is "
                 "still missing and re-indexes only what changed.")
-            failures.append("Mirror repositories from GitLab (network)")
+            failures.append(f"{_mirror_stage_label(config)} (network)")
     elif not offline_mirror:
         # Only when the *user* asked to skip. Saying "(--no-sync)" for an offline run
         # names a flag they never passed, which is how a clear message becomes a
@@ -2133,7 +2146,7 @@ def _run(argv, metrics):
         elif args.command == "sync":
             log("Starting full synchronization...")
             log("")
-            log(style.header("Mirror repositories from GitLab"))
+            log(style.header(_mirror_stage_label(config)))
             result = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
             result += clone_missing_repos(work_dir, config, gitlab_group)
             result += update_repositories(work_dir, config)
