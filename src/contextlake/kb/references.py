@@ -13,6 +13,9 @@ import re
 import subprocess
 from pathlib import Path
 
+from .. import style
+from ..logging_setup import log
+
 _DOC_SUFFIXES = {".md", ".txt", ".rst", ".adoc"}
 
 
@@ -20,7 +23,12 @@ def extract_issue_keys(repo_path: str, pattern: str, commit_limit: int = 500) ->
     """Distinct issue keys matching ``pattern`` in branch names + commit subjects."""
     try:
         rx = re.compile(pattern)
-    except re.error:
+    except re.error as e:
+        # A typo in a hand-written `[[rules]]` regex used to disable the rule with no
+        # message at all, and `doctor` then confirmed the rule was loaded -- so the user
+        # saw a configured rule that silently matched nothing, forever. The rule is still
+        # skipped (one bad pattern must not abort the run); it is no longer silent.
+        log(style.warn(f"rules: ignoring an invalid issue-key pattern {pattern!r} -- {e}"))
         return []
     blobs = []
     for args in (
@@ -42,11 +50,17 @@ def extract_issue_keys(repo_path: str, pattern: str, commit_limit: int = 500) ->
 def scrape_links(repo_path: str, patterns: list[str], max_files: int = 500) -> list[str]:
     """Distinct URLs in docs matching any of ``patterns``."""
     compiled = []
+    bad = []
     for p in patterns:
         try:
             compiled.append(re.compile(p))
-        except re.error:
-            continue
+        except re.error as e:
+            bad.append(f"{p!r} ({e})")
+    if bad:
+        log(style.warn(
+            f"rules: ignoring {len(bad)} invalid link-scrape pattern(s): "
+            f"{'; '.join(bad[:3])}"
+            f"{f' (+{len(bad) - 3} more)' if len(bad) > 3 else ''}"))
     if not compiled:
         return []
     found: set[str] = set()

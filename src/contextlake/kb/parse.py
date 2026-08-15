@@ -1123,6 +1123,13 @@ class WalkCounts:
     generated: int = 0
     oversize: int = 0
     ignored: int = 0
+    #: Extension -> count for files no parser claimed. A Swift, Dart or Vue tree used to
+    #: index to `0 nodes, 0 edges`, exit 0, and report `skipped 0 generated, 0 oversized,
+    #: 0 ignored` -- every counter truthfully zero, and the reason invisible. Counting
+    #: BY EXTENSION rather than as one number is deliberate: `kind is None` also fires
+    #: for READMEs, lockfiles and images, so a bare total would be noise. The extensions
+    #: let the reader see at a glance whether the miss is source code.
+    unsupported_exts: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -1534,6 +1541,11 @@ def _select_file(
     kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
                       index_hcl=index_hcl, index_sql=index_sql)
     if kind is None:
+        # Recorded, not dropped. Extensionless files (LICENSE, Makefile-style names)
+        # are skipped here because they are overwhelmingly not source and would drown
+        # the signal; a Makefile grammar would give them a `kind` anyway.
+        if ext:
+            counts.unsupported_exts[ext] = counts.unsupported_exts.get(ext, 0) + 1
         return None
     if _ignored(rel, ignore):
         counts.ignored += 1
@@ -1752,6 +1764,28 @@ def index_repo_dir(
     shard.edges.extend(refs.resolved_edges(by_id, stats=resolve_stats))
     log(f"  parsed {counts.files} file(s); skipped {counts.generated} generated, "
         f"{counts.oversize} oversized, {counts.ignored} ignored", level=logging.DEBUG)
+    # Said at NORMAL verbosity, and loudest when nothing was parsed at all. A tree in a
+    # language contextlake has no grammar for produced `0 nodes, 0 edges`, exit 0, and a
+    # skip line of all zeros -- which reads as "this repo is empty" rather than "this
+    # tool cannot read it". That is the single worst first impression available.
+    if counts.unsupported_exts:
+        from .. import style
+
+        top = sorted(counts.unsupported_exts.items(), key=lambda kv: (-kv[1], kv[0]))
+        shown = ", ".join(f"{ext} x{n}" for ext, n in top[:5])
+        more = f" (+{len(top) - 5} more)" if len(top) > 5 else ""
+        total = sum(counts.unsupported_exts.values())
+        if counts.files == 0:
+            log(style.warn(
+                f"  no file in this repository has a supported parser — {total} file(s) "
+                f"skipped: {shown}{more}"))
+            # Counted, never written down: a literal here goes stale the moment a
+            # grammar is added, which is the same docs-vs-code drift this release is
+            # about. LANG_BY_EXT is the single source of truth for what parses.
+            log(f"  contextlake indexes {len(set(LANG_BY_EXT.values()))} languages; see "
+                f"docs/contributing-languages.md to add one.")
+        else:
+            log(f"  {total} file(s) had no parser for their type: {shown}{more}")
     # Said at normal verbosity, unlike the DEBUG resolution summary: this is a KNOWN
     # INCOMPLETENESS in the graph the user is about to query, and "who calls X" will
     # quietly omit these. Silent when zero, so it never becomes boilerplate.

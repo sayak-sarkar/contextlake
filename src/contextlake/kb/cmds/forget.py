@@ -250,7 +250,14 @@ def cmd_forget(args) -> int:
 
         from ..store.shards import _cache_evict
 
+        # `reclaim` above is a PREDICTION, summed before anything was deleted, and it
+        # was printed as an outcome -- so a `rmtree(ignore_errors=True)` that removed
+        # nothing still reported the full figure as space freed. Measure after, and
+        # count only what actually went away.
+        freed = 0
+        survived: list[str] = []
         for p in disk:
+            before = _bytes_of(p)
             if p.is_dir():
                 shutil.rmtree(p, ignore_errors=True)
             else:
@@ -258,6 +265,16 @@ def cmd_forget(args) -> int:
                 # This process may hold the shard in its read cache; a later read in
                 # the same run must not resurrect what was just deleted.
                 _cache_evict(str(p))
+            if p.exists():
+                survived.append(str(p))
+            else:
+                freed += before
+        reclaim = freed
+        if survived:
+            log(style.warn(
+                f"  {len(survived)} path(s) could not be removed and are still on disk: "
+                f"{', '.join(survived[:3])}"
+                f"{f' (+{len(survived) - 3} more)' if len(survived) > 3 else ''}"))
         pruned = _prune_sentinels(store)
         reclaim += _compact(store, store_dir)
     finally:
