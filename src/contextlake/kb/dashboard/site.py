@@ -97,6 +97,12 @@ def _sample_store(tmp: Path):
     shard_dicts = raw["shards"] if isinstance(raw, dict) and "shards" in raw else [raw]
     shards = [GraphShard.model_validate(s) for s in shard_dicts]
     store = SqliteStore(tmp / "index.sqlite")
+    # `_open_store` is not the only door. A store opened without this
+    # leaks repository ids under --redact and loses its graph gauges
+    # under --metrics-file -- measured on `dashboard --site --redact`.
+    from ..cmds._common import register_store_for_observability
+
+    register_store_for_observability(store, tmp / "index.sqlite")
     for shard in shards:
         # path -> the (README-less) tmp dir, so owners/readme resolve to empty, never cwd.
         store.upsert_repo(Repo(id=shard.repo, path=str(tmp), head_commit=shard.head_commit))
@@ -282,6 +288,12 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
     # repo names + structural facts survive. Only --sample (the generic fixture) is silent.
     log(_PUBLISH_WARNING_ANON if anonymize else _PUBLISH_WARNING)
     store = SqliteStore(store_dir / "index.sqlite")
+    # `_open_store` is not the only door. A store opened without this
+    # leaks repository ids under --redact and loses its graph gauges
+    # under --metrics-file -- measured on `dashboard --site --redact`.
+    from ..cmds._common import register_store_for_observability
+
+    register_store_for_observability(store, store_dir / "index.sqlite")
     try:
         # As in serve_dashboard: a store written by a newer contextlake is refused
         # rather than rendered, since the page would present facts read through a

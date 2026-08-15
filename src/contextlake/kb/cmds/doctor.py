@@ -106,6 +106,12 @@ def cmd_doctor(args) -> int:
         store_dir = cfg.store_path
         store_dir.mkdir(parents=True, exist_ok=True)
         store = SqliteStore(store_dir / "index.sqlite")
+        # `_open_store` is not the only door. A store opened without this
+        # leaks repository ids under --redact and loses its graph gauges
+        # under --metrics-file -- measured on `dashboard --site --redact`.
+        from ._common import register_store_for_observability
+
+        register_store_for_observability(store, store_dir / "index.sqlite")
         try:
             check_schema(store)
             st = store.stats()

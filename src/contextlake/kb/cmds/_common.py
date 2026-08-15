@@ -51,27 +51,63 @@ def kb_config(args):
     return cfg
 
 
+def register_store_for_observability(store, db_path) -> None:
+    """Tell `--metrics-file` where the graph lives and `--redact` what to hide.
+
+    **Call this wherever a store is opened.** ``_open_store`` used to do it inline under
+    a comment claiming "every kb command funnels through here", and four constructions
+    did not: ``cmds/doctor.py``, ``dashboard/server.py`` and ``dashboard/site.py`` twice.
+    Measured consequence: ``kb dashboard --site --redact`` printed a raw repository id
+    that ``kb lint --redact`` had just redacted -- on the artefact most likely to be
+    shared. Extracting it is the fix; the comment was true of the funnel and false of
+    the codebase.
+
+    Registration covers repository ids **and module prefixes**. A redacted export still
+    emitted ``repo-<hash>::<real-subsystem-dir>``, because only ``list_repos()`` was
+    registered and module names arrive from a different query -- half a redaction reads
+    exactly like a whole one.
+    """
+    observability.note_store_path(db_path)
+    names: list[str] = []
+    failed: list[str] = []
+    try:
+        names.extend(r.id for r in store.list_repos())
+    except Exception as e:  # noqa: BLE001 - see below; never fail a command over redaction
+        failed.append(f"repository ids ({type(e).__name__})")
+    try:
+        from ..visualize.payload import repo_modules
+
+        for r in list(store.list_repos()):
+            # `repo_modules` returns {"prefix": "src/foo", "nodes": N}; the prefix is
+            # the real directory name that leaked. Each path segment is registered too,
+            # since a subsystem name appears bare as often as it appears in a path.
+            for m in repo_modules(store, r.id) or []:
+                prefix = str(m.get("prefix") or "")
+                if not prefix:
+                    continue
+                names.append(prefix)
+                names.extend(seg for seg in prefix.split("/") if len(seg) > 2)
+    except Exception as e:  # noqa: BLE001
+        failed.append(f"module names ({type(e).__name__})")
+    if names:
+        observability.add_repo_names(names)
+    if failed and observability.redaction_configured():
+        # Previously `except Exception: pass`. Redaction that quietly covers less than
+        # it was asked to is worse than redaction that refuses: the operator reads a
+        # clean-looking log and shares it. Best-effort stays best-effort -- the command
+        # still runs -- but the shortfall is stated.
+        log(style.warn(
+            f"--redact could not enumerate {', '.join(failed)} from this store, so "
+            f"those names are NOT hidden in this run's output."))
+
+
 def _open_store(args) -> tuple[SqliteStore, Path]:
     cfg = kb_config(args)
     store_dir = cfg.store_path
     db_path = store_dir / "index.sqlite"
-    # Every kb command funnels through here, so this is the one place that knows
-    # where the graph lives -- which is what `--metrics-file` needs to publish
-    # its node/edge gauges at the end of the run, and what `--redact` needs to
-    # keep the store's location out of a shared log.
-    observability.note_store_path(db_path)
     store = SqliteStore(db_path)
     check_schema(store)
-    # The mirror path registers its repo ids (core.add_repo_names) so a bare
-    # "namespace/name" is hashed wherever it stands alone, with no workspace root
-    # in front of it to key off. A kb command's output is nothing but those ids --
-    # per-repo index lines, query hits, lint rows -- and it registered none of
-    # them, which is why a redacted kb log still named every repository. The store
-    # is the kb side's equivalent of the fleet list.
-    try:
-        observability.add_repo_names(r.id for r in store.list_repos())
-    except Exception:  # noqa: BLE001,S110 - redaction is best-effort; never fail a command over it
-        pass
+    register_store_for_observability(store, db_path)
     return store, store_dir
 
 

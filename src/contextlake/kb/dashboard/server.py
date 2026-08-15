@@ -548,6 +548,12 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
 
     store_dir = Path(store_dir)
     store = SqliteStore(store_dir / "index.sqlite")
+    # `_open_store` is not the only door. A store opened without this
+    # leaks repository ids under --redact and loses its graph gauges
+    # under --metrics-file -- measured on `dashboard --site --redact`.
+    from ..cmds._common import register_store_for_observability
+
+    register_store_for_observability(store, store_dir / "index.sqlite")
     try:
         # Same gate every `kb` command gets via cmds/_common._open_store. The
         # dashboard reaches the store on its own path, and with --allow-mutations

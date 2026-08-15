@@ -14,6 +14,7 @@ argv -- a URL beginning with ``-`` would otherwise be parsed as a flag, and git'
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import secrets
@@ -85,10 +86,41 @@ def sync_repo(store, store_dir, repo_id: str) -> dict:
     if not needs_reindex(store, repo_id, head):
         return {"ok": True, "repo": repo_id, "changed": False, "message": "already up to date"}
     from ..parse import index_repo_dir  # lazy: tree-sitter
-    shard = index_repo_dir(str(path), repo_id, head_commit=head)
+    shard = index_repo_dir(str(path), repo_id, head_commit=head,
+                           **_parse_opts(store_dir))
     _persist_repo(store, store_dir, repo_id, path, head, shard)
     return {"ok": True, "repo": repo_id, "changed": True,
             "nodes": len(shard.nodes), "edges": len(shard.edges)}
+
+
+def _parse_opts(store_dir) -> dict:
+    """The `[kb]` indexing settings, resolved the same way the CLI resolves them.
+
+    The dashboard's Sync and Add buttons called `index_repo_dir` with NO options, so
+    they silently used the library defaults while `kb index` used the user's config.
+    One click then permanently replaced a repo's filtered graph with an unfiltered one,
+    in the same store, with no message and nothing recording which policy produced which
+    rows. Measured on one repo: the CLI path wrote 3 nodes, the dashboard path 9.
+
+    Resolved from the store's own directory rather than from an argparse Namespace,
+    because the server has no Namespace -- and defaulting to "whatever the library
+    ships" is precisely how the two paths diverged. Any failure falls back to the
+    documented defaults and says so, rather than inventing a third policy.
+    """
+    try:
+        from ..config import load_kb_config
+
+        cfg = load_kb_config(None)
+        return dict(skip_generated=cfg.skip_generated,
+                    max_file_bytes=cfg.max_file_bytes,
+                    languages=cfg.languages)
+    except Exception as e:  # noqa: BLE001 - a config error must not break the button
+        from ...logging_setup import log
+
+        log(f"dashboard: could not read [kb] indexing settings ({type(e).__name__}), "
+            f"indexing with built-in defaults -- this repo's graph may differ from one "
+            f"built by `kb index`", level=logging.WARNING)
+        return {}
 
 
 def add_repo(store, store_dir, workspace, url: str) -> dict:
@@ -115,7 +147,8 @@ def add_repo(store, store_dir, workspace, url: str) -> dict:
     from ..repo_identity import resolve_repo_id
     repo_id = resolve_repo_id(str(dest))
     head = _git_head(dest)
-    shard = index_repo_dir(str(dest), repo_id, head_commit=head)
+    shard = index_repo_dir(str(dest), repo_id, head_commit=head,
+                       **_parse_opts(store_dir))
     _persist_repo(store, store_dir, repo_id, dest, head, shard)
     return {"ok": True, "repo": repo_id, "path": str(dest),
             "nodes": len(shard.nodes), "edges": len(shard.edges)}
