@@ -107,6 +107,12 @@ become part of a command contextlake executes are honoured **only** from the glo
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 
+One key is gated by **direction** rather than outright. A discovered file may set
+`[kb] anonymize = "always"` and may not set it to `"never"`: turning anonymising on is
+always allowed, turning off the setting that hides contributor identities on a dashboard
+you are about to share is not. Same provenance hole, a privacy answer instead of an
+execution one.
+
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
 key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
 any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know

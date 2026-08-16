@@ -45,8 +45,17 @@ def cmd_dashboard(args) -> int:
     from ..dashboard.server import serve_dashboard
     from ..dashboard.site import build_dashboard_site
 
-    store_dir = load_kb_config(getattr(args, "config", None)).store_path
+    cfg = load_kb_config(getattr(args, "config", None))
+    store_dir = cfg.store_path
     dash_dir = store_dir / "dashboard"
+
+    # The flag says "this invocation", the setting says "this machine", and the STRICTER
+    # of the two wins. There is deliberately no way to turn anonymising off from the
+    # command line: `--anonymize` can only ever raise it, so somebody who set
+    # `[kb] anonymize = "always"` cannot lose it to a flag they half-remember. To show
+    # identities again they change the setting, which is a decision with a file behind it
+    # rather than a keystroke in a shell they are screen-sharing.
+    anonymize_default = cfg.anonymize == "always"
 
     sample = getattr(args, "sample", False)
     site = getattr(args, "site", None)
@@ -62,7 +71,7 @@ def cmd_dashboard(args) -> int:
                 "  Pick one -- drop --site to serve, or drop --serve to build."))
             return 1
         out_dir = Path(site) if site else (dash_dir / "site")
-        anonymize = getattr(args, "anonymize", False)
+        anonymize = bool(getattr(args, "anonymize", False)) or anonymize_default
         repos = getattr(args, "repos", None)
         group_depth = _or_default(getattr(args, "group_depth", None), 1)
         src = "the bundled demo fleet" if sample else "the local store"
@@ -117,5 +126,6 @@ def cmd_dashboard(args) -> int:
                     config_path=getattr(args, "config", None),
                     allow_mutations=allow_mutations,
                     workspace=getattr(args, "workspace", None),
-                    anonymize=bool(getattr(args, "anonymize", False)),
+                    anonymize=(bool(getattr(args, "anonymize", False))
+                               or anonymize_default),
                     llm_chat=llm_chat)

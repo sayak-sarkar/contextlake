@@ -60,7 +60,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -78,6 +78,32 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
 > guaranteed-generic demo fleet).
+
+### Making it the default on this machine
+
+`--anonymize` covers one invocation. To make it the standing answer, set it once:
+
+```toml
+# ~/.contextlake/kb.toml
+[kb]
+anonymize = "always"     # or "never", the default
+```
+
+`"always"` hides identities on the served dashboard and in every `--site` export without
+anyone having to remember the flag. It is an explicit setting rather than something
+contextlake infers: nothing in the index records who owns a repository, so any guess it
+made would be wrong for somebody, and wrong in the direction of showing a name.
+
+Two deliberate asymmetries:
+
+- **The flag can only raise it.** There is no `--no-anonymize`. Somebody who set
+  `"always"` cannot lose it to a half-remembered flag in a shell they are screen-sharing;
+  showing identities again means editing the file.
+- **An unreadable value anonymises anyway.** `anonymize = "alway"` is a typo, and it
+  resolves to `"always"` with a warning naming the spelling, not to the `"never"` default.
+
+A `.contextlake.kb.toml` found by walking up from the current directory may turn this
+**on** but never off. See [Configuration](configuration.md) for why.
 
 ## 3. The fleet overview
 

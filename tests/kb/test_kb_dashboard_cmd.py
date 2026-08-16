@@ -50,8 +50,16 @@ def _stub_serving(tmp_path, monkeypatch) -> dict:
     "accepted" assertion below means the guard let the call through, and
     nothing more.
     """
+    # A REAL KbConfig with the store redirected, not a two-attribute stand-in. The
+    # stand-in carried `store_path` alone, so the day the command read a second field it
+    # raised AttributeError across sixteen parametrised cases at once, for a reason that
+    # had nothing to do with what any of them assert. A real config gains new fields with
+    # their real defaults and cannot drift from the class it is impersonating.
+    from contextlake.kb.config import KbConfig
+
+    cfg = KbConfig(store_dir=str(tmp_path))
     monkeypatch.setattr("contextlake.kb.cmds.dashboard.load_kb_config",
-                        lambda *_a, **_k: type("C", (), {"store_path": tmp_path})())
+                        lambda *_a, **_k: cfg)
     monkeypatch.setattr("contextlake.kb.dashboard.site.materialize_sample_store",
                         lambda tmp: tmp)
     called: dict = {}

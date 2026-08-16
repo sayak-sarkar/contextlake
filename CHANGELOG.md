@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`[kb] anonymize = "always"` makes anonymising the standing answer on a machine**,
+  covering the served dashboard and every `--site` export without anyone remembering the
+  flag. Default `"never"`, so nothing changes for anyone who does not set it.
+
+  Explicit rather than inferred, decided rather than defaulted. The intent was to turn it
+  on automatically when the store holds repos the operator does not own, and the index
+  cannot answer that: a repository record carries id, path, host, branch and commit, and
+  no ownership. The most obvious substitute, whether a repo id sits inside the configured
+  mirror group, inverts on the case that motivated the rule, since mirroring an
+  organisation you contribute to but do not own puts every repo inside the group.
+
+  Three deliberate asymmetries, each because this setting guards people rather than
+  preferences. `--anonymize` can only raise it and there is no `--no-anonymize`, so a
+  standing `"always"` cannot be lost to a half-remembered flag in a shared shell. An
+  unreadable value anonymises anyway, with a warning quoting the spelling, because a typo
+  must not read as permission to show a name. And a `.contextlake.kb.toml` found by
+  walking up from the current directory may turn it on but never off, since contextlake
+  clones repositories into the workspace itself and a checkout could otherwise disable
+  the operator's own setting.
+
 ### Fixed
 
 - **`--anonymize` no longer serves a repo's wiki prose on a second route.** The served

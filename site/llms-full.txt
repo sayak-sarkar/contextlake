@@ -1847,6 +1847,12 @@ become part of a command contextlake executes are honoured **only** from the glo
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 
+One key is gated by **direction** rather than outright. A discovered file may set
+`[kb] anonymize = "always"` and may not set it to `"never"`: turning anonymising on is
+always allowed, turning off the setting that hides contributor identities on a dashboard
+you are about to share is not. Same provenance hole, a privacy answer instead of an
+execution one.
+
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
 key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
 any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
@@ -4074,7 +4080,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -4092,6 +4098,32 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
 > guaranteed-generic demo fleet).
+
+### Making it the default on this machine
+
+`--anonymize` covers one invocation. To make it the standing answer, set it once:
+
+```toml
+# ~/.contextlake/kb.toml
+[kb]
+anonymize = "always"     # or "never", the default
+```
+
+`"always"` hides identities on the served dashboard and in every `--site` export without
+anyone having to remember the flag. It is an explicit setting rather than something
+contextlake infers: nothing in the index records who owns a repository, so any guess it
+made would be wrong for somebody, and wrong in the direction of showing a name.
+
+Two deliberate asymmetries:
+
+- **The flag can only raise it.** There is no `--no-anonymize`. Somebody who set
+  `"always"` cannot lose it to a half-remembered flag in a shell they are screen-sharing;
+  showing identities again means editing the file.
+- **An unreadable value anonymises anyway.** `anonymize = "alway"` is a typo, and it
+  resolves to `"always"` with a warning naming the spelling, not to the `"never"` default.
+
+A `.contextlake.kb.toml` found by walking up from the current directory may turn this
+**on** but never off. See [Configuration](configuration.md) for why.
 
 ## 3. The fleet overview
 
@@ -6192,6 +6224,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`[kb] anonymize = "always"` makes anonymising the standing answer on a machine**,
+  covering the served dashboard and every `--site` export without anyone remembering the
+  flag. Default `"never"`, so nothing changes for anyone who does not set it.
+
+  Explicit rather than inferred, decided rather than defaulted. The intent was to turn it
+  on automatically when the store holds repos the operator does not own, and the index
+  cannot answer that: a repository record carries id, path, host, branch and commit, and
+  no ownership. The most obvious substitute, whether a repo id sits inside the configured
+  mirror group, inverts on the case that motivated the rule, since mirroring an
+  organisation you contribute to but do not own puts every repo inside the group.
+
+  Three deliberate asymmetries, each because this setting guards people rather than
+  preferences. `--anonymize` can only raise it and there is no `--no-anonymize`, so a
+  standing `"always"` cannot be lost to a half-remembered flag in a shared shell. An
+  unreadable value anonymises anyway, with a warning quoting the spelling, because a typo
+  must not read as permission to show a name. And a `.contextlake.kb.toml` found by
+  walking up from the current directory may turn it on but never off, since contextlake
+  clones repositories into the workspace itself and a checkout could otherwise disable
+  the operator's own setting.
 
 ### Fixed
 

@@ -190,6 +190,22 @@ class KbConfig(BaseModel):
     # Parallel workers for the per-repo parse (CPU-bound). None -> auto (cpu-1,
     # capped at 8). Set 1 to force serial.
     index_workers: int | None = None
+    # Whether the dashboard hides contributor identities, external link URLs and
+    # free-text prose (README and wiki bodies). "never" (the default) shows them;
+    # "always" hides them on both the served dashboard and the `--site` export.
+    #
+    # An explicit setting rather than an inferred one, decided deliberately. The
+    # standing intent was "on when the store holds repos the operator does not own",
+    # and NOTHING in the data model can answer that: a `Repo` records id, path, host,
+    # branch and commit, and no ownership. Every candidate signal is a guess, and the
+    # most obvious one (does the repo id sit inside the configured mirror group)
+    # inverts on the case that motivated the rule, since mirroring an organisation you
+    # contribute to but do not own puts every repo INSIDE the group. So the operator
+    # states their own answer once, and no inference can be wrong.
+    #
+    # `--anonymize` on the command line still forces it on for that run: a flag says
+    # "this invocation", the setting says "this machine", and the stricter wins.
+    anonymize: str = "never"
     embeddings: EmbeddingsCfg = Field(default_factory=EmbeddingsCfg)
     llm: LlmCfg = Field(default_factory=LlmCfg)
     sources: list[SourceCfg] = Field(default_factory=list)
@@ -310,6 +326,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         skip_generated=kb.get("skip_generated", True),
         max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
         index_workers=kb.get("index_workers", None),
+        anonymize=_anonymize_value(kb.get("anonymize")),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
         llm=LlmCfg(**merged.get("llm", {})),
         sources=[SourceCfg(**s) for s in merged.get("sources", [])],
@@ -334,7 +351,9 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 # The keys that live under [kb]; the other KbConfig fields come from their own
 # top-level tables. A key/table outside these is warned (a silent-ignore, like a
 # `store` typo for `store_dir`, is how a whole run lands in the wrong place).
-_KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers"}
+_KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers",
+            "anonymize"}
+ANONYMIZE_VALUES = ("never", "always")
 _TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
 # Tables of scalar fields, deep-merged key-by-key across the precedence chain (see
 # load_kb_config). sources/rules are list tables and stay wholesale-replaced by design.
@@ -350,10 +369,22 @@ def _drop_executable_keys(table: str, values, source: str):
     """
     if table in _SCALAR_TABLES and isinstance(values, dict):
         dropped = [k for k, v in values.items() if is_executable_key(table, k, v)]
-        if not dropped:
+        # `[kb] anonymize` may only be STRENGTHENED by a file found by walking up from
+        # the current directory. The provenance hole this module documents is not only
+        # about running a program: a checkout that ships `anonymize = "never"` turns off
+        # the operator's own privacy setting for any dashboard they serve while sitting
+        # in that directory, and contextlake clones repositories into the workspace
+        # itself. Dropping the key outright would break honest directory-scoped config,
+        # so only the weakening direction is refused; "always" from any file is honoured.
+        weakens_privacy = (
+            table == "kb" and str(values.get("anonymize", "always")).lower() != "always")
+        if not dropped and not weakens_privacy:
             return values
         for key in dropped:
             _warn_untrusted(f"[{table}] {key}", source)
+        if weakens_privacy:
+            _warn_untrusted_privacy(source)
+            dropped = [*dropped, "anonymize"]
         return {k: v for k, v in values.items() if k not in dropped}
     if table == "sources" and isinstance(values, list):
         # sources is a list table: screen each entry's dict. A source's transport
@@ -394,6 +425,44 @@ def _warn_untrusted(what: str, source: str) -> None:
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say "
         "you meant this file. See SECURITY.md, 'Workspace trust'.",
         level=logging.WARNING)
+
+
+def _warn_untrusted_privacy(source: str) -> None:
+    """The same refusal for `[kb] anonymize`, which needs its own sentence.
+
+    The generic message says "may not set keys that run a program", which is not what
+    happened and would send the reader looking for an exec they will not find. This one
+    names the direction, because setting it to "always" from the same file is allowed."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", "[kb] anonymize")
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring [kb] anonymize from {source} -- a config file found by "
+        "walking up from the current directory may turn anonymising ON, but never OFF. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _anonymize_value(raw) -> str:
+    """`[kb] anonymize` normalised, with an unrecognised value failing SAFE.
+
+    A typo (`anonymize = "alway"`) resolves to "always", not to the "never" default.
+    Deliberate, and the inverse of how every other unknown value here is treated: this
+    one guards identities, and a misspelling that quietly showed them would be found by
+    the person whose name was on the screen. The warning names the value's own spelling
+    so the fix is obvious, and the operator is never worse off than they asked for.
+    """
+    if raw is None:
+        return "never"
+    value = str(raw).strip().lower()
+    if value in ANONYMIZE_VALUES:
+        return value
+    log(f"config: [kb] anonymize = {raw!r} is not one of "
+        f"{', '.join(ANONYMIZE_VALUES)}; anonymising ANYWAY, since an unreadable "
+        "privacy setting must not be read as permission to show identities.",
+        level=logging.WARNING)
+    return "always"
 
 
 def _warn_unknown_config(kb: dict, merged: dict) -> None:
