@@ -6177,6 +6177,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.10.0] - 2026-08-16
+
 ### Added
 
 - **CSS, HTML and Nix, with purpose-built node kinds.** A stylesheet's class, id and element
@@ -6228,6 +6230,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every other language yields definitions, imports and calls. `docs/style-guide-reference.md`
   holds the phrasing and a test derives both counts from the parser, so a page cannot drift
   from the code again.
+
+### Changed
+
+- **A missing grammar package now names itself and its install command.** Grammars come from
+  a table rather than a fourteen-branch import chain, so a language whose package is not
+  installed raises with the package name instead of a bare `ImportError` from a module the
+  reader never asked for. Proven equivalent before the swap: every language then supported
+  produced the same grammar through the table as through the chain.
 
 
 ## [7.9.0] - 2026-08-16
