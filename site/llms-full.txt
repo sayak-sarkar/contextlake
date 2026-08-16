@@ -6225,6 +6225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.11.0] - 2026-08-17
+
 ### Added
 
 - **How a program is STARTED is now in the graph**, as an `entry_point` node. A list of
