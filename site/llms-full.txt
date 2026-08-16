@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **23 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **25 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -2070,7 +2070,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **23 languages across 22 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **25 languages across 23 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs across three tiers, and a single number would hide it.
@@ -2080,6 +2080,7 @@ Depth differs across three tiers, and a single number would hide it.
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
 | Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+| Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
 
 On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
 are worth naming rather than leaving to be discovered: Zig declares a struct as
@@ -6197,8 +6198,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this page uses", or "which stylesheet styles every button". A name no stylesheet defines
   resolves to nothing rather than to a node invented to receive it.
 
-- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 23, across
-  22 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **Svelte and Vue single-file components.** Each `<script>` is parsed as JavaScript and each
+  `<style>` as CSS, and every symbol is reported at its line in the FILE rather than in the
+  block. Neither grammar parses the embedded blocks, so the outer grammar finds boundaries
+  and the contents go through the JavaScript and CSS grammars; Svelte uses its own grammar
+  and `.vue` borrows HTML's, since no tree-sitter-vue package exists anywhere. A component
+  with no script and no style still appears in the graph.
+
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 25, across
+  23 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
@@ -12497,7 +12505,7 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "23 languages across 22 tree-sitter grammars" (`.tsx` shares the TypeScript
+- **The language count:** "25 languages across 23 tree-sitter grammars" (`.tsx` shares the TypeScript
   grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
   numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.

@@ -164,6 +164,7 @@ _LANG_LABELS = {
     "swift": "SW", "dart": "DT", "zig": "ZG", "perl": "PL", "bash": "SH",
     "elixir": "EX",
     "css": "CSS", "html": "HTM", "nix": "NIX",
+    "svelte": "SVE", "vue": "VUE",
 }
 
 

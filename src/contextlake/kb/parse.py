@@ -115,6 +115,7 @@ LANG_BY_EXT = {
     ".ex": "elixir", ".exs": "elixir",
     ".css": "css", ".html": "html", ".htm": "html",
     ".nix": "nix",
+    ".svelte": "svelte", ".vue": "vue",
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "tsx",
     ".cs": "csharp",
@@ -317,7 +318,7 @@ _DEF_TYPES["elixir"] = {"call": "function"}
 # pseudo-class in `a.nav:hover` is the same `class_name` node as the real class in `.nav`,
 # so a node type cannot tell a selector from a pseudo-class, and a query that captured
 # both would invent a CSS class called `hover`.
-for _markup in ("css", "html", "nix"):
+for _markup in ("css", "html", "nix", "svelte", "vue"):
     _DEF_TYPES[_markup] = {}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
@@ -500,7 +501,7 @@ _QUERIES = {
         (call target: (identifier) @kw (arguments (call target: (identifier) @def)))
     """,
 }
-for _markup in ("css", "html", "nix"):
+for _markup in ("css", "html", "nix", "svelte", "vue"):
     _QUERIES[_markup] = ""
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -556,6 +557,11 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "css": ("tree_sitter_css", "language"),
     "html": ("tree_sitter_html", "language"),
     "nix": ("tree_sitter_nix", "language"),
+    "svelte": ("tree_sitter_svelte", "language"),
+    # `.vue` has no tree-sitter package anywhere, and its template/script/style structure
+    # is what the HTML grammar already parses. Same shape as typescript and tsx sharing
+    # one package: a row, not a special case.
+    "vue": ("tree_sitter_html", "language"),
 }
 
 
@@ -2057,8 +2063,83 @@ def _walk_source_files(
                 yield sf
 
 
+# A single-file component keeps JavaScript and CSS inside markup. Neither the Svelte nor
+# the HTML grammar parses those blocks: both hand back the contents as one opaque
+# `raw_text` node. So the grammar's job here is finding the block boundaries reliably, and
+# the contents still have to go through the JavaScript and CSS grammars.
+#
+# Svelte uses its own grammar and Vue uses HTML's, which parses a `.vue` file's
+# template/script/style structure correctly and means Vue needs no dependency that does not
+# exist on PyPI.
+_SFC_OUTER = {"svelte": "svelte", "vue": "html"}
+_SFC_INNER = {"script_element": "javascript", "style_element": "css"}
+
+
+def _sfc_blocks(source: bytes, lang: str) -> list[tuple[str, bytes]]:
+    """`(inner_lang, masked_source)` for each script/style block of a component file.
+
+    MASKED, not sliced, and that is the whole correctness argument. Everything outside the
+    block is replaced byte-for-byte with spaces while newlines are kept, so the block sits
+    at its true offset and every line number the inner parser reports is the line in the
+    FILE. Slicing the block out and parsing it alone would report line 1 for a function on
+    line 40, and a citation that points at the wrong line is the one failure this project
+    cannot afford: it looks exactly like a correct answer.
+    """
+    outer = _SFC_OUTER.get(lang)
+    if outer is None:
+        return []
+    out: list[tuple[str, bytes]] = []
+    stack = [_parser(outer).parse(source).root_node]
+    while stack:
+        n = stack.pop()
+        inner = _SFC_INNER.get(n.type)
+        if inner is not None:
+            raw = next((c for c in n.children if c.type == "raw_text"), None)
+            if raw is not None and raw.end_byte > raw.start_byte:
+                masked = bytearray(b" " * len(source))
+                for i, byte in enumerate(source):
+                    if byte == 0x0A:            # keep every newline where it is
+                        masked[i] = 0x0A
+                masked[raw.start_byte:raw.end_byte] = source[raw.start_byte:raw.end_byte]
+                out.append((inner, bytes(masked)))
+        stack.extend(n.children)
+    return out
+
+
+def _parse_sfc(repo_id: str, sf: SourceFile, refs: RefCollector,
+               ) -> tuple[list[Node], list[Edge]]:
+    """A single-file component: parse each embedded block with the grammar that fits it.
+
+    The file node keeps the COMPONENT's language rather than the last block's, because the
+    file is a `.svelte` file whatever its script happens to be written in.
+    """
+    nodes: list[Node] = []
+    edges: list[Edge] = []
+    seen: set[str] = set()
+    for inner_lang, masked in _sfc_blocks(sf.source, sf.lang):
+        bn, be, calls, inh = parse_source(repo_id, sf.rel, masked, inner_lang)
+        refs.calls.extend(calls)
+        refs.inherits.extend(inh)
+        for node in bn:
+            if node.id in seen:
+                continue
+            seen.add(node.id)
+            nodes.append(node.model_copy(update={"lang": sf.lang})
+                         if node.kind == "file" else node)
+        edges.extend(be)
+    if not nodes:
+        # No blocks at all (a template-only component). The file still belongs in the
+        # graph, and saying so beats a file that silently is not there.
+        file_id = make_id(repo_id, sf.rel)
+        nodes.append(Node(id=file_id, repo=repo_id, kind="file", name=sf.rel,
+                          file=sf.rel, lang=sf.lang))
+    return nodes, edges
+
+
 def _parse_code(repo_id: str, sf: SourceFile, refs: RefCollector,
                 ) -> tuple[list[Node], list[Edge]]:
+    if sf.lang in _SFC_OUTER:
+        return _parse_sfc(repo_id, sf, refs)
     nodes, edges, calls, inh = parse_source(repo_id, sf.rel, sf.source, sf.lang)
     refs.calls.extend(calls)
     refs.inherits.extend(inh)

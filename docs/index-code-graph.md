@@ -163,7 +163,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **23 languages across 22 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **25 languages across 23 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs across three tiers, and a single number would hide it.
@@ -173,6 +173,7 @@ Depth differs across three tiers, and a single number would hide it.
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
 | Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+| Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
 
 On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
 are worth naming rather than leaving to be discovered: Zig declares a struct as

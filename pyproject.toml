@@ -88,6 +88,9 @@ kb = [
     "tree-sitter-elixir>=0.3",
     # Presentation tier: the names other files refer to, not code symbols.
     "tree-sitter-css>=0.25", "tree-sitter-html>=0.23", "tree-sitter-nix>=0.1",
+    # Svelte uses its own grammar; `.vue` borrows HTML's, since no tree-sitter-vue
+    # package exists on PyPI at all.
+    "tree-sitter-svelte>=1.0",
 ]
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).

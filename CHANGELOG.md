@@ -28,8 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this page uses", or "which stylesheet styles every button". A name no stylesheet defines
   resolves to nothing rather than to a node invented to receive it.
 
-- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 23, across
-  22 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **Svelte and Vue single-file components.** Each `<script>` is parsed as JavaScript and each
+  `<style>` as CSS, and every symbol is reported at its line in the FILE rather than in the
+  block. Neither grammar parses the embedded blocks, so the outer grammar finds boundaries
+  and the contents go through the JavaScript and CSS grammars; Svelte uses its own grammar
+  and `.vue` borrows HTML's, since no tree-sitter-vue package exists anywhere. A component
+  with no script and no style still appears in the graph.
+
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 25, across
+  23 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
