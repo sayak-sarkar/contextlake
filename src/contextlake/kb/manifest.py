@@ -168,6 +168,12 @@ def parse_manifest(
     fname = rel_path.rsplit("/", 1)[-1]
     published: str | None = None
     deps: list[str] = []
+    # Console entry points the PACKAGING declares: the commands a user gets on their
+    # PATH after installing this. A parse tree cannot see these -- `[project.scripts]`
+    # names a command and points at a function that may live in another file entirely --
+    # so they are a second producer of the same `entry_point` kind rather than something
+    # the tree-sitter pass could be extended to cover.
+    scripts: list[str] = []
     ecosystem = ""
 
     if fname == "pyproject.toml":
@@ -182,6 +188,9 @@ def parse_manifest(
         for group in (proj.get("optional-dependencies") or {}).values():
             raw += list(group)
         deps = [n for d in raw if (n := _dep_name(d))]
+        # `[project.scripts]` and `[project.gui-scripts]` both install a command.
+        scripts = [k for key in ("scripts", "gui-scripts")
+                   for k in (proj.get(key) or {})]
     elif fname == "package.json":
         ecosystem = "npm"
         try:
@@ -191,6 +200,18 @@ def parse_manifest(
         published = data.get("name")
         for section in ("dependencies", "devDependencies", "peerDependencies"):
             deps += list(data.get(section) or {})
+        # `bin` is a string when the package installs ONE command named after itself,
+        # and an object when it installs several. Both spellings are common and the
+        # string form is the one a dict-only reading drops silently.
+        #
+        # `scripts` is deliberately NOT read: those are `npm run` targets, which is a
+        # different fact from a command on your PATH, and treating a repo's `test` and
+        # `lint` entries as entry points would bury the real one.
+        binv = data.get("bin")
+        if isinstance(binv, str):
+            scripts = [published] if published else []
+        elif isinstance(binv, dict):
+            scripts = list(binv)
     elif fname.endswith(".csproj"):
         ecosystem = "nuget"
         published = fname[: -len(".csproj")]
@@ -218,5 +239,14 @@ def parse_manifest(
         pn = _package_node(dep, ecosystem)
         nodes.append(pn)
         edges.append(Edge(src=file_id, dst=pn.id, relation="depends_on",
+                          confidence=Confidence.EXTRACTED, provenance=prov))
+    # Scoped to the repo, unlike the package nodes above, which are fleet-wide on
+    # purpose: `serve` is a command THIS project installs, and two repos that both
+    # install one named `serve` install two different programs.
+    for command in dict.fromkeys(c for c in scripts if c):
+        eid = make_id(repo_id, f"{rel_path}#{command}")
+        nodes.append(Node(id=eid, repo=repo_id, kind="entry_point", name=command,
+                          file=rel_path, line_start=1))
+        edges.append(Edge(src=file_id, dst=eid, relation="contains",
                           confidence=Confidence.EXTRACTED, provenance=prov))
     return nodes, edges

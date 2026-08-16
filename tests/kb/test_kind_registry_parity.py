@@ -44,7 +44,10 @@ _MEMBER_FIXTURES = {
             b"int g = 0;\n"
             b"class C { int f_; };\n"),
     "javascript": b'const g = 1;\nclass C { f = 2; }\n',
-    "python": b'g = 1\n\n\nclass C:\n    f = 2\n',
+    # The `if __name__` guard is here because Python's entry point is the ONE that
+    # cannot be a re-kind: there is no definition node to re-kind, so this branch of
+    # `_py_member_symbols` is its only producer and a fixture without it is blind to it.
+    "python": b'g = 1\n\n\nclass C:\n    f = 2\n\n\nif __name__ == "__main__":\n    pass\n',
     "css": b'.c { }\n#i { }\nel { }\n',
     "html": b'<div id="i"></div>\n',
     "nix": b'{ attr = 1; }\n',
@@ -92,8 +95,11 @@ def _produced_kinds() -> set[str]:
     return (
         # tree-sitter definition types, introspected -- self-maintaining
         {k for m in parse._DEF_TYPES.values() for k in m.values()}
-        # parse.py's own literals: the test-macro re-kind, plus file/module nodes
-        | {"test", "file", "module"}
+        # parse.py's own literals: the two RE-KINDS (test-macro, and the entry-point
+        # check that turns a qualifying `main` into `entry_point`), plus file/module
+        # nodes. Neither re-kind is in `_DEF_TYPES`, so introspecting that table alone
+        # reports both as produced by nothing.
+        | {"test", "file", "module", "entry_point"}
         # parse.py's member pass (`_member_symbols`), which is a SEPARATE producer from
         # _DEF_TYPES. Introspecting only _DEF_TYPES made this guard silently pass while
         # five brand-new kinds went unregistered -- the exact drift it exists to catch.

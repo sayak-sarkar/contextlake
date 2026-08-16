@@ -436,6 +436,24 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
+    # How the program is STARTED, which is the first question anybody arriving at an
+    # unfamiliar repository asks and the one a list of functions cannot answer. Grouped
+    # with the service surfaces because those are the other ways in; a route and a `main`
+    # are the same category of fact told about different kinds of program.
+    #
+    # Re-kinded from `function`/`method` rather than added beside one, the same call the
+    # `test` kind already makes: a symbol carries one kind, and the more specific one is
+    # what the question is about.
+    "entry_point": KindSpec(
+        color="#22c55e", glyph=None, group="Service surfaces",
+        embeddable=False,
+        why_not_embeddable="`main` is the same name in every repository, so it carries "
+                           "no distinguishing text to match a query against",
+        impact_source=True, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=True, inheritable_target=False,
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
     # --- Build and configuration ---------------------------------------------------
     # A Make target is a name a person types at a shell and a CI job invokes, so it is the
     # one kind here whose vocabulary is genuinely written by the author rather than drawn

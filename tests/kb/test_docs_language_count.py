@@ -76,3 +76,36 @@ def test_no_page_still_carries_the_previous_count(relpath, _phrase):
         assert not re.search(rf"(?<!\d){stale} languages\b", text), (
             f"{relpath} still says '{stale} languages' somewhere alongside the current "
             f"count of {LANGUAGES}")
+
+
+# --- the OTHER count on the same page, which had already drifted --------------------
+
+def test_the_vocabulary_diagram_alt_text_states_the_real_counts():
+    """The graph-vocabulary image's alt text names how many kinds and bands it shows.
+
+    It said "40 node kinds in 9 bands" against a registry holding 48 in 10, having gone
+    stale several releases before anyone read it. Alt text is the version of that image a
+    screen-reader user gets, so a wrong number there is not cosmetic: it is the only
+    description they receive, and it was describing a different diagram.
+
+    Derived from the registry for the same reason the language count is: a number written
+    by hand beside a table that grows is a number that will be wrong.
+    """
+    from contextlake.kb.kinds import KIND_GROUP_ORDER, KIND_REGISTRY
+
+    text = (REPO / "docs/index-code-graph.md").read_text(encoding="utf-8")
+    phrase = f"all {len(KIND_REGISTRY)} node kinds in {len(KIND_GROUP_ORDER)} bands"
+    assert phrase in text, (
+        f"docs/index-code-graph.md does not contain {phrase!r}. The vocabulary diagram's "
+        f"alt text must state the counts the registry actually holds; regenerate the "
+        f"diagram and update the alt text together.")
+
+
+def test_that_alt_text_check_is_not_vacuous():
+    """Both halves must be plausible, or the assertion above could pass against a page
+    that says "all 0 node kinds in 0 bands"."""
+    from contextlake.kb.kinds import KIND_GROUP_ORDER, KIND_REGISTRY
+
+    assert len(KIND_REGISTRY) >= 40, "the registry shrank unexpectedly; check the source"
+    assert 5 <= len(KIND_GROUP_ORDER) <= 30
+    assert len(KIND_GROUP_ORDER) < len(KIND_REGISTRY)

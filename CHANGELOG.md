@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **How a program is STARTED is now in the graph**, as an `entry_point` node. A list of
+  functions cannot answer "how do I run this", which is the first question anybody
+  arriving at an unfamiliar repository asks.
+
+  Two producers, because the fact arrives two ways. In most languages the entry point is
+  an ordinary definition that something else makes special, so the kind is REFINED from
+  `function`/`method` rather than a second node added beside it, the same call the `test`
+  kind already makes. Python's `if __name__ == "__main__":` is an `if_statement` and not a
+  definition at all, and `[project.scripts]` / package.json `bin` name a command that may
+  point into another file entirely, so each of those produces its own node.
+
+  Each language needs a SECOND condition, and that condition is the whole feature. Go's
+  package must be `main`, because `func main()` in a helper package is an ordinary
+  function that Go will not build as a command and that looks identical to the real thing.
+  Java and C# require `static`. Rust, Kotlin, C and C++ require the top level of the file.
+  Without them every helper called `main` anywhere in a repository is advertised as a way
+  to run the project.
+
+  Covered: Go, Rust, C, C++, Kotlin, Java, C# (`Main`, the one language that capitalises
+  it), Python, plus `pyproject.toml` console scripts and package.json `bin`. `npm run`
+  targets are deliberately NOT read: those are build tasks rather than commands on your
+  PATH, and treating `test` and `lint` as entry points would bury the real one.
+
+  **This is a parser change, so every existing store is stale and re-indexes itself.**
+  `kb index` already refuses to skip a repository whose graph an older parser built, and
+  says how many it is re-indexing and why. Nothing to do by hand.
+
+### Fixed
+
+- **The graph-vocabulary diagram's alt text stated the wrong counts**, "40 node kinds in
+  9 bands" against a registry holding 48 in 10, having drifted several releases earlier.
+  Alt text is the version of that image a screen-reader user receives, so a wrong number
+  there is the whole description rather than a detail beside it. Both counts are derived
+  from the registry by a test now.
+
 - **`[kb] anonymize = "always"` makes anonymising the standing answer on a machine**,
   covering the served dashboard and every `--site` export without anyone remembering the
   flag. Default `"never"`, so nothing changes for anyone who does not set it.

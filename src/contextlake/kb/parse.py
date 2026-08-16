@@ -280,7 +280,7 @@ def _has_generated_header(source: bytes) -> bool:
 # was C/C++ only, and now also runs for JavaScript, TypeScript, TSX and Python, so every
 # repository in those languages gains `global_variable` and `field` nodes plus their
 # `contains` edges. A commit-keyed check cannot see it, because no commit moved.
-PARSER_VERSION = "5"
+PARSER_VERSION = "6"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -1079,6 +1079,12 @@ def parse_source(
         line = name_node.start_point[0] + 1
         kind = ("test" if macro_case is not None
                 else _lang_kind(lang, def_ts) or _DEF_TYPES[lang][def_ts.type])
+        # An entry point is re-kinded rather than duplicated, the same call `test`
+        # already makes one line up: a symbol has one kind, and the more specific one is
+        # the answer to the question somebody is actually asking. "How do I run this"
+        # cannot be answered by a list of functions.
+        if kind in ("function", "method") and _is_entry_point(lang, def_ts, name):
+            kind = "entry_point"
         # A forward declaration ("class Widget;", the standard way to break header
         # include cycles in C/C++) is a body-less class_specifier/struct_specifier/
         # enum_specifier/union_specifier -- not a definition in the graph-node sense.
@@ -1673,6 +1679,34 @@ def _js_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     return out
 
 
+def _dunder_main_name_node(if_stmt: ts.Node) -> ts.Node | None:
+    """The `__main__` literal of an `if __name__ == "__main__":` guard, or None.
+
+    Returns the string's CONTENT node so the graph node is named `__main__` rather than
+    `"__main__"` with its quotes, and so its line is the guard's own line.
+
+    Both operands are checked, because `if "__main__" == __name__:` is legal Python that
+    a linter will not rewrite. Checking one side is the kind of half-match that reads as
+    complete until somebody writes the other order.
+    """
+    for cmp_node in if_stmt.children:
+        if cmp_node.type != "comparison_operator":
+            continue
+        parts = [c for c in cmp_node.children if c.type in ("identifier", "string")]
+        if len(parts) != 2:
+            continue
+        names = {p.text for p in parts if p.type == "identifier"}
+        if b"__name__" not in names:
+            continue
+        for p in parts:
+            if p.type != "string":
+                continue
+            for piece in p.children:
+                if piece.type == "string_content" and piece.text == b"__main__":
+                    return piece
+    return None
+
+
 def _py_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     """Module-level names and class attributes for Python.
 
@@ -1699,6 +1733,20 @@ def _py_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     for ch in tree.root_node.children:
         if ch.type == "expression_statement":
             _assigned_names(ch, "global_variable")
+        # Python's entry point is not a definition at all, so unlike every other
+        # language's it cannot be re-kinded from one: `if __name__ == "__main__":` is an
+        # `if_statement`, and the thing that makes it special lives in its condition.
+        # This is the same shape as the CSS pseudo-class problem, where a node type
+        # cannot express the distinction and the extraction has to be code.
+        #
+        # The node is named `__main__`, which is what the file is called when it runs
+        # that way. Naming it after the module would collide with the module node, and
+        # naming it after whatever the block calls would be a guess about which of
+        # several statements is "the" entry.
+        elif ch.type == "if_statement":
+            named = _dunder_main_name_node(ch)
+            if named is not None:
+                out.append(("entry_point", named, ch))
 
     stack = list(tree.root_node.children)
     while stack:
@@ -1780,6 +1828,71 @@ def _def_name_text(node: ts.Node, lang: str) -> str | None:
         return None
     nm = node.child_by_field_name("name")
     return nm.text.decode("utf-8", "replace") if nm is not None else None
+
+
+# The name a language spells its process entry point with. Case matters: C# is `Main`
+# and everything else here is `main`, which is exactly the sort of detail that silently
+# halves a feature's coverage if it is assumed rather than checked.
+_ENTRY_NAMES = {
+    "go": "main", "rust": "main", "c": "main", "cpp": "main", "kotlin": "main",
+    "java": "main", "csharp": "Main",
+}
+
+# Languages where being the entry point means being at the TOP LEVEL of the file. A
+# `main` nested inside another function is a local helper, not the way in.
+_ENTRY_TOPLEVEL_LANGS = frozenset({"go", "rust", "c", "cpp", "kotlin"})
+
+# ...and the two where it is a METHOD, so the signal is a modifier rather than depth.
+# Java spells the modifier list `modifiers` and C# repeats singular `modifier` nodes.
+_ENTRY_MODIFIER_NODES = {"java": "modifiers", "csharp": "modifier"}
+
+
+def _is_entry_point(lang: str, def_ts: ts.Node, name: str) -> bool:
+    """Whether this definition is how the program is STARTED, not merely called `main`.
+
+    Each language needs a second condition, and the second condition is the whole point.
+    Without it every helper named `main` anywhere in a repository becomes an advertised
+    way to run the project, which is a name nobody wrote as an entry point appearing in
+    the graph as though somebody had.
+
+    - **Go**: the package must BE `main`. A `func main()` in a helper package is an
+      ordinary function and Go will not build it as a command. This is the case most
+      likely to be got wrong, because the function looks identical.
+    - **Rust, Kotlin, C, C++**: the definition must sit at the top level of the file.
+    - **Java, C#**: the method must be `static`. An instance method named `main` is not
+      an entry point in either language.
+    """
+    if _ENTRY_NAMES.get(lang) != name:
+        return False
+    if lang in _ENTRY_TOPLEVEL_LANGS:
+        parent = def_ts.parent
+        if parent is not None and parent.parent is not None:
+            return False
+        if lang == "go":
+            return _go_package_name(def_ts) == "main"
+        return True
+    holder = _ENTRY_MODIFIER_NODES.get(lang)
+    if holder is None:
+        return False
+    return any(c.type == holder and b"static" in c.text for c in def_ts.children)
+
+
+def _go_package_name(node: ts.Node) -> str | None:
+    """The `package X` name of the file ``node`` belongs to, or None.
+
+    Read from the tree rather than threaded in, because the entry-point decision is the
+    only thing that needs it and a parameter for one language's one question would reach
+    every call site of the kind computation.
+    """
+    root = node
+    while root.parent is not None:
+        root = root.parent
+    for child in root.children:
+        if child.type == "package_clause":
+            for part in child.children:
+                if part.type == "package_identifier":
+                    return part.text.decode("utf-8", "replace")
+    return None
 
 
 def _lang_kind(lang: str, def_ts: ts.Node) -> str | None:
