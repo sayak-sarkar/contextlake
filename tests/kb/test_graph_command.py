@@ -754,12 +754,24 @@ def test_html_is_offline_by_default(store):
     assert len(html) > 100_000         # the vendored lib is inlined
     html_cdn = viz.to_html(_payload(store), cdn=True)
     assert _CDN_URL in html_cdn        # --cdn references the CDN
-    # ...and does not inline any vendored lib. The page's own JS/CSS (app shell,
-    # minimap, semantic zoom, LOD labels, legend glyphs, dagre-preview wiring, the
-    # PNG/SVG exporters, and the accessible text view) is always inlined and sits
-    # ~139KB; the bound stays under the smallest lib we could accidentally inline
-    # (cytoscape-dom-node, ~10KB) so a regression still trips it.
-    assert len(html_cdn) < 146_000
+    # ...and inlines NO vendored lib. Asserted against each library's own bytes rather
+    # than a byte ceiling on the page. The ceiling was a literal 146,000, chosen to sit
+    # just above the always-inlined app shell so that inlining even the smallest lib
+    # (cytoscape-dom-node, ~10KB) would trip it -- and the shell grows a little with
+    # every node kind added, so that literal failed on a change that had nothing to do
+    # with vendoring, and the only available repair was to raise it until it detected
+    # nothing. Reading the libraries makes the assertion say what it means and stop
+    # moving.
+    static = Path(viz.__file__).resolve().parent.parent / "static"
+    vendored = sorted(static.glob("cytoscape*.js"))
+    assert vendored, f"no vendored libs found under {static}; this check is vacuous"
+    for lib in vendored:
+        # A distinctive slice from the middle, so the marker cannot be a comment banner
+        # or a license header that the page might legitimately quote.
+        text = lib.read_text(encoding="utf-8", errors="replace")
+        marker = text[len(text) // 2:][:120]
+        assert marker not in html_cdn, f"--cdn inlined {lib.name}"
+        assert marker in html, f"the offline page did not inline {lib.name}"
 
 
 def test_kind_icons_are_offline_data_uris_with_contrast():

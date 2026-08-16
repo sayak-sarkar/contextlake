@@ -153,6 +153,10 @@ LANG_BY_EXT = {
     ".php": "php",
     ".scala": "scala", ".sc": "scala",
     ".kt": "kotlin", ".kts": "kotlin",
+    # Included makefile fragments carry an extension; the build file itself does not, and
+    # takes the name route below. Two routes, one language: a project whose build system
+    # is split across `Makefile` and `common.mk` must not appear as two languages.
+    ".mk": "make", ".mak": "make",
 }
 
 # Languages whose files are identified by NAME rather than by extension. A build file
@@ -168,12 +172,43 @@ LANG_BY_EXT = {
 LANG_BY_NAME = {
     "makefile": "make",
     "gnumakefile": "make",
+    "dockerfile": "dockerfile",
+    "containerfile": "dockerfile",
 }
 
 # Every language contextlake can parse, however a file reaches it. Union, never either
 # table alone: a count or a coverage check written against LANG_BY_EXT silently omits
 # every name-routed language, and reads as complete while doing so.
 ALL_LANGS = set(LANG_BY_EXT.values()) | set(LANG_BY_NAME.values())
+
+# Grammars the `kb` extra does NOT install, mapped to the extra that does. A grammar
+# belongs here when it has no wheel for a platform contextlake installs on: making it a
+# hard dependency would not degrade that platform's indexing, it would make
+# `pip install contextlake[kb]` FAIL outright there. tree-sitter-dockerfile publishes two
+# wheels and no sdist, so Windows, aarch64 Linux and musl all have nothing to install.
+#
+# The cost of the extra is that a file in that language is skipped, and the skip must
+# say which of the two things it is. "unsupported extension" would be a lie: the language
+# IS supported and the package simply is not here, and those have different fixes.
+OPTIONAL_GRAMMAR_EXTRA = {
+    "dockerfile": "kb-dockerfile",
+}
+
+
+class GrammarNotInstalled(ImportError):
+    """An OPTIONAL grammar package is absent. Distinct from a broken install.
+
+    Carries the language and the extra so the caller can count the skip and name the fix,
+    rather than folding it into the blanket per-file parse-error handler, where it would
+    read as "this file is malformed" and be counted as nothing at all.
+    """
+
+    def __init__(self, lang: str, module: str, extra: str) -> None:
+        super().__init__(
+            f"the {lang} grammar needs {module}, which is an optional dependency. "
+            f"Install it with: pip install 'contextlake[{extra}]'")
+        self.lang = lang
+        self.extra = extra
 
 # HCL/Terraform files use a bespoke extraction path (kb/hcl.py), not the OO
 # capture model, so they are matched separately from LANG_BY_EXT.
@@ -338,7 +373,7 @@ _DEF_TYPES["elixir"] = {"call": "function"}
 # pseudo-class in `a.nav:hover` is the same `class_name` node as the real class in `.nav`,
 # so a node type cannot tell a selector from a pseudo-class, and a query that captured
 # both would invent a CSS class called `hover`.
-_QUERYLESS_LANGS = ("css", "html", "nix", "svelte", "vue", "make")
+_QUERYLESS_LANGS = ("css", "html", "nix", "svelte", "vue", "make", "dockerfile")
 for _markup in _QUERYLESS_LANGS:
     _DEF_TYPES[_markup] = {}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
@@ -583,6 +618,8 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "html": ("tree_sitter_html", "language"),
     "nix": ("tree_sitter_nix", "language"),
     "make": ("tree_sitter_make", "language"),
+    # Optional: see OPTIONAL_GRAMMAR_EXTRA. A row here does not imply an installed package.
+    "dockerfile": ("tree_sitter_dockerfile", "language"),
     "svelte": ("tree_sitter_svelte", "language"),
     # `.vue` has no tree-sitter package anywhere, and its template/script/style structure
     # is what the HTML grammar already parses. Same shape as typescript and tsx sharing
@@ -601,8 +638,11 @@ def _language(lang: str) -> ts.Language:
             mod = importlib.import_module(module)
         except ImportError as exc:
             # Names the package, because the alternative is a bare ImportError from a
-            # module the reader never asked for by name. Every grammar in `_GRAMMARS` is
-            # a hard dependency of the `kb` extra, so this means a partial install.
+            # module the reader never asked for by name. Two different situations, and
+            # they have different fixes: an OPTIONAL grammar was never installed and the
+            # user opts in, while a hard dependency being absent means a partial install.
+            if (extra := OPTIONAL_GRAMMAR_EXTRA.get(lang)):
+                raise GrammarNotInstalled(lang, module, extra) from exc
             raise ImportError(
                 f"the {lang} grammar needs {module}, which is not installed. "
                 f"Reinstall the knowledge layer: pip install 'contextlake[kb]'") from exc
@@ -1260,6 +1300,10 @@ class WalkCounts:
     #: for READMEs, lockfiles and images, so a bare total would be noise. The extensions
     #: let the reader see at a glance whether the miss is source code.
     unsupported_exts: dict = field(default_factory=dict)
+    # language -> files skipped because its OPTIONAL grammar is not installed. Kept apart
+    # from `unsupported_exts` because the two have different fixes, and reporting one as
+    # the other tells the user the wrong thing to do about it.
+    missing_grammars: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -1841,6 +1885,53 @@ def _make_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     return out
 
 
+def _dockerfile_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Build stages, and the external images a Dockerfile builds on.
+
+    `FROM node:20 AS builder` declares a stage named `builder`, which `COPY --from=builder`
+    and a later `FROM builder` then refer to. The stage name is the referenceable thing,
+    so it is the definition here.
+
+    The base image needs a decision the grammar does not make: in `FROM builder AS test`
+    the `image_name` is `builder`, a stage declared earlier in the same file, and in
+    `FROM nginx:alpine` it is an external image. Both are the same node type. So stages
+    are collected first, and an `image_name` matching one of them is dropped rather than
+    emitted as a phantom dependency on an image nobody pulls. That ordering is why this
+    walks the tree twice instead of once.
+
+    An external base image becomes a `module`, the same kind an `import` target takes in
+    every other language: it is what this file depends on and does not contain.
+
+    NOT extracted, and named so the gap stays visible: the `COPY --from=` reference back
+    to a stage. Stage names are FILE-LOCAL, and the cross-file name resolver would happily
+    link a `builder` stage in one Dockerfile to a `builder` stage in another, which is a
+    wrong edge rather than a missing one.
+    """
+    from_nodes = [n for n in _descendants(tree.root_node) if n.type == "from_instruction"]
+    stages: list[ts.Node] = []
+    for fn in from_nodes:
+        stages.extend(c for c in fn.children if c.type == "image_alias")
+    stage_names = {s.text for s in stages}
+
+    out: list[tuple[str, ts.Node, ts.Node]] = [
+        ("dockerfile_stage", s, s.parent or s) for s in stages]
+    for fn in from_nodes:
+        for spec in (c for c in fn.children if c.type == "image_spec"):
+            for name in (c for c in spec.children if c.type == "image_name"):
+                if name.text not in stage_names:
+                    out.append(("module", name, fn))
+    return out
+
+
+def _descendants(root: ts.Node) -> Iterator[ts.Node]:
+    """Every node under ``root``, root included. Order is unspecified."""
+    stack = [root]
+    while stack:
+        n = stack.pop()
+        yield n
+        stack.extend(n.children)
+
+
 def _nix_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     """Nix attribute names, which are what another expression refers to by name."""
     out: list[tuple[str, ts.Node, ts.Node]] = []
@@ -1924,6 +2015,8 @@ def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Nod
         return _nix_symbols(tree)
     if lang == "make":
         return _make_symbols(tree)
+    if lang == "dockerfile":
+        return _dockerfile_symbols(tree)
     if lang in _JS_LANGS:
         return _js_member_symbols(tree)
     if lang == "python":
@@ -2360,6 +2453,12 @@ def index_repo_dir(
             nodes, edges = _PARSERS[sf.kind](repo_id, sf, refs)
             if sf.kind in _FILE_CONTAINED_KINDS:
                 nodes, edges = _with_file_containment(repo_id, sf, nodes, edges)
+        except GrammarNotInstalled as e:
+            # Caught BEFORE the blanket handler below, which would log this once per file
+            # as "parse error" and count it as nothing. The file is fine and so is the
+            # install; an opt-in package is simply absent, and the summary says so once.
+            counts.missing_grammars[e.lang] = counts.missing_grammars.get(e.lang, 0) + 1
+            continue
         except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
             log(f"  skip {sf.rel}: parse error: {e}")
             continue
@@ -2401,6 +2500,14 @@ def index_repo_dir(
                 f"docs/contributing-languages.md to add one.")
         else:
             log(f"  {total} file(s) had no parser for their type: {shown}{more}")
+    # A DIFFERENT sentence from the one above, deliberately. "no parser for their type"
+    # means contextlake cannot read that language at all and the user can do nothing;
+    # this means it can, and one `pip install` away it will. Silent when zero, so it
+    # never becomes boilerplate on the overwhelming majority of runs.
+    for lang, n in sorted(counts.missing_grammars.items()):
+        log(f"  {n} {lang} file(s) skipped: {lang} is supported but its grammar is an "
+            f"optional dependency. Install it with: "
+            f"pip install 'contextlake[{OPTIONAL_GRAMMAR_EXTRA[lang]}]'")
     # Said at normal verbosity, unlike the DEBUG resolution summary: this is a KNOWN
     # INCOMPLETENESS in the graph the user is about to query, and "who calls X" will
     # quietly omit these. Silent when zero, so it never becomes boilerplate.

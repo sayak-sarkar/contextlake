@@ -19,7 +19,7 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "26 languages across 24 tree-sitter grammars" (`.tsx` shares the TypeScript
+- **The language count:** "27 languages across 25 tree-sitter grammars" (`.tsx` shares the TypeScript
   grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
   numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.

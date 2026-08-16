@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **26 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **27 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -874,6 +874,7 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
 | `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
+| `[kb-dockerfile]` | The Dockerfile grammar | Indexing `Dockerfile`s. Optional only because the grammar ships wheels for macOS arm64 and Linux x86_64 and no source distribution, so requiring it would break installation everywhere else. Without it, Dockerfiles are skipped and the run says so and names this extra |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
@@ -2070,7 +2071,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **26 languages across 24 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs across three tiers, and a single number would hide it.
@@ -2079,14 +2080,23 @@ Depth differs across three tiers, and a single number would hide it.
 | --- | --- | --- |
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
-| Referenceable names | CSS, HTML, Nix, Make | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets |
+| Referenceable names | CSS, HTML, Nix, Make, Dockerfile | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets; Dockerfile build stages and the images they build on |
 | Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
 
-Most files reach a grammar by extension. A build file has none, so `Makefile` and `GNUmakefile`
-are routed by name instead, matched on the stem before the first dot: `Makefile.am` is a makefile
-and `MyMakefile` is not. Make targets are the names a person types at a shell and a CI job
-invokes, which makes them the shortest answer to "what does this project expect of itself".
-Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, and neither are variables.
+Most files reach a grammar by extension. A build file has none, so `Makefile`, `GNUmakefile`,
+`Dockerfile` and `Containerfile` are routed by name instead, matched on the stem before the first
+dot: `Makefile.am` and `Dockerfile.prod` both hit, and `MyMakefile` does not. Make targets are the
+names a person types at a shell and a CI job invokes, which makes them the shortest answer to
+"what does this project expect of itself". Make's own special targets (`.PHONY`, `.SUFFIXES`) are
+not extracted, and neither are variables.
+
+A Dockerfile yields its build stages and the external images it builds on, told apart from each
+other: in `FROM builder AS test` the base is a stage declared earlier in the same file, not an
+image anybody pulls. The `COPY --from=` reference back to a stage is **not** extracted, because a
+stage name is file-local and resolving it across files would link two unrelated `builder` stages
+to each other. Dockerfile's grammar is an [optional extra](install.md), `[kb-dockerfile]`; without
+it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
+unsupported.
 
 On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
 are worth naming rather than leaving to be discovered: Zig declares a struct as
@@ -6182,6 +6192,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **Makefiles are indexed, and files can now be routed to a grammar by NAME.** Every
+  language before this reached its parser through a file extension, and a build file has
+  none, so `Makefile` was not merely unsupported: it was dropped without even being
+  counted among the files whose type had no parser. A second routing table matches on the
+  file's stem, so `Makefile`, `makefile`, `GNUmakefile` and `Makefile.am` are all indexed
+  and `MyMakefile` is not, an exact match on a derived key rather than a prefix test.
+
+  Make targets become `make_target` nodes: the names a person types at a shell and a CI
+  job invokes, which is the shortest honest answer to what a project expects of itself.
+  Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, because a symbol
+  nobody wrote does not belong in a graph whose claim is that its contents came from
+  source. Variables are not extracted either, stated rather than left to be discovered.
+
+  Included fragments (`common.mk`, `rules.mak`) take the extension route to the same
+  grammar, so a build system split across both spellings is one language and not two.
+
+- **Dockerfiles, behind an optional `[kb-dockerfile]` extra.** A Dockerfile yields its build
+  stages and the external images it builds on, told apart from each other: in
+  `FROM builder AS test` the base is a stage declared earlier in the same file rather than
+  an image anybody pulls, and emitting it as a dependency would put a container image
+  nobody uses in the graph looking exactly like the real ones beside it.
+
+  Optional for a packaging reason and not a product one. `tree-sitter-dockerfile` ships
+  two wheels and no source distribution, so making it a hard dependency would not index
+  less on Windows, aarch64 Linux and musl: it would make `pip install contextlake[kb]`
+  fail there outright. When it is absent the Dockerfiles are skipped, and the run says how
+  many and names the extra that fixes it. That is deliberately a different sentence from
+  the one about files with no parser, because those have different fixes and one of them
+  points at a page that cannot help.
+
+  27 languages across 25 grammars.
 
 ## [7.10.0] - 2026-08-16
 
@@ -12521,7 +12565,7 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "26 languages across 24 tree-sitter grammars" (`.tsx` shares the TypeScript
+- **The language count:** "27 languages across 25 tree-sitter grammars" (`.tsx` shares the TypeScript
   grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
   numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.

@@ -451,6 +451,19 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
+    # A build stage is what `COPY --from=` and a later `FROM` refer to, and what a reader
+    # asking "how is this image actually assembled" is looking at. Its own kind rather
+    # than `module`, because a stage is defined and consumed inside one file while the
+    # `module` nodes a Dockerfile also emits are the EXTERNAL images it builds on.
+    "dockerfile_stage": KindSpec(
+        color="#2496ed", glyph=None, group="Configuration",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
     "nix_attr": KindSpec(
         color="#38bdf8", glyph=None, group="Configuration",
         embeddable=False,

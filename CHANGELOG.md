@@ -22,7 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody wrote does not belong in a graph whose claim is that its contents came from
   source. Variables are not extracted either, stated rather than left to be discovered.
 
-  26 languages across 24 grammars.
+  Included fragments (`common.mk`, `rules.mak`) take the extension route to the same
+  grammar, so a build system split across both spellings is one language and not two.
+
+- **Dockerfiles, behind an optional `[kb-dockerfile]` extra.** A Dockerfile yields its build
+  stages and the external images it builds on, told apart from each other: in
+  `FROM builder AS test` the base is a stage declared earlier in the same file rather than
+  an image anybody pulls, and emitting it as a dependency would put a container image
+  nobody uses in the graph looking exactly like the real ones beside it.
+
+  Optional for a packaging reason and not a product one. `tree-sitter-dockerfile` ships
+  two wheels and no source distribution, so making it a hard dependency would not index
+  less on Windows, aarch64 Linux and musl: it would make `pip install contextlake[kb]`
+  fail there outright. When it is absent the Dockerfiles are skipped, and the run says how
+  many and names the extra that fixes it. That is deliberately a different sentence from
+  the one about files with no parser, because those have different fixes and one of them
+  points at a page that cannot help.
+
+  27 languages across 25 grammars.
 
 ## [7.10.0] - 2026-08-16
 

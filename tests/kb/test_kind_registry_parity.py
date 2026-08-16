@@ -51,6 +51,9 @@ _MEMBER_FIXTURES = {
     # "build test". The `.PHONY` line is here for the same reason: without a special
     # target present, the guard that drops them is never exercised.
     "make": b'.PHONY: build test\nbuild test:\n\techo hi\n',
+    # Two FROMs, so both kinds this branch emits are exercised: the stage and the
+    # external base image. One stage alone would leave the module half unproduced.
+    "dockerfile": b'FROM node:20 AS builder\nFROM builder AS test\n',
 }
 
 

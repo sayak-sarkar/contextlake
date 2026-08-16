@@ -100,6 +100,12 @@ kb = [
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).
 kb-vec = ["sqlite-vec>=0.1"]
+# Optional Dockerfile grammar. Optional for a packaging reason, not a product one:
+# tree-sitter-dockerfile publishes two wheels (macOS arm64, Linux x86_64) and no sdist,
+# so a hard dependency would make `pip install contextlake[kb]` FAIL on Windows, aarch64
+# Linux and musl rather than merely index less there. Without it, Dockerfiles are skipped
+# and the run says so by name, with this install command.
+kb-dockerfile = ["tree-sitter-dockerfile>=0.2"]
 # Optional built-in, CPU-only EMBEDDER so the semantic tier works with no Ollama
 # and no API key. Static model2vec embeddings (~30MB, auto-downloaded on first
 # use); numpy inference, no onnxruntime. See docs/knowledge-layer.md.

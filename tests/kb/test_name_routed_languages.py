@@ -54,6 +54,9 @@ def _write(root, rel: str, body: bytes) -> None:
     # unanchored match, only in the too-strict direction.
     ("Makefile.am", "makefile"),
     ("Makefile.in", "makefile"),
+    # The common real spellings of a per-environment container build file. Both must hit.
+    ("Dockerfile.prod", "dockerfile"),
+    ("Dockerfile.dev", "dockerfile"),
     # The deliberate near-miss: a prefix test would route this to make, and it is not a
     # makefile. This is the assertion that says the match is exact on a derived key.
     ("MyMakefile", "mymakefile"),
@@ -72,6 +75,13 @@ def test_name_key_is_the_lowercased_stem_before_the_first_dot(fn, expected):
     ("GNUmakefile", "", "make"),
     ("makefile", "", "make"),
     ("Makefile.am", ".am", "make"),
+    ("Dockerfile", "", "dockerfile"),
+    ("Dockerfile.prod", ".prod", "dockerfile"),
+    ("Containerfile", "", "dockerfile"),
+    # Two routes to one language: `common.mk` by extension, `Makefile` by name. A project
+    # whose build system is split across both must not appear as two languages.
+    ("common.mk", ".mk", "make"),
+    ("rules.mak", ".mak", "make"),
     ("MyMakefile", "", None),
     ("LICENSE", "", None),
     ("README", "", None),
@@ -114,6 +124,12 @@ def test_all_langs_is_the_union_and_not_either_table_alone():
 
     So at least one language must stay reachable by name only. That keeps the union
     load-bearing, which is the whole reason those call sites were changed.
+
+    Dockerfile is the one holding that property, which is why `.dockerfile` is NOT in the
+    extension table even though `prod.Dockerfile` is a real spelling somebody uses. That
+    is a deliberate, named cost: one uncommon filename goes unindexed so that three
+    guards keep proving something. Adding it means finding another name-only language
+    first, not deleting this assertion.
     """
     assert ALL_LANGS == set(LANG_BY_EXT.values()) | set(LANG_BY_NAME.values())
     name_only = set(LANG_BY_NAME.values()) - set(LANG_BY_EXT.values())
