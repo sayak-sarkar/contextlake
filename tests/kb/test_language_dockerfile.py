@@ -225,7 +225,15 @@ def test_the_message_is_silent_when_every_grammar_is_present(tmp_path, monkeypat
 def test_every_optional_grammar_has_an_extra_that_exists(tmp_path):
     """A named extra that pyproject does not define sends the user to a command that
     fails, which is worse than saying nothing."""
-    import tomllib
+    # `tomllib` is stdlib from 3.11 only, and this project supports 3.10, where the
+    # `tomli` backport is already a declared dependency. Written as a bare
+    # `import tomllib` first, which passed on the dev interpreter and failed the py3.10
+    # CI leg alone: the same minority-configuration mistake as the optional grammar,
+    # one interpreter version down. Every other module here uses this two-line form.
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # pragma: no cover - 3.10 only
+        import tomli as tomllib
 
     from contextlake.kb.parse import _GRAMMARS
 
