@@ -6188,8 +6188,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   These do not go through the definition query, and cannot: in CSS the pseudo-class in
   `a.nav:hover` is the same `class_name` node as the real class in `.nav`, so a node type
   cannot tell them apart, and a query would invent a CSS class called `hover` on every hover
-  rule. An HTML `class=` attribute is a *use* of a name a stylesheet defines and is not yet
-  emitted as anything; making it a reference edge is separate work.
+  rule.
+
+- **An HTML page now resolves to the stylesheet that styles it.** Every name in a `class=`
+  attribute, and every element's own tag, becomes a `references` edge to the CSS selector of
+  that name, resolved across files exactly like a call into another module. That join is the
+  point of indexing the pair: neither side alone answers "which stylesheet defines the class
+  this page uses", or "which stylesheet styles every button". A name no stylesheet defines
+  resolves to nothing rather than to a node invented to receive it.
 
 - **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 23, across
   22 tree-sitter grammars. Every query was compiled and run against a real snippet of its language

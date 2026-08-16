@@ -136,6 +136,7 @@ class KindSpec:
     inheritable_target: bool
     """An ``inherits`` reference may resolve to it (``parse._INHERITABLE_KINDS``)."""
 
+    style_ref_target: bool
     hcl_ref_target: bool
     """A Terraform ``depends_on``/interpolation reference may resolve to it."""
 
@@ -165,6 +166,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "module": KindSpec(
         color="#ffb703", glyph=_G_MODULE, group="Containers",
@@ -175,6 +177,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=True,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
     "class": KindSpec(
         color="#fb8500", glyph=_G_CLASS, group="Symbols",
@@ -182,6 +185,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=True, impact_precompute=True,
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "interface": KindSpec(
         color="#fd9e02", glyph=_G_INTERFACE, group="Symbols",
@@ -189,6 +193,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=True, impact_precompute=True,
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "struct": KindSpec(
         color="#f4a261", glyph=_G_STRUCT, group="Symbols",
@@ -196,6 +201,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=True, impact_precompute=True,
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "function": KindSpec(
         color="#90be6d", glyph=_G_CALLABLE, group="Symbols",
@@ -203,6 +209,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=True, impact_precompute=True,
         classifier=False, class_member=True, er_entity=False,
         callable_target=True, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "method": KindSpec(
         color="#43aa8b", glyph=_G_CALLABLE, group="Symbols",
@@ -210,6 +217,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=True, impact_precompute=True,
         classifier=False, class_member=True, er_entity=False,
         callable_target=True, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "enum": KindSpec(
         color="#577590", glyph=_G_ENUM, group="Symbols",
@@ -218,6 +226,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=True, class_member=False, er_entity=False,
         # an enum is a type, not something invoked or inherited from
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "package": KindSpec(
         color="#e76f51", glyph=_G_PACKAGE, group="Containers",
@@ -226,6 +235,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=True,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "repo": KindSpec(
         color="#264653", glyph=_G_REPO, group="Containers",
@@ -234,6 +244,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "issue": KindSpec(
         color="#bc6c25", glyph=_G_ISSUE, group="Cross-source",
@@ -243,6 +254,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "page": KindSpec(
         color="#606c38", glyph=_G_PAGE, group="Cross-source",
@@ -251,6 +263,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "design": KindSpec(
         color="#9d4edd", glyph=_G_DESIGN, group="Cross-source",
@@ -259,6 +272,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "endpoint": KindSpec(
         color="#f08c3a", glyph=_G_ENDPOINT, group="Service surfaces",
@@ -266,6 +280,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=True,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "topic": KindSpec(
         color="#b07fd0", glyph=_G_TOPIC, group="Service surfaces",
@@ -274,6 +289,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=True,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "config_key": KindSpec(
         # deliberately distinct from every symbol colour: a setting is not code, and
@@ -288,6 +304,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "test": KindSpec(
         color="#2a9d8f", glyph=_G_TEST, group="Symbols",
@@ -302,6 +319,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         # reference could never legitimately resolve here. Written down because the
         # identical gate IS a trap for a future `macro` kind, which is invoked by name.
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "namespace": KindSpec(
         color="#3d5a80", glyph=None, group="Boundary",
@@ -310,6 +328,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "system": KindSpec(
         # deliberately muted/neutral: unclassified, could be a real third party or just
@@ -320,6 +339,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
 
     # --- Service surfaces (flow extractors) ---
@@ -330,6 +350,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "state": KindSpec(
         color="#5e548e", glyph=None, group="Service surfaces",
@@ -339,6 +360,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
 
     # --- Data model (SQL DDL). One magenta family, graded: the two real data objects,
@@ -362,6 +384,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     # --- Presentation ------------------------------------------------------------
     # A stylesheet DEFINES these three and a template REFERENCES them, which is the whole
@@ -382,6 +405,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=True,
         hcl_ref_target=False, sql_ref_target=False),
     "css_id": KindSpec(
         color="#a855f7", glyph=None, group="Presentation",
@@ -390,6 +414,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=True,
         hcl_ref_target=False, sql_ref_target=False),
     # A type selector styles EVERY element of that name, so it is high-fanout by nature:
     # one `button` rule reaches every button in the tree. The existing fanout caps apply.
@@ -400,6 +425,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=True,
         hcl_ref_target=False, sql_ref_target=False),
     "html_id": KindSpec(
         color="#e879f9", glyph=None, group="Presentation",
@@ -408,6 +434,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     # --- Build and configuration ---------------------------------------------------
     "nix_attr": KindSpec(
@@ -417,6 +444,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "macro": KindSpec(
         color="#e07a5f", glyph=None, group="Symbols",
@@ -427,6 +455,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "typedef": KindSpec(
         color="#81b29a", glyph=None, group="Symbols",
@@ -437,6 +466,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=True,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "enum_constant": KindSpec(
         color="#6d9dc5", glyph=None, group="Symbols",
@@ -448,6 +478,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "global_variable": KindSpec(
         color="#b08968", glyph=None, group="Symbols",
@@ -458,6 +489,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "table": KindSpec(
         color="#b5179e", glyph=None, group="Data model",
@@ -465,6 +497,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=True,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=True),
     "view": KindSpec(
         color="#d64ab5", glyph=None, group="Data model",
@@ -472,6 +505,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=True,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=True),
     "procedure": KindSpec(
         color="#e0a3d5", glyph=None, group="Data model",
@@ -481,6 +515,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         # SQL FK references resolve to table/view defs, never to a procedure
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
 
     # --- Infrastructure (HCL blocks). One indigo ramp, darkest for the two blocks that
@@ -491,6 +526,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
     "data": KindSpec(
         color="#5a67d8", glyph=None, group="Infrastructure",
@@ -498,6 +534,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
     "variable": KindSpec(
         color="#7c83db", glyph=None, group="Infrastructure",
@@ -505,6 +542,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
     "output": KindSpec(
         color="#9aa0e0", glyph=None, group="Infrastructure",
@@ -512,6 +550,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
     "local": KindSpec(
         color="#c3c7e8", glyph=None, group="Infrastructure",
@@ -519,6 +558,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=True, sql_ref_target=False),
 
     # --- Documents. One green-grey family: all three are prose, differing only in where
@@ -531,6 +571,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "document": KindSpec(
         color="#84a98c", glyph=None, group="Documents",
@@ -541,6 +582,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "wiki": KindSpec(
         color="#354f52", glyph=None, group="Documents",
@@ -549,6 +591,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
 
     # --- Cross-source (connectors). Names are keys/ids, never prose.
@@ -560,6 +603,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "message": KindSpec(
         color="#dda15e", glyph=None, group="Cross-source",
@@ -568,6 +612,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "channel": KindSpec(
         color="#a68a64", glyph=None, group="Cross-source",
@@ -576,6 +621,7 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
+        style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
 }
 

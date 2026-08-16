@@ -1256,6 +1256,10 @@ class RefCollector:
     sql: list[tuple[str, str, str, int]] = field(default_factory=list)
     data_reads: list[tuple[str, str, str, int]] = field(default_factory=list)
     data_writes: list[tuple[str, str, str, int]] = field(default_factory=list)
+    # A template's use of a name a stylesheet defines: `class="btn-primary"` and the
+    # element's own tag. Cross-domain by design, exactly like the SQL stream: markup
+    # refers to a selector the same way code refers to a table.
+    styles: list[tuple[str, str, str, int]] = field(default_factory=list)
 
     def resolved_edges(self, by_id: dict[str, Node],
                        *, stats: dict | None = None) -> list[Edge]:
@@ -1279,6 +1283,11 @@ class RefCollector:
             (self.sql, "references", _SQL_KINDS, False),
             (self.data_reads, "reads", _SQL_KINDS, False),
             (self.data_writes, "writes", _SQL_KINDS, False),
+            # `references`, not a new relation: it already means "this thing names that
+            # thing" for SQL, it is already in impact's default traversal, and the target
+            # kind distinguishes a stylesheet selector from a table without a second word
+            # for the same idea.
+            (self.styles, "references", _STYLE_KINDS, False),
         )
         edges: list[Edge] = []
         for refs, relation, target_kinds, same_language in streams:
@@ -1805,6 +1814,55 @@ def _nix_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     return out
 
 
+def extract_style_refs(repo_id: str, rel_path: str, source: bytes,
+                       lang: str) -> list[tuple[str, str, str, int]]:
+    """What an HTML file REFERENCES: every class name it uses, and every element tag.
+
+    A stylesheet defines `.btn-primary`; a page uses it. Emitting the use as a definition
+    would give one name two definitions and make "where is this defined" ambiguous, so the
+    use is a reference resolved repo-wide, exactly like a call to a function in another
+    file.
+
+    Element tags are references too: a CSS rule keyed on `button` styles every button on
+    the site, so the tag is a use of that rule's name. They are high fanout by nature, and
+    the same caps that protect dense symbols apply.
+
+    Returns the unresolved `(src_id, target_name, file, line)` shape every other reference
+    stream uses. The source is the FILE: the question this answers is "which stylesheet
+    defines the class this page uses", and the page is the thing asking.
+    """
+    if lang != "html":
+        return []
+    out: list[tuple[str, str, str, int]] = []
+    file_id = make_id(repo_id, rel_path)
+    tree = _parser("html").parse(source)
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type in ("start_tag", "self_closing_tag"):
+            tag = next((c for c in n.children if c.type == "tag_name"), None)
+            if tag is not None:
+                out.append((file_id, tag.text.decode("utf-8", "replace"),
+                            rel_path, tag.start_point[0] + 1))
+            for attr in (c for c in n.children if c.type == "attribute"):
+                name = next((c for c in attr.children if c.type == "attribute_name"), None)
+                value = next((c for c in attr.children
+                              if c.type in ("quoted_attribute_value", "attribute_value")),
+                             None)
+                if name is None or value is None:
+                    continue
+                if name.text.decode("utf-8", "replace").lower() != "class":
+                    continue
+                inner = next((c for c in value.children if c.type == "attribute_value"),
+                             value)
+                # `class="wrap grid"` is TWO names. Splitting is the whole point: an
+                # unsplit attribute resolves to nothing and the edge is silently lost.
+                for word in inner.text.decode("utf-8", "replace").split():
+                    out.append((file_id, word, rel_path, inner.start_point[0] + 1))
+        stack.extend(n.children)
+    return out
+
+
 def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
     """`(kind, name_node, container)` for the symbol kinds the def query cannot express.
 
@@ -2011,6 +2069,7 @@ def _parse_code(repo_id: str, sf: SourceFile, refs: RefCollector,
     en, ee = extract_event_flow(repo_id, sf.rel, sf.source, sf.lang)
     wn, we = extract_web_flow(repo_id, sf.rel, sf.source, sf.lang)
     sn, se = extract_state_flow(repo_id, sf.rel, sf.source, sf.lang)
+    refs.styles.extend(extract_style_refs(repo_id, sf.rel, sf.source, sf.lang))
     dr, dw = extract_data_refs(repo_id, sf.rel, sf.source)
     refs.data_reads.extend(dr)
     refs.data_writes.extend(dw)
@@ -2348,6 +2407,10 @@ _HCL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.hcl_ref_target}
 # SQL FK references resolve to table/view defs (both non-colliding with code and
 # HCL kinds, so their name index stays isolated).
 _SQL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.sql_ref_target}
+# What an HTML `class=`/tag reference may resolve to: the three things a stylesheet
+# defines. Derived from the registry rather than listed here, so a fourth presentation
+# kind cannot be added without answering whether markup can refer to it.
+_STYLE_KINDS = {k for k, s in KIND_REGISTRY.items() if s.style_ref_target}
 
 
 # A name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to each
