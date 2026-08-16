@@ -91,3 +91,75 @@ def test_the_served_repo_detail_honours_anonymize(tmp_path, monkeypatch, anonymi
         assert AUTHOR in body, (
             "the fixture produced no owner at all, so the anonymised case above proves "
             "nothing — check the git fixture before trusting this pair")
+
+
+# A string that can only reach a response through the WIKI PAGE's prose. Distinct from
+# AUTHOR, which arrives through git, so a test that finds this one has proved the wiki
+# body specifically travelled, not merely that some identity did.
+WIKI_SECRET = "Reviewed by Wilhelmina Testerson, internal.example.invalid"
+
+
+def _with_wiki(tmp_path, monkeypatch, *, anonymize: bool):
+    srv, base, store = _serve(tmp_path, monkeypatch, anonymize=anonymize)
+    from contextlake.kb.visualize import repo_slug
+
+    wiki_dir = tmp_path / "wiki"
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    (wiki_dir / (repo_slug("team/app") + ".md")).write_text(
+        f"# team/app\n\n{WIKI_SECRET}\n", encoding="utf-8")
+    return srv, base, store
+
+
+# Every served route that can carry a wiki page's prose. Listed rather than discovered,
+# and the pair of assertions below is what keeps the list honest: a route added later
+# that serves the same bytes and is not here simply goes unchecked, so the reason for
+# each entry is written next to it.
+_PROSE_ROUTES = [
+    # carries `wiki.html` alongside the brief, README and owners
+    "/api/repo/team%2Fapp",
+    # serves the SAME page on its own, for the Wiki tab's module picker. This is the one
+    # that leaked: `repo_detail` dropped the body and this route had no `anonymize`
+    # parameter at all, so the prose the other route withheld was one request away.
+    "/api/repo/team%2Fapp/wiki",
+]
+
+
+@pytest.mark.parametrize("route", _PROSE_ROUTES)
+def test_no_route_serves_wiki_prose_when_anonymized(tmp_path, monkeypatch, route):
+    srv, base, store = _with_wiki(tmp_path, monkeypatch, anonymize=True)
+    try:
+        payload = _get(base, route)
+    finally:
+        srv.shutdown()
+        store.close()
+    body = json.dumps(payload)
+    assert WIKI_SECRET not in body, f"{route} served wiki prose with --anonymize on"
+    assert "Testerson" not in body, f"{route} served an author name with --anonymize on"
+    # The FLAGS must survive. Dropping the whole object would hide that a page exists at
+    # all, which is a fact about the repo rather than about a person, and the Wiki tab
+    # needs it to tell "anonymised" from "never generated".
+    wiki = payload.get("wiki", payload)
+    assert wiki.get("found") is True, (
+        f"{route} lost the wiki `found` flag; anonymising must drop the PROSE, not the "
+        f"knowledge that a page exists: {wiki}")
+
+
+@pytest.mark.parametrize("route", _PROSE_ROUTES)
+def test_each_of_those_routes_really_does_carry_the_prose_otherwise(
+        tmp_path, monkeypatch, route):
+    """The half that makes the half above mean something.
+
+    Every assertion up there is a NOT-in check, and a not-in check passes against a route
+    that returns nothing, a 404 body, or a wiki nobody generated. This asserts the same
+    routes serve the secret when anonymising is off, so each one is known to be a real
+    carrier before it is asserted clean.
+    """
+    srv, base, store = _with_wiki(tmp_path, monkeypatch, anonymize=False)
+    try:
+        body = json.dumps(_get(base, route))
+    finally:
+        srv.shutdown()
+        store.close()
+    assert WIKI_SECRET in body, (
+        f"{route} did not carry the wiki prose even with anonymising OFF, so its "
+        f"anonymised assertion proves nothing. Fix the fixture, not the assertion.")

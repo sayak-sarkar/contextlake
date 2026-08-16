@@ -345,7 +345,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     if req.get_repo(full_candidate) is None:
                         repo_id = urllib.parse.unquote(rest[:-len("/wiki")])
                         module = (q.get("module") or [None])[0]
-                        return 200, _json_bytes(kbdata.repo_wiki(req, sd, repo_id, module=module))
+                        return 200, _json_bytes(kbdata.repo_wiki(
+                            req, sd, repo_id, module=module, anonymize=anonymize))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id,
                                                            anonymize=anonymize))

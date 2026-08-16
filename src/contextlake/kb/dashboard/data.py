@@ -604,9 +604,17 @@ def repo_modules(store, repo_id: str, *, within: str | None = None,
     return {"repo": sanitize_label(repo_id), "modules": modules}
 
 
-def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None) -> dict:
+def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None,
+              anonymize: bool = False) -> dict:
     """Wiki content for one repo, optionally scoped to a subsystem/module page
     (Task 15/16's per-subsystem pages for large federated repos).
+
+    ``anonymize`` drops the prose body and keeps only the ``found``/``stale`` flags,
+    the same rule :func:`repo_detail` applies. It is NOT optional here: this route
+    serves the very bytes that function deliberately withholds, so without it
+    ``--anonymize`` hid the wiki on one route and served it in full on another, one
+    request away. A page's prose can carry author names and internal URLs as live
+    anchors, which is the whole reason the body is dropped rather than scrubbed.
 
     Served as its OWN lightweight route rather than a ``?module=`` query param
     tacked onto the base ``/api/repo/<id>`` route (which also carries brief/
@@ -618,6 +626,8 @@ def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None) -> d
     """
     sd = _store_dir(store, store_dir)
     out = _wiki_out(store, sd, repo_id, module=module)
+    if anonymize:
+        out = {"found": out["found"], "stale": out["stale"], "html": None}
     out["repo"] = sanitize_label(repo_id)
     out["module"] = module
     return out

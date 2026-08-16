@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--anonymize` no longer serves a repo's wiki prose on a second route.** The served
+  dashboard's `/api/repo/<id>` deliberately drops the wiki body under `--anonymize`,
+  because a generated page can carry author names and internal URLs as live anchors. The
+  dedicated `/api/repo/<id>/wiki` route, which the Wiki tab's module picker uses, served
+  the same bytes and took no `anonymize` argument at all, so what one route withheld the
+  other returned one request away. Both now drop the prose and keep the `found`/`stale`
+  flags, since a page existing is a fact about the repository rather than about a person.
+
+  The regression test drives real HTTP over every route that can carry that prose, and
+  asserts each one DOES carry it with anonymising off, so a route that returns nothing
+  cannot pass the not-present half by accident.
+
 ### Added
 
 - **Makefiles are indexed, and files can now be routed to a grammar by NAME.** Every
