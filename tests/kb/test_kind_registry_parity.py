@@ -14,6 +14,8 @@ failure; they cannot tell you that `embeddable=True` was the *wrong* answer for 
 import re
 from dataclasses import MISSING
 
+import pytest
+
 from contextlake.kb import hcl, parse, xml_cfg
 from contextlake.kb.dashboard import site
 from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
@@ -52,7 +54,7 @@ _MEMBER_FIXTURES = {
     # target present, the guard that drops them is never exercised.
     "make": b'.PHONY: build test\nbuild test:\n\techo hi\n',
     # Two FROMs, so both kinds this branch emits are exercised: the stage and the
-    # external base image. One stage alone would leave the module half unproduced.
+    # external base image, which `_extra_imports` handles rather than this branch.
     "dockerfile": b'FROM node:20 AS builder\nFROM builder AS test\n',
 }
 
@@ -61,12 +63,22 @@ def _member_symbol_kinds() -> set[str]:
     """Kinds emitted by `parse._member_symbols`, read off fixtures rather than a list.
 
     A hand-kept list here would be one more vocabulary to drift; parsing fixtures that
-    exercise every branch keeps it honest."""
+    exercise every branch keeps it honest.
+
+    A language whose grammar is an OPTIONAL extra can be genuinely absent, and then this
+    introspection cannot see its branch. That is reported as a skip naming the language,
+    never worked around by assuming its kinds: silently substituting them would turn the
+    one guard that catches unproduced vocabulary into a guard that asserts a list.
+    """
     import tree_sitter as ts
 
     out: set[str] = set()
     for lang, src in _MEMBER_FIXTURES.items():
-        tree = ts.Parser(parse._language(lang)).parse(src)
+        try:
+            language = parse._language(lang)
+        except ImportError as exc:
+            pytest.skip(f"cannot introspect the {lang} branch: {exc}")
+        tree = ts.Parser(language).parse(src)
         got = {kind for kind, _, _ in parse._member_symbols(tree, lang)}
         assert got, (
             f"the {lang} fixture produced no member symbols, so this introspection is "

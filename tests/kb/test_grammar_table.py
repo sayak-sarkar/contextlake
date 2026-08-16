@@ -39,7 +39,19 @@ def test_every_supported_language_has_a_grammar_row(lang):
 def test_every_grammar_row_actually_loads(lang):
     """The package name and the factory name are both easy to get subtly wrong, and three
     of them are irregular already (`tree_sitter_c_sharp`, typescript's two entry points,
-    php's `language_php`). Loading is the only check that catches a wrong factory."""
+    php's `language_php`). Loading is the only check that catches a wrong factory.
+
+    A row in `OPTIONAL_GRAMMAR_EXTRA` can be genuinely absent, and then this cannot load
+    it. Skipped rather than failed, and CI installs those extras explicitly so the row is
+    still checked somewhere. The skip is narrowed to the optional set on purpose: turning
+    every ImportError here into a skip would let a typo'd package name for a REQUIRED
+    grammar pass as "not installed".
+    """
+    if lang in P.OPTIONAL_GRAMMAR_EXTRA:
+        try:
+            P._language(lang)
+        except ImportError as exc:
+            pytest.skip(f"optional grammar not installed: {exc}")
     assert P._language(lang) is not None
 
 

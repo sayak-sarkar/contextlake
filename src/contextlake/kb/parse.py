@@ -1222,8 +1222,13 @@ def parse_source(
             provenance=Provenance(source_file=rel_path, source_line=line, verified_at=verified_at),
         ))
 
-    # Imports: file -> module node.
-    for imp in captures.get("import", []):
+    # Imports: file -> module node. `_extra_imports` is for languages whose dependency
+    # is not expressible as an `@import` capture: a Dockerfile's base image is a
+    # dependency in exactly this sense, and routing it here rather than through the
+    # member pass is what earns it an `imports` edge. Sent through the member pass it
+    # became `contains`, so the graph said a Dockerfile CONTAINED nginx, which is a
+    # wrong relation dressed as a real one.
+    for imp in list(captures.get("import", [])) + _extra_imports(tree, lang):
         module = imp.text.decode("utf-8", "replace").strip().strip("'\"")
         mid = make_id("module", module)
         nodes.append(Node(id=mid, repo=SHARED_REPO, kind="module", name=module, lang=lang))
@@ -1885,42 +1890,59 @@ def _make_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
     return out
 
 
+def _dockerfile_stages(tree: ts.Tree) -> list[ts.Node]:
+    """The `image_alias` node of every `FROM ... AS name`, in file order."""
+    return [c
+            for n in _descendants(tree.root_node) if n.type == "from_instruction"
+            for c in n.children if c.type == "image_alias"]
+
+
 def _dockerfile_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
-    """Build stages, and the external images a Dockerfile builds on.
+    """A Dockerfile's build stages, which are the names its other instructions refer to.
 
     `FROM node:20 AS builder` declares a stage named `builder`, which `COPY --from=builder`
-    and a later `FROM builder` then refer to. The stage name is the referenceable thing,
-    so it is the definition here.
+    and a later `FROM builder` then refer to.
 
-    The base image needs a decision the grammar does not make: in `FROM builder AS test`
-    the `image_name` is `builder`, a stage declared earlier in the same file, and in
-    `FROM nginx:alpine` it is an external image. Both are the same node type. So stages
-    are collected first, and an `image_name` matching one of them is dropped rather than
-    emitted as a phantom dependency on an image nobody pulls. That ordering is why this
-    walks the tree twice instead of once.
-
-    An external base image becomes a `module`, the same kind an `import` target takes in
-    every other language: it is what this file depends on and does not contain.
+    The base images are NOT here: they go through `_extra_imports`, because a base image
+    is something the file depends on rather than something it contains, and the member
+    pass produces `contains` edges.
 
     NOT extracted, and named so the gap stays visible: the `COPY --from=` reference back
     to a stage. Stage names are FILE-LOCAL, and the cross-file name resolver would happily
     link a `builder` stage in one Dockerfile to a `builder` stage in another, which is a
     wrong edge rather than a missing one.
     """
-    from_nodes = [n for n in _descendants(tree.root_node) if n.type == "from_instruction"]
-    stages: list[ts.Node] = []
-    for fn in from_nodes:
-        stages.extend(c for c in fn.children if c.type == "image_alias")
-    stage_names = {s.text for s in stages}
+    return [("dockerfile_stage", s, s.parent or s) for s in _dockerfile_stages(tree)]
 
-    out: list[tuple[str, ts.Node, ts.Node]] = [
-        ("dockerfile_stage", s, s.parent or s) for s in stages]
-    for fn in from_nodes:
-        for spec in (c for c in fn.children if c.type == "image_spec"):
-            for name in (c for c in spec.children if c.type == "image_name"):
-                if name.text not in stage_names:
-                    out.append(("module", name, fn))
-    return out
+
+def _dockerfile_base_images(tree: ts.Tree) -> list[ts.Node]:
+    """The EXTERNAL images a Dockerfile builds on, which is a decision the grammar does
+    not make for us.
+
+    In `FROM builder AS test` the `image_name` is a stage declared earlier in the same
+    file; in `FROM nginx:alpine` it is an image somebody pulls. Both are the same node
+    type. So the stages are collected first and an `image_name` matching one is dropped,
+    rather than emitted as a dependency on a container image that does not exist. That
+    ordering is the only reason this walks the tree twice.
+
+    The tag is left off the name: `node:20` and `node:22` are one image at two versions,
+    and the question worth answering across a fleet is which repositories build on node.
+    """
+    stage_names = {s.text for s in _dockerfile_stages(tree)}
+    return [name
+            for n in _descendants(tree.root_node) if n.type == "from_instruction"
+            for spec in n.children if spec.type == "image_spec"
+            for name in spec.children
+            if name.type == "image_name" and name.text not in stage_names]
+
+
+def _extra_imports(tree: ts.Tree, lang: str) -> list[ts.Node]:
+    """Dependency-name nodes for languages whose imports no `@import` capture can express.
+
+    Empty for every language whose query already captures its imports, which is all of
+    them but one.
+    """
+    return _dockerfile_base_images(tree) if lang == "dockerfile" else []
 
 
 def _descendants(root: ts.Node) -> Iterator[ts.Node]:

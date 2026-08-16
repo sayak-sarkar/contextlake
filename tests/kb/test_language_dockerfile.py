@@ -48,23 +48,56 @@ def _syms(src: bytes = DOCKERFILE, fn: str = "Dockerfile") -> set[tuple[str, str
     return {(n.kind, n.name) for n in nodes if n.kind != "file"}
 
 
+def _grammar_present() -> bool:
+    """Whether this interpreter can actually load the optional grammar.
+
+    Every extraction test below needs it, and CI installs `[kb-dockerfile]` explicitly so
+    that they run rather than quietly skip. Named as a function so the reason a test was
+    skipped is visible in the report instead of being inferred from an empty result.
+    """
+    try:
+        parse._language("dockerfile")
+    except ImportError:
+        return False
+    return True
+
+
+needs_grammar = pytest.mark.skipif(
+    not _grammar_present(),
+    reason="the optional dockerfile grammar is not installed "
+           "(pip install 'contextlake[kb-dockerfile]')")
+
+
 # --- extraction ---------------------------------------------------------------------
 
 
+@needs_grammar
 def test_build_stages_become_their_own_kind():
     got = _syms()
     assert ("dockerfile_stage", "builder") in got
     assert ("dockerfile_stage", "test") in got
 
 
-def test_an_external_base_image_becomes_a_module():
-    """The same kind an `import` target takes everywhere else: what this file depends on
-    and does not contain."""
-    got = _syms()
-    assert ("module", "node") in got
-    assert ("module", "nginx") in got
+@needs_grammar
+def test_an_external_base_image_is_an_import_not_a_containment(tmp_path):
+    """The relation, not just the node. A base image reached the graph through the member
+    pass at first, which produces `contains` edges, so the graph asserted that a
+    Dockerfile CONTAINED nginx. Both spellings put a `module` node named nginx in the
+    store and only one of them says something true, so a node-set assertion alone passed
+    while the edge was wrong.
+    """
+    (tmp_path / "Dockerfile").write_bytes(DOCKERFILE)
+    shard = index_repo_dir(str(tmp_path), "r")
+    by_id = {n.id: n for n in shard.nodes}
+    rel_by_name = {by_id[e.dst].name: e.relation
+                   for e in shard.edges if e.dst in by_id}
+    assert rel_by_name.get("node") == "imports", rel_by_name
+    assert rel_by_name.get("nginx") == "imports", rel_by_name
+    # The stage is the one thing the file really does contain.
+    assert rel_by_name.get("builder") == "contains", rel_by_name
 
 
+@needs_grammar
 def test_a_stage_used_as_a_base_is_not_reported_as_an_external_image():
     """`FROM builder AS test` builds on a stage declared in the same file.
 
@@ -78,6 +111,7 @@ def test_a_stage_used_as_a_base_is_not_reported_as_an_external_image():
     assert ("module", "test") not in got
 
 
+@needs_grammar
 def test_a_tag_is_not_part_of_the_name():
     """`node:20` is one image at one version. The version belongs on the edge or nowhere;
     a node named `node:20` would not match `node:22` in the next repo, and the fleet-wide
@@ -86,6 +120,7 @@ def test_a_tag_is_not_part_of_the_name():
     assert "20" not in {n for _k, n in _syms()}
 
 
+@needs_grammar
 def test_a_single_stage_dockerfile_still_yields_its_base():
     got = _syms(b"FROM python:3.12-slim\nCOPY . /app\n")
     assert ("module", "python") in got
@@ -176,6 +211,7 @@ def test_the_skip_is_counted_and_names_the_extra(tmp_path, monkeypatch,
     assert "app.py" in {n.name for n in shard.nodes if n.kind == "file"}
 
 
+@needs_grammar
 def test_the_message_is_silent_when_every_grammar_is_present(tmp_path, monkeypatch):
     """Guards against the skip line becoming boilerplate on runs where nothing was
     skipped, which is what would make people stop reading it."""

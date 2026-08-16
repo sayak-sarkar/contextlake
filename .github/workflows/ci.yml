@@ -61,7 +61,15 @@ jobs:
       - name: Install (with knowledge layer)
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,kb]"
+          # kb-dockerfile is named explicitly because `[kb]` deliberately does not carry
+          # it: its grammar has no wheel for several platforms, so requiring it would
+          # break installation rather than reduce it. The runner is one of the platforms
+          # it DOES have a wheel for, and CI should exercise the whole supported surface.
+          # The absent-grammar path is not lost by this: it is tested by injecting the
+          # import failure, which runs in both configurations, because a path that is
+          # only reachable on platforms CI does not run on would otherwise never be
+          # covered anywhere.
+          pip install -e ".[dev,kb,kb-dockerfile]"
       - name: Lint (ruff)
         run: ruff check src tests
       # The coverage floor lives here, on the full-suite job, and deliberately
