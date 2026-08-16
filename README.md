@@ -42,7 +42,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **19 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **20 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.

@@ -85,6 +85,7 @@ kb = [
     # query was written. Floors are the versions checked, not the newest published.
     "tree-sitter-swift>=0.7", "tree-sitter-dart>=0.1", "tree-sitter-zig>=1.1",
     "tree-sitter-perl>=1.2", "tree-sitter-bash>=0.25",
+    "tree-sitter-elixir>=0.3",
 ]
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).

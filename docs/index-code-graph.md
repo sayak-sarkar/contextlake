@@ -163,7 +163,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **19 languages across 18 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **20 languages across 19 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**

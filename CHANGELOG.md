@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Five languages: Swift, Dart, Zig, Perl and Bash.** 14 languages become 19, across 18
-  tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 20, across
+  19 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     test rather than left to be discovered.
   - **Bash variables are global unless declared `local`**, so an assignment anywhere is a
     global, which is deliberately not the module-scope-only rule JavaScript and Python follow.
+  - **Elixir has no definition node types at all.** `defmodule`, `def` and `defp` are ordinary
+    `call` nodes, so neither the kind nor the scope can come from the node type the way every
+    other language's does. Two small per-language hooks read the macro name instead, which is
+    what makes `Engine.start` and `Other.start` two functions rather than one.
 
   Depth is now part of the documented claim rather than hidden behind one number: C, C++,
   JavaScript, TypeScript, TSX and Python also yield module-level variables and class fields;

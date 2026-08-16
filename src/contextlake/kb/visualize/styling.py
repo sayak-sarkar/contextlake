@@ -162,6 +162,7 @@ _LANG_LABELS = {
     "rust": "RS", "php": "PHP", "kotlin": "KT", "cpp": "C++", "c": "C",
     "scala": "SC",
     "swift": "SW", "dart": "DT", "zig": "ZG", "perl": "PL", "bash": "SH",
+    "elixir": "EX",
 }
 
 

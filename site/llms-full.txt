@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **19 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **20 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -2070,7 +2070,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **19 languages across 18 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **20 languages across 19 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**
@@ -6170,8 +6170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Five languages: Swift, Dart, Zig, Perl and Bash.** 14 languages become 19, across 18
-  tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 20, across
+  19 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
@@ -6183,6 +6183,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     test rather than left to be discovered.
   - **Bash variables are global unless declared `local`**, so an assignment anywhere is a
     global, which is deliberately not the module-scope-only rule JavaScript and Python follow.
+  - **Elixir has no definition node types at all.** `defmodule`, `def` and `defp` are ordinary
+    `call` nodes, so neither the kind nor the scope can come from the node type the way every
+    other language's does. Two small per-language hooks read the macro name instead, which is
+    what makes `Engine.start` and `Other.start` two functions rather than one.
 
   Depth is now part of the documented claim rather than hidden behind one number: C, C++,
   JavaScript, TypeScript, TSX and Python also yield module-level variables and class fields;
@@ -12466,7 +12470,7 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "19 languages across 18 tree-sitter grammars" (`.tsx` shares the TypeScript
+- **The language count:** "20 languages across 19 tree-sitter grammars" (`.tsx` shares the TypeScript
   grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
   numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.

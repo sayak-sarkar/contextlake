@@ -112,6 +112,7 @@ LANG_BY_EXT = {
     # Perl: ".pl" is scripts, ".pm" modules, ".t" its test files.
     ".pl": "perl", ".pm": "perl", ".t": "perl",
     ".sh": "bash", ".bash": "bash",
+    ".ex": "elixir", ".exs": "elixir",
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "tsx",
     ".cs": "csharp",
@@ -304,6 +305,10 @@ _DEF_TYPES["perl"] = {"subroutine_declaration_statement": "function",
 # applies to JavaScript and Python.
 _DEF_TYPES["bash"] = {"function_definition": "function",
                       "variable_assignment": "global_variable"}
+# Every Elixir definition is a `call`, so this maps the one node type and `_elixir_kind`
+# refines it per macro. Keeping `call` here is also what gives a `def` inside a
+# `defmodule` its module scope, since `_enclosing_defs` walks ancestors of this type.
+_DEF_TYPES["elixir"] = {"call": "function"}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
 # Queries capture definition *name* identifiers (@def) and import targets (@import).
@@ -476,6 +481,14 @@ _QUERIES = {
         (variable_assignment name: (variable_name) @def)
         (command name: (command_name (word) @call))
     """,
+    # Elixir has NO definition node types. `defmodule`, `def` and `defp` are ordinary
+    # `call` nodes whose target is an identifier naming the macro, so the shape below is
+    # the only one that reaches them, and the KIND cannot come from the node type the way
+    # every other language's does. `_elixir_kind` reads the macro name instead.
+    "elixir": """
+        (call target: (identifier) @kw (arguments (alias) @def))
+        (call target: (identifier) @kw (arguments (call target: (identifier) @def)))
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -527,6 +540,7 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "zig": ("tree_sitter_zig", "language"),
     "perl": ("tree_sitter_perl", "language"),
     "bash": ("tree_sitter_bash", "language"),
+    "elixir": ("tree_sitter_elixir", "language"),
 }
 
 
@@ -946,6 +960,10 @@ def parse_source(
     pending: list[tuple[ts.Node, str, int, str]] = []  # (def_ts_node, qualified_name, line, nid)
     def_worklist: list[tuple[ts.Node, ts.Node, list[str]]] = []  # (def_ts, name_node, extra_scope)
     for name_node in captures.get("def", []):
+        # Elixir only: the query's shape necessarily also matches `use`/`import`/`alias`
+        # directives, which are not definitions. See `_elixir_defines`.
+        if lang == "elixir" and not _elixir_defines(name_node):
+            continue
         def_ts = _def_node(name_node, def_types)
         if def_ts is not None:
             def_worklist.append((def_ts, name_node, []))
@@ -958,8 +976,8 @@ def parse_source(
     for def_ts, name_node, extra_scope in def_worklist:
         name = name_node.text.decode("utf-8", "replace")
         enclosing = _enclosing_defs(name_node, def_types)
-        scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
-                 for n in reversed(enclosing) if n.child_by_field_name("name")]
+        scope = [nm for nm in (_def_name_text(n, lang) for n in reversed(enclosing))
+                 if nm]
         full_scope = scope + extra_scope if extra_scope else scope
         # A test macro with a body parses as a function_definition whose name is the
         # MACRO, so the case's real name is thrown away and every case in the repo
@@ -972,7 +990,8 @@ def parse_source(
                 full_scope = [*full_scope, suite]
         qualified = ".".join([*full_scope, name])
         line = name_node.start_point[0] + 1
-        kind = "test" if macro_case is not None else _DEF_TYPES[lang][def_ts.type]
+        kind = ("test" if macro_case is not None
+                else _lang_kind(lang, def_ts) or _DEF_TYPES[lang][def_ts.type])
         # A forward declaration ("class Widget;", the standard way to break header
         # include cycles in C/C++) is a body-less class_specifier/struct_specifier/
         # enum_specifier/union_specifier -- not a definition in the graph-node sense.
@@ -1055,8 +1074,8 @@ def parse_source(
             if m_anc.type in def_types:
                 m_enclosing.append(m_anc)
             m_anc = m_anc.parent
-        m_scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
-                   for n in reversed(m_enclosing) if n.child_by_field_name("name")]
+        m_scope = [nm for nm in (_def_name_text(n, lang) for n in reversed(m_enclosing))
+                   if nm]
         m_qualified = ".".join([*m_scope, m_name])
         # A macro is not scoped by anything -- the preprocessor runs before C++ scope
         # exists -- so it keeps the file in its key even in C/C++, where other symbols
@@ -1587,6 +1606,90 @@ def _py_member_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
                         _assigned_names(stmt, "field")
         stack.extend(n.children)
     return out
+
+
+# Which Elixir macro introduces which kind. Anything not listed is left to
+# `_DEF_TYPES`, so an unrecognised `defsomething` still becomes a function rather than
+# vanishing: a name in the graph under a slightly wrong kind beats no name at all.
+_ELIXIR_KINDS = {
+    "defmodule": "module", "defprotocol": "interface", "defimpl": "class",
+    "defstruct": "struct", "def": "function", "defp": "function",
+    "defmacro": "function", "defmacrop": "function", "defdelegate": "function",
+    "defguard": "function", "defguardp": "function",
+}
+
+
+def _elixir_defines(name_node: ts.Node) -> bool:
+    """Whether an Elixir `@def` capture really sits under a DEFINITION macro.
+
+    The query has to match `(call target: (identifier) (arguments (alias)))` to reach
+    `defmodule Engine`, and that shape also matches `use ExUnit.Case` and `import Engine`,
+    which are directives. Measured before this existed: a test module produced function
+    nodes named `EngineTest.ExUnit.Case` and `EngineTest.Engine`, symbols nobody wrote.
+
+    tree-sitter query predicates would express this, but the rest of this module filters in
+    Python and one mechanism is easier to follow than two.
+    """
+    node = name_node.parent
+    # alias -> arguments -> call, or identifier -> call -> arguments -> call.
+    for _ in range(3):
+        if node is None:
+            return False
+        if node.type == "call":
+            target = node.child_by_field_name("target")
+            if target is not None and target.type == "identifier":
+                if target.text.decode("utf-8", "replace") in _ELIXIR_KINDS:
+                    return True
+        node = node.parent
+    return False
+
+
+def _def_name_text(node: ts.Node, lang: str) -> str | None:
+    """The declared name of a definition node, for building a qualified name.
+
+    Almost every grammar puts it in a `name` field. Elixir does not: its definitions are
+    `call` nodes with a `target` and an `arguments` list, so a `defmodule Engine` has no
+    `name` field at all and the scope walk silently produced nothing. Functions came out
+    as `start` rather than `Engine.start`, which is the form Elixir code is actually
+    written and searched in.
+    """
+    if lang == "elixir" and node.type == "call":
+        # By child TYPE, not `child_by_field_name("arguments")`: Elixir exposes the
+        # argument list as a named child and not as a field, so the field lookup returns
+        # None and the whole scope walk silently produced nothing. Measured, after the
+        # first version of this function did exactly that.
+        # ONLY module-like macros contribute scope. In Elixir a function is scoped by its
+        # module and never by another function -- there is no nested `def` -- so counting
+        # a `def` as a scope produced `Engine.start.start`, the function's own name twice.
+        # This is the whole reason the check is by macro rather than by node type: `def`
+        # and `defmodule` are the same node type and only one of them is a scope.
+        target = node.child_by_field_name("target")
+        macro = target.text.decode("utf-8", "replace") if target is not None else ""
+        if _ELIXIR_KINDS.get(macro) not in ("module", "interface", "class"):
+            return None
+        args = next((c for c in node.children if c.type == "arguments"), None)
+        if args is not None:
+            for child in args.children:
+                if child.type in ("alias", "identifier"):
+                    return child.text.decode("utf-8", "replace")
+        return None
+    nm = node.child_by_field_name("name")
+    return nm.text.decode("utf-8", "replace") if nm is not None else None
+
+
+def _lang_kind(lang: str, def_ts: ts.Node) -> str | None:
+    """A kind the node TYPE cannot express, or None to use `_DEF_TYPES`.
+
+    Only Elixir needs this today. Its `defmodule` / `def` / `defp` are all `call` nodes,
+    so the node type says "call" for a module, a function and a private function alike.
+    The macro name is the first child of the same call.
+    """
+    if lang != "elixir" or def_ts.type != "call":
+        return None
+    target = def_ts.child_by_field_name("target")
+    if target is None or target.type != "identifier":
+        return None
+    return _ELIXIR_KINDS.get(target.text.decode("utf-8", "replace"))
 
 
 def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
