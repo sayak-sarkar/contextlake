@@ -113,6 +113,8 @@ LANG_BY_EXT = {
     ".pl": "perl", ".pm": "perl", ".t": "perl",
     ".sh": "bash", ".bash": "bash",
     ".ex": "elixir", ".exs": "elixir",
+    ".css": "css", ".html": "html", ".htm": "html",
+    ".nix": "nix",
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "tsx",
     ".cs": "csharp",
@@ -309,6 +311,14 @@ _DEF_TYPES["bash"] = {"function_definition": "function",
 # refines it per macro. Keeping `call` here is also what gives a `def` inside a
 # `defmodule` its module scope, since `_enclosing_defs` walks ancestors of this type.
 _DEF_TYPES["elixir"] = {"call": "function"}
+# The presentation and build tier declares NO definition node types and runs an EMPTY
+# query. Its symbols all come from `_member_symbols`, which returns the kind in the tuple
+# rather than deriving it from a node type. That is required, not stylistic: in CSS the
+# pseudo-class in `a.nav:hover` is the same `class_name` node as the real class in `.nav`,
+# so a node type cannot tell a selector from a pseudo-class, and a query that captured
+# both would invent a CSS class called `hover`.
+for _markup in ("css", "html", "nix"):
+    _DEF_TYPES[_markup] = {}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
 # Queries capture definition *name* identifiers (@def) and import targets (@import).
@@ -490,6 +500,8 @@ _QUERIES = {
         (call target: (identifier) @kw (arguments (call target: (identifier) @def)))
     """,
 }
+for _markup in ("css", "html", "nix"):
+    _QUERIES[_markup] = ""
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
 _LANGS: dict[str, ts.Language] = {}
@@ -541,6 +553,9 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "perl": ("tree_sitter_perl", "language"),
     "bash": ("tree_sitter_bash", "language"),
     "elixir": ("tree_sitter_elixir", "language"),
+    "css": ("tree_sitter_css", "language"),
+    "html": ("tree_sitter_html", "language"),
+    "nix": ("tree_sitter_nix", "language"),
 }
 
 
@@ -1692,6 +1707,104 @@ def _lang_kind(lang: str, def_ts: ts.Node) -> str | None:
     return _ELIXIR_KINDS.get(target.text.decode("utf-8", "replace"))
 
 
+def _css_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Selectors a stylesheet defines: classes, ids and element types.
+
+    THE TRAP, and the reason this is code rather than a query: in `a.nav:hover` the
+    pseudo-class `hover` is the SAME `class_name` node type as the real class `nav`. A
+    query matching `class_name` invents a CSS class called `hover` on every hover rule in
+    the codebase. The two are told apart only by their parent, so the walk below descends
+    from `class_selector` and `id_selector` deliberately and never matches a bare name.
+    """
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+    seen: set[int] = set()
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type == "class_selector":
+            # The LAST class_name child, since `a.nav` nests tag_name and class_name as
+            # siblings and only the class_name is this selector's own name.
+            for ch in n.children:
+                if ch.type == "class_name" and ch.id not in seen:
+                    seen.add(ch.id)
+                    out.append(("css_class", ch, n))
+        elif n.type == "id_selector":
+            for ch in n.children:
+                if ch.type == "id_name" and ch.id not in seen:
+                    seen.add(ch.id)
+                    out.append(("css_id", ch, n))
+        elif n.type == "tag_name" and n.id not in seen:
+            # A type selector styles EVERY element of that name, so it is the highest
+            # fanout thing in this tier by construction.
+            parent = n.parent
+            if parent is not None and parent.type in ("selectors", "class_selector",
+                                                      "pseudo_class_selector"):
+                seen.add(n.id)
+                out.append(("css_element", n, parent))
+        stack.extend(n.children)
+    return out
+
+
+def _html_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """What an HTML file DEFINES: the `id` of each element.
+
+    A page's `class=` attributes and its tag names are REFERENCES to what a stylesheet
+    defines, not definitions, so they are not returned here. They become edges instead,
+    resolved repo-wide like any other unresolved name.
+    """
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type == "attribute":
+            name = next((c for c in n.children if c.type == "attribute_name"), None)
+            value = next((c for c in n.children
+                          if c.type in ("quoted_attribute_value", "attribute_value")), None)
+            if (name is not None and value is not None
+                    and name.text.decode("utf-8", "replace").lower() == "id"):
+                inner = next((c for c in value.children if c.type == "attribute_value"),
+                             value)
+                out.append(("html_id", inner, n))
+        stack.extend(n.children)
+    return out
+
+
+def _make_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Make targets. NOT WIRED IN YET, and deliberately kept rather than deleted.
+
+    A Makefile has no extension, and `LANG_BY_EXT` is the only route a file takes to a
+    grammar, so nothing reaches this. Routing a file by NAME means changing file
+    classification, `allowed_exts` and the `--languages` filter together, which is its own
+    change with its own tests rather than a rider on this one. The parity guard is what
+    caught it: `make` had a lettermark for a language the parser could never emit, which is
+    exactly the dead-vocabulary shape that guard exists to find.
+    """
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type == "targets":
+            for ch in n.children:
+                if ch.type == "word":
+                    out.append(("make_target", ch, n.parent or n))
+        stack.extend(n.children)
+    return out
+
+
+def _nix_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
+    """Nix attribute names, which are what another expression refers to by name."""
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        if n.type == "binding":
+            attr = next((c for c in n.children if c.type == "attrpath"), None)
+            if attr is not None:
+                out.append(("nix_attr", attr, n))
+        stack.extend(n.children)
+    return out
+
+
 def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
     """`(kind, name_node, container)` for the symbol kinds the def query cannot express.
 
@@ -1704,6 +1817,12 @@ def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Nod
     a name (see `_declared_name`), and whether a declaration is file-scope or a local
     (see `_is_file_scope`).
     """
+    if lang == "css":
+        return _css_symbols(tree)
+    if lang == "html":
+        return _html_symbols(tree)
+    if lang == "nix":
+        return _nix_symbols(tree)
     if lang in _JS_LANGS:
         return _js_member_symbols(tree)
     if lang == "python":

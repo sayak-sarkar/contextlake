@@ -147,6 +147,9 @@ class KindSpec:
 # the four new ones are inserted before the cross-source/boundary tail.
 KIND_GROUP_ORDER = (
     "Symbols", "Containers", "Service surfaces", "Data model", "Infrastructure",
+    # Presentation sits after the service surfaces it is adjacent to: a route and a
+    # stylesheet selector are both things a page reaches for by name.
+    "Presentation",
     "Configuration", "Documents", "Cross-source", "Boundary",
 )
 
@@ -358,6 +361,61 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=True, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    # --- Presentation ------------------------------------------------------------
+    # A stylesheet DEFINES these three and a template REFERENCES them, which is the whole
+    # reason they are separate kinds rather than one: "which stylesheet defines the class
+    # this page uses" needs the two sides to be distinguishable. Purpose-built rather than
+    # folded into `class`, because `--kind class` returning CSS selectors costs every
+    # existing filter its precision.
+    #
+    # None is embeddable YET, and the reason is honest rather than principled: no
+    # measurement exists for them. The five symbol kinds above each carry a measured
+    # recall-versus-cost note, and turning these on without one would put a guess beside
+    # five measurements. `btn-primary` plausibly is a semantic query; measure it and flip
+    # this rather than assuming either way.
+    "css_class": KindSpec(
+        color="#7c3aed", glyph=None, group="Presentation",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "css_id": KindSpec(
+        color="#a855f7", glyph=None, group="Presentation",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    # A type selector styles EVERY element of that name, so it is high-fanout by nature:
+    # one `button` rule reaches every button in the tree. The existing fanout caps apply.
+    "css_element": KindSpec(
+        color="#c084fc", glyph=None, group="Presentation",
+        embeddable=False,
+        why_not_embeddable="a tag name is a fixed HTML vocabulary word, not a query",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "html_id": KindSpec(
+        color="#e879f9", glyph=None, group="Presentation",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    # --- Build and configuration ---------------------------------------------------
+    "nix_attr": KindSpec(
+        color="#38bdf8", glyph=None, group="Configuration",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "macro": KindSpec(

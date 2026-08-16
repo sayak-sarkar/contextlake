@@ -9,8 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 20, across
-  19 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **CSS, HTML and Nix, with purpose-built node kinds.** A stylesheet's class, id and element
+  selectors, an HTML element's `id`, and a Nix attribute name are the things other files refer
+  to by name, so they become nodes: `css_class`, `css_id`, `css_element`, `html_id`,
+  `nix_attr`. Purpose-built rather than folded into `class` or `global_variable`, because
+  `--kind class` returning stylesheet selectors would cost every existing filter its
+  precision.
+
+  These do not go through the definition query, and cannot: in CSS the pseudo-class in
+  `a.nav:hover` is the same `class_name` node as the real class in `.nav`, so a node type
+  cannot tell them apart, and a query would invent a CSS class called `hover` on every hover
+  rule. An HTML `class=` attribute is a *use* of a name a stylesheet defines and is not yet
+  emitted as anything; making it a reference edge is separate work.
+
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 23, across
+  22 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a

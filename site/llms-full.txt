@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **20 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **23 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -2070,14 +2070,22 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **20 languages across 19 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **23 languages across 22 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
-Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**
-additionally yield module-level variables and class fields, which on one public JavaScript tree was
-463 of its 783 nodes. Every other language yields definitions, imports and calls. Zig is the one
-partial case worth naming: it declares a struct as `const Engine = struct {...}`, which is a variable
-declaration rather than a definition node, so Zig types are not extracted yet.
+Depth differs across three tiers, and a single number would hide it.
+
+| Tier | Languages | What you get |
+| --- | --- | --- |
+| Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
+| Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
+| Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+
+On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
+are worth naming rather than leaving to be discovered: Zig declares a struct as
+`const Engine = struct {...}`, a variable declaration rather than a definition node, so Zig types are
+not extracted; and an HTML `class=` attribute is a *use* of a name a stylesheet defines, so it is not
+yet emitted as anything.
 
 | Ecosystem | Languages |
 | --- | --- |
@@ -6170,8 +6178,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 20, across
-  19 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+- **CSS, HTML and Nix, with purpose-built node kinds.** A stylesheet's class, id and element
+  selectors, an HTML element's `id`, and a Nix attribute name are the things other files refer
+  to by name, so they become nodes: `css_class`, `css_id`, `css_element`, `html_id`,
+  `nix_attr`. Purpose-built rather than folded into `class` or `global_variable`, because
+  `--kind class` returning stylesheet selectors would cost every existing filter its
+  precision.
+
+  These do not go through the definition query, and cannot: in CSS the pseudo-class in
+  `a.nav:hover` is the same `class_name` node as the real class in `.nav`, so a node type
+  cannot tell them apart, and a query would invent a CSS class called `hover` on every hover
+  rule. An HTML `class=` attribute is a *use* of a name a stylesheet defines and is not yet
+  emitted as anything; making it a reference edge is separate work.
+
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 23, across
+  22 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
   before being written, because each of these grammars names things differently from what the
   language's syntax suggests:
   - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
@@ -12470,7 +12491,7 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "20 languages across 19 tree-sitter grammars" (`.tsx` shares the TypeScript
+- **The language count:** "23 languages across 22 tree-sitter grammars" (`.tsx` shares the TypeScript
   grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
   numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.

@@ -163,6 +163,7 @@ _LANG_LABELS = {
     "scala": "SC",
     "swift": "SW", "dart": "DT", "zig": "ZG", "perl": "PL", "bash": "SH",
     "elixir": "EX",
+    "css": "CSS", "html": "HTM", "nix": "NIX",
 }
 
 

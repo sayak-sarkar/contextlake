@@ -163,14 +163,22 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **20 languages across 19 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **23 languages across 22 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
-Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**
-additionally yield module-level variables and class fields, which on one public JavaScript tree was
-463 of its 783 nodes. Every other language yields definitions, imports and calls. Zig is the one
-partial case worth naming: it declares a struct as `const Engine = struct {...}`, which is a variable
-declaration rather than a definition node, so Zig types are not extracted yet.
+Depth differs across three tiers, and a single number would hide it.
+
+| Tier | Languages | What you get |
+| --- | --- | --- |
+| Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
+| Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
+| Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+
+On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
+are worth naming rather than leaving to be discovered: Zig declares a struct as
+`const Engine = struct {...}`, a variable declaration rather than a definition node, so Zig types are
+not extracted; and an HTML `class=` attribute is a *use* of a name a stylesheet defines, so it is not
+yet emitted as anything.
 
 | Ecosystem | Languages |
 | --- | --- |

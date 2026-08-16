@@ -30,19 +30,41 @@ from contextlake.kb.visualize import diagrams, styling
 _CONNECTOR_KINDS = {"issue", "page", "design", "mr", "message", "channel"}
 
 
-def _member_symbol_kinds() -> set[str]:
-    """Kinds emitted by `parse._member_symbols`, read off a fixture rather than a list.
+# One fixture per language `_member_symbols` branches on. The C++ one was alone here, and
+# when the function grew branches for JavaScript, Python and the presentation tier this
+# introspection could not see them: it reported six registered kinds as "produced by
+# nothing" while they were being produced on every parse. A fixture that covers one branch
+# is a list in disguise.
+_MEMBER_FIXTURES = {
+    "cpp": (b"#define M 1\n"
+            b"typedef int T;\n"
+            b"enum E { A };\n"
+            b"int g = 0;\n"
+            b"class C { int f_; };\n"),
+    "javascript": b'const g = 1;\nclass C { f = 2; }\n',
+    "python": b'g = 1\n\n\nclass C:\n    f = 2\n',
+    "css": b'.c { }\n#i { }\nel { }\n',
+    "html": b'<div id="i"></div>\n',
+    "nix": b'{ attr = 1; }\n',
+}
 
-    A hand-kept list here would be one more vocabulary to drift; parsing a fixture that
-    exercises every branch keeps it honest."""
+
+def _member_symbol_kinds() -> set[str]:
+    """Kinds emitted by `parse._member_symbols`, read off fixtures rather than a list.
+
+    A hand-kept list here would be one more vocabulary to drift; parsing fixtures that
+    exercise every branch keeps it honest."""
     import tree_sitter as ts
-    src = (b"#define M 1\n"
-           b"typedef int T;\n"
-           b"enum E { A };\n"
-           b"int g = 0;\n"
-           b"class C { int f_; };\n")
-    tree = ts.Parser(parse._language("cpp")).parse(src)
-    return {kind for kind, _, _ in parse._member_symbols(tree, "cpp")}
+
+    out: set[str] = set()
+    for lang, src in _MEMBER_FIXTURES.items():
+        tree = ts.Parser(parse._language(lang)).parse(src)
+        got = {kind for kind, _, _ in parse._member_symbols(tree, lang)}
+        assert got, (
+            f"the {lang} fixture produced no member symbols, so this introspection is "
+            f"blind to that branch and would report its kinds as unproduced")
+        out |= got
+    return out
 
 
 def _produced_kinds() -> set[str]:
