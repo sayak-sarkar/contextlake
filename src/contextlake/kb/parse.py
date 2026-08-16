@@ -106,6 +106,12 @@ def match_ignore(rel: str, patterns: list[str]) -> bool:
 
 LANG_BY_EXT = {
     ".py": "python",
+    ".swift": "swift",
+    ".dart": "dart",
+    ".zig": "zig",
+    # Perl: ".pl" is scripts, ".pm" modules, ".t" its test files.
+    ".pl": "perl", ".pm": "perl", ".t": "perl",
+    ".sh": "bash", ".bash": "bash",
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "tsx",
     ".cs": "csharp",
@@ -279,6 +285,25 @@ _DEF_TYPES = {
         "function_declaration": "function",
     },
 }
+# Swift has no distinct struct node: `struct Box` parses as `class_declaration` too,
+# so both arrive as "class" rather than being guessed apart by source text.
+_DEF_TYPES["swift"] = {"class_declaration": "class", "protocol_declaration": "interface",
+                       "function_declaration": "function"}
+# Dart splits a top-level function into `function_signature` + a sibling `function_body`,
+# so the signature is the definition node.
+_DEF_TYPES["dart"] = {"class_definition": "class", "mixin_declaration": "interface",
+                      "function_signature": "function"}
+# Zig declares a struct as `const Engine = struct {...}`, which is a `variable_declaration`
+# and not a definition node, so only functions are captured here. Struct extraction needs
+# to read the initializer and is deliberately left out rather than half-done.
+_DEF_TYPES["zig"] = {"function_declaration": "function"}
+_DEF_TYPES["perl"] = {"subroutine_declaration_statement": "function",
+                      "package_statement": "module"}
+# A bash variable is global unless declared `local`, so capturing assignments anywhere is
+# right for this language, and is NOT the same call as the module-scope-only rule that
+# applies to JavaScript and Python.
+_DEF_TYPES["bash"] = {"function_definition": "function",
+                      "variable_assignment": "global_variable"}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
 # Queries capture definition *name* identifiers (@def) and import targets (@import).
@@ -422,6 +447,35 @@ _QUERIES = {
         (delegation_specifier (constructor_invocation (user_type) @base))
         (delegation_specifier (user_type) @base)
     """,
+    # Every pattern below was compiled and run against a real snippet of its language
+    # before being written here, because each of these grammars names things differently
+    # from what the language's own syntax suggests.
+    "swift": """
+        (class_declaration name: (type_identifier) @def)
+        (protocol_declaration name: (type_identifier) @def)
+        (function_declaration name: (simple_identifier) @def)
+        (call_expression (simple_identifier) @call)
+        (import_declaration (identifier) @import)
+    """,
+    "dart": """
+        (class_definition name: (identifier) @def)
+        (mixin_declaration (identifier) @def)
+        (function_signature name: (identifier) @def)
+    """,
+    "zig": """
+        (function_declaration name: (identifier) @def)
+    """,
+    # `package Engine;` puts the keyword and the name under the same node type, so the
+    # name is reached positionally rather than by a field.
+    "perl": """
+        (subroutine_declaration_statement name: (bareword) @def)
+        (package_statement (package) @def)
+    """,
+    "bash": """
+        (function_definition name: (word) @def)
+        (variable_assignment name: (variable_name) @def)
+        (command name: (command_name (word) @call))
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -468,6 +522,11 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "php": ("tree_sitter_php", "language_php"),
     "scala": ("tree_sitter_scala", "language"),
     "kotlin": ("tree_sitter_kotlin", "language"),
+    "swift": ("tree_sitter_swift", "language"),
+    "dart": ("tree_sitter_dart", "language"),
+    "zig": ("tree_sitter_zig", "language"),
+    "perl": ("tree_sitter_perl", "language"),
+    "bash": ("tree_sitter_bash", "language"),
 }
 
 

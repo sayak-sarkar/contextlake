@@ -163,8 +163,14 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **14 languages across 13 grammars** (TypeScript and TSX share one grammar), and the
-parser registry is pluggable:
+tree-sitter covers **19 languages across 18 grammars** (TypeScript and TSX share one grammar), and the
+parser registry is pluggable.
+
+Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**
+additionally yield module-level variables and class fields, which on one public JavaScript tree was
+463 of its 783 nodes. Every other language yields definitions, imports and calls. Zig is the one
+partial case worth naming: it declares a struct as `const Engine = struct {...}`, which is a variable
+declaration rather than a definition node, so Zig types are not extracted yet.
 
 | Ecosystem | Languages |
 | --- | --- |

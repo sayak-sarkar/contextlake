@@ -45,14 +45,18 @@ def _said(monkeypatch, fn):
 
 def test_a_repo_in_an_unsupported_language_says_so(tmp_path, monkeypatch):
     """THE LOAD-BEARING ASSERTION: the reason must be in the output, not inferable."""
+    # Haskell, because it is genuinely unparsed. This fixture used `.swift` until Swift
+    # became supported, at which point the test failed by correctly reporting that the
+    # files WERE parsed. Pick an extension for this fixture that nothing is likely to add
+    # soon, and expect to move it again if that stops being true.
     repo = _repo(tmp_path, {
-        "App.swift": "func greet() {}\n",
-        "View.swift": "struct V {}\n",
+        "App.hs": "greet = putStrLn \"hi\"\n",
+        "View.hs": "data V = V\n",
         "README.md": "# hi\n",
     })
     said = _said(monkeypatch, lambda: index_repo_dir(str(repo), "demo", head_commit="h"))
     assert "no file in this repository has a supported parser" in said, said
-    assert ".swift" in said, "the message must name the extensions it could not read"
+    assert ".hs" in said, "the message must name the extensions it could not read"
     assert "x2" in said, "the message must say how many"
 
 
@@ -60,8 +64,11 @@ def test_the_language_count_in_that_message_is_derived_not_written_down(tmp_path
                                                                        monkeypatch):
     """The near-miss that matters most here: a hardcoded '14 languages' goes stale the
     moment a grammar is added, which is the same docs-versus-code drift this release is
-    about. The number must come from LANG_BY_EXT."""
-    repo = _repo(tmp_path, {"App.swift": "func greet() {}\n"})
+    about. The number must come from LANG_BY_EXT.
+
+    It has already earned its keep: adding five grammars moved the real count from 14 to
+    19, and this assertion is derived so it followed rather than needing a hunt."""
+    repo = _repo(tmp_path, {"App.hs": "greet = putStrLn \"hi\"\n"})
     said = _said(monkeypatch, lambda: index_repo_dir(str(repo), "demo", head_commit="h"))
     expected = len(set(LANG_BY_EXT.values()))
     assert f"{expected} languages" in said, (

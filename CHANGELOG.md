@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Five languages: Swift, Dart, Zig, Perl and Bash.** 14 languages become 19, across 18
+  tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+  before being written, because each of these grammars names things differently from what the
+  language's syntax suggests:
+  - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
+    class arrive as the same kind rather than being told apart by reading source text back.
+  - **Dart splits a top-level function in two.** The definition node is `function_signature`,
+    and the body is its sibling.
+  - **Zig declares a struct as a constant.** `const Engine = struct {...}` is a variable
+    declaration, so Zig **types are not extracted**, only functions. Stated here and pinned by a
+    test rather than left to be discovered.
+  - **Bash variables are global unless declared `local`**, so an assignment anywhere is a
+    global, which is deliberately not the module-scope-only rule JavaScript and Python follow.
+
+  Depth is now part of the documented claim rather than hidden behind one number: C, C++,
+  JavaScript, TypeScript, TSX and Python also yield module-level variables and class fields;
+  every other language yields definitions, imports and calls. `docs/style-guide-reference.md`
+  holds the phrasing and a test derives both counts from the parser, so a page cannot drift
+  from the code again.
+
+
 ## [7.9.0] - 2026-08-16
 
 **Module-level variables and class fields are now extracted for JavaScript, TypeScript and

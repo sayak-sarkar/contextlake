@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **14 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **19 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -2070,8 +2070,14 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **14 languages across 13 grammars** (TypeScript and TSX share one grammar), and the
-parser registry is pluggable:
+tree-sitter covers **19 languages across 18 grammars** (TypeScript and TSX share one grammar), and the
+parser registry is pluggable.
+
+Depth differs, and the number alone would hide it. **C, C++, JavaScript, TypeScript, TSX and Python**
+additionally yield module-level variables and class fields, which on one public JavaScript tree was
+463 of its 783 nodes. Every other language yields definitions, imports and calls. Zig is the one
+partial case worth naming: it declares a struct as `const Engine = struct {...}`, which is a variable
+declaration rather than a definition node, so Zig types are not extracted yet.
 
 | Ecosystem | Languages |
 | --- | --- |
@@ -6161,6 +6167,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **Five languages: Swift, Dart, Zig, Perl and Bash.** 14 languages become 19, across 18
+  tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+  before being written, because each of these grammars names things differently from what the
+  language's syntax suggests:
+  - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
+    class arrive as the same kind rather than being told apart by reading source text back.
+  - **Dart splits a top-level function in two.** The definition node is `function_signature`,
+    and the body is its sibling.
+  - **Zig declares a struct as a constant.** `const Engine = struct {...}` is a variable
+    declaration, so Zig **types are not extracted**, only functions. Stated here and pinned by a
+    test rather than left to be discovered.
+  - **Bash variables are global unless declared `local`**, so an assignment anywhere is a
+    global, which is deliberately not the module-scope-only rule JavaScript and Python follow.
+
+  Depth is now part of the documented claim rather than hidden behind one number: C, C++,
+  JavaScript, TypeScript, TSX and Python also yield module-level variables and class fields;
+  every other language yields definitions, imports and calls. `docs/style-guide-reference.md`
+  holds the phrasing and a test derives both counts from the parser, so a page cannot drift
+  from the code again.
+
 
 ## [7.9.0] - 2026-08-16
 
@@ -12437,8 +12466,14 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "14 languages across 13 tree-sitter grammars" (`.tsx` shares the TypeScript
-  grammar). Use this exact phrasing everywhere.
+- **The language count:** "19 languages across 18 tree-sitter grammars" (`.tsx` shares the TypeScript
+  grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
+  numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
+  grammar means updating this line and the pages that quote it, not hunting for them later.
+- **Depth is part of the claim.** Not every language is extracted to the same depth, and a single
+  number hides that. Where there is room to say so, say which: C, C++, JavaScript, TypeScript, TSX
+  and Python also yield module-level variables and class fields; the rest yield definitions,
+  imports and calls.
 - **The lake metaphor** is a closed system (brand guidelines section 1.3): *deep* is the real, complete
   source underneath, and *clear* is the precise answer back. Never oceans, waves, fishing, drowning, or
   "data lake". Depth is calm and legible, never threatening.
