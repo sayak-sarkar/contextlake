@@ -91,6 +91,11 @@ kb = [
     # Svelte uses its own grammar; `.vue` borrows HTML's, since no tree-sitter-vue
     # package exists on PyPI at all.
     "tree-sitter-svelte>=1.0",
+    # Build tier. A hard dependency because this grammar ships an sdist and a wheel for
+    # every platform contextlake installs on, which is the test that decides hard-versus-
+    # optional here: a grammar with partial wheel coverage would make `pip install
+    # contextlake[kb]` itself fail on the platforms it misses.
+    "tree-sitter-make>=1.1",
 ]
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).

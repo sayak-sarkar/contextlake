@@ -163,7 +163,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **25 languages across 23 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **26 languages across 24 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs across three tiers, and a single number would hide it.
@@ -172,8 +172,14 @@ Depth differs across three tiers, and a single number would hide it.
 | --- | --- | --- |
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
-| Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+| Referenceable names | CSS, HTML, Nix, Make | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets |
 | Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
+
+Most files reach a grammar by extension. A build file has none, so `Makefile` and `GNUmakefile`
+are routed by name instead, matched on the stem before the first dot: `Makefile.am` is a makefile
+and `MyMakefile` is not. Make targets are the names a person types at a shell and a CI job
+invokes, which makes them the shortest answer to "what does this project expect of itself".
+Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, and neither are variables.
 
 On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
 are worth naming rather than leaving to be discovered: Zig declares a struct as

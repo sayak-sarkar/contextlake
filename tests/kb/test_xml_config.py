@@ -160,10 +160,11 @@ def test_xml_is_not_gated_by_the_languages_filter():
     """A setting is not written in a language anyone filters on, so
     `--languages python` must not hide a repo's configuration -- the same rule
     manifests and ADRs already follow."""
-    from contextlake.kb.parse import _extension_filter, _file_kind
-    allowed, hcl, sql = _extension_filter(["python"])
+    from contextlake.kb.parse import _file_kind, _source_filter
+    allowed, names, hcl, sql = _source_filter(["python"])
     assert _file_kind("app.xml", ".xml", "conf/app.xml",
-                      allowed_exts=allowed, index_hcl=hcl, index_sql=sql) == "xml"
+                      allowed_exts=allowed, allowed_names=names,
+                      index_hcl=hcl, index_sql=sql) == "xml"
 
 
 class TestFileContainment:

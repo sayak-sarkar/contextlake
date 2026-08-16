@@ -165,6 +165,7 @@ _LANG_LABELS = {
     "elixir": "EX",
     "css": "CSS", "html": "HTM", "nix": "NIX",
     "svelte": "SVE", "vue": "VUE",
+    "make": "MK",
 }
 
 

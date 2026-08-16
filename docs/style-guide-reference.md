@@ -19,10 +19,12 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "25 languages across 23 tree-sitter grammars" (`.tsx` shares the TypeScript
-  grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
-  numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
+- **The language count:** "26 languages across 24 tree-sitter grammars" (`.tsx` shares the TypeScript
+  grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
+  numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.
+  `ALL_LANGS`, not `LANG_BY_EXT`: a file can reach a grammar by NAME as well as by extension,
+  and counting extensions alone under-reports the total while reading as a complete count.
 - **Depth is part of the claim.** Not every language is extracted to the same depth, and a single
   number hides that. Where there is room to say so, say which: C, C++, JavaScript, TypeScript, TSX
   and Python also yield module-level variables and class fields; the rest yield definitions,

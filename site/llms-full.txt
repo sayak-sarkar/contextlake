@@ -54,7 +54,7 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **25 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   **26 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
@@ -2070,7 +2070,7 @@ this page documents further down, are real edges the diagram does not show at al
 
 ### Languages
 
-tree-sitter covers **25 languages across 23 grammars** (TypeScript and TSX share one grammar), and the
+tree-sitter covers **26 languages across 24 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
 Depth differs across three tiers, and a single number would hide it.
@@ -2079,8 +2079,14 @@ Depth differs across three tiers, and a single number would hide it.
 | --- | --- | --- |
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
-| Referenceable names | CSS, HTML, Nix | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes |
+| Referenceable names | CSS, HTML, Nix, Make | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets |
 | Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
+
+Most files reach a grammar by extension. A build file has none, so `Makefile` and `GNUmakefile`
+are routed by name instead, matched on the stem before the first dot: `Makefile.am` is a makefile
+and `MyMakefile` is not. Make targets are the names a person types at a shell and a CI job
+invokes, which makes them the shortest answer to "what does this project expect of itself".
+Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, and neither are variables.
 
 On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
 are worth naming rather than leaving to be discovered: Zig declares a struct as
@@ -12515,10 +12521,12 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "25 languages across 23 tree-sitter grammars" (`.tsx` shares the TypeScript
-  grammar). Use this exact phrasing everywhere. `tests/test_docs_language_count.py` derives both
-  numbers from `LANG_BY_EXT` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
+- **The language count:** "26 languages across 24 tree-sitter grammars" (`.tsx` shares the TypeScript
+  grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
+  numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
   grammar means updating this line and the pages that quote it, not hunting for them later.
+  `ALL_LANGS`, not `LANG_BY_EXT`: a file can reach a grammar by NAME as well as by extension,
+  and counting extensions alone under-reports the total while reading as a complete count.
 - **Depth is part of the claim.** Not every language is extracted to the same depth, and a single
   number hides that. Where there is room to say so, say which: C, C++, JavaScript, TypeScript, TSX
   and Python also yield module-level variables and class fields; the rest yield definitions,

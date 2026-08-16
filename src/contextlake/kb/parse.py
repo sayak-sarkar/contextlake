@@ -155,6 +155,26 @@ LANG_BY_EXT = {
     ".kt": "kotlin", ".kts": "kotlin",
 }
 
+# Languages whose files are identified by NAME rather than by extension. A build file
+# is the common case: `Makefile` and `Dockerfile` have no extension at all, so
+# LANG_BY_EXT -- the only route to a grammar before this -- could never reach them, and
+# `_select_file` dropped them without even counting the skip.
+#
+# Keys are the name STEM, lowercased: everything before the first dot. That is an EXACT
+# match on a derived key, deliberately not a prefix test. `Makefile.am` must hit and
+# `MyMakefile` must not, and a prefix test gets the second one wrong in exactly the way
+# an unanchored match always does. A spelling like `prod.Makefile` is an extension and
+# belongs in LANG_BY_EXT, not here.
+LANG_BY_NAME = {
+    "makefile": "make",
+    "gnumakefile": "make",
+}
+
+# Every language contextlake can parse, however a file reaches it. Union, never either
+# table alone: a count or a coverage check written against LANG_BY_EXT silently omits
+# every name-routed language, and reads as complete while doing so.
+ALL_LANGS = set(LANG_BY_EXT.values()) | set(LANG_BY_NAME.values())
+
 # HCL/Terraform files use a bespoke extraction path (kb/hcl.py), not the OO
 # capture model, so they are matched separately from LANG_BY_EXT.
 HCL_EXTS = {".tf"}
@@ -318,7 +338,8 @@ _DEF_TYPES["elixir"] = {"call": "function"}
 # pseudo-class in `a.nav:hover` is the same `class_name` node as the real class in `.nav`,
 # so a node type cannot tell a selector from a pseudo-class, and a query that captured
 # both would invent a CSS class called `hover`.
-for _markup in ("css", "html", "nix", "svelte", "vue"):
+_QUERYLESS_LANGS = ("css", "html", "nix", "svelte", "vue", "make")
+for _markup in _QUERYLESS_LANGS:
     _DEF_TYPES[_markup] = {}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
@@ -501,7 +522,11 @@ _QUERIES = {
         (call target: (identifier) @kw (arguments (call target: (identifier) @def)))
     """,
 }
-for _markup in ("css", "html", "nix", "svelte", "vue"):
+# One list, read twice: this was two identical literals, and adding a language to the
+# first without the second compiles a missing query into a KeyError at parse time on
+# the language's first real file. Deriving the second from the first makes that
+# impossible rather than merely unlikely.
+for _markup in _QUERYLESS_LANGS:
     _QUERIES[_markup] = ""
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -557,6 +582,7 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
     "css": ("tree_sitter_css", "language"),
     "html": ("tree_sitter_html", "language"),
     "nix": ("tree_sitter_nix", "language"),
+    "make": ("tree_sitter_make", "language"),
     "svelte": ("tree_sitter_svelte", "language"),
     # `.vue` has no tree-sitter package anywhere, and its template/script/style structure
     # is what the HTML grammar already parses. Same shape as typescript and tsx sharing
@@ -1785,14 +1811,23 @@ def _html_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
 
 
 def _make_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
-    """Make targets. NOT WIRED IN YET, and deliberately kept rather than deleted.
+    """Make targets: the names another rule, or a person at a shell, invokes by name.
 
-    A Makefile has no extension, and `LANG_BY_EXT` is the only route a file takes to a
-    grammar, so nothing reaches this. Routing a file by NAME means changing file
-    classification, `allowed_exts` and the `--languages` filter together, which is its own
-    change with its own tests rather than a rider on this one. The parity guard is what
-    caught it: `make` had a lettermark for a language the parser could never emit, which is
-    exactly the dead-vocabulary shape that guard exists to find.
+    A rule's `targets` node holds one or more `word` children, because `build test:`
+    declares two targets sharing one recipe. Each becomes its own node rather than one
+    node named "build test", which is what a naive read of the node's text would give.
+
+    Reached by NAME routing, not by extension: a bare `Makefile` has none. That routing
+    is what this extractor waited for, and `LANG_BY_NAME` is what supplies it.
+
+    A target whose name starts with a dot is skipped. Those are make's own special
+    targets (`.PHONY`, `.SUFFIXES`, `.DEFAULT`) and legacy suffix rules (`.c.o`), never
+    names a person or a CI job invokes, and emitting them puts a symbol in the graph
+    that nobody wrote -- the same defect Elixir's `use`/`import` directives produced.
+
+    Variables (`CC = gcc`) are NOT extracted. `$(CC)` is a real reference and capturing
+    the definitions would be worth doing; it is left out rather than half-done, and
+    stated here so the gap stays visible instead of being assumed closed.
     """
     out: list[tuple[str, ts.Node, ts.Node]] = []
     stack = [tree.root_node]
@@ -1800,7 +1835,7 @@ def _make_symbols(tree: ts.Tree) -> list[tuple[str, ts.Node, ts.Node]]:
         n = stack.pop()
         if n.type == "targets":
             for ch in n.children:
-                if ch.type == "word":
+                if ch.type == "word" and not ch.text.startswith(b"."):
                     out.append(("make_target", ch, n.parent or n))
         stack.extend(n.children)
     return out
@@ -1887,6 +1922,8 @@ def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Nod
         return _html_symbols(tree)
     if lang == "nix":
         return _nix_symbols(tree)
+    if lang == "make":
+        return _make_symbols(tree)
     if lang in _JS_LANGS:
         return _js_member_symbols(tree)
     if lang == "python":
@@ -1927,13 +1964,37 @@ def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Nod
     return out
 
 
+def name_key(fn: str) -> str:
+    """A file's name-routing key: the lowercased stem before its first dot.
+
+    ``Makefile`` -> ``makefile``; ``Dockerfile.prod`` -> ``dockerfile``; ``MyMakefile``
+    -> ``mymakefile``, which matches nothing, which is correct. A dotfile such as
+    ``.gitignore`` yields ``""`` and so can never match a table entry.
+    """
+    return os.path.basename(fn).split(".", 1)[0].lower()
+
+
+def lang_for(fn: str, ext: str) -> str | None:
+    """The language a file parses as, by extension first and then by name.
+
+    The single place the two routing tables are consulted together. Extension wins
+    when both could apply, so an explicit ``.mk`` is never overridden by a stem.
+    """
+    return LANG_BY_EXT.get(ext) or LANG_BY_NAME.get(name_key(fn))
+
+
 def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
-               index_hcl: bool, index_sql: bool) -> str | None:
+               allowed_names: set[str], index_hcl: bool, index_sql: bool) -> str | None:
     """Which extractor owns this file, or None if nothing indexes it.
 
     ``languages`` gates code, HCL and SQL only: a manifest, an ADR or an XML
     config file is never language-specific, so filtering to ``--languages python``
     must not hide the repo's package manifests, decision records or settings.
+
+    ``allowed_names`` has NO default on purpose, matching ``allowed_exts``. A default
+    would mean every caller that has not been taught about name routing silently
+    answers "not indexable" for build files while the walker indexes them, and the two
+    would disagree without any test failing.
     """
     if index_hcl and ext in HCL_EXTS:
         return _HCL
@@ -1943,7 +2004,7 @@ def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
         return _XML
     if ext == ".md" and is_adr_path(rel):
         return _ADR
-    if ext in allowed_exts:
+    if ext in allowed_exts or name_key(fn) in allowed_names:
         return _CODE
     return _MANIFEST if is_manifest(fn) else None
 
@@ -1960,6 +2021,7 @@ def is_indexable_name(fn: str, rel: str) -> bool:
     """
     ext = os.path.splitext(fn)[1]
     return _file_kind(fn, ext, rel, allowed_exts=set(LANG_BY_EXT),
+                      allowed_names=set(LANG_BY_NAME),
                       index_hcl=True, index_sql=True) is not None
 
 
@@ -1990,9 +2052,9 @@ def _generated(kind: str, skip_generated: bool, probe: Callable[[], bool]) -> bo
 
 
 def _select_file(
-    fpath: Path, rel: str, fn: str, *, allowed_exts: set[str], index_hcl: bool,
-    index_sql: bool, ignore: list[str], max_file_bytes: int, skip_generated: bool,
-    counts: WalkCounts,
+    fpath: Path, rel: str, fn: str, *, allowed_exts: set[str], allowed_names: set[str],
+    index_hcl: bool, index_sql: bool, ignore: list[str], max_file_bytes: int,
+    skip_generated: bool, counts: WalkCounts,
 ) -> SourceFile | None:
     """One file's full accept/skip decision, read included; None means skipped.
 
@@ -2002,11 +2064,12 @@ def _select_file(
     """
     ext = os.path.splitext(fn)[1]
     kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
+                      allowed_names=allowed_names,
                       index_hcl=index_hcl, index_sql=index_sql)
     if kind is None:
-        # Recorded, not dropped. Extensionless files (LICENSE, Makefile-style names)
-        # are skipped here because they are overwhelmingly not source and would drown
-        # the signal; a Makefile grammar would give them a `kind` anyway.
+        # Recorded, not dropped. A file with no extension and no name route (LICENSE,
+        # AUTHORS) is skipped without a counter: it is overwhelmingly not source, and
+        # counting it under the empty string would drown the per-extension signal.
         if ext:
             counts.unsupported_exts[ext] = counts.unsupported_exts.get(ext, 0) + 1
         return None
@@ -2029,13 +2092,16 @@ def _select_file(
     if _generated(kind, skip_generated, lambda: _has_generated_header(source)):
         counts.generated += 1
         return None
+    # `lang_for`, not `LANG_BY_EXT[ext]`: a name-routed file has an extension the
+    # table has never heard of (`Dockerfile.prod`) or none at all (`Makefile`), and
+    # the subscript that used to be here would raise KeyError on both.
     return SourceFile(rel=rel, source=source, kind=kind,
-                      lang=LANG_BY_EXT[ext] if kind == _CODE else "")
+                      lang=(lang_for(fn, ext) or "") if kind == _CODE else "")
 
 
 def _walk_source_files(
-    root: Path, *, allowed_exts: set[str], index_hcl: bool, index_sql: bool,
-    max_file_bytes: int, skip_generated: bool, counts: WalkCounts,
+    root: Path, *, allowed_exts: set[str], allowed_names: set[str], index_hcl: bool,
+    index_sql: bool, max_file_bytes: int, skip_generated: bool, counts: WalkCounts,
 ) -> Iterator[SourceFile]:
     """Yield every indexable file under ``root``, already read into memory.
 
@@ -2056,6 +2122,7 @@ def _walk_source_files(
             # candidate before anything is classified or skipped.
             rel = str(fpath.relative_to(root))
             sf = _select_file(fpath, rel, fn, allowed_exts=allowed_exts,
+                              allowed_names=allowed_names,
                               index_hcl=index_hcl, index_sql=index_sql, ignore=ignore,
                               max_file_bytes=max_file_bytes,
                               skip_generated=skip_generated, counts=counts)
@@ -2240,14 +2307,21 @@ _PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
 }
 
 
-def _extension_filter(languages: list[str] | None) -> tuple[set[str], bool, bool]:
-    """The ``languages`` filter resolved to (code extensions, index HCL?, index SQL?).
+def _source_filter(languages: list[str] | None) -> tuple[set[str], set[str], bool, bool]:
+    """``languages`` resolved to (code extensions, code names, index HCL?, index SQL?).
 
     No filter means everything; HCL and SQL are opted in by name because neither
     lives in ``LANG_BY_EXT``.
+
+    The name set is filtered by the SAME language list as the extension set, so
+    ``--languages make`` selects Makefiles and nothing else, and ``--languages python``
+    excludes them. A name table that ignored the filter would be permanently on, which
+    no single-direction test would catch.
     """
     allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
                     if not languages or lang in languages}
+    allowed_names = {name for name, lang in LANG_BY_NAME.items()
+                     if not languages or lang in languages}
     # ".h" is classified as "cpp" internally (see LANG_BY_EXT), but C and C++
     # headers are shared infrastructure -- a user who filters to just "c"
     # almost certainly still wants its headers indexed, not silently dropped.
@@ -2255,7 +2329,7 @@ def _extension_filter(languages: list[str] | None) -> tuple[set[str], bool, bool
     # which single language it happens to be parsed as.
     if languages and ("c" in languages or "cpp" in languages):
         allowed_exts.add(".h")
-    return (allowed_exts,
+    return (allowed_exts, allowed_names,
             not languages or "hcl" in languages,
             not languages or "sql" in languages)
 
@@ -2271,14 +2345,14 @@ def index_repo_dir(
     and code files larger than ``max_file_bytes`` are skipped — both reported, never
     silent — to keep legacy monorepos from exploding the graph and the index time.
     """
-    allowed_exts, index_hcl, index_sql = _extension_filter(languages)
+    allowed_exts, allowed_names, index_hcl, index_sql = _source_filter(languages)
     shard = GraphShard(repo=repo_id, head_commit=head_commit, parser_version=PARSER_VERSION)
     by_id: dict[str, Node] = {}
     refs = RefCollector()
     counts = WalkCounts()
 
     for sf in _walk_source_files(
-        Path(repo_path), allowed_exts=allowed_exts,
+        Path(repo_path), allowed_exts=allowed_exts, allowed_names=allowed_names,
         index_hcl=index_hcl, index_sql=index_sql,
         max_file_bytes=max_file_bytes, skip_generated=skip_generated, counts=counts,
     ):
@@ -2320,8 +2394,10 @@ def index_repo_dir(
                 f"skipped: {shown}{more}"))
             # Counted, never written down: a literal here goes stale the moment a
             # grammar is added, which is the same docs-vs-code drift this release is
-            # about. LANG_BY_EXT is the single source of truth for what parses.
-            log(f"  contextlake indexes {len(set(LANG_BY_EXT.values()))} languages; see "
+            # about. ALL_LANGS is the single source of truth for what parses, and it is
+            # the UNION of both routing tables -- counting LANG_BY_EXT alone would omit
+            # every language a file reaches by name and still read as a complete total.
+            log(f"  contextlake indexes {len(ALL_LANGS)} languages; see "
                 f"docs/contributing-languages.md to add one.")
         else:
             log(f"  {total} file(s) had no parser for their type: {shown}{more}")

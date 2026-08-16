@@ -46,6 +46,11 @@ _MEMBER_FIXTURES = {
     "css": b'.c { }\n#i { }\nel { }\n',
     "html": b'<div id="i"></div>\n',
     "nix": b'{ attr = 1; }\n',
+    # Two targets on one rule, because that is the shape a single-target fixture would
+    # let a "targets node text" implementation pass while emitting one node named
+    # "build test". The `.PHONY` line is here for the same reason: without a special
+    # target present, the guard that drops them is never exercised.
+    "make": b'.PHONY: build test\nbuild test:\n\techo hi\n',
 }
 
 
@@ -219,12 +224,15 @@ def test_every_parsed_language_has_a_lettermark():
     someone comparing two lists by hand.
 
     Scala was in that state. It parsed `.scala`/`.sc` files and carried no lettermark.
+
+    Reads `ALL_LANGS`, the union of both routing tables, NOT `LANG_BY_EXT`. A language
+    a file reaches by name has no extension entry at all, so checking the extension
+    table alone would report full coverage while every build file went unglyphed.
     """
-    from contextlake.kb.parse import LANG_BY_EXT
+    from contextlake.kb.parse import ALL_LANGS
     from contextlake.kb.visualize.styling import _LANG_LABELS
 
-    parsed = set(LANG_BY_EXT.values())
-    missing = sorted(parsed - set(_LANG_LABELS))
+    missing = sorted(ALL_LANGS - set(_LANG_LABELS))
     assert not missing, (
         f"languages the parser emits with no lettermark: {missing}. Add each to "
         "`_LANG_LABELS` in kb/visualize/styling.py -- a repo node in that language "
@@ -240,10 +248,10 @@ def test_the_lettermark_map_holds_no_language_that_is_not_an_alias():
     the id settled. So this asserts the *set of strays is exactly the aliases we chose*,
     which fails when somebody adds a third one without saying why, rather than banning
     strays outright."""
-    from contextlake.kb.parse import LANG_BY_EXT
+    from contextlake.kb.parse import ALL_LANGS
     from contextlake.kb.visualize.styling import _LANG_LABELS
 
-    strays = set(_LANG_LABELS) - set(LANG_BY_EXT.values())
+    strays = set(_LANG_LABELS) - ALL_LANGS
     assert strays == {"c_sharp"}, (
         f"unexpected lettermark entries for languages the parser never emits: "
         f"{sorted(strays - {'c_sharp'})}. Either the language was removed and this "

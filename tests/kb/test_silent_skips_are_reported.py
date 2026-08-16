@@ -18,7 +18,7 @@ import subprocess
 
 import pytest
 
-from contextlake.kb.parse import LANG_BY_EXT, index_repo_dir
+from contextlake.kb.parse import ALL_LANGS, index_repo_dir
 
 
 def _repo(tmp_path, files: dict[str, str]):
@@ -64,13 +64,16 @@ def test_the_language_count_in_that_message_is_derived_not_written_down(tmp_path
                                                                        monkeypatch):
     """The near-miss that matters most here: a hardcoded '14 languages' goes stale the
     moment a grammar is added, which is the same docs-versus-code drift this release is
-    about. The number must come from LANG_BY_EXT.
+    about. The number must come from `ALL_LANGS`.
+
+    `ALL_LANGS`, not `LANG_BY_EXT`: a language routed by NAME has no extension entry, so
+    the extension table alone gives a smaller number that still reads as a total.
 
     It has already earned its keep: adding five grammars moved the real count from 14 to
     19, and this assertion is derived so it followed rather than needing a hunt."""
     repo = _repo(tmp_path, {"App.hs": "greet = putStrLn \"hi\"\n"})
     said = _said(monkeypatch, lambda: index_repo_dir(str(repo), "demo", head_commit="h"))
-    expected = len(set(LANG_BY_EXT.values()))
+    expected = len(ALL_LANGS)
     assert f"{expected} languages" in said, (
         f"expected the derived count {expected}; the message may have a literal in it")
 

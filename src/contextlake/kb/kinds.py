@@ -437,6 +437,20 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     # --- Build and configuration ---------------------------------------------------
+    # A Make target is a name a person types at a shell and a CI job invokes, so it is the
+    # one kind here whose vocabulary is genuinely written by the author rather than drawn
+    # from a fixed language vocabulary. `make lint` and `make release` say what a project
+    # expects of itself, which is exactly what a reader arriving at an unfamiliar repo is
+    # looking for.
+    "make_target": KindSpec(
+        color="#f4a261", glyph=None, group="Configuration",
+        embeddable=False,
+        why_not_embeddable="not measured yet; see the note above this block",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
     "nix_attr": KindSpec(
         color="#38bdf8", glyph=None, group="Configuration",
         embeddable=False,

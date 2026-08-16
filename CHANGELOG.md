@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Makefiles are indexed, and files can now be routed to a grammar by NAME.** Every
+  language before this reached its parser through a file extension, and a build file has
+  none, so `Makefile` was not merely unsupported: it was dropped without even being
+  counted among the files whose type had no parser. A second routing table matches on the
+  file's stem, so `Makefile`, `makefile`, `GNUmakefile` and `Makefile.am` are all indexed
+  and `MyMakefile` is not, an exact match on a derived key rather than a prefix test.
+
+  Make targets become `make_target` nodes: the names a person types at a shell and a CI
+  job invokes, which is the shortest honest answer to what a project expects of itself.
+  Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, because a symbol
+  nobody wrote does not belong in a graph whose claim is that its contents came from
+  source. Variables are not extracted either, stated rather than left to be discovered.
+
+  26 languages across 24 grammars.
+
 ## [7.10.0] - 2026-08-16
 
 ### Added

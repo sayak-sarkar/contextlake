@@ -5,9 +5,13 @@ the only thing that knows. This number has been written by hand in three places 
 been wrong once: adding five grammars moved it from 14 to 19, and nothing but a reader would
 have noticed.
 
-The count is derived here from `LANG_BY_EXT` rather than restated, so this file cannot drift
+The count is derived here from `ALL_LANGS` rather than restated, so this file cannot drift
 in the same direction as the pages it checks. `docs/style-guide-reference.md` names the exact
 phrasing to use, and is checked too, because that page is what the others copy.
+
+`ALL_LANGS`, not `LANG_BY_EXT`: a language whose files are found by NAME has no extension
+entry, so counting the extension table alone under-reports the total while looking exactly
+like a complete count.
 
 Lives under `tests/kb/` because deriving the count means importing the parser, and the core
 CI job runs `pytest --ignore=tests/kb` against an install without it. Placed at the top level
@@ -22,11 +26,11 @@ from pathlib import Path
 
 import pytest
 
-from contextlake.kb.parse import _GRAMMARS, LANG_BY_EXT
+from contextlake.kb.parse import _GRAMMARS, ALL_LANGS
 
 REPO = Path(__file__).resolve().parents[2]
 
-LANGUAGES = len(set(LANG_BY_EXT.values()))
+LANGUAGES = len(ALL_LANGS)
 # TypeScript and TSX share one grammar package, so grammars are counted by module.
 GRAMMARS = len({module for module, _factory in _GRAMMARS.values()})
 
@@ -40,7 +44,7 @@ CLAIMS = [
 
 
 def test_the_counts_are_plausible():
-    """Guards the two derived numbers. If `LANG_BY_EXT` were renamed or emptied, every
+    """Guards the two derived numbers. If `ALL_LANGS` were renamed or emptied, every
     assertion below would compare against 0 and could pass against a doc that says
     nothing, which is the vacuous-pass shape these tests exist to avoid."""
     assert LANGUAGES >= 14, f"only {LANGUAGES} languages derived; the source moved"
