@@ -2845,19 +2845,29 @@ Source: https://sayak.in/contextlake/generate-wiki
 
 # Generate the wiki
 
-The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
-per repo, with a provenance footer citing the commit and sources it was built from.
+Every indexed repository gets one wiki page per scope, and it exists the moment the repo is indexed.
+`contextlake kb wiki` writes a **structural page** built entirely from the graph, the manifests and
+the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
+page, and the prose replaces it only when the prose is at least as accurate and as complete.
+
+So the page you read is one of two things, and it always says which.
 
 ```mermaid
 flowchart TD
-  G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> SG{"structurally sound?<br/>no model call"}
-  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
-  SG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
-  S -->|no| X
-  S -->|yes| W[("the page, with a<br/>provenance footer")]
+  G[("the graph")] -->|"entry points, modules, ownership,<br/>public surface, install, dependencies"| ST["render the structural page<br/>no model call"]
+  ST --> W[("the repository's wiki page")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]
+  ST --> Q{"is an LLM configured?"}
+  Q -->|no| DONE(["done, the page is complete"])
+  Q -->|yes| DR["draft prose FROM the structural page"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| K(["the structural page stays,<br/>the reason is reported"])
+  SG -->|yes| RG{"accurate and at least<br/>as complete?"}
+  RG -->|no| K
+  RG -->|yes| C["the verification council,<br/>one review per lens"]
+  C --> S{"mean score above accept_score?"}
+  S -->|no| K
+  S -->|yes| W
 ```
 
 <div class="dg-key">
@@ -2866,6 +2876,42 @@ flowchart TD
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
+
+## The structural page
+
+It carries six sections, and any section with nothing in it is omitted and named at the end, so an
+absence never reads as an oversight:
+
+1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
+   Dockerfile stages.
+2. **Architecture** -- the repository's modules and their sizes.
+3. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
+   scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
+4. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
+   records any.
+5. **Installation and usage** -- the build and packaging files the repository actually has.
+6. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
+   that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
+   is always labelled as describing the whole repository even on a module page, because it cannot be
+   scoped to one.
+
+Large repositories also get one structural page per module, under `wiki/_modules/`.
+
+## When prose may replace it
+
+Passing the council is not enough, and cannot be: a council judges a page on its own terms and has
+never seen the page it would displace. Prose must also be
+
+- **accurate** -- every name it cites in backticks appears in the structural page. Sound because that
+  page is the prompt, so a name that is not in it was invented rather than read; and
+- **complete** -- every section the structural page filled is addressed.
+
+Strict on purpose. A page covering four of six sections would otherwise replace one that covered six.
+**Expect drafts to fail this**, and expect to keep reading the structural page on some repositories
+even with a strong model configured. That is the bar working rather than the feature failing; the reason
+is printed either way.
+
+A rejected or failed generation therefore leaves the structural page exactly where it was.
 
 The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
 which is what makes publishing from a cheap local generator safe.
@@ -6224,6 +6270,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`kb wiki` now produces a page for every indexed repository, with no LLM configured.**
+  It used to print "LLM tier disabled" and write nothing, so a user who had not set up a
+  backend got nothing at all from a tool whose identity is local-first.
+
+  The new **structural page** is built entirely from the graph, the manifests and the
+  checkout, and carries six sections: entry points and how to run it, architecture,
+  ownership and activity, the public surface with caller counts, installation, and what the
+  repository contains, including **the repositories it depends on and that depend on it**.
+  That last pair is a cross-repository answer no single-repo tool can give. An empty section
+  is omitted AND named at the end, because an absence that says nothing reads identically
+  whether the repository has none of that thing or the extractor missed it.
+
+  Large repositories get one structural page per module as well.
+
+- **One wiki page per scope, and prose must earn its place.** A repository has one wiki page
+  at one path; the structural page IS that page until generated prose replaces it, and prose
+  replaces it only when it is accurate about the same names and covers the same sections.
+  Passing the council is not sufficient and cannot be: a council judges a page on its own
+  terms and has never seen the page it would displace. A rejected or failed generation
+  leaves the structural page exactly where it was, and the reason is reported.
+
+  Strict deliberately. Expect drafts to fail this, and expect to keep reading the structural
+  page on some repositories even with a strong model configured.
+
+- **The structural page is what the LLM is now written FROM.** An earlier generated wiki was
+  rejected for thin grounding, and the cause was structural rather than stylistic: the model
+  saw a bounded sample of a repository's symbols and wrote confidently about the whole of it.
+  It is handed the structural document instead, so it writes prose over stated facts.
+
+  Because that document carries the ownership section, contributor names now reach whatever
+  provider is configured. It is the same page written to disk, so it already honours
+  `[kb] anonymize`: pseudonyms under `"always"`, real names under the default. A run against
+  a non-local provider says so once before sending anything.
+
+- **The structural page is searchable**, stored under the repository's one `@wiki:<repo_id>`
+  partition and embedded into the semantic tier. Since it is the page everybody gets without
+  a model, leaving it out would have made the default wiki the one you cannot find.
 
 ## [7.11.0] - 2026-08-17
 

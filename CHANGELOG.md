@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`kb wiki` now produces a page for every indexed repository, with no LLM configured.**
+  It used to print "LLM tier disabled" and write nothing, so a user who had not set up a
+  backend got nothing at all from a tool whose identity is local-first.
+
+  The new **structural page** is built entirely from the graph, the manifests and the
+  checkout, and carries six sections: entry points and how to run it, architecture,
+  ownership and activity, the public surface with caller counts, installation, and what the
+  repository contains, including **the repositories it depends on and that depend on it**.
+  That last pair is a cross-repository answer no single-repo tool can give. An empty section
+  is omitted AND named at the end, because an absence that says nothing reads identically
+  whether the repository has none of that thing or the extractor missed it.
+
+  Large repositories get one structural page per module as well.
+
+- **One wiki page per scope, and prose must earn its place.** A repository has one wiki page
+  at one path; the structural page IS that page until generated prose replaces it, and prose
+  replaces it only when it is accurate about the same names and covers the same sections.
+  Passing the council is not sufficient and cannot be: a council judges a page on its own
+  terms and has never seen the page it would displace. A rejected or failed generation
+  leaves the structural page exactly where it was, and the reason is reported.
+
+  Strict deliberately. Expect drafts to fail this, and expect to keep reading the structural
+  page on some repositories even with a strong model configured.
+
+- **The structural page is what the LLM is now written FROM.** An earlier generated wiki was
+  rejected for thin grounding, and the cause was structural rather than stylistic: the model
+  saw a bounded sample of a repository's symbols and wrote confidently about the whole of it.
+  It is handed the structural document instead, so it writes prose over stated facts.
+
+  Because that document carries the ownership section, contributor names now reach whatever
+  provider is configured. It is the same page written to disk, so it already honours
+  `[kb] anonymize`: pseudonyms under `"always"`, real names under the default. A run against
+  a non-local provider says so once before sending anything.
+
+- **The structural page is searchable**, stored under the repository's one `@wiki:<repo_id>`
+  partition and embedded into the semantic tier. Since it is the page everybody gets without
+  a model, leaving it out would have made the default wiki the one you cannot find.
+
 ## [7.11.0] - 2026-08-17
 
 ### Added

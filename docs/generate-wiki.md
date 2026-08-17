@@ -1,18 +1,28 @@
 # Generate the wiki
 
-The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
-per repo, with a provenance footer citing the commit and sources it was built from.
+Every indexed repository gets one wiki page per scope, and it exists the moment the repo is indexed.
+`contextlake kb wiki` writes a **structural page** built entirely from the graph, the manifests and
+the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
+page, and the prose replaces it only when the prose is at least as accurate and as complete.
+
+So the page you read is one of two things, and it always says which.
 
 ```mermaid
 flowchart TD
-  G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> SG{"structurally sound?<br/>no model call"}
-  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
-  SG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
-  S -->|no| X
-  S -->|yes| W[("the page, with a<br/>provenance footer")]
+  G[("the graph")] -->|"entry points, modules, ownership,<br/>public surface, install, dependencies"| ST["render the structural page<br/>no model call"]
+  ST --> W[("the repository's wiki page")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]
+  ST --> Q{"is an LLM configured?"}
+  Q -->|no| DONE(["done, the page is complete"])
+  Q -->|yes| DR["draft prose FROM the structural page"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| K(["the structural page stays,<br/>the reason is reported"])
+  SG -->|yes| RG{"accurate and at least<br/>as complete?"}
+  RG -->|no| K
+  RG -->|yes| C["the verification council,<br/>one review per lens"]
+  C --> S{"mean score above accept_score?"}
+  S -->|no| K
+  S -->|yes| W
 ```
 
 <div class="dg-key">
@@ -21,6 +31,42 @@ flowchart TD
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
+
+## The structural page
+
+It carries six sections, and any section with nothing in it is omitted and named at the end, so an
+absence never reads as an oversight:
+
+1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
+   Dockerfile stages.
+2. **Architecture** -- the repository's modules and their sizes.
+3. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
+   scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
+4. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
+   records any.
+5. **Installation and usage** -- the build and packaging files the repository actually has.
+6. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
+   that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
+   is always labelled as describing the whole repository even on a module page, because it cannot be
+   scoped to one.
+
+Large repositories also get one structural page per module, under `wiki/_modules/`.
+
+## When prose may replace it
+
+Passing the council is not enough, and cannot be: a council judges a page on its own terms and has
+never seen the page it would displace. Prose must also be
+
+- **accurate** -- every name it cites in backticks appears in the structural page. Sound because that
+  page is the prompt, so a name that is not in it was invented rather than read; and
+- **complete** -- every section the structural page filled is addressed.
+
+Strict on purpose. A page covering four of six sections would otherwise replace one that covered six.
+**Expect drafts to fail this**, and expect to keep reading the structural page on some repositories
+even with a strong model configured. That is the bar working rather than the feature failing; the reason
+is printed either way.
+
+A rejected or failed generation therefore leaves the structural page exactly where it was.
 
 The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
 which is what makes publishing from a cheap local generator safe.
