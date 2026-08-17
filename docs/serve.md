@@ -36,9 +36,16 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 **Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
-`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
-`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a `kb://stats`
-resource with the store counts.
+`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_generated_doc`,
+`get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a
+`kb://stats` resource with the store counts.
+
+`get_generated_doc` returns what `kb docs` wrote: `kind="api"` for the reference with
+its real call sites, `kind="design"` for the design notes. Neither involves a model, so
+neither carries the wiki's advisory caveat. Both carry `stale`, which is true when the
+page was generated from a different commit than the repo's current indexed head **or
+when either is unknown** -- a page written before generated documents recorded their
+commit has no stamp, and not knowing is the same risk to a caller as being out of date.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
 embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in

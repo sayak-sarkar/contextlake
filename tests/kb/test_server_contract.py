@@ -176,6 +176,7 @@ EXPECTED_TOOLS = frozenset({
     "graph_stats", "who_knows", "get_node", "get_neighbors", "search_code",
     "find_definition", "find_callers", "find_callees", "find_dependents",
     "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
+    "get_generated_doc",
     "get_readme", "get_repo_brief", "list_repos", "get_repo_links", "graph_health",
     "shortest_path", "semantic_search", "hybrid_search", "ask",
 })

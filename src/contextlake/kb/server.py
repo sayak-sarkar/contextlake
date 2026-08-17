@@ -369,6 +369,16 @@ class WikiOut(BaseModel):
     kind: str = "repo"           # "repo" | "cluster" (a namespace-level page)
 
 
+class GeneratedDocOut(BaseModel):
+    repo: str
+    kind: str                    # "api" | "design"
+    found: bool
+    stale: bool                  # the page may describe code that has since changed
+    doc_commit: str | None       # commit the page was generated from
+    current_commit: str | None   # the repo's current indexed head
+    markdown: str
+
+
 class ReadmeOut(BaseModel):
     repo: str
     found: bool
@@ -1152,6 +1162,60 @@ def build_server(
         return WikiOut(
             repo=sanitize_label(repo), found=True, stale=stale,
             wiki_commit=sanitize_label(wiki_commit) if wiki_commit else None,
+            current_commit=sanitize_label(current) if current else None,
+            markdown=sanitize_label(raw, max_len=200_000))
+
+    @bounded_tool
+    def get_generated_doc(repo: str, kind: str = "api") -> GeneratedDocOut:
+        """A generated document for a repo: its API reference or its design notes.
+
+        ``kind`` is ``"api"`` for the reference (every callable symbol with the real
+        file-and-line call sites the graph recorded) or ``"design"`` for the design
+        notes (the dependencies the repo's manifests declare, with numbered
+        proposed-never-ratified entries, and the values its code reads most).
+
+        **Neither involves a model.** Unlike the wiki, nothing here is synthesized
+        prose: every line traces to an edge a parser recorded, so these do not carry
+        the wiki's advisory caveat. What they DO share is staleness. ``stale`` is
+        true when the page was generated from a different commit than the repo's
+        current indexed head, or when either is unknown, so an agent never cites a
+        reference for code that has since moved. A page written before generated
+        documents carried a commit has no stamp at all, and reads as stale for the
+        same reason: not knowing and being out of date are the same risk to a caller.
+
+        Nothing in the design notes was ratified by anybody. It states what the
+        repository's files record and leaves the reasoning visibly absent, because a
+        reason is not something source code contains.
+        """
+        from .docs.stamp import UNKNOWN, read_stamp
+
+        wanted = (kind or "api").strip().lower()
+        if wanted not in ("api", "design"):
+            # Named, not silently coerced to the default: a caller asking for a kind
+            # this does not have should learn that, rather than receive the API
+            # reference and believe it asked for the right thing.
+            return GeneratedDocOut(repo=sanitize_label(repo), kind=sanitize_label(wanted),
+                                   found=False, stale=True, doc_commit=None,
+                                   current_commit=None, markdown="")
+        sp = getattr(store, "path", None)
+        slug = repo.replace("/", "__")
+        doc_file = Path(sp).parent / "docs" / wanted / (slug + ".md") if sp else None
+        r = store.get_repo(repo)
+        current = r.head_commit if r else None
+        if not doc_file or not doc_file.exists():
+            return GeneratedDocOut(repo=sanitize_label(repo), kind=wanted, found=False,
+                                   stale=True, doc_commit=None,
+                                   current_commit=sanitize_label(current) if current else None,
+                                   markdown="")
+        raw = doc_file.read_text(encoding="utf-8", errors="replace")
+        parsed = read_stamp(raw)
+        doc_commit = parsed[2] if parsed else None
+        if doc_commit == UNKNOWN:
+            doc_commit = None
+        stale = doc_commit is None or current is None or doc_commit != current
+        return GeneratedDocOut(
+            repo=sanitize_label(repo), kind=wanted, found=True, stale=stale,
+            doc_commit=sanitize_label(doc_commit) if doc_commit else None,
             current_commit=sanitize_label(current) if current else None,
             markdown=sanitize_label(raw, max_len=200_000))
 

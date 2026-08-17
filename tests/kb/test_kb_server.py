@@ -70,6 +70,7 @@ def test_lists_expected_tools(server):
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
         "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
+        "get_generated_doc",
         "get_readme", "get_repo_brief", "list_repos", "get_repo_links", "graph_health",
         "ask",
     } <= names
@@ -484,6 +485,65 @@ def test_get_wiki_serves_prose_with_staleness(tmp_path):
     out3 = _unwrap(asyncio.run(
         _call(build_server(s), "get_wiki", {"repo": "team/missing"})).structured_content)
     assert out3["found"] is False and out3["stale"] is True
+    s.close()
+
+
+def test_get_generated_doc_serves_both_kinds_with_staleness(tmp_path):
+    """The reference and the design notes, each with a commit a caller can check.
+
+    Generated documents reached only a human opening a file until this tool existed, and a
+    page with no commit is indistinguishable from a current one while reading just as
+    authoritatively. Every branch below is a way for the answer to be confidently wrong:
+    a page from an older commit, a page with no stamp at all, an unknown kind, and a repo
+    with no page. All four must resolve to stale, because not knowing and being out of date
+    are the same risk to whoever asked.
+    """
+    from contextlake.kb.docs.stamp import read_stamp, stamp
+
+    s = SqliteStore(tmp_path / "k.sqlite")          # store.path.parent == tmp_path
+    s.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))
+    for kind in ("api", "design"):
+        d = tmp_path / "docs" / kind
+        d.mkdir(parents=True)
+        (d / "team__api.md").write_text(
+            "\n".join([f"# team/api {kind}", ""] + stamp(kind, "team/api", "abc123")
+                       + ["Body text."]))
+
+    for kind in ("api", "design"):
+        out = _unwrap(asyncio.run(_call(build_server(s), "get_generated_doc",
+                                        {"repo": "team/api", "kind": kind})).structured_content)
+        assert out["found"] and out["stale"] is False, kind
+        assert out["kind"] == kind and out["doc_commit"] == "abc123"
+        assert "Body text." in out["markdown"]
+        # The marker has to survive the response path, not merely exist on disk. The whole
+        # reason for a marker is that a reader gets a matchable token instead of prose, and
+        # an MCP caller is the first consumer that is not a human with the file open. If
+        # sanitizing ever escapes `<` or strips comments, the caller silently drops back to
+        # prose-only and the page's provenance stops being machine-readable.
+        assert read_stamp(out["markdown"]) == (kind, "team/api", "abc123")
+
+    # the repo moves on -> both pages are now stale
+    s.upsert_repo(Repo(id="team/api", path="/a", head_commit="def456"))
+    out = _unwrap(asyncio.run(_call(build_server(s), "get_generated_doc",
+                                    {"repo": "team/api", "kind": "design"})).structured_content)
+    assert out["stale"] is True and out["current_commit"] == "def456"
+
+    # a page written before stamping existed carries no commit, and must not read as fresh
+    (tmp_path / "docs" / "api" / "team__api.md").write_text("# team/api\n\nNo stamp here.\n")
+    s.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))
+    out = _unwrap(asyncio.run(_call(build_server(s), "get_generated_doc",
+                                    {"repo": "team/api", "kind": "api"})).structured_content)
+    assert out["found"] is True and out["stale"] is True and out["doc_commit"] is None
+
+    # an unknown kind is reported as not found, never silently served as the default
+    out = _unwrap(asyncio.run(_call(build_server(s), "get_generated_doc",
+                                    {"repo": "team/api", "kind": "wiki"})).structured_content)
+    assert out["found"] is False and out["markdown"] == ""
+
+    # no page for this repo at all
+    out = _unwrap(asyncio.run(_call(build_server(s), "get_generated_doc",
+                                    {"repo": "team/missing"})).structured_content)
+    assert out["found"] is False and out["stale"] is True
     s.close()
 
 

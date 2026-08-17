@@ -225,10 +225,10 @@ agents already speak, so wiring contextlake into one is a config entry rather th
 integration. (That is an observation about the protocol, not a decision record; the codebase does
 not argue the case against an API of its own.)
 
-21 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
-23, and register only when an embedder and a vector store both exist
+22 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
+24, and register only when an embedder and a vector store both exist
 (`build_server` in `src/contextlake/kb/server.py`). A server started without embeddings says so
-and serves the other 21 rather than failing.
+and serves the other 22 rather than failing.
 
 ### Why the network transports are authenticated and stdio is not
 

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.17.0] - 2026-08-18
+
+### Added
+
+- **Generated documents now say which commit they describe, and agents can read them.**
+  `kb docs` wrote two documents per repository that nothing could reach: the MCP server
+  exposed the store's `wiki/` directory and nothing under `docs/`. New tool
+  `get_generated_doc(repo, kind)` returns the API reference (`kind="api"`) or the design
+  notes (`kind="design"`).
+
+  **The commit stamp had to come first, and it is the reason this is one release rather
+  than two.** A generated page is a claim about source code at a moment. Strip the moment
+  and a page describing code that changed months ago is indistinguishable from a current
+  one, while reading exactly as authoritative. The wiki has carried its commit since it was
+  built, which is how `get_wiki` reports `stale`; the API reference and design notes carried
+  nothing. Serving them without a stamp would have shipped a surface that cannot say whether
+  it is current.
+
+  Every page now carries the fact twice, for the two kinds of reader: a visible sentence
+  (`Generated from \`repo\` at commit \`abc123\`.`) and a comment marker
+  (`<!-- contextlake:generated kind=api repo=... commit=... -->`). The marker is
+  authoritative; the sentence is what gets reworded.
+
+  **An absent commit is recorded as `unknown`, not omitted.** Omitting the field makes the
+  marker unparseable and sends a consumer down the same path as a page that was never
+  stamped; a present `unknown` says the thing that is true, which is the difference between
+  a caller defaulting to fresh and defaulting to stale. `stale` is therefore true in four
+  distinct cases: the commits differ, the page has no stamp, the stamp says unknown, or the
+  repo has no indexed head. Not knowing and being out of date are the same risk to whoever
+  asked.
+
+  An unrecognised `kind` reports `found=false` rather than being coerced to the default, so
+  a caller asking for something that does not exist learns that instead of receiving the API
+  reference and believing it asked correctly.
+
+
 ## [7.16.0] - 2026-08-18
 
 ### Added

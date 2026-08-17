@@ -27,6 +27,7 @@ from collections import defaultdict
 
 from ..kinds import KIND_REGISTRY
 from ..mdwrite import code, table
+from .stamp import stamp
 
 # A call's source counts as a caller when it is a definition rather than a container. Read off
 # the registry's own `group` rather than listed here, because the question "is this a thing
@@ -165,7 +166,8 @@ def render_api_reference(shard, *, repo_id: str, max_symbols: int = 500,
     symbols.sort(key=lambda n: (-len(sites.get(n.id, ())), n.file or "", n.name or ""))
     shown = symbols[:max_symbols]
 
-    lines = [f"# {repo_id} API reference", ""]
+    lines = [f"# {repo_id} API reference", "",
+             *stamp("api", repo_id, getattr(shard, "head_commit", None))]
     if not shown:
         # Two conditions reach here -- no documentable symbol at all (a repository of
         # configuration and build files is the ordinary case) and symbols with no file

@@ -31,6 +31,7 @@ from collections import defaultdict
 
 from ..mdwrite import code, table
 from ..model import Confidence
+from .stamp import stamp
 
 # A token, not only a sentence. Whoever reads this file receives bytes rather than a rendered
 # page, and "these are proposals nobody ratified" stated only in a paragraph is a sentence a
@@ -346,6 +347,7 @@ def render_design_document(shard, *, repo_id: str,
         "",
         STATUS_MARKER,
         "",
+        *stamp("design", repo_id, getattr(shard, "head_commit", None)),
         "**Nobody wrote this page.** It was derived from this repository's own files by "
         "reading its code graph, so everything below is a question to confirm rather than a "
         "decision that was taken and recorded. No entry has been ratified by anybody, and "
