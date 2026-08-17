@@ -50,15 +50,19 @@
     
 <p><code>contextlake kb docs</code> writes documentation from the graph. No model is involved, nothing is
 inferred, and every statement traces to an edge that a parser recorded.</p>
-<p>It writes two kinds of document per repository:</p>
+<p>Two documents per repository:</p>
 <ul>
 <li>an <strong>API reference</strong>, listing each symbol and the real places the codebase calls it;</li>
 <li><strong>design notes</strong>, listing what the repository's own files record about how it was built.</li>
 </ul>
+<p>Plus one for the whole store:</p>
+<ul>
+<li>a <strong>fleet page</strong>, listing what every repository commits to and where they disagree.</li>
+</ul>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
 </code></pre></div>
-<p>Output goes to <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code> and <code>&lt;store&gt;/docs/design/&lt;repo&gt;.md</code>, one file
-each per indexed repository.</p>
+<p>Output goes to <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code> and <code>&lt;store&gt;/docs/design/&lt;repo&gt;.md</code>, one file each
+per indexed repository, and <code>&lt;store&gt;/docs/fleet/design.md</code> for the store as a whole.</p>
 <h2 id="what-makes-it-different-from-the-wiki">What makes it different from the wiki<a class="anchor" href="#what-makes-it-different-from-the-wiki" title="Link to this section">#</a></h2>
 <p>Both read the same graph, and they answer different questions.</p>
 <table>
@@ -222,6 +226,48 @@ summariser can drop:</p>
 <div class="highlight"><pre><span></span><code>&lt;!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code --&gt;
 </code></pre></div>
 <p>Nothing on that page was ratified by anybody. It is a set of questions to confirm.</p>
+<h2 id="what-the-fleet-page-contains">What the fleet page contains<a class="anchor" href="#what-the-fleet-page-contains" title="Link to this section">#</a></h2>
+<p>One page for the whole store, at <code>&lt;store&gt;/docs/fleet/design.md</code>. It answers the question no
+per-repo page can, because disagreement is invisible from inside a single repository: a service
+pinning <code>&gt;=2.5,&lt;4</code> and another leaving the same package unpinned each look reasonable on their
+own page.</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Repos</th>
+<th>Manifests</th>
+<th>Constraints in use (repos)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queuelib</code></td>
+<td>12</td>
+<td>14</td>
+<td><code>&gt;=2.0</code> (9), <code>==1.8</code> (2), <em>unpinned</em> (1)</td>
+</tr>
+<tr>
+<td><code>webkit</code></td>
+<td>7</td>
+<td>7</td>
+<td><em>unpinned</em> (7)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Every population is a count of distinct repositories, and manifests are counted separately.</strong>
+That separation is not tidiness. Measured on a real four-repository fleet, one package had 11
+dependency edges across 2 repositories, because one of them declares it in eleven manifests: its
+own plus ten bundled examples. Counting edges would have printed "11 repositories" onto a
+four-repository fleet, which is absurd at four and perfectly plausible at forty.</p>
+<p>The page names which packages are pinned inconsistently and then explicitly declines to
+recommend anything, because a repository may pin tightly for a real reason and nothing in a
+graph can tell that from drift. Repositories with no recorded dependency are <strong>named, not
+counted</strong>, since one absent from every table cannot otherwise be told from one that was not read.</p>
+<p>It is written only when a run covers the whole store. <code>kb docs &lt;repo&gt;</code> skips it and says why: "3
+of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
+scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
+disagreeing is a lesser finding that would bury the one that matters.</p>
 <h2 id="bounding-a-large-repository">Bounding a large repository<a class="anchor" href="#bounding-a-large-repository" title="Link to this section">#</a></h2>
 <p><code>--max-symbols N</code> caps the document; the default is 500. Symbols are <strong>selected</strong> by call-site
 count, so the most-used interface survives the cap, and then <strong>grouped by file</strong>, because
@@ -277,6 +323,7 @@ reported as clean is how a broken store stays broken.</p>
 </ul>
 </li>
 <li><a href="#what-the-design-notes-contain">What the design notes contain</a></li>
+<li><a href="#what-the-fleet-page-contains">What the fleet page contains</a></li>
 <li><a href="#bounding-a-large-repository">Bounding a large repository</a></li>
 <li><a href="#scoping-to-some-repositories">Scoping to some repositories</a></li>
 <li><a href="#exit-codes">Exit codes</a></li>

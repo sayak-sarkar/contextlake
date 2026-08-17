@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.18.0] - 2026-08-18
+
+### Added
+
+- **A fleet page: what every indexed repository commits to, and where they disagree.** Written
+  to `<store>/docs/fleet/design.md` on any run that covers the whole store.
+
+  This is the one generated document no per-repo page can produce. The graph keeps package
+  nodes **global**, keyed by ecosystem and name rather than by repo, so two repositories
+  depending on the same package point at the same node. Disagreement is invisible from inside
+  either one: a service pinning `>=2.5,<4` and another leaving the same package unpinned each
+  look entirely reasonable on their own page.
+
+  **Every population is a count of distinct repositories, and manifests are counted
+  separately.** Measured on a real four-repository fleet before the renderer was written, one
+  package had **11 dependency edges across 2 repositories**, because one of them declares it in
+  eleven manifests: its own plus ten bundled examples. Counting edges would have printed "11
+  repositories" onto a four-repository fleet. That is absurd at four and perfectly plausible at
+  forty, which is why the two numbers now sit in adjacent columns and are never substituted.
+
+  The page names which shared packages are pinned inconsistently and then explicitly declines
+  to recommend anything: a repository may pin tightly because it met a real incompatibility, and
+  nothing in a graph can tell a deliberate split from a drifted one. Agreement is stated too
+  rather than left to inference, because silence reads as "not checked".
+
+  Repositories with no recorded dependency are **named, not counted**. A count invites the
+  reader to guess which ones, and a repository absent from every table cannot otherwise be told
+  from one that was never read.
+
+  **It is written only for a full run.** `kb docs <repo>` skips it and says why, because "3 of
+  15 packages are shared" is a claim about the whole store and a reader has no way to tell a
+  scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
+  disagreeing across the fleet is a lesser finding that would bury the one that matters. The
+  command's summary line names the fleet page when it writes one, since a summary listing two
+  outputs while three were written under-reports the work.
+
+
 ## [7.17.0] - 2026-08-18
 
 ### Added

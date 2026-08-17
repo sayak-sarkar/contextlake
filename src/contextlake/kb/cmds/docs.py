@@ -21,12 +21,16 @@ from ._common import _connect_targets, _guard_store, _open_store
 # repository's API reference and its design notes cannot collide on a filename.
 API_DIR = ("docs", "api")
 DESIGN_DIR = ("docs", "design")
+# One page for the whole store, not one per repo, so it lives beside them rather
+# than among them.
+FLEET_DIR = ("docs", "fleet")
 
 
 def cmd_docs(args) -> int:
     """Write the API reference for each indexed repository."""
     from ..docs.api import render_api_reference
     from ..docs.design import render_design_document
+    from ..docs.fleet import FleetDep, render_fleet_design
     from ..docs.snippets import SnippetReader
     from ..visualize import repo_slug
 
@@ -49,6 +53,10 @@ def cmd_docs(args) -> int:
         design_dir = store_dir.joinpath(*DESIGN_DIR)
         written = skipped = missing = 0
         limit = getattr(args, "max_symbols", None) or 500
+        # Accumulated from the shards this loop already reads, so the fleet page costs no
+        # extra I/O. Only written when the run covered EVERY indexed repo -- see below.
+        fleet: list = []
+        scoped = bool([a for a in (getattr(args, "args", None) or []) if a])
         for repo_id, _path in targets:
             shard = read_shard(store_dir, repo_id)
             if shard is None:
@@ -68,6 +76,7 @@ def cmd_docs(args) -> int:
                 log(f"  {style.warn(repo_id)}: no reference — the repository indexed to "
                     f"0 symbols", inline=True)
                 continue
+            by_name = {n.id: n.name for n in shard.nodes if n.kind == "package"}
             page = render_api_reference(shard, repo_id=repo_id, max_symbols=limit,
                                         snippets=SnippetReader(store, repo_id))
             out_dir.mkdir(parents=True, exist_ok=True)
@@ -75,9 +84,38 @@ def cmd_docs(args) -> int:
             design_dir.mkdir(parents=True, exist_ok=True)
             (design_dir / (repo_slug(repo_id) + ".md")).write_text(
                 render_design_document(shard, repo_id=repo_id), encoding="utf-8")
+            for e in shard.edges:
+                if e.relation != "depends_on":
+                    continue
+                pkg = by_name.get(e.dst)
+                if pkg is None:
+                    continue
+                a = e.attrs or {}
+                fleet.append(FleetDep(pkg, repo_id, e.provenance.source_file,
+                                      a.get("constraint") or "", a.get("group") or "runtime"))
             written += 1
+        # A fleet page built from a SUBSET would be a false claim: "3 of 15 packages are
+        # shared" is only true of the whole store, and a reader has no way to tell the page
+        # was scoped. So it is written only for a full run, and a scoped run says why not.
+        wrote_fleet = False
+        if written and not scoped:
+            fleet_dir = store_dir.joinpath(*FLEET_DIR)
+            fleet_dir.mkdir(parents=True, exist_ok=True)
+            (fleet_dir / "design.md").write_text(
+                render_fleet_design(fleet, repos=[r for r, _p in targets]),
+                encoding="utf-8")
+            wrote_fleet = True
+        elif scoped:
+            log("  fleet page skipped: this run was scoped to named repos, and a fleet "
+                "view of part of the store would report shares and disagreements that are "
+                "not true of the whole", inline=True)
+
         glyph = style.warn() if (skipped or missing) else style.ok()
         log(f"{glyph} API reference and design notes: {written} of each written"
+            # Named because it ran. A summary that lists two outputs while three were
+            # written under-reports the work, which is the same defect as reporting a
+            # partial run as complete, pointed the other way.
+            + (", plus one fleet page" if wrote_fleet else "")
             + (f", {skipped} skipped (nothing indexed)" if skipped else "")
             + (f", {missing} unreadable" if missing else "")
             + f" → {out_dir.parent}")

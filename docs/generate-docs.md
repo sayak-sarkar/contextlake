@@ -3,17 +3,21 @@
 `contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
 inferred, and every statement traces to an edge that a parser recorded.
 
-It writes two kinds of document per repository:
+Two documents per repository:
 
 - an **API reference**, listing each symbol and the real places the codebase calls it;
 - **design notes**, listing what the repository's own files record about how it was built.
+
+Plus one for the whole store:
+
+- a **fleet page**, listing what every repository commits to and where they disagree.
 
 ```bash
 contextlake kb docs
 ```
 
-Output goes to `<store>/docs/api/<repo>.md` and `<store>/docs/design/<repo>.md`, one file
-each per indexed repository.
+Output goes to `<store>/docs/api/<repo>.md` and `<store>/docs/design/<repo>.md`, one file each
+per indexed repository, and `<store>/docs/fleet/design.md` for the store as a whole.
 
 ## What makes it different from the wiki
 
@@ -166,6 +170,34 @@ summariser can drop:
 ```
 
 Nothing on that page was ratified by anybody. It is a set of questions to confirm.
+
+## What the fleet page contains
+
+One page for the whole store, at `<store>/docs/fleet/design.md`. It answers the question no
+per-repo page can, because disagreement is invisible from inside a single repository: a service
+pinning `>=2.5,<4` and another leaving the same package unpinned each look reasonable on their
+own page.
+
+| Package | Repos | Manifests | Constraints in use (repos) |
+| --- | --- | --- | --- |
+| `queuelib` | 12 | 14 | `>=2.0` (9), `==1.8` (2), *unpinned* (1) |
+| `webkit` | 7 | 7 | *unpinned* (7) |
+
+**Every population is a count of distinct repositories, and manifests are counted separately.**
+That separation is not tidiness. Measured on a real four-repository fleet, one package had 11
+dependency edges across 2 repositories, because one of them declares it in eleven manifests: its
+own plus ten bundled examples. Counting edges would have printed "11 repositories" onto a
+four-repository fleet, which is absurd at four and perfectly plausible at forty.
+
+The page names which packages are pinned inconsistently and then explicitly declines to
+recommend anything, because a repository may pin tightly for a real reason and nothing in a
+graph can tell that from drift. Repositories with no recorded dependency are **named, not
+counted**, since one absent from every table cannot otherwise be told from one that was not read.
+
+It is written only when a run covers the whole store. `kb docs <repo>` skips it and says why: "3
+of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
+scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
+disagreeing is a lesser finding that would bury the one that matters.
 
 ## Bounding a large repository
 
