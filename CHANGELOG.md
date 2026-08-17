@@ -32,9 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing in a graph can tell a deliberate split from a drifted one. Agreement is stated too
   rather than left to inference, because silence reads as "not checked".
 
-  Repositories with no recorded dependency are **named, not counted**. A count invites the
-  reader to guess which ones, and a repository absent from every table cannot otherwise be told
-  from one that was never read.
+  **Absence is split into its three different causes**, because one heading over all of them
+  made a repository with a dev-only manifest indistinguishable from a broken store entry. A
+  repository can be missing from the tables because it declares only development or opt-in
+  dependencies (a manifest *was* read; nothing in it runs), because it declares nothing this
+  reads, or because its shard could not be loaded at all -- in which case the page knows
+  nothing about it either way and says so, rather than reporting it as declaring nothing. All
+  three are **named, not counted**, since a count invites the reader to guess which.
+
+  **The shared-package denominator names the filter it was drawn from.** "3 of 15 packages"
+  would silently redefine *packages* as *runtime packages*: a fleet with 15 runtime and 200
+  development packages reads as a 15-package fleet, and nothing else on the page contradicts
+  it. It now reads "3 of 15 packages required at runtime", and states how many appear only as
+  development or opt-in dependencies.
 
   **It is written only for a full run.** `kb docs <repo>` skips it and says why, because "3 of
   15 packages are shared" is a claim about the whole store and a reader has no way to tell a

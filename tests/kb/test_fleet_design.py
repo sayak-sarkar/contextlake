@@ -53,7 +53,7 @@ def test_a_disagreement_is_reported_and_not_judged():
             _dep("web", R2, constraint="==1.8"),
             _dep("web", R3)]
     page = render_fleet_design(deps, repos=[R1, R2, R3])
-    assert "1 of 1 required packages are required by more than one repository" in page
+    assert "1 of 1 packages required at runtime are required by more than one repository" in page
     assert "1 of them are pinned differently across repositories:" in page
     assert "observation, not a recommendation" in page
     # All three constraints appear with their own repository count.
@@ -83,17 +83,60 @@ def test_only_runtime_and_peer_reach_the_fleet_view():
     assert "No repository in this store records a runtime dependency" in page
 
 
-def test_repositories_with_nothing_recorded_are_NAMED_not_counted():
-    """"2 repositories declare nothing" invites the reader to guess which two.
+def test_absence_is_split_into_its_THREE_different_causes():
+    """A repository can be missing from the tables for three unrelated reasons.
 
-    And a repository absent from every table cannot otherwise be told from one this failed
-    to read at all, which is a different and more serious situation.
+    It declares only dev dependencies (a manifest WAS read, nothing in it runs). It declares
+    nothing this reads (either nothing, or in a file not understood). Or its shard could not
+    be loaded, in which case this page knows nothing about it either way. The first draft
+    printed all three under one heading reading "no recorded commitments", which made a repo
+    with a dev-only manifest indistinguishable from a broken store entry.
+
+    Named rather than counted throughout, because a count invites the reader to guess which.
     """
-    deps = [_dep("web", R1, constraint=">=2.0")]
-    page = render_fleet_design(deps, repos=[R1, R2, R3])
-    assert "2 of 3 declare no runtime dependency" in page
-    assert f"- `{R2}`" in page and f"- `{R3}`" in page
+    deps = [_dep("web", R1, constraint=">=2.0"),
+            _dep("linter", R2, group="dev", constraint=">=1")]
+    page = render_fleet_design(deps, repos=[R1, R2, R3], unreadable=["acme/broken"])
+
+    assert "4 of 4 are absent" not in page          # R1 committed; it is not absent
+    assert "3 of 4 are absent" in page
+    assert "Declare only development or opt-in dependencies** (1)" in page
+    assert "Declare no dependency this reads** (1)" in page
+    assert "Could not be read** (1)" in page
+    # each named under its own cause, and never under another
+    dev, _, rest = page.partition("**Declare no dependency this reads**")
+    unread_section = page.partition("**Could not be read**")[2]
+    assert f"- `{R2}`" in dev and f"- `{R2}`" not in rest
+    assert f"- `{R3}`" in rest and f"- `{R3}`" not in unread_section
+    assert "- `acme/broken`" in unread_section
     assert f"- `{R1}`" not in page
+
+
+def test_an_unreadable_repo_is_not_reported_as_declaring_nothing():
+    """The distinction the section exists for, isolated.
+
+    `kb docs` already counts unreadable shards; without passing them here the fleet page
+    would file one under "declares no dependency" and state something it cannot know.
+    """
+    page = render_fleet_design([_dep("web", R1, constraint=">=1")],
+                               repos=[R1], unreadable=["acme/broken"])
+    assert "Could not be read** (1)" in page
+    assert "a store to repair, not a finding about the code" in page
+    assert "Declare no dependency this reads" not in page
+
+
+def test_the_denominator_names_the_filter_it_was_drawn_from():
+    """"3 of 15 packages" would silently redefine "packages" as "runtime packages".
+
+    A fleet with 15 runtime and 200 development packages reads as a 15-package fleet, and
+    nothing else on the page contradicts it. The excluded population is stated instead.
+    """
+    deps = [_dep("web", R1, constraint=">=1"), _dep("web", R2, constraint=">=1")]
+    deps += [_dep(f"tool{i}", R1, group="dev", constraint=">=1") for i in range(7)]
+    page = render_fleet_design(deps, repos=[R1, R2])
+    assert "1 of 1 packages required at runtime" in page
+    assert "A further 7 appear only as development or opt-in dependencies" in page
+    assert "the runtime population rather than every package the fleet mentions" in page
 
 
 def test_a_package_in_one_repository_is_not_shared():
@@ -130,5 +173,5 @@ def test_the_shared_table_is_bounded_and_says_so():
         deps += [_dep(f"pkg{i:02d}", R1, constraint=">=1"),
                  _dep(f"pkg{i:02d}", R2, constraint=">=1")]
     page = render_fleet_design(deps, repos=[R1, R2], max_shared=10)
-    assert "30 of 30 required packages are required by more than one repository" in page
+    assert "30 of 30 packages required at runtime are required by more than one repository" in page
     assert "20 more shared packages are not listed." in page

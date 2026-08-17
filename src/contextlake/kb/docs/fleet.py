@@ -57,21 +57,42 @@ class FleetDep(NamedTuple):
 UNPINNED = "*unpinned*"
 
 
-def _by_package(deps):
-    """`{package: {constraint: {repos}}}` plus `{package: {(repo, manifest)}}`.
+class _Seen(NamedTuple):
+    """What the filter kept, and what it left out, kept side by side.
 
-    Two separate structures on purpose. Collapsing them into one count is exactly the
-    substitution the module docstring describes, and keeping them apart makes it impossible
-    to print one while meaning the other.
+    `constraints` and `manifests` cover runtime and peer only. `other_packages` and
+    `other_repos` are what the group filter EXCLUDED, and they exist because a denominator
+    drawn from the filtered set silently redefines the word it counts: "3 of 15 packages"
+    on a fleet with 15 runtime and 200 development packages reads as a 15-package fleet,
+    and nothing else on the page would contradict it.
+    """
+
+    constraints: dict
+    manifests: dict
+    other_packages: set   # seen ONLY outside runtime/peer
+    other_repos: set      # declared something, none of it runtime or peer
+
+
+def _by_package(deps) -> _Seen:
+    """Runtime and peer aggregated by package, plus what the group filter left out.
+
+    `constraints` and `manifests` are separate structures on purpose. Collapsing them into
+    one count is exactly the substitution the module docstring describes, and keeping them
+    apart makes it impossible to print one while meaning the other.
     """
     constraints: dict = collections.defaultdict(lambda: collections.defaultdict(set))
     manifests: dict = collections.defaultdict(set)
+    other_packages, other_repos = set(), set()
     for d in deps:
         if d.group not in FLEET_GROUPS:
+            other_packages.add(d.package)
+            other_repos.add(d.repo)
             continue
         constraints[d.package][d.constraint or UNPINNED].add(d.repo)
         manifests[d.package].add((d.repo, d.manifest))
-    return constraints, manifests
+    # A package appearing BOTH ways is a runtime package. Only ones seen exclusively outside
+    # the filter belong in the excluded count.
+    return _Seen(constraints, manifests, other_packages - set(constraints), other_repos)
 
 
 def _repos_of(by_constraint) -> set:
@@ -84,13 +105,24 @@ def _constraint_cell(by_constraint) -> str:
     return ", ".join(f"{code(c) if c != UNPINNED else c} ({len(repos)})" for c, repos in parts)
 
 
-def render_fleet_design(deps, *, repos, max_shared: int = DEFAULT_MAX_SHARED,
+def render_fleet_design(deps, *, repos, unreadable=(), max_shared: int = DEFAULT_MAX_SHARED,
                         max_named_repos: int = DEFAULT_MAX_NAMED_REPOS) -> str:
-    """The fleet page as Markdown. ``repos`` is every indexed repo id, including any with
-    no dependencies at all, because a repository missing from a table is a different fact
-    from a repository with nothing to declare."""
-    all_repos = sorted(set(repos))
-    constraints, manifests = _by_package(list(deps))
+    """The fleet page as Markdown.
+
+    ``repos`` is every indexed repo id, including any with no dependencies at all, because a
+    repository missing from a table is a different fact from a repository with nothing to
+    declare. ``unreadable`` names repos whose shard could not be read, which is a THIRD
+    fact: this page promises to tell absent from unread, and without it an unreadable repo
+    would be filed under "declares nothing" and the page would be wrong about it.
+    """
+    unread = sorted(set(unreadable))
+    # The population INCLUDES unreadable repos: they are indexed repositories, the store
+    # lists them, and leaving them out makes the absence denominator smaller than the number
+    # of rows beneath it -- "3 of 3 are absent" on a fleet where one repo is committed. Same
+    # defect as every other denominator drawn from a filtered set.
+    all_repos = sorted(set(repos) | set(unread))
+    seen = _by_package(list(deps))
+    constraints, manifests = seen.constraints, seen.manifests
     shared = {p: c for p, c in constraints.items() if len(_repos_of(c)) > 1}
     disagreeing = sorted(p for p, c in shared.items() if len(c) > 1)
 
@@ -126,8 +158,13 @@ def render_fleet_design(deps, *, repos, max_shared: int = DEFAULT_MAX_SHARED,
         by_reach = sorted(shared, key=lambda p: (-len(_repos_of(shared[p])), p))
         shown = by_reach[:max_shared]
         lines += [
-            f"{len(shared)} of {len(constraints)} required packages are required by more than "
-            f"one repository.", "",
+            f"{len(shared)} of {len(constraints)} packages required at runtime are required by "
+            f"more than one repository."
+            + (f" A further {len(seen.other_packages)} appear only as development or opt-in "
+               f"dependencies and are not counted here, so that denominator is the runtime "
+               f"population rather than every package the fleet mentions."
+               if seen.other_packages else ""),
+            "",
         ]
         lines += table(
             ["Package", "Repos", "Manifests", "Constraints in use (repos)"],
@@ -149,24 +186,41 @@ def render_fleet_design(deps, *, repos, max_shared: int = DEFAULT_MAX_SHARED,
         else:
             lines += ["Every shared package is pinned identically everywhere it appears.", ""]
 
-    # Named, not counted. "6 repositories declare nothing" invites the reader to assume which
-    # six, and a repository absent from every table above is indistinguishable from one this
-    # simply failed to read.
-    silent = [r for r in all_repos
-              if r not in {d for c in constraints.values() for s in c.values() for d in s}]
-    lines += ["## Repositories with no recorded commitments", ""]
-    if not silent:
+    # THREE different facts, which the first draft printed as one. A repository declaring only
+    # dev dependencies, one declaring nothing at all, and one whose shard could not be read
+    # were all filed under "no recorded commitments" -- and this section exists precisely to
+    # separate absent from unread. Named rather than counted throughout, because a count
+    # invites the reader to guess which ones.
+    committed = {r for c in constraints.values() for repos in c.values() for r in repos}
+    dev_only = [r for r in all_repos
+                if r not in committed and r in seen.other_repos and r not in unread]
+    nothing = [r for r in all_repos
+               if r not in committed and r not in seen.other_repos and r not in unread]
+    lines += ["## Repositories with no runtime commitment", ""]
+    if not (dev_only or nothing or unread):
         lines += ["Every indexed repository declares at least one runtime dependency.", ""]
-    else:
-        named = silent[:max_named_repos]
-        lines += [
-            f"{len(silent)} of {len(all_repos)} declare no runtime dependency in a manifest "
-            f"this reads. Named rather than counted, because a repository absent from the "
-            f"tables above cannot otherwise be told from one that was not read:",
-            "",
-        ]
-        lines += [f"- {code(r)}" for r in named]
-        if len(named) < len(silent):
-            lines += [f"- ... and {len(silent) - len(named)} more"]
+        return "\n".join(lines).rstrip() + "\n"
+
+    absent = len(dev_only) + len(nothing) + len(unread)
+    lines += [f"{absent} of {len(all_repos)} are absent from the tables above, for three "
+              f"different reasons a single count would blur:", ""]
+    for names, heading, why in (
+        (dev_only, "Declare only development or opt-in dependencies",
+         "so a manifest WAS read; nothing in it is required at runtime"),
+        (nothing, "Declare no dependency this reads",
+         "either they declare none, or they declare them somewhere not read: "
+         "`pyproject.toml` (including PEP 735 `[dependency-groups]`), `package.json`, "
+         "`*.csproj` and `pom.xml` are what is understood"),
+        (unread, "Could not be read",
+         "the store lists them and their shard failed to load, so this page knows nothing "
+         "about them either way: a store to repair, not a finding about the code"),
+    ):
+        if not names:
+            continue
+        shown_repos = names[:max_named_repos]
+        lines += [f"**{heading}** ({len(names)}), {why}:", ""]
+        lines += [f"- {code(r)}" for r in shown_repos]
+        if len(shown_repos) < len(names):
+            lines += [f"- ... and {len(names) - len(shown_repos)} more"]
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"

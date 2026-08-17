@@ -191,8 +191,16 @@ four-repository fleet, which is absurd at four and perfectly plausible at forty.
 
 The page names which packages are pinned inconsistently and then explicitly declines to
 recommend anything, because a repository may pin tightly for a real reason and nothing in a
-graph can tell that from drift. Repositories with no recorded dependency are **named, not
-counted**, since one absent from every table cannot otherwise be told from one that was not read.
+graph can tell that from drift.
+
+The denominator names the filter it came from: "3 of 15 **packages required at runtime**", plus
+how many appear only as development or opt-in dependencies. Without that, a fleet with 15
+runtime and 200 development packages reads as a 15-package fleet.
+
+Repositories absent from the tables are split by **why**, and named rather than counted:
+they declare only development or opt-in dependencies (a manifest *was* read), they declare
+nothing this reads, or their shard could not be loaded -- in which case the page knows nothing
+about them either way and says so instead of reporting them as declaring nothing.
 
 It is written only when a run covers the whole store. `kb docs <repo>` skips it and says why: "3
 of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a

@@ -56,6 +56,7 @@ def cmd_docs(args) -> int:
         # Accumulated from the shards this loop already reads, so the fleet page costs no
         # extra I/O. Only written when the run covered EVERY indexed repo -- see below.
         fleet: list = []
+        unreadable: list = []
         scoped = bool([a for a in (getattr(args, "args", None) or []) if a])
         for repo_id, _path in targets:
             shard = read_shard(store_dir, repo_id)
@@ -66,6 +67,10 @@ def cmd_docs(args) -> int:
                 # Reporting both as "indexed to 0 symbols" states a cause that is false half
                 # the time, and hides the half that needs fixing.
                 missing += 1
+                # Named for the fleet page too, not only counted here: a repo whose shard
+                # failed to load is not a repo that declares nothing, and the fleet page
+                # promises to tell those apart.
+                unreadable.append(repo_id)
                 log(f"  {style.warn(repo_id)}: no reference — the store lists this repo but "
                     f"its shard could not be read", inline=True)
                 continue
@@ -102,7 +107,8 @@ def cmd_docs(args) -> int:
             fleet_dir = store_dir.joinpath(*FLEET_DIR)
             fleet_dir.mkdir(parents=True, exist_ok=True)
             (fleet_dir / "design.md").write_text(
-                render_fleet_design(fleet, repos=[r for r, _p in targets]),
+                render_fleet_design(fleet, repos=[r for r, _p in targets],
+                                    unreadable=unreadable),
                 encoding="utf-8")
             wrote_fleet = True
         elif scoped:
