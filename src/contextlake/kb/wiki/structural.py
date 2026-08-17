@@ -200,6 +200,23 @@ def _dependency_lines(deps: dict | None) -> list[str]:
     return out
 
 
+# The marker that says which KIND of page a file holds. It has to be machine-readable and
+# stable, because the whole "one wiki per repository" rule depends on being able to tell a
+# structural page from a generated one on disk: the structural stage runs on every `kb
+# wiki`, and without this it would overwrite an accepted prose page with tables every time.
+STRUCTURAL_MARKER = "Built from the knowledge graph with no language model."
+
+
+def is_structural_page(text: str) -> bool:
+    """Whether ``text`` is a structural page rather than generated prose.
+
+    Read from the page itself rather than tracked beside it. A sidecar would be a second
+    thing to keep in step with the file, and the case that matters is a file somebody
+    copied, restored from a backup, or wrote by hand.
+    """
+    return STRUCTURAL_MARKER in (text or "")
+
+
 def render_structural_page(
     brief: dict, *, repo_id: str, path_prefix: str | None = None,
     modules: list[dict] | None = None, owners: list[dict] | None = None,
@@ -243,6 +260,16 @@ def render_structural_page(
             "silently, so an absence here means the graph holds nothing of that kind "
             "for this scope and not that a section was forgotten.", "",
         ]
+    head_commit = brief.get("head")
+    lines += [
+        "---", "",
+        f"*{STRUCTURAL_MARKER} Every line above is read from the graph, the manifests "
+        f"and the checkout"
+        + (f", at commit `{head_commit}`" if head_commit else "")
+        + (f" (parser {brief['parser_version']})" if brief.get("parser_version") else "")
+        + ". Nothing here was written by a model, so nothing here needs reviewing for "
+        "accuracy against something else.*",
+    ]
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -223,6 +223,31 @@ def test_empty_and_tiny_drafts_do_not_crash():
 
 # --- wiring ---------------------------------------------------------------
 
+
+def _rejected_draft_did_not_land(store_dir, draft_fragment: str) -> None:
+    """A rejected draft must not reach disk, and the STRUCTURAL page must survive.
+
+    `not (wiki/r.md).exists()` used to express the first half and can no longer express
+    either: a repository has one wiki page per scope now, and the structural page is
+    written before generation is attempted. So a rejection correctly leaves a page behind,
+    and the old assertion could not tell "the bad draft was written" from "the good
+    structural page is there".
+
+    Both halves are checked, because either alone is satisfiable by the wrong outcome: a
+    file containing the rejected text would pass a structural check that only asked
+    whether SOMETHING was there, and an absent file would pass a check that only asked
+    whether the draft was missing.
+    """
+    from contextlake.kb.wiki.structural import is_structural_page
+
+    page = store_dir / "wiki" / "r.md"
+    assert page.exists(), "the structural page was removed by a rejected generation"
+    text = page.read_text(encoding="utf-8")
+    assert is_structural_page(text), (
+        "the page on disk is not the structural one, so the rejected draft landed")
+    assert draft_fragment not in text, "the rejected draft reached disk"
+
+
 def test_cmd_wiki_rejects_a_degenerate_page_before_the_council(tmp_path, monkeypatch,
                                                                gls_logs):
     """End to end: a looping draft is never written, the operator is told which
@@ -240,7 +265,7 @@ def test_cmd_wiki_rejects_a_degenerate_page_before_the_council(tmp_path, monkeyp
 
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _LoopingLlm())
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    assert not (store_dir / "wiki" / "r.md").exists()
+    _rejected_draft_did_not_land(store_dir, "The kb module contains the server function")
     assert not reviewed, "a structurally broken page must not reach the council"
     text = gls_logs.text
     assert "degenerate repetition" in text
@@ -259,7 +284,7 @@ def test_cmd_wiki_rejects_a_prompt_echoing_page(tmp_path, monkeypatch, gls_logs)
 
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _EchoingLlm())
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    assert not (store_dir / "wiki" / "r.md").exists()
+    _rejected_draft_did_not_land(store_dir, PROMPT_INSTRUCTIONS[2][:40])
     assert "prompt leakage" in gls_logs.text
 
 

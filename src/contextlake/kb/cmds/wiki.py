@@ -320,11 +320,22 @@ def _select_module_pages(modules: list[dict], wiki_dir, repo_id: str,
 
     A repo's first run has no module pages at all, so this degrades to
     exactly the old largest-first top-N.
+
+    A module whose page is STRUCTURAL counts as never-paged. The structural stage writes
+    a page at every qualifying module's path before generation runs, so treating mere
+    existence as "already generated" made `fresh` permanently empty: rotation could only
+    ever re-pick from `paged`, and generated module pages stopped reaching new modules at
+    all. Same defect as the freshness check read, in a second reader, and the rotation
+    test caught it rather than the change being noticed.
     """
+    from ..wiki.structural import is_structural_page
+
     fresh, paged = [], []
     for m in modules:
-        target = paged if _module_page_file(wiki_dir, repo_id, m["prefix"]).exists() else fresh
-        target.append(m)
+        f = _module_page_file(wiki_dir, repo_id, m["prefix"])
+        generated = f.exists() and not is_structural_page(
+            f.read_text(encoding="utf-8", errors="replace"))
+        (paged if generated else fresh).append(m)
     return (fresh + paged)[:cap]
 
 
@@ -365,20 +376,35 @@ def _log_rejection(label: str, gate: dict) -> None:
         log(f"      - {issue}")
 
 
-STRUCTURE_DIR = "_structure"
+# Structural module pages are capped far higher than generated ones, and for a different
+# reason. The generated cap bounds LLM calls per run; this one bounds scoped `repo_brief`
+# calls, which are a node/edge filter over the shard -- not free, but nowhere near the cost
+# of a model. A repository with hundreds of near-equal subsystems is exactly the shape this
+# feature exists for, so the number is set to clear real repos and the truncation is
+# REPORTED when it binds, never applied silently.
+_MAX_STRUCTURAL_MODULE_PAGES = 200
 
 
-def _structural_dir(wiki_dir):
-    """Where structural pages live: `wiki/_structure/`, modules under `_modules/`.
+def _write_if_not_generated(path, page: str) -> bool:
+    """Write ``page`` unless the file already holds GENERATED prose. Returns whether it
+    wrote.
 
-    A dedicated subdirectory because `_module_wiki_filename` REQUIRES one of its callers
-    (its sanitised names can otherwise collide with an unrelated repo's whole-repo page),
-    and mirroring the existing `_modules/` and `_clusters/` convention means that
-    sanitisation and the path-containment guard apply unchanged instead of being
-    re-reasoned for a new layout. It also keeps the generated wiki's own directory
-    untouched, so the two page families cannot collide with each other.
+    A repository has one wiki page per scope, and the structural stage runs on every `kb
+    wiki`. Without this check a scheduled run would replace an accepted, reviewed prose
+    page with tables every time, which is a regression wearing the costume of a refresh.
+
+    The kind is read out of the file itself rather than tracked beside it, so a page
+    somebody restored from a backup or copied into place is classified correctly.
     """
-    return wiki_dir / STRUCTURE_DIR
+    from ..wiki.structural import is_structural_page
+
+    if path.exists():
+        current = path.read_text(encoding="utf-8", errors="replace")
+        if current and not is_structural_page(current):
+            return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(page, encoding="utf-8")
+    return True
 
 
 def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]:
@@ -404,7 +430,11 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
     from ..wiki.generate import repo_brief
     from ..wiki.structural import render_structural_page, repo_dependencies, repo_owners
 
-    out_dir = _structural_dir(wiki_dir)
+    # The CANONICAL wiki paths, not a parallel directory. A repository has ONE wiki page
+    # per scope: the structural page IS that page until something verified replaces it,
+    # rather than a second artefact beside it that a reader has to choose between. That
+    # also means the dashboard, the MCP server and search all reach it with no changes.
+    out_dir = wiki_dir
     anonymize = getattr(cfg, "anonymize", "never") == "always"
     written = 0
     briefs: dict[tuple[str, str | None], dict] = {}
@@ -419,12 +449,20 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
         # cache are a live README read and an enrichment-shard read, so the second one
         # is real work rather than a cache hit.
         shard = read_shard(store_dir, repo_id)
-        if shard is None:
+        if shard is None or not shard.nodes:
+            # The SAME refusal the generated path makes, for the same reason: a repository
+            # that indexed to no symbols has nothing for a page to be ABOUT, and a
+            # confident artefact about nothing is worse than no artefact. Measured once on
+            # a repo that indexed to zero nodes and still published 119 lines presenting
+            # the forge's boilerplate README as the project's architecture.
             continue
         modules, _prune = _module_page_plan(store, repo_id, len(shard.nodes))
         brief = repo_brief(store_dir, repo_id, store=store,
                            subsystem_modules=modules or None)
-        if brief is None:
+        if brief is None or not brief.get("coverage_total"):
+            # No FILE-BACKED symbol either: the graph holds only fleet-wide package or
+            # module nodes, so every section would describe something that is not this
+            # repository's code. Same threshold the generated path applies.
             continue
         briefs[(repo_id, None)] = brief
         deps = repo_dependencies(store, repo_id)
@@ -433,9 +471,13 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
             brief, repo_id=repo_id, modules=modules,
             owners=repo_owners(store, repo_id, anonymize=anonymize),
             dependencies=deps)
-        (out_dir / (repo_slug(repo_id) + ".md")).write_text(page, encoding="utf-8")
-        written += 1
-        for m in modules:
+        if _write_if_not_generated(out_dir / (repo_slug(repo_id) + ".md"), page):
+            written += 1
+        planned = modules[:_MAX_STRUCTURAL_MODULE_PAGES]
+        if len(modules) > len(planned):
+            log(f"  {repo_id}: {len(modules)} modules qualify; writing structural pages "
+                f"for the largest {len(planned)}. The rest have no page this run.")
+        for m in planned:
             prefix = m["prefix"]
             # `store=None`, matching the generated path exactly. With a store, the
             # brief carries the REPO's README excerpt and its live setup scan, and a
@@ -446,14 +488,14 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
             if scoped is None or not scoped.get("node_count"):
                 continue
             briefs[(repo_id, prefix)] = scoped
-            mod_file = _module_page_file(out_dir, repo_id, prefix)
-            mod_file.parent.mkdir(parents=True, exist_ok=True)
-            mod_file.write_text(render_structural_page(
-                scoped, repo_id=repo_id, path_prefix=prefix,
-                owners=repo_owners(store, repo_id, path_prefix=prefix,
-                                   anonymize=anonymize),
-                dependencies=deps), encoding="utf-8")
-            written += 1
+            if _write_if_not_generated(_module_page_file(out_dir, repo_id, prefix),
+                                       render_structural_page(
+                                           scoped, repo_id=repo_id, path_prefix=prefix,
+                                           owners=repo_owners(store, repo_id,
+                                                              path_prefix=prefix,
+                                                              anonymize=anonymize),
+                                           dependencies=deps)):
+                written += 1
     return written, briefs
 
 
@@ -512,7 +554,7 @@ def cmd_wiki(args) -> int:
             n, structural_briefs = _structural_stage(store, store_dir, args, cfg,
                                                      wiki_dir)
             if n:
-                log(f"Wrote {n} structural page(s) → {_structural_dir(wiki_dir)}")
+                log(f"Wrote {n} structural page(s) → {wiki_dir}")
 
         llm = build_llm(cfg.llm)
         if llm is None:
@@ -699,7 +741,18 @@ def cmd_wiki(args) -> int:
                        if wiki_file.exists() else ""), inline=True)
                 return "rejected"
             head = shard.head_commit
-            if not force and wiki_file.exists() and head:
+            # A STRUCTURAL page is never "already generated", however fresh its commit
+            # stamp is. Both page kinds live at this one path now, and the structural
+            # footer carries the same `at commit \`...\`` text this check reads -- so
+            # without the kind test the first structural page a repo ever got would make
+            # the generated page look up-to-date and prose would never be written at all.
+            # Found by an existing summary test reporting 0 written where it expected 1.
+            prev_is_structural = False
+            if wiki_file.exists():
+                from ..wiki.structural import is_structural_page
+                prev_is_structural = is_structural_page(
+                    wiki_file.read_text(encoding="utf-8", errors="replace"))
+            if not force and not prev_is_structural and wiki_file.exists() and head:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
                 m = re.search(r"at commit `([^`]+)`", prev)
                 pm = re.search(r"at commit `[^`]+` \(parser ([^)]+)\)", prev)

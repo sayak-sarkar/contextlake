@@ -1382,7 +1382,7 @@ def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.2))
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    assert not (store_dir / "wiki" / "r.md").exists()  # council rejected it
+    _only_the_structural_page_survives(store_dir)  # council rejected the draft
 
 
 def test_cmd_wiki_scopes_to_positional_repo(tmp_path, monkeypatch):
@@ -1419,7 +1419,7 @@ def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
 
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _BoomLlm())
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
-    assert not (store_dir / "wiki" / "r.md").exists()
+    _only_the_structural_page_survives(store_dir)
 
 
 def test_cmd_wiki_summary_surfaces_a_partial_failure(tmp_path, monkeypatch, gls_logs):
@@ -1792,6 +1792,40 @@ def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path,
 
 
 @pytest.mark.slow
+def _only_the_structural_page_survives(store_dir, repo="r") -> None:
+    """A rejected or failed generation leaves the STRUCTURAL page, and nothing else.
+
+    `not exists()` used to mean "the bad draft did not reach disk" and can no longer say
+    that: one wiki page per scope means the structural page is already there before
+    generation is attempted. Asserting the survivor's KIND is what distinguishes "the
+    rejection worked" from "the rejected draft was written anyway".
+    """
+    from contextlake.kb.wiki.structural import is_structural_page
+
+    page = store_dir / "wiki" / f"{repo}.md"
+    assert page.exists(), "the structural page was removed by a rejected generation"
+    assert is_structural_page(page.read_text(encoding="utf-8")), (
+        "the page on disk is generated prose, so a rejected draft landed")
+
+
+def _generated_module_prefixes(modules_dir, glob="fed__mod*.md"):
+    """Module prefixes whose page is GENERATED prose, not a structural page.
+
+    Counting FILES stopped meaning "counting generated pages" once one wiki page per scope
+    became the rule: the structural stage writes a page at every qualifying module's path
+    before generation runs, so a plain glob counts both producers. The cap and the rotation
+    below are both about LLM work, so they filter on the page's kind, which is the thing
+    they were always trying to measure.
+    """
+    from contextlake.kb.wiki.structural import is_structural_page
+
+    out = set()
+    for f in modules_dir.glob(glob):
+        if not is_structural_page(f.read_text(encoding="utf-8", errors="replace")):
+            out.add(f.stem.split("__", 1)[1])
+    return out
+
+
 def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
     """`_module_page_plan` (pinned by spec, uncapped) can return "hundreds"
     of modules for a legacy federated repo -- the call site caps how many get
@@ -1807,7 +1841,7 @@ def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
 
     modules_dir = store_dir / "wiki" / "_modules"
-    written = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    written = _generated_module_prefixes(modules_dir)
     assert len(written) == _MAX_MODULE_PAGES_PER_REPO
     # repo_modules() sorts (-nodes, prefix) -- all 25 modules tie on node
     # count, so the tiebreak is a plain string sort of "mod0".."mod24"; the
@@ -1840,19 +1874,23 @@ def test_cmd_wiki_module_page_selection_rotates_onto_the_unpaged_tail(tmp_path, 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
 
     modules_dir = store_dir / "wiki" / "_modules"
-    first_run = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    first_run = _generated_module_prefixes(modules_dir)
     assert len(first_run) == _MAX_MODULE_PAGES_PER_REPO
-    first_run_mtimes = {p.name: p.stat().st_mtime_ns for p in modules_dir.glob("fed__mod*.md")}
+    # GENERATED pages only. A structural page is rewritten on every run by design (it is
+    # deterministic and costs milliseconds), so including them here would assert that the
+    # free producer never refreshes, which is not the property this test is about.
+    first_run_mtimes = {f"fed__{pfx}.md": (modules_dir / f"fed__{pfx}.md").stat().st_mtime_ns
+                        for pfx in first_run}
 
     # Second run: same head_commit, same store, no --force.
     second = _CapturingLlm(score=0.95)
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: second)
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
 
-    after = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    after = _generated_module_prefixes(modules_dir)
     all_prefixes = {f"mod{i}" for i in range(n_modules)}
-    assert after == all_prefixes, "the deferred tail never got its pages"
-    # The pages the first run wrote are untouched, not regenerated or deleted.
+    assert after == all_prefixes, "the deferred tail never got its GENERATED pages"
+    # The GENERATED pages the first run wrote are untouched, not regenerated or deleted.
     for name, mtime in first_run_mtimes.items():
         assert (modules_dir / name).stat().st_mtime_ns == mtime
 
@@ -1892,8 +1930,15 @@ def test_cmd_wiki_skips_module_pages_when_the_whole_repo_page_failed(
     # attempted, so none exist and none cost a round trip.
     assert len(boom.page_prompts) == 1
     assert "ONLY the" not in boom.page_prompts[0]
-    assert not (store_dir / "wiki" / "fed.md").exists()
-    assert not (store_dir / "wiki" / "_modules").exists()
+    # The failure must leave NO GENERATED page and cost no module generation. What is on
+    # disk is the structural page, written before generation was attempted, which is the
+    # intended outcome: a failed run leaves the reader the verified page rather than
+    # nothing at all. Asserting "no file" stopped distinguishing those two.
+    from contextlake.kb.wiki.structural import is_structural_page
+
+    whole = store_dir / "wiki" / "fed.md"
+    assert whole.exists() and is_structural_page(whole.read_text(encoding="utf-8"))
+    assert not _generated_module_prefixes(store_dir / "wiki" / "_modules")
     assert "not attempting its subsystem pages this run" in gls_logs.text
 
 

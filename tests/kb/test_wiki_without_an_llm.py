@@ -51,15 +51,17 @@ def _setup(tmp_path, cfg=_CFG_NO_LLM):
     return store_dir
 
 
-def _structural(store_dir):
-    return store_dir / "wiki" / "_structure" / "r.md"
+def _page(store_dir):
+    """The CANONICAL wiki path. A repository has one wiki page per scope, and the
+    structural page IS that page until something verified replaces it."""
+    return store_dir / "wiki" / "r.md"
 
 
 def test_a_page_is_written_with_no_llm_configured(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup(tmp_path)
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    page = _structural(store_dir)
+    page = _page(store_dir)
     assert page.exists(), "no structural page was written without an LLM configured"
     text = page.read_text(encoding="utf-8")
     assert text.startswith("# r")
@@ -96,24 +98,90 @@ def test_the_exit_code_stays_zero(tmp_path, monkeypatch):
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
 
 
-def test_the_page_is_rewritten_on_a_second_run_without_force(tmp_path, monkeypatch):
-    """Structural pages are deterministic and cost milliseconds, so they are not behind
-    the freshness machinery, which exists to avoid paying an LLM twice. A page that went
-    stale because nobody passed --force would be the worse failure."""
+def test_the_structural_page_is_the_repository_s_wiki_page(tmp_path, monkeypatch):
+    """At the canonical path, so every existing reader finds it with no changes: the
+    dashboard's Wiki tab, the MCP server and the freshness check all already look here."""
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup(tmp_path)
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    _structural(store_dir).write_text("# stale\n", encoding="utf-8")
-    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    assert "stale" not in _structural(store_dir).read_text(encoding="utf-8")
+    assert _page(store_dir).exists()
+    assert not (store_dir / "wiki" / "_structure").exists(), (
+        "the parallel structure directory is gone; one repository has one wiki page")
 
 
-def test_the_structural_page_lands_in_its_own_directory(tmp_path, monkeypatch):
-    """`wiki/_structure/`, never `wiki/`. A structural page and a generated page for one
-    repository would otherwise collide on `wiki/<slug>.md`, and the generated one would
-    win or lose depending on which ran last."""
+def test_a_generated_page_is_never_overwritten_by_the_structural_stage(tmp_path,
+                                                                      monkeypatch):
+    """The load-bearing half of "one wiki page per repository".
+
+    The structural stage runs on EVERY `kb wiki`. Without the kind check it would replace
+    an accepted, reviewed prose page with tables on every run, so a scheduled refresh
+    would silently undo the generation it was refreshing.
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup(tmp_path)
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
-    assert not (store_dir / "wiki" / "r.md").exists()
-    assert _structural(store_dir).exists()
+    assert "no language model" in _page(store_dir).read_text(encoding="utf-8")
+
+    prose = "# r\n\nCatalogService charges orders, reviewed and accepted.\n"
+    _page(store_dir).write_text(prose, encoding="utf-8")
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert _page(store_dir).read_text(encoding="utf-8") == prose, (
+        "the structural stage overwrote a generated page")
+
+
+def test_a_structural_page_IS_replaced_on_a_later_run(tmp_path, monkeypatch):
+    """The other side of the same pair. Refusing to overwrite anything at all would let a
+    structural page go stale forever, and this assertion is what tells the guard above
+    apart from a stage that simply never writes twice."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup(tmp_path)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    _page(store_dir).write_text(
+        "# r\n\nstale\n\n---\n\n*Built from the knowledge graph with no language "
+        "model. Old.*\n", encoding="utf-8")
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert "stale" not in _page(store_dir).read_text(encoding="utf-8")
+
+
+# --- the invariant, over every reader ------------------------------------------------
+
+
+def test_no_reader_treats_a_structural_page_as_a_generated_one():
+    """The class, not the instances.
+
+    Both page kinds now live at one path, so every reader that used to take "a file is
+    here" as "a generated page is here" is wrong in the same way. Three were, and each was
+    found separately: the freshness check skipped generation as already-fresh, the module
+    selector saw every module as already-paged and stopped rotating onto new ones, and four
+    tests asserted absence to mean rejection.
+
+    Parametrising over the readers turns the NEXT one into a failure instead of a fourth
+    quiet instance. It reads source rather than exercising behaviour on purpose: a reader
+    that never consults the page kind cannot be caught by any input, only by looking.
+    """
+    import inspect
+
+    from contextlake.kb.cmds import wiki as wiki_cmd
+
+    src = inspect.getsource(wiki_cmd)
+    # Each entry: the function that reads a page path, and why it must know the kind.
+    readers = {
+        "_write_if_not_generated": "it must not overwrite accepted prose",
+        "_select_module_pages": "a structural page must count as never-generated",
+        "_run_page": "a structural page must not freshness-skip generation",
+    }
+    for name, why in readers.items():
+        fn_src = src.split(f"def {name}(", 1)
+        assert len(fn_src) == 2, f"{name} was renamed; this invariant now checks nothing"
+        body = fn_src[1].split("\ndef ", 1)[0]
+        # Import lines stripped first, and a CALL required, not a mention. The first
+        # draft asserted `"is_structural_page" in body`, which the function's own import
+        # line satisfies -- so removing the actual call from the selector failed nothing
+        # here, and only a separate behavioural test caught it. A guard that passes a
+        # break it exists to catch is decorative.
+        body = "\n".join(ln for ln in body.splitlines()
+                          if "import is_structural_page" not in ln)
+        assert "is_structural_page(" in body, (
+            f"{name} reads a wiki page path without asking which KIND of page it is, and "
+            f"{why}. Both kinds live at the same path, so file presence alone is not the "
+            f"question any of these readers mean to ask.")
