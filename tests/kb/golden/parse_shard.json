@@ -151,7 +151,7 @@
       "dst": "execute_c5368772",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 15,
+        "source_line": 16,
         "verified_at": "DATE"
       },
       "relation": "contains",
@@ -235,7 +235,7 @@
       "dst": "list_orders_1753a0c6",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 7,
+        "source_line": 8,
         "verified_at": "DATE"
       },
       "relation": "contains",
@@ -428,6 +428,20 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
+      "dst": "page_size_0eb5f488",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
       "dst": "pkg_npm_axios",
       "provenance": {
         "source_file": "package.json",
@@ -459,7 +473,7 @@
       "dst": "query_2d80ad68",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 11,
+        "source_line": 12,
         "verified_at": "DATE"
       },
       "relation": "contains",
@@ -515,7 +529,7 @@
       "dst": "endpoint_v1_orders",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 6,
+        "source_line": 7,
         "verified_at": "DATE"
       },
       "relation": "exposes",
@@ -585,7 +599,7 @@
       "dst": "demo_fixture_db_schema_sql_table_orders",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 12,
+        "source_line": 13,
         "verified_at": "DATE"
       },
       "relation": "writes",
@@ -599,7 +613,7 @@
       "dst": "demo_fixture_db_schema_sql_table_orders",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 8,
+        "source_line": 9,
         "verified_at": "DATE"
       },
       "relation": "reads",
@@ -627,7 +641,7 @@
       "dst": "execute_c5368772",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 12,
+        "source_line": 13,
         "verified_at": "DATE"
       },
       "relation": "calls",
@@ -694,10 +708,24 @@
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
+      "dst": "page_size_0eb5f488",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "uses",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
       "dst": "query_2d80ad68",
       "provenance": {
         "source_file": "svc/api/routes.py",
-        "source_line": 8,
+        "source_line": 9,
         "verified_at": "DATE"
       },
       "relation": "calls",
@@ -721,6 +749,34 @@
   ],
   "head_commit": "0000000000000000000000000000000000000000",
   "nodes": [
+    {
+      "attrs": {
+        "declaration": "PAGE_SIZE = 50"
+      },
+      "file": "svc/api/routes.py",
+      "id": "page_size_0eb5f488",
+      "kind": "global_variable",
+      "lang": "python",
+      "line_end": 4,
+      "line_start": 4,
+      "name": "PAGE_SIZE",
+      "qualified_name": "svc/api/routes.py::PAGE_SIZE",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "declaration": "app = Flask(__name__)"
+      },
+      "file": "svc/api/routes.py",
+      "id": "app_e1aed911",
+      "kind": "global_variable",
+      "lang": "python",
+      "line_end": 3,
+      "line_start": 3,
+      "name": "app",
+      "qualified_name": "svc/api/routes.py::app",
+      "repo": "demo/fixture"
+    },
     {
       "attrs": {
         "doc": "# Use a single store ## Status Accepted"
@@ -855,8 +911,8 @@
       "id": "list_orders_1753a0c6",
       "kind": "function",
       "lang": "python",
-      "line_end": 8,
-      "line_start": 7,
+      "line_end": 9,
+      "line_start": 8,
       "name": "list_orders",
       "qualified_name": "svc/api/routes.py::list_orders",
       "repo": "demo/fixture"
@@ -967,8 +1023,8 @@
       "id": "execute_c5368772",
       "kind": "function",
       "lang": "python",
-      "line_end": 16,
-      "line_start": 15,
+      "line_end": 17,
+      "line_start": 16,
       "name": "execute",
       "qualified_name": "svc/api/routes.py::execute",
       "repo": "demo/fixture"
@@ -981,8 +1037,8 @@
       "id": "query_2d80ad68",
       "kind": "function",
       "lang": "python",
-      "line_end": 12,
-      "line_start": 11,
+      "line_end": 13,
+      "line_start": 12,
       "name": "query",
       "qualified_name": "svc/api/routes.py::query",
       "repo": "demo/fixture"
@@ -1141,18 +1197,6 @@
       "line_start": null,
       "name": "package.json",
       "qualified_name": null,
-      "repo": "demo/fixture"
-    },
-    {
-      "attrs": {},
-      "file": "svc/api/routes.py",
-      "id": "app_e1aed911",
-      "kind": "global_variable",
-      "lang": "python",
-      "line_end": 3,
-      "line_start": 3,
-      "name": "app",
-      "qualified_name": "svc/api/routes.py::app",
       "repo": "demo/fixture"
     },
     {
@@ -1324,6 +1368,6 @@
       "repo": "(shared)"
     }
   ],
-  "parser_version": "6",
+  "parser_version": "7",
   "repo": "demo/fixture"
 }

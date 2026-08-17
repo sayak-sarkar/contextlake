@@ -2069,8 +2069,9 @@ base class shows its subclasses in `blast_radius`. The diagram below imports its
 module `contextlake kb graph` and the dashboard render with, so node kinds match everywhere. Edge
 relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `contains`, `depends_on`,
 `publishes`, `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`), while `inherits` and
-`references` ride the neutral default edge color, and `reads`, `writes` and `transitions_to`, which
-this page documents further down, are real edges the diagram does not show at all:
+`references` ride the neutral default edge color, and `reads`, `writes`, `uses` and
+`transitions_to`, which this page documents further down, are real edges the diagram does not
+show at all:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 48 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
@@ -2222,6 +2223,27 @@ SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge fr
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
 guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake kb impact <table>`
 answers "what code touches this table" out of the box.
+
+### Constants: their value, and every place it is read
+
+A constant node records the declaration it was written with, so the graph answers what a value
+actually is and not only that a name exists: `MAX_RETRY = 3`, `PAGE_SIZE = 50`,
+`#define TIMEOUT 30`. It is stored as written, collapsed to one line and capped, and it is called
+a declaration rather than a value because nothing has been parsed out of it.
+
+Each place a constant's value is read becomes a `uses` edge from the file to the constant,
+citing its own line. Like `calls`, this is stored **once per occurrence**, so "where is this read"
+is answerable exhaustively rather than as one edge with an arbitrary line attached.
+
+What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+an import, and an attribute (`cfg.MAX_RETRY` reads an attribute of `cfg`). A bare name is also
+never matched against a class field, because a data member is reached as `self.x` or `this->x` and
+a bare `x` is a local: on one public C++ tree, allowing it attributed 588 reads of a loop counter
+to a class member of the same name.
+
+Where a name has several definitions, the edge is marked ambiguous rather than pointed at a guess,
+and anything reporting a constant's use count should filter on confidence. `uses` is in `impact`'s
+default relation set, so `contextlake kb impact MAX_RETRY` answers "what depends on this value".
 
 ### Web topology: endpoints and routes
 
@@ -4037,7 +4059,7 @@ contextlake kb blast-radius charge --json          # the same command
 
 `impact` walks the graph **backwards**: it follows edges *into* the node you named, so it answers
 "what depends on this", not "what does this depend on". Six relations are traversed,
-`calls`, `depends_on`, `inherits`, `references`, `reads` and `writes`
+`calls`, `depends_on`, `inherits`, `references`, `reads`, `writes` and `uses`
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
@@ -6410,6 +6432,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.14.0] - 2026-08-17
+
+### Added
+
+- **A constant now records what it is set to, and every place that value is read.** Two gaps that
+  were measured, not assumed: the graph knew a constant's name, kind and location and nothing
+  about its value, and no edge recorded a use of one, so neither "what is the retry limit" nor
+  "what breaks if I change it" was answerable from the graph even though both answers sit in the
+  syntax tree.
+
+  Every constant carries `attrs["declaration"]`, the declaration as written, collapsed to one
+  line and capped: `MAX_RETRY = 3`, `#define TIMEOUT 30`. It is called a declaration and not a
+  value because nothing has been parsed out of it. Each read becomes a `uses` edge from the file
+  to the constant citing its own line, stored **once per occurrence** like `calls`, so "where is
+  this read" is exhaustive rather than one edge with an arbitrary line attached. `uses` joins
+  `impact`'s default relations, so `contextlake kb impact MAX_RETRY` now answers.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store.** Nothing about it is
+  visible to a commit-keyed check, which is exactly what that version exists to signal.
+
+  What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+  an import, and an attribute, since `cfg.MAX_RETRY` reads an attribute of `cfg`. A bare name is
+  also never matched against a class **field**: a data member is reached as `self.x` or `this->x`,
+  so a bare `x` is a local. That distinction was not theoretical. Allowing fields attributed 588
+  reads of a loop counter to a class member of the same name on one public C++ tree, confidently
+  and wrongly rather than flagged as ambiguous, and removing them cut that tree's shard from
+  24.8 MB to 14.5 MB. Where a name has several definitions the edge is marked ambiguous rather
+  than pointed at a guess, so anything counting uses can filter on confidence.
+
+  Cost, measured on two public trees: read edges came to +11% of all edges on a small Python
+  package and +63% on a macro-heavy C++ one, where one test-assertion macro is read from 22
+  different files. Shard bytes stay reproducible: two independent indexes of one tree are byte-identical
+  with the new stream, checked before and after.
 
 ### Fixed
 

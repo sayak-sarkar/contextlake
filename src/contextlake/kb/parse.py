@@ -280,7 +280,13 @@ def _has_generated_header(source: bytes) -> bool:
 # was C/C++ only, and now also runs for JavaScript, TypeScript, TSX and Python, so every
 # repository in those languages gains `global_variable` and `field` nodes plus their
 # `contains` edges. A commit-keyed check cannot see it, because no commit moved.
-PARSER_VERSION = "6"
+# "6" is the same shape again, twice over. Every constant now carries the declaration it was
+# written with (`attrs["declaration"]`), and every place a constant's value is READ is now an
+# edge (`uses`), where before the graph recorded that a constant existed and nothing about
+# what it was or where it mattered. Neither is visible to a commit-keyed check, and both are
+# the point of re-indexing: measured on two public trees, the read edges alone came to +11%
+# of all edges on a small Python package and +63% on a macro-heavy C++ one.
+PARSER_VERSION = "7"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -1187,12 +1193,21 @@ def parse_source(
                          name=m_name, lang=lang)
         if m_id in {n.id for n in nodes}:
             continue
+        m_attrs: dict = {"linkage": "internal"} if m_internal else {}
+        # The declaration as written, for the kinds where it carries the information: a
+        # constant's whole meaning is its value, and until now the graph recorded that a
+        # constant EXISTED and nothing about what it was set to. A method or a class is
+        # described by its signature instead, which `_doc_sig` already supplies.
+        if m_kind in DECLARED_VALUE_KINDS:
+            decl = _declaration_text(m_name_node, m_container)
+            if decl:
+                m_attrs["declaration"] = decl
         nodes.append(Node(
             id=m_id, repo=repo_id, kind=m_kind, name=m_name,
             qualified_name=(f"{m_file_scope}::{m_qualified}" if m_file_scope
                             else m_qualified),
             file=rel_path, line_start=m_line, line_end=m_container.end_point[0] + 1,
-            lang=lang, attrs={"linkage": "internal"} if m_internal else {},
+            lang=lang, attrs=m_attrs,
         ))
         # Contained by the nearest enclosing definition (a class for a data member, a
         # namespace for a file-scope variable), falling back to the file.
@@ -1347,6 +1362,10 @@ class RefCollector:
     # element's own tag. Cross-domain by design, exactly like the SQL stream: markup
     # refers to a selector the same way code refers to a table.
     styles: list[tuple[str, str, str, int]] = field(default_factory=list)
+    # Every bare name a file reads. Only those matching a real constant node survive
+    # resolution, so this list is large and its resolved output is small -- the same shape
+    # as `calls`, which also emits every candidate name and filters by target kind.
+    constant_uses: list[tuple[str, str, str, int]] = field(default_factory=list)
 
     def resolved_edges(self, by_id: dict[str, Node],
                        *, stats: dict | None = None) -> list[Edge]:
@@ -1375,6 +1394,13 @@ class RefCollector:
             # kind distinguishes a stylesheet selector from a table without a second word
             # for the same idea.
             (self.styles, "references", _STYLE_KINDS, False),
+            # LAST on purpose. This class's docstring notes that shard edge order depends on
+            # this sequence, so a new stream goes on the end, where it cannot renumber any
+            # edge that already existed. `uses` is its own relation rather than a reuse of
+            # `references` because it needs per-site retention (see PER_SITE_RELATIONS) and
+            # that set is keyed by relation -- widening `references` would silently turn
+            # every SQL and stylesheet reference into one edge per mention too.
+            (self.constant_uses, "uses", _CONSTANT_KINDS, True),
         )
         edges: list[Edge] = []
         for refs, relation, target_kinds, same_language in streams:
@@ -2130,6 +2156,60 @@ def extract_style_refs(repo_id: str, rel_path: str, source: bytes,
     return out
 
 
+# The kinds whose declaration text is worth storing. These are the kinds whose whole meaning
+# IS the right-hand side: a constant named `MAX_RETRY` tells a reader nothing without the `3`.
+# A function or class is described by its signature instead, which `_doc_sig` already carries,
+# so adding a declaration there would duplicate a field and bloat every shard.
+DECLARED_VALUE_KINDS = frozenset({
+    "global_variable", "enum_constant", "macro", "field",
+})
+
+# The node that declares ONE name, per language. Measured against the real grammars rather
+# than assumed, because the obvious choice is wrong: the enclosing statement is SHARED by
+# every name it declares, so `var a = 1, b = 2;` would report `b` as being declared
+# `var a = 1, b = 2` -- true of the statement, and misleading about `b`.
+_DECLARATOR_NODES = frozenset({
+    "variable_declarator",   # JavaScript, TypeScript, TSX
+    "assignment",            # Python
+    "init_declarator",       # C, C++
+    "enumerator",            # C, C++ enum members: already `FAST = 1`
+})
+
+# How much of a declaration to keep. A generated table or a long literal is a declaration
+# thousands of characters wide (measured: a 200-element list came to 608), and neither a wiki
+# page nor an inferred-decision citation is improved by all of it.
+MAX_DECLARATION_CHARS = 200
+
+
+def _declaration_text(name_node: ts.Node, container: ts.Node) -> str:
+    """The declaration of ONE name, collapsed to a single line and capped.
+
+    Walks UP to the nearest declarator rather than checking the immediate parent, because a
+    declarator is not always the parent: `const char *NAME = "svc";` puts a
+    `pointer_declarator` in between, and a parent check silently misses it and falls back to
+    the shared statement.
+
+    Falls back to `container` when no declarator ancestor exists. That is not a failure case:
+    a `#define` has no declarator node and names exactly one macro, so the container already
+    IS per-name there.
+
+    Named "declaration" wherever it is stored, never "value". This is the text as written; no
+    value has been parsed out of it, and calling it a value would claim work nobody did.
+    """
+    node = name_node
+    while node is not None and node is not container:
+        if node.type in _DECLARATOR_NODES:
+            break
+        node = node.parent
+    chosen = node if (node is not None and node.type in _DECLARATOR_NODES) else container
+    text = " ".join(chosen.text.decode("utf-8", "replace").split())
+    if len(text) <= MAX_DECLARATION_CHARS:
+        return text
+    # Says the DOCUMENT truncated it. A bare ellipsis reads as source that ends that way,
+    # which several languages allow.
+    return text[:MAX_DECLARATION_CHARS] + " [truncated]"
+
+
 def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
     """`(kind, name_node, container)` for the symbol kinds the def query cannot express.
 
@@ -2446,12 +2526,180 @@ def _parse_code(repo_id: str, sf: SourceFile, refs: RefCollector,
     wn, we = extract_web_flow(repo_id, sf.rel, sf.source, sf.lang)
     sn, se = extract_state_flow(repo_id, sf.rel, sf.source, sf.lang)
     refs.styles.extend(extract_style_refs(repo_id, sf.rel, sf.source, sf.lang))
+    refs.constant_uses.extend(
+        extract_constant_uses(repo_id, sf.rel, sf.source, sf.lang))
     dr, dw = extract_data_refs(repo_id, sf.rel, sf.source)
     refs.data_reads.extend(dr)
     refs.data_writes.extend(dw)
     nodes += hn + en + wn + sn
     edges += he + ee + we + se
     return nodes, edges
+
+
+# Identifier node types, per grammar family. Every language this runs over spells a bare
+# name reference as one of these; anything else (an attribute, a property, a string) is
+# deliberately NOT a bare name and so is not a use of a file-scope constant.
+_NAME_NODES = frozenset({"identifier", "type_identifier"})
+
+# Parent types where an identifier is not a bare value read at all: a dotted attribute, an
+# import, a parameter list, a keyword-argument label. These exclude the WHOLE subtree because
+# no position under them is a read of a file-scope constant.
+_NOT_A_READ_PARENT = frozenset({
+    "parameter_declaration", "parameter", "parameters", "formal_parameters",
+    "import_statement", "import_from_statement", "import_specifier", "aliased_import",
+    # Python wraps each imported name in a `dotted_name`, so the import statement is the
+    # GRANDparent and excluding only the statement misses it. Measured: `dotted_name` appears
+    # under import statements here and nowhere else -- attribute access is `attribute`, which
+    # is excluded on its own line -- so excluding it does not cost a real read.
+    "dotted_name",
+    "attribute", "member_expression", "field_expression", "keyword_argument",
+    "function_definition", "class_definition", "class_declaration",
+    "field_declaration", "function_declarator",
+    # Names being DECLARED by a construct that has no entry in _DECLARED_NAME_FIELD. None of
+    # these can resolve to a constant kind, so they were harmless, but every one of them was
+    # a row in the unresolved stream for a large repository to carry and then discard.
+    "function_declaration", "generator_function_declaration", "method_definition",
+    "enum_specifier", "struct_specifier", "union_specifier", "type_definition",
+    "namespace_definition", "labeled_statement", "goto_statement",
+    # `global TOTAL` / `nonlocal x` name a binding rather than read its value. Counted as a
+    # read they put a scope declaration in the middle of a list of uses, on a line where
+    # nothing is actually read. Measured on the fixture: `global TOTAL` was reported as a use.
+    "global_statement", "nonlocal_statement",
+    # A function-like macro's parameter list. `#define CMP(a, b)` names two parameters; they are
+    # not reads of anything, and they were being emitted as reads of `a` and `b`.
+    "preproc_params",
+})
+
+# The FIELD that holds the name being declared, per declaring node. This has to be a field
+# check and not a parent-type check, which the first draft got wrong in both directions at
+# once: excluding every child of `assignment` and `variable_declarator` dropped the
+# right-hand side (`TOTAL = MAX_RETRY` stopped counting as a read of `MAX_RETRY`), while
+# excluding none of them counted each constant's own declaration as a use of itself. Both
+# were visible on a four-symbol fixture: `MAX_RETRY` was reported as used on the line that
+# declares it.
+_DECLARED_NAME_FIELD = {
+    "assignment": "left",             # Python
+    "variable_declarator": "name",    # JavaScript, TypeScript
+    "init_declarator": "declarator",  # C, C++
+    "enumerator": "name",             # C, C++ enum members
+    "preproc_def": "name",            # C, C++ object-like macros: `#define LIMIT 5`
+    # And function-like macros, which are a DIFFERENT node type. Missing this counted every
+    # `#define NAME(a, b) ...` as a use of itself: on one public C++ tree the impact walk for a
+    # test-assertion macro listed the header that defines it, citing the `#define` line.
+    "preproc_function_def": "name",
+    "augmented_assignment": "left",   # `X += 1` declares nothing but reads X; see below
+}
+
+
+# Levels to climb looking for a declaring node. Three is enough for the deepest measured
+# wrapper chain (`identifier < pointer_declarator < array_declarator < init_declarator`) and
+# small enough that a read nested inside an unrelated expression cannot reach a declaration
+# far above it and be wrongly excluded.
+_MAX_DECLARATOR_WALK = 3
+
+
+def _is_declared_name(node: ts.Node) -> bool:
+    """Whether ``node`` is the name its parent DECLARES, rather than a value it reads.
+
+    `X += 1` is deliberately treated as a declaration position and therefore not a read.
+    It is really both, and counting it as a read would be defensible -- but a compound
+    assignment is a WRITE to the name, and reporting a write as a read in a list headed
+    "where this value is used" is the kind of confidently-wrong answer this project keeps
+    removing. A write deserves its own relation if it is ever asked for.
+    """
+    # Walk up to the declaring node rather than reading `node.parent` once. In C and C++ the
+    # identifier's parent is a wrapper: `const char *NAME = "x"` nests
+    # `identifier < pointer_declarator < init_declarator`, so a single-level lookup finds
+    # `pointer_declarator`, which declares nothing, and reports the declaration as a read of
+    # itself. Bounded, so a pathological tree cannot turn this into an unbounded climb.
+    parent, field, hops = node.parent, None, 0
+    while parent is not None and hops < _MAX_DECLARATOR_WALK:
+        field = _DECLARED_NAME_FIELD.get(parent.type)
+        if field is not None:
+            break
+        parent, hops = parent.parent, hops + 1
+    if parent is None or field is None:
+        return False
+    named = parent.child_by_field_name(field)
+    if named is None:
+        return False
+    # Compared by `.id`, never by `is`. The tree-sitter bindings hand back a NEW Python
+    # object each time a node is reached, so `parent.child_by_field_name("left") is node`
+    # is False even when both wrap the same syntax node -- which silently made this
+    # function always return False, and every constant was reported as used on the line
+    # that declares it. `.id` is the identity the rest of this module already keys on.
+    #
+    # Position, not text: the same identifier appears on both sides of `TOTAL = TOTAL`,
+    # and only the left one is the declaration.
+    if named.id == node.id:
+        return True
+    # C and C++ wrap the declared name in one or more declarators (`*NAME`, `NAME[3]`),
+    # so the field points at a wrapper rather than at the identifier itself.
+    return any(d.id == node.id for d in _descendants(named))
+
+
+def _descendants(node: ts.Node):
+    stack = list(node.children)
+    while stack:
+        n = stack.pop()
+        yield n
+        stack.extend(n.children)
+
+
+def extract_constant_uses(repo_id: str, rel_path: str, source: bytes, lang: str,
+                          ) -> list[tuple[str, str, str, int]]:
+    """Unresolved ``(file_id, name, file, line)`` for every bare name a file reads.
+
+    The graph recorded that a constant existed and nothing about where it was used, so
+    "what breaks if I change this timeout" was unanswerable from the graph even though every
+    use is sitting in the AST. This is the read side of that.
+
+    **The source is the FILE, not the enclosing function**, and that is a deliberate choice
+    rather than a shortcut. The enclosing definition's node id is computed inside
+    `parse_source` while it walks, and reaching it here would mean either widening that
+    function's return tuple -- which a dozen tests unpack -- or recomputing the qualifier
+    logic, which would then drift from the original. A file and a line is also exactly the
+    citation this was asked for: "used at N sites", each site a path and a line a reader can
+    open.
+
+    Emits every candidate name and lets `_resolve_name_refs` decide. That is how the calls
+    stream works, and it is what keeps the filtering honest: this function does not guess
+    which names look like constants (an ALL_CAPS rule would miss `timeout` and invent
+    `HTTPError`), it emits bare reads and only names matching a real constant node survive
+    resolution, under the same ambiguity cap as every other stream.
+    """
+    if lang not in ALL_LANGS or lang in _QUERYLESS_LANGS:
+        return []
+    try:
+        tree = _parser(lang).parse(source)
+    except Exception:  # noqa: BLE001 - one unparseable file must not stop the walk
+        return []
+    file_id = make_id(repo_id, rel_path)
+    out: list[tuple[str, str, str, int]] = []
+    stack = [tree.root_node]
+    while stack:
+        node = stack.pop()
+        stack.extend(node.children)
+        if node.type not in _NAME_NODES:
+            continue
+        parent = node.parent
+        if parent is not None and parent.type in _NOT_A_READ_PARENT:
+            continue
+        # The name being declared is not a use of itself. Without this every constant is
+        # reported as used on the line that declares it, which inflates every count by one
+        # and puts the declaration at the top of its own list of uses.
+        if _is_declared_name(node):
+            continue
+        # A call's function position is a call, which the `calls` stream already records.
+        # Counting it again here would double-report the same line under two relations.
+        if parent is not None and parent.type == "call" and parent.child_by_field_name(
+                "function") is node:
+            continue
+        name = node.text.decode("utf-8", "replace")
+        if not name:
+            continue
+        out.append((file_id, name, rel_path, node.start_point[0] + 1))
+    return out
 
 
 def _parse_hcl_file(repo_id: str, sf: SourceFile, refs: RefCollector,
@@ -2806,6 +3054,21 @@ _HCL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.hcl_ref_target}
 # SQL FK references resolve to table/view defs (both non-colliding with code and
 # HCL kinds, so their name index stays isolated).
 _SQL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.sql_ref_target}
+# The kinds a BARE identifier can actually refer to. Narrower than DECLARED_VALUE_KINDS, and
+# the difference was measured rather than reasoned: `field` had to come out.
+#
+# A data member is reached as `self.x`, `this->x` or `obj.x`, every one of which is an
+# attribute or field expression that this extractor already skips. So a bare `x` matching a
+# field name is almost never that field -- it is a local. On one public C++ tree, including
+# `field` attributed 588 reads of a loop counter `i` to a class member named `i`, and
+# comparable counts for `os` and `string`. Those were not ambiguous-and-flagged, they were
+# confident and wrong, which is the one outcome this project does not ship.
+#
+# The three that stay are file- or namespace-scope names, which a bare identifier genuinely
+# does refer to. This is why the set is its own constant and not an alias of the declaration
+# set: "has a value worth recording" and "a bare name can mean this" are different questions
+# that happened to look like one.
+_CONSTANT_KINDS = {"global_variable", "enum_constant", "macro"}
 # What an HTML `class=`/tag reference may resolve to: the three things a stylesheet
 # defines. Derived from the registry rather than listed here, so a fourth presentation
 # kind cannot be added without answering whether markup can refer to it.

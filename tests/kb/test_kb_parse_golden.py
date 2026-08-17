@@ -89,11 +89,18 @@ FIXTURE: dict[str, str] = {
         "from flask import Flask\n"
         "\n"
         "app = Flask(__name__)\n"
+        # A constant plus a BARE read of it, so the golden shard covers
+        # `attrs["declaration"]` and the `uses` relation. Without the read, this
+        # fixture's only constant is `app`, which appears solely as `@app.route`
+        # -- attribute access, which is correctly not a use -- so the whole
+        # pipeline gate recorded zero `uses` edges and could not have noticed the
+        # relation breaking entirely.
+        "PAGE_SIZE = 50\n"
         "\n"
         "\n"
         '@app.route("/v1/orders", methods=["GET"])\n'
         "def list_orders():\n"
-        '    return query("SELECT id FROM orders")\n'
+        '    return query("SELECT id FROM orders", PAGE_SIZE)\n'
         "\n"
         "\n"
         "def query(sql):\n"

@@ -123,7 +123,7 @@ contextlake kb blast-radius charge --json          # the same command
 
 `impact` walks the graph **backwards**: it follows edges *into* the node you named, so it answers
 "what depends on this", not "what does this depend on". Six relations are traversed,
-`calls`, `depends_on`, `inherits`, `references`, `reads` and `writes`
+`calls`, `depends_on`, `inherits`, `references`, `reads`, `writes` and `uses`
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see

@@ -154,8 +154,9 @@ base class shows its subclasses in `blast_radius`. The diagram below imports its
 module `contextlake kb graph` and the dashboard render with, so node kinds match everywhere. Edge
 relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `contains`, `depends_on`,
 `publishes`, `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`), while `inherits` and
-`references` ride the neutral default edge color, and `reads`, `writes` and `transitions_to`, which
-this page documents further down, are real edges the diagram does not show at all:
+`references` ride the neutral default edge color, and `reads`, `writes`, `uses` and
+`transitions_to`, which this page documents further down, are real edges the diagram does not
+show at all:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 48 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
@@ -307,6 +308,27 @@ SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge fr
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
 guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake kb impact <table>`
 answers "what code touches this table" out of the box.
+
+### Constants: their value, and every place it is read
+
+A constant node records the declaration it was written with, so the graph answers what a value
+actually is and not only that a name exists: `MAX_RETRY = 3`, `PAGE_SIZE = 50`,
+`#define TIMEOUT 30`. It is stored as written, collapsed to one line and capped, and it is called
+a declaration rather than a value because nothing has been parsed out of it.
+
+Each place a constant's value is read becomes a `uses` edge from the file to the constant,
+citing its own line. Like `calls`, this is stored **once per occurrence**, so "where is this read"
+is answerable exhaustively rather than as one edge with an arbitrary line attached.
+
+What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+an import, and an attribute (`cfg.MAX_RETRY` reads an attribute of `cfg`). A bare name is also
+never matched against a class field, because a data member is reached as `self.x` or `this->x` and
+a bare `x` is a local: on one public C++ tree, allowing it attributed 588 reads of a loop counter
+to a class member of the same name.
+
+Where a name has several definitions, the edge is marked ambiguous rather than pointed at a guess,
+and anything reporting a constant's use count should filter on confidence. `uses` is in `impact`'s
+default relation set, so `contextlake kb impact MAX_RETRY` answers "what depends on this value".
 
 ### Web topology: endpoints and routes
 

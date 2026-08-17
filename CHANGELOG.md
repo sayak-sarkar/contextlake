@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.14.0] - 2026-08-17
+
+### Added
+
+- **A constant now records what it is set to, and every place that value is read.** Two gaps that
+  were measured, not assumed: the graph knew a constant's name, kind and location and nothing
+  about its value, and no edge recorded a use of one, so neither "what is the retry limit" nor
+  "what breaks if I change it" was answerable from the graph even though both answers sit in the
+  syntax tree.
+
+  Every constant carries `attrs["declaration"]`, the declaration as written, collapsed to one
+  line and capped: `MAX_RETRY = 3`, `#define TIMEOUT 30`. It is called a declaration and not a
+  value because nothing has been parsed out of it. Each read becomes a `uses` edge from the file
+  to the constant citing its own line, stored **once per occurrence** like `calls`, so "where is
+  this read" is exhaustive rather than one edge with an arbitrary line attached. `uses` joins
+  `impact`'s default relations, so `contextlake kb impact MAX_RETRY` now answers.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store.** Nothing about it is
+  visible to a commit-keyed check, which is exactly what that version exists to signal.
+
+  What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+  an import, and an attribute, since `cfg.MAX_RETRY` reads an attribute of `cfg`. A bare name is
+  also never matched against a class **field**: a data member is reached as `self.x` or `this->x`,
+  so a bare `x` is a local. That distinction was not theoretical. Allowing fields attributed 588
+  reads of a loop counter to a class member of the same name on one public C++ tree, confidently
+  and wrongly rather than flagged as ambiguous, and removing them cut that tree's shard from
+  24.8 MB to 14.5 MB. Where a name has several definitions the edge is marked ambiguous rather
+  than pointed at a guess, so anything counting uses can filter on confidence.
+
+  Cost, measured on two public trees: read edges came to +11% of all edges on a small Python
+  package and +63% on a macro-heavy C++ one, where one test-assertion macro is read from 22
+  different files. Shard bytes stay reproducible: two independent indexes of one tree are byte-identical
+  with the new stream, checked before and after.
+
 ### Fixed
 
 - **A test helper that stripped `<script>` and `<style>` blocks missed two spellings**, so four

@@ -14,9 +14,12 @@ from .kinds import KIND_REGISTRY
 
 # Reverse-reach over calls (a caller breaks), depends_on (a dependent breaks),
 # inherits (a subclass breaks when its base changes), references (an FK
-# dependent breaks when its referenced table changes), and reads/writes (code
-# querying a table breaks when its schema changes).
-DEFAULT_RELATIONS = ("calls", "depends_on", "inherits", "references", "reads", "writes")
+# dependent breaks when its referenced table changes), reads/writes (code
+# querying a table breaks when its schema changes), and uses (code reading a
+# constant breaks when its value changes -- which is the whole reason to ask
+# "what depends on this timeout" before editing it).
+DEFAULT_RELATIONS = ("calls", "depends_on", "inherits", "references", "reads", "writes",
+                     "uses")
 # Walk EXTRACTED edges before INFERRED/AMBIGUOUS so the highest-confidence impact
 # surfaces first when the cap is hit.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -47,7 +50,7 @@ def blast_radius(store, node_id: str, *, hops: int = 3,
 
     Goes up to ``hops`` levels, capped at ``limit`` hits, over ``relations``
     (default ``calls`` + ``depends_on`` + ``inherits`` + ``references`` + ``reads`` +
-    ``writes``).
+    ``writes`` + ``uses``).
     Returns ``(hits, truncated)``; ``truncated`` is True when the cap was
     reached (a bounded slice, never exhaustive).
     """
