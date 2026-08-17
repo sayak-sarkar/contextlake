@@ -698,7 +698,26 @@ PROMPT_INSTRUCTIONS = (
 )
 
 
-def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
+def render_prompt(brief: dict, *, path_prefix: str | None = None,
+                  structural_page: str | None = None) -> str:
+    """The generation prompt. ``structural_page``, when given, REPLACES the hand-assembled
+    symbol/package/file facts with the rendered structural document for the same scope.
+
+    That substitution is the point rather than a refinement. An earlier generated wiki was
+    rejected by the council for thin grounding, and the cause was structural: the model saw
+    a bounded sample of a repository's symbols and wrote confidently about the whole of it.
+    Handed the structural page instead, it is writing prose OVER stated facts -- entry
+    points, the public surface with caller counts, installation, and the cross-repo
+    dependencies in both directions -- rather than inferring them from fifteen rows.
+
+    It goes inside an `untrusted_block` like every other span here that carries bytes from
+    the indexed repository. The page is derived from that repository, so it is data.
+
+    The page also carries the ownership section, which means contributor identities reach
+    whatever provider is configured. The page handed here is the SAME one written to disk,
+    so it already honours `[kb] anonymize`: pseudonyms under "always", real names under the
+    default. The caller discloses that once when the provider is not local.
+    """
     # Every span below that carries bytes from the indexed repository goes inside an
     # `untrusted_block` (see `security.untrusted_block`): the symbol rows and their
     # docstrings, the README excerpt, the ADR bodies, the connector snippets. The
@@ -744,7 +763,13 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     # `provenance_footer`'s NOT GROUNDED branch exists for) would otherwise carry an
     # empty block under the "Key symbols" label, which costs marker lines to frame
     # nothing.
-    if graph_facts:
+    if structural_page:
+        # The structural document REPLACES the sampled rows above, never sits beside them.
+        # Both would restate the same symbols in two formats and spend the context that
+        # thin grounding was the symptom of.
+        lines.append(untrusted_block(
+            structural_page, source=f"{scope} (structural page, built from the graph)"))
+    elif graph_facts:
         lines.append(untrusted_block("\n".join(graph_facts), source=f"{scope} (indexed graph)"))
     has_setup_signal = (brief.get("readme_excerpt") or brief.get("setup_signals")
                         or brief.get("generated_paths_detected"))
@@ -764,12 +789,18 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
         if brief.get("generated_paths_detected"):
             lines.append("  " + _GENERATED_PATHS_INSTRUCTION)
     if brief.get("hubs"):
-        lines.append("")
-        lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
-        lines.append(untrusted_block(
-            "\n".join(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
-                      f"{h['count']} caller(s)" for h in brief["hubs"][:8]),
-            source=f"{scope} (indexed graph)"))
+        # The structural page's public-surface section already lists these WITH their
+        # caller counts, so restating them here would spend context on a duplicate. The
+        # INSTRUCTION survives either way: it is about how the model may talk about a high
+        # caller count, not about where the count came from, and dropping it is how a page
+        # starts calling a symbol "core infrastructure" on the strength of arithmetic.
+        if not structural_page:
+            lines.append("")
+            lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
+            lines.append(untrusted_block(
+                "\n".join(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
+                          f"{h['count']} caller(s)" for h in brief["hubs"][:8]),
+                source=f"{scope} (indexed graph)"))
         lines.append(_GOTCHAS_INSTRUCTION)
     if brief.get("decisions"):
         lines.append("")
@@ -907,7 +938,8 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
 def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,
                   store=None, path_prefix: str | None = None,
                   subsystem_modules: list[dict] | None = None,
-                  brief: dict | None = None) -> str | None:
+                  brief: dict | None = None,
+                  structural_page: str | None = None) -> str | None:
     """Generate a provenance-stamped wiki page (Markdown), or None without a shard.
 
     ``path_prefix``, when given, scopes the page to one module/subsystem of the
@@ -941,7 +973,9 @@ def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = No
                            subsystem_modules=subsystem_modules)
     if brief is None:
         return None
-    body = llm.generate(render_prompt(brief, path_prefix=path_prefix), system=SYSTEM).strip()
+    body = llm.generate(render_prompt(brief, path_prefix=path_prefix,
+                                      structural_page=structural_page),
+                        system=SYSTEM).strip()
     if path_prefix:
         title = (
             f"# {repo_id} — {path_prefix}\n\n"

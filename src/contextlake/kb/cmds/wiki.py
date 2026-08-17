@@ -414,8 +414,12 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
     that is the point: a generated page needs a backend, and a user without one used to
     get nothing at all out of `kb wiki`.
 
-    Returns ``(pages written, briefs)``, where ``briefs`` is keyed by
-    ``(repo_id, path_prefix)``. Handing the briefs back is not an optimisation detail:
+    Returns ``(pages written, briefs, pages)``, both dicts keyed by
+    ``(repo_id, path_prefix)``. The PAGES are handed back because the generated path needs
+    the structural document for that exact scope as its prompt, and it must be the text
+    this stage rendered rather than whatever is on disk: once a generated page exists, the
+    file at that path holds prose, so re-reading it would feed the model its own last
+    output as though it were the graph. Handing the briefs back is not an optimisation detail:
     every brief here is built with the SAME arguments the generated path would use, so
     that path reuses them instead of building a second, identical one. A test asserts
     each page's brief is built exactly once, and it caught this stage doubling the count
@@ -438,6 +442,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
     anonymize = getattr(cfg, "anonymize", "never") == "always"
     written = 0
     briefs: dict[tuple[str, str | None], dict] = {}
+    pages: dict[tuple[str, str | None], str] = {}
     for repo_id in [r.id for r in store.list_repos()]:
         # The module plan first, because the whole-repo brief takes it: the generated
         # path passes `subsystem_modules` so its page can name the subsystem pages, and
@@ -471,6 +476,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
             brief, repo_id=repo_id, modules=modules,
             owners=repo_owners(store, repo_id, anonymize=anonymize),
             dependencies=deps)
+        pages[(repo_id, None)] = page
         if _write_if_not_generated(out_dir / (repo_slug(repo_id) + ".md"), page):
             written += 1
         planned = modules[:_MAX_STRUCTURAL_MODULE_PAGES]
@@ -488,15 +494,16 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
             if scoped is None or not scoped.get("node_count"):
                 continue
             briefs[(repo_id, prefix)] = scoped
+            mod_page = render_structural_page(
+                scoped, repo_id=repo_id, path_prefix=prefix,
+                owners=repo_owners(store, repo_id, path_prefix=prefix,
+                                   anonymize=anonymize),
+                dependencies=deps)
+            pages[(repo_id, prefix)] = mod_page
             if _write_if_not_generated(_module_page_file(out_dir, repo_id, prefix),
-                                       render_structural_page(
-                                           scoped, repo_id=repo_id, path_prefix=prefix,
-                                           owners=repo_owners(store, repo_id,
-                                                              path_prefix=prefix,
-                                                              anonymize=anonymize),
-                                           dependencies=deps)):
+                                       mod_page):
                 written += 1
-    return written, briefs
+    return written, briefs, pages
 
 
 def cmd_wiki(args) -> int:
@@ -522,7 +529,7 @@ def cmd_wiki(args) -> int:
         repo_brief,
         subsystem_names,
     )
-    from ..wiki.validate import structural_gate
+    from ..wiki.validate import replacement_gate, structural_gate
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "wiki"):
@@ -550,9 +557,10 @@ def cmd_wiki(args) -> int:
         # `_run_page` is ever called, so an unbound name would be latent rather than
         # loud -- and latent is how it would survive until somebody reordered the code.
         structural_briefs: dict = {}
+        structural_pages: dict = {}
         if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):
-            n, structural_briefs = _structural_stage(store, store_dir, args, cfg,
-                                                     wiki_dir)
+            n, structural_briefs, structural_pages = _structural_stage(
+                store, store_dir, args, cfg, wiki_dir)
             if n:
                 log(f"Wrote {n} structural page(s) → {wiki_dir}")
 
@@ -563,6 +571,21 @@ def cmd_wiki(args) -> int:
                 "For prose on top of them, pass --llm builtin|ollama|openai "
                 "(or set [llm] enabled = true in kb.toml).")
             return 0
+
+        # Said once, and only on a run that will actually send something. The structural
+        # page is the prompt now and it carries the ownership section, so a remote provider
+        # receives whatever that section holds -- real names under the default setting.
+        # Not prevented: the setting is the operator's answer and this does not overrule
+        # it. But a data flow the default turns on must not be silent. Placed after the
+        # no-LLM return so it cannot fire on a run that sends nothing at all.
+        from ..wiki.structural import owners_leave_this_machine
+
+        provider = getattr(cfg.llm, "provider", None)
+        if owners_leave_this_machine(provider, getattr(cfg, "anonymize", "never")):
+            log(style.warn(
+                f"Wiki prompts carry the ownership section, so contributor names will be "
+                f"sent to the {provider} provider. Set [kb] anonymize = \"always\" to "
+                f"send pseudonyms instead."))
         # The council reviews with `review_llm`, which IS `llm` unless [llm]
         # review_provider names a different backend -- letting a cheap local
         # generator be gated by a stronger judge (or the inverse).
@@ -835,6 +858,7 @@ def cmd_wiki(args) -> int:
             # see that (both uses are in the same function) and the tests found it, which
             # is the argument for running them rather than reading the diff.
             brief_store = None if path_prefix else store
+            structural_page = structural_pages.get((repo_id, path_prefix))
             brief = structural_briefs.get((repo_id, path_prefix))
             if brief is None:
                 brief = repo_brief(store_dir, repo_id, store=brief_store,
@@ -881,14 +905,23 @@ def cmd_wiki(args) -> int:
                 page = generate_page(llm, store_dir, repo_id, store=brief_store,
                                      path_prefix=path_prefix,
                                      subsystem_modules=subsystem_modules,
-                                     brief=brief)
+                                     brief=brief, structural_page=structural_page)
                 # Structural defects (the page echoed its own instructions, or
                 # looped one sentence) are decided here, before the council and
                 # without a model: they are mechanically visible, and a weak
                 # reviewer demonstrably rubber-stamps them. Rejecting early also
                 # saves the council's round trips on a page that cannot pass.
-                gate = structural_gate(page, PROMPT_INSTRUCTIONS) or council_gate(
-                    review_llm, page, render_prompt(brief, path_prefix=path_prefix),
+                # Three gates, cheapest first, and each answering a question the next
+                # cannot. `structural_gate`: is the draft mechanically sound (did it echo
+                # its prompt, did it loop). `replacement_gate`: may it take the place of
+                # the structural page -- accurate about the same names, and covering the
+                # same sections. `council_gate`: is it any good, which costs model calls
+                # and so runs last.
+                gate = structural_gate(page, PROMPT_INSTRUCTIONS) or (
+                    replacement_gate(page, structural_page) if structural_page else None
+                ) or council_gate(
+                    review_llm, page, render_prompt(brief, path_prefix=path_prefix,
+                                                    structural_page=structural_page),
                     accept_score=cfg.llm.accept_score,
                     council_size=getattr(cfg.llm, "council_size", None))
             except Exception as e:  # noqa: BLE001 - one page must not abort the run

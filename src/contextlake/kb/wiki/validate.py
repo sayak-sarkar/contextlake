@@ -145,3 +145,110 @@ def structural_gate(draft: str, instructions=()) -> dict | None:
             "issues": [f"repeats one span {count} times: \"{text[:80]}...\""],
         }
     return None
+
+
+# ---------------------------------------------------------------------------
+# The replacement gate: may generated prose take the structural page's place?
+# ---------------------------------------------------------------------------
+# A repository has one wiki page per scope. The structural page is written first and IS
+# that page; prose replaces it only when the prose is accurate about the same facts AND
+# covers the same ground. Passing the council is not sufficient: a council judges a page on
+# its own terms and cannot know what the page it would displace already said.
+
+# Backticked spans that are plainly not claims about this repository's symbols. Command
+# names and language names appear in legitimate prose and are not citations.
+_CITATION_STOPWORDS = frozenset({
+    "true", "false", "none", "null", "main", "master", "http", "https", "json", "yaml",
+    "toml", "sql", "git", "make", "docker", "python", "go", "rust", "java", "c", "c++",
+})
+
+
+def _backticked(text: str) -> set[str]:
+    return {m.strip() for m in re.findall(r"`([^`\n]{1,120})`", text or "")}
+
+
+def _citations(text: str) -> set[str]:
+    """Backticked spans that read as claims about a named thing in this repository."""
+    out = set()
+    for span in _backticked(text):
+        low = span.lower()
+        if not span or low in _CITATION_STOPWORDS or " " in span:
+            continue
+        out.add(span)
+    return out
+
+
+# The first words of `generate.provenance_footer`. Everything from there on is contextlake's
+# own text appended to the model's output, and it backticks the repo id, the commit and the
+# source files -- none of which the model claimed. Counting them as citations rejected every
+# page for "citing" its own repository's name.
+_FOOTER_OPENER = "*Generated from the knowledge graph of"
+
+
+def model_body(page: str) -> str:
+    """The part of ``page`` the model actually wrote, without the provenance footer."""
+    return (page or "").split(_FOOTER_OPENER, 1)[0]
+
+
+def replacement_gate(draft: str, structural_page: str) -> dict | None:
+    """None when ``draft`` may replace ``structural_page``, else a rejection verdict.
+
+    Shaped exactly like :func:`structural_gate`'s so a caller composes the two in one
+    expression rather than growing a second gating idiom.
+
+    Two conditions, and both are about the page being DISPLACED rather than about the draft
+    alone, which is why the council cannot answer either of them.
+
+    **Accurate.** Every name the draft cites in backticks must appear in the structural
+    page. Sound precisely because the structural page IS the prompt: the model saw nothing
+    else, so a name that is not there was invented. This check would be wrong the other way
+    round, and that is why the grounding change had to land first.
+
+    **Complete.** Every section the structural page rendered must be addressed, measured by
+    one of that section's own named items appearing in the draft. Measured by ITEMS and not
+    by headings because generated prose writes its own headings, so matching on those would
+    test formatting rather than coverage.
+
+    Strict on purpose. A page that covers four of six sections would otherwise replace one
+    that covered all six, and "at least as complete" is the whole basis on which a
+    verified document steps aside.
+    """
+    from .structural import SECTION_TITLES
+
+    body = model_body(draft)
+    invented = sorted(_citations(body) - _backticked(structural_page))
+    if invented:
+        return {
+            "accepted": False, "score": 0.0, "reason": "cites names the graph does not hold",
+            "issues": [f"names not present in the structural page: "
+                       f"{', '.join(invented[:8])}"],
+        }
+    missing = []
+    for key, title in SECTION_TITLES.items():
+        items = _section_items(structural_page, title)
+        if not items:
+            continue          # the structural page omitted it; nothing to be complete about
+        if not any(item in body for item in items):
+            missing.append(title)
+        _ = key
+    if missing:
+        return {
+            "accepted": False, "score": 0.0, "reason": "less complete than the page it "
+                                                       "would replace",
+            "issues": [f"says nothing about: {', '.join(missing)}"],
+        }
+    return None
+
+
+def _section_items(page: str, title: str) -> list[str]:
+    """The backticked names under one section heading of a structural page.
+
+    Returns ``[]`` for a heading that is absent or carries no names, which is what makes
+    the completeness check skip sections the structural page itself omitted: there is
+    nothing to be less complete about.
+    """
+    marker = f"## {title}"
+    if marker not in page:
+        return []
+    body = page.split(marker, 1)[1].split("\n## ", 1)[0]
+    return sorted(_backticked(body))

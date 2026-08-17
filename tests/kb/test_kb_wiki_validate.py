@@ -49,7 +49,13 @@ class _FakeLlm:
     def generate(self, prompt, *, system=None):
         if "Review lens" in prompt:
             return f'{{"score": {self._score}, "issues": []}}'
-        return "## Overview\nCatalogService charges orders.\n"
+        # Built from the prompt, not a fixed one-liner. The replacement gate requires prose
+        # to be at least as complete as the structural page it would displace, and a single
+        # sentence is not -- correctly rejected. Deriving the draft from that page's own
+        # names is what makes this fixture pass for the same reason a real page would.
+        from wiki_doubles import sound_draft
+
+        return sound_draft(prompt)
 
 
 def _setup_repo(tmp_path):

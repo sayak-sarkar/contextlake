@@ -69,6 +69,11 @@ def _symbol_rows(rows: list[dict], *, limit: int) -> list[list[str]]:
     return out
 
 
+# The kinds section 1 owns. Named once so section 4 can exclude them rather than repeating
+# the list, which is how the two sections would drift into listing the same symbol twice.
+_ENTRY_KINDS = ("entry_point", "endpoint", "route", "make_target", "dockerfile_stage")
+
+
 def _entry_points(brief: dict) -> list[str]:
     """Section 1. How the program is started, and every other named way in.
 
@@ -76,8 +81,7 @@ def _entry_points(brief: dict) -> list[str]:
     kinds of project: a command, an HTTP route and a `make` target are all "the thing you
     invoke". They are listed together, with the kind saying which is which.
     """
-    kinds = ("entry_point", "endpoint", "route", "make_target", "dockerfile_stage")
-    rows = [r for r in brief.get("top_symbols", []) if r.get("kind") in kinds]
+    rows = [r for r in brief.get("top_symbols", []) if r.get("kind") in _ENTRY_KINDS]
     return _table(["Name", "Kind", "File", "Signature"], _symbol_rows(rows, limit=40))
 
 
@@ -101,18 +105,36 @@ def _ownership(owners: list[dict] | None) -> list[str]:
 
 
 def _surface(brief: dict) -> list[str]:
-    """Section 4. The symbols other code actually calls, with how many callers.
+    """Section 4. The named surface, most-called first, with counts where there are any.
 
-    Ranked by callers rather than listed alphabetically, because "what does everything
-    here depend on" is the question a reader arriving at unfamiliar code is asking. The
-    count comes from the brief's hub ranking, which is computed over the whole shard, so
-    it is not a sample.
+    Hubs come first because "what does everything here depend on" is the question a reader
+    arriving at unfamiliar code asks, and the count is computed over the whole shard rather
+    than a sample. But the section is NOT hubs-only, and that was the first draft's real
+    defect: a class nobody calls yet has no caller count, so on a small repository the
+    public surface listed almost nothing while the code plainly had a public surface. A
+    symbol with no callers is a fact about the graph, not a reason to omit the symbol.
+
+    So the ranked hubs are followed by the rest of the brief's top symbols, once each. A
+    blank Callers cell means the graph records none, which is different from zero being
+    unknown and is why the cell is blank rather than "0".
     """
-    rows = []
+    rows, seen = [], set()
     for r in brief.get("hubs", [])[:25]:
+        name = _md_cell(r.get("name"))
+        seen.add(name)
         where = _md_cell(r.get("file"))
-        rows.append([f"`{_md_cell(r.get('name'))}`", _md_cell(r.get("kind")),
+        rows.append([f"`{name}`", _md_cell(r.get("kind")),
                      f"`{where}`" if where else "", str(r.get("count") or "")])
+    for r in brief.get("top_symbols", []):
+        name = _md_cell(r.get("name"))
+        if name in seen or r.get("kind") in _ENTRY_KINDS:
+            continue      # entry points have their own section; do not list them twice
+        seen.add(name)
+        where = _md_cell(r.get("file"))
+        rows.append([f"`{name}`", _md_cell(r.get("kind")),
+                     f"`{where}`" if where else "", ""])
+        if len(rows) >= 40:
+            break
     return _table(["Symbol", "Kind", "File", "Callers"], rows)
 
 
@@ -271,6 +293,33 @@ def render_structural_page(
         "accuracy against something else.*",
     ]
     return "\n".join(lines).rstrip() + "\n"
+
+
+# Providers that answer from this machine. Everything else sends the prompt over a network
+# to somebody else's computer, which is the distinction that matters for identities.
+# `cli` is here because it spawns a local agent binary; whether THAT binary then calls out
+# is its own configuration and not something this module can see or should claim to.
+LOCAL_PROVIDERS = frozenset({"ollama", "builtin", "cli"})
+
+
+def owners_leave_this_machine(provider: str | None, anonymize: str) -> bool:
+    """Whether a wiki run would send real contributor names to somebody else's computer.
+
+    The structural page carries the ownership section and is now the generation prompt, so
+    a remote provider receives whatever that section holds. Under `anonymize = "always"` it
+    holds pseudonyms and nothing identifying travels; under the default it holds real names.
+
+    Reported by the caller rather than prevented here: the setting is the operator's answer
+    and this function does not overrule it. But a NEW data flow that the default turns on
+    must not be silent, so the run says it once. Silent by construction for local
+    providers, which is most runs, so it never becomes boilerplate.
+    """
+    name = (provider or "").strip().lower()
+    if not name or name == "auto":
+        # Nothing configured, or not yet resolved. Claiming a data flow here would be a
+        # false alarm on the commonest case of all: no LLM set up, so nothing is sent.
+        return False
+    return name not in LOCAL_PROVIDERS and anonymize != "always"
 
 
 def repo_dependencies(store, repo_id: str) -> dict:

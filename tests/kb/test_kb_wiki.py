@@ -38,6 +38,9 @@ def _shard(store_dir):
     write_shard(store_dir, GraphShard(repo="r", head_commit="abc123", nodes=nodes, edges=edges))
 
 
+from wiki_doubles import SOUND_MARKER  # noqa: E402
+
+
 class _FakeLlm:
     def __init__(self, score=0.9, name="fake"):
         self._score = score
@@ -46,7 +49,13 @@ class _FakeLlm:
     def generate(self, prompt, *, system=None):
         if "Review lens" in prompt:
             return f'{{"score": {self._score}, "issues": []}}'
-        return "## Overview\nCatalogService charges orders.\n"
+        # Built from the prompt, not a fixed one-liner. The replacement gate requires prose
+        # to be at least as complete as the structural page it would displace, and a single
+        # sentence is not -- correctly rejected. Deriving the draft from that page's own
+        # names is what makes this fixture pass for the same reason a real page would.
+        from wiki_doubles import sound_draft
+
+        return sound_draft(prompt)
 
 
 # --- generation -----------------------------------------------------------
@@ -677,7 +686,10 @@ def test_generate_page_has_title_body_provenance(tmp_path):
     _shard(tmp_path)
     page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21))
     assert page.startswith("# r\n")
-    assert "CatalogService charges orders." in page
+    # The generated page reached disk. Matched on the fixture's own marker rather than a
+    # fixed sentence: the draft is derived from the prompt now, so a hardcoded sentence
+    # would be asserting what the fixture used to say instead of that generation happened.
+    assert SOUND_MARKER in page
     assert "commit `abc123`" in page and "2026-06-21" in page and "`svc.py`" in page
 
 
@@ -1029,7 +1041,7 @@ def test_cmd_wiki_writes_accepted_page(tmp_path, monkeypatch):
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     page = store_dir / "wiki" / "r.md"
-    assert page.exists() and "CatalogService charges orders." in page.read_text()
+    assert page.exists() and SOUND_MARKER in page.read_text()
 
 
 def test_cmd_wiki_hints_when_the_builtin_model_is_used(tmp_path, monkeypatch, gls_logs):
@@ -1182,7 +1194,12 @@ class _SymbolNamingLlm(_FakeLlm):
     def generate(self, prompt, *, system=None):
         if "Review lens" in prompt:
             return super().generate(prompt, system=system)
-        return "## Overview\nThe fn3 helper does the work.\n"
+        # The complete draft PLUS the sentence this test is about. The fixed sentence alone
+        # is less complete than the structural page it would replace, so the replacement
+        # gate rejects it and the symbol-link question this test asks never gets reached.
+        from wiki_doubles import sound_draft
+
+        return sound_draft(prompt) + "\nThe fn3 helper does the work.\n"
 
 
 @pytest.mark.slow
@@ -1696,7 +1713,12 @@ class _SubsystemEchoingLlm(_FakeLlm):
         if "Review lens" in prompt:
             return super().generate(prompt, system=system)
         self.page_prompts.append(prompt)
-        body = "## Overview\nCatalogService charges orders.\n"
+        # Derived, for the same reason `_FakeLlm`'s is: a fixed body is not as complete as
+        # the structural page it would replace, so the replacement gate rejects it and this
+        # test's real subject (do the subsystem names reach the page) never gets exercised.
+        from wiki_doubles import sound_draft
+
+        body = sound_draft(prompt)
         for line in prompt.splitlines():
             if "broken into subsystems" in line:
                 # Only the fact-bearing half of that line (the subsystem names) --

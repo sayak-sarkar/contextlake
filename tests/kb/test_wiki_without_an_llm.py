@@ -185,3 +185,107 @@ def test_no_reader_treats_a_structural_page_as_a_generated_one():
             f"{name} reads a wiki page path without asking which KIND of page it is, and "
             f"{why}. Both kinds live at the same path, so file presence alone is not the "
             f"question any of these readers mean to ask.")
+
+
+# --- the structural page grounds the generated one ------------------------------------
+
+
+class _PromptCapturingLlm:
+    name = "capture"
+
+    def __init__(self):
+        self.page_prompts: list[str] = []
+
+    def generate(self, prompt, *, system=None):
+        if "Review lens" in prompt:
+            return '{"score": 0.97, "issues": []}'
+        self.page_prompts.append(prompt)
+        return ("## Overview\nCatalogService charges orders and `main` starts the "
+                "service.\n")
+
+
+def test_the_generated_prompt_carries_the_structural_page(tmp_path, monkeypatch):
+    """The change that attacks the original rejection at its cause.
+
+    An earlier generated wiki was rejected for thin grounding, and the reason was
+    structural: the model saw a bounded sample of symbols and wrote confidently about a
+    whole repository. It is handed the structural document now, so it writes prose over
+    stated facts instead of inferring them from a sample.
+    """
+    from contextlake.kb import llm as llm_pkg
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup(tmp_path, _CFG_WITH_LLM)
+    cap = _PromptCapturingLlm()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: cap)
+    monkeypatch.setattr(llm_pkg, "build_review_llm", lambda cfg, llm: cap)
+    cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+
+    assert cap.page_prompts, "no page prompt was captured, so this proves nothing"
+    prompt = cap.page_prompts[0]
+    assert "structural page, built from the graph" in prompt, (
+        "the prompt does not carry the structural document; it is still grounded on the "
+        f"sampled rows:\n{prompt[:600]}")
+    # A fact only the structural page states, in the words it states it in.
+    assert "Entry points and how to run it" in prompt
+    assert "`main`" in prompt
+
+
+def test_the_structural_page_replaces_the_sampled_rows_rather_than_joining_them(tmp_path,
+                                                                               monkeypatch):
+    """Both would restate the same symbols in two formats and spend exactly the context
+    that thin grounding was a symptom of."""
+    from contextlake.kb import llm as llm_pkg
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup(tmp_path, _CFG_WITH_LLM)
+    cap = _PromptCapturingLlm()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: cap)
+    monkeypatch.setattr(llm_pkg, "build_review_llm", lambda cfg, llm: cap)
+    cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+    prompt = cap.page_prompts[0]
+    assert "(indexed graph)" not in prompt, (
+        "the sampled-rows block is still present alongside the structural page")
+
+
+def test_the_page_handed_to_the_model_is_the_one_this_run_rendered(tmp_path, monkeypatch):
+    """Not re-read from disk. Once a generated page exists, the file at that path holds
+    prose, so reading it back would feed the model its own last output as though it were
+    the graph -- a loop that gets worse every run and looks like grounding."""
+    from contextlake.kb import llm as llm_pkg
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup(tmp_path, _CFG_WITH_LLM)
+    (store_dir / "wiki").mkdir(parents=True, exist_ok=True)
+    (store_dir / "wiki" / "r.md").write_text(
+        "# r\n\nPROSE FROM A PREVIOUS RUN.\n", encoding="utf-8")
+    cap = _PromptCapturingLlm()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: cap)
+    monkeypatch.setattr(llm_pkg, "build_review_llm", lambda cfg, llm: cap)
+    cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+    assert cap.page_prompts
+    assert "PROSE FROM A PREVIOUS RUN" not in cap.page_prompts[0]
+
+
+def test_the_gotchas_instruction_survives_the_deduplication(tmp_path, monkeypatch):
+    """The hubs BLOCK is dropped when the structural page carries the same counts; the
+    instruction attached to it must not be.
+
+    That instruction forbids the model from characterising WHY a symbol has many callers
+    ("foundational", "critical infrastructure") and requires it to state the count alone.
+    Dropping it alongside the block is how a page starts calling a symbol core
+    infrastructure on the strength of arithmetic, which is the exact wording defect this
+    project already fixed once.
+    """
+    from contextlake.kb import llm as llm_pkg
+    from contextlake.kb.wiki.generate import _GOTCHAS_INSTRUCTION
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup(tmp_path, _CFG_WITH_LLM)
+    cap = _PromptCapturingLlm()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: cap)
+    monkeypatch.setattr(llm_pkg, "build_review_llm", lambda cfg, llm: cap)
+    cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+    assert cap.page_prompts
+    assert _GOTCHAS_INSTRUCTION in cap.page_prompts[0], (
+        "the caller-count wording instruction was dropped with the block it sat under")
