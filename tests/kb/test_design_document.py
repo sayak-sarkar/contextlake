@@ -94,6 +94,84 @@ def _full_shard():
     return _shard(nodes, edges)
 
 
+def test_only_recorded_evidence_becomes_a_numbered_decision():
+    """The line between the two evidence classes, enforced where it matters most.
+
+    A numbered ADR asserts that a decision was made. A manifest dependency supports that:
+    somebody wrote it on purpose. A constant read in many places does not, and on a measured
+    public tree three of seven such candidates were typing constructs, so numbering them
+    would put "ADR-005: `T` is a repository-wide type variable" in a document whose whole
+    claim is that it invents nothing. Constants stay in their table.
+    """
+    page = render_design_document(_full_shard(), repo_id=REPO)
+    adrs, _, values = page.partition("## Load-bearing values")
+    assert "ADR-001" in adrs
+    assert "`blinker`" in adrs
+    # MAX_RETRY qualifies as a load-bearing value and must never be numbered.
+    assert "MAX_RETRY" not in adrs
+    assert "`MAX_RETRY`" in values
+    assert "ADR-" not in values
+
+
+def test_only_the_repository_own_runtime_commitments_are_numbered():
+    """Scope: the shallowest manifest, runtime and peer only.
+
+    A nested project's dependencies are that project's decisions, and a dev dependency is a
+    contributor's convenience rather than something the software cannot run without. All of
+    them stay recorded in the tables, so nothing is lost by not numbering them; what would
+    be lost by numbering them is the distinction the graph took work to record.
+    """
+    nodes = [_pkg("blinker"), _pkg("linter"), _pkg("plugin"), _pkg("nested")]
+    edges = [
+        _depends("blinker", "pyproject.toml", 10, constraint=">=1.9.0"),
+        _depends("linter", "pyproject.toml", 20, group="dev", constraint=">=2"),
+        _depends("plugin", "pyproject.toml", 30, group="optional:extras"),
+        _depends("nested", "examples/demo/pyproject.toml", 5),
+    ]
+    page = render_design_document(_shard(nodes, edges), repo_id=REPO)
+    adrs, _, tables = page.partition("## Recorded choices: dependencies")
+
+    assert "ADR-001: Depend on `blinker`" in adrs
+    # The count names BOTH numbers and what separates them. Stating only the filtered count
+    # beside a table listing all three would read as a discrepancy, which on a page selling
+    # the trustworthiness of its numbers is worse than the narrower scope it describes.
+    assert "1 of the 3 dependencies `pyproject.toml` declares" in adrs
+    for excluded in ("linter", "plugin", "nested"):
+        assert excluded not in adrs, f"{excluded} was promoted to a decision record"
+        # ... but every one is still recorded, so the exclusion costs no coverage.
+        assert excluded in tables
+
+
+def test_every_entry_states_the_status_and_the_absent_reason():
+    page = render_design_document(_full_shard(), repo_id=REPO)
+    assert page.count("**Status:** proposed, never ratified.") >= 1
+    assert "Nobody wrote this down" in page
+    # The numbers are positional in a generated file, so the page has to say so or a reader
+    # will cite ADR-007 and mean something different after the next regeneration.
+    assert "not stable identifiers" in page
+
+
+def test_a_capped_decision_list_says_how_many_it_wrote_out():
+    """Same rule as every other bounded list here: the total is stated, never implied."""
+    nodes, edges = [], []
+    for i in range(5):
+        nodes.append(_pkg(f"lib{i}"))
+        edges.append(_depends(f"lib{i}", "pyproject.toml", 10 + i, constraint=">=1"))
+    page = render_design_document(_shard(nodes, edges), repo_id=REPO, max_adrs=2)
+    assert "5 of the 5 dependencies `pyproject.toml` declares" in page
+    assert "The first 2 are written out; the remaining 3 are in the table below." in page
+    assert "ADR-002" in page and "ADR-003" not in page
+
+
+def test_no_qualifying_commitment_writes_no_empty_section():
+    """A heading with nothing under it reads as a finding. There is no finding here."""
+    nodes = [_pkg("linter")]
+    page = render_design_document(
+        _shard(nodes, [_depends("linter", "pyproject.toml", 3, group="dev")]), repo_id=REPO)
+    assert "## Proposed decision records" not in page
+    assert "linter" in page  # still recorded in the table
+
+
 def test_the_status_survives_being_parsed_not_only_read():
     """`docs/` is served to agents over MCP, so prose is not enough.
 

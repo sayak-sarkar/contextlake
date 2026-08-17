@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.16.0] - 2026-08-18
+
+### Added
+
+- **The design notes now carry numbered decision records, for the recorded evidence class
+  only.** Each commitment the repository's own manifest makes at runtime becomes an entry:
+  the choice, where it is written, and the reasoning left **visibly absent** rather than
+  filled with a generated guess.
+
+  ```markdown
+  ### ADR-001: Depend on `blinker` at `>=1.9.0`
+
+  **Status:** proposed, never ratified.
+
+  **Decision.** `pyproject.toml:24` declares `blinker` with the constraint `>=1.9.0`,
+  required at runtime.
+
+  **Context.** *Nobody wrote this down. The repository records the choice and not the
+  reason, so what was weighed against it is not recoverable from the code.*
+  ```
+
+  That absent Context is the point. A real decision record states what was chosen, what was
+  rejected and why; a graph supplies only the first, so the entry says so instead of
+  inventing the rest.
+
+  **Only recorded evidence is numbered.** A constant read in many places stays a plain table
+  row, because on a measured public tree three of the seven constants that cleared the
+  evidence bar were typing constructs, and "ADR-005: `T` is a repository-wide type variable"
+  is exactly the invention this page exists to avoid. **And only the repository's own runtime
+  commitments** are numbered: a dev dependency is a contributor's convenience, an optional
+  extra is opt-in, and a nested project's dependencies are that project's decisions. Every
+  one of those stays recorded in the tables, so the narrower scope costs no coverage.
+
+  Entries are ordered by name, because nothing in the graph ranks one dependency above
+  another, and the page states that the numbers are positions in a generated file rather than
+  stable identifiers: adding a dependency renumbers everything after it, so each heading names
+  its package to give a reader something stable to cite. The count is bounded, with the total
+  and the remainder both stated, since one measured application repository declares 112
+  runtime dependencies in a single manifest.
+
+
 ## [7.15.0] - 2026-08-18
 
 ### Added

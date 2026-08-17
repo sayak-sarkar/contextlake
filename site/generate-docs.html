@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Generate documentation · contextlake docs">
 <meta name="twitter:description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generate-docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-17"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate documentation", "item": "https://sayak.in/contextlake/generate-docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generate-docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-18"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate documentation", "item": "https://sayak.in/contextlake/generate-docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
@@ -139,9 +139,34 @@ the name suggests. A graph holds no decision records: it never sees what was rej
 why. What it does hold is two kinds of evidence, and the page keeps them apart because they
 are not equally strong.</p>
 <p><strong>Recorded</strong> evidence is a manifest dependency. Somebody wrote <code>blinker&gt;=1.9.0</code> in a file on
-purpose, so the package, its constraint and its line are facts. One table per manifest, the
-repository's own first, because a bundled example that depends on this project is not a
-dependency of it.</p>
+purpose, so the package, its constraint and its line are facts. Each commitment the
+repository's own manifest makes at runtime becomes a numbered entry:</p>
+<div class="highlight"><pre><span></span><code><span class="gu">### ADR-001: Depend on `blinker` at `&gt;=1.9.0`</span>
+
+<span class="gs">**Status:**</span> proposed, never ratified.
+
+<span class="gs">**Decision.**</span> <span class="sb">`pyproject.toml:24`</span> declares <span class="sb">`blinker`</span> with the constraint <span class="sb">`&gt;=1.9.0`</span>,
+required at runtime.
+
+<span class="gs">**Context.**</span> *Nobody wrote this down. The repository records the choice and not the
+reason, so what was weighed against it is not recoverable from the code.*
+</code></pre></div>
+<p>An entry states the choice and leaves the reasoning <strong>visibly absent</strong> rather than filling it
+with a generated guess. That is the whole difference between this and a decision record: a
+real ADR has Context and Consequences, and a graph can supply neither.</p>
+<p>Only the recorded class is numbered, and only what the shallowest manifest commits to at
+runtime. A dev dependency is a contributor's convenience, an optional extra is opt-in, and a
+nested project's dependencies are that project's decisions. All of them stay recorded in the
+tables, one table per manifest with the shallowest first, because a bundled example that
+depends on this project is not a dependency of it.</p>
+<p>"Shallowest" is usually the repository's own root manifest. In a monorepo with no top-level
+manifest it is whichever sub-project sorts first, which is a tie broken by path rather than
+by importance, so the entries there describe one sub-project and not the repository. The
+heading names the file it read, so the page is never wrong about whose commitments it lists,
+only narrower than the section title suggests.</p>
+<p>The numbers are positions in a generated file, not stable identifiers: adding a dependency
+renumbers everything after it. The page says so, and each heading names its package so there
+is something stable to cite.</p>
 <table>
 <thead>
 <tr>
@@ -173,10 +198,11 @@ dependency of it.</p>
 </tbody>
 </table>
 <p><strong>Inferred</strong> evidence is a constant read in many places. That is evidence the value is
-load-bearing and no evidence at all that anyone decided anything, so the page prints the
-count and refuses to explain it. A generated sentence calling a type variable a core
-architectural decision is worse than no sentence, and nothing in the graph can tell the two
-apart.</p>
+load-bearing and no evidence at all that anyone decided anything, so it stays a plain table:
+the count is printed and never explained, and no constant is ever numbered as a decision. On
+one measured tree, three of the seven constants that cleared the evidence bar were typing
+constructs, so numbering them would have produced "ADR-005: <code>T</code> is a repository-wide type
+variable" in a document whose entire claim is that it invents nothing.</p>
 <p>Three things keep the page honest, and each exists because its absence produced a real wrong
 answer somewhere:</p>
 <ul>

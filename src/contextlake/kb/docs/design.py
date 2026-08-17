@@ -57,10 +57,22 @@ _GROUP_TITLES = {
     "dev": "Development and test only",
 }
 
+# Which groups become a numbered entry rather than only a table row. A runtime or peer
+# dependency is a commitment the software cannot run without, so it is a decision in the
+# ordinary sense. A dev dependency is a contributor's convenience and an optional extra is
+# something a user opts into: real facts, recorded in the tables, but promoting them to
+# numbered decisions would flatten a distinction the graph took work to record.
+_ADR_GROUPS = frozenset({"runtime", "peer"})
+
 # What a constant has to clear before the page will print it. Each threshold is one the
 # measurement showed does real work; none is a round number picked for looking careful.
 MIN_USE_SITES = 3
 MIN_USE_FILES = 2
+
+# Numbered entries are bounded because an application repository's root manifest can carry
+# over a hundred runtime dependencies (112 in one measured tree). The tables below the
+# entries stay complete either way, so the cap costs a reader nothing they cannot recover.
+DEFAULT_MAX_ADRS = 50
 
 # Per MANIFEST, and set from the measured distribution rather than from taste. Counting
 # dependencies in four public application repositories gave 69, 112, 173 and 230 in a single
@@ -132,6 +144,79 @@ def _dependencies(shard) -> dict[str, list[tuple]]:
 def _manifest_order(path: str) -> tuple:
     """Shallowest first, so a repository's own manifest precedes any nested project's."""
     return (path.count("/"), path.lower())
+
+
+def _adr_section(shard, max_adrs: int) -> list[str]:
+    """Numbered entries, one per commitment the repository's OWN manifest records.
+
+    Only the recorded evidence class earns this shape. An ADR states a decision, its context
+    and its consequences; the graph can fill the first and none of the rest, so an entry says
+    exactly that and leaves the rest visibly absent rather than filled with a generated
+    guess. The inferred class -- a constant read in many places -- gets no entry at all,
+    because on a measured tree three of seven such candidates are typing constructs, and
+    numbering a type variable as a proposed architectural decision is the invention this
+    whole page is written to avoid.
+
+    Scoped to the shallowest manifest's runtime and peer groups: a nested project's
+    dependencies are that project's decisions, and a dev dependency is a contributor's
+    convenience. Everything excluded here is still recorded in full in the tables below.
+    """
+    manifests = _dependencies(shard)
+    if not manifests:
+        return []
+    root = sorted(manifests, key=_manifest_order)[0]
+    rows = [r for r in manifests[root] if r[2] in _ADR_GROUPS]
+    if not rows:
+        return []
+    # By name. Nothing in the graph ranks one dependency above another, and ordering by
+    # anything else here would be a claim about importance that no edge supports.
+    rows = sorted(rows, key=lambda r: (r[0] or "").lower())
+    shown = rows[:max_adrs]
+
+    declared = len(manifests[root])
+    lines = [
+        "## Proposed decision records",
+        "",
+        # Both numbers, and what separates them. `rows` is already filtered to runtime and
+        # peer, so printing it alone beside a table listing ALL of this manifest's
+        # dependencies leaves an unexplained discrepancy on a page whose pitch is that its
+        # numbers can be trusted. Same shape as a coverage line that counts what fitted
+        # rather than what qualified: the number is not wrong, the sentence around it is.
+        f"{len(rows)} of the {declared} dependencies `{root}` declares are required at "
+        f"runtime or expected from the host project, and each gets an entry below. The rest "
+        f"are development or opt-in: recorded in the tables further down, but not treated as "
+        f"commitments. Ordered by name, because nothing in the graph ranks one above another.",
+        "",
+        "**Every entry is proposed and none was ratified by anybody.** Each states a choice "
+        "the repository records and leaves the reasoning visibly absent, because a reason is "
+        "not something a manifest contains.",
+        "",
+        "The numbers are positions in this generated document, not stable identifiers. "
+        "Regenerating after a dependency is added renumbers everything below it, so cite an "
+        "entry by its heading rather than by its number.",
+        "",
+    ]
+    if len(shown) < len(rows):
+        lines += [f"The first {len(shown)} are written out; the remaining "
+                  f"{len(rows) - len(shown)} are in the table below.", ""]
+    for i, (name, constraint, group, line) in enumerate(shown, start=1):
+        at = f"`{root}:{line}`" if line else f"`{root}`"
+        pinned = f" at {code(constraint)}" if constraint else ""
+        lines += [
+            f"### ADR-{i:03d}: Depend on {code(name)}{pinned}",
+            "",
+            "**Status:** proposed, never ratified.",
+            "",
+            f"**Decision.** {at} declares {code(name)}"
+            + (f" with the constraint {code(constraint)}" if constraint
+               else " with no version constraint")
+            + f", {_group_title(group).lower()}.",
+            "",
+            "**Context.** *Nobody wrote this down. The repository records the choice and not "
+            "the reason, so what was weighed against it is not recoverable from the code.*",
+            "",
+        ]
+    return lines
 
 
 def _dependency_section(shard, max_per_manifest: int) -> list[str]:
@@ -253,7 +338,8 @@ def _values_section(shard, max_values: int) -> list[str]:
 
 def render_design_document(shard, *, repo_id: str,
                            max_deps_per_manifest: int = DEFAULT_MAX_DEPS_PER_MANIFEST,
-                           max_values: int = DEFAULT_MAX_VALUES) -> str:
+                           max_values: int = DEFAULT_MAX_VALUES,
+                           max_adrs: int = DEFAULT_MAX_ADRS) -> str:
     """The design document as Markdown. Every claim is a measurement or it is absent."""
     lines = [
         f"# {repo_id} design notes",
@@ -271,6 +357,7 @@ def render_design_document(shard, *, repo_id: str,
         "reason is not something source code contains.",
         "",
     ]
+    lines += _adr_section(shard, max_adrs)
     lines += _dependency_section(shard, max_deps_per_manifest)
     lines += _values_section(shard, max_values)
     return "\n".join(lines).rstrip() + "\n"
