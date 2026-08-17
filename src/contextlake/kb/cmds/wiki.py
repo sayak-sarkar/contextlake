@@ -407,7 +407,8 @@ def _write_if_not_generated(path, page: str) -> bool:
     return True
 
 
-def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]:
+def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
+                      embedder=None, vs=None) -> tuple[int, dict, dict]:
     """Write every repository's structural page and its module pages, unconditionally.
 
     Runs BEFORE the LLM is built and regardless of whether one is configured, because
@@ -477,8 +478,19 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
             owners=repo_owners(store, repo_id, anonymize=anonymize),
             dependencies=deps)
         pages[(repo_id, None)] = page
-        if _write_if_not_generated(out_dir / (repo_slug(repo_id) + ".md"), page):
+        whole = out_dir / (repo_slug(repo_id) + ".md")
+        if _write_if_not_generated(whole, page):
             written += 1
+            # ONE partition per scope, the same `@wiki:<repo_id>` key a generated page uses.
+            # A repository has one wiki, so it has one searchable wiki record; separate keys
+            # would return two hits about one repository, sometimes saying the same thing.
+            # Stored only when the page was actually written, so an accepted prose page's
+            # partition is never overwritten by the structural stage that left its file
+            # alone -- the two must not disagree about which page is current.
+            _store_wiki_partition(store, store_dir, repo_id, page,
+                                  whole.relative_to(wiki_dir).as_posix(),
+                                  brief.get("head"), embedder, vs,
+                                  cfg.embeddings.batch_size)
         planned = modules[:_MAX_STRUCTURAL_MODULE_PAGES]
         if len(modules) > len(planned):
             log(f"  {repo_id}: {len(modules)} modules qualify; writing structural pages "
@@ -500,9 +512,16 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]
                                    anonymize=anonymize),
                 dependencies=deps)
             pages[(repo_id, prefix)] = mod_page
-            if _write_if_not_generated(_module_page_file(out_dir, repo_id, prefix),
-                                       mod_page):
+            mod_file = _module_page_file(out_dir, repo_id, prefix)
+            if _write_if_not_generated(mod_file, mod_page):
                 written += 1
+                # `source_repo` is the real repo: a module partition's key is the composite
+                # `repo::prefix`, which names no repository at all, so symbol lookup has to
+                # be told where to look or a module page links to nothing.
+                _store_wiki_partition(store, store_dir, f"{repo_id}::{prefix}", mod_page,
+                                      mod_file.relative_to(wiki_dir).as_posix(),
+                                      scoped.get("head"), embedder, vs,
+                                      cfg.embeddings.batch_size, source_repo=repo_id)
     return written, briefs, pages
 
 
@@ -552,6 +571,22 @@ def cmd_wiki(args) -> int:
         #
         # Skipped only for the cluster/namespace modes, which write pages about groups
         # of repositories rather than about one, and have no structural equivalent.
+        # Semantic tier (optional): every page written -- structural or generated -- embeds
+        # into its @wiki partition so natural-language search can land on it.
+        #
+        # Built BEFORE the structural stage, not after. It used to sit below the LLM setup,
+        # which was fine while only generated pages existed; with the structural page
+        # written first, leaving it there meant the page everybody gets with no LLM
+        # configured was the one semantic search could never find.
+        if cfg.embeddings.enabled:
+            from ..embeddings import build_embedder
+            from ..embeddings.store import build_vector_store
+            embedder = build_embedder(cfg.embeddings)
+            if embedder is not None:
+                vs = build_vector_store(store_dir / "embeddings.sqlite",
+                                        backend=cfg.embeddings.vector_backend,
+                                        chunk_size=cfg.embeddings.vector_chunk_size)
+
         wiki_dir = store_dir / "wiki"
         # Bound before the branch, not inside it. The cluster path returns before
         # `_run_page` is ever called, so an unbound name would be latent rather than
@@ -560,7 +595,7 @@ def cmd_wiki(args) -> int:
         structural_pages: dict = {}
         if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):
             n, structural_briefs, structural_pages = _structural_stage(
-                store, store_dir, args, cfg, wiki_dir)
+                store, store_dir, args, cfg, wiki_dir, embedder=embedder, vs=vs)
             if n:
                 log(f"Wrote {n} structural page(s) → {wiki_dir}")
 
@@ -629,16 +664,6 @@ def cmd_wiki(args) -> int:
         wiki_dir.mkdir(parents=True, exist_ok=True)
         log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
             f"(council of {len(LENSES)}{_reviewed_by(llm, review_llm)})")
-        # Semantic tier (optional): accepted pages also embed into the @wiki
-        # partition so NL search can land on the prose (labeled advisory).
-        if cfg.embeddings.enabled:
-            from ..embeddings import build_embedder
-            from ..embeddings.store import build_vector_store
-            embedder = build_embedder(cfg.embeddings)
-            if embedder is not None:
-                vs = build_vector_store(store_dir / "embeddings.sqlite",
-                                        backend=cfg.embeddings.vector_backend,
-                                        chunk_size=cfg.embeddings.vector_chunk_size)
         force = getattr(args, "force", False)
 
         # Cluster (namespace) wiki: --namespace <prefix> or --namespaces --depth N.

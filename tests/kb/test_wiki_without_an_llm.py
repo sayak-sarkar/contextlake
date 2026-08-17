@@ -289,3 +289,87 @@ def test_the_gotchas_instruction_survives_the_deduplication(tmp_path, monkeypatc
     assert cap.page_prompts
     assert _GOTCHAS_INSTRUCTION in cap.page_prompts[0], (
         "the caller-count wording instruction was dropped with the block it sat under")
+
+
+# --- the page is searchable ------------------------------------------------------------
+
+
+def test_the_structural_page_is_stored_as_the_repository_s_one_wiki_partition(tmp_path,
+                                                                             monkeypatch):
+    """Since it is the page everybody gets with no LLM configured, leaving it out of the
+    graph would make the DEFAULT wiki the one you cannot search.
+
+    ONE key, the same `@wiki:<repo_id>` a generated page uses. A repository has one wiki, so
+    it has one searchable wiki record; separate keys would return two hits about one
+    repository, sometimes saying much the same thing.
+    """
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup(tmp_path)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        first = store.get_node("@wiki:r:0")
+        assert first is not None, "the structural page was not stored as a wiki partition"
+        # And no second, parallel key for the same repository.
+        assert store.get_node("@wiki:r::structure:0") is None
+    finally:
+        store.close()
+
+
+def _partition_sections(store_dir, key="@wiki:r") -> list[str]:
+    """The section titles a stored wiki partition holds.
+
+    The section NAMES, not a text attribute: the node carries `name`/`file` and the body
+    goes to the embeddings rather than onto the node. Asserting on `attrs["text"]` was the
+    first draft and it compared None to None, which is a test that cannot fail.
+    """
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        out, i = [], 0
+        while (n := store.get_node(f"{key}:{i}")) is not None:
+            out.append(n.name)
+            i += 1
+        return out
+    finally:
+        store.close()
+
+
+def test_the_partition_is_not_rewritten_when_the_page_was_left_alone(tmp_path, monkeypatch):
+    """The file and the partition must never disagree about which page is current.
+
+    The structural stage leaves an accepted prose page alone; if it stored its own partition
+    anyway, search would answer from the structural text while the file on disk held prose.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup(tmp_path)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    structural_sections = _partition_sections(store_dir)
+    assert len(structural_sections) > 1, (
+        f"the structural partition has too few sections to tell apart from prose: "
+        f"{structural_sections}")
+
+    # Put the store in the state a successful generation leaves: the file holds prose AND
+    # its partition holds that prose. One section, so the two are distinguishable.
+    from contextlake.kb.cmds.wiki import _store_wiki_partition
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    prose = "# r\n\n## Summary\n\nAccepted prose, no marker.\n"
+    _page(store_dir).write_text(prose, encoding="utf-8")
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        _store_wiki_partition(store, store_dir, "r", prose, "r.md", "abc123")
+    finally:
+        store.close()
+    before = _partition_sections(store_dir)
+    assert before != structural_sections, (
+        "the prose partition looks identical to the structural one, so the assertion "
+        "below could not detect a rewrite")
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert _partition_sections(store_dir) == before, (
+        "the structural stage re-stored a partition for a page it did not write")
