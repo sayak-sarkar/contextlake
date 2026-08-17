@@ -133,19 +133,29 @@ def _markup(html: str) -> str:
     bare substring check over the whole file passes or fails on the prose, which
     is exactly the unanchored-match trap.
 
-    The two patterns carry `re.I` and tolerate space before the closing bracket,
-    and both halves are load-bearing rather than defensive. CodeQL flagged this
-    helper (`py/bad-tag-filter`) for missing `<SCRIPT>`, and measuring it found a
-    second miss the alert did not mention: `</script >`, all lowercase, also
-    escaped. Either miss turns the strip into a silent no-op, and then the four
-    `not in` assertions below run against the prose this function exists to
-    remove -- passing while testing nothing. The helper is not a sanitizer and
-    guards no security boundary; it guards those assertions, which is why it is
-    written to actually match.
+    Both patterns carry `re.I` and accept ANYTHING up to the closing bracket of the
+    end tag, and every part of that is load-bearing. This took three passes, and the
+    scanner was right each time:
+
+    1. `py/bad-tag-filter` first flagged the missing `<SCRIPT>` case.
+    2. Adding `re.I` and measuring found a miss the alert had not named: plain
+       lowercase `</script >` escaped too, so `re.I` alone was not enough.
+    3. The rule then re-fired on the corrected line, naming `</script\t\n bar>`.
+       That one is not pedantry: a browser CLOSES a script at `</script foo>`,
+       because attributes on an end tag are ignored but the tag still ends. So
+       accepting only whitespace there was still too narrow, and accepting any
+       run of non-bracket characters is both what the rule wants and what HTML
+       actually does.
+
+    Each miss turns the strip into a silent no-op, and then the `not in` assertions
+    below run against the prose this function exists to remove -- passing while
+    testing nothing. The helper is not a sanitizer and guards no security boundary;
+    it guards those assertions, which is why it has to actually match. `[^>]*`
+    cannot backtrack across `>`, so widening it costs nothing.
     """
     html = re.sub(r"<!--.*?-->", "", html, flags=re.S)
-    html = re.sub(r"<script\b.*?</script\s*>", "", html, flags=re.S | re.I)
-    return re.sub(r"<style\b.*?</style\s*>", "", html, flags=re.S | re.I)
+    html = re.sub(r"<script\b.*?</script[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<style\b.*?</style[^>]*>", "", html, flags=re.S | re.I)
 
 
 def _page(**kw):
@@ -268,19 +278,27 @@ _ROLE = 'role="application"'
     f'<ScRiPt>var x = \'{_ROLE}\';</sCrIpT>',
     f'<script>var x = \'{_ROLE}\';</script >',
     f'<script\ntype="module">var x = \'{_ROLE}\';</script>',
+    # An end tag with attributes on it. A browser ignores the attributes and still CLOSES
+    # the script here, so anything after this point is markup again, not script body.
+    f'<script>var x = \'{_ROLE}\';</script foo=1>',
+    f'<SCRIPT>var x = \'{_ROLE}\';</SCRIPT foo=1>',
+    # Whitespace inside the end tag, including newlines and tabs, then junk.
+    f'<script>var x = \'{_ROLE}\';</script\t\n bar>',
     f'<style>/* {_ROLE} */</style>',
     f'<STYLE>/* {_ROLE} */</STYLE>',
     f'<style>/* {_ROLE} */</style >',
+    f'<style>/* {_ROLE} */</style\t\n bar>',
 ])
 def test_markup_strips_every_spelling_of_a_script_or_style_block(block):
     """`_markup` must actually remove the block, whatever case or spacing it uses.
 
-    This is the guard for `py/bad-tag-filter` (CodeQL alert #15). The helper's whole
-    job is to delete text that QUOTES the strings the assertions below search for, so
-    a spelling it fails to match makes those assertions run against the prose and pass
-    while testing nothing. Two of these cases used to survive: the capitalised tags
-    that CodeQL named, and `</script >` with a space before the bracket, which it did
-    not name and which is ordinary lowercase HTML.
+    This is the guard for `py/bad-tag-filter`, which fired on this helper three separate
+    times. The helper's whole job is to delete text that QUOTES the strings the assertions
+    below search for, so a spelling it fails to match makes those assertions run against
+    the prose and pass while testing nothing. Every case here is one that used to survive:
+    the capitalised tags the first alert named; `</script >` with one space, which no alert
+    named and which is ordinary lowercase HTML; and `</script foo=1>`, which the third
+    alert named and which a browser treats as a real close.
 
     Parametrised one spelling per case so a failure says WHICH spelling leaked,
     rather than one case that fails on whichever it hits first.

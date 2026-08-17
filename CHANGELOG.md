@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The same two strip helpers missed one more spelling of an end tag: `</script foo=1>`.** A
+  browser closes a script there, because attributes on an end tag are ignored while the tag still
+  ends. Both helpers required either a bare `>` or whitespace before it, so an end tag carrying
+  anything else left the whole block in place. Now they accept any run of non-bracket characters,
+  which is both what the rule asks for and what HTML actually does.
+
+  This supersedes the 7.14.0 entry below, which described the same helper as fixed after two
+  passes. It was better, not finished. The scanner re-fired on the corrected line and named a real
+  case, as it had the previous two times: `<SCRIPT>` first, then plain lowercase `</script >`,
+  which measuring found and no alert had ever named, now the attribute-carrying form. Four new
+  parametrised cases cover end tags with attributes and with embedded tabs and newlines, and each
+  one was confirmed to leak under the previous pattern before the fix landed. Neither helper is a
+  sanitizer or guards a security boundary: one keeps accessibility assertions from matching a
+  string quoted inside a script, the other keeps script bodies out of the docs-site search index.
+
 ## [7.14.0] - 2026-08-17
 
 ### Added

@@ -617,15 +617,16 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
 def _plain_text(html: str) -> str:
     # drop heading permalink anchors first (tag + its "#" text), else the # leaks into snippets
     t = re.sub(r'(?s)<a class="anchor".*?</a>', " ", html)
-    # Case-insensitive, and tolerant of space before the closing bracket. NOT a security
-    # boundary: the input is this repo's own rendered Markdown, and `cmdk.js` escapes every
-    # index field before it reaches innerHTML. So this is correctness only, and a block that
-    # slipped past would leak its BODY into the search index as noise rather than as markup,
-    # because the next line strips all tags regardless of case. Written this way because the
-    # identical two weaknesses in a test helper drew a CodeQL `py/bad-tag-filter` alert, and
-    # `re.I` alone does not close them: plain lowercase `</script >` escapes the intolerant
-    # form as well.
-    t = re.sub(r"(?s)<(script|style)\b.*?</\1\s*>", " ", t, flags=re.I)
+    # Case-insensitive, and the end tag accepts anything up to its closing bracket, because a
+    # browser really does end a script at `</script foo>` -- attributes on an end tag are
+    # ignored, the tag still closes. NOT a security boundary: the input is this repo's own
+    # rendered Markdown, and `cmdk.js` escapes every index field before it reaches innerHTML.
+    # So this is correctness only, and a block that slipped past would leak its BODY into the
+    # search index as noise rather than as markup, because the next line strips all tags
+    # regardless of case. Written this way because the same weaknesses in a test helper drew a
+    # CodeQL `py/bad-tag-filter` alert three times over: `re.I` was needed for `<SCRIPT>`,
+    # `\s*` for plain lowercase `</script >`, and `[^>]*` for `</script foo>`.
+    t = re.sub(r"(?s)<(script|style)\b.*?</\1[^>]*>", " ", t, flags=re.I)
     t = re.sub(r"(?s)<[^>]+>", " ", t)
     for a, b in (("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&#39;", "'"), ("&quot;", '"')):
         t = t.replace(a, b)
