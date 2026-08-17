@@ -365,6 +365,98 @@ def _log_rejection(label: str, gate: dict) -> None:
         log(f"      - {issue}")
 
 
+STRUCTURE_DIR = "_structure"
+
+
+def _structural_dir(wiki_dir):
+    """Where structural pages live: `wiki/_structure/`, modules under `_modules/`.
+
+    A dedicated subdirectory because `_module_wiki_filename` REQUIRES one of its callers
+    (its sanitised names can otherwise collide with an unrelated repo's whole-repo page),
+    and mirroring the existing `_modules/` and `_clusters/` convention means that
+    sanitisation and the path-containment guard apply unchanged instead of being
+    re-reasoned for a new layout. It also keeps the generated wiki's own directory
+    untouched, so the two page families cannot collide with each other.
+    """
+    return wiki_dir / STRUCTURE_DIR
+
+
+def _structural_stage(store, store_dir, args, cfg, wiki_dir) -> tuple[int, dict]:
+    """Write every repository's structural page and its module pages, unconditionally.
+
+    Runs BEFORE the LLM is built and regardless of whether one is configured, because
+    that is the point: a generated page needs a backend, and a user without one used to
+    get nothing at all out of `kb wiki`.
+
+    Returns ``(pages written, briefs)``, where ``briefs`` is keyed by
+    ``(repo_id, path_prefix)``. Handing the briefs back is not an optimisation detail:
+    every brief here is built with the SAME arguments the generated path would use, so
+    that path reuses them instead of building a second, identical one. A test asserts
+    each page's brief is built exactly once, and it caught this stage doubling the count
+    the moment it was added.
+
+    Not gated on ``--force``. These pages are deterministic and derived from the shard, so
+    regenerating costs milliseconds and always leaves the page agreeing with the graph.
+    The freshness machinery on the generated side exists to avoid paying an LLM twice,
+    and there is nothing here to pay.
+    """
+    from ..visualize import repo_slug
+    from ..wiki.generate import repo_brief
+    from ..wiki.structural import render_structural_page, repo_dependencies, repo_owners
+
+    out_dir = _structural_dir(wiki_dir)
+    anonymize = getattr(cfg, "anonymize", "never") == "always"
+    written = 0
+    briefs: dict[tuple[str, str | None], dict] = {}
+    for repo_id in [r.id for r in store.list_repos()]:
+        # The module plan first, because the whole-repo brief takes it: the generated
+        # path passes `subsystem_modules` so its page can name the subsystem pages, and
+        # a brief built without it is a DIFFERENT brief that path cannot reuse.
+        #
+        # The node count for that plan comes from the SHARD, not from a preliminary
+        # brief. Building one brief to size the repo and a second to carry the modules
+        # is two briefs per repo, and a test asserts one -- the parts a brief does not
+        # cache are a live README read and an enrichment-shard read, so the second one
+        # is real work rather than a cache hit.
+        shard = read_shard(store_dir, repo_id)
+        if shard is None:
+            continue
+        modules, _prune = _module_page_plan(store, repo_id, len(shard.nodes))
+        brief = repo_brief(store_dir, repo_id, store=store,
+                           subsystem_modules=modules or None)
+        if brief is None:
+            continue
+        briefs[(repo_id, None)] = brief
+        deps = repo_dependencies(store, repo_id)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        page = render_structural_page(
+            brief, repo_id=repo_id, modules=modules,
+            owners=repo_owners(store, repo_id, anonymize=anonymize),
+            dependencies=deps)
+        (out_dir / (repo_slug(repo_id) + ".md")).write_text(page, encoding="utf-8")
+        written += 1
+        for m in modules:
+            prefix = m["prefix"]
+            # `store=None`, matching the generated path exactly. With a store, the
+            # brief carries the REPO's README excerpt and its live setup scan, and a
+            # module page would present both as that module's -- the same scope
+            # mislabelling the page title and the dependency heading already guard
+            # against, in a third place.
+            scoped = repo_brief(store_dir, repo_id, store=None, path_prefix=prefix)
+            if scoped is None or not scoped.get("node_count"):
+                continue
+            briefs[(repo_id, prefix)] = scoped
+            mod_file = _module_page_file(out_dir, repo_id, prefix)
+            mod_file.parent.mkdir(parents=True, exist_ok=True)
+            mod_file.write_text(render_structural_page(
+                scoped, repo_id=repo_id, path_prefix=prefix,
+                owners=repo_owners(store, repo_id, path_prefix=prefix,
+                                   anonymize=anonymize),
+                dependencies=deps), encoding="utf-8")
+            written += 1
+    return written, briefs
+
+
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
     from ..llm import build_llm, build_review_llm
@@ -404,10 +496,30 @@ def cmd_wiki(args) -> int:
         cfg = kb_config(args).model_copy(deep=True)
         apply_llm_overrides(cfg, provider=getattr(args, "llm", None),
                             model=getattr(args, "llm_model", None))
+        # BEFORE the LLM is built, and on every run. The structural page needs no
+        # backend, so it is written whether or not one is configured -- which is the
+        # whole change: this command used to print "LLM tier disabled" and produce
+        # nothing, so a local-first user got no wiki at all.
+        #
+        # Skipped only for the cluster/namespace modes, which write pages about groups
+        # of repositories rather than about one, and have no structural equivalent.
+        wiki_dir = store_dir / "wiki"
+        # Bound before the branch, not inside it. The cluster path returns before
+        # `_run_page` is ever called, so an unbound name would be latent rather than
+        # loud -- and latent is how it would survive until somebody reordered the code.
+        structural_briefs: dict = {}
+        if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):
+            n, structural_briefs = _structural_stage(store, store_dir, args, cfg,
+                                                     wiki_dir)
+            if n:
+                log(f"Wrote {n} structural page(s) → {_structural_dir(wiki_dir)}")
+
         llm = build_llm(cfg.llm)
         if llm is None:
-            log("LLM tier disabled — pass --llm builtin|ollama|openai "
-                "(or set [llm] enabled = true in kb.toml)")
+            log("LLM tier disabled, so no generated prose pages were written. "
+                "The structural pages above need no model and are complete. "
+                "For prose on top of them, pass --llm builtin|ollama|openai "
+                "(or set [llm] enabled = true in kb.toml).")
             return 0
         # The council reviews with `review_llm`, which IS `llm` unless [llm]
         # review_provider names a different backend -- letting a cheap local
@@ -660,9 +772,21 @@ def cmd_wiki(args) -> int:
             # exists to fix for the title/footer, so omit `store` here and let
             # both fields degrade to shard-only (None / skip the live scan),
             # which is exactly repo_brief's documented behavior for that case.
+            # Reused from the structural stage when it built one for this exact scope.
+            # Every brief there is built with these same arguments precisely so this
+            # lookup is sound; a mismatch would silently hand the generated page a brief
+            # scoped differently from the one it asked for, which no test could see
+            # because both are valid briefs.
+            # Bound unconditionally: `generate_page` below takes it too, so leaving it
+            # inside the fallback made it unbound on every reused-brief run. Ruff cannot
+            # see that (both uses are in the same function) and the tests found it, which
+            # is the argument for running them rather than reading the diff.
             brief_store = None if path_prefix else store
-            brief = repo_brief(store_dir, repo_id, store=brief_store, path_prefix=path_prefix,
-                               subsystem_modules=subsystem_modules)
+            brief = structural_briefs.get((repo_id, path_prefix))
+            if brief is None:
+                brief = repo_brief(store_dir, repo_id, store=brief_store,
+                                   path_prefix=path_prefix,
+                                   subsystem_modules=subsystem_modules)
             # A module `repo_modules()` (SQLite index) said has real content can
             # still come back empty here if the shard (JSON, a different
             # persistence layer -- see _module_page_plan) disagrees, e.g. a
