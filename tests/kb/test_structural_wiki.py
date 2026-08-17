@@ -197,3 +197,74 @@ def test_ownership_shows_share_not_a_commit_scoreboard():
     assert "62%" in section
     assert not re.search(r"\bcommits?\b", section, re.I), (
         f"the ownership section grew a commit count: {section}")
+
+
+# --- the store-reading gatherers ----------------------------------------------------
+
+
+class _FakeStore:
+    """Enough store for the two gatherers, and no more.
+
+    A real SqliteStore would work, but the properties under test are about which edges
+    are selected and in which direction, and a fixture that has to build a two-hop
+    package join to assert on direction hides the thing being asserted.
+    """
+
+    def __init__(self, edges, repos=None):
+        self._edges = edges
+        self._repos = repos or {}
+
+    def get_repo(self, repo_id):
+        return self._repos.get(repo_id)
+
+
+def _deps(monkeypatch, edges, repo_id="team/app"):
+    from contextlake.kb.arch import resolve
+    from contextlake.kb.wiki import structural
+
+    monkeypatch.setattr(resolve, "repo_dependency_edges", lambda _store: edges)
+    return structural.repo_dependencies(_FakeStore(edges), repo_id)
+
+
+def test_dependencies_are_split_by_direction(monkeypatch):
+    got = _deps(monkeypatch, [
+        {"src": "team/app", "dst": "team/core"},
+        {"src": "team/ui", "dst": "team/app"},
+    ])
+    assert got == {"depends_on": ["team/core"], "depended_on_by": ["team/ui"]}
+
+
+def test_a_repeated_pair_is_counted_once(monkeypatch):
+    """The two-hop yields one row per SHARED PACKAGE, so a repo depending on another
+    through four packages arrives four times. Listing it four times would render package
+    count as dependency count."""
+    got = _deps(monkeypatch, [{"src": "team/app", "dst": "team/core"}] * 4)
+    assert got["depends_on"] == ["team/core"]
+
+
+def test_a_self_edge_is_not_a_dependency(monkeypatch):
+    """A repo that publishes a package it also consumes produces src == dst. Rendering
+    it would tell a reader the repository depends on itself, which is true of the
+    manifest and useless as architecture."""
+    got = _deps(monkeypatch, [{"src": "team/app", "dst": "team/app"}])
+    assert got == {"depends_on": [], "depended_on_by": []}
+
+
+def test_owners_are_absent_rather_than_fatal_when_the_checkout_is_gone(monkeypatch):
+    """A repository can be indexed and then moved. Failing the whole page because
+    somebody relocated a directory is a worse outcome than an honestly absent section,
+    which the omitted-sections line then names."""
+    from contextlake.kb.wiki import structural
+
+    assert structural.repo_owners(_FakeStore([], {}), "team/app") == []
+
+
+def test_owners_use_the_same_pseudonym_function_as_the_dashboard(monkeypatch):
+    """The property that makes one shared helper worth the move: a reader can carry
+    "Contributor a1b2" from a wiki page to a dashboard panel and know it is one person."""
+    from contextlake.kb.dashboard.data import _anon_author
+    from contextlake.kb.ownership import anon_author
+
+    assert anon_author("Ada", "ada@example.invalid") is not None
+    assert _anon_author("Ada", "ada@example.invalid") == anon_author(
+        "Ada", "ada@example.invalid")

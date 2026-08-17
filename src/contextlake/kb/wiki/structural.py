@@ -244,3 +244,54 @@ def render_structural_page(
             "for this scope and not that a section was forgotten.", "",
         ]
     return "\n".join(lines).rstrip() + "\n"
+
+
+def repo_dependencies(store, repo_id: str) -> dict:
+    """Both directions of ``repo_id``'s cross-repo dependency edges, by repo id.
+
+    Reads `arch.resolve.repo_dependency_edges`, the package two-hop
+    (``publishes ⨝ depends_on``), which is the only cross-repo signal this project
+    treats as trustworthy: the raw cross-repo ``imports`` join is dominated by
+    fleet-wide `module` nodes and would render hundreds of thousands of phantom edges.
+
+    BOTH directions on purpose. "What depends on me" is the question no single-repo tool
+    can answer at all, and returning only the outbound half would quietly drop the half
+    that is the differentiator.
+    """
+    from ..arch.resolve import repo_dependency_edges
+
+    out: dict[str, list[str]] = {"depends_on": [], "depended_on_by": []}
+    for e in repo_dependency_edges(store):
+        if e.get("src") == repo_id and e.get("dst") != repo_id:
+            out["depends_on"].append(e["dst"])
+        elif e.get("dst") == repo_id and e.get("src") != repo_id:
+            out["depended_on_by"].append(e["src"])
+    # Sorted and de-duplicated: the two-hop can yield one pair per shared package, and a
+    # page listing `team/core` four times is reporting package count as dependency count.
+    return {k: sorted(set(v)) for k, v in out.items()}
+
+
+def repo_owners(store, repo_id: str, *, path_prefix: str | None = None,
+                anonymize: bool = False, limit: int = 10) -> list[dict]:
+    """Recency-weighted contributors for a repo or one of its sub-paths, or ``[]``.
+
+    Returns ``[]`` rather than raising when the checkout is gone: a repository can be
+    indexed and then moved, and a wiki page that fails to generate because somebody
+    relocated a directory would be a worse outcome than one whose ownership section is
+    honestly absent. The omitted-sections line then names it, so the absence is visible.
+
+    ``anonymize`` uses the SAME pseudonym function the dashboard uses, so one person
+    reads as one "Contributor a1b2" across both surfaces.
+    """
+    from ..ownership import anon_author, compute_owners
+
+    repo = store.get_repo(repo_id)
+    path = getattr(repo, "path", None) if repo else None
+    if not path:
+        return []
+    try:
+        owners = compute_owners(path, subpath=path_prefix, limit=max(1, min(limit, 50)))
+    except Exception:  # noqa: BLE001 - a missing/odd checkout must not fail the page
+        return []
+    return [{"name": anon_author(o.name, o.email) if anonymize else o.name,
+             "share": o.share, "last_active": o.last_active} for o in owners]
