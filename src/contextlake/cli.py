@@ -87,7 +87,8 @@ _COMMAND_CATEGORIES = (
     (_MIRROR_NS, "Mirror a fleet", ("fetch", "clone", "update", "branches", "verify",
                                     "status", "sync", "audit")),
     (_KB_NS, "Build the knowledge graph", ("index", "source", "connect", "embed",
-                                           "ingest", "enrich", "wiki", "lint", "forget", "eval")),
+                                           "ingest", "enrich", "wiki", "docs", "lint",
+                                           "forget", "eval")),
     (_KB_NS, "Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
     (_KB_NS, "Serve to editors", ("serve", "steer", "hook", "refresh")),
 )
@@ -410,7 +411,7 @@ class _RootArgumentParser(argparse.ArgumentParser):
 
 # Verbs handled by the optional knowledge layer (the [kb] extra).
 _KB_COMMANDS = frozenset({
-    "index", "connect", "embed", "lint", "forget", "wiki", "steer", "serve",
+    "index", "connect", "embed", "lint", "forget", "wiki", "docs", "steer", "serve",
     "query",
     "graph", "doctor", "eval", "owners", "impact", "ingest", "enrich", "dashboard", "hook",
     "source", "refresh",
@@ -449,6 +450,7 @@ _DEFAULTS = {
     "max_nodes": None, "max_edges": None, "max_fanout": None, "relation": None, "direction": None,
     "format": None, "layout": None, "output": None, "open": False, "cdn": False,
     "serve": False, "site": None, "repos": None, "group_depth": None,
+    "max_symbols": None,
     "anonymize": False, "sample": False, "c4": False,
     # tri-state booleans: unset on the command line -> None -> config wins
     **{name: None for name in _TRISTATE_FLAGS},
@@ -1082,6 +1084,27 @@ fail (exit 1).
     p.add_argument("repo", metavar="repo", help="the repo id to remove (see `kb lint`)")
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=_S,
                    help="print what would be removed, remove nothing")
+
+    p = command("docs", "generate documentation from the graph (API reference, no model)",
+                epilog="""
+The API reference lists each repository's callable symbols with their signatures and
+THEIR REAL CALL SITES -- every file and line in this repository that calls them, read
+from the graph. No model is involved, so it needs no LLM configured.
+
+Two numbers accompany each symbol and they are not the same: call SITES counts places
+that call it, CALLERS counts the distinct definitions those places belong to. A function
+called fifty times from one loop has fifty sites and one caller.
+
+Examples:
+  contextlake kb docs                        every indexed repository
+  contextlake kb docs team/app               just this one
+  contextlake kb docs --max-symbols 2000     a larger reference for a big repository
+""")
+    p.add_argument("args", nargs="*", metavar="repo",
+                   help="only these repo ids (default: all indexed)")
+    p.add_argument("--max-symbols", dest="max_symbols", type=int, default=_S, metavar="N",
+                   help="cap each reference at N symbols, the most-called first "
+                        "(default 500). Whatever is left out is stated in the document.")
 
     p = command("wiki", "generate provenance-stamped wiki pages, gated by a review council")
     p.add_argument("args", nargs="*", metavar="repo",

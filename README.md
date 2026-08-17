@@ -298,6 +298,7 @@ everything and opens in an air-gapped browser.
 - **[docs/connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
 - **[docs/semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
 - **[docs/generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[docs/generate-docs.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-docs.md)**, `kb docs`, an API reference with real call sites, no model
 - **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
 - **[docs/visualize.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualize.md)**, `kb graph`, all 11 formats and the C4 diagram
 - **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .connect import cmd_connect
 from .dashboard import cmd_dashboard
+from .docs import cmd_docs
 from .doctor import cmd_doctor
 from .embed import cmd_embed
 from .enrich import cmd_enrich
@@ -37,5 +38,5 @@ def dispatch(command: str, args) -> int:
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
         "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
-        "refresh": cmd_refresh,
+        "refresh": cmd_refresh, "docs": cmd_docs,
     }[command](args)

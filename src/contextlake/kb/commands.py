@@ -26,6 +26,9 @@ from .cmds.connect import (  # noqa: F401
 from .cmds.dashboard import (  # noqa: F401
     cmd_dashboard,
 )
+from .cmds.docs import (  # noqa: F401
+    cmd_docs,
+)
 from .cmds.doctor import (  # noqa: F401
     _builtin_model_present,
     _check,

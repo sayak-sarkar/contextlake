@@ -310,6 +310,7 @@ everything and opens in an air-gapped browser.
 - **[docs/connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
 - **[docs/semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
 - **[docs/generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[docs/generate-docs.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-docs.md)**, `kb docs`, an API reference with real call sites, no model
 - **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
 - **[docs/visualize.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualize.md)**, `kb graph`, all 11 formats and the C4 diagram
 - **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
@@ -3107,6 +3108,126 @@ No `enrich`/`connect` step needed, these are picked up automatically whenever th
 
 ---
 
+# Generate documentation
+Source: https://sayak.in/contextlake/generate-docs
+
+# Generate documentation
+
+`contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
+inferred, and every statement traces to an edge that a parser recorded.
+
+Today it writes one kind of document: an **API reference** per repository, listing each
+symbol and the real places the codebase calls it.
+
+```bash
+contextlake kb docs
+```
+
+Output goes to `<store>/docs/api/<repo>.md`, one file per indexed repository.
+
+## What makes it different from the wiki
+
+Both read the same graph, and they answer different questions.
+
+| | `kb wiki` | `kb docs` |
+| --- | --- | --- |
+| Shape | one page you read start to finish | a reference you look things up in |
+| Model | optional, gated by a review council | never |
+| Scope | what this repository is and does | where each symbol is used |
+
+They are separate commands rather than two sections of one page because a document that tries
+to be both serves neither.
+
+## What a reference contains
+
+Every entry names the symbol, its kind, the line it is defined on, and its call sites:
+
+```markdown
+### `Config.from_prefixed_env`
+
+*method, defined at line 258.*
+
+**7 call site(s)** across **4 caller(s)**:
+
+| Caller | File | Line |
+| --- | --- | --- |
+| `Flask.__init__` <br>*method* | `src/flask/app.py` | 211 |
+| `test_from_prefixed_env` <br>*test* | `tests/test_config.py` | 96 |
+```
+
+Every line in that table is a line you can open.
+
+### Two numbers, not one
+
+**Call sites** and **callers** are different, and both appear because the difference matters.
+A function called fifty times from inside one loop has fifty call sites and one caller. If you
+are deciding whether a change is safe, you need to know which of those you are looking at.
+
+A call site is sometimes attributed to a **file** rather than to a definition, which is what
+the graph records for a call at module level with no enclosing function. Those sites are
+listed, and they are not counted as callers, because a file is not something you can read to
+understand the call. The count says so explicitly when it happens:
+
+```
+**124 call site(s)** across **93 caller(s)**, 4 of which name no enclosing definition
+```
+
+### Names carry their scope
+
+A symbol is shown with its owning type when the graph recorded one, so `ostream.flush` and
+`detail.glibc_file.flush` are distinguishable. Without that, a header-heavy C++ library
+produces pages with several identical headings in a row and no way to tell them apart.
+
+Where the graph did not record a scope, the bare name is shown rather than a guessed one.
+
+## Bounding a large repository
+
+`--max-symbols N` caps the document; the default is 500. Symbols are **selected** by call-site
+count, so the most-used interface survives the cap, and then **grouped by file**, because
+that is how a reader looks something up.
+
+```bash
+contextlake kb docs --max-symbols 2000
+```
+
+Whenever the cap binds, the page says how many symbols it left out. It also says when the cut
+was arbitrary: in a repository where most symbols have no recorded caller, everything at the
+boundary ties at zero, and which ones were dropped was decided by filename rather than by
+importance. A reference that quietly stops is worse than a short one, because you cannot tell
+a symbol that is missing from a symbol that does not exist.
+
+## Scoping to some repositories
+
+Pass repo ids to document only those:
+
+```bash
+contextlake kb docs team/api team/worker
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Every requested repository was documented, or had no symbols to document |
+| `1` | A shard could not be read, or nothing could be written at all |
+
+A repository that indexed to zero symbols is reported and is **not** a failure: a repository
+of build and configuration files has no interface to document. A shard the store lists but
+cannot read **is** a failure, even when other repositories succeeded, because a partial run
+reported as clean is how a broken store stays broken.
+
+## Keeping it current
+
+The reference is generated, so regenerate it after re-indexing:
+
+```bash
+contextlake kb index && contextlake kb docs
+```
+
+See [Bootstrap and keep it fresh](keep-fresh.md) for running that on a schedule or on commit.
+
+---
+
 # Model providers
 Source: https://sayak.in/contextlake/model-providers
 
@@ -5743,6 +5864,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb docs` | Generated documentation, no model involved: an API reference per repository, listing each symbol's real call sites read from the graph. `--max-symbols N` bounds the document (default 500) and the page states what it left out |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
@@ -6270,6 +6392,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`kb docs`: generated documentation, with no model involved.** The first document it writes
+  is an API reference per repository: every symbol of a documentable kind, and the real places
+  the codebase calls it, each one a file and a line read off the graph's per-occurrence `calls`
+  edges. `--max-symbols N` bounds the document, default 500. Output lands in
+  `<store>/docs/api/<repo>.md`. Separate from `kb wiki` on purpose: a reference is looked
+  things up in, a wiki page is read start to finish, and one document that tries to be both
+  serves neither.
+
+  Four things it will not do, each because the first draft did and a run against public trees
+  showed it. It does not call a row count a caller count, so a symbol called twelve times from
+  one place reports twelve sites and one caller. It does not name a file as a caller when a
+  call carries no enclosing definition; it says so and leaves it out of the count. It does not
+  claim to be ordered by call count while grouping by filename. And when the cap falls inside a
+  tie, so that which symbols were dropped came down to their filenames, the page says that
+  rather than implying a ranking.
+
+### Fixed
+
+- **A table cell built with `mdwrite.code()` was escaped twice**, so a C++ `operator|` overload
+  rendered with a visible backslash. `table` escapes every cell it is given, which makes it the
+  one place that knows a value is becoming a row, so `code` no longer escapes at all.
 
 ## [7.12.1] - 2026-08-17
 

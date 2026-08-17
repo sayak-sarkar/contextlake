@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Generate documentation · contextlake docs</title>
+<meta name="description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/generate-docs">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Generate documentation · contextlake docs">
+<meta property="og:description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
+<meta property="og:url" content="https://sayak.in/contextlake/generate-docs">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Generate documentation · contextlake docs">
+<meta name="twitter:description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generate-docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate documentation", "item": "https://sayak.in/contextlake/generate-docs"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="docs.css">
+<link rel="stylesheet" href="cmdk.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="generate-docs" class="active">Generate documentation</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Generate documentation</span></nav>
+    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Generate documentation</h1><p class="doc-sub">An API reference straight from the graph, with every symbol's real call sites and no model involved.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p><code>contextlake kb docs</code> writes documentation from the graph. No model is involved, nothing is
+inferred, and every statement traces to an edge that a parser recorded.</p>
+<p>Today it writes one kind of document: an <strong>API reference</strong> per repository, listing each
+symbol and the real places the codebase calls it.</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
+</code></pre></div>
+<p>Output goes to <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code>, one file per indexed repository.</p>
+<h2 id="what-makes-it-different-from-the-wiki">What makes it different from the wiki<a class="anchor" href="#what-makes-it-different-from-the-wiki" title="Link to this section">#</a></h2>
+<p>Both read the same graph, and they answer different questions.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>kb wiki</code></th>
+<th><code>kb docs</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shape</td>
+<td>one page you read start to finish</td>
+<td>a reference you look things up in</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>optional, gated by a review council</td>
+<td>never</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>what this repository is and does</td>
+<td>where each symbol is used</td>
+</tr>
+</tbody>
+</table>
+<p>They are separate commands rather than two sections of one page because a document that tries
+to be both serves neither.</p>
+<h2 id="what-a-reference-contains">What a reference contains<a class="anchor" href="#what-a-reference-contains" title="Link to this section">#</a></h2>
+<p>Every entry names the symbol, its kind, the line it is defined on, and its call sites:</p>
+<div class="highlight"><pre><span></span><code><span class="gu">### `Config.from_prefixed_env`</span>
+
+<span class="ge">*method, defined at line 258.*</span>
+
+<span class="gs">**7 call site(s)**</span> across <span class="gs">**4 caller(s)**</span>:
+
+| Caller | File | Line |
+| --- | --- | --- |
+| <span class="sb">`Flask.__init__`</span> &lt;br&gt;*method* | <span class="sb">`src/flask/app.py`</span> | 211 |
+| <span class="sb">`test_from_prefixed_env`</span> &lt;br&gt;*test* | <span class="sb">`tests/test_config.py`</span> | 96 |
+</code></pre></div>
+<p>Every line in that table is a line you can open.</p>
+<h3 id="two-numbers-not-one">Two numbers, not one<a class="anchor" href="#two-numbers-not-one" title="Link to this section">#</a></h3>
+<p><strong>Call sites</strong> and <strong>callers</strong> are different, and both appear because the difference matters.
+A function called fifty times from inside one loop has fifty call sites and one caller. If you
+are deciding whether a change is safe, you need to know which of those you are looking at.</p>
+<p>A call site is sometimes attributed to a <strong>file</strong> rather than to a definition, which is what
+the graph records for a call at module level with no enclosing function. Those sites are
+listed, and they are not counted as callers, because a file is not something you can read to
+understand the call. The count says so explicitly when it happens:</p>
+<div class="highlight"><pre><span></span><code>**124 call site(s)** across **93 caller(s)**, 4 of which name no enclosing definition
+</code></pre></div>
+<h3 id="names-carry-their-scope">Names carry their scope<a class="anchor" href="#names-carry-their-scope" title="Link to this section">#</a></h3>
+<p>A symbol is shown with its owning type when the graph recorded one, so <code>ostream.flush</code> and
+<code>detail.glibc_file.flush</code> are distinguishable. Without that, a header-heavy C++ library
+produces pages with several identical headings in a row and no way to tell them apart.</p>
+<p>Where the graph did not record a scope, the bare name is shown rather than a guessed one.</p>
+<h2 id="bounding-a-large-repository">Bounding a large repository<a class="anchor" href="#bounding-a-large-repository" title="Link to this section">#</a></h2>
+<p><code>--max-symbols N</code> caps the document; the default is 500. Symbols are <strong>selected</strong> by call-site
+count, so the most-used interface survives the cap, and then <strong>grouped by file</strong>, because
+that is how a reader looks something up.</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs<span class="w"> </span>--max-symbols<span class="w"> </span><span class="m">2000</span>
+</code></pre></div>
+<p>Whenever the cap binds, the page says how many symbols it left out. It also says when the cut
+was arbitrary: in a repository where most symbols have no recorded caller, everything at the
+boundary ties at zero, and which ones were dropped was decided by filename rather than by
+importance. A reference that quietly stops is worse than a short one, because you cannot tell
+a symbol that is missing from a symbol that does not exist.</p>
+<h2 id="scoping-to-some-repositories">Scoping to some repositories<a class="anchor" href="#scoping-to-some-repositories" title="Link to this section">#</a></h2>
+<p>Pass repo ids to document only those:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs<span class="w"> </span>team/api<span class="w"> </span>team/worker
+</code></pre></div>
+<h2 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Every requested repository was documented, or had no symbols to document</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>A shard could not be read, or nothing could be written at all</td>
+</tr>
+</tbody>
+</table>
+<p>A repository that indexed to zero symbols is reported and is <strong>not</strong> a failure: a repository
+of build and configuration files has no interface to document. A shard the store lists but
+cannot read <strong>is</strong> a failure, even when other repositories succeeded, because a partial run
+reported as clean is how a broken store stays broken.</p>
+<h2 id="keeping-it-current">Keeping it current<a class="anchor" href="#keeping-it-current" title="Link to this section">#</a></h2>
+<p>The reference is generated, so regenerate it after re-indexing:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
+</code></pre></div>
+<p>See <a href="keep-fresh">Bootstrap and keep it fresh</a> for running that on a schedule or on commit.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="model-providers"><span>Model providers</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="keep-fresh"><span>Bootstrap and keep it fresh</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#what-makes-it-different-from-the-wiki">What makes it different from the wiki</a></li>
+<li><a href="#what-a-reference-contains">What a reference contains</a><ul>
+<li><a href="#two-numbers-not-one">Two numbers, not one</a></li>
+<li><a href="#names-carry-their-scope">Names carry their scope</a></li>
+</ul>
+</li>
+<li><a href="#bounding-a-large-repository">Bounding a large repository</a></li>
+<li><a href="#scoping-to-some-repositories">Scoping to some repositories</a></li>
+<li><a href="#exit-codes">Exit codes</a></li>
+<li><a href="#keeping-it-current">Keeping it current</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js"></script>
+</body>
+</html>

@@ -122,6 +122,13 @@ PAGES = [
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
      "pebble-doc.png",
+     [("generate-docs.html", "Generate documentation"),
+      ("keep-fresh.html", "Bootstrap and keep it fresh")]),
+    ("generate-docs.html", "docs/generate-docs.md", "Generate documentation",
+     "Generate documentation",
+     "Build your knowledge base", "An API reference straight from the graph, with every "
+     "symbol's real call sites and no model involved.",
+     "pebble-doc.png",
      [("model-providers.html", "Model providers"), ("keep-fresh.html", "Bootstrap and keep it fresh")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
      "Reference", "The pluggable embeddings and wiki backends: auto, built-in "
@@ -255,7 +262,7 @@ NAV_GROUPS = [
     ("Get started", ["install.html", "quickstart.html", "configuration.html"]),
     ("Build your knowledge base", ["knowledge-layer.html", "usage.html", "index-code-graph.html",
                                    "connect-enrich.html", "semantic-search.html",
-                                   "generate-wiki.html"]),
+                                   "generate-wiki.html", "generate-docs.html"]),
     ("Use it", ["ask-the-graph.html", "serve.html", "dashboard.html", "visualize.html"]),
     ("Operate it", ["keep-fresh.html", "console-output.html", "troubleshooting.html"]),
     ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",

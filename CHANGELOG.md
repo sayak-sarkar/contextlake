@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`kb docs`: generated documentation, with no model involved.** The first document it writes
+  is an API reference per repository: every symbol of a documentable kind, and the real places
+  the codebase calls it, each one a file and a line read off the graph's per-occurrence `calls`
+  edges. `--max-symbols N` bounds the document, default 500. Output lands in
+  `<store>/docs/api/<repo>.md`. Separate from `kb wiki` on purpose: a reference is looked
+  things up in, a wiki page is read start to finish, and one document that tries to be both
+  serves neither.
+
+  Four things it will not do, each because the first draft did and a run against public trees
+  showed it. It does not call a row count a caller count, so a symbol called twelve times from
+  one place reports twelve sites and one caller. It does not name a file as a caller when a
+  call carries no enclosing definition; it says so and leaves it out of the count. It does not
+  claim to be ordered by call count while grouping by filename. And when the cap falls inside a
+  tie, so that which symbols were dropped came down to their filenames, the page says that
+  rather than implying a ranking.
+
+### Fixed
+
+- **A table cell built with `mdwrite.code()` was escaped twice**, so a C++ `operator|` overload
+  rendered with a visible backslash. `table` escapes every cell it is given, which makes it the
+  one place that knows a value is becoming a row, so `code` no longer escapes at all.
+
 ## [7.12.1] - 2026-08-17
 
 ### Fixed
