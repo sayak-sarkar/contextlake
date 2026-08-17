@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.19.0] - 2026-08-18
+
+### Added
+
+- **Every number the docs state about the build is now checked against the build, on every
+  push.** `tests/test_docs_claims_match_the_build.py`: language count, grammar count, node-kind
+  count, both MCP tool counts, and every documented CLI verb, each compared against the single
+  authority for it in the code.
+
+  Written as a test rather than a script because a script gets run once and then rots. Adding a
+  language, a node kind or an MCP tool now fails a test that names the doc line to update.
+
+  It exists because the claims were caught drifting: `docs/explained.md` said "21 tools are
+  registered unconditionally... bring it to 23", and counting from a built server gave 22 with a
+  tool added that morning -- so 21 had been right only momentarily and 23 dated from an earlier
+  era. Reading a number tells you nothing about whether it is true.
+
+  The rule it enforces: **a number in the docs must have exactly one authority in the code, and
+  the test file names it.** A claim with no authority cannot be checked and should not be a number.
+  All five checks were confirmed to fail against a corrupted doc before being trusted.
+
+### Changed
+
+- **The CLI dispatch table is a module constant, `contextlake.kb.cmds.VERBS`.** It was a literal
+  inside `dispatch()`, so nothing outside that function could name the verbs and "is every
+  documented verb real" was unanswerable except by parsing the file as text.
+
+  `VERBS` deliberately includes `source`, which is dispatched lazily to keep `tomlkit` off every
+  other command's import path. The eager handler dict alone under-reports by exactly one and would
+  look complete, which is the same shape as every other count this release is about.
+
+
 ## [7.18.0] - 2026-08-18
 
 ### Added

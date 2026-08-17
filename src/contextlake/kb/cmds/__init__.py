@@ -23,6 +23,28 @@ from .serve import cmd_serve
 from .steer import cmd_steer
 from .wiki import cmd_wiki
 
+# The table as a module constant rather than a literal inside `dispatch`, so the set of verbs
+# has ONE readable authority. A docs test compares the CLI reference against this; while the
+# table was inline, nothing outside `dispatch` could name the verbs, so "is every documented
+# verb real" was unanswerable except by parsing this file as text.
+#
+# `source` is deliberately absent: it is dispatched lazily below because its import chain
+# reaches tomlkit, which would otherwise sit on every other command's startup path. It is
+# listed in HANDLERS' docstring rather than the dict so the lazy path stays the only one.
+_EAGER_HANDLERS = {
+    "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
+    "forget": cmd_forget,
+    "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
+    "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
+    "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
+    "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
+    "refresh": cmd_refresh, "docs": cmd_docs,
+}
+
+# Every verb `dispatch` accepts, including the lazily-imported one. This is what a consumer
+# should ask; `_EAGER_HANDLERS` alone would under-report by exactly one and look complete.
+VERBS = frozenset(_EAGER_HANDLERS) | {"source"}
+
 
 def dispatch(command: str, args) -> int:
     if command == "source":
@@ -31,12 +53,4 @@ def dispatch(command: str, args) -> int:
         from ..source_cmd import cmd_source
 
         return cmd_source(args)
-    return {
-        "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
-        "forget": cmd_forget,
-        "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
-        "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
-        "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
-        "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
-        "refresh": cmd_refresh, "docs": cmd_docs,
-    }[command](args)
+    return _EAGER_HANDLERS[command](args)
