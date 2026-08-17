@@ -14,6 +14,7 @@ in the examined history (not wall-clock), keeping results deterministic and maki
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -66,6 +67,23 @@ class Owner:
     last_active: str  # YYYY-MM-DD (UTC) of the contributor's most recent commit
     share: float      # 0..1 fraction of the total recency-weighted score
     score: float
+
+
+def anon_author(name: str | None, email: str | None) -> str:
+    """A stable, non-reversible pseudonym for a git author.
+
+    Lives here rather than in the dashboard, where it started, because two surfaces now
+    need it: the served dashboard and the generated wiki. One implementation is not only
+    tidier, it is a correctness property -- the same person gets the SAME pseudonym on
+    both, so a reader can carry "Contributor a1b2" from a page to a panel and know it is
+    one person. Two copies would drift the moment either changed its hash length.
+
+    Keyed on the EMAIL first: a contributor whose display name changes across commits
+    (a rename, a different git config on a second machine) stays one pseudonym, which is
+    the whole point of a stable identifier for "who knows this area".
+    """
+    h = hashlib.sha256((email or name or "").encode("utf-8")).hexdigest()[:4]
+    return f"Contributor {h}"
 
 
 def _parse_log(out: str):

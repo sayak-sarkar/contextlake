@@ -38,12 +38,12 @@ facts only (anatomy, hashed owners, link kinds) — no README/wiki body.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
 from pathlib import Path
 
 from ..model import EXTERNAL_LINK_RELATIONS
+from ..ownership import anon_author
 from ..security import sanitize_label
 
 
@@ -59,10 +59,10 @@ def _store_dir(store, store_dir=None) -> Path:
     return Path(sp).parent if sp else Path(".")
 
 
-def _anon_author(name: str | None, email: str | None) -> str:
-    """A stable, non-reversible pseudonym for a git author (anonymized exports)."""
-    h = hashlib.sha256((email or name or "").encode("utf-8")).hexdigest()[:4]
-    return f"Contributor {h}"
+# Re-exported, not reimplemented: `kb.ownership` owns this so the wiki and the dashboard
+# give one person one pseudonym. Kept under the old private name so nothing else in this
+# module has to change, and so the indirection is visible at the point of use.
+_anon_author = anon_author
 
 
 # ---------------------------------------------------------------------------
