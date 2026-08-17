@@ -955,11 +955,14 @@ Examples:
     _add_report(p)
 
     p = command("bootstrap",
-                # Every stage the run actually performs, in order. It had drifted: the
-                # diagram stage was added and not listed, so the one-line description
-                # under-reported what the command does by two whole outputs.
+                # Every stage the run actually performs, in order. It has drifted twice now:
+                # the diagram stage was added and not listed, and the docs stage grew a
+                # second output. Both times the one-line description quietly under-reported
+                # what the command does, which is the same defect as a surface reporting a
+                # partial run as a complete one.
                 "one command from nothing to a wired workspace: mirror, index, "
-                "connect, embed, enrich, wiki, diagrams, API reference, steering",
+                "connect, embed, enrich, wiki, diagrams, API reference, design notes, "
+                "steering",
                 epilog="""
 Examples:
   contextlake bootstrap                       the full turnkey run
@@ -1091,15 +1094,25 @@ fail (exit 1).
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=_S,
                    help="print what would be removed, remove nothing")
 
-    p = command("docs", "generate documentation from the graph (API reference, no model)",
+    p = command("docs",
+                "generate documentation from the graph (API reference and design notes, "
+                "no model)",
                 epilog="""
+Two documents per repository, neither involving a model, so neither needs an LLM configured.
+
 The API reference lists each repository's callable symbols with their signatures and
 THEIR REAL CALL SITES -- every file and line in this repository that calls them, read
-from the graph. No model is involved, so it needs no LLM configured.
+from the graph.
 
 Two numbers accompany each symbol and they are not the same: call SITES counts places
 that call it, CALLERS counts the distinct definitions those places belong to. A function
 called fifty times from one loop has fifty sites and one caller.
+
+The design notes record what the repository's own files say about how it was built: the
+dependencies its manifests declare, with each constraint and the line it was written on,
+and the values its code reads in the most places. Nothing on that page was ratified by
+anyone, and it states counts without explaining them, because a count of readings is
+evidence a value is load-bearing and no evidence at all about why.
 
 Examples:
   contextlake kb docs                        every indexed repository

@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.15.0] - 2026-08-18
+
+### Added
+
+- **`kb docs` now also writes design notes: what a repository's own files record about how it
+  was built.** Written to `<store>/docs/design/<repo>.md` beside the API reference. No model,
+  as before.
+
+  The honest scope is narrower than "design document" suggests, and the page opens by saying
+  so. A graph holds no decision records: it never sees what was rejected or why. It holds two
+  kinds of evidence, kept apart because they are not equally strong. A manifest dependency is
+  **recorded** (somebody wrote `blinker>=1.9.0` on purpose, so the package, its constraint
+  and its line are facts). A constant read in many places is **inferred** evidence that a
+  value is load-bearing, and no evidence at all that anybody decided anything.
+
+  So the page states counts and refuses to explain them, the rule the wiki's gotchas prompt
+  already carries. Measured on a mature public library before any of it was written: seven
+  constants clear a defensible evidence rule and about four point at something a human would
+  call a decision, the rest being typing constructs. Nothing in the graph can tell those
+  apart, and a generated sentence calling a type variable a core architectural decision is
+  worse than no sentence.
+
+  Three properties keep it honest, each present because its absence produced a real wrong
+  answer: **coverage is always stated** as `N of M`, since filters drop candidates silently
+  and a short list with no denominator reads as "there is little here"; **an ambiguous
+  reading is never counted**, because a name with several definitions has each use attributed
+  to all of them, so one name defined three times carried an identical 41 sites on each and
+  summing reports 123 uses of 41; and **an empty list names what was read**, since "declares
+  no dependencies" and "declares them in a file not yet read" otherwise render identically.
+  Dependencies get one table per manifest, the repository's own first, so a bundled example
+  that depends on this project does not read as a dependency of it.
+
+  The page carries a machine-readable marker as well as the prose, because whoever reads the
+  file receives bytes rather than a rendered page, and a status stated only in a paragraph is
+  a sentence a summariser can drop:
+  `<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->`
+
+- **A dependency now records what was actually written: the constraint, the group, and the
+  line.** A `depends_on` edge carried a package name and nothing else. The manifest said
+  `blinker>=1.9.0`; the graph said `blinker`. Every dependency in a file cited line 1 of it,
+  whatever the file said, so a citation named the file and stopped there while every other
+  citation in the product names a line. And runtime, dev, peer and optional groups were folded
+  into one relation, which made an extra a user opts into indistinguishable from a dependency
+  the package cannot start without.
+
+  Each edge now carries `attrs["constraint"]` (the remainder of the spec **as written**, so
+  `>=1.9.0`, `^4.17.1`, `[redis]>=5.0` or a whole environment marker survive; nothing is parsed
+  or interpreted, and the key is absent rather than empty when the manifest pinned nothing),
+  `attrs["group"]` (`runtime`, `dev`, `peer` or `optional:<extra>`), and a real declaring line.
+  All four ecosystems: pyproject, package.json, csproj and pom.xml, each mapped onto the same
+  group vocabulary so a consumer does not need to know which ecosystem it is reading.
+
+- **A project that declares its dependencies in PEP 735 `[dependency-groups]` reported having
+  none.** That table is a sibling of `[project]` rather than a key inside it, and only
+  `[project]` was read, so a project using the modern spelling produced an empty list. Measured
+  on a public Django application: **0 dependencies before, 137 after**. A zero is the worst
+  possible failure here, because an empty list reads as "this project made no choices" rather
+  than as "this was not read". Groups land under their own `group:<name>` prefix rather than
+  being folded into `optional:`, since an extra is published in the package's metadata while a
+  dependency group is local to the checkout. An `{include-group = ...}` entry names a group and
+  is correctly not treated as a package.
+
+  Four defects fell out of doing this, three of them the same shape: a wrong answer that looks
+  like a right one.
+
+  - A **bare package name matched inside a longer name**, so a project called
+    `demo-example-worker` that depends on `demo` cited its own `name =` line rather than the
+    dependency. Found by reading generated output beside the file it describes, since a
+    "the line is not 1" assertion passes happily on the wrong line.
+  - A **package listed in two groups** resolved to the first group's line twice.
+  - A **NuGet version written as a `<Version>` child element** rather than an attribute was not
+    read, so a pinned dependency arrived with no constraint recorded, which this changelog
+    defines as "the manifest pinned nothing": confidently wrong rather than missing.
+  - The NuGet pattern was **anchored on `Include`**, so a `PackageReference` written `Version`
+    first lost its version silently while still producing an edge.
+
+  Each is covered by a test confirmed to fail against the previous behaviour.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store**, closely after the
+  previous bump, which is not ideal for anyone who just re-indexed. The alternative is worse: a
+  manifest that has not changed since the last index would keep the thinner edges forever, and
+  no commit-keyed check would ever say so.
+
 ### Fixed
 
 - **The same two strip helpers missed one more spelling of an end tag: `</script foo=1>`.** A

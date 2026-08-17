@@ -93,9 +93,11 @@ def test_an_unreadable_shard_exits_non_zero_even_when_another_repo_was_written(
 
     assert _run(tmp_path) == 1
     # The good repo is still written: one broken shard must not discard the work that
-    # succeeded.
-    assert (store_dir / "docs" / "api").glob("*.md")
-    assert "1 written" in gls_logs.text
+    # succeeded. Both documents, since the command produces a reference AND design notes,
+    # and a partial run has to be countable per repository rather than per file.
+    assert list((store_dir / "docs" / "api").glob("*.md"))
+    assert list((store_dir / "docs" / "design").glob("*.md"))
+    assert "1 of each written" in gls_logs.text
     assert "1 unreadable" in gls_logs.text
 
 

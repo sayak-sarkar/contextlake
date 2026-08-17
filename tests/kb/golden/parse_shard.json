@@ -2,6 +2,23 @@
   "edges": [
     {
       "attrs": {
+        "constraint": "^1.6.0",
+        "group": "runtime"
+      },
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "pkg_npm_axios",
+      "provenance": {
+        "source_file": "package.json",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "depends_on",
+      "src": "demo_fixture_package_json",
+      "weight": 1.0
+    },
+    {
+      "attrs": {
         "name_candidates": 2
       },
       "confidence": "AMBIGUOUS",
@@ -436,20 +453,6 @@
       },
       "relation": "contains",
       "src": "demo_fixture_svc_api_routes_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "pkg_npm_axios",
-      "provenance": {
-        "source_file": "package.json",
-        "source_line": 1,
-        "verified_at": "DATE"
-      },
-      "relation": "depends_on",
-      "src": "demo_fixture_package_json",
       "weight": 1.0
     },
     {
@@ -1368,6 +1371,6 @@
       "repo": "(shared)"
     }
   ],
-  "parser_version": "7",
+  "parser_version": "8",
   "repo": "demo/fixture"
 }

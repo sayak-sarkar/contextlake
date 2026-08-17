@@ -15,6 +15,7 @@ import bisect
 import json
 import re
 from datetime import date
+from typing import NamedTuple
 
 from .ids import make_id
 from .model import PACKAGES_REPO, Confidence, Edge, Node, Provenance
@@ -25,7 +26,21 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 _DEP_NAME = re.compile(r"[A-Za-z0-9._-]+")
-_PKG_REF = re.compile(r'<PackageReference\s+Include="([^"]+)"', re.IGNORECASE)
+# The whole tag, then each attribute off it, because MSBuild writes `Include` and
+# `Version` in either order and an `Include`-anchored pattern can only ever reach the
+# attribute it is anchored on.
+_PKG_REF = re.compile(r"<PackageReference\b[^<>]*>", re.IGNORECASE)
+_XML_INCLUDE = re.compile(r'\bInclude\s*=\s*"([^"]*)"', re.IGNORECASE)
+_XML_VERSION = re.compile(r'\bVersion\s*=\s*"([^"]*)"', re.IGNORECASE)
+# MSBuild accepts the version as a CHILD element as well as an attribute. Reading only
+# the attribute made a pinned dependency arrive with no constraint recorded, which the
+# data contract reads as "the manifest pinned nothing" -- a wrong answer stated
+# confidently, rather than a missing one.
+_XML_VERSION_CHILD = re.compile(r"<Version>\s*([^<]*?)\s*</Version>", re.IGNORECASE)
+_PKG_REF_END = re.compile(r"</PackageReference\s*>|<PackageReference\b", re.IGNORECASE)
+_MVN_VERSION = re.compile(r"<version>\s*([^<\s][^<]*?)\s*</version>", re.IGNORECASE)
+_MVN_SCOPE = re.compile(r"<scope>\s*([^<\s][^<]*?)\s*</scope>", re.IGNORECASE)
+_MVN_OPTIONAL = re.compile(r"<optional>\s*true\s*</optional>", re.IGNORECASE)
 _MANIFEST_FILES = {"pyproject.toml", "package.json"}
 
 # Maven: pull coordinates from the XML text with regex (dependency-free, same
@@ -64,6 +79,73 @@ def is_manifest(filename: str) -> bool:
 def _dep_name(spec: str) -> str | None:
     m = _DEP_NAME.match(spec.strip())
     return m.group(0) if m else None
+
+
+class _Dep(NamedTuple):
+    """One dependency as the manifest states it.
+
+    ``constraint`` is the remainder of the spec **as written**, not a parsed range:
+    ``>=1.9.0``, ``^4.17.1``, ``[redis]>=5.0``, or a whole environment marker. Nothing
+    here decides whether a version satisfies it, so keeping the author's own text is
+    both honest and useful, and empty means the manifest pinned nothing.
+
+    ``group`` separates a hard runtime requirement from one a user opts into. Before
+    this existed every group was flattened into one relation, so an extra that ships
+    disabled by default was indistinguishable from a dependency the package cannot
+    start without -- which is most of the point when the fact is being read as a
+    recorded decision.
+    """
+
+    name: str
+    constraint: str
+    group: str  # runtime | dev | peer | optional:<extra>
+    line: int
+
+
+def _dep_split(spec: str) -> tuple[str, str] | None:
+    """``"blinker>=1.9.0"`` -> ``("blinker", ">=1.9.0")``; ``None`` if there is no name."""
+    spec = spec.strip()
+    m = _DEP_NAME.match(spec)
+    if not m:
+        return None
+    return m.group(0), spec[m.end():].strip()
+
+
+def _line_starts(text: str) -> list[int]:
+    """Offset of the first character of each line, for offset -> line lookups."""
+    starts = [0]
+    for i, ch in enumerate(text):
+        if ch == "\n":
+            starts.append(i + 1)
+    return starts
+
+
+def _line_of(starts: list[int], offset: int) -> int:
+    return bisect.bisect_right(starts, offset)
+
+
+def _locate(text: str, starts: list[int], needle: str, after: int = 0) -> int:
+    """1-based line of ``needle`` at or after ``after``; 1 when it does not occur.
+
+    A structured manifest is parsed by a real parser (tomllib, json) which does not
+    report positions, so the line has to be recovered from the text. Two things make
+    that recovery honest rather than merely plausible:
+
+    **Quoted first.** The needle is looked for as a complete quoted string before it is
+    looked for bare, because a bare name is a substring of every longer name around it.
+    A package that depends on ``demo`` inside a project called ``demo-example-worker``
+    matched the project's own ``name =`` line and cited it, which is worse than citing
+    nothing: it is a precise-looking number pointing at a different fact. Measured on a
+    real public tree, where a dependency declared on line 7 was reported at line 2.
+
+    **From the group's own offset.** A package listed in two groups would otherwise
+    resolve to the first group's line twice.
+    """
+    for form in (f'"{needle}"', f"'{needle}'", needle):
+        at = text.find(form, after)
+        if at >= 0:
+            return _line_of(starts, at)
+    return 1
 
 
 def _xml_blocks(
@@ -116,13 +198,31 @@ def _mvn_coord(block: str) -> str | None:
     return f"{group}:{artifact}" if group else artifact
 
 
-def _maven_deps(text: str) -> list[str]:
+def _maven_deps(text: str, starts: list[int]) -> list[_Dep]:
+    """Every ``<dependency>`` block as a `_Dep`, with its own line.
+
+    Maven states the group in the block rather than by which list it sits in, so
+    ``<scope>test</scope>`` reads as `dev` and ``<optional>true</optional>`` as
+    `optional`, to land on the same vocabulary the other ecosystems produce.
+    """
     out = []
-    for _start, inner_start, inner_end, _end in _xml_blocks(
+    for start, inner_start, inner_end, _end in _xml_blocks(
             text, _MVN_DEP_OPEN, _MVN_DEP_CLOSE):
-        coord = _mvn_coord(text[inner_start:inner_end])
-        if coord:
-            out.append(coord)
+        block = text[inner_start:inner_end]
+        coord = _mvn_coord(block)
+        if not coord:
+            continue
+        v = _MVN_VERSION.search(block)
+        s = _MVN_SCOPE.search(block)
+        scope = (s.group(1).strip().lower() if s else "compile")
+        if _MVN_OPTIONAL.search(block):
+            group = "optional"
+        elif scope in ("test", "provided"):
+            group = "dev"
+        else:
+            group = "runtime"
+        out.append(_Dep(coord, v.group(1).strip() if v else "", group,
+                        _line_of(starts, start)))
     return out
 
 
@@ -167,7 +267,9 @@ def parse_manifest(
     verified_at = verified_at or date.today()
     fname = rel_path.rsplit("/", 1)[-1]
     published: str | None = None
-    deps: list[str] = []
+    deps: list[_Dep] = []
+    text = content.decode("utf-8", "replace")
+    starts = _line_starts(text)
     # Console entry points the PACKAGING declares: the commands a user gets on their
     # PATH after installing this. A parse tree cannot see these -- `[project.scripts]`
     # names a command and points at a function that may live in another file entirely --
@@ -184,10 +286,33 @@ def parse_manifest(
             return [], []
         proj = data.get("project", {})
         published = proj.get("name")
-        raw = list(proj.get("dependencies", []))
-        for group in (proj.get("optional-dependencies") or {}).values():
-            raw += list(group)
-        deps = [n for d in raw if (n := _dep_name(d))]
+        # (group, specs, offset to search from). An extra's specs are searched from the
+        # extra's own key so two extras listing the same package cite different lines.
+        groups: list[tuple[str, list, int]] = [
+            ("runtime", list(proj.get("dependencies") or []), 0)]
+        for extra, specs in (proj.get("optional-dependencies") or {}).items():
+            # The EARLIEST occurrence of either spelling, not the later of the two:
+            # taking the max starts the search past the specs whenever only one spelling
+            # is present, and every lookup after that quietly falls back to line 1 -- a
+            # wrong answer indistinguishable from "could not locate it".
+            at = min([i for i in (text.find(f"{extra} = "), text.find(f'"{extra}"'))
+                      if i >= 0], default=0)
+            groups.append((f"optional:{extra}", list(specs), at))
+        # PEP 735 `[dependency-groups]`, which is a sibling of `[project]` rather than a
+        # key inside it, and is a different mechanism from an extra: a group is local to
+        # the checkout and never published in the package's metadata. Kept as its own
+        # prefix for that reason. Not reading it meant a large application that declares
+        # every dependency this way reported NONE, measured on a public Django tree.
+        for gname, specs in (data.get("dependency-groups") or {}).items():
+            at = min([i for i in (text.find(f"{gname} = "), text.find(f'"{gname}"'))
+                      if i >= 0], default=0)
+            groups.append((f"group:{gname}", list(specs), at))
+        for group, specs, after in groups:
+            for spec in specs:
+                if not isinstance(spec, str) or (split := _dep_split(spec)) is None:
+                    continue
+                name, constraint = split
+                deps.append(_Dep(name, constraint, group, _locate(text, starts, spec, after)))
         # `[project.scripts]` and `[project.gui-scripts]` both install a command.
         scripts = [k for key in ("scripts", "gui-scripts")
                    for k in (proj.get(key) or {})]
@@ -198,8 +323,16 @@ def parse_manifest(
         except json.JSONDecodeError:
             return [], []
         published = data.get("name")
-        for section in ("dependencies", "devDependencies", "peerDependencies"):
-            deps += list(data.get(section) or {})
+        for section, group in (("dependencies", "runtime"),
+                               ("devDependencies", "dev"),
+                               ("peerDependencies", "peer")):
+            block = data.get(section) or {}
+            if not isinstance(block, dict):
+                continue
+            after = max(text.find(f'"{section}"'), 0)
+            for name, constraint in block.items():
+                deps.append(_Dep(name, constraint if isinstance(constraint, str) else "",
+                                 group, _locate(text, starts, name, after)))
         # `bin` is a string when the package installs ONE command named after itself,
         # and an object when it installs several. Both spellings are common and the
         # string form is the one a dict-only reading drops silently.
@@ -215,12 +348,26 @@ def parse_manifest(
     elif fname.endswith(".csproj"):
         ecosystem = "nuget"
         published = fname[: -len(".csproj")]
-        deps = _PKG_REF.findall(content.decode("utf-8", "replace"))
+        for m in _PKG_REF.finditer(text):
+            inc = _XML_INCLUDE.search(m.group(0))
+            if inc is None:  # a PackageReference with no Include names nothing
+                continue
+            ver = _XML_VERSION.search(m.group(0))
+            constraint = ver.group(1) if ver else ""
+            if not constraint and not m.group(0).rstrip().endswith("/>"):
+                # Not self-closing, so the version may be a child element instead. Look
+                # only as far as this reference's own end, or the start of the next one
+                # if it was never closed, so a version never migrates between packages.
+                end = _PKG_REF_END.search(text, m.end())
+                child = _XML_VERSION_CHILD.search(
+                    text, m.end(), end.start() if end else len(text))
+                constraint = child.group(1) if child else ""
+            deps.append(_Dep(inc.group(1), constraint, "runtime",
+                             _line_of(starts, m.start())))
     elif fname == "pom.xml":
         ecosystem = "maven"
-        text = content.decode("utf-8", "replace")
         published = _maven_project_coord(text)
-        deps = _maven_deps(text)
+        deps = _maven_deps(text, starts)
     else:
         return [], []
 
@@ -236,10 +383,19 @@ def parse_manifest(
         edges.append(Edge(src=file_id, dst=pn.id, relation="publishes",
                           confidence=Confidence.EXTRACTED, provenance=prov))
     for dep in deps:
-        pn = _package_node(dep, ecosystem)
+        pn = _package_node(dep.name, ecosystem)
         nodes.append(pn)
-        edges.append(Edge(src=file_id, dst=pn.id, relation="depends_on",
-                          confidence=Confidence.EXTRACTED, provenance=prov))
+        # A per-dependency provenance, not the file-level one: the shared `prov` above
+        # cited line 1 for every dependency in the manifest, so a citation named the
+        # file and nothing else, while every other citation in the product names a line.
+        attrs = {"group": dep.group}
+        if dep.constraint:
+            attrs["constraint"] = dep.constraint
+        edges.append(Edge(
+            src=file_id, dst=pn.id, relation="depends_on",
+            confidence=Confidence.EXTRACTED, attrs=attrs,
+            provenance=Provenance(source_file=rel_path, source_line=dep.line,
+                                  verified_at=verified_at)))
     # Scoped to the repo, unlike the package nodes above, which are fleet-wide on
     # purpose: `serve` is a command THIS project installs, and two repos that both
     # install one named `serve` install two different programs.

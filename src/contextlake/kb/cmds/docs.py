@@ -1,8 +1,9 @@
 """`contextlake kb docs` -- generated documentation, distinct from the wiki.
 
 The wiki answers "what is this repository" in one page. This writes narrower documents that
-answer one question each, and today that is the API reference: the public surface with its
-real call sites. No model is involved in any of it.
+answer one question each: the API reference (the public surface with its real call sites)
+and the design notes (what the repository's own files record about how it was built). No
+model is involved in any of it.
 
 Separate from `kb wiki` on purpose rather than as another section of it. A reference is
 looked things up in, a wiki page is read start to finish, and one document that tries to be
@@ -17,13 +18,15 @@ from ..store.shards import read_shard
 from ._common import _connect_targets, _guard_store, _open_store
 
 # The store subdirectory each output writes into. One directory per KIND of document, so a
-# repository's API reference and its future design document cannot collide on a filename.
+# repository's API reference and its design notes cannot collide on a filename.
 API_DIR = ("docs", "api")
+DESIGN_DIR = ("docs", "design")
 
 
 def cmd_docs(args) -> int:
     """Write the API reference for each indexed repository."""
     from ..docs.api import render_api_reference
+    from ..docs.design import render_design_document
     from ..docs.snippets import SnippetReader
     from ..visualize import repo_slug
 
@@ -43,6 +46,7 @@ def cmd_docs(args) -> int:
             return 0
 
         out_dir = store_dir.joinpath(*API_DIR)
+        design_dir = store_dir.joinpath(*DESIGN_DIR)
         written = skipped = missing = 0
         limit = getattr(args, "max_symbols", None) or 500
         for repo_id, _path in targets:
@@ -68,12 +72,15 @@ def cmd_docs(args) -> int:
                                         snippets=SnippetReader(store, repo_id))
             out_dir.mkdir(parents=True, exist_ok=True)
             (out_dir / (repo_slug(repo_id) + ".md")).write_text(page, encoding="utf-8")
+            design_dir.mkdir(parents=True, exist_ok=True)
+            (design_dir / (repo_slug(repo_id) + ".md")).write_text(
+                render_design_document(shard, repo_id=repo_id), encoding="utf-8")
             written += 1
         glyph = style.warn() if (skipped or missing) else style.ok()
-        log(f"{glyph} API reference: {written} written"
+        log(f"{glyph} API reference and design notes: {written} of each written"
             + (f", {skipped} skipped (nothing indexed)" if skipped else "")
             + (f", {missing} unreadable" if missing else "")
-            + f" → {out_dir}")
+            + f" → {out_dir.parent}")
         # Non-zero whenever a shard could not be read, even PARTIALLY: one unreadable repo out
         # of ten is a store to repair, and an exit code of 0 there tells a script the run was
         # clean. An empty shard is not a failure, so it alone only reaches this when nothing

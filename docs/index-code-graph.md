@@ -381,6 +381,19 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serve.md).
 
+Each `depends_on` edge records what the manifest actually says, not just the package name:
+
+| On the edge | What it holds |
+| --- | --- |
+| `attrs["constraint"]` | the version as written, unparsed: `>=1.9.0`, `^4.17.1`, `[redis]>=5.0`, or a whole environment marker. Absent, not empty, when the manifest pinned nothing. |
+| `attrs["group"]` | `runtime`, `dev`, `peer`, `optional:<extra>`, or `group:<name>` for a PEP 735 dependency group, so an extra a user opts into is distinguishable from a dependency the package cannot start without. |
+| `provenance.source_line` | the line the dependency was declared on, not the top of the file. |
+
+The group vocabulary is the same across all four ecosystems, so nothing reading the graph needs to
+know which one it came from: Maven's `<scope>test</scope>` and npm's `devDependencies` both read as
+`dev`. Nothing interprets a constraint. Deciding whether an installed version satisfies `^4.17.1` is
+a package manager's job, and the author's own text is the honest record of what was chosen.
+
 The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
 what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than

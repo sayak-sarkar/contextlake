@@ -280,13 +280,32 @@ def _has_generated_header(source: bytes) -> bool:
 # was C/C++ only, and now also runs for JavaScript, TypeScript, TSX and Python, so every
 # repository in those languages gains `global_variable` and `field` nodes plus their
 # `contains` edges. A commit-keyed check cannot see it, because no commit moved.
-# "6" is the same shape again, twice over. Every constant now carries the declaration it was
+# "6" is `entry_point`: how a program is STARTED became a kind, refined from the
+# function or method that something else makes special, plus its own node where nothing
+# exists to refine (Python's `__main__` guard, a console script the packaging declares).
+# Every language also gained a second condition -- Go's `main` package, Java and C#
+# `static`, top-level position for Rust, Kotlin, C and C++ -- without which every helper
+# named `main` anywhere in a tree was advertised as a way to run the project.
+#
+# The three paragraphs below were each labelled ONE LOWER than the version they produced,
+# and this paragraph did not exist at all, so the block claimed "6" was the constants work
+# when "6" was this. Corrected against `git log -S`. Each label names the version the
+# change PRODUCED, which is what a reader deciding whether to re-index needs.
+# "7" is the same shape again, twice over. Every constant now carries the declaration it was
 # written with (`attrs["declaration"]`), and every place a constant's value is READ is now an
 # edge (`uses`), where before the graph recorded that a constant existed and nothing about
 # what it was or where it mattered. Neither is visible to a commit-keyed check, and both are
 # the point of re-indexing: measured on two public trees, the read edges alone came to +11%
 # of all edges on a small Python package and +63% on a macro-heavy C++ one.
-PARSER_VERSION = "7"
+# "8" is the manifest side of the same idea. A `depends_on` edge recorded a package name,
+# cited line 1 of the manifest whatever the manifest said, and folded runtime, dev, peer and
+# optional groups into one relation, so an extra a user opts into was indistinguishable from
+# a dependency the package cannot start without. Each edge now carries the constraint as
+# written, its group, and the line it was declared on. This bump follows "7" closely, which
+# is not ideal for anyone who just re-indexed; the alternative is worse, because a manifest
+# that has not changed since the last index would keep the thinner edges forever and no
+# commit-keyed check would ever say so.
+PARSER_VERSION = "8"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {

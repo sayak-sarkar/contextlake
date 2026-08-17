@@ -2296,6 +2296,19 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serve.md).
 
+Each `depends_on` edge records what the manifest actually says, not just the package name:
+
+| On the edge | What it holds |
+| --- | --- |
+| `attrs["constraint"]` | the version as written, unparsed: `>=1.9.0`, `^4.17.1`, `[redis]>=5.0`, or a whole environment marker. Absent, not empty, when the manifest pinned nothing. |
+| `attrs["group"]` | `runtime`, `dev`, `peer`, `optional:<extra>`, or `group:<name>` for a PEP 735 dependency group, so an extra a user opts into is distinguishable from a dependency the package cannot start without. |
+| `provenance.source_line` | the line the dependency was declared on, not the top of the file. |
+
+The group vocabulary is the same across all four ecosystems, so nothing reading the graph needs to
+know which one it came from: Maven's `<scope>test</scope>` and npm's `devDependencies` both read as
+`dev`. Nothing interprets a constraint. Deciding whether an installed version satisfies `^4.17.1` is
+a package manager's job, and the author's own text is the honest record of what was chosen.
+
 The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
 what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than
@@ -3138,14 +3151,17 @@ Source: https://sayak.in/contextlake/generate-docs
 `contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
 inferred, and every statement traces to an edge that a parser recorded.
 
-Today it writes one kind of document: an **API reference** per repository, listing each
-symbol and the real places the codebase calls it.
+It writes two kinds of document per repository:
+
+- an **API reference**, listing each symbol and the real places the codebase calls it;
+- **design notes**, listing what the repository's own files record about how it was built.
 
 ```bash
 contextlake kb docs
 ```
 
-Output goes to `<store>/docs/api/<repo>.md`, one file per indexed repository.
+Output goes to `<store>/docs/api/<repo>.md` and `<store>/docs/design/<repo>.md`, one file
+each per indexed repository.
 
 ## What makes it different from the wiki
 
@@ -3153,9 +3169,9 @@ Both read the same graph, and they answer different questions.
 
 | | `kb wiki` | `kb docs` |
 | --- | --- | --- |
-| Shape | one page you read start to finish | a reference you look things up in |
+| Shape | one page you read start to finish | documents you look things up in |
 | Model | optional, gated by a review council | never |
-| Scope | what this repository is and does | where each symbol is used |
+| Scope | what this repository is and does | where each symbol is used, and what its own files record about how it was built |
 
 They are separate commands rather than two sections of one page because a document that tries
 to be both serves neither.
@@ -3219,6 +3235,53 @@ A symbol is shown with its owning type when the graph recorded one, so `ostream.
 produces pages with several identical headings in a row and no way to tell them apart.
 
 Where the graph did not record a scope, the bare name is shown rather than a guessed one.
+
+## What the design notes contain
+
+The other document answers "what was chosen here", and the honest answer is narrower than
+the name suggests. A graph holds no decision records: it never sees what was rejected, or
+why. What it does hold is two kinds of evidence, and the page keeps them apart because they
+are not equally strong.
+
+**Recorded** evidence is a manifest dependency. Somebody wrote `blinker>=1.9.0` in a file on
+purpose, so the package, its constraint and its line are facts. One table per manifest, the
+repository's own first, because a bundled example that depends on this project is not a
+dependency of it.
+
+| Package | Constraint | Group | Line |
+| --- | --- | --- | --- |
+| `blinker` | `>=1.9.0` | Required at runtime | 24 |
+| `asgiref` | `>=3.2` | Optional extra `async` | 33 |
+| `python-dotenv` | *unpinned* | Optional extra `dotenv` | 34 |
+
+**Inferred** evidence is a constant read in many places. That is evidence the value is
+load-bearing and no evidence at all that anyone decided anything, so the page prints the
+count and refuses to explain it. A generated sentence calling a type variable a core
+architectural decision is worse than no sentence, and nothing in the graph can tell the two
+apart.
+
+Three things keep the page honest, and each exists because its absence produced a real wrong
+answer somewhere:
+
+- **Coverage is always stated**, as `N of M constants`. The filters drop candidates silently,
+  and a short list with no denominator reads as "there is little here" rather than "most of
+  it did not clear the bar".
+- **An ambiguous reading is never counted.** Where a name has several definitions the graph
+  attributes each use to all of them, so on one public tree a name defined three times
+  carried an identical 41 sites on each: summing reports 123 uses of 41.
+- **An empty list says what was read.** "This project declares no dependencies" and "its
+  dependencies are in a file not yet read" render identically otherwise, and the second is
+  real: a manifest spelling that went unread made a large application report zero.
+
+The page also carries a machine-readable marker, because whoever reads the file receives
+bytes rather than a rendered page, and a status stated only in prose is a sentence a
+summariser can drop:
+
+```markdown
+<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->
+```
+
+Nothing on that page was ratified by anybody. It is a set of questions to confirm.
 
 ## Bounding a large repository
 
@@ -5872,7 +5935,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, steer. Each stage has a `--no-<stage>` switch |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
@@ -5904,7 +5967,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
-| `kb docs` | Generated documentation, no model involved: an API reference per repository, listing each symbol's real call sites read from the graph. `--max-symbols N` bounds the document (default 500) and the page states what it left out |
+| `kb docs` | Generated documentation, no model involved: an API reference per repository listing each symbol's real call sites, plus design notes recording the dependencies its manifests declare and the values its code reads most. `--max-symbols N` bounds the reference (default 500) and every page states what it left out |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
@@ -6432,6 +6495,89 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.15.0] - 2026-08-18
+
+### Added
+
+- **`kb docs` now also writes design notes: what a repository's own files record about how it
+  was built.** Written to `<store>/docs/design/<repo>.md` beside the API reference. No model,
+  as before.
+
+  The honest scope is narrower than "design document" suggests, and the page opens by saying
+  so. A graph holds no decision records: it never sees what was rejected or why. It holds two
+  kinds of evidence, kept apart because they are not equally strong. A manifest dependency is
+  **recorded** (somebody wrote `blinker>=1.9.0` on purpose, so the package, its constraint
+  and its line are facts). A constant read in many places is **inferred** evidence that a
+  value is load-bearing, and no evidence at all that anybody decided anything.
+
+  So the page states counts and refuses to explain them, the rule the wiki's gotchas prompt
+  already carries. Measured on a mature public library before any of it was written: seven
+  constants clear a defensible evidence rule and about four point at something a human would
+  call a decision, the rest being typing constructs. Nothing in the graph can tell those
+  apart, and a generated sentence calling a type variable a core architectural decision is
+  worse than no sentence.
+
+  Three properties keep it honest, each present because its absence produced a real wrong
+  answer: **coverage is always stated** as `N of M`, since filters drop candidates silently
+  and a short list with no denominator reads as "there is little here"; **an ambiguous
+  reading is never counted**, because a name with several definitions has each use attributed
+  to all of them, so one name defined three times carried an identical 41 sites on each and
+  summing reports 123 uses of 41; and **an empty list names what was read**, since "declares
+  no dependencies" and "declares them in a file not yet read" otherwise render identically.
+  Dependencies get one table per manifest, the repository's own first, so a bundled example
+  that depends on this project does not read as a dependency of it.
+
+  The page carries a machine-readable marker as well as the prose, because whoever reads the
+  file receives bytes rather than a rendered page, and a status stated only in a paragraph is
+  a sentence a summariser can drop:
+  `<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->`
+
+- **A dependency now records what was actually written: the constraint, the group, and the
+  line.** A `depends_on` edge carried a package name and nothing else. The manifest said
+  `blinker>=1.9.0`; the graph said `blinker`. Every dependency in a file cited line 1 of it,
+  whatever the file said, so a citation named the file and stopped there while every other
+  citation in the product names a line. And runtime, dev, peer and optional groups were folded
+  into one relation, which made an extra a user opts into indistinguishable from a dependency
+  the package cannot start without.
+
+  Each edge now carries `attrs["constraint"]` (the remainder of the spec **as written**, so
+  `>=1.9.0`, `^4.17.1`, `[redis]>=5.0` or a whole environment marker survive; nothing is parsed
+  or interpreted, and the key is absent rather than empty when the manifest pinned nothing),
+  `attrs["group"]` (`runtime`, `dev`, `peer` or `optional:<extra>`), and a real declaring line.
+  All four ecosystems: pyproject, package.json, csproj and pom.xml, each mapped onto the same
+  group vocabulary so a consumer does not need to know which ecosystem it is reading.
+
+- **A project that declares its dependencies in PEP 735 `[dependency-groups]` reported having
+  none.** That table is a sibling of `[project]` rather than a key inside it, and only
+  `[project]` was read, so a project using the modern spelling produced an empty list. Measured
+  on a public Django application: **0 dependencies before, 137 after**. A zero is the worst
+  possible failure here, because an empty list reads as "this project made no choices" rather
+  than as "this was not read". Groups land under their own `group:<name>` prefix rather than
+  being folded into `optional:`, since an extra is published in the package's metadata while a
+  dependency group is local to the checkout. An `{include-group = ...}` entry names a group and
+  is correctly not treated as a package.
+
+  Four defects fell out of doing this, three of them the same shape: a wrong answer that looks
+  like a right one.
+
+  - A **bare package name matched inside a longer name**, so a project called
+    `demo-example-worker` that depends on `demo` cited its own `name =` line rather than the
+    dependency. Found by reading generated output beside the file it describes, since a
+    "the line is not 1" assertion passes happily on the wrong line.
+  - A **package listed in two groups** resolved to the first group's line twice.
+  - A **NuGet version written as a `<Version>` child element** rather than an attribute was not
+    read, so a pinned dependency arrived with no constraint recorded, which this changelog
+    defines as "the manifest pinned nothing": confidently wrong rather than missing.
+  - The NuGet pattern was **anchored on `Include`**, so a `PackageReference` written `Version`
+    first lost its version silently while still producing an edge.
+
+  Each is covered by a test confirmed to fail against the previous behaviour.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store**, closely after the
+  previous bump, which is not ideal for anyone who just re-indexed. The alternative is worse: a
+  manifest that has not changed since the last index would keep the thinner edges forever, and
+  no commit-keyed check would ever say so.
 
 ### Fixed
 

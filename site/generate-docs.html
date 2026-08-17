@@ -50,11 +50,15 @@
     
 <p><code>contextlake kb docs</code> writes documentation from the graph. No model is involved, nothing is
 inferred, and every statement traces to an edge that a parser recorded.</p>
-<p>Today it writes one kind of document: an <strong>API reference</strong> per repository, listing each
-symbol and the real places the codebase calls it.</p>
+<p>It writes two kinds of document per repository:</p>
+<ul>
+<li>an <strong>API reference</strong>, listing each symbol and the real places the codebase calls it;</li>
+<li><strong>design notes</strong>, listing what the repository's own files record about how it was built.</li>
+</ul>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
 </code></pre></div>
-<p>Output goes to <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code>, one file per indexed repository.</p>
+<p>Output goes to <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code> and <code>&lt;store&gt;/docs/design/&lt;repo&gt;.md</code>, one file
+each per indexed repository.</p>
 <h2 id="what-makes-it-different-from-the-wiki">What makes it different from the wiki<a class="anchor" href="#what-makes-it-different-from-the-wiki" title="Link to this section">#</a></h2>
 <p>Both read the same graph, and they answer different questions.</p>
 <table>
@@ -69,7 +73,7 @@ symbol and the real places the codebase calls it.</p>
 <tr>
 <td>Shape</td>
 <td>one page you read start to finish</td>
-<td>a reference you look things up in</td>
+<td>documents you look things up in</td>
 </tr>
 <tr>
 <td>Model</td>
@@ -79,7 +83,7 @@ symbol and the real places the codebase calls it.</p>
 <tr>
 <td>Scope</td>
 <td>what this repository is and does</td>
-<td>where each symbol is used</td>
+<td>where each symbol is used, and what its own files record about how it was built</td>
 </tr>
 </tbody>
 </table>
@@ -129,6 +133,69 @@ understand the call. The count says so explicitly when it happens:</p>
 <code>detail.glibc_file.flush</code> are distinguishable. Without that, a header-heavy C++ library
 produces pages with several identical headings in a row and no way to tell them apart.</p>
 <p>Where the graph did not record a scope, the bare name is shown rather than a guessed one.</p>
+<h2 id="what-the-design-notes-contain">What the design notes contain<a class="anchor" href="#what-the-design-notes-contain" title="Link to this section">#</a></h2>
+<p>The other document answers "what was chosen here", and the honest answer is narrower than
+the name suggests. A graph holds no decision records: it never sees what was rejected, or
+why. What it does hold is two kinds of evidence, and the page keeps them apart because they
+are not equally strong.</p>
+<p><strong>Recorded</strong> evidence is a manifest dependency. Somebody wrote <code>blinker&gt;=1.9.0</code> in a file on
+purpose, so the package, its constraint and its line are facts. One table per manifest, the
+repository's own first, because a bundled example that depends on this project is not a
+dependency of it.</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Constraint</th>
+<th>Group</th>
+<th>Line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>blinker</code></td>
+<td><code>&gt;=1.9.0</code></td>
+<td>Required at runtime</td>
+<td>24</td>
+</tr>
+<tr>
+<td><code>asgiref</code></td>
+<td><code>&gt;=3.2</code></td>
+<td>Optional extra <code>async</code></td>
+<td>33</td>
+</tr>
+<tr>
+<td><code>python-dotenv</code></td>
+<td><em>unpinned</em></td>
+<td>Optional extra <code>dotenv</code></td>
+<td>34</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Inferred</strong> evidence is a constant read in many places. That is evidence the value is
+load-bearing and no evidence at all that anyone decided anything, so the page prints the
+count and refuses to explain it. A generated sentence calling a type variable a core
+architectural decision is worse than no sentence, and nothing in the graph can tell the two
+apart.</p>
+<p>Three things keep the page honest, and each exists because its absence produced a real wrong
+answer somewhere:</p>
+<ul>
+<li><strong>Coverage is always stated</strong>, as <code>N of M constants</code>. The filters drop candidates silently,
+  and a short list with no denominator reads as "there is little here" rather than "most of
+  it did not clear the bar".</li>
+<li><strong>An ambiguous reading is never counted.</strong> Where a name has several definitions the graph
+  attributes each use to all of them, so on one public tree a name defined three times
+  carried an identical 41 sites on each: summing reports 123 uses of 41.</li>
+<li><strong>An empty list says what was read.</strong> "This project declares no dependencies" and "its
+  dependencies are in a file not yet read" render identically otherwise, and the second is
+  real: a manifest spelling that went unread made a large application report zero.</li>
+</ul>
+<p>The page also carries a machine-readable marker, because whoever reads the file receives
+bytes rather than a rendered page, and a status stated only in prose is a sentence a
+summariser can drop:</p>
+<div class="highlight"><pre><span></span><code>&lt;!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code --&gt;
+</code></pre></div>
+<p>Nothing on that page was ratified by anybody. It is a set of questions to confirm.</p>
 <h2 id="bounding-a-large-repository">Bounding a large repository<a class="anchor" href="#bounding-a-large-repository" title="Link to this section">#</a></h2>
 <p><code>--max-symbols N</code> caps the document; the default is 500. Symbols are <strong>selected</strong> by call-site
 count, so the most-used interface survives the cap, and then <strong>grouped by file</strong>, because
@@ -183,6 +250,7 @@ reported as clean is how a broken store stays broken.</p>
 <li><a href="#names-carry-their-scope">Names carry their scope</a></li>
 </ul>
 </li>
+<li><a href="#what-the-design-notes-contain">What the design notes contain</a></li>
 <li><a href="#bounding-a-large-repository">Bounding a large repository</a></li>
 <li><a href="#scoping-to-some-repositories">Scoping to some repositories</a></li>
 <li><a href="#exit-codes">Exit codes</a></li>

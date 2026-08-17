@@ -3,14 +3,17 @@
 `contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
 inferred, and every statement traces to an edge that a parser recorded.
 
-Today it writes one kind of document: an **API reference** per repository, listing each
-symbol and the real places the codebase calls it.
+It writes two kinds of document per repository:
+
+- an **API reference**, listing each symbol and the real places the codebase calls it;
+- **design notes**, listing what the repository's own files record about how it was built.
 
 ```bash
 contextlake kb docs
 ```
 
-Output goes to `<store>/docs/api/<repo>.md`, one file per indexed repository.
+Output goes to `<store>/docs/api/<repo>.md` and `<store>/docs/design/<repo>.md`, one file
+each per indexed repository.
 
 ## What makes it different from the wiki
 
@@ -18,9 +21,9 @@ Both read the same graph, and they answer different questions.
 
 | | `kb wiki` | `kb docs` |
 | --- | --- | --- |
-| Shape | one page you read start to finish | a reference you look things up in |
+| Shape | one page you read start to finish | documents you look things up in |
 | Model | optional, gated by a review council | never |
-| Scope | what this repository is and does | where each symbol is used |
+| Scope | what this repository is and does | where each symbol is used, and what its own files record about how it was built |
 
 They are separate commands rather than two sections of one page because a document that tries
 to be both serves neither.
@@ -84,6 +87,53 @@ A symbol is shown with its owning type when the graph recorded one, so `ostream.
 produces pages with several identical headings in a row and no way to tell them apart.
 
 Where the graph did not record a scope, the bare name is shown rather than a guessed one.
+
+## What the design notes contain
+
+The other document answers "what was chosen here", and the honest answer is narrower than
+the name suggests. A graph holds no decision records: it never sees what was rejected, or
+why. What it does hold is two kinds of evidence, and the page keeps them apart because they
+are not equally strong.
+
+**Recorded** evidence is a manifest dependency. Somebody wrote `blinker>=1.9.0` in a file on
+purpose, so the package, its constraint and its line are facts. One table per manifest, the
+repository's own first, because a bundled example that depends on this project is not a
+dependency of it.
+
+| Package | Constraint | Group | Line |
+| --- | --- | --- | --- |
+| `blinker` | `>=1.9.0` | Required at runtime | 24 |
+| `asgiref` | `>=3.2` | Optional extra `async` | 33 |
+| `python-dotenv` | *unpinned* | Optional extra `dotenv` | 34 |
+
+**Inferred** evidence is a constant read in many places. That is evidence the value is
+load-bearing and no evidence at all that anyone decided anything, so the page prints the
+count and refuses to explain it. A generated sentence calling a type variable a core
+architectural decision is worse than no sentence, and nothing in the graph can tell the two
+apart.
+
+Three things keep the page honest, and each exists because its absence produced a real wrong
+answer somewhere:
+
+- **Coverage is always stated**, as `N of M constants`. The filters drop candidates silently,
+  and a short list with no denominator reads as "there is little here" rather than "most of
+  it did not clear the bar".
+- **An ambiguous reading is never counted.** Where a name has several definitions the graph
+  attributes each use to all of them, so on one public tree a name defined three times
+  carried an identical 41 sites on each: summing reports 123 uses of 41.
+- **An empty list says what was read.** "This project declares no dependencies" and "its
+  dependencies are in a file not yet read" render identically otherwise, and the second is
+  real: a manifest spelling that went unread made a large application report zero.
+
+The page also carries a machine-readable marker, because whoever reads the file receives
+bytes rather than a rendered page, and a status stated only in prose is a sentence a
+summariser can drop:
+
+```markdown
+<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->
+```
+
+Nothing on that page was ratified by anybody. It is a set of questions to confirm.
 
 ## Bounding a large repository
 
