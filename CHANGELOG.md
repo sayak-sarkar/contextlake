@@ -25,11 +25,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tie, so that which symbols were dropped came down to their filenames, the page says that
   rather than implying a ranking.
 
+- **The API reference quotes the source at each call site**, which is what makes an entry an
+  example rather than a pointer. A line is quoted only where it can be proved to be the line
+  that was indexed, meaning the file has not been written since; otherwise the cell says
+  `changed since indexing` instead of showing today's line at that number, and where nothing in
+  a repository can be quoted the page states the reason once. Same `mtime` against `indexed_at`
+  rule the stale-slice guard uses, deliberately, so freshness has one definition.
+
+- **`bootstrap` writes the API reference**, with `--no-api-docs` to skip it. It is the cheapest
+  of the outputs this product promises (no model, no network, one pass over shards already on
+  disk), so leaving it out of the one command that goes from nothing to a wired workspace meant
+  the output nobody has to configure was the one nobody got by default. `bootstrap`'s own
+  one-line description had also drifted: it listed neither the diagram stage nor this one.
+
 ### Fixed
 
 - **A table cell built with `mdwrite.code()` was escaped twice**, so a C++ `operator|` overload
   rendered with a visible backslash. `table` escapes every cell it is given, which makes it the
   one place that knows a value is becoming a row, so `code` no longer escapes at all.
+
+- **A stored path could read a file outside its repository.** The snippet reader joined a
+  graph-recorded path onto the repository root without checking the result stayed inside it, so
+  a `..` component, an absolute path, or a symlink pointing out of the tree resolved to a file
+  the document had no business quoting. Now resolved and checked for containment, never by
+  comparing path strings.
 
 ## [7.12.1] - 2026-08-17
 

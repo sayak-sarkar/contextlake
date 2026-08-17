@@ -3149,13 +3149,31 @@ Every entry names the symbol, its kind, the line it is defined on, and its call 
 
 **7 call site(s)** across **4 caller(s)**:
 
-| Caller | File | Line |
-| --- | --- | --- |
-| `Flask.__init__` <br>*method* | `src/flask/app.py` | 211 |
-| `test_from_prefixed_env` <br>*test* | `tests/test_config.py` | 96 |
+| Caller | File | Line | Source |
+| --- | --- | --- | --- |
+| `Flask.__init__` *(method)* | `src/flask/app.py` | 211 | `self.config.from_prefixed_env()` |
+| `test_from_prefixed_env` *(test)* | `tests/test_config.py` | 96 | `app.config.from_prefixed_env()` |
 ```
 
 Every line in that table is a line you can open.
+
+### The quoted source is proved, not assumed
+
+The Source column holds the actual line at the call site, which is what makes an entry an
+example rather than a pointer. It is also the one part of the document that could be
+confidently wrong: the graph's line numbers were recorded when the repository was indexed, and
+the working tree may have moved on since.
+
+So a line is quoted only where it can be **proved** to be the line that was indexed, meaning
+the file has not been written since the index ran. Where it cannot, the cell says
+`*changed since indexing*` rather than showing today's line at that number. Where nothing in
+the repository can be quoted at all, the page says why once, near the top:
+
+- the working tree is not on this machine, so the store outlived its checkout
+- the repository has no `indexed_at` stamp, so there is nothing to compare against
+
+Re-running `contextlake kb index` restores the quotes, because it moves the stamp past the
+files.
 
 ### Two numbers, not one
 
@@ -5832,7 +5850,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, steer |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, steer. Each stage has a `--no-<stage>` switch |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
@@ -6411,11 +6429,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tie, so that which symbols were dropped came down to their filenames, the page says that
   rather than implying a ranking.
 
+- **The API reference quotes the source at each call site**, which is what makes an entry an
+  example rather than a pointer. A line is quoted only where it can be proved to be the line
+  that was indexed, meaning the file has not been written since; otherwise the cell says
+  `changed since indexing` instead of showing today's line at that number, and where nothing in
+  a repository can be quoted the page states the reason once. Same `mtime` against `indexed_at`
+  rule the stale-slice guard uses, deliberately, so freshness has one definition.
+
+- **`bootstrap` writes the API reference**, with `--no-api-docs` to skip it. It is the cheapest
+  of the outputs this product promises (no model, no network, one pass over shards already on
+  disk), so leaving it out of the one command that goes from nothing to a wired workspace meant
+  the output nobody has to configure was the one nobody got by default. `bootstrap`'s own
+  one-line description had also drifted: it listed neither the diagram stage nor this one.
+
 ### Fixed
 
 - **A table cell built with `mdwrite.code()` was escaped twice**, so a C++ `operator|` overload
   rendered with a visible backslash. `table` escapes every cell it is given, which makes it the
   one place that knows a value is becoming a row, so `code` no longer escapes at all.
+
+- **A stored path could read a file outside its repository.** The snippet reader joined a
+  graph-recorded path onto the repository root without checking the result stayed inside it, so
+  a `..` component, an absolute path, or a symlink pointing out of the tree resolved to a file
+  the document had no business quoting. Now resolved and checked for containment, never by
+  comparing path strings.
 
 ## [7.12.1] - 2026-08-17
 

@@ -36,13 +36,31 @@ Every entry names the symbol, its kind, the line it is defined on, and its call 
 
 **7 call site(s)** across **4 caller(s)**:
 
-| Caller | File | Line |
-| --- | --- | --- |
-| `Flask.__init__` <br>*method* | `src/flask/app.py` | 211 |
-| `test_from_prefixed_env` <br>*test* | `tests/test_config.py` | 96 |
+| Caller | File | Line | Source |
+| --- | --- | --- | --- |
+| `Flask.__init__` *(method)* | `src/flask/app.py` | 211 | `self.config.from_prefixed_env()` |
+| `test_from_prefixed_env` *(test)* | `tests/test_config.py` | 96 | `app.config.from_prefixed_env()` |
 ```
 
 Every line in that table is a line you can open.
+
+### The quoted source is proved, not assumed
+
+The Source column holds the actual line at the call site, which is what makes an entry an
+example rather than a pointer. It is also the one part of the document that could be
+confidently wrong: the graph's line numbers were recorded when the repository was indexed, and
+the working tree may have moved on since.
+
+So a line is quoted only where it can be **proved** to be the line that was indexed, meaning
+the file has not been written since the index ran. Where it cannot, the cell says
+`*changed since indexing*` rather than showing today's line at that number. Where nothing in
+the repository can be quoted at all, the page says why once, near the top:
+
+- the working tree is not on this machine, so the store outlived its checkout
+- the repository has no `indexed_at` stamp, so there is nothing to compare against
+
+Re-running `contextlake kb index` restores the quotes, because it moves the stamp past the
+files.
 
 ### Two numbers, not one
 

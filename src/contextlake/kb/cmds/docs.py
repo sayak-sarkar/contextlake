@@ -24,6 +24,7 @@ API_DIR = ("docs", "api")
 def cmd_docs(args) -> int:
     """Write the API reference for each indexed repository."""
     from ..docs.api import render_api_reference
+    from ..docs.snippets import SnippetReader
     from ..visualize import repo_slug
 
     store, store_dir = _open_store(args)
@@ -63,7 +64,8 @@ def cmd_docs(args) -> int:
                 log(f"  {style.warn(repo_id)}: no reference — the repository indexed to "
                     f"0 symbols", inline=True)
                 continue
-            page = render_api_reference(shard, repo_id=repo_id, max_symbols=limit)
+            page = render_api_reference(shard, repo_id=repo_id, max_symbols=limit,
+                                        snippets=SnippetReader(store, repo_id))
             out_dir.mkdir(parents=True, exist_ok=True)
             (out_dir / (repo_slug(repo_id) + ".md")).write_text(page, encoding="utf-8")
             written += 1

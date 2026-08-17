@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Generate documentation · contextlake docs">
 <meta name="twitter:description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generate-docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate documentation", "item": "https://sayak.in/contextlake/generate-docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generate-docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-17"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate documentation", "item": "https://sayak.in/contextlake/generate-docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
@@ -93,12 +93,27 @@ to be both serves neither.</p>
 
 <span class="gs">**7 call site(s)**</span> across <span class="gs">**4 caller(s)**</span>:
 
-| Caller | File | Line |
-| --- | --- | --- |
-| <span class="sb">`Flask.__init__`</span> &lt;br&gt;*method* | <span class="sb">`src/flask/app.py`</span> | 211 |
-| <span class="sb">`test_from_prefixed_env`</span> &lt;br&gt;*test* | <span class="sb">`tests/test_config.py`</span> | 96 |
+| Caller | File | Line | Source |
+| --- | --- | --- | --- |
+| <span class="sb">`Flask.__init__`</span> <span class="ge">*(method)*</span> | <span class="sb">`src/flask/app.py`</span> | 211 | <span class="sb">`self.config.from_prefixed_env()`</span> |
+| <span class="sb">`test_from_prefixed_env`</span> <span class="ge">*(test)*</span> | <span class="sb">`tests/test_config.py`</span> | 96 | <span class="sb">`app.config.from_prefixed_env()`</span> |
 </code></pre></div>
 <p>Every line in that table is a line you can open.</p>
+<h3 id="the-quoted-source-is-proved-not-assumed">The quoted source is proved, not assumed<a class="anchor" href="#the-quoted-source-is-proved-not-assumed" title="Link to this section">#</a></h3>
+<p>The Source column holds the actual line at the call site, which is what makes an entry an
+example rather than a pointer. It is also the one part of the document that could be
+confidently wrong: the graph's line numbers were recorded when the repository was indexed, and
+the working tree may have moved on since.</p>
+<p>So a line is quoted only where it can be <strong>proved</strong> to be the line that was indexed, meaning
+the file has not been written since the index ran. Where it cannot, the cell says
+<code>*changed since indexing*</code> rather than showing today's line at that number. Where nothing in
+the repository can be quoted at all, the page says why once, near the top:</p>
+<ul>
+<li>the working tree is not on this machine, so the store outlived its checkout</li>
+<li>the repository has no <code>indexed_at</code> stamp, so there is nothing to compare against</li>
+</ul>
+<p>Re-running <code>contextlake kb index</code> restores the quotes, because it moves the stamp past the
+files.</p>
 <h3 id="two-numbers-not-one">Two numbers, not one<a class="anchor" href="#two-numbers-not-one" title="Link to this section">#</a></h3>
 <p><strong>Call sites</strong> and <strong>callers</strong> are different, and both appear because the difference matters.
 A function called fifty times from inside one loop has fifty call sites and one caller. If you
@@ -163,6 +178,7 @@ reported as clean is how a broken store stays broken.</p>
 <ul>
 <li><a href="#what-makes-it-different-from-the-wiki">What makes it different from the wiki</a></li>
 <li><a href="#what-a-reference-contains">What a reference contains</a><ul>
+<li><a href="#the-quoted-source-is-proved-not-assumed">The quoted source is proved, not assumed</a></li>
 <li><a href="#two-numbers-not-one">Two numbers, not one</a></li>
 <li><a href="#names-carry-their-scope">Names carry their scope</a></li>
 </ul>

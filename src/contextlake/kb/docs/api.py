@@ -140,7 +140,7 @@ def _by_file(nodes) -> dict:
 
 
 def render_api_reference(shard, *, repo_id: str, max_symbols: int = 500,
-                         max_sites_shown: int = 5) -> str:
+                         max_sites_shown: int = 5, snippets=None) -> str:
     """The reference as Markdown. Always states what it left out.
 
     Symbols are SELECTED by call-site count, then GROUPED by the file they live in, because a
@@ -152,6 +152,11 @@ def render_api_reference(shard, *, repo_id: str, max_symbols: int = 500,
     ``max_symbols`` bounds the document. It is REPORTED whenever it binds, with the true
     total, since a reference that silently stops is worse than a short one: the reader
     cannot tell a symbol that is missing from a symbol that does not exist.
+
+    ``snippets`` is an optional `docs.snippets.SnippetReader`. Given one, each call site also
+    carries the line of source at it, which is what turns a pointer into an example. It quotes
+    a line only where the file can be proved unchanged since indexing, and where it can quote
+    nothing at all the page says why rather than simply having no examples.
     """
     sites = _call_sites(shard)
     by_id = {n.id: n for n in shard.nodes}
@@ -201,14 +206,20 @@ def render_api_reference(shard, *, repo_id: str, max_symbols: int = 500,
         note += " They exist in the graph and `contextlake kb query` will find them."
         lines += [note, ""]
 
+    if snippets is not None and snippets.reason:
+        # Stated up front, once. A reader who sees no quoted source anywhere would otherwise
+        # have to guess whether this repository has no call sites or whether the generator
+        # could not read them, and those are different facts.
+        lines += [f"Call sites below are not quoted: {snippets.reason}.", ""]
+
     for path, syms in sorted(_by_file(shown).items(), key=lambda kv: kv[0] or ""):
         lines += [f"## `{path}`", ""]
         for n in syms:
-            lines += _symbol_entry(n, sites.get(n.id, []), max_sites_shown, by_id)
+            lines += _symbol_entry(n, sites.get(n.id, []), max_sites_shown, by_id, snippets)
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _symbol_entry(node, sites, max_sites_shown: int, by_id) -> list[str]:
+def _symbol_entry(node, sites, max_sites_shown: int, by_id, snippets=None) -> list[str]:
     """One symbol: what it is, what it looks like, and where it is used."""
     sig = (node.attrs or {}).get("signature") or ""
     shown_name = scoped_name(node)
@@ -234,9 +245,22 @@ def _symbol_entry(node, sites, max_sites_shown: int, by_id) -> list[str]:
         # and phrasing them as additional made 12 sites with no named caller read as 24.
         summary += (f", {unattributed} of which name no enclosing definition")
     out += [summary + ":", ""]
-    out += table(["Caller", "File", "Line"],
-                 [[_caller_cell(src, by_id), code(f), line]
-                  for f, line, src in sites[:max_sites_shown]])
+    header = ["Caller", "File", "Line"]
+    rows = [[_caller_cell(src, by_id), code(f), line]
+            for f, line, src in sites[:max_sites_shown]]
+    if snippets is not None and not snippets.reason:
+        # The Source column appears only where a line could actually be quoted for at least
+        # one site. A column of blanks would claim the feature ran and found nothing, which is
+        # not what an unprovable file means.
+        quoted = [snippets.line(f, line) for f, line, _s in sites[:max_sites_shown]]
+        if any(quoted):
+            header.append("Source")
+            # strict: the two lists are built from the same slice of `sites`, so a length
+            # mismatch is a bug in this function rather than a case to absorb. Silently
+            # truncating would drop a Source cell and leave the row a column short.
+            for row, text in zip(rows, quoted, strict=True):
+                row.append(code(text) if text else "*changed since indexing*")
+    out += table(header, rows)
     if len(sites) > max_sites_shown:
         out.append("")
         out.append(f"...and {len(sites) - max_sites_shown} more. "

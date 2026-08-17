@@ -44,7 +44,7 @@ _KB = _kb_stages_referenced_by_cli()
 # it, so the sequence stays written out. The two check each other: the sweep cannot miss
 # a stage, and this list cannot silently drift from it.
 _KB_ORDER = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_enrich", "cmd_wiki",
-             "cmd_graph", "cmd_steer"]
+             "cmd_graph", "cmd_docs", "cmd_steer"]
 
 assert set(_KB_ORDER) == set(_KB), (
     f"bootstrap's kb stages changed: cli.py wires {sorted(_KB)}, this file expects "
@@ -84,7 +84,8 @@ def _record(monkeypatch):
 
 def _args(**over):
     base = dict(no_sync=False, no_connect=False, no_embed=False, no_enrich=False,
-                no_wiki=False, no_diagrams=False, kb_config=None, config=None,
+                no_wiki=False, no_diagrams=False, no_api_docs=False,
+                kb_config=None, config=None,
                 workspace=None, source=None, out=None)
     base.update(over)
     return Namespace(**base)
@@ -99,7 +100,8 @@ def test_bootstrap_runs_every_stage_in_order(monkeypatch, tmp_path):
 def test_bootstrap_skip_flags(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(no_sync=True, no_connect=True, no_embed=True, no_enrich=True,
-                         no_wiki=True, no_diagrams=True), {}, str(tmp_path), "grp")
+                         no_wiki=True, no_diagrams=True, no_api_docs=True),
+                   {}, str(tmp_path), "grp")
     # no sync; only the always-on kb stages: index + steer. Every skippable stage has
     # its flag passed here, so a new stage that forgets to honour its own flag fails.
     assert calls == ["cmd_index", "cmd_steer"]
@@ -109,7 +111,7 @@ def test_bootstrap_no_enrich_flag_omits_only_enrich(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(no_enrich=True), {}, str(tmp_path), "grp")
     assert calls == _CORE + ["cmd_index", "cmd_connect", "cmd_embed", "cmd_wiki",
-                              "cmd_graph", "cmd_steer"]
+                              "cmd_graph", "cmd_docs", "cmd_steer"]
 
 
 def test_bootstrap_enrich_runs_between_embed_and_wiki(monkeypatch, tmp_path):
@@ -143,7 +145,7 @@ def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch
         cli._bootstrap(_args(no_sync=True, no_embed=True, no_enrich=True, no_wiki=True),
                        {}, str(tmp_path), "grp")
     assert exc.value.code == 1
-    assert calls == ["cmd_index", "cmd_graph", "cmd_steer"]
+    assert calls == ["cmd_index", "cmd_graph", "cmd_docs", "cmd_steer"]
 
 
 def test_bootstrap_records_a_failed_mirror_stage_and_exits_nonzero(monkeypatch, tmp_path):
@@ -174,7 +176,7 @@ def test_bootstrap_exits_nonzero_when_a_stage_returns_failure(monkeypatch, tmp_p
     with pytest.raises(SystemExit) as exc:
         cli._bootstrap(args, {}, str(tmp_path), "grp")
     assert exc.value.code == 1
-    assert calls == ["cmd_index", "cmd_wiki", "cmd_graph", "cmd_steer"]
+    assert calls == ["cmd_index", "cmd_wiki", "cmd_graph", "cmd_docs", "cmd_steer"]
 
 
 def test_bootstrap_aborts_when_index_fails(monkeypatch, tmp_path):

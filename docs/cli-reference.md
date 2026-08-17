@@ -94,7 +94,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, steer |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, steer. Each stage has a `--no-<stage>` switch |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
