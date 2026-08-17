@@ -132,10 +132,20 @@ def _markup(html: str) -> str:
     dropped, and therefore quote the very strings these tests assert are gone. A
     bare substring check over the whole file passes or fails on the prose, which
     is exactly the unanchored-match trap.
+
+    The two patterns carry `re.I` and tolerate space before the closing bracket,
+    and both halves are load-bearing rather than defensive. CodeQL flagged this
+    helper (`py/bad-tag-filter`) for missing `<SCRIPT>`, and measuring it found a
+    second miss the alert did not mention: `</script >`, all lowercase, also
+    escaped. Either miss turns the strip into a silent no-op, and then the four
+    `not in` assertions below run against the prose this function exists to
+    remove -- passing while testing nothing. The helper is not a sanitizer and
+    guards no security boundary; it guards those assertions, which is why it is
+    written to actually match.
     """
     html = re.sub(r"<!--.*?-->", "", html, flags=re.S)
-    html = re.sub(r"<script\b.*?</script>", "", html, flags=re.S)
-    return re.sub(r"<style\b.*?</style>", "", html, flags=re.S)
+    html = re.sub(r"<script\b.*?</script\s*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<style\b.*?</style\s*>", "", html, flags=re.S | re.I)
 
 
 def _page(**kw):
@@ -242,3 +252,54 @@ def test_initial_theme_is_re_applied_after_every_hook_is_registered():
     assert settle > last_hook, (
         "applyTheme(themeName(), true) must come after the last onTheme() registration"
     )
+
+
+# Every block QUOTES the searched string verbatim, spacing included. The first draft
+# wrote `var role = "application"` with spaces around the `=`, which never matches the
+# `role="application"` the assertion looks for -- so five of the seven cases passed
+# whether the block was stripped or not, and the break-test exposed only the one that
+# happened to be spelled right. The payload has to contain what the guard searches for.
+_ROLE = 'role="application"'
+
+
+@pytest.mark.parametrize("block", [
+    f'<script>var x = \'{_ROLE}\';</script>',
+    f'<SCRIPT>var x = \'{_ROLE}\';</SCRIPT>',
+    f'<ScRiPt>var x = \'{_ROLE}\';</sCrIpT>',
+    f'<script>var x = \'{_ROLE}\';</script >',
+    f'<script\ntype="module">var x = \'{_ROLE}\';</script>',
+    f'<style>/* {_ROLE} */</style>',
+    f'<STYLE>/* {_ROLE} */</STYLE>',
+    f'<style>/* {_ROLE} */</style >',
+])
+def test_markup_strips_every_spelling_of_a_script_or_style_block(block):
+    """`_markup` must actually remove the block, whatever case or spacing it uses.
+
+    This is the guard for `py/bad-tag-filter` (CodeQL alert #15). The helper's whole
+    job is to delete text that QUOTES the strings the assertions below search for, so
+    a spelling it fails to match makes those assertions run against the prose and pass
+    while testing nothing. Two of these cases used to survive: the capitalised tags
+    that CodeQL named, and `</script >` with a space before the bracket, which it did
+    not name and which is ordinary lowercase HTML.
+
+    Parametrised one spelling per case so a failure says WHICH spelling leaked,
+    rather than one case that fails on whichever it hits first.
+    """
+    assert _ROLE in block, "the fixture must contain what the assertion searches for"
+    assert _ROLE not in _markup(f"<div>a</div>{block}<p>b</p>")
+    # And it removes only the block: the surrounding markup has to survive, or the
+    # helper would pass this test by deleting everything.
+    assert "<div>a</div>" in _markup(f"<div>a</div>{block}<p>b</p>")
+
+
+def test_markup_keeps_markup_it_is_not_asked_to_strip():
+    """The inverse guard: over-stripping would hide a real accessibility regression.
+
+    Without this, a pattern greedy enough to swallow the document would satisfy every
+    `not in` assertion in this file and report a perfectly accessible page.
+    """
+    html = '<div role="application" id="cy"></div><script>x</script>'
+    stripped = _markup(html)
+    assert 'role="application"' in stripped
+    assert 'id="cy"' in stripped
+    assert "<script>" not in stripped

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A test helper that stripped `<script>` and `<style>` blocks missed two spellings**, so four
+  accessibility assertions could have run against text the helper exists to remove, passing while
+  checking nothing. It is not a sanitizer and guards no security boundary; it guards those
+  assertions, which is why it now matches case-insensitively and tolerates a space before the
+  closing bracket.
+
+  Raised by CodeQL as `py/bad-tag-filter` for missing `<SCRIPT>`. Measuring it found a second miss
+  the alert did not mention: plain lowercase `</script >`. So `re.I` alone would not have closed it,
+  and the new test proves both halves independently, one case per spelling.
+
+  The shipped package does not share this defect. It defends that boundary by escaping `<`, `>` and
+  `&` where data enters the page, rather than by pattern-matching for dangerous tags, which is the
+  approach that fails. The same two weaknesses did exist in the docs-site search indexer, where the
+  input is this repository's own rendered Markdown and every index field is escaped again before
+  display; fixed there too, as correctness rather than as a vulnerability.
+
 ## [7.13.0] - 2026-08-17
 
 ### Added
