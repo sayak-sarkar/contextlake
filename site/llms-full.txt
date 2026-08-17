@@ -6411,6 +6411,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.13.0] - 2026-08-17
+
 ### Added
 
 - **`kb docs`: generated documentation, with no model involved.** The first document it writes
@@ -6421,13 +6423,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   things up in, a wiki page is read start to finish, and one document that tries to be both
   serves neither.
 
-  Four things it will not do, each because the first draft did and a run against public trees
+  Five things it will not do, each because a draft did and rendering against public trees
   showed it. It does not call a row count a caller count, so a symbol called twelve times from
-  one place reports twelve sites and one caller. It does not name a file as a caller when a
-  call carries no enclosing definition; it says so and leaves it out of the count. It does not
-  claim to be ordered by call count while grouping by filename. And when the cap falls inside a
-  tie, so that which symbols were dropped came down to their filenames, the page says that
-  rather than implying a ranking.
+  one place reports twelve sites and one caller. It does not name a file as a caller when a call
+  carries no enclosing definition; it says so, and leaves it out of the count. It does not drop
+  a caller that is not itself documented, because a test function calls things: the rule reads
+  the kind registry's own container group rather than the documented-kind set, which had
+  discarded 270 real callers on one C++ tree and reported a symbol with twelve call sites as
+  having none. It does not claim to be ordered by call count while grouping by filename. And
+  where the cap fell inside a tie, so that which symbols were dropped came down to their
+  filenames, the page says so rather than implying a ranking.
+
+  Symbols carry their recorded scope, so a header-heavy C++ library does not produce several
+  identical headings in a row; where the graph recorded no scope, the bare name is shown rather
+  than a guessed one.
 
 - **The API reference quotes the source at each call site**, which is what makes an entry an
   example rather than a pointer. A line is quoted only where it can be proved to be the line
@@ -6453,6 +6462,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `..` component, an absolute path, or a symlink pointing out of the tree resolved to a file
   the document had no business quoting. Now resolved and checked for containment, never by
   comparing path strings.
+
+  The check itself moved to `kb/paths.py` and is shared with the dashboard, which already had
+  one. That version also catches `ValueError`, which `resolve()` raises rather than `OSError`
+  for a path carrying an embedded NUL byte, so the copy written for the documentation generator
+  would have ended a run with an uncaught exception on such a path.
 
 ## [7.12.1] - 2026-08-17
 
