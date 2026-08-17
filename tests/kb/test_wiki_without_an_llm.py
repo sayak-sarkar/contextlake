@@ -373,3 +373,49 @@ def test_the_partition_is_not_rewritten_when_the_page_was_left_alone(tmp_path, m
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert _partition_sections(store_dir) == before, (
         "the structural stage re-stored a partition for a page it did not write")
+
+
+def test_a_page_written_by_an_older_version_is_read_as_generated(tmp_path, monkeypatch):
+    """The upgrade path. A user coming from 7.11.0 has generated pages with no marker.
+
+    Nothing stamped them, because the marker did not exist. They must read as generated, or
+    the first `kb wiki` after upgrading replaces everybody's prose with tables -- the single
+    behaviour a reader of this release's notes will care most about, and one that no test
+    exercised until it was asked for.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup(tmp_path)
+    (store_dir / "wiki").mkdir(parents=True, exist_ok=True)
+    # Exactly what 7.11.0 wrote: a title, prose, and a provenance footer. No marker.
+    legacy = ("# r\n\n## Overview\n\nCatalogService charges orders.\n\n---\n"
+              "*Generated from the knowledge graph of `r` at commit `abc123` on "
+              "2026-08-01. Sources: `svc.py`.*\n")
+    _page(store_dir).write_text(legacy, encoding="utf-8")
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert _page(store_dir).read_text(encoding="utf-8") == legacy, (
+        "upgrading replaced a page written by an older version with a structural one")
+
+
+def test_the_structural_module_page_cap_is_reported_when_it_binds(tmp_path, monkeypatch,
+                                                                 caplog):
+    """An unverified cap is how "no silent caps" becomes a silent cap.
+
+    The cap is set to clear real repositories, so no fixture reaches it by building one.
+    The module list is faked past it instead, which tests the slice and the message rather
+    than the plan that produces the list.
+    """
+    from contextlake.kb.cmds import wiki as wiki_cmd
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup(tmp_path)
+    cap = wiki_cmd._MAX_STRUCTURAL_MODULE_PAGES
+    fake = [{"prefix": f"mod{i}", "nodes": 10} for i in range(cap + 3)]
+    monkeypatch.setattr(wiki_cmd, "_module_page_plan", lambda *_a, **_k: (fake, True))
+
+    with caplog.at_level(logging.INFO, logger="contextlake"):
+        assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    out = caplog.text
+    assert out.strip(), "the capture saw nothing, so the assertion below is vacuous"
+    assert f"{len(fake)} modules qualify" in out, out
+    assert f"largest {cap}" in out, out
