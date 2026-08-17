@@ -6271,6 +6271,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.12.1] - 2026-08-17
+
+### Fixed
+
+- **Four defects in the structural page, all found by reading one a real install
+  produced.** The suite was green and every one of these was visible in the first page a
+  fresh 7.12.0 install wrote for a four-file repository.
+
+  **"Installation and usage" reported nothing on a repository with a `Makefile`.**
+  `setup_signals` is a flat list of filenames; the renderer unpacked it as a three-tuple,
+  which is a shard-only helper's internal return rather than what the brief carries. Worse,
+  the unpacking was written "defensively" with type checks, so it read the first FILENAME as
+  if it were the list, failed the check, and rendered an empty section over data it was
+  holding. Defensive unpacking that degrades silently is worse than a shape assumption that
+  fails loudly. The test fixture had the same wrong shape, so both were wrong in the same
+  direction and neither revealed the other.
+
+  **The public surface listed files.** A file reached that table only because it is a node
+  with a degree, which is a fact about the graph's shape rather than about the repository's
+  API.
+
+  **An entry point could appear twice.** Section 4 excluded entry-point kinds from one of
+  its two passes, so a `make` target with an incoming edge arrived through the other and was
+  listed under both "Entry points" and "The public surface".
+
+  **A column labelled "Callers" did not count callers.** The rank behind it is in-degree
+  over every relation, so a symbol its own file `contains` already counted one. It reads
+  "Incoming references" now: the vaguer word is true, and the precise one was not.
+
+  The install section also quotes the README excerpt when there is one, which the brief
+  was already carrying and nothing displayed.
+
 ## [7.12.0] - 2026-08-17
 
 ### Added

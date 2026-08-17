@@ -119,58 +119,71 @@ def _surface(brief: dict) -> list[str]:
     unknown and is why the cell is blank rather than "0".
     """
     rows, seen = [], set()
-    for r in brief.get("hubs", [])[:25]:
-        name = _md_cell(r.get("name"))
-        seen.add(name)
-        where = _md_cell(r.get("file"))
-        rows.append([f"`{name}`", _md_cell(r.get("kind")),
-                     f"`{where}`" if where else "", str(r.get("count") or "")])
-    for r in brief.get("top_symbols", []):
-        name = _md_cell(r.get("name"))
-        if name in seen or r.get("kind") in _ENTRY_KINDS:
-            continue      # entry points have their own section; do not list them twice
-        seen.add(name)
-        where = _md_cell(r.get("file"))
-        rows.append([f"`{name}`", _md_cell(r.get("kind")),
-                     f"`{where}`" if where else "", ""])
-        if len(rows) >= 40:
-            break
-    return _table(["Symbol", "Kind", "File", "Callers"], rows)
+    for source, with_count in ((brief.get("hubs") or [])[:25], True), (
+            brief.get("top_symbols") or [], False):
+        for r in source:
+            name = _md_cell(r.get("name"))
+            kind = r.get("kind")
+            # Both passes filter, not just the second. The first draft excluded entry-point
+            # kinds from the top_symbols pass alone, so a `make` target with an incoming
+            # edge arrived through HUBS and was listed in section 1 and section 4 both.
+            # And a `file` is not a surface anything calls: files reached this table only
+            # because they are nodes with a degree, which is a fact about the graph's shape
+            # rather than about the repository's API.
+            if name in seen or kind in _ENTRY_KINDS or kind == "file":
+                continue
+            seen.add(name)
+            where = _md_cell(r.get("file"))
+            rows.append([f"`{name}`", _md_cell(kind), f"`{where}`" if where else "",
+                         str(r.get("count") or "") if with_count else ""])
+            if len(rows) >= 40:
+                break
+    # "Incoming references", NOT "Callers". The brief's rank is in-degree over EVERY
+    # relation, so a symbol its own file `contains` already counts one. Labelling that
+    # number "callers" states something the graph does not say, which is worse than the
+    # vaguer word being vaguer.
+    return _table(["Symbol", "Kind", "File", "Incoming references"], rows)
 
 
 def _install(brief: dict) -> list[str]:
     """Section 5. How to install and run it, from the files that say so."""
-    signals, counts, extras = _setup_parts(brief)
+    files = _setup_files(brief)
     out: list[str] = []
-    if signals:
-        out.append("Build and packaging files found: "
-                   + ", ".join(f"`{_md_cell(s)}`" for s in signals[:12]) + ".")
-    if extras:
+    if files:
+        out.append("Build and packaging files in this repository: "
+                   + ", ".join(f"`{_md_cell(f)}`" for f in files[:16]) + ".")
+    excerpt = (brief.get("readme_excerpt") or "").strip()
+    if excerpt:
         out.append("")
-        out.append("Also present: " + ", ".join(f"`{_md_cell(e)}`" for e in extras[:12])
-                   + ".")
-    if counts:
-        top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
+        out.append("From the repository's own README:")
         out.append("")
-        out += _table(["Tooling", "Files"],
-                      [[f"`{_md_cell(k)}`", str(v)] for k, v in top])
+        out += [f"> {line}" if line.strip() else ">"
+                for line in excerpt.splitlines()[:12]]
     return out
 
 
-def _setup_parts(brief: dict) -> tuple[list, dict, list]:
-    """`setup_signals` unpacked defensively.
+def _setup_files(brief: dict) -> list[str]:
+    """The build and packaging files `repo_brief` found, as a flat list of names.
 
-    It is a 3-tuple today and is built in two different places (shard-only and
-    live-checkout). Unpacking it positionally here would make this renderer break on a
-    shape change somewhere else entirely, which is the coupling that makes a derived
-    surface fragile.
+    `setup_signals` IS that list. An earlier version of this function unpacked it as a
+    three-tuple of (found, by_ext, counted), which is what the SHARD-ONLY helper returns
+    internally, not what the brief carries -- and because the unpacking was written
+    "defensively" with `isinstance` checks, it read the first FILENAME as if it were the
+    list, failed the check, and returned nothing.
+
+    The result was a repository with a `Makefile` reporting "Installation and usage" as a
+    section with nothing found, which is the defect class this whole project is about: a
+    surface reporting an absence over data it was holding. Found by reading a page a real
+    install produced, not by any test. Defensive unpacking that degrades silently is worse
+    than a shape assumption that fails loudly, so this reads the one key it means.
     """
-    raw = brief.get("setup_signals") or brief.get("setup_from_shard") or ()
-    parts = list(raw) + [None, None, None]
-    signals = parts[0] if isinstance(parts[0], list) else []
-    counts = parts[1] if isinstance(parts[1], dict) else {}
-    extras = parts[2] if isinstance(parts[2], list) else []
-    return signals, counts, extras
+    raw = brief.get("setup_signals") or []
+    if not isinstance(raw, (list, tuple)):
+        return []
+    # STRINGS only. A nested list is not a filename, so a caller still passing the old
+    # three-tuple gets an empty section rather than a row reading `['Makefile']` -- wrong
+    # in a way a reader can see, instead of wrong in a way that looks like data.
+    return [x for x in raw if isinstance(x, str) and x]
 
 
 def _contents(brief: dict, deps: dict | None) -> list[str]:

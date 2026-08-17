@@ -19,7 +19,10 @@ BRIEF = {
     "top_symbols": [{"kind": "entry_point", "name": "serve", "file": "cmd/m.go"}],
     "hubs": [{"kind": "function", "name": "load", "file": "x.py", "count": 9}],
     "langs": {"go": 5}, "kinds": {"function": 4},
-    "setup_signals": (["Makefile"], {}, []),
+    # A flat list, which is the shape `repo_brief` carries. Written as a three-tuple here
+    # first, matching a shard-only helper's internal return; the renderer mis-unpacked it
+    # the same way, so both were wrong in the same direction and neither showed it.
+    "setup_signals": ["Makefile"],
 }
 PAGE = render_structural_page(BRIEF, repo_id="team/app")
 

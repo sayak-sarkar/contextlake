@@ -28,7 +28,12 @@ FULL_BRIEF = {
     "hubs": [{"kind": "function", "name": "load", "file": "x.py", "count": 12}],
     "langs": {"go": 40, "python": 12},
     "kinds": {"function": 30, "entry_point": 1},
-    "setup_signals": (["Makefile", "pyproject.toml"], {"go": 3}, ["Dockerfile"]),
+    # A FLAT LIST, which is what `repo_brief` actually carries. It was written here as a
+    # three-tuple, matching a shard-only helper's internal return rather than the brief, and
+    # the renderer's matching mis-unpacking meant both were wrong in the same direction --
+    # so the section rendered and the test passed while a real install showed it empty.
+    "setup_signals": ["Makefile", "pyproject.toml"],
+    "readme_excerpt": "Run `make build` to build it.",
 }
 OWNERS = [{"name": "Contributor a1b2", "share": 0.62, "last_active": "2026-08-01"}]
 MODULES = [{"prefix": "api", "nodes": 30}]
@@ -268,3 +273,56 @@ def test_owners_use_the_same_pseudonym_function_as_the_dashboard(monkeypatch):
     assert anon_author("Ada", "ada@example.invalid") is not None
     assert _anon_author("Ada", "ada@example.invalid") == anon_author(
         "Ada", "ada@example.invalid")
+
+
+# --- defects found by reading a page a real install produced --------------------------
+
+
+def test_the_install_section_reads_the_shape_the_brief_actually_carries():
+    """`setup_signals` is a flat list of filenames.
+
+    The renderer unpacked it as a three-tuple, which is a shard-only helper's internal
+    return, and did so "defensively" with isinstance checks -- so it read the first FILENAME
+    as if it were the list, failed the check, and rendered nothing. A repository with a
+    Makefile reported "Installation and usage" as found-nothing while holding the data.
+    """
+    page = render_structural_page(
+        {"setup_signals": ["Makefile", "pyproject.toml"]}, repo_id="t/a")
+    assert "## Installation and usage" in page
+    assert "`Makefile`" in page and "`pyproject.toml`" in page
+
+
+def test_a_file_is_not_part_of_the_public_surface():
+    """Files reached that table only because they are nodes with a degree, which is a fact
+    about the graph's shape rather than about the repository's API."""
+    brief = {"hubs": [{"kind": "file", "name": "main.go", "file": "main.go", "count": 2},
+                      {"kind": "function", "name": "helper", "file": "main.go", "count": 1}],
+             "top_symbols": [{"kind": "file", "name": "Makefile", "file": "Makefile"}]}
+    page = render_structural_page(brief, repo_id="t/a")
+    surface = page.split("## The public surface", 1)[1].split("\n## ", 1)[0]
+    assert "`helper`" in surface
+    assert "main.go`" not in surface.replace("| `main.go` |", "")  # not as a SYMBOL row
+    assert "`Makefile`" not in surface
+
+
+def test_an_entry_point_is_not_listed_twice_when_it_arrives_through_hubs():
+    """Both passes filter now. The first draft excluded entry-point kinds from the
+    top_symbols pass alone, so a `make` target with an incoming edge came through HUBS and
+    appeared in section 1 and section 4 both."""
+    brief = {"top_symbols": [{"kind": "make_target", "name": "build", "file": "Makefile"}],
+             "hubs": [{"kind": "make_target", "name": "build", "file": "Makefile",
+                       "count": 1}]}
+    page = render_structural_page(brief, repo_id="t/a")
+    assert "## Entry points and how to run it" in page
+    assert "## The public surface" not in page, (
+        "the only candidate was an entry point, so section 4 should be empty")
+
+
+def test_the_surface_column_does_not_claim_to_count_callers():
+    """The brief's rank is in-degree over EVERY relation, so a symbol its own file
+    `contains` already counts one. Calling that "callers" states something the graph does
+    not say."""
+    brief = {"hubs": [{"kind": "function", "name": "helper", "file": "a.py", "count": 2}]}
+    page = render_structural_page(brief, repo_id="t/a")
+    assert "Incoming references" in page
+    assert "| Callers |" not in page
