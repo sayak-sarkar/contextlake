@@ -6436,7 +6436,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a repository can be quoted the page states the reason once. Same `mtime` against `indexed_at`
   rule the stale-slice guard uses, deliberately, so freshness has one definition.
 
-- **`bootstrap` writes the API reference**, with `--no-api-docs` to skip it. It is the cheapest
+- **`bootstrap` writes the API reference**, with `--no-docs` to skip it. It is the cheapest
   of the outputs this product promises (no model, no network, one pass over shards already on
   disk), so leaving it out of the one command that goes from nothing to a wired workspace meant
   the output nobody has to configure was the one nobody got by default. `bootstrap`'s own

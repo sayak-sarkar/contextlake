@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..paths import within
 from ..store.drift import parse_indexed_at
 
 # How much of one line to quote. A minified bundle or a generated table is one enormous line,
@@ -89,28 +90,26 @@ class SnippetReader:
         text = lines[lineno - 1].strip()
         if not text:
             return None
-        return text[:MAX_LINE_CHARS] + ("..." if len(text) > MAX_LINE_CHARS else "")
+        if len(text) <= MAX_LINE_CHARS:
+            return text
+        # The marker says the DOCUMENT cut the line, which a bare ellipsis does not: source
+        # ending in `...` is legal in several languages, so `foo(...` would read as a line the
+        # file really ends that way rather than as one this cut short.
+        return text[:MAX_LINE_CHARS] + " [line truncated]"
 
     def _inside(self, rel_path: str) -> Path | None:
         """``rel_path`` resolved under the repository root, or None if it escapes it.
 
         A `..` in a stored path, an absolute path, or a symlink pointing out of the tree all
-        read a file this document has no business quoting. Checked by RESOLVING both sides and
-        asking whether one contains the other, never by comparing the strings: a prefix test
-        passes `/repo-backup` for a root of `/repo`, and this project has been bitten by
-        unanchored matching on an identity question more than once.
-
-        `resolve()` also collapses the `..`, so a symlink is followed before the check rather
-        than after it.
+        read a file this document has no business quoting. `paths.within` owns the check, and
+        is shared with the dashboard rather than reimplemented here: the version written here
+        first compared correctly but caught only `OSError`, missing the `ValueError` that
+        `resolve()` raises for an embedded NUL byte.
         """
         if self._root is None:
             return None
-        try:
-            root = self._root.resolve()
-            path = (root / rel_path).resolve()
-        except OSError:
-            return None
-        return path if path.is_relative_to(root) else None
+        path = self._root / rel_path
+        return path if within(self._root, path) else None
 
     def _file(self, rel_path: str) -> list[str] | None:
         if rel_path not in self._lines:

@@ -241,9 +241,14 @@ def _symbol_entry(node, sites, max_sites_shown: int, by_id, snippets=None) -> li
     callers, unattributed = _split_sites(sites, by_id)
     summary = f"**{len(sites)} call site(s)** across **{callers} caller(s)**"
     if unattributed:
-        # "of which", never "and N more": the unattributed sites are part of the site count,
-        # and phrasing them as additional made 12 sites with no named caller read as 24.
-        summary += (f", {unattributed} of which name no enclosing definition")
+        # Two things this wording is careful about. "of which", never "and N more": the
+        # unattributed sites are part of the site count, and phrasing them as additional made
+        # 12 sites with no named caller read as 24. And "name no caller" rather than "name no
+        # enclosing definition", because two different cases land here -- a container source,
+        # and a source whose node is not in the shard at all. The second was measured at zero
+        # on two public trees, so the narrower sentence would probably never have been wrong;
+        # the wider one cannot be.
+        summary += f", {unattributed} of which name no caller"
     out += [summary + ":", ""]
     header = ["Caller", "File", "Line"]
     rows = [[_caller_cell(src, by_id), code(f), line]

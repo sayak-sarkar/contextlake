@@ -104,7 +104,7 @@ def test_file_source_is_not_counted_as_a_caller(shard):
 def test_unattributed_sites_are_reported_as_a_subset(shard):
     """"of which", never "and N more": the sites are already inside the total."""
     page = render_api_reference(shard, repo_id=REPO)
-    assert f"{TARGET_UNATTRIBUTED} of which name no enclosing definition" in page
+    assert f"{TARGET_UNATTRIBUTED} of which name no caller" in page
     assert "more not attributed" not in page
 
 

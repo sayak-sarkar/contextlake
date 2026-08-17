@@ -158,15 +158,36 @@ def test_a_blank_line_is_not_quoted(fresh):
     assert reader.line("blank.py", 1) is None
 
 
-def test_a_very_long_line_is_truncated(fresh):
-    """A minified bundle is one enormous line and no document is improved by all of it."""
+def test_a_very_long_line_is_truncated_and_says_so(fresh):
+    """A minified bundle is one enormous line and no document is improved by all of it.
+
+    The marker must say the DOCUMENT cut the line. A bare ellipsis cannot: `foo(...` is legal
+    source in several languages, so a reader could not tell a cut line from one that really
+    ends that way.
+    """
     store, root = fresh
     (root / "big.js").write_text("x=" + ("a" * 5000) + "\n", encoding="utf-8")
     _aged(root / "big.js")
     got = SnippetReader(store, REPO).line("big.js", 1)
     assert got is not None
-    assert len(got) <= MAX_LINE_CHARS + 3
-    assert got.endswith("...")
+    assert got.startswith("x=a")
+    assert got.endswith("[line truncated]")
+    assert len(got) <= MAX_LINE_CHARS + len(" [line truncated]")
+
+
+def test_a_line_at_the_limit_is_not_marked_truncated(fresh):
+    """The marker is a claim about this line, so it must not appear on an untouched one.
+
+    Without this, a boundary-off-by-one would label every quoted line as cut short and the
+    truncation marker above would still pass.
+    """
+    store, root = fresh
+    exact = "y" * MAX_LINE_CHARS
+    (root / "exact.py").write_text(exact + "\n", encoding="utf-8")
+    _aged(root / "exact.py")
+    got = SnippetReader(store, REPO).line("exact.py", 1)
+    assert got == exact
+    assert "truncated" not in got
 
 
 def test_a_binary_file_is_not_quoted(fresh):
@@ -267,3 +288,15 @@ def test_a_path_escaping_the_tree_is_not_quoted(fresh, tmp_path, how):
         rel = "link.txt"
 
     assert SnippetReader(store, REPO).line(rel, 1) != OUTSIDE_TEXT
+
+
+def test_a_path_with_a_nul_byte_is_refused_not_raised(fresh):
+    """`resolve()` raises ValueError, not OSError, for an embedded NUL.
+
+    This is the case the first, private copy of the containment check missed: it caught only
+    `OSError`, so a stored path carrying a NUL would have taken the whole documentation run
+    down with an uncaught exception. `paths.within` catches both, which is the reason the check
+    is shared rather than duplicated.
+    """
+    store, _root = fresh
+    assert SnippetReader(store, REPO).line("dri\x00ver.py", 1) is None

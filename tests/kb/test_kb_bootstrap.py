@@ -84,7 +84,7 @@ def _record(monkeypatch):
 
 def _args(**over):
     base = dict(no_sync=False, no_connect=False, no_embed=False, no_enrich=False,
-                no_wiki=False, no_diagrams=False, no_api_docs=False,
+                no_wiki=False, no_diagrams=False, no_docs=False,
                 kb_config=None, config=None,
                 workspace=None, source=None, out=None)
     base.update(over)
@@ -100,7 +100,7 @@ def test_bootstrap_runs_every_stage_in_order(monkeypatch, tmp_path):
 def test_bootstrap_skip_flags(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
     cli._bootstrap(_args(no_sync=True, no_connect=True, no_embed=True, no_enrich=True,
-                         no_wiki=True, no_diagrams=True, no_api_docs=True),
+                         no_wiki=True, no_diagrams=True, no_docs=True),
                    {}, str(tmp_path), "grp")
     # no sync; only the always-on kb stages: index + steer. Every skippable stage has
     # its flag passed here, so a new stage that forgets to honour its own flag fails.

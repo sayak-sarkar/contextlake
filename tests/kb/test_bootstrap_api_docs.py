@@ -91,10 +91,10 @@ def test_bootstrap_writes_a_reference_carrying_a_real_call_site(tmp_path):
         f"no quoted call-site source in a freshly indexed tree:\n{body[:1200]}")
 
 
-def test_no_api_docs_skips_the_stage(tmp_path):
-    r, api = _bootstrap(tmp_path, "off", extra=["--no-api-docs"])
+def test_no_docs_skips_the_stage(tmp_path):
+    r, api = _bootstrap(tmp_path, "off", extra=["--no-docs"])
     assert r.returncode == 0, f"bootstrap failed:\n{(r.stdout + r.stderr)[-2000:]}"
     assert "Write the API reference" not in r.stdout + r.stderr, (
-        "--no-api-docs did not skip the stage")
+        "--no-docs did not skip the stage")
     assert not api.exists() or not any(api.glob("*.md")), (
-        "--no-api-docs still wrote a reference")
+        "--no-docs still wrote a reference")

@@ -439,7 +439,7 @@ _DEFAULTS = {
     "kb_config": None, "no_sync": False, "no_connect": False,
     "no_embed": False, "no_enrich": False, "no_wiki": False,
     "no_diagrams": False,
-    "no_api_docs": False,
+    "no_docs": False,
     # knowledge layer
     "source": None, "workspace": None, "force": False, "out": None,
     "llm": None, "llm_model": None, "watch": False, "interval": None,
@@ -698,7 +698,7 @@ def _root_hidden_flags(p):
                  "--search", "--relation", "--output"):
         add(flag)
     for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-enrich",
-                 "--no-wiki", "--no-diagrams", "--no-api-docs",
+                 "--no-wiki", "--no-diagrams", "--no-docs",
                  "--force", "--watch", "--overview", "--open", "--cdn",
                  "--serve", "--anonymize", "--sample", "--c4", "--c1"):
         add(flag, action="store_true")
@@ -986,7 +986,7 @@ Examples:
                    help="skip the wiki-generation step")
     p.add_argument("--no-diagrams", dest="no_diagrams", action="store_true", default=_S,
                    help="skip the architecture-diagram step")
-    p.add_argument("--no-api-docs", dest="no_api_docs", action="store_true", default=_S,
+    p.add_argument("--no-docs", dest="no_docs", action="store_true", default=_S,
                    help="skip the API-reference step")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
@@ -1799,7 +1799,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         # produced one. `cmd_graph` already reports its own node/edge counts, so an
         # empty diagram announces itself rather than looking finished.
         stages.append(("Draw the architecture", _diagram_stage(kb)))
-    if not getattr(args, "no_api_docs", False):
+    if not getattr(args, "no_docs", False):
         # The cheapest of the promised outputs: no model, no network, one pass over shards
         # already on disk. Leaving it out of the one command that goes "from nothing to a
         # wired workspace" would mean the output nobody has to configure is the one nobody

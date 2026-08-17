@@ -44,6 +44,7 @@ from pathlib import Path
 
 from ..model import EXTERNAL_LINK_RELATIONS
 from ..ownership import anon_author
+from ..paths import within
 from ..security import sanitize_label
 
 
@@ -266,17 +267,10 @@ def _readme_html(store, repo_id: str) -> str | None:
     return None
 
 
-def _within(base: Path, candidate: Path) -> bool:
-    """True if ``candidate`` resolves to a path inside ``base``.
-
-    Fails closed: an unresolvable path is not inside anything. ``ValueError`` is
-    caught alongside ``OSError`` because ``resolve()`` raises it -- not ``OSError``
-    -- for an embedded NUL byte, which a query string can carry as ``%00``.
-    """
-    try:
-        return candidate.resolve().is_relative_to(base.resolve())
-    except (OSError, ValueError):
-        return False
+# The check itself lives in `kb.paths` because the documentation generator needs the same
+# one, and the copy written there first missed the `ValueError` case. Kept under the private
+# name so this module's call sites read unchanged.
+_within = within
 
 
 def _wiki_out(store, store_dir: Path, repo_id: str, *, module: str | None = None) -> dict:
