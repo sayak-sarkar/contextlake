@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.25.0] - 2026-08-18
+
+### Added
+
+- **The release now checks what PyPI actually serves.** Three of the four correspondences a
+  release has to satisfy were already gated inside the workflows: the tag matches the
+  packaged version, the tag points at a commit whose full CI matrix passed, and the SBOM
+  describes the shipped wheel rather than the build environment. The fourth was a line of
+  prose in a runbook -- `pip install --upgrade && contextlake --version` -- run by a human,
+  asserted nowhere.
+
+  That gap is not theoretical. The publish step carries `skip-existing: true` so a re-run is
+  idempotent, and the cost of that is an earlier upload under the same version number being
+  silently kept. Nothing downstream compared bytes, so a wheel that never came from the
+  tagged commit could have served that version indefinitely with every other gate green.
+
+  The build job records the wheel's sha256; a new `verify-published` job downloads what the
+  index serves, compares the digest, installs it into a clean environment, and confirms the
+  tag packages that version. `scripts/verify-published-release.py` runs the same checks by
+  hand for any past release.
+
+  It reports three states and never two: a check that could not RUN is `unverifiable` and
+  exits non-zero, because the one thing a verifier must never do is let "I could not look"
+  read as "I looked and it was fine" -- which is precisely the defect class this release
+  series has spent its time removing from the product's own commands.
+
+  Review of that first cut found six more, and two would have made the gate worse than
+  useless:
+
+  - **It gated nothing.** The GitHub Release job needed only `build` and `publish`, so a
+    mismatch produced a red job beside a release of record that existed anyway. Worse, a
+    failed publish SKIPPED the verifier while the release job still ran. A GitHub Release
+    still appears when publishing FAILED, because nothing was published and the release has
+    value on its own; it no longer appears when the published bytes did not match.
+  - **A re-run of an already-published tag would have raised a false tamper alarm.** The
+    archives carry build timestamps, so a rebuild is not byte-identical, and `skip-existing`
+    keeps the original upload. The verifier now reads PyPI's own upload time: a file
+    uploaded before this run began was published by an earlier one, so a digest difference
+    there is a re-publish and is reported as unverifiable rather than as a mismatch. Crying
+    tamper on a routine re-run would have cost this check the only thing it has, which is
+    being believed.
+  - The sdist was never checked -- half of what PyPI serves, and the half anyone building
+    from source gets.
+  - An EMPTY expected digest reported a mismatch rather than "nothing to compare", which is
+    reachable from a workflow step whose capture silently produced nothing: an operator
+    would read a supply-chain incident where the truth is broken plumbing. The step now runs
+    under `set -euo pipefail` and refuses to emit an empty digest.
+  - The tag check sat behind the download, so an unreachable index skipped a check that
+    reads git and needs no network.
+  - `pip` satisfied the download from its own cache, so a file the index had since replaced
+    would still have verified. It now downloads with no cache.
+
+- **The release gate that reads CI could not tell "no such run" from "not indexed yet".**
+  Measured on the v7.24.0 tag: the CI run for that commit had already completed green, and
+  the commit-filtered listing still answered with an empty list a minute later, so the gate
+  refused a release that was in fact green. It now asks a few times before believing an
+  absence. A red or cancelled conclusion is still believed immediately, since only absence
+  is the ambiguous answer.
+
+- **`scripts/` is linted in CI.** It was outside `ruff check src tests` entirely, so the new
+  script's own lint gate was opt-in pre-commit only.
+
+
 ## [7.24.0] - 2026-08-18
 
 ### Fixed

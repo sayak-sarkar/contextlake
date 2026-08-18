@@ -211,3 +211,10 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # signal, so gating on them would only teach people to add blanket noqa comments.
 # Everything else in `S` stays on, per-site, with a written reason.
 "src/contextlake/**" = ["S603", "S607"]
+
+# The same two rules for the release-time verifier, for the same reason and no wider: it
+# drives `pip`, `git` and a throwaway venv's own interpreter as subprocesses, which is the
+# entire job. Its arguments are a version string and a tag the release operator typed, and
+# every one is passed as a list element, never through a shell. Scoped to this one file
+# rather than to `scripts/**`, so a future script has to make its own case.
+"scripts/verify-published-release.py" = ["S603", "S607"]

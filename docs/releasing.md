@@ -114,11 +114,25 @@ pip install -e ".[release]"        # build + twine
    gh release create vX.Y.Z --title "contextlake X.Y.Z" --notes-file <(sed -n '/## \[X.Y.Z\]/,/## \[/p' CHANGELOG.md)
    ```
 
-8. **Verify it's live:**
+8. **Verify it's live.** The release workflow now does this itself, in a `verify-published`
+   job that fails the release if the index serves different bytes than the run built. To
+   check a past release by hand, or one published outside the workflow:
 
    ```bash
-   pip install --upgrade contextlake && contextlake --version
+   python scripts/verify-published-release.py --version X.Y.Z --tag vX.Y.Z \
+     --expect-sha256 <wheel-sha256> --expect-sdist-sha256 <sdist-sha256>
    ```
+
+   The two digests are printed by the release run's "Record the built distributions' sha256"
+   step. **Without them the run still exits non-zero**, and that is deliberate: with nothing
+   to compare against, the comparison did not happen, and reporting it as a pass is the one
+   thing a verifier must never do.
+
+   It reports three states, never two. `????` means the check could not RUN -- no network,
+   the version not on the index yet, or no expected digest supplied -- and exits non-zero,
+   because "I could not look" must not read as "I looked and it was fine". `--tag` alone is
+   a useful subset: it reads git only, needs no network, and still exits non-zero to say the
+   rest was unchecked.
 
 ## Tokenless publishing via GitHub Actions (recommended)
 

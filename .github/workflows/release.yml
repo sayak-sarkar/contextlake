@@ -29,11 +29,26 @@ jobs:
           # (tags are cut from a commit already on main) and refuse to release if
           # it's missing or red. This is the fix for the v2.62.0 incident where a
           # red ci.yml run stayed live a full cycle because nothing watched it.
+          #
+          # Asked a few times before believing "missing". Measured on the v7.24.0 tag: the
+          # ci.yml run for that commit had already completed green, and this query still
+          # answered with an empty list a minute later -- the commit-filtered listing is
+          # eventually consistent, so a single call cannot tell "no such run" from "the
+          # index has not caught up". The gate then refused a release that was in fact
+          # green, which is the same failure this whole series is about read from the
+          # other side: a check reporting a state it could not actually observe. A red or
+          # cancelled conclusion is believed IMMEDIATELY -- only absence is retried, since
+          # only absence is the ambiguous answer.
           sha="${{ github.sha }}"
-          conclusion=$(gh run list --repo "${{ github.repository }}" --workflow=ci.yml \
-            --commit "$sha" --json conclusion,status \
-            --jq '[.[] | select(.status=="completed")][0].conclusion // "missing"')
-          echo "ci.yml conclusion for $sha: $conclusion"
+          conclusion=missing
+          for attempt in 1 2 3 4 5 6; do
+            conclusion=$(gh run list --repo "${{ github.repository }}" --workflow=ci.yml \
+              --commit "$sha" --json conclusion,status \
+              --jq '[.[] | select(.status=="completed")][0].conclusion // "missing"')
+            echo "attempt $attempt: ci.yml conclusion for $sha: $conclusion"
+            [ "$conclusion" != "missing" ] && break
+            [ "$attempt" -lt 6 ] && sleep 15
+          done
           if [ "$conclusion" != "success" ]; then
             echo "::error::ci.yml has not passed on commit $sha (conclusion: $conclusion) — refusing to release."
             exit 1
@@ -43,6 +58,12 @@ jobs:
     name: build & validate
     needs: verify-ci
     runs-on: ubuntu-latest
+    outputs:
+      # The bytes this job produced, so a later job can ask whether the index serves the
+      # same ones. Carried as an output rather than re-downloaded from the `dist` artifact,
+      # which expires.
+      wheel_sha256: ${{ steps.wheel-digest.outputs.sha256 }}
+      sdist_sha256: ${{ steps.wheel-digest.outputs.sdist_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -69,7 +90,7 @@ jobs:
 
       - name: Lint + full test suite, including tests/kb (release gate)
         run: |
-          ruff check src tests
+          ruff check src tests scripts
           pytest -q
 
       - name: Build sdist + wheel
@@ -77,6 +98,32 @@ jobs:
           rm -rf dist
           python -m build
           twine check dist/*
+
+      - name: Record the built distributions' sha256
+        id: wheel-digest
+        # The one value that makes the published artefact checkable. Everything else about
+        # a release is verified before publishing; what the index actually serves
+        # afterwards was prose in a runbook. `skip-existing` on the publish step below is
+        # there so a re-run is idempotent, and its cost is that an earlier upload under the
+        # same version is silently kept -- so without this digest, a wheel that never came
+        # from this commit could serve that version forever with every gate still green.
+        # `pipefail` matters here and is not decoration: without it a failing `sha256sum`
+        # still leaves `cut` exiting 0, an EMPTY value is written to the output, and the
+        # step is green. The verifier treats an empty expected digest as unverifiable
+        # rather than as a mismatch for that exact reason, but the plumbing should not
+        # produce one in the first place.
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel=$(ls dist/*.whl)
+          sdist=$(ls dist/*.tar.gz)
+          sha=$(sha256sum "$wheel" | cut -d" " -f1)
+          ssha=$(sha256sum "$sdist" | cut -d" " -f1)
+          [ -n "$sha" ] && [ -n "$ssha" ] || { echo "::error::empty digest"; exit 1; }
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "sdist_sha256=$ssha" >> "$GITHUB_OUTPUT"
+          echo "built $(basename "$wheel") sha256=$sha"
+          echo "built $(basename "$sdist") sha256=$ssha"
 
       - name: "SBOM: the BUILT WHEEL's dependency closure, from a venv holding nothing else"
         # The trap this step is written to avoid: running an SBOM generator over *this* job's
@@ -295,16 +342,57 @@ jobs:
       - name: Sign the published slim image
         run: cosign sign --yes "ghcr.io/${{ github.repository }}@${{ steps.build-slim.outputs.digest }}"
 
+  verify-published:
+    name: verify what PyPI serves
+    needs: [build, publish]
+    # Without this, a failed `publish` SKIPS this job while `github-release` still runs --
+    # a release of record would exist and nothing would ever have compared bytes. Skipped
+    # is not the same as passed, and the release job below distinguishes them.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0   # the tag check reads the tagged commit's own version file
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: The published wheel must be the wheel this run built
+        # Fails the release if the index serves different bytes, if the installed wheel
+        # reports a different version, or if the check could not run at all -- that last
+        # case exits non-zero on purpose, because "I could not look" must never read as "I
+        # looked and it was fine".
+        run: |
+          python scripts/verify-published-release.py \
+            --version "${GITHUB_REF_NAME#v}" \
+            --tag "$GITHUB_REF_NAME" \
+            --expect-sha256 "${{ needs.build.outputs.wheel_sha256 }}" \
+            --expect-sdist-sha256 "${{ needs.build.outputs.sdist_sha256 }}" \
+            --run-started-at "$RUN_STARTED_AT"
+        env:
+          # A file uploaded BEFORE this run began was published by an earlier one. A rebuild
+          # is not byte-identical (the archives carry build timestamps) and `skip-existing`
+          # keeps the original, so re-running a published tag would otherwise report a
+          # digest mismatch in the same words a tampered file would get.
+          RUN_STARTED_AT: ${{ github.event.repository.pushed_at }}
+
   github-release:
     name: github release
-    needs: [build, publish]
+    needs: [build, publish, verify-published]
     # Runs as long as the artifacts exist, even if PyPI publishing failed.
     # On the 4.0.0 tag `publish` failed on a duplicate file, this job was
     # skipped as a consequence, and the wheel and sdist had to be attached to
     # the release by hand. The GitHub Release has value independently of
     # whether PyPI accepted the upload, and a transient index outage should
     # not decide whether a release exists.
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    # A GitHub Release still appears when PyPI publishing FAILED -- nothing was published,
+    # and the release has value on its own. It must NOT appear when the published bytes did
+    # not match what this run built, because that is a mismatch and not an outage, and a
+    # release of record created over it would make the mismatch look accepted.
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success'
+          && needs.verify-published.result != 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # create / update the GitHub Release
