@@ -18,16 +18,21 @@
   },
   "probe": {
     "symbol": "g2_derivation_probe_fn",
-    "docstring": "synthetic probe injected to test derivation",
+    "docstring": "Settle an outstanding invoice against a stored payment method and record the receipt.",
     "dependency": "urllib3",
     "why": [
       "A new function CALLED FROM SEVERAL PLACES exercises the graph, the API reference's",
       "call-site list, the diagram, and vector search in one change. A new runtime dependency",
-      "exercises the design notes and the fleet page, and click having none makes the before",
-      "and after unambiguous.",
-      "The docstring shares no keyword with the query used to retrieve it, so a hit is",
-      "semantic rather than lexical."
-    ]
+      "exercises the design notes and the fleet page.",
+      "`semantic_query` deliberately shares NO word with the symbol name or its docstring:",
+      "the docstring is about settling an invoice, the query asks about billing a customer.",
+      "A substring matcher ranks the symbol nowhere, so a first-place hit is evidence the",
+      "ranking is semantic. An earlier version queried with the docstring's own text, which",
+      "full-text search matches perfectly -- the bar would have reported a lexical hit as a",
+      "semantic one, which is the exact failure it exists to catch."
+    ],
+    "module_doc": "probe module added by the derivation harness",
+    "semantic_query": "how do we handle billing when a customer pays"
   },
   "bars": [
     {
@@ -65,5 +70,6 @@
       "bar": "A natural-language query sharing NO keyword with the new symbol's name ranks it first, using the builtin local embedder with no API key.",
       "catches": "a 'semantic' search that is really substring matching, which a keyword-overlapping query would hide"
     }
-  ]
+  ],
+  "fleet_note": "A second, minimal repository is indexed alongside the tree under test, already declaring the probe dependency. 'Shared across the fleet' is defined over repositories, so with one repo indexed the fleet bar could never pass whatever the code did -- and a bar that cannot pass tests nothing."
 }

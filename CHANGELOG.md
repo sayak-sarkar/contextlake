@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.28.0] - 2026-08-18
+
+### Added
+
+- **The compatibility promise is written where a user reads it.** `README.md` now states
+  what SemVer means here and, more usefully, what counts as breaking on each of four
+  surfaces: CLI verbs and flags, store layout, MCP tool contracts, and config keys. A change
+  is breaking when it would stop something you wrote from working -- so adding a flag is not
+  breaking, and tightening a flag's validation is not either, because rejecting a value that
+  silently meant something else was a fix for a promise never kept.
+
+  It says plainly that the promise takes effect at 1.0 and that every break before then is
+  named in the changelog. Writing it as though it already bound would have been contradicted
+  by this project's own history two releases ago, when two MCP response shapes changed in a
+  minor -- and a promise the changelog contradicts is worse than no section at all.
+
+  `PARSER_VERSION` is deliberately outside the list, with the reason stated: bumping it stops
+  nothing working, it means an older-parser repository carries less than the current parser
+  would extract, so `kb index` rebuilds it. That is why `doctor` reports a stale shard as an
+  advisory rather than a fault, and a test now checks the README's claim against what
+  `doctor` actually does -- a promise about behaviour in another file is exactly the kind
+  that starts lying quietly.
+
+
 ## [7.27.0] - 2026-08-18
 
 ### Added

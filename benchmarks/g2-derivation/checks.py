@@ -17,6 +17,21 @@ VERIFIED, BROKEN, UNVERIFIABLE = "verified", "broken", "unverifiable"
 Result = tuple[str, str]
 
 
+def _missing_after(after: dict, *keys: str) -> str | None:
+    """Which AFTER-ONLY measurement was never taken.
+
+    Some keys cannot exist before the probe by definition: the probe symbol is not in the
+    reference, no diagram of it can be drawn, the dependency is not in the manifest. A first
+    version demanded a before value for those too, so four bars reported "not tested" on a
+    run where the harness had worked perfectly -- an honest verdict about the wrong thing,
+    which is its own kind of misleading.
+    """
+    for key in keys:
+        if key not in after:
+            return f"the after-measurement for {key!r} was never taken"
+    return None
+
+
 def _missing(before: dict, after: dict, *keys: str) -> str | None:
     """Which required measurement was never TAKEN, if any.
 
@@ -67,7 +82,10 @@ def code_graph(before: dict, after: dict) -> Result:
 
 
 def api_reference(before: dict, after: dict, *, symbol: str, call_sites: int) -> Result:
-    gap = _missing(before, after, "api_symbols", "api_has_symbol", "api_call_sites")
+    gap = _missing_after(after, "api_has_symbol", "api_call_sites")
+    if gap is None and "api_has_symbol" not in before:
+        gap = ("the before-measurement for 'api_has_symbol' was never taken, so the control "
+               "that the symbol was absent first is missing")
     if gap:
         return UNVERIFIABLE, gap
     if before["api_has_symbol"]:
@@ -86,7 +104,9 @@ def api_reference(before: dict, after: dict, *, symbol: str, call_sites: int) ->
 
 
 def design_notes(before: dict, after: dict, *, dependency: str) -> Result:
-    gap = _missing(before, after, "design_has_dep", "design_dep_line", "design_adrs")
+    gap = _missing_after(after, "design_has_dep", "design_dep_line")
+    if gap is None and "design_has_dep" not in before:
+        gap = "the before-measurement for 'design_has_dep' was never taken"
     if gap:
         return UNVERIFIABLE, gap
     if before["design_has_dep"]:
@@ -104,7 +124,7 @@ def design_notes(before: dict, after: dict, *, dependency: str) -> Result:
 
 
 def fleet_view(before: dict, after: dict, *, dependency: str) -> Result:
-    gap = _missing(before, after, "fleet_shared", "fleet_dep_repos")
+    gap = _missing(before, after, "fleet_shared") or _missing_after(after, "fleet_dep_repos")
     if gap:
         return UNVERIFIABLE, gap
     status, detail = _grew(before, after, "fleet_shared", "shared runtime packages")
@@ -118,8 +138,8 @@ def fleet_view(before: dict, after: dict, *, dependency: str) -> Result:
 
 
 def diagram(before: dict, after: dict, *, call_sites: int) -> Result:
-    gap = _missing(before, after, "diagram_nodes", "diagram_edges", "diagram_rendered_nodes",
-                   "diagram_rendered_edges")
+    gap = _missing_after(after, "diagram_nodes", "diagram_edges",
+                         "diagram_rendered_nodes", "diagram_rendered_edges")
     if gap:
         return UNVERIFIABLE, gap
     if after["diagram_nodes"] != after["diagram_rendered_nodes"]:

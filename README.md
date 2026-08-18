@@ -283,6 +283,36 @@ configure one instead of the bundled local model, and `kb graph --cdn`, which sw
 inlined JavaScript for CDN script tags to make a smaller file. Default output inlines
 everything and opens in an air-gapped browser.
 
+## Versioning and compatibility
+
+contextlake follows [Semantic Versioning](https://semver.org/). **From 1.0, no breaking
+change lands without a major bump.** Before 1.0 the surfaces below still move, and every
+break is named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
+with what to change — the promise is stated here now so it is clear what it will cover, not
+so it can be read as already in force.
+
+Four surfaces are covered. A change is **breaking** when it would stop something you wrote
+from working:
+
+- **CLI verbs and flags.** Removing or renaming a verb, removing a flag, or changing what a
+  flag means. Adding a verb or a flag is not breaking. Tightening a flag's *validation* is
+  not breaking either — rejecting `--max-symbols 0`, which silently meant "the default", is
+  a fix for a value that never did what it said.
+- **Store layout.** Anything that makes an existing store unreadable to the version that
+  wrote it, or that requires a manual migration. Re-indexing is not that.
+- **MCP tool contracts.** Removing a tool, removing a field a result carried, or changing
+  what a field means. Adding a field, or adding a tool, is not breaking.
+- **Config keys.** Removing a key or changing its default in a way that changes what a run
+  does.
+
+**`PARSER_VERSION` is deliberately not on that list**, and the distinction is worth stating
+because it looks like it should be. Bumping it does not stop anything working: your store
+stays readable, every command keeps running, and nothing you wrote needs editing. What it
+means is that repositories indexed by an older parser now carry *less* than the current one
+would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
+reports that as an advisory, not a fault — a parser bump would otherwise turn every user's
+upgrade into a red check for something that is working correctly.
+
 ## Documentation
 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes

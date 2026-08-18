@@ -286,3 +286,68 @@ def test_every_documented_cli_verb_exists():
     assert documented, "the CLI reference no longer lists any `kb <verb>` rows"
     missing = sorted(documented - known)
     assert not missing, f"documented but not dispatchable: {missing}"
+
+
+# --- the compatibility promise -----------------------------------------------------
+#
+# A promise is a claim like any other, and this one is the kind that rots quietly: nobody
+# re-reads a versioning section, and its statements are about behaviour that lives in code
+# somewhere else. So the sentences that CAN be checked against the build are checked here,
+# not only that the section exists.
+
+_PROMISE_SURFACES = ("CLI verbs and flags", "Store layout", "MCP tool contracts",
+                     "Config keys")
+
+
+def test_the_readme_states_the_compatibility_promise():
+    text = _text("README.md")
+    assert "## Versioning and compatibility" in text, (
+        "the promise has to live where a user reads it, which is the README")
+    assert "Semantic Versioning" in text
+    for surface in _PROMISE_SURFACES:
+        assert surface in text, f"the promise does not say what it means for {surface!r}"
+
+
+def test_the_promise_is_honest_about_not_being_in_force_yet():
+    """The MCP response shape changed in a MINOR release two versions ago.
+
+    A README that read as though the promise already bound would be contradicted by the
+    project's own changelog, which is worse than having no section at all.
+    """
+    text = _text("README.md")
+    section = text.split("## Versioning and compatibility", 1)[1].split("\n## ", 1)[0]
+    assert "From 1.0" in section
+    assert "CHANGELOG" in section, "a break before 1.0 has to be findable somewhere"
+    # And the changelog has to actually carry one. Asserting only that the README POINTS at
+    # it would pass on a build whose changelog documented no break at all, which is the
+    # promise pointing at an empty room.
+    changelog = _text("CHANGELOG.md")
+    assert "### Changed" in changelog, "no release records a behaviour change to point at"
+    assert "needs `.nodes`" in changelog or "bare list" in changelog, (
+        "the most recent pre-1.0 break -- two MCP tools moving off a bare list -- is not "
+        "documented, so the README's pointer leads nowhere")
+
+
+def test_the_parser_version_carve_out_matches_what_doctor_actually_does():
+    """The README says a stale parser is an advisory rather than a fault. That is a claim
+    about code in another file, and the two drifting apart is exactly how a promise starts
+    lying. `doctor` passes the tri-state `None` (⚠) for this check; `False` would be a ✗ and
+    would fail the verdict, which is the behaviour the README explicitly rules out."""
+    import inspect
+
+    from contextlake.kb.cmds import doctor
+
+    src = inspect.getsource(doctor.cmd_doctor)
+    stale = [line for line in src.splitlines()
+             if "shards up to date with the current parser" in line]
+    assert stale, "the stale-shard check has been renamed; the README claim needs re-reading"
+    # The line that reports a STALE shard, not the one that reports a fresh one. Both carry
+    # the label, so `any(... "None" ...)` passed with the branches swapped -- a guard
+    # satisfied by the wrong half of the pair it was written to distinguish.
+    reported_stale = [line for line in stale if "detail" in line]
+    assert reported_stale, "the stale branch no longer passes a detail; re-read this check"
+    assert all("None" in line for line in reported_stale), (
+        f"the README says a parser bump is an advisory, but doctor reports it as a fault: "
+        f"{reported_stale}")
+    section = _text("README.md").split("## Versioning and compatibility", 1)[1]
+    assert "advisory" in section, "the README no longer states the carve-out this checks"

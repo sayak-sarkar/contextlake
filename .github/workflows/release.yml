@@ -90,7 +90,7 @@ jobs:
 
       - name: Lint + full test suite, including tests/kb (release gate)
         run: |
-          ruff check src tests scripts
+          ruff check src tests scripts benchmarks
           pytest -q
 
       - name: Build sdist + wheel
