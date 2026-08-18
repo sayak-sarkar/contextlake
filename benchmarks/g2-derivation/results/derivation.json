@@ -1,0 +1,80 @@
+{
+  "after": {
+    "api_call_sites": 5,
+    "api_has_symbol": true,
+    "api_symbols": 1830,
+    "dangling": 0,
+    "design_adrs": 2,
+    "design_dep_line": 18,
+    "design_has_dep": true,
+    "diagram_edges": 11,
+    "diagram_nodes": 7,
+    "diagram_rendered_edges": 11,
+    "diagram_rendered_nodes": 7,
+    "edges": 7600,
+    "fleet_dep_repos": 2,
+    "fleet_shared": 1,
+    "nodes": 2441,
+    "semantic_rank": 2,
+    "wiki_commit": "d8e2da62991cebe3f824b8d805f4bc33fffd5191"
+  },
+  "before": {
+    "api_has_symbol": false,
+    "api_symbols": 1824,
+    "dangling": 0,
+    "design_adrs": 1,
+    "design_has_dep": false,
+    "edges": 7588,
+    "fleet_shared": 0,
+    "nodes": 2433,
+    "semantic_rank": null,
+    "wiki_commit": "b2e30a175449cfda909ee4fbf4a29a6a071cad53"
+  },
+  "call_sites": 5,
+  "notes": [],
+  "ok": true,
+  "rows": [
+    {
+      "detail": "nodes 2433 -> 2441, edges 7588 -> 7600, 0 dangling",
+      "output": "code graph",
+      "status": "verified"
+    },
+    {
+      "detail": "g2_derivation_probe_fn + 5 call site(s); documented symbols 1824 -> 1830",
+      "output": "generated docs (API reference)",
+      "status": "verified"
+    },
+    {
+      "detail": "urllib3 recorded at line 18; decision entries 1 -> 2",
+      "output": "generated docs (design notes)",
+      "status": "verified"
+    },
+    {
+      "detail": "shared runtime packages 0 -> 1; urllib3 shared by 2 repo(s)",
+      "output": "fleet view",
+      "status": "verified"
+    },
+    {
+      "detail": "7 nodes / 11 edges, announced and rendered counts agree",
+      "output": "diagrams",
+      "status": "verified"
+    },
+    {
+      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> d8e2da62991cebe3f824b8d805f4bc33fffd5191",
+      "output": "wiki",
+      "status": "verified"
+    },
+    {
+      "detail": "g2_derivation_probe_fn ranked #3 on a query sharing no keyword with it or its docstring; a substring matcher would not return it at all",
+      "output": "vector search",
+      "status": "verified"
+    }
+  ],
+  "tree": {
+    "commit": "b2e30a175449cfda909ee4fbf4a29a6a071cad53",
+    "key": "click",
+    "ref": "8.4.2",
+    "url": "https://github.com/pallets/click",
+    "why": "small, pure Python, decorator-heavy, and with zero runtime dependencies at this tag, so adding one is an unambiguous change to the design notes and the fleet page. Pinned to a release tag, resolved from the remote rather than written from memory: an earlier version of this file carried a commit that does not exist in that repository at all."
+  }
+}

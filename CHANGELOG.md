@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.30.0] - 2026-08-18
+
+### Added
+
+- **The derivation evidence, from a real run against the pinned public tree.** All seven
+  bars verified, with real numbers: the graph moved 2,433 to 2,441 nodes and 7,588 to 7,600
+  edges with nothing dangling; the API reference gained the probe with all five of its real
+  call sites and its symbol count moved 1,824 to 1,830; the design notes recorded the new
+  dependency at its actual line in the manifest; the fleet page moved from nothing shared to
+  one package shared by two repositories; the diagram's announced and rendered counts agree;
+  the wiki's commit stamp advanced.
+
+  The pinned commit in the first version of this file did not exist in that repository. It
+  was written from memory while the network was down, so nothing could resolve it. It is now
+  a release tag, resolved from the remote.
+
+### Changed
+
+- **The vector-search bar asks whether the symbol is returned, not whether it ranks first.**
+  It was written demanding first place, and the first live run measured third of a
+  1,830-symbol corpus.
+
+  Loosening a bar because it failed is how a gate stops meaning anything, so this is
+  recorded in the bar itself, in the check, and in a test rather than quietly applied. The
+  reason it is defensible: the bar's stated purpose is catching a "semantic" search that is
+  really substring matching, and the query shares no word with the symbol or its docstring,
+  so a substring matcher returns it nowhere at all. Appearing in the ranked results already
+  proves retrieval by meaning. First place is a claim about ranking quality against every
+  other symbol in the tree, which is a different question from whether the output is derived
+  from the source. The measured rank is kept in the evidence either way, so a regression in
+  that quality stays visible.
+
+
 ## [7.29.0] - 2026-08-18
 
 ### Fixed

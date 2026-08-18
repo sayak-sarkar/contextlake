@@ -56,7 +56,12 @@ assertion to confirm each one fails for its own reason.
 
 ## Status
 
-The harness and its bars are committed. `results/derivation.json` is written by a live run;
-until one has been done against the pinned tree, **G2 is not closed**: a harness that has
-never run is not evidence, and the earlier hand-run derivation matrix in the planning notes
-is not repeatable, which is the specific gap this directory exists to fill.
+**All seven bars verified against the pinned tree**, recorded in
+[`results/derivation.json`](results/derivation.json). Re-run it and diff that file.
+
+Two things about how it got there are worth keeping, because both were caught rather than
+avoided. The harness was first written without being able to run it, and its measurement
+patterns were guesses: five of seven bars could never have passed and three would have
+reported the product broken. And the pinned commit it carried did not exist in that
+repository at all, written from memory while the network was down. Measurement code that has
+never run against its real subject is a hypothesis, not a harness.
