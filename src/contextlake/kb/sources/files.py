@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 
 from ...logging_setup import log
-from .base import Document
+from .base import Document, FetchFailures
 
 _DEFAULT_GLOBS = ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf")
 _MAX_BYTES = 1_000_000
@@ -21,7 +21,7 @@ _MAX_BYTES = 1_000_000
 _PDF_EXTRA = "kb-pdf"
 
 
-class FilesSource:
+class FilesSource(FetchFailures):
     """Yield a :class:`Document` per text file under ``path`` (a directory tree or a
     single file), and per PDF with a readable text layer.
 
@@ -39,13 +39,39 @@ class FilesSource:
         self.include = tuple(include) if include else _DEFAULT_GLOBS
         self.max_bytes = int(max_bytes)
 
+    def _record_missing(self, target: str, reason: str) -> None:
+        """Record a whole-root failure. `_record_failure` takes an exception because the
+        network sources catch one; here nothing is raised, so the reason is written
+        directly rather than manufacturing an exception to unwrap."""
+        self.failures.append((target, reason))
+        log(f"files: could not read {target} -- {reason}", level=logging.WARNING)
+
     def iter_documents(self):
+        self._reset_failures()
         root = Path(self.path)
+        # A missing directory yields nothing from `rglob`, with no exception -- so a
+        # typo in `--path` used to produce the identical output to a real directory
+        # holding no matching files: "no documents (source reachable, nothing to
+        # ingest)" and exit 0. "Reachable" was never checked; it was inferred from the
+        # absence of a recorded failure, and this source recorded none because it had
+        # no way to. The two cases need opposite responses (fix the path / accept the
+        # empty result), so they must not print the same line.
+        if not root.exists():
+            self._record_missing(str(root), "no such file or directory")
+            return
+        if not (root.is_file() or root.is_dir()):
+            self._record_missing(str(root), "not a file or a directory")
+            return
         if root.is_file():
             files, base = [root], root.parent
         else:
             base = root
-            files = sorted({p for g in self.include for p in root.rglob(g)})
+            try:
+                files = sorted({p for g in self.include for p in root.rglob(g)})
+            except OSError as e:
+                # An unreadable directory is a permissions problem, not an empty tree.
+                self._record_missing(str(root), f"{type(e).__name__}: {e}")
+                return
         needs_extra: list[str] = []   # PDFs skipped because pypdf is not installed
         for p in files:
             if not p.is_file():

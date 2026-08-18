@@ -66,6 +66,24 @@ def cmd_eval(args) -> int:
                 return 1
             vs = build_vector_store(store_dir / "embeddings.sqlite",
                                     backend=cfg.embeddings.vector_backend)
+            # Refused rather than scored. A retriever over an empty vector table returns
+            # nothing for every query, so the run completes and reports P@k=0, R@k=0,
+            # hit-rate=0 with exit 0 -- a confident measurement of a search that never
+            # ran. `kb eval --json` exists to gate CI on exactly these numbers, so a
+            # zero here reads as "retrieval regressed to nothing" and blocks a release.
+            # `kb query` degrades to full-text in the same situation because a query
+            # still has a useful answer to give; an eval does not, because the whole
+            # output is the score of the retriever that was asked for.
+            from ..embeddings.store import unpopulated_reason
+            reason = unpopulated_reason(vs)
+            if reason is not None:
+                detail = (f"cannot score --retriever {retr_kind}: {reason}")
+                if as_json:
+                    print(json.dumps({"error": "index_unpopulated", "detail": detail},
+                                     indent=2))
+                else:
+                    log(style.fail(detail))
+                return 1
             factory = (kb_eval.make_semantic_retriever if retr_kind == "semantic"
                        else kb_eval.make_hybrid_retriever)
             retriever = factory(store, vs, embedder)

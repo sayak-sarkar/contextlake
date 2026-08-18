@@ -493,6 +493,12 @@ _HOPS = _bounded_int(1, 1_000)
 # The one bound where zero is a real request: a nodes-only view with no edges
 # drawn. Negatives stay refused.
 _MAX_EDGES = _bounded_int(0, 1_000_000)
+# Total attempts, not retries-after-the-first, despite the flag's name: the retry loop
+# is `for attempt in range(max_retries)`, so 3 means three tries. Zero was refused after
+# a reviewer traced it: zero iterations leaves `last_error` as None and the loop ends at
+# `raise last_error`, which fails with "exceptions must derive from BaseException" and
+# never attempts the operation at all. "Try once, do not retry" is spelled 1.
+_RETRIES = _bounded_int(1, 1_000)
 # Path-prefix grouping depth (repo ids are paths, not arbitrarily deep).
 _DEPTH = _bounded_int(1, 64)
 # A polling interval in whole seconds, up to a day.
@@ -629,14 +635,15 @@ def _add_mirror(p, hidden=False):
         help="remove corrupted/incomplete directories before cloning (default: true)")
     add_advanced("--no-clean-corrupted", action="store_false", dest="clean_corrupted",
         help="do not remove corrupted/incomplete directories (fail instead)")
-    add_advanced("--max-retries", type=int, help="max retry attempts for failed operations")
+    add_advanced("--max-retries", type=_RETRIES,
+        help="total attempts for a failed operation (1 = try once, no retry)")
     add_advanced("--backoff-initial", type=float, help="initial backoff time in seconds")
     add_advanced("--backoff-max", type=float, help="maximum backoff time in seconds")
     add_advanced("--adaptive-workers", action="store_true", dest="adaptive_workers",
         help="enable adaptive worker pool (default: true)")
     add_advanced("--no-adaptive-workers", action="store_false", dest="adaptive_workers",
         help="disable adaptive worker pool (use static max_workers)")
-    add_advanced("--min-workers", type=int, help="minimum workers for the adaptive pool")
+    add_advanced("--min-workers", type=_COUNT, help="minimum workers for the adaptive pool")
     add_advanced("--error-threshold", type=float, help="error rate threshold (0.0-1.0)")
     add_advanced("--protect-working-branches", action="store_true", dest="protect_working_branches",
         help="enable branch protection (default: true)")
@@ -1121,7 +1128,7 @@ Examples:
 """)
     p.add_argument("args", nargs="*", metavar="repo",
                    help="only these repo ids (default: all indexed)")
-    p.add_argument("--max-symbols", dest="max_symbols", type=int, default=_S, metavar="N",
+    p.add_argument("--max-symbols", dest="max_symbols", type=_COUNT, default=_S, metavar="N",
                    help="cap each reference at N symbols, the most-called first "
                         "(default 500). Whatever is left out is stated in the document.")
 

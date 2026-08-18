@@ -127,8 +127,19 @@ def _semantic_results(args, store, text, limit):
         log(_embed_unavailable_hint(cfg.embeddings) + " -- showing fts results instead.")
         return None
     try:
+        from ..embeddings.store import unpopulated_reason
         vs = build_vector_store(cfg.store_path / "embeddings.sqlite",
                                 backend=cfg.embeddings.vector_backend)
+        # An empty vector table answers every query with `[]`, which the caller cannot
+        # tell apart from a real miss -- and `init` leaves embeddings ENABLED while no
+        # vectors exist, so that is the state of every workspace on its first run. The
+        # embedder being built successfully says the model loaded, not that anything
+        # was ever embedded; those are separate facts and only the second one is the
+        # one this search needs.
+        reason = unpopulated_reason(vs, getattr(args, "repo", None))
+        if reason is not None:
+            log(f"Semantic search cannot answer: {reason}. Showing fts results instead.")
+            return None
         factory = (kb_eval.make_semantic_retriever if retr_kind == "semantic"
                    else kb_eval.make_hybrid_retriever)
         retriever = factory(store, vs, embedder)

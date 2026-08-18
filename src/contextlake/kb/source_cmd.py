@@ -176,6 +176,23 @@ def cmd_source_add(args) -> int:
                             "(or run interactively)"))
             return 2
 
+    # `--type` is an OPEN set (a plugin registers its own name), but "open" means
+    # "whatever is installed", and at this moment that is exactly enumerable. An
+    # unrecognised type used to be written out and confirmed with a checkmark, then
+    # told to "run `contextlake kb ingest` to pull it in" -- an instruction that can
+    # never do anything, because `_pipeline_for` routes every unknown type to ingest
+    # and ingest has no class to construct. A typo therefore produced a config entry
+    # that looked configured and was inert. Refused here rather than at ingest time,
+    # where the source is silently absent from the run.
+    known = known_source_types()
+    if src["type"] not in known:
+        log(style.fail(f"Unknown source type {src['type']!r}. This build can run: "
+                       f"{', '.join(known)}."))
+        log("  Nothing was written. A source type comes from a built-in or from an "
+            "installed plugin, so if this is a plugin type, install it first and re-run "
+            "-- the type is then discovered automatically.")
+        return 2
+
     config_edit.add_source(getattr(args, "config", None), src, local=getattr(args, "local", False))
     pipeline = _pipeline_for(src["type"])
     log(style.ok(f"Added source {style.cyan(src['name'])} (type={src['type']})"))

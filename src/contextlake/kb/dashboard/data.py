@@ -832,6 +832,16 @@ def code_search(store, q: str, kind: str | None = None, repo: str | None = None,
             "results": [_node_out(n) for n in nodes]}
 
 
+def _unpopulated_reason(vector_store, repo: str | None) -> str | None:
+    """Why a vector search cannot answer, or None. Never raises: a disclosure is not
+    worth failing a panel for, and a missing one degrades to the previous silence."""
+    try:
+        from ..embeddings.store import unpopulated_reason
+        return unpopulated_reason(vector_store, repo)
+    except Exception:  # noqa: BLE001 - a note must never break the search itself
+        return None
+
+
 def semantic_search(store, q: str, *, vector_store=None, embedder=None,
                     repo: str | None = None, limit: int = 20) -> dict:
     """Optional semantic search — live-only, guarded on an embedder + vector store.
@@ -843,6 +853,16 @@ def semantic_search(store, q: str, *, vector_store=None, embedder=None,
     if embedder is None or vector_store is None:
         out = code_search(store, q, repo=repo, limit=limit)
         out["semantic"] = False
+        return out
+    # An embedder that built successfully says the model loaded, not that anything was
+    # embedded. Over an empty vector table the search below returns no rows, and the
+    # panel would render "no results" for a semantic search with nothing to search --
+    # which reads as a fact about the codebase rather than about the index.
+    unpopulated = _unpopulated_reason(vector_store, repo)
+    if unpopulated:
+        out = code_search(store, q, repo=repo, limit=limit)
+        out["semantic"] = False
+        out["note"] = f"Lexical results: {unpopulated}."
         return out
     try:
         from ..embeddings.hybrid import hybrid_search

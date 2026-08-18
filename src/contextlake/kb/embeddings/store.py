@@ -124,6 +124,25 @@ class VectorStore:
     def count(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
+    def has_any(self, repo_ids=None) -> bool:
+        """Whether any vector exists (optionally within ``repo_ids``).
+
+        A probe, not a count: this runs before EVERY semantic query only to tell an
+        empty index from a populated one, and that question is answered by the first
+        row. `COUNT(*)` over a virtual table is not guaranteed cheap on the ANN
+        backend, which is exactly the store where the extra work would be felt.
+        """
+        if repo_ids is None:
+            row = self.conn.execute("SELECT 1 FROM embeddings LIMIT 1").fetchone()
+        else:
+            ids = list(repo_ids)
+            if not ids:
+                return False
+            sql = (f"SELECT 1 FROM embeddings "  # noqa: S608 - placeholders only
+                   f"WHERE repo_id IN ({','.join('?' * len(ids))}) LIMIT 1")
+            row = self.conn.execute(sql, tuple(ids)).fetchone()
+        return row is not None
+
     def search(self, query, k: int = 10, repo: str | None = None) -> list[tuple[str, float]]:
         """Return the ``k`` nearest node_ids to ``query`` by cosine, high score first."""
         qnorm = _norm(query)
@@ -246,6 +265,23 @@ class SqliteVecStore:
         if not self._has_table:
             return 0
         return self.conn.execute("SELECT COUNT(*) FROM vec_items").fetchone()[0]
+
+    def has_any(self, repo_ids=None) -> bool:
+        """Whether any vector exists (optionally within ``repo_ids``). See
+        `VectorStore.has_any`: a probe rather than a count, because `vec_items` is a
+        virtual table and `COUNT(*)` over one carries no cheapness guarantee."""
+        if not self._has_table:
+            return False
+        if repo_ids is None:
+            row = self.conn.execute("SELECT 1 FROM vec_items LIMIT 1").fetchone()
+        else:
+            ids = list(repo_ids)
+            if not ids:
+                return False
+            sql = (f"SELECT 1 FROM vec_items "  # noqa: S608 - placeholders only
+                   f"WHERE repo_id IN ({','.join('?' * len(ids))}) LIMIT 1")
+            row = self.conn.execute(sql, tuple(ids)).fetchone()
+        return row is not None
 
     def search(self, query, k: int = 10, repo: str | None = None) -> list[tuple[str, float]]:
         if not self._has_table or self._dim is None or len(query) != self._dim:
@@ -430,3 +466,38 @@ def build_vector_store(path: str | Path, *, backend: str = "auto", chunk_size: i
             log(f"sqlite-vec unavailable ({e}); using slower brute-force vector "
                 "search. Install the 'kb-vec' extra for ANN.", level=logging.WARNING)
     return VectorStore(path)
+
+
+def unpopulated_reason(vector_store, repo: str | None = None) -> str | None:
+    """Why a semantic search cannot answer, or ``None`` when it genuinely can.
+
+    A nearest-neighbour index over an EMPTY table returns ``[]``. That is
+    indistinguishable, at the call site, from a populated index that found nothing --
+    and the two mean opposite things. The first means "this search never ran"; the
+    second means "it ran and the graph holds nothing like your query". Reporting the
+    first as the second is how `kb query --retriever semantic` came to print
+    "No matches" on every freshly-initialised workspace, because `contextlake init`
+    writes `[embeddings] enabled = true` while no vectors exist until `kb embed` runs.
+
+    The repo-scoped count deliberately uses the SAME scope expansion `search` uses
+    (``_repo_scope``: the repo's own shard plus its connector and enrichment
+    partitions). Counting only the literal repo id would report "no vectors" for a
+    repo whose vectors all live in a linked partition -- a false alarm produced by a
+    count and a query disagreeing about what the filter means.
+
+    Both cases are distinguished when a filter is in play, because "none here, some
+    elsewhere" and "none anywhere" call for different fixes.
+
+    Two existence probes rather than two counts. This runs before every semantic query,
+    and the question it asks is "is there anything at all", which the first row answers.
+    An exact `COUNT(*)` would buy a number for the message at the price of a scan the
+    ANN backend cannot promise is cheap -- on precisely the large stores where a
+    per-query cost is felt.
+    """
+    if not vector_store.has_any():
+        return ("no vectors are stored, so semantic search has nothing to search "
+                "-- run `contextlake kb embed` first")
+    if repo and not vector_store.has_any(_repo_scope(repo)):
+        return (f"no vectors are stored for repo {repo!r}, though other repositories "
+                f"have them -- run `contextlake kb embed {repo}`")
+    return None

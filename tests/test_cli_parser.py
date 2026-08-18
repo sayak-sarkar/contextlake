@@ -250,7 +250,7 @@ def test_mirror_command_help_advanced_reveals_resilience_flags(capsys):
         build_parser().parse_args(["mirror", "fetch", "--help-advanced"])
     out = capsys.readouterr().out
     assert "--max-retries" in out
-    assert "max retry attempts for failed operations" in out
+    assert "total attempts for a failed operation" in out
     assert "--auto-stash" in out
 
 

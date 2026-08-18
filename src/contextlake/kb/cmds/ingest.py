@@ -70,16 +70,38 @@ def cmd_ingest(args) -> int:
         if cli_path:
             jobs.append(("cli", getattr(args, "source_type", None) or "files",
                          {"path": cli_path}, getattr(args, "for_repo", None) or None))
-        else:
+        # An enabled source whose type this build cannot construct. `source add` now
+        # refuses an unknown type at write time, but that does nothing for a config
+        # written earlier, edited by hand, or authored ahead of installing the plugin
+        # it names. The filter below used to drop those rows in silence, so an ingest
+        # configured to read three sources could read one and still report success.
+        unavailable: list[str] = []
+        if not cli_path:
             for s in cfg.sources:
-                if s.type in registry and s.enabled:
-                    # `for_repo` is ours, not the source's -- pop it out of the
-                    # extras (a copy: `model_extra` is the model's own dict) so it
-                    # never reaches the source constructor as an unknown kwarg.
-                    options = dict(getattr(s, "model_extra", None) or {})
-                    jobs.append((s.name or s.type, s.type, options,
-                                 options.pop("for_repo", None)))
+                if not s.enabled:
+                    continue
+                if s.type not in registry:
+                    unavailable.append(f"{s.name or s.type} (type={s.type})")
+                    continue
+                # `for_repo` is ours, not the source's -- pop it out of the
+                # extras (a copy: `model_extra` is the model's own dict) so it
+                # never reaches the source constructor as an unknown kwarg.
+                options = dict(getattr(s, "model_extra", None) or {})
+                jobs.append((s.name or s.type, s.type, options,
+                             options.pop("for_repo", None)))
+        if unavailable:
+            log(style.warn(
+                f"{len(unavailable)} enabled source(s) name a type this build cannot "
+                f"run and were skipped: {', '.join(unavailable)}"))
+            log(f"  This build can run: {', '.join(sorted(registry))}. A plugin type is "
+                "discovered automatically once its package is installed.")
         if not jobs:
+            if unavailable:
+                # Distinguished from "no sources configured": the config DOES ask for
+                # ingestion and none of it could run, which is a failure, not an
+                # empty inbox.
+                log(style.fail("No source could be run, so nothing was ingested."))
+                return 1
             log('No document sources. Try: contextlake kb ingest --path ./docs  '
                 '(or add [[sources]] type="files" path="…" to kb.toml). '
                 f"Available source types: {', '.join(sorted(registry))}")
@@ -121,7 +143,12 @@ def cmd_ingest(args) -> int:
                     "warn", f"{name}: {for_repo!r} has no indexed symbols — its documents "
                             "will be stored but linked to nothing (index that repo first)"))
 
-        total = embedded = failed = partial = 0
+        # Seeded with the sources this build could not construct at all. They are as
+        # much a failure of the run as a source that raised: the config asked for them
+        # and the run does not carry their documents. Counting them only in the warning
+        # above would leave the summary line and the exit code saying the run was clean.
+        total = embedded = partial = 0
+        failed = len(unavailable)
         try:
             for name, stype, options, for_repo in jobs:
                 src = build_source(stype, **options)

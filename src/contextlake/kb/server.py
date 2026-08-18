@@ -652,6 +652,35 @@ def _stale_vectors_note(dropped: int) -> str | None:
             "is INCOMPLETE. Re-run `kb embed`.")
 
 
+def _unpopulated_note(vector_store, repo: str | None) -> str | None:
+    """The disclosure for a semantic search whose index holds nothing to search.
+
+    Same failure as `_stale_vectors_note` one step earlier: an empty vector table
+    answers `[]`, which reads as "nothing in the graph is like your query" when the
+    truth is "this search never ran". An agent on the other end of this tool cannot
+    see the store, so an empty list with no note is the only thing it has to go on,
+    and it will report back that the codebase has no such concept. Kept identical to
+    the CLI's wording so the two surfaces cannot drift apart.
+    """
+    reason = _unpopulated_reason(vector_store, repo)
+    if reason is None:
+        return None
+    return (f"EMPTY BECAUSE THE INDEX IS UNPOPULATED, not because nothing matched: "
+            f"{reason}.")
+
+
+def _unpopulated_reason(vector_store, repo: str | None) -> str | None:
+    """The bare reason, for callers that frame it themselves (the `ask` tool folds it
+    into the sentence naming which search actually ran). Never raises: a disclosure is
+    not worth failing a tool call for, and a missing one degrades to the old silence
+    rather than to an error."""
+    try:
+        from .embeddings.store import unpopulated_reason
+        return unpopulated_reason(vector_store, repo)
+    except Exception:  # noqa: BLE001 - a note is never worth failing the tool call for
+        return None
+
+
 def _sites_note(label: str, symbol: str, why: str | None,
                 out: list[NodeOut]) -> str | None:
     """The disclosure that keeps a call-site count from reading as a symbol count.
@@ -1441,6 +1470,9 @@ def build_server(
                 return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
                 return NodesOut(nodes=[], total=0, truncated=False)
+            unpopulated = _unpopulated_note(vector_store, repo)
+            if unpopulated:
+                return NodesOut(nodes=[], total=0, truncated=False, note=unpopulated)
             vec = embedder.embed([query])[0]
             out: list[NodeOut] = []
             dropped = 0
@@ -1468,6 +1500,9 @@ def build_server(
                 return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
                 return NodesOut(nodes=[], total=0, truncated=False)
+            unpopulated = _unpopulated_note(vector_store, repo)
+            if unpopulated:
+                return NodesOut(nodes=[], total=0, truncated=False, note=unpopulated)
             out: list[NodeOut] = []
             dropped = 0
             for node_id, score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
@@ -1717,7 +1752,15 @@ def build_server(
         # the identical defect untouched.
         unmatched, anchored = _term_anchors(question)
 
-        if question.strip() and embedder is not None and vector_store is not None:
+        # An embedder that built successfully says the MODEL loaded, not that anything
+        # was embedded. With an empty vector table this branch would return no nodes
+        # while `found` claimed a semantic search had run -- so the unpopulated case is
+        # routed to full-text, the same place "no embeddings configured" already goes,
+        # and says which of the two it was.
+        unpopulated = (_unpopulated_reason(vector_store, repo)
+                       if vector_store is not None else None)
+        if (question.strip() and embedder is not None and vector_store is not None
+                and not unpopulated):
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
             # Count what the vector store returned but the graph could not resolve. A
@@ -1742,7 +1785,8 @@ def build_server(
                           "to the index, so this answer is INCOMPLETE. Re-run `kb embed`.")
         else:
             out = search_code(question, repo=repo, limit=k)
-            found = "Full-text search over node names (no embeddings configured)."
+            found = ("Full-text search over node names ("
+                     + (unpopulated or "no embeddings configured") + ").")
 
         # The unmatched terms are named on every path that reaches here, so the same
         # question gets the same disclosure whether it arrived as an open search or as

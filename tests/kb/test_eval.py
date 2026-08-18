@@ -184,9 +184,18 @@ def test_cmd_eval_semantic_without_embeddings_configured_json(tmp_path, capsys):
 
 
 def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monkeypatch):
-    """With an embedder available, `--retriever semantic` must build a vector
-    store and actually score through it (not just hit the unavailable-hint
-    branch covered above)."""
+    """With an embedder available AND vectors present, `--retriever semantic` must build
+    a vector store and actually score through it (not just hit the unavailable-hint
+    branch covered above).
+
+    This test used to assert the opposite of what it now asserts, and its own comment
+    said why: "nothing was ever embedded into the vector store, so this scores a real
+    (empty) miss". That is not a real miss. An empty vector table returns nothing for
+    every query, so the run reported P@k=0, R@k=0, hit-rate=0 and exit 0 -- a confident
+    measurement of a search that never ran, on the command `--json` exists to gate CI
+    with. The vectors below are written first so the scoring path is still exercised,
+    and the refusal has its own test in
+    `test_eval_refuses_an_unpopulated_index.py`."""
     import contextlake.kb.embeddings as emb_pkg
 
     class _FakeEmbedder:
@@ -209,10 +218,18 @@ def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monke
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [{"query": "CatalogService", "expected": ["os"]}]}))
 
+    # One vector, so the retriever has something to search. Without this the command
+    # refuses (correctly) and the build-and-retrieve path below is never reached.
+    from contextlake.kb.embeddings.store import build_vector_store
+    # The SAME backend the command will open. Pinning "brute" here wrote rows into the
+    # plain table while the command opened the sqlite-vec virtual one in the same file
+    # and correctly found nothing -- a fixture and its subject disagreeing about where
+    # the data lives, which looks exactly like the feature being broken.
+    vs = build_vector_store(store_dir / "embeddings.sqlite")
+    vs.upsert([("os", "r", _FakeEmbedder().embed(["CatalogService"])[0])])
+    vs.close()
+
     args = Namespace(golden=str(golden), limit=None, retriever="semantic", config=str(cfg))
-    # nothing was ever embedded into the vector store, so this scores a real
-    # (empty) miss -- the point is exercising the build-vs-and-retrieve path,
-    # not asserting a hit.
     assert cmd_eval(args) == 0
 
 

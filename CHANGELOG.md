@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.22.0] - 2026-08-18
+
+### Fixed
+
+- **`kb query --retriever semantic` answered "No matches" on every freshly-initialised
+  workspace.** A nearest-neighbour search over an EMPTY table returns `[]`, which is the
+  same value a populated index returns when it finds nothing, and the two mean opposite
+  things: "this search never ran" against "the graph holds nothing like your query". The
+  caller treated the empty list as a real answer and skipped the fts fallback its own
+  `--help` promises.
+
+  The degrade path was not missing. It was there and correct for the case where
+  embeddings are DISABLED. What nobody had covered is the case `contextlake init`
+  actually creates: `[embeddings] enabled = true` with no vectors until `kb embed` runs,
+  so the embedder builds successfully and reports that the model loaded, which is a
+  different fact from anything having been embedded. The search now says which of the two
+  it hit, names the remedy, and shows the fts results.
+
+  Four surfaces read the vector store, not one, and all four had it. The MCP
+  `semantic_search` and `hybrid_search` tools now carry the reason in the result's
+  `note`; the MCP `ask` tool routes to full-text and says which search actually ran; the
+  dashboard's search panel returns lexical results with the reason attached. An agent on
+  the other end of an empty result with no note reports back that the codebase has no
+  such concept, which is the worst version of this bug because nobody sees the store.
+
+  `kb eval --retriever semantic|hybrid` REFUSES instead of degrading, and the difference
+  is deliberate: a query still has a useful answer to give from keywords, while an
+  eval's entire output is the score of the retriever that was asked for. It used to
+  report `P@k=0 R@k=0 hit-rate=0` and exit 0, which is what `--json` gates CI on, so an
+  unpopulated index read as a total retrieval regression.
+
+  The check is an existence probe, not a count. It runs before every semantic query, and
+  the question is "is there anything at all", which the first row answers; an exact
+  `COUNT(*)` over the ANN backend's virtual table carries no cheapness guarantee, on
+  precisely the large stores where per-query work is felt.
+
+- **`kb ingest` silently dropped an enabled source whose type this build cannot
+  construct.** The refusal added to `source add` above only guards the WRITE path, and a
+  config can predate it, be hand-edited, or be written ahead of installing the plugin it
+  names. The read path filtered those rows out with no output at all, so a run configured
+  to read three sources could read one and print a checkmark. Each is now named, counted
+  as a failed source, and reflected in the exit code; a config where nothing can run
+  fails rather than reporting an empty inbox. A DISABLED source of an unknown type stays
+  silent, because turning one off is how a user parks it.
+
+- **`--max-retries 0` could never work.** The retry loop is `for attempt in
+  range(max_retries)`, so the flag counts total attempts despite its name, and zero runs
+  the body zero times, leaves the error variable unset, and ends at `raise last_error`
+  -- failing with "exceptions must derive from BaseException" without ever attempting
+  the operation. The bound now starts at 1, the help says so ("1 = try once, no retry"),
+  and the retry primitive refuses a zero budget by name, because a config file sets this
+  too and the flag is not the only way in.
+
+- **`kb ingest --path <does-not-exist>` reported the path as reachable, with a ✓ and exit
+  0.** Output byte-for-byte identical to a real directory holding no matching files. The
+  files source had no failure-recording at all, so the "(source reachable, nothing to
+  ingest)" branch was chosen by the ABSENCE of a recorded failure from a source that
+  could not record one. A missing root, a path that is neither file nor directory, and an
+  unreadable directory are now each recorded and reported, and the run exits non-zero. A
+  genuinely empty directory still reports exactly what it did before.
+
+- **`kb source add --type <typo>` wrote the entry, printed a checkmark, and told the user
+  to run a command that could never pick it up.** `--type` is an open set because a plugin
+  registers its own name, but "open" means "whatever is installed", and at add time that
+  is exactly enumerable. An unknown type is now refused, nothing is written, and the
+  message lists what this build can run and says a plugin type is discovered
+  automatically once installed.
+
+- **`kb docs --max-symbols 0` silently meant 500, and `--max-symbols -5` silently dropped
+  the last five symbols.** Zero fell through `value or 500`, which cannot tell an explicit
+  0 from an unset flag; a negative went straight into a list slice, where it quietly
+  removes from the end while the generated page's own text said "capped at -5 entries".
+  The project already had a bounded-count argparse type carrying a comment about this
+  exact mistake -- the flag had simply never adopted it. `--min-workers` had the same
+  gap. `--max-retries` is bounded too, but keeps zero, because "try once, do not retry"
+  is a real request in a way that "return zero results" is not.
+
+
 ## [7.21.0] - 2026-08-18
 
 ### Fixed

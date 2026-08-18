@@ -126,6 +126,12 @@ are unaffected. The exit code stays 0: "nothing in here is about that" is a vali
 empty list rather than prose. With `[embeddings]` off the query degrades to keyword search instead, which
 has its own notion of "no match" and needs no floor.
 
+It degrades for a second reason too, and this one is the common one on a new workspace: `[embeddings]` is
+**on** by default, but no vector exists until `contextlake kb embed` runs. A vector search over an empty
+index returns the same empty list a populated index returns when it finds nothing, so the query says which
+of the two it hit, names `kb embed` as the remedy, and shows the keyword results rather than reporting no
+matches. The MCP tools return the same explanation in the result's `note`.
+
 ## Measuring retrieval quality
 
 `contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs

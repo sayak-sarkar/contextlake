@@ -245,6 +245,15 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
     core tier, because core must never import kb (kb is an optional extra).
     """
     decide_transient = is_transient or git_error_is_transient
+    if max_retries < 1:
+        # `range(0)` runs the body zero times, leaving `last_error` as None, and the
+        # function ends at `raise last_error` -- which fails with "exceptions must
+        # derive from BaseException" and never attempts the operation. Named here
+        # rather than left to that message, because a config file can set this too and
+        # the CLI flag is not the only way in.
+        raise ValueError(
+            f"max_retries must be at least 1 (got {max_retries}); it counts TOTAL "
+            "attempts, so 1 means try once and do not retry")
     last_error = None
     for attempt in range(max_retries):
         try:
