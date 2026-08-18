@@ -1364,10 +1364,30 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
                    help="--fix: never prompt; privileged commands are printed, not run")
 
     p = command("eval", "score a golden-query set against the index "
-                        "(precision@k / recall@k / MRR)")
+                        "(precision@k / recall@k / MRR)",
+                epilog="""
+The golden file, in full. `expected` is a LIST, and `match` decides what it holds:
+
+  {"queries": [
+     {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
+     {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+  ]}
+
+  match "id"   (the default) -- `expected` holds node ids, as `kb query --json` prints them
+  match "name" -- `expected` holds bare symbol names
+
+Get the ids for a query you already trust with `contextlake kb query <term> --json`.
+
+A malformed file is REJECTED (exit 1, "bad_golden_set"), never scored as zero: this command
+exists to gate CI on a metric, so a typo that reported 0.0 would read as a real regression.
+
+Examples:
+  contextlake kb eval --golden queries.json
+  contextlake kb eval --golden queries.json --retriever hybrid --json
+""")
     p.add_argument("--golden", default=_S,
-                   help="a golden-query JSON file "
-                        "({queries:[{query, expected, kind?, repo?, match?}]})")
+                   help="a golden-query JSON file; see the examples below for its exact "
+                        "shape ({queries:[{query, expected:[...], kind?, repo?, match?}]})")
     p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
                    help="which retriever to score (default: fts; semantic/hybrid "
                         "need embeddings)")

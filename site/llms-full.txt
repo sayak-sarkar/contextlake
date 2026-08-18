@@ -6575,6 +6575,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.21.0] - 2026-08-18
+
+### Fixed
+
+- **A malformed golden set scored 0.0 instead of being rejected.** `kb eval --json` exists to
+  gate CI on a metric, so a typo in the golden file reported `hit_rate: 0.0` and read as
+  "retrieval regressed to nothing" -- blocking a release, with numbers that looked measured
+  rather than meaningless. Two shapes did it: an unrecognised `match` mode fell through every
+  comparison, and `expected` written as a bare string is iterable, so the scorer compared the
+  retrieved ids against its individual CHARACTERS.
+
+  Both now raise, the CLI reports `bad_golden_set` and exits 1, and the message for the string
+  case names the correction (`Write ["Calculator"].`) because the reader's next move is to edit
+  the file. A file with no `queries` key says what the shape is, where it used to surface a
+  `TypeError` about list indices.
+
+  **Reported by an external review as "`kb eval` always reports 0.0, the feature is
+  non-functional". That was not true** -- the documented form scores `hit_rate: 1.0`, verified
+  -- but the complaint underneath it was: nothing told the reviewer that nine attempted
+  spellings were being rejected rather than scored, so a working feature looked broken.
+
+- **Five more golden-set shapes scored a number instead of being rejected.** Found by a
+  reviewer reading the fix above, which is the pattern worth naming: the fix for a defect
+  class is the most likely place to find that same class again.
+
+  An empty `"queries": []` scored `n: 0` with every metric at 0.0 and exit 0, which cannot be
+  told apart from a set that ran and retrieved nothing. A non-string inside `expected` (`0`,
+  `null`, a nested list) can never equal a retrieved id or name, so it was a guaranteed miss
+  dressed as a measurement. An empty `query` string gives the full-text layer no terms, and no
+  terms retrieves nothing, scored as a retrieval failure. A query entry that is not an object
+  raised a bare `TypeError` naming neither the file nor which entry.
+
+  The last one runs the other way and is the dangerous one: a falsy `kind` or `repo` (`false`,
+  `[]`, `{}`, `""`) is dropped by the store's `if kind:` filter test, so the query ran
+  UNFILTERED while appearing to carry a filter -- and could therefore score a HIT on a node the
+  filter would have excluded. All five now raise, and each message says which value is wrong
+  and what it would otherwise have measured.
+
+### Changed
+
+- **`kb eval --help` carries the golden-file schema.** It is correct in
+  `docs/semantic-search.md` and was reachable from nowhere a user reaching for `--help` would
+  look, which is how a reviewer with the tool in front of them tried nine wrong spellings. The
+  help now shows the full shape, says `expected` is a list, explains what each `match` mode
+  holds, and points at `kb query --json` as the way to get real ids.
+
+
 ## [7.20.0] - 2026-08-18
 
 ### Fixed

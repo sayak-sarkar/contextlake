@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 Retriever = Callable[..., list]
 
 
+MATCH_MODES = ("id", "name")
+
+
 @dataclass
 class GoldenQuery:
     query: str
@@ -41,10 +44,92 @@ class GoldenQuery:
     repo: str | None = None
     match: str = "id"  # "id" | "name"
 
+    def __post_init__(self):
+        """Reject a golden entry this cannot score, instead of scoring it zero.
+
+        Every field is checked, because every field has a malformed value that reaches the
+        scorer, produces no error, and comes back as a confident number:
+
+        - an unrecognised `match` mode falls through every comparison and misses;
+        - `expected` as a bare string is iterable, so the scorer compares against its
+          individual CHARACTERS and naturally matches nothing;
+        - a non-string inside `expected` (`0`, `null`, a nested list) can never equal a
+          retrieved node id or name, so it is a guaranteed miss dressed as a measurement;
+        - an empty `query` gives the full-text layer no terms, and no terms retrieves
+          nothing -- scored as a retrieval failure rather than an incomplete entry;
+        - a falsy `kind` or `repo` (`false`, `[]`, `{}`) is dropped by the store's
+          `if kind:` filter test, so the query silently runs UNFILTERED and can score a
+          hit the filter it appears to carry would have excluded.
+
+        A wrong number is the worst possible answer here. `kb eval --json` exists to gate CI
+        on a metric, so a typo in the golden file reads as a real retrieval result and either
+        blocks a release or passes one, with the numbers looking measured rather than
+        meaningless.
+        """
+        if self.match not in MATCH_MODES:
+            raise ValueError(
+                f"query {self.query!r}: match={self.match!r} is not one of "
+                f"{', '.join(MATCH_MODES)}")
+        if not isinstance(self.query, str) or not self.query.strip():
+            raise ValueError(
+                f"query must be a non-empty string, not {self.query!r}; an empty query "
+                f"retrieves nothing, which would be scored as a retrieval failure rather "
+                f"than as the incomplete golden entry it is.")
+        if isinstance(self.expected, str):
+            raise ValueError(
+                f"query {self.query!r}: expected must be a LIST of "
+                f"{'names' if self.match == 'name' else 'node ids'}, not a string. "
+                f'Write ["{self.expected}"].')
+        if not isinstance(self.expected, (list, tuple)) or not self.expected:
+            raise ValueError(
+                f"query {self.query!r}: expected must be a non-empty list; a query with "
+                f"nothing to find cannot be scored, and counting it as a miss would drag "
+                f"the whole set's metrics down for a file that is simply incomplete.")
+        for item in self.expected:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(
+                    f"query {self.query!r}: every entry in expected must be a non-empty "
+                    f"{'name' if self.match == 'name' else 'node id'} string, but one is "
+                    f"{item!r}. It can never equal a retrieved value, so it would score a "
+                    f"guaranteed miss that reads as a real one.")
+        for field, value in (("kind", self.kind), ("repo", self.repo)):
+            if value is None:
+                continue
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"query {self.query!r}: {field}={value!r} is neither omitted nor a "
+                    f"non-empty string. The store drops a falsy filter, so this query "
+                    f"would run UNFILTERED while appearing to carry a {field} filter.")
+
 
 def load_golden(path) -> list[GoldenQuery]:
+    """Parse a golden set, raising rather than returning something unscorable.
+
+    ``{"queries": [{"query": ..., "expected": [...], "match": "id"|"name"}]}``. A missing
+    `queries` key, an empty one, a bad `match`, or a string `expected` all raise here so the
+    CLI reports `bad_golden_set` -- which is a different thing from a real score of zero, and
+    the caller must be able to tell them apart.
+
+    An EMPTY `queries` is rejected for that same reason and it is the easy one to miss: it
+    parses, it iterates, and it scores. What comes back is `n: 0` with every metric at 0.0
+    and exit 0, which is indistinguishable from a set that ran and retrieved nothing.
+    """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return [GoldenQuery(**q) for q in data["queries"]]
+    if not isinstance(data, dict) or "queries" not in data:
+        raise ValueError(
+            'golden set must be an object with a "queries" list: '
+            '{"queries": [{"query": "...", "expected": ["..."], "match": "name"}]}')
+    queries = data["queries"]
+    if not isinstance(queries, list) or not queries:
+        raise ValueError(
+            f'"queries" must be a non-empty list, not {queries!r}. Scoring an empty set '
+            f"reports n=0 with every metric at 0.0, which cannot be told apart from a real "
+            f"run that retrieved nothing.")
+    for i, q in enumerate(queries):
+        if not isinstance(q, dict):
+            raise ValueError(
+                f"queries[{i}] must be an object with query/expected keys, not {q!r}")
+    return [GoldenQuery(**q) for q in queries]
 
 
 def make_fts_retriever(store: Store) -> Retriever:
