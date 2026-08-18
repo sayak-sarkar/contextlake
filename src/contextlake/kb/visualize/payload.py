@@ -94,7 +94,11 @@ def seed_ids_from_args(store: Store, args) -> list[str]:
     """Resolve --node / --name(+--kind) / --search / positional text into seed ids."""
     node = getattr(args, "node", None)
     if node:
-        return [node]
+        # Checked against the store, like every other seed flag. Returned unchecked, a
+        # mistyped id produced an empty graph and exit 0, while the SAME miss reached
+        # through --name or --search exits 2 -- one event with two verdicts, so a script
+        # gating on the exit code could catch a typo in one flag and not the other.
+        return [node] if store.get_node(node) is not None else []
     kind = getattr(args, "kind", None)
     repo = getattr(args, "repo", None)
     name = getattr(args, "name", None)

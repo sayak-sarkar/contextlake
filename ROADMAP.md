@@ -12,7 +12,7 @@ below the mirror is optional and stays off by default.
   concurrent across hundreds of repos, with branch-safety, `--dry-run`, logging, and a
   colorful CLI. Namespaced under `mirror` (`mirror fetch/clone/update/branches/verify/
   status/sync/audit`).
-- **Knowledge graph**: tree-sitter parsing across **14 languages** (Python, JS/TS, C#,
+- **Knowledge graph**: tree-sitter parsing across **27 languages** (Python, JS/TS, C#,
   Go, Rust, Java, C/C++, and more) plus Terraform, SQL DDL, and manifest-derived
   cross-repo package dependencies. Incremental indexing with bi-temporal `--as-of
   <commit>` queries over per-commit shard snapshots. Namespaced under `kb`
@@ -37,7 +37,7 @@ below the mirror is optional and stays off by default.
 - **Dashboard**: a local, offline-first UI: fleet overview, per-repo anatomy, the
   architecture graph, blast radius, health, search, a natural-language Chat tab, and a
   static `--site` export (used for the project's own public read-only trial demo).
-- **Serve over MCP**: an `ask()` router plus 21 underlying tools, 19 of them always present
+- **Serve over MCP**: an `ask()` router plus 23 underlying tools, 21 of them always present
   (find_definition, find_callers, blast_radius, who_knows, get_wiki, …) and 2 semantic ones
   that register once embeddings exist, stdio/streamable-HTTP/SSE
   transports, and one-command editor steering (`kb steer`) for Claude Code, Windsurf,

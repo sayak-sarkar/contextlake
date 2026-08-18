@@ -103,7 +103,7 @@ PAGES = [
     ("index-code-graph.html", "docs/index-code-graph.md", "Index the code graph",
      "Index the code graph",
      "Build your knowledge base", "Turn your mirrored repos into a queryable code graph: "
-     "incremental indexing, and the full node and edge model across 14 languages, Terraform, "
+     "incremental indexing, and the full node and edge model across 27 languages, Terraform, "
      "SQL, and web topology.",
      "pebble-doc.png",
      [("connect-enrich.html", "Connect and enrich"), ("semantic-search.html", "Semantic search")]),

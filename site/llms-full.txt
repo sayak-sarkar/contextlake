@@ -6581,6 +6581,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.23.0] - 2026-08-18
+
+### Fixed
+
+- **The gate that keeps every documented number honest was reading a list of files somebody
+  had remembered.** Each family of claims named the pages it knew stated its number, which
+  makes the check exactly as complete as that memory: move a sentence to a new page, or
+  write a new page repeating a count, and the claim is verified nowhere while every test
+  stays green. That is the same defect the gate exists to catch, one level up.
+
+  Every prose file is now discovered by glob, with `CHANGELOG.md` the single deliberate
+  exclusion because a count under an old version heading is TRUE of that version. On its
+  first run the widened gate immediately found two stale claims on a page no list had ever
+  included: a language count two years out of date, and beside it a tool count in a wording
+  no pattern recognised. Both are corrected, and the wording is now covered.
+
+  A reviewer then found the third: the glob took `.md` only, and the site GENERATOR
+  (`site/build_docs.py`) holds the published page subtitles, meta descriptions, OpenGraph
+  text and JSON-LD as Python string literals. "across 14 languages" was sitting LIVE on the
+  published page against a build of 27, in the one file a markdown glob can never reach.
+  Corrected, and the generator is now scanned -- the generator rather than its output, so
+  there stays one authority.
+
+  Two more holes in the same gate: the tool-count check required five claims to match in
+  total, so rewording the one sentence a pattern covered dropped the total to nine, still
+  passed, and left that claim unchecked -- every pattern must now match something. And the
+  test guarding the `+2` offsets asserted only that the two embedding tools were ABSENT
+  without embeddings, which says nothing about how many conditional tools exist; it now
+  builds a server with an embedder and asserts the difference is exactly those two.
+
+- **`kb graph --c4 --repos <matches nothing>` wrote a diagram of an empty model.** Found by
+  a reviewer forty lines below the `--site` fix above, in the same file, on the same flag:
+  it rendered ~600 KB of nothing, announced "0 namespaces, 0 repos", and exited 0. The
+  count was honest, the tick contradicted it, and the file on disk made the contradiction
+  look like a result. Third cycle running that the patch for a defect class has contained a
+  fresh instance of that same class.
+
+  `--repos` also meant two different things inside that one command: `--site` matched over
+  repositories with parsed nodes, `--c4` over repositories-table rows, so the same spelling
+  selected one and not the other. Both now decide "does this pattern name anything" from
+  the union of both populations, while each still generates from its own source, so the
+  widening cannot make a run produce less.
+
+- **`kb dashboard --site --repos <matches nothing>` had the identical bug**, on the same
+  flag over the same store, and was left behind when the graph side was fixed. It now
+  refuses the same way.
+
+- **`kb graph` answered a correctly spelled but unknown seed with a syntax banner.** A
+  `--node`, `--name` or `--search` that matched nothing exited 2 with usage text, sending
+  the reader to check syntax that was never wrong, while `--repo` already exited 1 and
+  named what it could not find. The family now agrees: exit 1 and the seed named, with
+  exit 2 kept for the one real usage error, which is asking for nothing at all.
+
+- **`kb graph --node <id>` returned the id without asking the store whether it exists.** A
+  typo produced an empty graph and exit 0, while the identical miss reached through `--name`
+  or `--search` exits 2 with the usage banner. One event, two verdicts, so a script gating on
+  the exit code could catch a mistyped `--name` and never a mistyped `--node`.
+
+- **`kb graph --site --repos <matches nothing>` printed a green tick over an empty site.** It
+  wrote one fleet overview and zero repository pages, logged that zero honestly, and then
+  contradicted its own log with a success line and exit 0. It now refuses before writing
+  anything and names the filter, which is the verdict `kb wiki` and `kb docs` already give an
+  id that matches no repository.
+
+
 ## [7.22.0] - 2026-08-18
 
 ### Fixed

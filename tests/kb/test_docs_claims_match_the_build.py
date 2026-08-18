@@ -29,8 +29,6 @@ import re
 import tempfile
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
@@ -69,29 +67,92 @@ def _unconditional_tool_names() -> set[str]:
             store.close()
 
 
+def _tool_names_with_embeddings() -> set[str]:
+    """Tools a server registers WITH an embedder and a vector store present.
+
+    Stubs rather than a real embedder: registration is gated on both objects merely being
+    non-None, so a stub answers the question the count actually asks -- how many tools does
+    a client see -- without loading a model into a test run.
+    """
+    from contextlake.kb.embeddings.store import VectorStore
+    from contextlake.kb.server import build_server
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    class _StubEmbedder:
+        name = "stub"
+
+        def embed(self, texts):
+            return [[0.0, 0.0] for _ in texts]
+
+    with tempfile.TemporaryDirectory() as d:
+        store = SqliteStore(Path(d) / "k.sqlite")
+        vs = VectorStore(Path(d) / "v.sqlite")
+        try:
+            server = build_server(store, embedder=_StubEmbedder(), vector_store=vs)
+            return {t.name for t in asyncio.run(server.list_tools())}
+        finally:
+            vs.close()
+            store.close()
+
+
 # --- the claims -----------------------------------------------------------------------
 
-# Every documented count, with the file that states it. A new claim goes here; a claim whose
-# authority cannot be named does not belong in the docs as a number.
-_LANGUAGE_CLAIM_FILES = [
-    "docs/index-code-graph.md",
-    "docs/style-guide-reference.md",
-    "README.md",
-]
+# EVERY prose file, discovered rather than listed. Each family below used to name the files it
+# knew stated its number, which makes the gate exactly as complete as somebody's memory: move a
+# sentence into a new page, or write a new page that repeats a count, and the claim is checked
+# nowhere while every test stays green. The same shape as the defect this whole gate exists to
+# catch, one level up -- a check that reports "all claims verified" when it verified the ones it
+# happened to know about.
+#
+# CHANGELOG.md is excluded on purpose and it is the only exclusion: it is a historical record, so
+# "22 tools are registered" under an old version heading is TRUE of that version and must not be
+# rewritten when the build moves on.
+_HISTORICAL = {"CHANGELOG.md"}
 
 
-@pytest.mark.parametrize("rel", _LANGUAGE_CLAIM_FILES)
-def test_every_stated_language_count_matches_the_grammar_table(rel):
-    """`27 languages` in prose vs `len(_GRAMMARS)` in the parser.
+def _doc_files() -> list[str]:
+    """Every file that carries prose a reader can see, including the site GENERATOR.
 
-    Stated in three files, which is exactly why this is a test: a language added with two of
-    the three updated leaves one lying, and nothing else would notice.
+    `site/build_docs.py` holds the published page subtitles, meta descriptions, OpenGraph
+    text and JSON-LD as Python string literals -- prose by any reasonable definition, and
+    the most widely READ prose the project has, since it is what a search engine and a
+    social preview quote. A first version of this glob took `.md` only, and a reviewer
+    found "across 14 languages" sitting live on the published page against a build of 27,
+    in the one file a markdown glob can never reach. Scanning the generator rather than its
+    output keeps a single authority: the HTML and `llms.txt` are built from it.
+    """
+    root = REPO_ROOT
+    patterns = ("docs/**/*.md", "*.md", "site/*.md", "site/*.py")
+    found: list[str] = []
+    for pat in patterns:
+        found += [str(p.relative_to(root)) for p in sorted(root.glob(pat))]
+    return [f for f in dict.fromkeys(found) if f not in _HISTORICAL]
+
+
+def _claims(pattern: str) -> list[tuple[str, int]]:
+    """Every `(file, number)` a count-shaped pattern matches, across every prose file."""
+    out: list[tuple[str, int]] = []
+    for rel in _doc_files():
+        for m in re.finditer(pattern, _text(rel)):
+            out.append((rel, int(m.group(1))))
+    return out
+
+
+def test_every_stated_language_count_matches_the_grammar_table():
+    """`27 languages` in prose vs `len(_GRAMMARS)` in the parser, wherever it is written.
+
+    A language added with two of three pages updated leaves one lying, and nothing else would
+    notice. Searched across every page rather than a named few, so a count that moves to a new
+    page moves into the gate with it.
     """
     langs, _grammars = _language_counts()
-    stated = {int(n) for n in re.findall(r"\*?\*?(\d+)\*?\*? languages", _text(rel))}
-    assert stated, f"{rel} states no language count; drop it from _LANGUAGE_CLAIM_FILES"
-    assert stated == {langs}, (
-        f"{rel} claims {sorted(stated)} languages; the parser table has {langs}. "
+    claims = _claims(r"\*?\*?(\d+)\*?\*? languages")
+    assert len(claims) >= 3, (
+        f"only {len(claims)} language-count claims found; the prose was reworded and this gate "
+        f"has gone blind to it. Found: {claims}")
+    wrong = sorted({(rel, n) for rel, n in claims if n != langs})
+    assert not wrong, (
+        f"stale language counts (file, stated): {wrong}; the parser table has {langs}. "
         f"Update the prose, not this test.")
 
 
@@ -103,10 +164,12 @@ def test_the_stated_grammar_count_matches_the_distinct_modules():
     miss it.
     """
     langs, grammars = _language_counts()
-    text = _text("docs/index-code-graph.md")
-    stated = {int(n) for n in re.findall(r"across \*?\*?(\d+)\*?\*? grammars", text)}
-    assert stated == {grammars}, (
-        f"docs claim {sorted(stated)} grammars; the table has {grammars} distinct modules")
+    claims = _claims(r"across \*?\*?(\d+)\*?\*? grammars")
+    assert claims, "no page states a grammar count any more; the pattern has gone blind"
+    wrong = sorted({(rel, n) for rel, n in claims if n != grammars})
+    assert not wrong, (
+        f"stale grammar counts (file, stated): {wrong}; the table has {grammars} distinct "
+        f"modules")
     assert langs > grammars, (
         "languages no longer exceed grammars, so the sentence explaining why they differ "
         "is now wrong as well as the number")
@@ -114,9 +177,11 @@ def test_the_stated_grammar_count_matches_the_distinct_modules():
 
 def test_the_stated_node_kind_count_matches_the_registry():
     kinds = _node_kind_count()
-    stated = {int(n) for n in re.findall(r"(\d+) node kinds", _text("docs/index-code-graph.md"))}
-    assert stated == {kinds}, (
-        f"docs claim {sorted(stated)} node kinds; KIND_REGISTRY has {kinds}")
+    claims = _claims(r"(\d+) node kinds")
+    assert claims, "no page states a node-kind count any more; the pattern has gone blind"
+    wrong = sorted({(rel, n) for rel, n in claims if n != kinds})
+    assert not wrong, (
+        f"stale node-kind counts (file, stated): {wrong}; KIND_REGISTRY has {kinds}")
 
 
 # Every file that states a tool count, in ANY wording. The first version of this gate read one
@@ -128,7 +193,6 @@ def test_the_stated_node_kind_count_matches_the_registry():
 # So the shape of the check changed: find every count-shaped claim anywhere in the docs, and
 # require the SET of numbers to be exactly the ones the build supports. A new phrasing that this
 # pattern does not recognise is a hole, which is why the test also asserts it found several.
-_TOOL_COUNT_FILES = ["docs/explained.md", "docs/benchmarks.md", "docs/serve.md", "README.md"]
 
 # Each pattern declares WHAT ITS NUMBER SHOULD BE, rather than every pattern sharing one set of
 # acceptable values. A shared set was the first attempt and it left a hole: allowing
@@ -147,6 +211,13 @@ _TOOL_COUNT_PATTERNS = [
     # The only place a count legitimately excludes the router, because the sentence adds it back.
     (r"\((\d+) graph tools plus", -1),
     (r"\*\*(\d+) once embeddings exist\*\*", +2),
+    # The roadmap counts the tools BESIDE the router, so both of its numbers sit one below the
+    # unconditional total, which includes `ask`. Added after widening the file set found a stale
+    # language count on that page and the tool sentence beside it turned out to be stale too --
+    # in a wording no pattern here recognised. The file set and the pattern set are two separate
+    # blind spots and closing one does not close the other.
+    (r"router plus (\d+) underlying tools", +1),
+    (r"(\d+) of them always present", -1),
 ]
 
 
@@ -159,15 +230,22 @@ def test_every_tool_count_anywhere_in_the_docs_matches_the_build():
     """
     unconditional = len(_unconditional_tool_names())
     found: list[tuple[str, str, int, int]] = []
-    for rel in _TOOL_COUNT_FILES:
-        text = _text(rel)
-        for pat, offset in _TOOL_COUNT_PATTERNS:
-            for m in re.finditer(pat, text):
-                found.append((rel, m.group(1), unconditional + offset, offset))
+    silent: list[str] = []
+    for pat, offset in _TOOL_COUNT_PATTERNS:
+        hits = _claims(pat)
+        if not hits:
+            silent.append(pat)
+        for rel, n in hits:
+            found.append((rel, str(n), unconditional + offset, offset))
 
-    assert len(found) >= 5, (
-        f"only {len(found)} tool-count claims matched; a doc was reworded and this gate has gone "
-        f"blind to it. Found: {found}")
+    # PER PATTERN, not a total. A floor of "at least five matched" was the first version and
+    # it does not do the job: with ten live claims, rewording the one sentence a pattern
+    # covers drops the total to nine, the floor still passes, and that claim is checked
+    # nowhere. A pattern that matches nothing is either dead or blind, and both need a human.
+    assert not silent, (
+        f"{len(silent)} tool-count pattern(s) matched nothing, so whatever they covered is now "
+        f"unchecked -- the prose was reworded, or the claim was deleted and the pattern should "
+        f"go with it: {silent}")
     wrong = sorted({(rel, got, exp) for rel, got, exp, _off in found if int(got) != exp})
     assert not wrong, (
         f"stale tool counts (file, stated, expected): {wrong}. A server without embeddings offers "
@@ -175,10 +253,19 @@ def test_every_tool_count_anywhere_in_the_docs_matches_the_build():
 
 
 def test_the_embeddings_pair_really_is_the_conditional_two():
-    """The +2 in the allowed set has to be those two tools and not a coincidence."""
+    """The `+2` offsets have to be a measured CARDINALITY, not an assumption.
+
+    Asserting only that the two named tools are absent from the unconditional set says
+    nothing about how many conditional tools there are. Add a third one tomorrow and every
+    `+2` in the pattern table silently starts enforcing a number that is one too low, on a
+    gate whose whole job is catching numbers that drifted. So the conditional set is
+    measured by difference and its size asserted.
+    """
     unconditional = _unconditional_tool_names()
-    assert "semantic_search" not in unconditional
-    assert "hybrid_search" not in unconditional
+    conditional = _tool_names_with_embeddings() - unconditional
+    assert conditional == {"semantic_search", "hybrid_search"}, (
+        f"the conditional tools are {sorted(conditional)}; every `+2` offset in "
+        f"_TOOL_COUNT_PATTERNS assumes exactly two, so both must be updated together")
 
 
 def test_every_documented_cli_verb_exists():

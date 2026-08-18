@@ -74,6 +74,39 @@ def cmd_dashboard(args) -> int:
         anonymize = bool(getattr(args, "anonymize", False)) or anonymize_default
         repos = getattr(args, "repos", None)
         group_depth = _or_default(getattr(args, "group_depth", None), 1)
+        # The same refusal `kb graph --site` makes, on the same flag, over the same store.
+        # Without it a filter matching nothing wrote an overview and zero repo pages, logged
+        # that zero, and printed a success line over it -- a sibling surface left behind
+        # when the graph side was fixed, which is how a read/write pair or a pair of
+        # neighbouring commands usually goes wrong.
+        if repos and not sample:
+            from ..store.sqlite_store import SqliteStore
+            from ._common import register_store_for_observability
+            from .graph import _no_repo_matches, _repos_matching
+            patterns = [p.strip() for p in repos.split(",") if p.strip()]
+            if patterns:
+                # Opened only for this check and closed straight away: the builder below
+                # opens its own, and holding two write-capable handles to one sqlite file
+                # for the length of a site build is a lock waiting to happen.
+                # Registered like every other store this process opens, not merely
+                # constructed: the refusal below names real repository ids as suggestions,
+                # and `--redact` has to be able to hide them. The repo's own parity gate
+                # caught this the moment the raw construction was added, which is what that
+                # gate is for.
+                db_path = store_dir / "index.sqlite"
+                probe = SqliteStore(db_path)
+                register_store_for_observability(probe, db_path)
+                try:
+                    matched = _repos_matching(probe, patterns)
+                    # Built while the handle is open, because the message names real repo
+                    # ids to try and reading those needs the store.
+                    refusal = (None if matched
+                               else _no_repo_matches(probe, patterns, "dashboard"))
+                finally:
+                    probe.close()
+                if refusal:
+                    log(style.fail(refusal))
+                    return 1
         src = "the bundled demo fleet" if sample else "the local store"
         log(f"Building dashboard site from {src}…")
         build_dashboard_site(store_dir, out_dir, repos=repos, anonymize=anonymize,

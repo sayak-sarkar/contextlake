@@ -19,6 +19,61 @@ def _has_seed(args) -> bool:
                 or " ".join(getattr(args, "args", []) or []).strip())
 
 
+def _repos_matching(store, patterns: list[str]) -> list[str]:
+    """Every indexed repo id a `--repos` pattern selects, from BOTH sources.
+
+    `--repos` used to mean two different things inside this one command: `--site` matched
+    over the repos that have parsed nodes, `--c4` over the repos-table rows. A repo present
+    in one and not the other therefore matched one flag and not its neighbour, on the same
+    spelling. The union is deliberate rather than a choice between them: this decides only
+    whether the pattern names ANYTHING, and each feature still generates from its own
+    source, so widening here can never make a run produce less than it did.
+    """
+    from ..visualize.html_render import _match_repo
+    from ..visualize.payload import repo_node_sizes
+
+    known = {r.id for r in store.list_repos()}
+    known |= {r for r, count in repo_node_sizes(store).items() if count}
+    return sorted(r for r in known if _match_repo(r, patterns))
+
+
+def _seed_not_found_msg(store, args) -> str:
+    """Name the seed that matched nothing, and how to look for it.
+
+    Which flag carried it matters to the reader, because the fix differs: a `--node` id is
+    exact and probably mistyped, while a `--name` is looked up across the graph and may
+    simply not be indexed.
+    """
+    node = getattr(args, "node", None)
+    if node:
+        return (f"No node with id {node!r} is in the graph. Ids are exact; "
+                f"`contextlake kb query {node.split('::')[-1]}` finds one by name.")
+    name = getattr(args, "name", None)
+    if name:
+        kind = getattr(args, "kind", None)
+        scope = f" of kind {kind!r}" if kind else ""
+        return (f"Nothing named {name!r}{scope} is in the graph. "
+                f"`contextlake kb query {name}` searches text as well as names.")
+    query = getattr(args, "search", None) or " ".join(getattr(args, "args", []) or []).strip()
+    return (f"Nothing in the graph matches {query!r}. Index the repository that should "
+            f"answer it, or retry with a term the graph knows.")
+
+
+def _no_repo_matches(store, patterns: list[str], what: str) -> str:
+    """The refusal for a `--repos` filter that selects nothing, with real ids to try.
+
+    Points at stored ids rather than at `contextlake kb lint`, which prints counts and not
+    ids -- the same mis-signpost `_common.py` records having already corrected once.
+    """
+    from ._common import _repo_id_suggestions
+
+    sugg = _repo_id_suggestions(store, patterns[0]) if patterns else []
+    hint = (f" Did you mean: {', '.join(sugg)}?" if sugg
+            else " Run `contextlake kb graph --overview` to see what is indexed.")
+    return (f"No indexed repository matches {', '.join(patterns)} -- no {what} was "
+            f"written.{hint}")
+
+
 def cmd_graph(args) -> int:
     from .. import visualize as viz
 
@@ -52,7 +107,17 @@ def cmd_graph(args) -> int:
             repos_arg = getattr(args, "repos", None)
             patterns = [p.strip() for p in repos_arg.split(",") if p.strip()] if repos_arg else None
             if patterns:
-                log(f"Building cross-linked graph site (repos matching {patterns})…")
+                # Refused before writing anything, the same verdict `kb wiki` and `kb docs`
+                # give an id that matches no repository. A filter matching nothing used to
+                # build a site of one fleet overview and zero repository pages, print a green
+                # tick over it and exit 0 -- the count was logged honestly and the tick
+                # contradicted it, which is worse than either alone.
+                matched = _repos_matching(store, patterns)
+                if not matched:
+                    log(style.fail(_no_repo_matches(store, patterns, "site")))
+                    return 1
+                log(f"Building cross-linked graph site ({len(matched)} repo(s) matching "
+                    f"{patterns})…")
             else:
                 log("Building cross-linked graph site…")
             viz.build_site(store, out_dir, repos=patterns,
@@ -80,6 +145,14 @@ def cmd_graph(args) -> int:
             if repos_arg:
                 patterns = [p.strip() for p in repos_arg.split(",") if p.strip()]
                 if patterns:
+                    # Refused before rendering, like `--site` above. A filter matching
+                    # nothing used to build an empty model and write a ~600 KB diagram of
+                    # it, announcing "0 namespaces, 0 repos" and exiting 0 -- the count
+                    # honest, the tick and the exit code contradicting it, and a file on
+                    # disk to make the contradiction look like a result.
+                    if not _repos_matching(store, patterns):
+                        log(style.fail(_no_repo_matches(store, patterns, "diagram")))
+                        return 1
                     repos_filter = [r.id for r in store.list_repos()
                                      if viz._match_repo(r.id, patterns)]
 
@@ -170,9 +243,19 @@ def cmd_graph(args) -> int:
         else:
             seeds = viz.seed_ids_from_args(store, args)
             if not seeds:
-                log("usage: contextlake kb graph (--node ID | --name NAME | --search TEXT | "
-                    "--repo R | --overview) [--hops N] [--format html|dot|mermaid|json]")
-                return 2
+                # Two different events, and they used to share one verdict. Asking for
+                # nothing is a usage error and stays exit 2. Asking for something the graph
+                # does not hold is a well-formed command with an empty answer, which every
+                # other surface here reports as exit 1 with the thing that was not found
+                # named -- `--repo` already did, and a usage banner in reply to a correctly
+                # spelled `--node` tells the reader to check their syntax when their syntax
+                # was fine.
+                if not _has_seed(args):
+                    log("usage: contextlake kb graph (--node ID | --name NAME | --search TEXT | "
+                        "--repo R | --overview) [--hops N] [--format html|dot|mermaid|json]")
+                    return 2
+                log(style.fail(_seed_not_found_msg(store, args)))
+                return 1
             nodes, edges = viz.extract_subgraph(
                 store, seeds, hops=hops, max_nodes=max_nodes, max_fanout=max_fanout,
                 relation=getattr(args, "relation", None),
