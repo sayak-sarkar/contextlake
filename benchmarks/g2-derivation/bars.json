@@ -1,0 +1,69 @@
+{
+  "_comment": [
+    "One bar per output type. A bar is a sentence of the form 'on repo X, output Y contains Z,",
+    "and here is the command that shows it' -- plus the part that matters more: a SOURCE-CHANGE",
+    "test. Every one of these outputs could be satisfied by a fixture, a cached sample, or by",
+    "reading a README, so 'it appeared after indexing' proves nothing about where it came from.",
+    "Each bar therefore changes one thing in the indexed tree, re-indexes, and asserts the",
+    "specific movement that change implies. A page that does not move when its source moves is",
+    "not generated from it.",
+    "",
+    "The tree is public and pinned so the evidence can ship and anyone can re-run it."
+  ],
+  "tree": {
+    "key": "click",
+    "url": "https://github.com/pallets/click",
+    "commit": "e0a2f4d40d5b0a5cbb2c17e4a3f6a5b0e2d3c4f5",
+    "why": "small, pure Python, decorator-heavy, zero runtime dependencies -- so adding one dependency is a visible, unambiguous change to the design notes and the fleet page"
+  },
+  "probe": {
+    "symbol": "g2_derivation_probe_fn",
+    "docstring": "synthetic probe injected to test derivation",
+    "dependency": "urllib3",
+    "why": [
+      "A new function CALLED FROM SEVERAL PLACES exercises the graph, the API reference's",
+      "call-site list, the diagram, and vector search in one change. A new runtime dependency",
+      "exercises the design notes and the fleet page, and click having none makes the before",
+      "and after unambiguous.",
+      "The docstring shares no keyword with the query used to retrieve it, so a hit is",
+      "semantic rather than lexical."
+    ]
+  },
+  "bars": [
+    {
+      "output": "code graph",
+      "bar": "After adding a function and N calls to it, the node and edge totals both increase, and `kb lint` still reports zero dangling edges.",
+      "catches": "an index that appends nodes without wiring their edges, which would leave the new symbol unreachable while the totals still moved"
+    },
+    {
+      "output": "generated docs (API reference)",
+      "bar": "`docs/api/<repo>.md` gains an entry for the new symbol listing every real call site with the correct file:line, and the document's own symbol-count denominator increases.",
+      "catches": "a reference built from a cached shard, or one that lists the symbol without its call sites"
+    },
+    {
+      "output": "generated docs (design notes)",
+      "bar": "Adding one runtime dependency to the manifest makes a numbered decision entry for it appear, and the dependency table gains a row at the dependency's real line number.",
+      "catches": "design notes written from a template or from prose rather than read out of the manifest"
+    },
+    {
+      "output": "fleet view",
+      "bar": "The fleet page's shared-runtime-package count increases, and the new dependency's row shows the repo count it is now shared by.",
+      "catches": "a fleet page that aggregates a stale per-repo cache instead of the shards it just read"
+    },
+    {
+      "output": "diagrams",
+      "bar": "`kb graph --format mermaid --name <symbol>` renders the new node and one edge per real call site, and the printed node/edge counts match the rendered file exactly.",
+      "catches": "a diagram whose printed summary is computed separately from what it drew -- a count that describes a different graph than the picture"
+    },
+    {
+      "output": "wiki",
+      "bar": "The structural page's commit stamp advances to the new head and its node-kind totals reflect the new symbol.",
+      "catches": "a page regenerated with a stale stamp, which is what makes a reader trust an old page"
+    },
+    {
+      "output": "vector search",
+      "bar": "A natural-language query sharing NO keyword with the new symbol's name ranks it first, using the builtin local embedder with no API key.",
+      "catches": "a 'semantic' search that is really substring matching, which a keyword-overlapping query would hide"
+    }
+  ]
+}

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.27.0] - 2026-08-18
+
+### Added
+
+- **A committed harness that proves the six output types are generated from source, not
+  merely emitted after it.** Each of them could be satisfied by a fixture, a cached sample,
+  or by reading a README, so "it appeared after indexing" says nothing about where it came
+  from. `benchmarks/g2-derivation/` changes one thing in a pinned public tree, re-indexes,
+  and asserts the specific movement that change implies.
+
+  The bars are written before the test and each names a failure it would catch: a graph
+  whose totals move while the new symbol's edges dangle; a reference that lists a symbol
+  without its real call sites; design notes written from a template rather than read out of
+  the manifest; a diagram whose printed summary describes a different graph than the one it
+  drew; a wiki page regenerated with a stale commit stamp; a "semantic" search that is
+  really substring matching.
+
+  The deciding half is separated from the I/O so it can be tested without a network, and
+  every assertion is break-tested to confirm it fails for its own reason. Three states,
+  never two: a bar that could not be tested counts against the run, because the question is
+  whether it was proven and an untested bar has not been.
+
+  This does not close that gate on its own. A harness that has never run is not evidence,
+  and the result file is written by a live run.
+
+
 ## [7.26.0] - 2026-08-18
 
 ### Fixed

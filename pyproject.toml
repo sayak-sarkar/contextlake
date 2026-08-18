@@ -218,3 +218,9 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # every one is passed as a list element, never through a shell. Scoped to this one file
 # rather than to `scripts/**`, so a future script has to make its own case.
 "scripts/verify-published-release.py" = ["S603", "S607"]
+
+# The G2 derivation harness drives `git` and `python -m contextlake` as subprocesses --
+# that is the whole job, and it is how the harness proves the SHIPPED command produces the
+# output rather than testing an internal function. Same scoping rule as above: this one
+# file, so a future benchmark has to make its own case.
+"benchmarks/g2-derivation/run.py" = ["S603", "S607"]
