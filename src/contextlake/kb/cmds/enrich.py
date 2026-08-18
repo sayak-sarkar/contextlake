@@ -51,6 +51,16 @@ def cmd_enrich(args) -> int:
                 )
 
         try:
+            from ..resilience import degraded_calls
+
+            # The verdict is taken from the calls, not from exceptions. Source methods
+            # here are contractually non-raising -- an unreachable source yields nothing so
+            # one dead source cannot break the run -- which makes a try/except blind to
+            # exactly the failure that matters. `kb connect` has read this counter since it
+            # learned the same lesson; this command sat beside it returning 0 whatever
+            # happened, so a run where EVERY source call was written off printed the same
+            # green line as a healthy run over repos with nothing to find.
+            degraded_before = degraded_calls()
             log(f"Enriching {len(targets)} repo(s) against {len(term_searchable)} "
                 f"term-searchable source(s)")
             total = 0
@@ -59,7 +69,31 @@ def cmd_enrich(args) -> int:
                                     embedder=embedder, vector_store=vector_store)
                 total += n
                 log(f"  {repo_id}: {n} document(s)", inline=True)
-            log(style.summary_line("ok", f"Enrich complete: {total} document(s) stored"))
+            degraded = degraded_calls() - degraded_before
+            if degraded:
+                log(style.warn(
+                    f"{degraded} source call(s) returned nothing because the source was "
+                    "unavailable (reasons logged above); these results are incomplete"))
+            # Nothing stored AND calls written off is not an empty result, it is a failed
+            # one. An expired token, a dead host and a 404 all land here, and exiting 0
+            # made them indistinguishable from a clean run over repos with nothing to find.
+            if degraded and not total:
+                # Says what was MEASURED. "No source could be reached" is `kb connect`'s
+                # wording under a stricter condition it actually tracks (every attempt
+                # failed); this command counts written-off calls, not attempts, so one
+                # healthy source returning nothing beside one dead source would have made
+                # that sentence false.
+                log(style.summary_line(
+                    "fail", f"Enrich failed: nothing stored, and {degraded} source call(s) "
+                            f"were written off as unavailable"))
+                return 1
+            # Partial degradation with results still exits 0, which is `kb connect`'s
+            # existing rule and is deliberately copied rather than tightened: two sibling
+            # commands giving different verdicts for the same event is the defect this
+            # whole batch is about, and a stricter rule invented here would recreate it.
+            kind = "warn" if degraded else "ok"
+            word = "incomplete" if degraded else "complete"
+            log(style.summary_line(kind, f"Enrich {word}: {total} document(s) stored"))
             return 0
         finally:
             if vector_store is not None:

@@ -235,6 +235,9 @@ def cmd_forget(args) -> int:
 
         # delete_repo also drops the `repos` row; the connector partitions have no
         # such row of their own, so clear_repo is the right verb for them.
+        # Declared before the first thing that can fail to remove, so the wiki pages and
+        # the disk artefacts below both record into one list and one check decides.
+        survived: list[str] = []
         store.delete_repo(repo_id)
         for part in parts[1:]:
             store.clear_repo(part)
@@ -242,8 +245,16 @@ def cmd_forget(args) -> int:
             for part in parts:
                 vec.clear_repo(part)
             vec.close()
+        # Verified, not assumed. The summary counts these as removed, and an unlink that
+        # silently did nothing (a read-only directory, a file held open) made the count a
+        # claim rather than a measurement -- the same gap the byte figure below was already
+        # corrected for.
+        pages_left = 0
         for page in pages:
             page.unlink(missing_ok=True)
+            if page.exists():
+                pages_left += 1
+                survived.append(str(page))
         # Shards last: the rows are gone by now, so a failure here leaves an orphaned
         # file rather than a store whose rows disagree with the files backing them.
         import shutil
@@ -255,7 +266,6 @@ def cmd_forget(args) -> int:
         # nothing still reported the full figure as space freed. Measure after, and
         # count only what actually went away.
         freed = 0
-        survived: list[str] = []
         for p in disk:
             before = _bytes_of(p)
             if p.is_dir():
@@ -284,6 +294,20 @@ def cmd_forget(args) -> int:
         # Its own line, never folded into `nodes`: that figure is what this repo
         # owned, and a shared node never belonged to it.
         log(f"  pruned {pruned} shared node(s) nothing references any more")
+    # The glyph follows the outcome, and so does the exit code. A ⚠ naming paths still on
+    # disk and a green ✓ over the same operation one line apart is the summary contradicting
+    # its own counts -- and this command is framed as the fix for a bloated store, so a user
+    # reading the ✓ to confirm space was reclaimed is told the wrong thing. The graph rows
+    # ARE gone either way, which is why the wording says partly rather than not at all.
+    if survived:
+        log(style.summary_line(
+            "warn", f"Partly forgot {repo_id}: {nodes} node(s), {edges} edge(s), "
+                    f"{vectors} vector(s), {len(pages) - pages_left} wiki page(s) removed "
+                    f"from the graph, "
+                    f"{_human(reclaim)} reclaimed, but {len(survived)} path(s) are still on "
+                    f"disk (named above)."))
+        log("  Remove them by hand, or re-run once whatever holds them has let go.")
+        return 1
     log(f"{style.ok()} Forgot {repo_id}: {nodes} node(s), {edges} edge(s), "
         f"{vectors} vector(s), {len(pages)} wiki page(s), {_human(reclaim)} reclaimed.")
     log("  If that was a mistake, re-index it -- `kb index --workspace DIR` "

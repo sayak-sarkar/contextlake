@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.24.0] - 2026-08-18
+
+### Fixed
+
+Four commands printed a fault and then a success word about the same run. Each was found by
+a probe of a surface nobody had exercised, and each has the same shape: the summary was
+written from a variable the reporting did not feed.
+
+- **`kb enrich` returned 0 whatever happened.** Source methods there are contractually
+  non-raising, so an unreachable source yields nothing rather than breaking the run -- which
+  makes a `try`/`except` blind to exactly the failure that matters. `kb connect` reads
+  `resilience.degraded_calls()` for that reason, a few files away; `enrich` never read it. A
+  run where EVERY source call was written off printed the same green line as a healthy run
+  over repositories with nothing to find. It now states the degradation, and a run that
+  reached no source and stored nothing exits 1. Partial degradation with results still exits
+  0, which is `connect`'s existing rule, copied rather than tightened: two sibling commands
+  disagreeing about one event is the defect being fixed, not a place to invent a third rule.
+
+- **`doctor` folded three of its twenty-odd checks into its verdict, and drew a red ✗ for
+  things documented not to matter.** A red ✗ for a
+  repository indexed by an older parser printed on screen, and the bottom line said "OK" in
+  green and the command exited 0 -- two contradictory statements, with the machine-readable
+  one wrong. `--help` promises "✓/✗", which a reader takes to mean ✗ is a problem. A check
+  now records its own verdict, so a new one cannot be added and forgotten, and the summary
+  names which check failed.
+
+  Three checks then had to become the advisory they were already documented as being, since
+  a printed ✗ now counts: per-source reachability, `glab on PATH` ("advisory, not critical"
+  said the comment beside a red mark), and the optional sqlite-vec ANN index. Without that
+  the first cut of this change would have failed `doctor` on a stock install and in CI,
+  which installs neither -- the fix reproducing the defect class it fixes, caught by review.
+
+  The stale-shard check is advisory too, and that resolves a disagreement rather than
+  picking a side of it. A parser bump makes every existing shard stale, so failing on it
+  would redden every user's CI on upgrade, which this project had already decided twice. The
+  wrong part was the red ✗ with "OK" printed underneath. A ⚠ says the same thing without
+  contradicting the summary. A regression test now runs `doctor` without the optional
+  tooling and requires exit 0, so the remaining hand-read call sites have a gate.
+
+- **`kb forget` warned that paths were still on disk and then ticked the operation done.**
+  The command is framed as the fix for a bloated store, so a user reading the ✓ to confirm
+  space was reclaimed was told the wrong thing. The glyph and the exit code now follow the
+  outcome, and the wording says "partly forgot" because the graph rows really are gone.
+
+- **A `--repos` filter that matched none of a warm cache reported "No projects loaded, run
+  `fetch` first".** Advice that cannot help: the filter is the problem, and re-fetching will
+  not change it. "The cache is empty" and "the cache is full and your filter matched none of
+  it" both left the filter as an empty dict, so five callers each printed the same wrong
+  message, and one printed nothing at all. Said once where the filter is applied, with the
+  number of cached projects, in the words `fetch` already uses for the same event -- and the
+  callers now stay quiet in that case instead of printing the contradicting advice one line
+  below the explanation, which is what the first cut of this change did.
+
+- **`kb forget` counted wiki pages it had not checked were gone.** The byte figure beside
+  them had already been corrected from a prediction to a measurement; the page count was
+  still a claim. It is measured now, and a page that survives joins the same list the disk
+  artefacts use, so one check decides the verdict.
+
+
 ## [7.23.0] - 2026-08-18
 
 ### Fixed

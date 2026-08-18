@@ -790,6 +790,25 @@ def cache_filter_conflict(config) -> str | None:
     return None if recorded == ",".join(repo_filter_patterns(config)) else recorded
 
 
+#: Set by the last :func:`_apply_repo_filter` call: did a non-empty project map become empty
+#: because this run's ``--repos`` matched none of it? Read IMMEDIATELY after the load, by the
+#: callers whose own "no projects" line would otherwise contradict the explanation already
+#: printed. A flag rather than a changed return type because five commands read that return
+#: value and a sentinel would have to be understood at every one of them.
+_FILTER_MATCHED_NOTHING = False
+
+
+def filter_matched_nothing() -> bool:
+    """Whether the most recent project load was emptied by ``--repos``, not by a cold cache.
+
+    Callers say "No projects loaded, run `fetch` first" when they get nothing back, and that
+    advice is wrong for this case in a way that costs real time: re-fetching cannot change a
+    filter. The explanation was already printed one line above; this lets the caller stay
+    quiet instead of contradicting it.
+    """
+    return _FILTER_MATCHED_NOTHING
+
+
 def _apply_repo_filter(projects, config):
     """Narrow a cached project map to this run's ``--repos`` patterns.
 
@@ -799,8 +818,22 @@ def _apply_repo_filter(projects, config):
     patterns = repo_filter_patterns(config)
     if not patterns:
         return projects
-    return {k: v for k, v in projects.items()
+    kept = {k: v for k, v in projects.items()
             if match_repo_filter(v.get("full_path", k), k, patterns)}
+    global _FILTER_MATCHED_NOTHING
+    _FILTER_MATCHED_NOTHING = bool(projects) and not kept
+    if projects and not kept:
+        # "The cache is empty" and "the cache is full and your filter matched none of it"
+        # both left this function as {}, and every caller then printed its own generic
+        # "No projects loaded, run 'fetch' first" -- advice that cannot help, because the
+        # filter is the problem and re-fetching will not change it. `fetch` already words
+        # this correctly for the live-enumeration case; this is the same event read from
+        # cache, so it gets the same sentence. Said once here rather than at five call
+        # sites, since every one of them was wrong in the same way.
+        log(f"No cached project matches --repos {', '.join(patterns)} — "
+            f"{len(projects)} project(s) are cached, none of them matching. Check the "
+            f"pattern; re-running `fetch` will not change it.")
+    return kept
 
 
 def _warn_if_widening_scope(cache_json, patterns, new_count):
@@ -1752,7 +1785,8 @@ def switch_repository_branches(work_dir, config, gitlab_group):
 
     projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
-        log("No projects loaded")
+        if not filter_matched_nothing():
+            log("No projects loaded")
         return StageResult()
 
     # Scoped to the group being synced. A workspace holding several groups sent
@@ -1855,7 +1889,8 @@ def verify_structure(work_dir, config, gitlab_group):
     # reported, never filled by enumerating the forge. Same reasoning as status.
     projects = load_gitlab_projects(config, gitlab_group, allow_fetch=False)
     if not projects:
-        log(f"{style.warn()} No projects loaded, run 'fetch' first")
+        if not filter_matched_nothing():
+            log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return StageResult()
 
     # Both sides, not just the local one: verify compares the project list
@@ -1937,7 +1972,7 @@ def show_status(work_dir, config, gitlab_group):
         if (scope := cache_filter_conflict(config)):
             log(f"{style.warn()} The cached project list covers only --repos {scope!r}, "
                 "not this run's scope -- re-run 'contextlake mirror fetch' to refresh it")
-        else:
+        elif not filter_matched_nothing():
             log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return
 

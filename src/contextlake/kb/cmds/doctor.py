@@ -29,10 +29,32 @@ def _say(text: str = "") -> None:
     report_line(text)
 
 
+#: Faults printed since the last `_start_report()`. A list rather than a flag so the summary
+#: can say WHICH check failed, and module-level so `_check` records its own verdict.
+_FAULTS: list[str] = []
+
+
+def _start_report() -> None:
+    _FAULTS.clear()
+
+
 def _check(label: str, ok, detail: str = "") -> bool:
-    # tri-state: True -> ✓, False -> ✗, None -> ⚠ (present-but-degraded / optional-unavailable)
+    """Print one line and RECORD its verdict. Tri-state: True -> ✓, False -> ✗ (a real
+    fault), None -> ⚠ (advisory, present-but-degraded or optional-unavailable).
+
+    The recording is the point. The summary used to be built from a hand-maintained
+    `ok &= _check(...)` at three of twenty-odd call sites, so a genuine ✗ -- a repository
+    indexed by an older parser, say -- printed in red and then the bottom line said "OK" in
+    green and the command exited 0. Two contradictory statements on one screen, and the
+    machine-readable one was the wrong one. A check that prints a fault now counts as one by
+    construction, so a new check cannot be added and forgotten; a check that is genuinely
+    advisory says so by passing None, which is a decision at the call site rather than an
+    omission somewhere else.
+    """
     mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
     _say(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
+    if ok is not None and not ok:
+        _FAULTS.append(label.strip())
     return bool(ok)
 
 
@@ -54,7 +76,7 @@ def _builtin_model_present(cache_dir, model_id: str) -> bool:
 
 def cmd_doctor(args) -> int:
     _say("contextlake knowledge layer — doctor")
-    ok = True
+    _start_report()
     cfg = None
 
     fts = False
@@ -64,10 +86,15 @@ def cmd_doctor(args) -> int:
         fts = True
     except sqlite3.Error:
         fts = False
-    ok &= _check("SQLite FTS5 available", fts, "" if fts else "search falls back to slower scans")
+    _check("SQLite FTS5 available", fts, "" if fts else "search falls back to slower scans")
 
-    ok &= _check("git on PATH", shutil.which("git") is not None)
-    _check("glab on PATH (for syncing)", shutil.which("glab") is not None)  # advisory, not critical
+    _check("git on PATH", shutil.which("git") is not None)
+    # Tri-state, not a bool, because the comment that used to sit here said "advisory, not
+    # critical" while the mark drawn was a red ✗. Now that a printed ✗ counts towards the
+    # verdict, a comment is not where that decision can live: a stock install with no `glab`
+    # would fail `doctor`, and CI installs none.
+    _check("glab on PATH (for syncing)", True if shutil.which("glab") else None,
+           "" if shutil.which("glab") else "only needed for `mirror` against a forge")
 
     try:
         cfg = load_kb_config(getattr(args, "config", None))
@@ -102,7 +129,12 @@ def cmd_doctor(args) -> int:
         # (atlassian/mcp default to 120s/60s) can't stall doctor for minutes.
         for src in cfg.sources:
             reachable, detail = verify_source(src, timeout=8)
-            _check(f"  {src.name} ({src.type})", reachable, detail)
+            # `None`, not `False`, and it matters now that a printed ✗ counts. This block's
+            # own comment above says a source being unreachable never fails the verdict, so
+            # it must say that in the tri-state the mark is drawn from rather than relying
+            # on a caller to leave it out of a sum. A red ✗ that is documented not to
+            # matter is the same contradiction from the other side.
+            _check(f"  {src.name} ({src.type})", True if reachable else None, detail)
         store_dir = cfg.store_path
         store_dir.mkdir(parents=True, exist_ok=True)
         store = SqliteStore(store_dir / "index.sqlite")
@@ -146,7 +178,14 @@ def cmd_doctor(args) -> int:
                 if cxx:
                     detail += (f" · {len(cxx)} of them hold C/C++ code, so they also gain "
                                "corrected method/class linkage")
-                _check("shards up to date with the current parser", False, detail)
+                # ⚠ and not ✗, which resolves a contradiction rather than choosing a side
+                # of it. A parser bump makes every existing shard stale, and turning that
+                # into a red verdict would fail every user's CI on upgrade -- a decision
+                # already recorded here and in `kb lint`. What was wrong was drawing a red
+                # ✗ for it and then printing "OK" underneath: two statements about one
+                # fact. The advisory mark says the same thing without contradicting the
+                # summary, and `kb index` still rebuilds them.
+                _check("shards up to date with the current parser", None, detail)
             else:
                 _check("shards up to date with the current parser", True)
         finally:
@@ -190,7 +229,7 @@ def cmd_doctor(args) -> int:
                 ann = True
             except Exception:  # noqa: BLE001 - any import/load failure means no ANN
                 ann = False
-            _check("  ANN index (sqlite-vec)", ann,
+            _check("  ANN index (sqlite-vec)", True if ann else None,
                    "available — native KNN" if ann else
                    "not loadable — brute-force cosine (ok at small scale; install sqlite-vec "
                    "+ a sqlite3 that allows extensions for ANN at scale)")
@@ -246,9 +285,15 @@ def cmd_doctor(args) -> int:
         else:
             _check("wiki LLM", True, f"{llm.provider} · {llm.model or 'default model'}")
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
-        ok &= _check("config + store", False, str(e))
+        _check("config + store", False, str(e))
 
-    _say(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
+    ok = not _FAULTS
+    # "Problems found: shards up to date with the current parser" reads as a claim that the
+    # shards ARE up to date, because a check label is phrased as the desired state. Naming
+    # them as the checks that failed keeps the labels usable in the summary.
+    _say(style.bold(style.green("OK")) if ok
+         else style.bold(style.red(
+             f"Problems found — {len(_FAULTS)} check(s) failed: {', '.join(_FAULTS)}")))
 
     # --fix is strictly additive: the report above and the verdict line are
     # untouched, so a plain `doctor` (the diagnostic everything else points at)
