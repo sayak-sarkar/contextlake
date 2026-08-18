@@ -171,3 +171,50 @@ def test_a_zero_limit_still_reports_what_exists(tmp_path):
         out = _call(srv, "search_code", {"query": "charge", "limit": -1})
         assert out["nodes"] == []
         assert out["total"] == 4 and out["truncated"] is True
+
+
+# --- generated documents ----------------------------------------------------------
+#
+# Three different absences shared one shape: a kind this server does not generate, an
+# indexed repo whose page has not been written yet, and a repo the store does not hold at
+# all. All three returned found=False with empty markdown, so an agent reads any of them as
+# "this repository has no design notes" and reports that as a fact.
+
+
+def test_a_kind_this_server_does_not_generate_says_so(server):
+    out = _call(server, "get_generated_doc", {"repo": "svc-billing", "kind": "sequence"})
+    assert out["found"] is False
+    assert out["note"], "an unknown kind must not look like a missing page"
+    assert "sequence" in out["note"]
+    assert "api" in out["note"] and "design" in out["note"], (
+        "the reader's next move is to pick a real kind, so name them")
+
+
+def test_an_indexed_repo_with_no_page_yet_points_at_the_command(server):
+    out = _call(server, "get_generated_doc", {"repo": "svc-billing", "kind": "api"})
+    assert out["found"] is False
+    assert out["note"] and "kb docs" in out["note"], (
+        "this one is fixed by running a command, so the note has to name it")
+
+
+def test_a_repo_the_store_does_not_hold_is_distinguished(server):
+    """The two absences a caller would act on differently: generate the page, or fix the id."""
+    out = _call(server, "get_generated_doc", {"repo": "no-such-repo", "kind": "api"})
+    assert out["found"] is False
+    assert out["note"] and "not in this store" in out["note"]
+    assert "kb docs" not in out["note"], (
+        "running kb docs cannot help a repo that was never indexed")
+
+
+def test_a_repo_with_nodes_but_no_table_row_counts_as_present(server):
+    """The two populations are not the same, and this fixture is one of them.
+
+    Its repositories have nodes and no repos-table row, which is what a partition writer
+    produces. Asking only the table told the caller its repo "is not in this store" while
+    that repo's symbols sat in the graph it had just queried -- the same one-source-of-two
+    mistake the `--repos` filter had.
+    """
+    out = _call(server, "get_generated_doc", {"repo": "svc-billing", "kind": "design"})
+    assert out["found"] is False
+    assert "not in this store" not in out["note"]
+    assert "kb docs" in out["note"]

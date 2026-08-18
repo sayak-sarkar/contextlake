@@ -300,7 +300,7 @@ everything and opens in an air-gapped browser.
 contextlake follows [Semantic Versioning](https://semver.org/). **From 1.0, no breaking
 change lands without a major bump.** Before 1.0 the surfaces below still move, and every
 break is named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
-with what to change, the promise is stated here now so it is clear what it will cover, not
+with what to change. The promise is stated here now so it is clear what it will cover, not
 so it can be read as already in force.
 
 Four surfaces are covered. A change is **breaking** when it would stop something you wrote
@@ -308,7 +308,7 @@ from working:
 
 - **CLI verbs and flags.** Removing or renaming a verb, removing a flag, or changing what a
   flag means. Adding a verb or a flag is not breaking. Tightening a flag's *validation* is
-  not breaking either, rejecting `--max-symbols 0`, which silently meant "the default", is
+  not breaking either: rejecting `--max-symbols 0`, which silently meant "the default", is
   a fix for a value that never did what it said.
 - **Store layout.** Anything that makes an existing store unreadable to the version that
   wrote it, or that requires a manual migration. Re-indexing is not that.
@@ -322,8 +322,8 @@ because it looks like it should be. Bumping it does not stop anything working: y
 stays readable, every command keeps running, and nothing you wrote needs editing. What it
 means is that repositories indexed by an older parser now carry *less* than the current one
 would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
-reports that as an advisory, not a fault, a parser bump would otherwise turn every user's
-upgrade into a red check for something that is working correctly.
+reports that as an advisory, not a fault, because a parser bump would otherwise turn
+every upgrade into a red check for something that is working correctly.
 
 ## Documentation
 
@@ -6618,6 +6618,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.29.0] - 2026-08-18
+
+### Fixed
+
+- **`get_generated_doc` gave three different absences one shape.** A kind this server does
+  not generate, an indexed repository whose page has not been written yet, and a repository
+  the store does not hold at all all returned `found: false` with empty markdown and nothing
+  else. The caller cannot see the store, so it reads any of them as "this repository has no
+  design notes" and reports that as a fact.
+
+  Each now says which it is, and each names the move that fixes it: pick a real kind, run
+  `kb docs`, or correct the id. The comment in that branch already claimed the kind was
+  "named, not silently coerced" -- it was named in a field nothing distinguished.
+
+- **A repository with nodes but no repositories-table row was reported as absent.** The two
+  populations are not the same: a partition writer adds nodes without a row. Asking only the
+  table told a caller its repository "is not in this store" while that repository's symbols
+  sat in the graph it had just queried. Both are consulted now, the same union the `--repos`
+  filter was corrected to use two releases ago -- the second time this exact split has
+  produced a wrong answer, in a different file.
+
+- **Three em-dashes reached `README.md` in the previous release.** The repository's own style
+  test catches them, and it did; what let them through was me reading a still-being-written
+  test log and taking a partial result for a complete one. The run had not reached the
+  failures yet. Corrected here rather than by rewriting history, because the commits are
+  unpushed and go out together, so CI runs against a tree that has the fix.
+
 
 ## [7.28.0] - 2026-08-18
 

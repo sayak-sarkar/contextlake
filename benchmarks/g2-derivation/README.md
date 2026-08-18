@@ -16,7 +16,7 @@ One new function called from five places, and one new runtime dependency.
 
 The function exercises the graph, the API reference's call-site list, the diagram and vector
 search in a single change. Its docstring shares **no keyword** with the query used to
-retrieve it, so a hit is semantic rather than lexical — a substring matcher would rank it
+retrieve it, so a hit is semantic rather than lexical: a substring matcher would rank it
 nowhere, which is exactly what makes that bar meaningful.
 
 The dependency exercises the design notes and the fleet page. The tree is chosen for having
@@ -42,13 +42,13 @@ Three states, never two:
 | | meaning |
 | --- | --- |
 | `ok` | the output moved in the way the bar requires |
-| `FAIL` | it did not move, or moved wrongly — the bar caught something |
+| `FAIL` | it did not move, or moved wrongly, and the bar caught it |
 | `????` | the bar was **not tested**: a command failed, or an output was never produced |
 
 `????` counts against the run. G2 asks whether a bar was *proven*, and a bar that could not
 be tested has not been. A summary that treated it as a pass would report the gate closed on
-evidence nobody gathered — the precise failure this whole release series has been removing
-from the product's own commands.
+evidence nobody gathered. That is the precise failure this whole release series has been
+removing from the product's own commands.
 
 The deciding half lives in [`checks.py`](checks.py), separated from the I/O so it can be
 tested without a network: see `tests/test_g2_derivation_checks.py`, which breaks every
@@ -57,6 +57,6 @@ assertion to confirm each one fails for its own reason.
 ## Status
 
 The harness and its bars are committed. `results/derivation.json` is written by a live run;
-until one has been done against the pinned tree, **G2 is not closed** — a harness that has
+until one has been done against the pinned tree, **G2 is not closed**: a harness that has
 never run is not evidence, and the earlier hand-run derivation matrix in the planning notes
 is not repeatable, which is the specific gap this directory exists to fill.

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.29.0] - 2026-08-18
+
+### Fixed
+
+- **`get_generated_doc` gave three different absences one shape.** A kind this server does
+  not generate, an indexed repository whose page has not been written yet, and a repository
+  the store does not hold at all all returned `found: false` with empty markdown and nothing
+  else. The caller cannot see the store, so it reads any of them as "this repository has no
+  design notes" and reports that as a fact.
+
+  Each now says which it is, and each names the move that fixes it: pick a real kind, run
+  `kb docs`, or correct the id. The comment in that branch already claimed the kind was
+  "named, not silently coerced" -- it was named in a field nothing distinguished.
+
+- **A repository with nodes but no repositories-table row was reported as absent.** The two
+  populations are not the same: a partition writer adds nodes without a row. Asking only the
+  table told a caller its repository "is not in this store" while that repository's symbols
+  sat in the graph it had just queried. Both are consulted now, the same union the `--repos`
+  filter was corrected to use two releases ago -- the second time this exact split has
+  produced a wrong answer, in a different file.
+
+- **Three em-dashes reached `README.md` in the previous release.** The repository's own style
+  test catches them, and it did; what let them through was me reading a still-being-written
+  test log and taking a partial result for a complete one. The run had not reached the
+  failures yet. Corrected here rather than by rewriting history, because the commits are
+  unpushed and go out together, so CI runs against a tree that has the fix.
+
+
 ## [7.28.0] - 2026-08-18
 
 ### Added

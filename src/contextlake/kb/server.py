@@ -383,6 +383,12 @@ class GeneratedDocOut(BaseModel):
     doc_commit: str | None       # commit the page was generated from
     current_commit: str | None   # the repo's current indexed head
     markdown: str
+    # Why `found` is false, when that is not "the page has not been generated yet". A kind
+    # this server does not have, and a valid kind whose page is simply missing, produced
+    # identical results: same flags, same empty markdown. The caller cannot see the store,
+    # so it reads the first as "this repo has no design notes" and moves on, when the truth
+    # is that it asked for something that does not exist.
+    note: str | None = None
 
 
 class ReadmeOut(BaseModel):
@@ -1295,19 +1301,36 @@ def build_server(
             # Named, not silently coerced to the default: a caller asking for a kind
             # this does not have should learn that, rather than receive the API
             # reference and believe it asked for the right thing.
-            return GeneratedDocOut(repo=sanitize_label(repo), kind=sanitize_label(wanted),
-                                   found=False, stale=True, doc_commit=None,
-                                   current_commit=None, markdown="")
+            return GeneratedDocOut(
+                repo=sanitize_label(repo), kind=sanitize_label(wanted), found=False,
+                stale=True, doc_commit=None, current_commit=None, markdown="",
+                note=(f"{wanted!r} is not a kind this server generates. The kinds are "
+                      f"'api' (the reference) and 'design' (the design notes). Nothing was "
+                      f"looked up, so this is not evidence that {repo} has no such page."))
         sp = getattr(store, "path", None)
         slug = repo.replace("/", "__")
         doc_file = Path(sp).parent / "docs" / wanted / (slug + ".md") if sp else None
         r = store.get_repo(repo)
         current = r.head_commit if r else None
         if not doc_file or not doc_file.exists():
-            return GeneratedDocOut(repo=sanitize_label(repo), kind=wanted, found=False,
-                                   stale=True, doc_commit=None,
-                                   current_commit=sanitize_label(current) if current else None,
-                                   markdown="")
+            # A repos-table row OR nodes under that id. The two populations are not the
+            # same -- a partition writer adds nodes without a row -- and asking only the
+            # table would tell a caller its repo "is not in this store" while the repo's
+            # symbols sit in the graph the caller just queried.
+            known = r is not None or any(store.repo_counts(repo))
+            return GeneratedDocOut(
+                repo=sanitize_label(repo), kind=wanted, found=False, stale=True,
+                doc_commit=None,
+                current_commit=sanitize_label(current) if current else None,
+                markdown="",
+                # Two different absences again, one step in: a repo the store does not hold
+                # at all, and an indexed repo whose page has not been generated. The second
+                # is fixed by running `kb docs`; the first is fixed by indexing, or by
+                # correcting the id.
+                note=(f"No {wanted} page has been generated for {repo} yet -- run "
+                      f"`contextlake kb docs`." if known else
+                      f"{repo} is not in this store, so no page could exist for it. Ids "
+                      f"are exact; `list_repos` shows what is indexed."))
         raw = doc_file.read_text(encoding="utf-8", errors="replace")
         parsed = read_stamp(raw)
         doc_commit = parsed[2] if parsed else None
