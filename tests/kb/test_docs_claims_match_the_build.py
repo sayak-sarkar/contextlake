@@ -119,27 +119,64 @@ def test_the_stated_node_kind_count_matches_the_registry():
         f"docs claim {sorted(stated)} node kinds; KIND_REGISTRY has {kinds}")
 
 
-def test_the_stated_tool_counts_match_a_server_built_without_embeddings():
-    """Both halves of "N registered unconditionally, M with embeddings".
+# Every file that states a tool count, in ANY wording. The first version of this gate read one
+# phrase in one file, and two further statements -- `docs/explained.md`'s "(21, or 23 once
+# embeddings exist)" and `docs/benchmarks.md`'s "21 of them on a graph-only store (20 graph tools
+# plus the `ask` router)" -- stayed wrong while the gate was green. A sibling reviewer then SKIPPED
+# numeric claims because it trusted this gate, so one blind spot became two.
+#
+# So the shape of the check changed: find every count-shaped claim anywhere in the docs, and
+# require the SET of numbers to be exactly the ones the build supports. A new phrasing that this
+# pattern does not recognise is a hole, which is why the test also asserts it found several.
+_TOOL_COUNT_FILES = ["docs/explained.md", "docs/benchmarks.md", "docs/serve.md", "README.md"]
 
-    The pair is the trap: the first number is what a default install offers and the second is
-    the first plus exactly two. Stating them independently let one drift while the other
-    looked plausible, which is what happened.
+# Each pattern declares WHAT ITS NUMBER SHOULD BE, rather than every pattern sharing one set of
+# acceptable values. A shared set was the first attempt and it left a hole: allowing
+# `unconditional - 1` anywhere (legitimate only in the sentence that separates the `ask` router
+# from the graph tools) made a stale "21 tools are registered" read as correct. Break-tested: with
+# the shared set, corrupting that sentence PASSED.
+#
+# `offset` is added to the unconditional count to get the expected value.
+_TOOL_COUNT_PATTERNS = [
+    (r"\*?\*?(\d+)\*?\*? tools are registered", 0),
+    (r"bring it to\s*\n?\*?\*?(\d+)", +2),
+    (r"serves the other \*?\*?(\d+)", 0),
+    (r"tool schemas \((\d+), or \d+ once", 0),
+    (r"tool schemas \(\d+, or (\d+) once", +2),
+    (r"\*\*(\d+) of them on a\s*\n?graph-only store\*\*", 0),
+    # The only place a count legitimately excludes the router, because the sentence adds it back.
+    (r"\((\d+) graph tools plus", -1),
+    (r"\*\*(\d+) once embeddings exist\*\*", +2),
+]
+
+
+def test_every_tool_count_anywhere_in_the_docs_matches_the_build():
+    """Every count-shaped claim in every doc file, each against its OWN expected value.
+
+    The first version read one phrase in one file, and two further statements stayed wrong while
+    it was green -- and a sibling reviewer then skipped numeric claims because it trusted this
+    gate, so one blind spot became two.
     """
-    unconditional = _unconditional_tool_names()
-    text = _text("docs/explained.md")
-    m = re.search(r"(\d+) tools are registered unconditionally", text)
-    assert m, "docs/explained.md no longer states the unconditional tool count"
-    assert int(m.group(1)) == len(unconditional), (
-        f"docs claim {m.group(1)} unconditional tools; a server built without embeddings "
-        f"offers {len(unconditional)}: {sorted(unconditional)}")
+    unconditional = len(_unconditional_tool_names())
+    found: list[tuple[str, str, int, int]] = []
+    for rel in _TOOL_COUNT_FILES:
+        text = _text(rel)
+        for pat, offset in _TOOL_COUNT_PATTERNS:
+            for m in re.finditer(pat, text):
+                found.append((rel, m.group(1), unconditional + offset, offset))
 
-    with_embeddings = re.search(r"bring it to\s*\n?(\d+)", text)
-    assert with_embeddings, "docs no longer state the with-embeddings total"
-    assert int(with_embeddings.group(1)) == len(unconditional) + 2, (
-        f"docs claim {with_embeddings.group(1)} with embeddings; it should be "
-        f"{len(unconditional)} + 2 (semantic_search, hybrid_search)")
-    # And those two really are the conditional pair, not something else that happens to fit.
+    assert len(found) >= 5, (
+        f"only {len(found)} tool-count claims matched; a doc was reworded and this gate has gone "
+        f"blind to it. Found: {found}")
+    wrong = sorted({(rel, got, exp) for rel, got, exp, _off in found if int(got) != exp})
+    assert not wrong, (
+        f"stale tool counts (file, stated, expected): {wrong}. A server without embeddings offers "
+        f"{unconditional}.")
+
+
+def test_the_embeddings_pair_really_is_the_conditional_two():
+    """The +2 in the allowed set has to be those two tools and not a coincidence."""
+    unconditional = _unconditional_tool_names()
     assert "semantic_search" not in unconditional
     assert "hybrid_search" not in unconditional
 

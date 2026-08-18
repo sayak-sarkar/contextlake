@@ -407,6 +407,15 @@ def _write_if_not_generated(path, page: str) -> bool:
     return True
 
 
+def _wanted_repo_ids(args) -> set[str]:
+    """The positional repo ids a run was scoped to, or an empty set for "all".
+
+    One reader, shared by the stage and the pre-flight check below, so the two cannot
+    disagree about what the user asked for.
+    """
+    return {a for a in (getattr(args, "args", None) or []) if a}
+
+
 def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
                       embedder=None, vs=None) -> tuple[int, dict, dict]:
     """Write every repository's structural page and its module pages, unconditionally.
@@ -444,7 +453,18 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     written = 0
     briefs: dict[tuple[str, str | None], dict] = {}
     pages: dict[tuple[str, str | None], str] = {}
-    for repo_id in [r.id for r in store.list_repos()]:
+    # The positional repo filter, honoured HERE. This stage took `args` and never read it,
+    # so `kb wiki <repo>` rewrote every repository's structural page -- and because the
+    # local-first path returns right after this stage when no LLM is configured, the
+    # correctly-filtered `_connect_targets` call further down was never reached at all.
+    # A one-day-old regression: before the structural stage existed, `_connect_targets` was
+    # the only target selection and the filter worked.
+    #
+    # Filtered on `list_repos` rather than swapped onto `_connect_targets`, because that
+    # helper additionally requires `r.path` and would silently drop a path-less repo whose
+    # structural page this stage can still write from the shard alone.
+    wanted = _wanted_repo_ids(args)
+    for repo_id in [r.id for r in store.list_repos() if not wanted or r.id in wanted]:
         # The module plan first, because the whole-repo brief takes it: the generated
         # path passes `subsystem_modules` so its page can name the subsystem pages, and
         # a brief built without it is a DIFFERENT brief that path cannot reuse.
@@ -591,6 +611,27 @@ def cmd_wiki(args) -> int:
         # Bound before the branch, not inside it. The cluster path returns before
         # `_run_page` is ever called, so an unbound name would be latent rather than
         # loud -- and latent is how it would survive until somebody reordered the code.
+        # A filter that matches nothing is an error, not a silent full run. `kb docs` says
+        # so and exits 1 on the same input; these two commands take the same argument and
+        # must give the same verdict, or a script cannot trust either.
+        wanted = _wanted_repo_ids(args)
+        if wanted:
+            known = {r.id for r in store.list_repos()}
+            # EVERY requested id, not just "did any match". Checking only for a total miss
+            # let `kb wiki real-id typo-id` pass, quietly generate one page, and exit 0 --
+            # a partial run reported as a complete one, which is the defect class this
+            # release exists to close.
+            missing = sorted(wanted - known)
+            if missing:
+                log(f"No indexed repo matches {', '.join(missing)} — check the exact "
+                    f"repo id (see `contextlake kb lint`).")
+                if len(missing) < len(wanted):
+                    log(f"  {len(wanted) - len(missing)} of the {len(wanted)} requested "
+                        f"repo(s) do exist; nothing was written, because a run that "
+                        f"silently drops part of what you asked for cannot be told from "
+                        f"one that served all of it.")
+                return 1
+
         structural_briefs: dict = {}
         structural_pages: dict = {}
         if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):

@@ -3006,8 +3006,19 @@ def _count_files(base: Path, *, stop_at_repos: bool, limit: int | None) -> int:
     return n
 
 
-def discover_repos(root: str) -> list[tuple[str, str]]:
+def discover_repos(root: str, *, unusable: list[str] | None = None
+                   ) -> list[tuple[str, str]]:
     """Find git repositories under ``root``: (repo_id, absolute_path) pairs.
+
+    ``unusable`` is an optional list this APPENDS the relative path of every directory it
+    had to skip because git cannot use it -- a dangling gitlink, or a ``.git`` that
+    resolves to an ancestor repo. Those were logged and then dropped, so a caller counting
+    its own results could not tell they existed: `kb index --workspace` warned about a repo
+    git could not open, indexed the rest, and reported "0 failed" with exit 0.
+
+    Deliberately NOT collecting the other two skips. A vendored tree and a duplicate
+    checkout are decisions this function makes correctly on purpose; folding them in would
+    turn a clean run into a failed one and teach a user to ignore the count.
 
     ``repo_id`` is canonical (see :mod:`repo_identity`) -- derived from the repo's
     ``origin`` remote, not its path relative to ``root`` -- so the same physical
@@ -3037,6 +3048,8 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
             # resolving fine but to an ANCESTOR repo, which would silently
             # misattribute this directory's identity and history if not skipped.
             log(style.warn(f"  skip {rel}: {describe_gitdir_mismatch(str(here))}"))
+            if unusable is not None:
+                unusable.append(rel)
             continue
         rid = resolve_repo_id(str(here))
         prior = by_id.get(rid)

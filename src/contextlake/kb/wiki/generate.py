@@ -476,12 +476,114 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
         # unaffected.
         "hubs": [_symbol_row(by_id[i], count=in_degree[i]) for i in hub_ids],
         "dispatchers": [_symbol_row(by_id[i], count=out_degree[i]) for i in dispatcher_ids],
-        "packages": [n.name for n in nodes if n.kind == "package"][:20],
+        # Built from the EDGES, not from the node kind. A package node says "this package
+        # is known here" and nothing about the direction: the package this repository
+        # PUBLISHES is a package node too. Reading the kind alone produced a grounded fact
+        # that told a model "flask depends on flask", with its docs and lint tooling listed
+        # beside its real runtime requirements as equals.
+        #
+        # Three separate facts, because they answer three different questions: what a user
+        # must have to run this, what a contributor additionally needs, and what this
+        # repository offers to others.
+        **_package_facts(nodes, edges),
         "files": sorted(all_files)[:20],
         "decisions": [{"title": n.name, "file": n.file,
                        "doc": (n.attrs or {}).get("doc")}
                       for n in nodes if n.kind == "adr"][:20],
         "generated_paths_detected": generated_paths_detected,
+    }
+
+
+def _package_facts(nodes, edges) -> dict:
+    """`requires` / `dev_requires` / `publishes`, from the manifest edges.
+
+    Each is `[{"name", "constraint", "group"}]`, ordered by name because nothing in the
+    graph ranks one dependency above another. `constraint` is the text the manifest used
+    and is empty when it pinned nothing -- absent rather than invented.
+
+    Capped, and EVERY cap is reported alongside as `*_total`, so a consumer can say "20 of
+    69" instead of implying the list is complete. A truncated list that looks complete is
+    the defect this whole surface keeps producing -- and the first version of this docstring
+    made that promise while leaving `publishes` and `packages` without a total.
+    """
+    from ..docs.fleet import FLEET_GROUPS
+
+    by_id = {n.id: n for n in nodes}
+    # Scoped to the SHALLOWEST manifest, the same rule the design notes' decision records
+    # use. A repository shipping example applications declares their dependencies too, and
+    # merging them overstates what the repository itself needs: on one public tree that put
+    # a task queue into the requirements of a web framework that does not use one.
+    manifests = {e.provenance.source_file for e in edges
+                 if e.relation in ("depends_on", "publishes")
+                 and (by_id.get(e.dst) or None) is not None
+                 and getattr(by_id.get(e.dst), "kind", None) == "package"}
+    # EVERY manifest at the shallowest depth, not the alphabetically first one. A polyglot
+    # repository with `package.json` and `pyproject.toml` side by side at the root has two
+    # root manifests, and picking one presented a single ecosystem's dependencies as the
+    # whole of "Required at runtime" -- a partial answer wearing a complete one's label.
+    roots: set[str] = set()
+    if manifests:
+        depth = min(m.count("/") for m in manifests)
+        roots = {m for m in manifests if m.count("/") == depth}
+
+    requires, dev_requires, publishes = [], [], []
+    for e in edges:
+        pkg = by_id.get(e.dst)
+        if pkg is None or pkg.kind != "package":
+            continue
+        if e.relation == "publishes":
+            # Every manifest's published name, not just the root's: a monorepo publishes
+            # several packages and all of them are things this repository offers.
+            publishes.append({"name": pkg.name, "constraint": "", "group": "published"})
+            continue
+        if e.relation != "depends_on" or e.provenance.source_file not in roots:
+            continue
+        attrs = e.attrs or {}
+        group = attrs.get("group") or "runtime"
+        row = {"name": pkg.name, "constraint": attrs.get("constraint") or "", "group": group}
+        (requires if group in FLEET_GROUPS else dev_requires).append(row)
+
+    def _dedup(rows):
+        # One row per PACKAGE, carrying every distinct constraint declared for it. Keying on
+        # (name, constraint) instead printed the same package twice when two groups pinned it
+        # differently, which reads as a duplicate rather than as the fact it is. Counting
+        # declarations would also overstate the list, exactly as an edge count overstates a
+        # repository count.
+        merged: dict[str, dict] = {}
+        for r in sorted(rows, key=lambda r: (r["name"].lower(), r["constraint"])):
+            cur = merged.setdefault(r["name"], {"name": r["name"], "constraints": [],
+                                                "group": r["group"]})
+            if r["constraint"] and r["constraint"] not in cur["constraints"]:
+                cur["constraints"].append(r["constraint"])
+        # `constraint` stays a single string for consumers that want one line; the list is
+        # kept beside it so a caller can show "declared twice, differently" if it cares.
+        for r in merged.values():
+            r["constraint"] = ", ".join(r["constraints"])
+        return sorted(merged.values(), key=lambda r: r["name"].lower())
+
+    requires, dev_requires, publishes = _dedup(requires), _dedup(dev_requires), _dedup(publishes)
+    # A repository that ships example applications has those examples depending on the
+    # repository itself, so its own published name arrives as one of its requirements. True
+    # of the example and useless in a line answering "what do I need to run this", so what
+    # this repo publishes is removed from what it requires.
+    own = {r["name"] for r in publishes}
+    requires = [r for r in requires if r["name"] not in own]
+    dev_requires = [r for r in dev_requires if r["name"] not in own]
+    return {
+        "requires": requires[:20], "requires_total": len(requires),
+        "dev_requires": dev_requires[:20], "dev_requires_total": len(dev_requires),
+        # Capped and totalled like the other two. It was neither, while the docstring
+        # claimed every list here carries a reported total -- a smaller version of the same
+        # overstatement this function exists to fix.
+        "publishes": [r["name"] for r in publishes][:20],
+        "publishes_total": len(publishes),
+        # `packages` stays, because the MCP `get_repo_brief` contract and the dashboard both
+        # carry a field of that name. What changed is that it is now TRUE: names of packages
+        # this repository DEPENDS on. Built from the node kind it also contained the package
+        # the repository publishes, so a brief for a library asserted that the library
+        # depends on itself.
+        "packages": [r["name"] for r in requires + dev_requires][:20],
+        "packages_total": len(requires) + len(dev_requires),
     }
 
 
@@ -620,6 +722,10 @@ def repo_brief(
         "hubs": core["hubs"],
         "dispatchers": core["dispatchers"],
         "packages": core["packages"],
+        "requires": core["requires"], "requires_total": core["requires_total"],
+        "dev_requires": core["dev_requires"], "dev_requires_total": core["dev_requires_total"],
+        "publishes": core["publishes"], "publishes_total": core["publishes_total"],
+        "packages_total": core["packages_total"],
         "files": core["files"],
         "decisions": core["decisions"],
         "external": [] if path_prefix else external_context(store_dir, repo_id),
@@ -755,8 +861,30 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None,
         if t.get("doc"):
             line += f" — {t['doc'][:160]}"
         graph_facts.append(line)
-    if brief["packages"]:
-        graph_facts.append("Depends on packages: " + ", ".join(brief["packages"]))
+    # Three lines rather than one, because they were one line and it was FALSE: built from
+    # the package node kind, it listed the repository's own published package beside its
+    # docs and lint tooling as though all of them were dependencies.
+    def _pkg_line(label: str, rows, total: int) -> str | None:
+        if not rows:
+            return None
+        shown = ", ".join(r["name"] + (f" {r['constraint']}" if r.get("constraint") else "")
+                          for r in rows)
+        more = f" (and {total - len(rows)} more)" if total > len(rows) else ""
+        return f"{label}: {shown}{more}"
+
+    # `.get`, because a brief is also built by hand -- by callers and by tests -- and a
+    # required key turns "this field is absent" into a crash. The old single line read
+    # `brief["packages"]` and had the same fragility; adding three more subscripts would
+    # have tripled it.
+    for line in (
+        _pkg_line("Requires at runtime", brief.get("requires") or [],
+                  brief.get("requires_total") or 0),
+        _pkg_line("Additionally required to develop or test", brief.get("dev_requires") or [],
+                  brief.get("dev_requires_total") or 0),
+        ("Publishes: " + ", ".join(brief["publishes"])) if brief.get("publishes") else None,
+    ):
+        if line:
+            graph_facts.append(line)
     if brief["files"]:
         graph_facts.append("Notable files: " + ", ".join(brief["files"]))
     # Guarded like every other block here: a repo that indexed to nothing (the case

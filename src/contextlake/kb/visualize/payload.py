@@ -11,14 +11,31 @@ if TYPE_CHECKING:  # avoid importing the model at call time; we only need types 
     from ..model import Edge, Node
     from ..store.base import Store
 
-def _is_sentinel_repo(repo_id: str) -> bool:
-    """A pseudo-repo id (``kb.model.SHARED_REPO`` and family) -- never a real
-    repo, so must never appear as a node in a fleet-wide repo listing or get a
-    per-repo page. Checked by the shared ``(``-prefix convention rather than
-    importing ``kb.model`` (this module intentionally avoids the pydantic
-    import at load time); ``dashboard.js`` makes the same check independently.
+def _is_not_a_real_repo(repo_id: str) -> bool:
+    """True for any id that must not appear in a fleet-wide repo listing or get a page.
+
+    NAMED for what it checks, not for one of the two families it excludes. It was called
+    `_is_sentinel_repo`, which is the name of the narrower `(`-prefix contract that
+    `kb.model.is_sentinel_repo` owns and that `cmds/forget.py` depends on -- so widening
+    the check under that name would have quietly changed a shared word's meaning.
+
+    TWO families, and only one of them was checked. The ``(`` prefix covers the
+    ``kb.model.SHARED_REPO`` sentinels (``(shared)``, ``(packages)``). The ``@`` prefix
+    covers the PARTITIONS written beside a repo -- ``@wiki:<repo>``, ``@connect:<repo>``,
+    ``@enrich:<repo>``, ``@ingest:<name>`` -- which own nodes but have no ``repos`` row and
+    are not clones. ``store.list_partitions`` documents exactly this split.
+
+    Checking only ``(`` meant the fleet count DOUBLED the first time ``kb wiki`` ran: a
+    three-repository store rendered "6 repos with a parsed graph", with `@wiki:*` entries
+    indistinguishable from real ones in the list, each linked to its own page. The same
+    store's ``kb lint`` and the dashboard's ``data.json`` both said 3, so the correct
+    answer existed a few lines away.
+
+    Checked by prefix rather than by importing ``kb.model`` (this module intentionally
+    avoids the pydantic import at load time); ``dashboard.js`` makes the same check
+    independently.
     """
-    return repo_id.startswith("(")
+    return repo_id.startswith("(") or repo_id.startswith("@")
 
 
 def repo_node_sizes(store: Store) -> dict[str, int]:
@@ -29,7 +46,7 @@ def repo_node_sizes(store: Store) -> dict[str, int]:
     dashboard's embedded graph pages."""
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
-    return {r: c for r, c in sizes.items() if not _is_sentinel_repo(r)}
+    return {r: c for r, c in sizes.items() if not _is_not_a_real_repo(r)}
 
 # ---------------------------------------------------------------------------
 # Styling vocab (kind -> colour, confidence -> line style). Generic, no private data.
@@ -336,7 +353,7 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     # An empty PER_SITE_RELATIONS yields `IN (NULL)`, which matches nothing -- so this
     # degrades to the historical COUNT(*) rather than to invalid SQL.
     # Imported here, not at module level: this module deliberately keeps `kb.model`
-    # (and so pydantic) off its load path -- see the note in `_is_sentinel_repo`. By the
+    # (and so pydantic) off its load path -- see the note in `_is_not_a_real_repo`. By the
     # time a subgraph is being built the store has already imported the model, so the
     # deferred import costs nothing.
     from ..model import PER_SITE_RELATIONS
@@ -582,7 +599,11 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     # present and findable. Rank by connectivity then content so that if the fleet
     # exceeds max_nodes the most-connected/biggest win and empty repos drop first —
     # never alphabetically (which would hide heavily-linked hubs that sort late).
-    candidates = {r.id for r in store.list_repos()} | set(sizes)
+    # Both halves filtered. `sizes` already excludes pseudo ids, but the `list_repos`
+    # half did not, so a persisted or legacy `@wiki:*` row would still be drawn and still
+    # increment the total -- leaving the docstring's "must never appear" true of one input
+    # and false of the union. A predicate applied to one of two sources is not applied.
+    candidates = {r.id for r in store.list_repos() if not _is_not_a_real_repo(r.id)} | set(sizes)
     ranked = sorted(candidates, key=lambda r: (-degree.get(r, 0), -sizes.get(r, 0), r))
     truncated = len(ranked) > max_nodes
     repo_ids = ranked[:max_nodes]

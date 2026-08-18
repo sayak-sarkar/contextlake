@@ -32,9 +32,20 @@ def _shard(store_dir):
         Node(id="charge", repo="r", kind="function", name="charge", file="svc.py"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests"),
     ]
-    edges = [Edge(src="svc", dst="charge", relation="calls", confidence=Confidence.EXTRACTED,
-                  provenance=Provenance(source_file="svc.py", source_line=1,
-                                        verified_at=date(2026, 6, 21)))]
+    edges = [
+        Edge(src="svc", dst="charge", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=Provenance(source_file="svc.py", source_line=1,
+                                   verified_at=date(2026, 6, 21))),
+        # The package node needs the EDGE that makes it a dependency. Without one this
+        # fixture said "a package named requests exists near this repo", which the brief
+        # used to read as a dependency purely from the node kind -- and that is exactly the
+        # bug that made a library's brief claim it depended on itself. A real shard always
+        # carries the edge, so a fixture without one describes a state that cannot occur.
+        Edge(src="manifest", dst="pkg", relation="depends_on",
+             confidence=Confidence.EXTRACTED, attrs={"group": "runtime", "constraint": ">=2"},
+             provenance=Provenance(source_file="pyproject.toml", source_line=3,
+                                   verified_at=date(2026, 6, 21))),
+    ]
     write_shard(store_dir, GraphShard(repo="r", head_commit="abc123", nodes=nodes, edges=edges))
 
 
@@ -251,6 +262,12 @@ def test_repo_brief_scopes_to_a_module_path_prefix(tmp_path):
              provenance=prov),
         Edge(src="b1", dst="a1", relation="calls", confidence=Confidence.EXTRACTED,
              provenance=prov),
+        # As in `_shard`: the package is a dependency because an edge SAYS so, not because
+        # a node of that kind exists.
+        Edge(src="manifest", dst="pkg", relation="depends_on",
+             confidence=Confidence.EXTRACTED, attrs={"group": "runtime"},
+             provenance=Provenance(source_file="pyproject.toml", source_line=2,
+                                   verified_at=date(2026, 6, 21))),
     ]
     write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
     full_brief = repo_brief(tmp_path, "r")
@@ -2328,3 +2345,129 @@ def test_a_structurally_low_degree_kind_is_still_represented():
     cands.append(("orders", 0))
     out = _ranked_with_kind_floor(cands, by_id, 12)
     assert "orders" in out, "a zero-degree kind present in candidates keeps its slot"
+
+
+def test_a_repository_never_appears_among_its_own_dependencies(tmp_path):
+    """The brief said a library depended on itself, and handed that to a model as a fact.
+
+    `packages` was built from the node KIND: every `package` node near the repo counted as a
+    dependency, including the one the repository PUBLISHES and every dev and docs tool. On a
+    real public tree the grounded-facts block therefore read "Depends on packages: flask,
+    blinker, ..., ruff, tox, sphinx" -- a false statement, in a prompt whose entire framing is
+    that these facts came from the graph.
+
+    Now it is built from the edges, so `publishes` and `depends_on` cannot collapse.
+    """
+    prov = Provenance(source_file="pyproject.toml", source_line=3, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="svc", repo="r", kind="function", name="run", file="svc.py"),
+        Node(id="self", repo="(packages)", kind="package", name="mylib"),
+        Node(id="dep", repo="(packages)", kind="package", name="blinker"),
+        Node(id="tool", repo="(packages)", kind="package", name="ruff"),
+    ]
+    edges = [
+        Edge(src="manifest", dst="self", relation="publishes",
+             confidence=Confidence.EXTRACTED, provenance=prov),
+        Edge(src="manifest", dst="dep", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime", "constraint": ">=1.9"}, provenance=prov),
+        Edge(src="manifest", dst="tool", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "dev"}, provenance=prov),
+        # The ROOT manifest declaring a dependency on the package it publishes. Contrived
+        # looking and entirely real: a public HTTP library does exactly this via a
+        # self-referential extra, so without this edge the fixture cannot exercise the
+        # subtraction at all and the guard passes while doing nothing. Measured before
+        # adding it -- removing the subtraction left this test green.
+        Edge(src="manifest", dst="self", relation="depends_on",
+             confidence=Confidence.EXTRACTED, attrs={"group": "runtime"}, provenance=prov),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    assert "mylib" not in brief["packages"], "the published package is not a dependency"
+    assert brief["publishes"] == ["mylib"]
+    assert [r["name"] for r in brief["requires"]] == ["blinker"]
+    assert brief["requires"][0]["constraint"] == ">=1.9"
+    # A dev tool is recorded, and recorded SEPARATELY: merging it into requirements is the
+    # other half of the same defect.
+    assert [r["name"] for r in brief["dev_requires"]] == ["ruff"]
+    assert "ruff" not in [r["name"] for r in brief["requires"]]
+
+
+def test_requirements_come_from_the_shallowest_manifest_only(tmp_path):
+    """A bundled example's dependencies are not the repository's requirements.
+
+    On a real tree this put a task queue into the requirements of a web framework that does
+    not use one, because an example application in the same repo depends on it.
+    """
+    def _prov(f):
+        return Provenance(source_file=f, source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="svc", repo="r", kind="function", name="run", file="svc.py"),
+        Node(id="core", repo="(packages)", kind="package", name="core-dep"),
+        Node(id="demo", repo="(packages)", kind="package", name="example-only-dep"),
+    ]
+    edges = [
+        Edge(src="m1", dst="core", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime"}, provenance=_prov("pyproject.toml")),
+        Edge(src="m2", dst="demo", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime"}, provenance=_prov("examples/demo/pyproject.toml")),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+    assert [r["name"] for r in brief["requires"]] == ["core-dep"]
+    assert "example-only-dep" not in brief["packages"]
+
+
+def test_every_root_depth_manifest_counts_not_just_the_first(tmp_path):
+    """A polyglot repository has more than one root manifest.
+
+    Picking the alphabetically-first shallowest one presented a single ecosystem's
+    dependencies as the whole of "Required at runtime": `package.json` sorts before
+    `pyproject.toml`, so a repo shipping both would have had its Python requirements
+    silently dropped. Partial, wearing a complete answer's label.
+    """
+    def _prov(f):
+        return Provenance(source_file=f, source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="svc", repo="r", kind="function", name="run", file="svc.py"),
+        Node(id="js", repo="(packages)", kind="package", name="express"),
+        Node(id="py", repo="(packages)", kind="package", name="flask"),
+        Node(id="deep", repo="(packages)", kind="package", name="example-only"),
+    ]
+    edges = [
+        Edge(src="m1", dst="js", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime"}, provenance=_prov("package.json")),
+        Edge(src="m2", dst="py", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime"}, provenance=_prov("pyproject.toml")),
+        Edge(src="m3", dst="deep", relation="depends_on", confidence=Confidence.EXTRACTED,
+             attrs={"group": "runtime"}, provenance=_prov("examples/demo/pyproject.toml")),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    assert sorted(r["name"] for r in brief["requires"]) == ["express", "flask"]
+    # Depth still scopes: the nested example is not a requirement of the repository.
+    assert "example-only" not in [r["name"] for r in brief["requires"]]
+
+
+def test_every_capped_list_reports_its_total(tmp_path):
+    """The docstring promised a total for each list and two of them had none.
+
+    A capped list with no denominator is the same defect as a coverage line that counts
+    what was shown: a consumer cannot tell a short list from a truncated one.
+    """
+    prov = Provenance(source_file="pyproject.toml", source_line=1,
+                      verified_at=date(2026, 6, 21))
+    nodes = [Node(id="svc", repo="r", kind="function", name="run", file="svc.py")]
+    edges = []
+    for i in range(25):
+        nodes.append(Node(id=f"p{i}", repo="(packages)", kind="package", name=f"dep{i:02d}"))
+        edges.append(Edge(src="m", dst=f"p{i}", relation="depends_on",
+                          confidence=Confidence.EXTRACTED, attrs={"group": "runtime"},
+                          provenance=prov))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    assert len(brief["requires"]) == 20 and brief["requires_total"] == 25
+    assert len(brief["packages"]) == 20 and brief["packages_total"] == 25
+    assert brief["publishes_total"] == 0

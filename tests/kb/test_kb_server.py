@@ -284,8 +284,16 @@ def test_get_repo_brief_from_shard(tmp_path):
         Node(id="chg", repo="r", kind="function", name="charge", file="svc.py", lang="python"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests")]
     prov = Provenance(source_file="svc.py", source_line=1, verified_at=date(2026, 6, 21))
-    edges = [Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
-                  provenance=prov)]
+    edges = [
+        Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+        # `packages` is derived from depends_on edges now, not from the package node kind,
+        # so that a repo's own published name can no longer appear among its dependencies.
+        Edge(src="manifest", dst="pkg", relation="depends_on",
+             confidence=Confidence.EXTRACTED, attrs={"group": "runtime"},
+             provenance=Provenance(source_file="pyproject.toml", source_line=2,
+                                   verified_at=date(2026, 6, 21))),
+    ]
     write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
     s = SqliteStore(tmp_path / "kb.sqlite")
     srv = build_server(s)

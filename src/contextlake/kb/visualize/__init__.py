@@ -46,7 +46,7 @@ from .html_render import (  # noqa: F401
 )
 from .payload import (  # noqa: F401
     _edge_dict,
-    _is_sentinel_repo,
+    _is_not_a_real_repo,
     _node_dict,
     extract_subgraph,
     overview_subgraph,

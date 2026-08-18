@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.20.0] - 2026-08-18
+
+### Fixed
+
+- **`kb wiki <repo>` ignored its repo filter entirely.** It rewrote every repository's
+  structural page, and given a repo id that does not exist it regenerated everything and
+  exited 0 -- where `kb docs` on identical input reports no match and exits 1. Two commands
+  taking the same argument gave opposite verdicts, so a script could trust neither.
+
+  A one-day-old regression with one root cause: the structural stage took `args` and never
+  read it. The local-first default is what hid it, because with no LLM configured the command
+  returns right after that stage, so the correctly-filtered code further down was never
+  reached. Found independently by two reviewers, one with a control run proving the leak
+  affects a MATCHING id too, not only a missing one.
+
+- **`kb index --workspace` reported "0 failed" and exited 0 for a repository git cannot
+  open.** Discovery warned about the directory and then dropped it, returning only the
+  survivors, so the caller counting its own results had no way to learn anything was missing.
+  `docs/connect-enrich.md` promises the opposite verdict in those words.
+
+  Discovery now reports what it could not read, the summary names it, and the exit code is
+  non-zero. Deliberately narrow: a vendored tree and a duplicate checkout are also skipped
+  and both are correct decisions taken on purpose, so folding them in would turn clean runs
+  red and teach a reader to ignore the count.
+
+- **Five defects in the three fixes above, found by an adversarial review of the fix commit
+  itself.** Every one is an instance of the two classes those fixes were closing, which is the
+  point worth recording: the classes reappear inside their own remedies.
+
+  - `kb index --workspace W --repos good` exited 1 over a broken directory the run was told
+    not to touch. The unreadable list was collected during discovery, which runs before
+    `--repos` is applied, so it was reported unscoped: an aggregate spanning a filter,
+    presented as the run's own result.
+  - `kb wiki real-id typo-id` passed the new pre-flight, wrote one page and exited 0 without
+    ever naming the id it could not find, because the check asked "did ANY id match" rather
+    than "did every one". A partial run reported as complete.
+  - A polyglot repository with `package.json` and `pyproject.toml` side by side had one
+    ecosystem's dependencies presented as the whole of "Required at runtime": the code picked
+    the alphabetically first shallowest manifest. Every manifest at root depth now counts.
+  - The pseudo-repo filter was applied to one of the overview's two inputs. `repo_node_sizes`
+    excluded them; the `list_repos()` half of the same union did not, so a persisted `@wiki:*`
+    row would still render and still increment the total. A predicate applied to one of two
+    sources is not applied.
+  - `publishes` and `packages` were capped with no total, under a docstring promising that
+    every list here carries one.
+
+- **Running `kb wiki` once doubled the fleet count on the graph overview.** A
+  three-repository store rendered "6 repos with a parsed graph", with `@wiki:*` partitions
+  listed beside the real repositories and each linked to its own page. The predicate excluded
+  the `(shared)` / `(packages)` sentinels and stopped, so the partitions written beside a repo
+  -- `@wiki:`, `@connect:`, `@enrich:`, `@ingest:` -- passed straight through. `kb lint` and
+  the dashboard's own `data.json` both said 3, so the correct answer already existed.
+
+  The predicate is also renamed to say what it checks. It was `_is_sentinel_repo`, which is
+  the name of the narrower `(`-prefix contract that `kb.model` owns and `kb forget` depends
+  on, so widening it under that name would have quietly changed a shared word's meaning.
+
+- **A repository's own published package was listed among its dependencies, and the wiki handed
+  that to a model as a grounded fact.** `repo_brief`'s package list was built from the node
+  KIND, so every `package` node near a repository counted as a dependency: the one it publishes,
+  and its lint and docs tooling alongside its real runtime requirements. On a public tree the
+  prompt's facts block therefore read `Depends on packages: flask, blinker, ..., ruff, tox,
+  sphinx` -- a false statement, in a block whose whole framing is that these came from the graph.
+
+  It is built from the EDGES now, so `publishes` and `depends_on` cannot collapse into one
+  claim, and the brief carries three separate facts because they answer three different
+  questions: `requires` (what a user needs to run it, with each constraint as written),
+  `dev_requires` (what a contributor additionally needs), and `publishes` (what this repository
+  offers others). `packages` survives for the MCP `get_repo_brief` and dashboard contracts and
+  is now simply true: the names this repository depends on.
+
+  Two scoping rules, each measured against a real tree rather than reasoned about:
+
+  - **Requirements come from the shallowest manifest only.** A repository shipping example
+    applications declares their dependencies too, which put a task queue into the requirements
+    of a web framework that does not use one.
+  - **What a repository publishes is removed from what it requires.** Checked whether the
+    manifest rule already subsumed this: it does not. A public HTTP library declares a
+    dependency on its own published name in its root manifest, via a self-referential extra.
+
+### Added
+
+- **The wiki's "Installation and usage" section states what the repository requires**, not only
+  which build files exist. It named `pyproject.toml` and a README excerpt and stopped, which told
+  a newcomer where to look and never what they need. Both lists carry their totals, so a
+  truncated list cannot read as a complete one, and a package pinned differently by two groups
+  is one entry carrying both constraints rather than two entries that read as a duplicate.
+
+- **Every tool count in every doc file is now checked, in any wording.** 7.19.0's gate read one
+  phrase in one file and was green while `docs/explained.md`'s "(21, or 23 once embeddings
+  exist)" and `docs/benchmarks.md`'s "21 of them on a graph-only store (20 graph tools plus the
+  `ask` router)" were both stale. Worse, a second reviewer skipped numeric claims *because* it
+  trusted that gate, so one blind spot became two.
+
+  Each pattern now carries its OWN expected value rather than sharing one permissive set: the
+  first fix allowed "unconditional minus one" everywhere, which let a stale "21 tools are
+  registered" read as legitimate. All eight claims were confirmed to fail individually.
+
+
 ## [7.19.0] - 2026-08-18
 
 ### Added

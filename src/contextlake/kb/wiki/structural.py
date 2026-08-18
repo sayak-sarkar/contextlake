@@ -146,12 +146,21 @@ def _surface(brief: dict) -> list[str]:
 
 
 def _install(brief: dict) -> list[str]:
-    """Section 5. How to install and run it, from the files that say so."""
+    """Section 5. How to install and run it, from the files that say so.
+
+    Named the build FILES and stopped, which told a newcomer where to look and not what
+    they need. The requirements themselves are recorded -- name, constraint and the line
+    they were declared on -- so the section states them.
+
+    Scoped to the repository's own root manifest by `repo_brief`, and the totals are stated
+    beside the lists, so a truncated list cannot read as a complete one.
+    """
     files = _setup_files(brief)
     out: list[str] = []
     if files:
         out.append("Build and packaging files in this repository: "
                    + ", ".join(f"`{_md_cell(f)}`" for f in files[:16]) + ".")
+    out += _requirements(brief)
     excerpt = (brief.get("readme_excerpt") or "").strip()
     if excerpt:
         out.append("")
@@ -159,6 +168,35 @@ def _install(brief: dict) -> list[str]:
         out.append("")
         out += [f"> {line}" if line.strip() else ">"
                 for line in excerpt.splitlines()[:12]]
+    return out
+
+
+def _requirements(brief: dict) -> list[str]:
+    """What the repository declares it needs, runtime first and development after.
+
+    Two lists rather than one because they answer different questions: a user needs the
+    first to run anything, a contributor needs both. Merging them was the previous
+    behaviour's other half -- a flat package list mixed lint tooling into requirements.
+    """
+    out: list[str] = []
+    for key, total_key, label in (
+        ("requires", "requires_total", "Required at runtime"),
+        ("dev_requires", "dev_requires_total", "Additionally required to develop or test"),
+    ):
+        rows = brief.get(key) or []
+        if not rows:
+            continue
+        total = brief.get(total_key) or len(rows)
+        shown = ", ".join(
+            f"`{_md_cell(r['name'])}`" + (f" {_md_cell(r['constraint'])}" if r.get("constraint")
+                                          else " *(unpinned)*")
+            for r in rows)
+        more = f" ... and {total - len(rows)} more" if total > len(rows) else ""
+        out += ["", f"**{label}** ({total}): {shown}{more}"]
+    published = brief.get("publishes") or []
+    if published:
+        out += ["", "This repository publishes: "
+                + ", ".join(f"`{_md_cell(n)}`" for n in published) + "."]
     return out
 
 

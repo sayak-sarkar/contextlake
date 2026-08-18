@@ -48,7 +48,11 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     # pointed at a different workspace silently destroyed repos it was never going to
     # touch -- observed on a real store, with its shards and vectors gone too.
     from ..repo_migrate import migrate_stale_repo_ids
-    repos = discover_repos(str(workspace))
+    # Collected, not merely logged: a directory git cannot open was warned about and then
+    # dropped from discovery, so the tally below counted only what survived and reported
+    # "0 failed" with exit 0. `docs/connect-enrich.md` promises the opposite verdict.
+    unusable: list[str] = []
+    repos = discover_repos(str(workspace), unusable=unusable)
     # discover_repos returns (repo_id, path) PAIRS -- pass the paths, not the pairs.
     migrate_stale_repo_ids(store, store_dir, in_scope=[p for _rid, p in repos])
     # --repos scopes indexing to a subset (so `bootstrap --repos ...` indexes only the
@@ -68,6 +72,14 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
             repos = [(rid, path) for rid, path in repos
                      if match_repo_filter(rid, _local(path), patterns)]
+            # Scope the unreadable list by the SAME filter. Collected during discovery,
+            # which runs before `--repos` is applied, so reporting it unscoped made
+            # `kb index --workspace W --repos good` exit 1 over a broken directory the run
+            # was explicitly told not to touch: an aggregate spanning a filter, presented
+            # as the run's own result -- the exact defect this release is about, introduced
+            # by the fix for it.
+            unusable = [rel for rel in unusable
+                        if match_repo_filter(rel, rel, patterns)]
     if not repos:
         # An empty workspace must fail loudly: an agent cannot cite from an empty
         # graph, so "success" here would be the hollow kind.
@@ -215,13 +227,23 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         n, e = store.repo_counts(repo_id)
         ws_nodes += n
         ws_edges += e
-    glyph = style.ok() if failed == 0 else style.warn()
+    glyph = style.ok() if (failed == 0 and not unusable) else style.warn()
     log(f"{glyph} Workspace indexed: {len(repos)} repos, {ws_nodes} nodes, "
-        f"{ws_edges} edges ({skipped} unchanged, {failed} failed)")
+        f"{ws_edges} edges ({skipped} unchanged, {failed} failed"
+        + (f", {len(unusable)} unreadable" if unusable else "") + ")")
     if failed:
         log("  See the log above for which repos failed. Re-run to retry -- "
             "indexing is incremental, so only the unindexed/changed repos run again.")
-    return 0 if failed == 0 else 1
+    if unusable:
+        # Named, because "unreadable" and "failed to parse" are different repairs: this one
+        # is fixed with a re-clone or a removal, not by re-running the index.
+        log(f"  {len(unusable)} director(y/ies) could not be read as a git repository and were "
+            f"NOT indexed: {', '.join(sorted(unusable)[:8])}"
+            + (" ..." if len(unusable) > 8 else "")
+            + ". Re-clone or remove them; re-running the index cannot help.")
+    # A repo the graph is missing is a graph an agent will cite from that is not the one you
+    # asked for, which is the same verdict `kb connect` gives for a skipped source.
+    return 0 if (failed == 0 and not unusable) else 1
 
 
 def _nested_repo_dirs(src: Path) -> list[Path]:
