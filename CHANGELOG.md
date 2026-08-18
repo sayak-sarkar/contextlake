@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.26.0] - 2026-08-18
+
+### Fixed
+
+- **Three MCP tools returned an empty result with nothing to say why.** A probe drove all
+  twenty-two tools over the stdio transport with the real client. Nineteen already
+  distinguished "nothing matched" from "nothing was looked up" through a note field. Three
+  did not, and the caller of these tools is an agent that cannot see the store, so an
+  unexplained empty result gets reported onward as a fact about the codebase.
+
+  `get_neighbors` was the cleanest case: byte-for-byte identical output --
+  `{"edges": [], "total": 0, "truncated": false}` -- for a real node with genuinely zero
+  edges and for a node id that was never indexed. It now names an id the graph does not
+  hold, and separately says when a `relation`/`direction` filter is what emptied the list.
+
+  `find_definition` says whether a name is absent from the graph entirely or is defined and
+  was excluded by a `kind`/`repo` filter. The reasoning that had left it bare -- "no
+  definition with this name is what an empty result already means" -- was wrong in the case
+  it did not consider: with a filter, that empty result reads as "X is not defined" when the
+  truth is "X is defined, and you asked for the wrong kind".
+
+  `search_code` says whether the query's terms are in the index at all, or whether a filter
+  excluded everything, and now reports `total` and `truncated` like every sibling.
+
+### Changed
+
+- **`search_code` and `find_definition` return an object, not a bare list.** Both now return
+  the `{nodes, total, truncated, note}` envelope the other list-returning tools use, which
+  is what carries the disclosure above. A client reading the old bare list needs `.nodes`.
+
+  Done now, deliberately, because the MCP tool contract carries no stability promise yet --
+  that promise is one of the remaining gates for 1.0, and the right time to make a response
+  shape consistent is before it is promised rather than after.
+
+
 ## [7.25.0] - 2026-08-18
 
 ### Added

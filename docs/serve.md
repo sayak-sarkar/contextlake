@@ -40,6 +40,14 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a
 `kb://stats` resource with the store counts.
 
+**Every list-returning tool says why a result is empty.** An empty list on its own carries two
+opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
+agent that cannot see the store, so it reports the first as a fact about the codebase when the
+truth is the second. `get_neighbors` names an id that is not in the graph rather than reporting
+it as a node without edges; `find_definition` says whether a name is absent entirely or merely
+excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
+all, and carries `total`/`truncated` like its siblings.
+
 `get_generated_doc` returns what `kb docs` wrote: `kind="api"` for the reference with
 its real call sites, `kind="design"` for the design notes. Neither involves a model, so
 neither carries the wiki's advisory caveat. Both carry `stale`, which is true when the

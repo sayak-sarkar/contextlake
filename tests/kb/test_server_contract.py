@@ -255,14 +255,19 @@ def test_an_absent_symbol_is_reported_as_absent_not_as_unaffected(tmp_path):
         # impact analysis of a symbol that does not exist is a well-formed lie.
         assert _ok(server, "blast_radius", {"name": ABSENT_NAME})["seed"] == ""
 
-        # find_definition and search_code return bare lists, so the empty list IS the
-        # whole answer and there is no field to carry guidance. That is fine for these
-        # two and only these two: an exact-name lookup and a text search have no
-        # reassuring misreading available -- "no definition with this name" is what an
-        # empty result already means. Asserted so the sweep is not the only thing
-        # covering them.
-        assert _ok(server, "find_definition", {"name": ABSENT_NAME}) == []
-        assert _ok(server, "search_code", {"query": ABSENT_NAME}) == []
+        # find_definition and search_code used to return bare lists, on the reasoning that
+        # "no definition with this name" is what an empty result already means, so there
+        # was nothing a note could add. That reasoning was wrong in the case it did not
+        # consider: with a `kind` or `repo` filter, an empty result reads as "X is not
+        # defined" when the truth is "X is defined, and your filter excluded it". They
+        # carry the same envelope as every sibling now.
+        definition = _ok(server, "find_definition", {"name": ABSENT_NAME})
+        assert definition["nodes"] == [] and definition["total"] == 0
+        assert ABSENT_NAME in definition["note"]
+
+        search = _ok(server, "search_code", {"query": ABSENT_NAME})
+        assert search["nodes"] == [] and search["total"] == 0
+        assert search["note"], "an empty search must say why it is empty"
 
         answer = _ok(server, "ask", {"question": f"where is {ABSENT_NAME} defined?"})
         assert answer["answered"] is False

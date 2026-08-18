@@ -78,8 +78,9 @@ def test_lists_expected_tools(server):
 
 def test_find_definition_exact(server):
     res = asyncio.run(_call(server, "find_definition", {"name": "CatalogService"}))
-    items = _unwrap(res.structured_content)
-    assert any(n["id"] == "a" for n in items)
+    out = _unwrap(res.structured_content)
+    assert any(n["id"] == "a" for n in out["nodes"])
+    assert out["total"] == 1 and out["note"] is None
 
 
 def test_find_callers(server):
@@ -131,8 +132,9 @@ def test_graph_stats(server):
 
 def test_search_code(server):
     res = asyncio.run(_call(server, "search_code", {"query": "catalog"}))
-    items = _unwrap(res.structured_content)
-    assert any(n["name"] == "CatalogService" for n in items)
+    out = _unwrap(res.structured_content)
+    assert any(n["name"] == "CatalogService" for n in out["nodes"])
+    assert out["truncated"] is False and out["note"] is None
 
 
 def test_search_code_negative_limit_is_clamped_not_unbounded(tmp_path):
@@ -148,7 +150,12 @@ def test_search_code_negative_limit_is_clamped_not_unbounded(tmp_path):
     s.upsert_nodes("r", [Node(id=f"n{i}", repo="r", kind="function", name=f"catalog{i}")
                         for i in range(20)])
     res = asyncio.run(_call(build_server(s), "search_code", {"query": "catalog", "limit": -1}))
-    assert _unwrap(res.structured_content) == []
+    out = _unwrap(res.structured_content)
+    assert out["nodes"] == []
+    # The total is what a capped list owes its caller: the clamp must return nothing
+    # WITHOUT claiming nothing exists, which is the same distinction this tool's new note
+    # draws one step along.
+    assert out["total"] == 20 and out["truncated"] is True
     s.close()
 
 
@@ -648,7 +655,7 @@ def test_ask_reports_a_definition_miss_as_a_miss(tmp_path):
         # find_definition is the control: it is already correct
         direct = asyncio.run(
             _call(srv, "find_definition", {"name": "FrobnicateTheWidget"})).structured_content
-        assert direct["result"] == []
+        assert direct["nodes"] == []
 
         assert out["route"] == "definition"       # not rewritten to "search"
         assert out["answered"] is False

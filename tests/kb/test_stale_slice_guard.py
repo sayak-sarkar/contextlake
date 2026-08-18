@@ -261,7 +261,10 @@ def test_drift_is_disclosed_on_the_wire_and_the_answer_still_succeeds(store, clo
     os.utime(clone / SOURCE, ns=_at(+3600))
     res = asyncio.run(_call(build_server(store), "find_definition", {"name": "alpha"}))
     assert res.is_error is False
-    [node] = res.structured_content["result"]
+    # `["nodes"]`, not `["result"]`: find_definition returns the shared
+    # {nodes, total, truncated, note} envelope now, so the SDK no longer wraps a
+    # bare list under "result".
+    [node] = res.structured_content["nodes"]
     assert node["file"] == SOURCE and node["line_start"] == 1  # still cited
     assert node["citation_status"] == "stale"
     # The whole sentence, not a substring of it: every other text field on this model goes
@@ -272,20 +275,26 @@ def test_drift_is_disclosed_on_the_wire_and_the_answer_still_succeeds(store, clo
 
 def test_clean_result_on_the_wire_says_verified_and_carries_no_note(store):
     res = asyncio.run(_call(build_server(store), "find_definition", {"name": "alpha"}))
-    [node] = res.structured_content["result"]
+    # `["nodes"]`, not `["result"]`: find_definition returns the shared
+    # {nodes, total, truncated, note} envelope now, so the SDK no longer wraps a
+    # bare list under "result".
+    [node] = res.structured_content["nodes"]
     assert node["citation_status"] == "verified"
     assert node["citation_note"] is None
 
 
+# The key each verb's node list arrives under. `find_definition` and `search_code` moved
+# from a bare list (which the SDK wraps as "result") to the shared {nodes, total, truncated,
+# note} envelope, so all three now read the same field -- which is the point of the change.
 @pytest.mark.parametrize("tool,args,key", [
-    ("find_definition", {"name": "alpha"}, "result"),
+    ("find_definition", {"name": "alpha"}, "nodes"),
     # Carries an edge and `as_edge_provenance`, so it takes a different branch of the
     # same funnel...
     ("find_callers", {"node_id": "nofile"}, "nodes"),
     # ...and this one is a plain scored search. Neither should change whether the
     # citation is weighed, but "they all go through `_node_out`" is a claim about the
     # code, and the point of a wire test is to stop it being only that.
-    ("search_code", {"query": "alpha"}, "result"),
+    ("search_code", {"query": "alpha"}, "nodes"),
 ])
 def test_every_node_returning_verb_carries_the_disclosure(store, clone, tool, args, key):
     body = "\n".join(f"# padding {i}" for i in range(20)) + "\ndef alpha():\n    return 1\n"
@@ -359,11 +368,11 @@ def test_probe_is_per_request(store, clone):
     is answered."""
     server = build_server(store)
     first = asyncio.run(_call(server, "find_definition", {"name": "alpha"}))
-    assert first.structured_content["result"][0]["citation_status"] == "verified"
+    assert first.structured_content["nodes"][0]["citation_status"] == "verified"
     (clone / SOURCE).write_text("# gone\n", encoding="utf-8")
     os.utime(clone / SOURCE, ns=_at(+3600))
     second = asyncio.run(_call(server, "find_definition", {"name": "alpha"}))
-    assert second.structured_content["result"][0]["citation_status"] == "stale"
+    assert second.structured_content["nodes"][0]["citation_status"] == "stale"
 
 
 # --- the baseline the whole guard rests on --------------------------------------------

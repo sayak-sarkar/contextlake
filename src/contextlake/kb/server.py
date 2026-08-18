@@ -256,6 +256,12 @@ class NeighborsOut(BaseModel):
     edges: list[EdgeOut]
     total: int
     truncated: bool  # true => more edges exist than returned; raise limit or narrow relation
+    # Why the list is empty, when that is not "this node has no edges". Without it, a real
+    # node with genuinely zero edges and a node id that was never indexed produced
+    # byte-for-byte identical output -- and the caller is an agent that cannot see the
+    # store, so it reports the first as a fact about the codebase when the truth is the
+    # second. Every sibling verb already carries a field like this.
+    note: str | None = None
 
 
 class NodesOut(BaseModel):
@@ -504,6 +510,11 @@ class AskOut(BaseModel):
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
+
+
+#: How far `search_code` counts before reporting its total as a floor. Bounded because the
+#: alternative is materialising every match on a fleet-sized store to print one number.
+_SEARCH_TOTAL_CEILING = 500
 
 
 def _budget(items: list, limit: int) -> tuple[list, int, bool]:
@@ -854,13 +865,32 @@ def build_server(
             store.neighbors(node_id, relation=relation, direction=direction),
             key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
         kept, total, truncated = _budget(edges, limit)
-        return NeighborsOut(edges=[_edge_out(e) for e in kept], total=total, truncated=truncated)
+        note = None
+        if not edges:
+            # Asked only when the answer is empty, because that is the only case where the
+            # two meanings are indistinguishable, and it costs a lookup nobody pays on the
+            # common path.
+            if store.get_node(node_id) is None:
+                note = (f"No node with id {node_id!r} is in the graph, so this is not "
+                        f"'no edges' -- nothing was looked up. Ids are exact; "
+                        f"find_definition resolves a name to one.")
+            elif relation or direction != "both":
+                note = (f"{node_id} has no edges matching relation={relation!r} "
+                        f"direction={direction!r}; it may have others.")
+        return NeighborsOut(edges=[_edge_out(e) for e in kept], total=total,
+                            truncated=truncated, note=note)
 
     @bounded_tool
     def search_code(
         query: str, kind: str | None = None, repo: str | None = None, limit: int = 20
-    ) -> list[NodeOut]:
-        """Search the graph for nodes by name/symbol, with optional kind and repo filters."""
+    ) -> NodesOut:
+        """Search the graph for nodes by name/symbol, with optional kind and repo filters.
+
+        Returns `total` and `truncated` like every other list-returning tool, and a `note`
+        when the result is empty for a reason other than "nothing matched" -- a term that is
+        not in the index at all, or a filter that excluded everything. A bare list said none
+        of that: the caller could not tell a real miss from a mistyped filter, and cannot see
+        the store to find out."""
         # Same defect as _budget/list_repos, reached a third way: sqlite_store.search
         # puts `limit` straight into a `LIMIT ?` with no +1/truncated bookkeeping at
         # all, so a negative value (SQLite treats a negative LIMIT as unbounded,
@@ -868,14 +898,56 @@ def build_server(
         # comes back, silently, with no truncation signal to say so. Clamped for the
         # same reason and to the same floor as `_budget`.
         limit = max(limit, 0)
-        return [_node_out(n) for n in store.search(query, kind=kind, repo=repo, limit=limit)]
+        # A TRUE total up to a ceiling, not "one more than we asked for". Fetching
+        # `limit + 1` is enough to set `truncated`, but it would make `total` mean
+        # something different here from what it means on every sibling -- one field, two
+        # meanings, which is the shape this whole batch is about. So the matches are
+        # counted up to a bound, and when the bound is reached the note says the total is
+        # a floor rather than quietly presenting it as exact.
+        ceiling = max(limit, _SEARCH_TOTAL_CEILING)
+        found = list(store.search(query, kind=kind, repo=repo, limit=ceiling))
+        kept, total, truncated = _budget(found, limit)
+        at_ceiling = len(found) >= ceiling
+        note = None
+        if not kept:
+            unmatched, _anchored = _term_anchors(query)
+            if unmatched:
+                terms = ", ".join(repr(t) for t in unmatched)
+                note = (f"Nothing indexed matches {terms}, so this is not a ranking miss -- "
+                        f"the term is absent from the graph. Index the repository that "
+                        f"should answer it, or retry with a term the graph knows.")
+            elif kind or repo:
+                note = (f"No node matching {query!r} survived kind={kind!r} repo={repo!r}; "
+                        f"the query itself does match the graph.")
+        if at_ceiling:
+            ceiling_note = (f"More than {ceiling} nodes match; `total` is that bound, not "
+                            f"the true count. Narrow with kind/repo for an exact figure.")
+            note = f"{note} {ceiling_note}" if note else ceiling_note
+        return NodesOut(nodes=[_node_out(n) for n in kept], total=total, truncated=truncated,
+                        note=note)
 
     @bounded_tool
     def find_definition(
         name: str, kind: str | None = None, repo: str | None = None
-    ) -> list[NodeOut]:
-        """Find definition(s) with an exact name — 'where is X defined?'."""
-        return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
+    ) -> NodesOut:
+        """Find definition(s) with an exact name — 'where is X defined?'.
+
+        Empty carries a `note` saying WHICH of the two happened: the name is not in the
+        graph at all, or it is but the kind/repo filter excluded every match. A bare list
+        made those identical, and "X is not defined anywhere" is the answer an agent
+        reports onward."""
+        found = store.nodes_by_name(name, kind=kind, repo=repo)
+        note = None
+        if not found:
+            unfiltered = store.nodes_by_name(name) if (kind or repo) else []
+            if unfiltered:
+                note = (f"{name} IS defined ({len(unfiltered)} definition(s)), but none "
+                        f"matched kind={kind!r} repo={repo!r}. Drop the filter to see them.")
+            else:
+                note = (f"No definition named {name!r} is in the graph. Names are exact "
+                        f"here; search_code matches partially.")
+        return NodesOut(nodes=[_node_out(n) for n in found], total=len(found),
+                        truncated=False, note=note)
 
     def _one_of(*values: str | None) -> str | None:
         """The first non-empty of several spellings of the same argument."""
@@ -1580,7 +1652,12 @@ def build_server(
             return matches[0], extra or None
 
         if route == DEFINITION:
-            hits = find_definition(target, repo=repo) if target else []
+            # `.nodes`, because find_definition now returns the same envelope every other
+            # list-returning tool does. Its `note` is deliberately not forwarded here: this
+            # branch falls through to a search on a miss and states its own reason below,
+            # and carrying both would say the same thing twice in one answer.
+            found = find_definition(target, repo=repo) if target else None
+            hits = found.nodes if found else []
             if hits:
                 return _out(f"Definition(s) of {target!r} — EXTRACTED, cited.", nodes=hits)
             # Still fall through to a search (the definition rule also fires on genuine
@@ -1784,7 +1861,11 @@ def build_server(
                           "graph and were dropped: the embedding store is stale relative "
                           "to the index, so this answer is INCOMPLETE. Re-run `kb embed`.")
         else:
-            out = search_code(question, repo=repo, limit=k)
+            # `.nodes`, for the same reason as the definition route above: search_code now
+            # returns the shared envelope. Its `note` is not forwarded, because the block
+            # below already names this question's unmatched terms on every path -- the same
+            # fact, and stating it twice in one answer reads as two findings.
+            out = search_code(question, repo=repo, limit=k).nodes
             found = ("Full-text search over node names ("
                      + (unpopulated or "no embeddings configured") + ").")
 

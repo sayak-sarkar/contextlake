@@ -1,3 +1,3 @@
 """contextlake — keep a local workspace mirrored with your repositories, across forges."""
 
-__version__ = "7.25.0"
+__version__ = "7.26.0"
