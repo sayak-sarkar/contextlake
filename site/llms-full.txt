@@ -6619,6 +6619,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.31.0] - 2026-08-18
+
+### Added
+
+- **A clean-room install harness, and its evidence: 10 of 10 on Python 3.10 and 3.13.** A
+  machine with no config and no store installs the published wheel from the index, runs
+  `init`, indexes a public repository and produces all six output types. Verified from the
+  published artefact rather than the working tree, because an editable install has masked a
+  version mismatch twice.
+
+  One happy path is not a clean room, so it also covers the shapes that have broken before:
+  a second index over an unchanged tree rebuilds nothing, an `--offline` run completes with
+  every proxy variable poisoned so any outbound call would fail loudly, and a repository with
+  no manifest indexes to a graph rather than an error.
+
+  Getting to 10 of 10 took three runs and every failure was the harness, not the product:
+  it passed `init --local` where the command's own message named `--no-mirror`; it installed
+  `[kb]`, which deliberately carries no embedder, and read the honest "unavailable" as a
+  missing output; and it looked for the wiki and docs in a directory it had invented while
+  all three sat under the `store_dir` that `init` had written. The same error three ways,
+  which is measuring against an assumed layout instead of the one the product writes. The
+  runner now reads that path out of the config `init` produced.
+
+  A review then found six checks that were wrong while the harness reported 10 of 10.
+  `init` failing was converted into a pass. "Re-index is quiet" read zero for both runs,
+  because the regex matched a line the command never prints and the fallback matched the
+  first run's own "0 unchanged". The offline check ran a command with no network path at all.
+  "Vector search" accepted the full-text fallback that `kb query` degrades to. The
+  no-manifest check only proved a second repository row existed, which the previously indexed
+  tree had already made true. And a run where nothing executed passed, with a test blessing
+  it.
+
+  All six are fixed and the gate re-run: 10 of 10, with an offline check that now requires
+  `--offline mirror fetch` to be refused by the guard rather than by config validation
+  arriving first. Every one of those six is the defect class this series exists to remove,
+  which a harness is not exempt from -- and a harness that grades a gate is the worst place
+  for it to hide.
+
+
 ## [7.30.0] - 2026-08-18
 
 ### Added

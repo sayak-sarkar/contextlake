@@ -1,0 +1,73 @@
+{
+  "notes": [],
+  "ok": true,
+  "pythons": "3.10,3.13",
+  "rows": [
+    {
+      "check": "installed version",
+      "detail": "contextlake 7.30.0, installed from the index",
+      "python": "3.10",
+      "status": "verified"
+    },
+    {
+      "check": "six outputs",
+      "detail": "all 6: code graph, wiki, generated docs, diagrams, vector search, fleet view",
+      "python": "3.10",
+      "status": "verified"
+    },
+    {
+      "check": "re-index is quiet",
+      "detail": "first run rebuilt 1, second rebuilt nothing",
+      "python": "3.10",
+      "status": "verified"
+    },
+    {
+      "check": "offline run",
+      "detail": "`--offline mirror fetch` refused, exit 2",
+      "python": "3.10",
+      "status": "verified"
+    },
+    {
+      "check": "no-manifest repo",
+      "detail": "indexed, its own symbol is in the graph, and no manifest to read",
+      "python": "3.10",
+      "status": "verified"
+    },
+    {
+      "check": "installed version",
+      "detail": "contextlake 7.30.0, installed from the index",
+      "python": "3.13",
+      "status": "verified"
+    },
+    {
+      "check": "six outputs",
+      "detail": "all 6: code graph, wiki, generated docs, diagrams, vector search, fleet view",
+      "python": "3.13",
+      "status": "verified"
+    },
+    {
+      "check": "re-index is quiet",
+      "detail": "first run rebuilt 1, second rebuilt nothing",
+      "python": "3.13",
+      "status": "verified"
+    },
+    {
+      "check": "offline run",
+      "detail": "`--offline mirror fetch` refused, exit 2",
+      "python": "3.13",
+      "status": "verified"
+    },
+    {
+      "check": "no-manifest repo",
+      "detail": "indexed, its own symbol is in the graph, and no manifest to read",
+      "python": "3.13",
+      "status": "verified"
+    }
+  ],
+  "tree": {
+    "commit": "b2e30a175449cfda909ee4fbf4a29a6a071cad53",
+    "ref": "8.4.2",
+    "url": "https://github.com/pallets/click"
+  },
+  "version": "7.30.0"
+}

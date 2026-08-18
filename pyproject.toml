@@ -224,3 +224,8 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # output rather than testing an internal function. Same scoping rule as above: this one
 # file, so a future benchmark has to make its own case.
 "benchmarks/g2-derivation/run.py" = ["S603", "S607"]
+
+# The clean-room harness drives `git`, `pip`, a venv's own interpreter and the INSTALLED
+# contextlake as subprocesses. Driving the shipped command is the entire point: reading the
+# working tree instead is the mistake this gate exists to catch.
+"benchmarks/g6-cleanroom/run.py" = ["S603", "S607"]
