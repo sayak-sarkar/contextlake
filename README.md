@@ -285,11 +285,14 @@ everything and opens in an air-gapped browser.
 
 ## Versioning and compatibility
 
-contextlake follows [Semantic Versioning](https://semver.org/). **From 1.0, no breaking
-change lands without a major bump.** Before 1.0 the surfaces below still move, and every
-break is named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
-with what to change. The promise is stated here now so it is clear what it will cover, not
-so it can be read as already in force.
+contextlake follows [Semantic Versioning](https://semver.org/). **From 8.0.0, no breaking
+change lands without a major bump**, and 8.0.0 is out: the promise is in force. Breaks before
+it are named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
+with what to change.
+
+8.0.0 is the release the promise starts binding in, not a renumbering. A reset to 1.0.0 was
+considered and rejected: it would sort *below* every version already published, so nobody on
+7.x would ever be offered it.
 
 Four surfaces are covered. A change is **breaking** when it would stop something you wrote
 from working:

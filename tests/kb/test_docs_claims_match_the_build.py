@@ -298,6 +298,16 @@ def test_every_documented_cli_verb_exists():
 _PROMISE_SURFACES = ("CLI verbs and flags", "Store layout", "MCP tool contracts",
                      "Config keys")
 
+def _stated_promise_release(section: str) -> tuple[int, ...] | None:
+    """The release the README says the promise binds from, as a version tuple."""
+    m = re.search(r"From (\d+)\.(\d+)\.(\d+),", section)
+    return tuple(int(g) for g in m.groups()) if m else None
+
+
+def _current_version() -> tuple[int, ...]:
+    from contextlake import __version__
+    return tuple(int(part) for part in __version__.split(".")[:3])
+
 
 def test_the_readme_states_the_compatibility_promise():
     text = _text("README.md")
@@ -316,8 +326,22 @@ def test_the_promise_is_honest_about_not_being_in_force_yet():
     """
     text = _text("README.md")
     section = text.split("## Versioning and compatibility", 1)[1].split("\n## ", 1)[0]
-    assert "From 1.0" in section
-    assert "CHANGELOG" in section, "a break before 1.0 has to be findable somewhere"
+    # The prose has to agree with WHERE THE VERSION ACTUALLY IS, which is a comparison
+    # rather than a pinned phrase. A literal pin was the first attempt and it broke on the
+    # release it was written for: the milestone was called "1.0" while the version sat at
+    # 7.x, then became 8.0.0, and a test holding a string cannot notice either move. The
+    # question that stays true is simpler -- has the release the promise names arrived?
+    stated = _stated_promise_release(section)
+    assert stated is not None, "the promise does not name the release it binds from"
+    current = _current_version()
+    in_force = current >= stated
+    if in_force:
+        assert "not yet in force" not in section and "Until then" not in section, (
+            f"the promise binds from {stated} and this build is {current}, so the section "
+            f"must not still describe it as pending")
+    else:
+        assert "CHANGELOG" in section, (
+            "while the promise is pending, a break has to be findable somewhere")
     # And the changelog has to actually carry one. Asserting only that the README POINTS at
     # it would pass on a build whose changelog documented no break at all, which is the
     # promise pointing at an empty room.

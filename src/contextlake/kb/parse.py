@@ -111,7 +111,12 @@ LANG_BY_EXT = {
     ".zig": "zig",
     # Perl: ".pl" is scripts, ".pm" modules, ".t" its test files.
     ".pl": "perl", ".pm": "perl", ".t": "perl",
-    ".sh": "bash", ".bash": "bash",
+    # Every shell dialect the bash grammar reads well enough to be worth indexing. `.ksh`
+    # and `.zsh` are near-supersets for the constructs that matter here (functions and the
+    # commands they run); `.bats` is bash with a test harness on top. A shell script that
+    # went unindexed because of its extension is the same file with a different suffix.
+    ".sh": "bash", ".bash": "bash", ".ksh": "bash", ".zsh": "bash",
+    ".bats": "bash", ".command": "bash",
     ".ex": "elixir", ".exs": "elixir",
     ".css": "css", ".html": "html", ".htm": "html",
     ".nix": "nix",
@@ -215,7 +220,10 @@ class GrammarNotInstalled(ImportError):
 HCL_EXTS = {".tf"}
 
 # SQL DDL uses a regex extractor (kb/sql.py), matched separately from LANG_BY_EXT.
-SQL_EXTS = {".sql"}
+# `.sql` plus the PL/SQL source extensions. Oracle tooling splits one object per file by
+# convention: a package spec in `.pks`, its body in `.pkb`, a standalone procedure in
+# `.prc`. Those files were previously routed to nothing and contributed no nodes.
+SQL_EXTS = {".sql", ".pks", ".pkb", ".plb", ".prc", ".fnc", ".trg", ".pls"}
 
 # XML configuration uses a line scanner (kb/xml_cfg.py), matched separately from
 # LANG_BY_EXT. NOT gated by `languages`, for the reason `_file_kind` gives about
@@ -305,7 +313,14 @@ def _has_generated_header(source: bytes) -> bool:
 # is not ideal for anyone who just re-indexed; the alternative is worse, because a manifest
 # that has not changed since the last index would keep the thinner edges forever and no
 # commit-keyed check would ever say so.
-PARSER_VERSION = "8"
+# "9" adds language coverage rather than changing how existing languages are read:
+# PL/SQL objects (package, package body, function, type, trigger) inside `.sql`, the
+# Oracle `CREATE OR REPLACE` spelling that the previous patterns rejected outright, the
+# per-object PL/SQL extensions (.pks/.pkb/.plb/.prc/.fnc/.trg/.pls) which were routed
+# nowhere, and the shell dialects (.ksh/.zsh/.bats/.command) which the bash grammar
+# already reads. A repository containing any of those carries strictly more than it did,
+# and no commit-keyed check would ever say so, which is what this bump exists for.
+PARSER_VERSION = "9"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {

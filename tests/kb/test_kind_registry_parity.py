@@ -17,6 +17,7 @@ from dataclasses import MISSING
 import pytest
 
 from contextlake.kb import hcl, parse, xml_cfg
+from contextlake.kb import sql as sql_mod
 from contextlake.kb.dashboard import site
 from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
 from contextlake.kb.impact import _SOURCE_KINDS
@@ -106,7 +107,11 @@ def _produced_kinds() -> set[str]:
         | _member_symbol_kinds()
         # HCL block keywords, introspected, plus the `local.<attr>` special case
         | hcl._DEF_BLOCKS | {"local"}
-        | {"table", "view", "procedure"}                 # kb/sql.py DDL regexes
+        # kb/sql.py's own declaration, imported rather than restated. The hand-written
+        # `{"table", "view", "procedure"}` that used to sit here went stale the moment that
+        # module learned a new object type, and reported the new kinds as produced by
+        # nothing while they were being produced on every run.
+        | set(sql_mod.EMITTED_KINDS)
         | {"adr", xml_cfg.CONFIG_KIND}                   # kb/adr.py, kb/xml_cfg.py
         | {"endpoint", "topic", "route", "state"}        # kb/flow/*
         | {"package"}                                    # kb/manifest.py

@@ -552,6 +552,28 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
         hcl_ref_target=False, sql_ref_target=True),
+    "db_package": KindSpec(
+        color="#c98ac0", glyph=None, group="Data model",
+        embeddable=False,
+        why_not_embeddable="a name and a file; the callables inside carry the signal",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        # Deliberately NOT "package". That kind is a shared cross-repo dependency node in
+        # the packages partition, and an Oracle package is a repository-local definition.
+        # Reusing it would put database packages into the fleet's shared-dependency count.
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "trigger": KindSpec(
+        color="#d9789a", glyph=None, group="Data model",
+        embeddable=False,
+        why_not_embeddable="low signal without its body",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        style_ref_target=False,
+        # A trigger fires ON a table, so it is a source of references, never a target of one.
+        hcl_ref_target=False, sql_ref_target=False),
     "procedure": KindSpec(
         color="#e0a3d5", glyph=None, group="Data model",
         embeddable=False,

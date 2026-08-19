@@ -297,11 +297,14 @@ everything and opens in an air-gapped browser.
 
 ## Versioning and compatibility
 
-contextlake follows [Semantic Versioning](https://semver.org/). **From 1.0, no breaking
-change lands without a major bump.** Before 1.0 the surfaces below still move, and every
-break is named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
-with what to change. The promise is stated here now so it is clear what it will cover, not
-so it can be read as already in force.
+contextlake follows [Semantic Versioning](https://semver.org/). **From 8.0.0, no breaking
+change lands without a major bump**, and 8.0.0 is out: the promise is in force. Breaks before
+it are named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
+with what to change.
+
+8.0.0 is the release the promise starts binding in, not a renumbering. A reset to 1.0.0 was
+considered and rejected: it would sort *below* every version already published, so nobody on
+7.x would ever be offered it.
 
 Four surfaces are covered. A change is **breaking** when it would stop something you wrote
 from working:
@@ -2104,7 +2107,7 @@ relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `cont
 show at all:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 48 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 50 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
 
 ### Languages
@@ -6618,6 +6621,96 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [8.1.0] - 2026-08-19
+
+### Added
+
+- **PL/SQL objects, and the Oracle spelling that made a whole dialect invisible.** `.sql`
+  files were read for `CREATE TABLE`, `VIEW` and `PROCEDURE`, and the procedure pattern
+  accepted only the T-SQL `CREATE OR ALTER`. An Oracle codebase writes `CREATE OR REPLACE`,
+  so its procedures produced no nodes at all while the files appeared to be indexed.
+
+  Packages, package bodies, functions, types and triggers are extracted now, both
+  redefinition spellings are accepted, and a trigger records the table it fires on. The
+  `ON` search is bounded to the trigger's own statement, because `ON` introduces a join
+  everywhere else in SQL and an unbounded search hands a truncated trigger the next
+  statement's table.
+
+- **The per-object PL/SQL extensions**: `.pks`, `.pkb`, `.plb`, `.prc`, `.fnc`, `.trg`,
+  `.pls`. Oracle tooling splits one object per file by convention, and those files were
+  routed nowhere.
+
+- **The remaining shell dialects**: `.ksh`, `.zsh`, `.bats`, `.command`, alongside the
+  `.sh` and `.bash` already read. The bash grammar handles all of them for the constructs
+  that matter here, and a script that went unindexed because of its suffix is the same
+  script with a different name.
+
+- Two node kinds, `db_package` and `trigger`. A database package is deliberately **not** the
+  existing `package` kind: that one is a shared cross-repo node built from manifests, and
+  reusing it would put Oracle packages into the fleet page's shared-dependency count.
+
+### Changed
+
+- **`PARSER_VERSION` is `"9"`.** Any repository containing PL/SQL or the newly routed shell
+  extensions now carries strictly more than it did, and no commit-keyed check would ever say
+  so. `kb index` rebuilds those repositories; `doctor` reports the staleness as an advisory
+  rather than a fault.
+
+  The decision was taken and written down before the code, because this reopens the parser
+  stability gate that closed earlier the same day on `"8"` holding across eight releases.
+  That is recorded in the gate status as a reopening, not quietly left as closed.
+
+### Fixed
+
+- **A registry-parity test carried a hand-written list of the kinds one module produces.**
+  It read `{"table", "view", "procedure"}` for the SQL extractor, so adding a kind there
+  made the test report the new kinds as "registered but produced by nothing" while they were
+  being produced on every run. The module now declares what it emits and the test imports
+  that declaration.
+
+
+## [8.0.0] - 2026-08-19
+
+**The compatibility promise starts binding with this release**, and this release deliberately
+breaks nothing. A major bump permits breaking changes; announcing "stability begins here" in
+a release that breaks things would read exactly as badly as it sounds. Upgrading from 7.x
+needs no changes.
+
+`README.md` states what counts as breaking on four surfaces: CLI verbs and flags, store
+layout, MCP tool contracts, and config keys. A change is breaking when it would stop
+something you wrote from working, so adding a flag is not, and tightening a flag's validation
+is not either. `PARSER_VERSION` is deliberately outside that list: bumping it stops nothing
+working, it means a repository indexed by an older parser carries less than the current one
+would extract, so `kb index` rebuilds it.
+
+### The milestone this closes
+
+Eight gates defined what "complete" meant, written so each could be checked rather than
+asserted. All eight are closed, with the evidence committed rather than described:
+
+- Each of the six output types is proven **generated from source** rather than emitted after
+  it, by changing one thing in a pinned public tree and asserting the specific movement that
+  implies. 7 of 7 bars.
+- A **clean-room install** of the published wheel does the whole thing on the minimum and
+  newest supported Python: 10 of 10, including a second index that rebuilds nothing, an
+  offline refusal, and a repository with no manifest.
+- Every number the documentation states about the build is **checked against the build**, by
+  a gate that discovers its own files rather than reading a list somebody maintains.
+- The **published artefacts correspond**: the release verifies what the index actually serves
+  against the bytes CI built, both distributions, and reports "could not check" as its own
+  state rather than as a pass.
+- Zero open scanner alerts, and all three workflows green, each read where it actually runs.
+
+### Changed
+
+- The milestone language names **8.0.0** rather than "1.0" everywhere it appears, and the
+  test that guards it now DERIVES the release from the package version instead of pinning the
+  phrase. The charter was written calling this "1.0" while the version already sat at 7.x, so
+  every document that spelled it out disagreed with the number on the tin. A reset to 1.0.0
+  was considered and rejected: it would sort below everything already published, so nobody on
+  7.x would ever be offered it.
+
 
 ## [7.32.0] - 2026-08-19
 
