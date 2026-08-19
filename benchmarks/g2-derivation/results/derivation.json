@@ -16,7 +16,7 @@
     "fleet_shared": 1,
     "nodes": 2441,
     "semantic_rank": 2,
-    "wiki_commit": "d8e2da62991cebe3f824b8d805f4bc33fffd5191"
+    "wiki_commit": "d9043f2889c89d29dd17595ce1de5af4fc595af7"
   },
   "before": {
     "api_has_symbol": false,
@@ -60,7 +60,7 @@
       "status": "verified"
     },
     {
-      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> d8e2da62991cebe3f824b8d805f4bc33fffd5191",
+      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> d9043f2889c89d29dd17595ce1de5af4fc595af7",
       "output": "wiki",
       "status": "verified"
     },

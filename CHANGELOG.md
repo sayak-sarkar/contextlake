@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.32.0] - 2026-08-19
+
+### Fixed
+
+- **The derivation harness counted an arrow inside a node label as an edge.** A scanner
+  flagged the bare `-->` match as HTML comment handling, which it is not: the file is
+  Mermaid. But looking at it found a real defect underneath the misclassification. A node
+  label carries arbitrary text, including a symbol name or a docstring with an arrow in it,
+  and every one of those was counted as a rendered edge.
+
+  That mattered because the diagram bar compares the count the command announced against the
+  count rendered in the file, and reports a disagreement as the product drawing a different
+  graph than it described. An overcount there is a false accusation waiting for the first
+  repository whose code contains an arrow. Measured on a four-line fixture: three counted
+  where there are two. The pattern is anchored on the edge line now, and the bar still
+  passes on the real tree.
+
+  Third time this scanner rule has fired in this project and third time it named something
+  real underneath.
+
+
 ## [7.31.0] - 2026-08-18
 
 ### Added

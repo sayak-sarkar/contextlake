@@ -273,7 +273,13 @@ class Harness:
             # bar would have reported as the product drawing a different graph than it
             # described -- a false accusation from a miscounted space.
             m["diagram_rendered_nodes"] = len(re.findall(r"^\s{2}\w+\[", body, re.M))
-            m["diagram_rendered_edges"] = len(re.findall(r"-->", body))
+            # Anchored on the EDGE LINE, not on a bare arrow anywhere in the file. A node
+            # label can contain arbitrary text, including an arrow, so counting every `-->`
+            # overcounts the moment a symbol name or a docstring has one in it. (A scanner
+            # also reads a bare `-->` match as HTML comment handling, which this is not:
+            # it is Mermaid, and the precise form is the correct pattern regardless.)
+            m["diagram_rendered_edges"] = len(
+                re.findall(r"^\s*\w+\s*--", body, re.M))
 
         self.cl("kb", "wiki")
         page = self.store / "wiki" / f"{self.repo_id}.md"
