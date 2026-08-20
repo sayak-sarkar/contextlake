@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.1.0] - 2026-08-19
+## [8.0.0] - 2026-08-20
+
+**The compatibility promise starts binding with this release**, and this release deliberately
+breaks nothing. A major bump permits breaking changes; announcing "stability begins here" in
+a release that breaks things would read exactly as badly as it sounds. Nothing you wrote
+against 7.x stops working. One action is worth taking: this release moves `PARSER_VERSION`,
+so `kb index` rebuilds any repository holding PL/SQL or the newly routed shell suffixes, and
+those repositories carry less than they should until it does.
+
+`README.md` states what counts as breaking on four surfaces: CLI verbs and flags, store
+layout, MCP tool contracts, and config keys. A change is breaking when it would stop
+something you wrote from working, so adding a flag is not, and tightening a flag's validation
+is not either. `PARSER_VERSION` is deliberately outside that list: bumping it stops nothing
+working, it means a repository indexed by an older parser carries less than the current one
+would extract, so `kb index` rebuilds it.
+
+### The milestone this closes
+
+Eight gates defined what "complete" meant, written so each could be checked rather than
+asserted. Seven are closed, with the evidence committed rather than described. The eighth is
+parser stability, and this release reopens it itself: it closed on `PARSER_VERSION` `"8"`
+holding across eight releases, and the PL/SQL and shell work below moves it to `"9"`. It
+re-closes once two releases hold at `"9"`. Saying "all eight" here would have frozen a false
+sentence into an immutable release, so it says seven and names the eighth.
+
+Closed:
+
+- Each of the six output types is proven **generated from source** rather than emitted after
+  it, by changing one thing in a pinned public tree and asserting the specific movement that
+  implies. 7 of 7 bars.
+- A **clean-room install** of the published wheel does the whole thing on the minimum and
+  newest supported Python: 10 of 10, including a second index that rebuilds nothing, an
+  offline refusal, and a repository with no manifest.
+- Every number the documentation states about the build is **checked against the build**, by
+  a gate that discovers its own files rather than reading a list somebody maintains.
+- The **published artefacts correspond**: the release verifies what the index actually serves
+  against the bytes CI built, both distributions, and reports "could not check" as its own
+  state rather than as a pass.
+- Zero open scanner alerts, and all three workflows green, each read where it actually runs.
 
 ### Added
 
@@ -46,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stability gate that closed earlier the same day on `"8"` holding across eight releases.
   That is recorded in the gate status as a reopening, not quietly left as closed.
 
+- The milestone language names **8.0.0** rather than "1.0" everywhere it appears, and the
+  test that guards it now DERIVES the release from the package version instead of pinning the
+  phrase. The charter was written calling this "1.0" while the version already sat at 7.x, so
+  every document that spelled it out disagreed with the number on the tin. A reset to 1.0.0
+  was considered and rejected: it would sort below everything already published, so nobody on
+  7.x would ever be offered it.
+
 ### Fixed
 
 - **A registry-parity test carried a hand-written list of the kinds one module produces.**
@@ -53,48 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   made the test report the new kinds as "registered but produced by nothing" while they were
   being produced on every run. The module now declares what it emits and the test imports
   that declaration.
-
-
-## [8.0.0] - 2026-08-19
-
-**The compatibility promise starts binding with this release**, and this release deliberately
-breaks nothing. A major bump permits breaking changes; announcing "stability begins here" in
-a release that breaks things would read exactly as badly as it sounds. Upgrading from 7.x
-needs no changes.
-
-`README.md` states what counts as breaking on four surfaces: CLI verbs and flags, store
-layout, MCP tool contracts, and config keys. A change is breaking when it would stop
-something you wrote from working, so adding a flag is not, and tightening a flag's validation
-is not either. `PARSER_VERSION` is deliberately outside that list: bumping it stops nothing
-working, it means a repository indexed by an older parser carries less than the current one
-would extract, so `kb index` rebuilds it.
-
-### The milestone this closes
-
-Eight gates defined what "complete" meant, written so each could be checked rather than
-asserted. All eight are closed, with the evidence committed rather than described:
-
-- Each of the six output types is proven **generated from source** rather than emitted after
-  it, by changing one thing in a pinned public tree and asserting the specific movement that
-  implies. 7 of 7 bars.
-- A **clean-room install** of the published wheel does the whole thing on the minimum and
-  newest supported Python: 10 of 10, including a second index that rebuilds nothing, an
-  offline refusal, and a repository with no manifest.
-- Every number the documentation states about the build is **checked against the build**, by
-  a gate that discovers its own files rather than reading a list somebody maintains.
-- The **published artefacts correspond**: the release verifies what the index actually serves
-  against the bytes CI built, both distributions, and reports "could not check" as its own
-  state rather than as a pass.
-- Zero open scanner alerts, and all three workflows green, each read where it actually runs.
-
-### Changed
-
-- The milestone language names **8.0.0** rather than "1.0" everywhere it appears, and the
-  test that guards it now DERIVES the release from the package version instead of pinning the
-  phrase. The charter was written calling this "1.0" while the version already sat at 7.x, so
-  every document that spelled it out disagreed with the number on the tin. A reset to 1.0.0
-  was considered and rejected: it would sort below everything already published, so nobody on
-  7.x would ever be offered it.
 
 
 ## [7.32.0] - 2026-08-19
