@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **XML Schema (`.xsd`) support.** The extension was routed nowhere, so a repository whose
+  data contracts live in schemas carried none of them. Every global component is a node now
+  and every name one component gives another is a `references` edge, resolved across files:
+  `tns:PartyType` in one file and the `<xs:complexType name="PartyType">` that defines it in
+  another land on one node, because the namespace prefix is a per-file alias and is stripped
+  before matching.
+
+  Two node kinds. `schema_element` for a global `xs:element`, which is the name a message or
+  a document root actually carries and therefore the name a person searches for.
+  `schema_type` for a global `complexType`, `simpleType`, `group`, `attributeGroup` or
+  `attribute`, with which one recorded as an attribute rather than as five kinds.
+
+  They are **not** a reuse of `struct` and `typedef`, and that is the load-bearing decision
+  here rather than a naming preference. Reference resolution is by name across the whole
+  repository, narrowed only by target kind, so sharing a kind with C++ would let
+  `type="Address"` resolve onto an unrelated `struct Address` -- confidently, with nothing
+  reporting that a guess had been made.
+
+  `.xsd` is also matched ahead of, and never falls through to, the XML config scanner:
+  `name` is one of that scanner's key attributes, so a schema sent there would file every
+  component as a settings key.
+
+### Changed
+
+- **`PARSER_VERSION` is `"10"`.** A repository holding `.xsd` files carries strictly more
+  than it did and no commit-keyed check would say so, so `kb index` rebuilds it. One bump
+  covers the whole language batch rather than one per language.
+
+
 ## [8.0.0] - 2026-08-20
 
 **The compatibility promise starts binding with this release**, and this release deliberately

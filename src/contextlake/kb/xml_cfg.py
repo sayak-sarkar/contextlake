@@ -87,11 +87,15 @@ _KEY_ATTRS = ("key", "name", "id", "property", "setting")
 _VALUE_ATTRS = ("value", "val", "default")
 
 
-def _mask(text: str) -> str:
+def mask_non_markup(text: str) -> str:
     """Blank out non-markup regions, preserving every newline.
 
     Line numbers are the point of this module, so the mask must be
     length-and-newline preserving rather than a delete.
+
+    Public because :mod:`.xsd` scans the same syntax and must recognise a comment the same
+    way. A second copy of the rule is how two extractors start disagreeing about whether a
+    commented-out definition exists.
     """
     def blank(m: re.Match) -> str:
         return "".join("\n" if ch == "\n" else " " for ch in m.group(0))
@@ -124,7 +128,7 @@ def parse_xml_config(repo_id: str, rel_path: str, source: bytes) -> list[Node]:
     """
     raw = (source.decode("utf-8", "replace")
            if isinstance(source, (bytes, bytearray)) else source)
-    text = _mask(raw)
+    text = mask_non_markup(raw)
 
     nodes: list[Node] = []
     seen: set[str] = set()

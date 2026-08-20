@@ -143,6 +143,12 @@ class KindSpec:
     sql_ref_target: bool
     """A SQL foreign-key reference may resolve to it."""
 
+    schema_ref_target: bool
+    """An XML-Schema reference (``type=``/``base=``/``ref=``) may resolve to it. Its
+    own flag rather than a reuse of :attr:`sql_ref_target`, because the whole point of
+    the separation is that a schema name and a table name must not resolve to each
+    other."""
+
 
 # Doc-diagram bands, in render order. The five original bands keep their original order;
 # the four new ones are inserted before the cross-source/boundary tail.
@@ -167,7 +173,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "module": KindSpec(
         color="#ffb703", glyph=_G_MODULE, group="Containers",
         embeddable=False,
@@ -178,7 +185,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
     "class": KindSpec(
         color="#fb8500", glyph=_G_CLASS, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -186,7 +194,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "interface": KindSpec(
         color="#fd9e02", glyph=_G_INTERFACE, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -194,7 +203,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "struct": KindSpec(
         color="#f4a261", glyph=_G_STRUCT, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -202,7 +212,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=True, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=True,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "function": KindSpec(
         color="#90be6d", glyph=_G_CALLABLE, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -210,7 +221,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=True, er_entity=False,
         callable_target=True, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "method": KindSpec(
         color="#43aa8b", glyph=_G_CALLABLE, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -218,7 +230,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=True, er_entity=False,
         callable_target=True, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "enum": KindSpec(
         color="#577590", glyph=_G_ENUM, group="Symbols",
         embeddable=True, why_not_embeddable="",
@@ -227,7 +240,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         # an enum is a type, not something invoked or inherited from
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "package": KindSpec(
         color="#e76f51", glyph=_G_PACKAGE, group="Containers",
         embeddable=False,
@@ -236,7 +250,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "repo": KindSpec(
         color="#264653", glyph=_G_REPO, group="Containers",
         embeddable=False,
@@ -245,7 +260,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "issue": KindSpec(
         color="#bc6c25", glyph=_G_ISSUE, group="Cross-source",
         embeddable=False,
@@ -255,7 +271,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "page": KindSpec(
         color="#606c38", glyph=_G_PAGE, group="Cross-source",
         embeddable=False,
@@ -264,7 +281,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "design": KindSpec(
         color="#9d4edd", glyph=_G_DESIGN, group="Cross-source",
         embeddable=False,
@@ -273,7 +291,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "endpoint": KindSpec(
         color="#f08c3a", glyph=_G_ENDPOINT, group="Service surfaces",
         embeddable=True, why_not_embeddable="",
@@ -281,7 +300,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "topic": KindSpec(
         color="#b07fd0", glyph=_G_TOPIC, group="Service surfaces",
         embeddable=False,
@@ -290,7 +310,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "config_key": KindSpec(
         # deliberately distinct from every symbol colour: a setting is not code, and
         # reading it as one is the specific confusion this kind exists to remove.
@@ -305,7 +326,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "test": KindSpec(
         color="#2a9d8f", glyph=_G_TEST, group="Symbols",
         embeddable=False,
@@ -320,7 +342,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         # identical gate IS a trap for a future `macro` kind, which is invoked by name.
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "namespace": KindSpec(
         color="#3d5a80", glyph=None, group="Boundary",
         embeddable=False,
@@ -329,7 +352,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "system": KindSpec(
         # deliberately muted/neutral: unclassified, could be a real third party or just
         # an unindexed internal service, so it must never read as confidently "external".
@@ -340,7 +364,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
 
     # --- Service surfaces (flow extractors) ---
     "route": KindSpec(
@@ -351,7 +376,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "state": KindSpec(
         color="#5e548e", glyph=None, group="Service surfaces",
         embeddable=False,
@@ -361,7 +387,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
 
     # --- Data model (SQL DDL). One magenta family, graded: the two real data objects,
     # then the low-signal one.
@@ -385,7 +412,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     # --- Presentation ------------------------------------------------------------
     # A stylesheet DEFINES these three and a template REFERENCES them, which is the whole
     # reason they are separate kinds rather than one: "which stylesheet defines the class
@@ -406,7 +434,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=True,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "css_id": KindSpec(
         color="#a855f7", glyph=None, group="Presentation",
         embeddable=False,
@@ -415,7 +444,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=True,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     # A type selector styles EVERY element of that name, so it is high-fanout by nature:
     # one `button` rule reaches every button in the tree. The existing fanout caps apply.
     "css_element": KindSpec(
@@ -426,7 +456,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=True,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "html_id": KindSpec(
         color="#e879f9", glyph=None, group="Presentation",
         embeddable=False,
@@ -435,7 +466,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     # How the program is STARTED, which is the first question anybody arriving at an
     # unfamiliar repository asks and the one a list of functions cannot answer. Grouped
     # with the service surfaces because those are the other ways in; a route and a `main`
@@ -453,7 +485,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=True, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     # --- Build and configuration ---------------------------------------------------
     # A Make target is a name a person types at a shell and a CI job invokes, so it is the
     # one kind here whose vocabulary is genuinely written by the author rather than drawn
@@ -468,7 +501,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     # A build stage is what `COPY --from=` and a later `FROM` refer to, and what a reader
     # asking "how is this image actually assembled" is looking at. Its own kind rather
     # than `module`, because a stage is defined and consumed inside one file while the
@@ -481,7 +515,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "nix_attr": KindSpec(
         color="#38bdf8", glyph=None, group="Configuration",
         embeddable=False,
@@ -490,7 +525,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "macro": KindSpec(
         color="#e07a5f", glyph=None, group="Symbols",
         # Measured: 0.0000 -> 0.8467 recall for 16,347 macros, at +1.50pp cost. The best
@@ -501,7 +537,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "typedef": KindSpec(
         color="#81b29a", glyph=None, group="Symbols",
         # Measured: part of the cheapest group (typedef + enum_constant +
@@ -512,7 +549,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=True,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "enum_constant": KindSpec(
         color="#6d9dc5", glyph=None, group="Symbols",
         # Measured with typedef and global_variable: 0.0000 -> 0.7400 for the
@@ -524,7 +562,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "global_variable": KindSpec(
         color="#b08968", glyph=None, group="Symbols",
         # Measured with typedef and enum_constant: 0.0000 -> 0.7400 for the
@@ -535,7 +574,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "table": KindSpec(
         color="#b5179e", glyph=None, group="Data model",
         embeddable=True, why_not_embeddable="",
@@ -543,7 +583,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=True,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=True),
+        hcl_ref_target=False, sql_ref_target=True,
+        schema_ref_target=False),
     "view": KindSpec(
         color="#d64ab5", glyph=None, group="Data model",
         embeddable=True, why_not_embeddable="",
@@ -551,7 +592,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=True,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=True),
+        hcl_ref_target=False, sql_ref_target=True,
+        schema_ref_target=False),
     "db_package": KindSpec(
         color="#c98ac0", glyph=None, group="Data model",
         embeddable=False,
@@ -563,7 +605,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         # the packages partition, and an Oracle package is a repository-local definition.
         # Reusing it would put database packages into the fleet's shared-dependency count.
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "trigger": KindSpec(
         color="#d9789a", glyph=None, group="Data model",
         embeddable=False,
@@ -573,7 +616,35 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
         # A trigger fires ON a table, so it is a source of references, never a target of one.
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
+    # An XML-Schema global component. Deliberately NOT `struct`/`typedef`: reference
+    # resolution is by name across the repo and narrowed only by target kind, so a schema
+    # `type="Address"` sharing a kind with C++ would resolve onto an unrelated
+    # `struct Address` -- confidently, and with nothing reporting the guess. Its own kind is
+    # what keeps the two name indexes apart.
+    "schema_type": KindSpec(
+        color="#5f7fd4", glyph=None, group="Data model",
+        embeddable=True, why_not_embeddable="",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=True),
+    # A global `xs:element`: the name a message, a document root or a SOAP body actually
+    # carries, and therefore the name a person searches for. Separate from `schema_type`
+    # because a schema declares both under one namespace and they are asked about
+    # differently -- "what is OrderViewRS" is a question about the element.
+    "schema_element": KindSpec(
+        color="#8aa7ea", glyph=None, group="Data model",
+        embeddable=True, why_not_embeddable="",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        style_ref_target=False,
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=True),
     "procedure": KindSpec(
         color="#e0a3d5", glyph=None, group="Data model",
         embeddable=False,
@@ -583,7 +654,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         callable_target=False, inheritable_target=False,
         # SQL FK references resolve to table/view defs, never to a procedure
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
 
     # --- Infrastructure (HCL blocks). One indigo ramp, darkest for the two blocks that
     # carry real infrastructure, fading through the three that are plumbing.
@@ -594,7 +666,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
     "data": KindSpec(
         color="#5a67d8", glyph=None, group="Infrastructure",
         embeddable=False, why_not_embeddable="low-signal HCL block",
@@ -602,7 +675,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
     "variable": KindSpec(
         color="#7c83db", glyph=None, group="Infrastructure",
         embeddable=False, why_not_embeddable="low-signal HCL block",
@@ -610,7 +684,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
     "output": KindSpec(
         color="#9aa0e0", glyph=None, group="Infrastructure",
         embeddable=False, why_not_embeddable="low-signal HCL block",
@@ -618,7 +693,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
     "local": KindSpec(
         color="#c3c7e8", glyph=None, group="Infrastructure",
         embeddable=False, why_not_embeddable="low-signal HCL block",
@@ -626,7 +702,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=True, sql_ref_target=False),
+        hcl_ref_target=True, sql_ref_target=False,
+        schema_ref_target=False),
 
     # --- Documents. One green-grey family: all three are prose, differing only in where
     # the prose came from (in-repo decision record, ingested source, generated wiki).
@@ -639,7 +716,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "document": KindSpec(
         color="#84a98c", glyph=None, group="Documents",
         embeddable=False,
@@ -650,7 +728,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "wiki": KindSpec(
         color="#354f52", glyph=None, group="Documents",
         embeddable=False,
@@ -659,7 +738,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
 
     # --- Cross-source (connectors). Names are keys/ids, never prose.
     "mr": KindSpec(
@@ -671,7 +751,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "message": KindSpec(
         color="#dda15e", glyph=None, group="Cross-source",
         embeddable=False,
@@ -680,7 +761,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
     "channel": KindSpec(
         color="#a68a64", glyph=None, group="Cross-source",
         embeddable=False,
@@ -689,7 +771,8 @@ KIND_REGISTRY: dict[str, KindSpec] = {
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         style_ref_target=False,
-        hcl_ref_target=False, sql_ref_target=False),
+        hcl_ref_target=False, sql_ref_target=False,
+        schema_ref_target=False),
 }
 
 

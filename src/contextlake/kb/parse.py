@@ -48,6 +48,7 @@ from .model import (
 from .sql import parse_sql
 from .store.shards import GraphShard
 from .xml_cfg import parse_xml_config
+from .xsd import parse_xsd
 
 # DEFAULT_MAX_FILE_BYTES (imported above) stays importable FROM kb.parse, not just
 # kb.config, because kb/cmds/index.py already imports it from here (lazily, to
@@ -231,6 +232,11 @@ SQL_EXTS = {".sql", ".pks", ".pkb", ".plb", ".prc", ".fnc", ".trg", ".pls"}
 # `--languages python` must not hide a repo's configuration.
 XML_EXTS = {".xml"}
 
+# XML Schema uses its own scanner (kb/xsd.py), NOT the config scanner: `name` is one of
+# `xml_cfg._KEY_ATTRS`, so a schema sent there files every `<xs:element name="Order">` as
+# a setting. `.xsd` is therefore matched BEFORE XML_EXTS and never appears in it.
+XSD_EXTS = {".xsd"}
+
 # A code file larger than DEFAULT_MAX_FILE_BYTES (imported above from kb/config.py,
 # the single source of truth) is skipped and logged. Hand-written source is
 # essentially never this big -- anything that large is a data blob or vendored
@@ -320,7 +326,12 @@ def _has_generated_header(source: bytes) -> bool:
 # nowhere, and the shell dialects (.ksh/.zsh/.bats/.command) which the bash grammar
 # already reads. A repository containing any of those carries strictly more than it did,
 # and no commit-keyed check would ever say so, which is what this bump exists for.
-PARSER_VERSION = "9"
+# "10" is the same kind of bump for XML Schema. `.xsd` was routed nowhere, so a repository
+# whose data contracts live in schemas carried none of them; its global components and the
+# names they reference are extracted now. One bump covers the whole language batch rather
+# than one per language, because the cost of this constant is a re-index and there is no
+# reason to charge it three times for work that lands in one release.
+PARSER_VERSION = "10"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -1337,6 +1348,7 @@ def parse_source(
 # out rather than left implicit because the oversize and generated-file checks
 # below key off it.
 _HCL, _SQL, _ADR, _CODE, _MANIFEST = "hcl", "sql", "adr", "code", "manifest"
+_XSD = "xsd"
 _XML = "xml"
 
 
@@ -1396,6 +1408,10 @@ class RefCollector:
     # element's own tag. Cross-domain by design, exactly like the SQL stream: markup
     # refers to a selector the same way code refers to a table.
     styles: list[tuple[str, str, str, int]] = field(default_factory=list)
+    # An XML-Schema component naming another one: `type=`, `base=`, `ref=`. Cross-domain
+    # like the SQL stream, and kept apart from it on purpose -- a schema name and a table
+    # name must never resolve to each other.
+    schema: list[tuple[str, str, str, int]] = field(default_factory=list)
     # Every bare name a file reads. Only those matching a real constant node survive
     # resolution, so this list is large and its resolved output is small -- the same shape
     # as `calls`, which also emits every candidate name and filters by target kind.
@@ -1435,6 +1451,12 @@ class RefCollector:
             # that set is keyed by relation -- widening `references` would silently turn
             # every SQL and stylesheet reference into one edge per mention too.
             (self.constant_uses, "uses", _CONSTANT_KINDS, True),
+            # After `uses` for the reason given above: shard edge order follows this
+            # sequence, so a new stream goes on the end where it renumbers nothing that
+            # already existed. `references` rather than a new relation, because it already
+            # means "this thing names that thing" and the target kind is what distinguishes
+            # a schema component from a table or a stylesheet selector.
+            (self.schema, "references", _SCHEMA_KINDS, False),
         )
         edges: list[Edge] = []
         for refs, relation, target_kinds, same_language in streams:
@@ -2342,6 +2364,8 @@ def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
         return _HCL
     if index_sql and ext in SQL_EXTS:
         return _SQL
+    if ext in XSD_EXTS:
+        return _XSD
     if ext in XML_EXTS:
         return _XML
     if ext == ".md" and is_adr_path(rel):
@@ -2750,6 +2774,13 @@ def _parse_sql_file(repo_id: str, sf: SourceFile, refs: RefCollector,
     return nodes, []
 
 
+def _parse_xsd_file(repo_id: str, sf: SourceFile, refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    nodes, schema_refs = parse_xsd(repo_id, sf.rel, sf.source)
+    refs.schema.extend(schema_refs)
+    return nodes, []
+
+
 def _parse_xml_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
                     ) -> tuple[list[Node], list[Edge]]:
     return parse_xml_config(repo_id, sf.rel, sf.source), []
@@ -2774,7 +2805,7 @@ def _parse_manifest_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
 # nodes that several manifests legitimately share, and the relation that belongs
 # between a manifest and a package is `depends_on`, which the manifest parser already
 # emits -- `contains` would assert the package lives in that file.
-_FILE_CONTAINED_KINDS = frozenset({_XML, _SQL, _ADR})
+_FILE_CONTAINED_KINDS = frozenset({_XML, _XSD, _SQL, _ADR})
 
 
 def _with_file_containment(repo_id: str, sf: SourceFile, nodes: list[Node],
@@ -2812,6 +2843,7 @@ _PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
     _HCL: _parse_hcl_file,
     _SQL: _parse_sql_file,
     _XML: _parse_xml_file,
+    _XSD: _parse_xsd_file,
     _ADR: _parse_adr_file,
     _MANIFEST: _parse_manifest_file,
 }
@@ -3101,6 +3133,10 @@ _HCL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.hcl_ref_target}
 # SQL FK references resolve to table/view defs (both non-colliding with code and
 # HCL kinds, so their name index stays isolated).
 _SQL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.sql_ref_target}
+# What an XML-Schema `type=`/`base=`/`ref=` may resolve to: the schema's own global
+# components and nothing else. Derived from the registry rather than listed here, so a third
+# schema kind cannot be added without answering whether a schema name can refer to it.
+_SCHEMA_KINDS = {k for k, s in KIND_REGISTRY.items() if s.schema_ref_target}
 # The kinds a BARE identifier can actually refer to. Narrower than DECLARED_VALUE_KINDS, and
 # the difference was measured rather than reasoned: `field` had to come out.
 #

@@ -159,7 +159,7 @@ relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `cont
 show at all:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 50 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 52 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
 
 ### Languages
@@ -270,6 +270,38 @@ table it named still existed elsewhere in the repo. That case is now pinned as a
 test. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.
+
+### Data contracts: XML Schema
+
+`.xsd` files build a schema graph: every **global** component becomes a node, and every name one
+component gives another becomes a `references` edge, resolved across files in a repo. A global
+`xs:element` is a `schema_element`, because it is the name a message, a document root or a SOAP body
+actually carries and therefore the name a person searches for. A global `complexType`, `simpleType`,
+`group`, `attributeGroup` or `attribute` is a `schema_type`, with which one it is recorded as the
+`schema_construct` attribute rather than as five kinds. Both are semantically searchable.
+
+References come from `type=`, `base=`, `ref=`, `itemType=` and `memberTypes=`. The namespace prefix is
+stripped first, since it is a per-file alias for a namespace URI: `tns:PartyType` in one file and the
+`<xs:complexType name="PartyType">` that defines it in another land on one node. The built-in
+datatypes (`xs:string`, `xs:dateTime`, and the rest) are not references and are dropped, since they
+name nothing the graph holds.
+
+Three deliberate limits:
+
+- **Only global components are nodes.** A locally-scoped `<xs:element name="Id"/>` nested inside a
+  complex type has no name anything can refer to, and minting one would put thousands of identical
+  `Id` nodes into a single schema set. A reference found inside one is attributed to the innermost
+  global component enclosing it.
+- **Schema names never resolve onto code symbols.** `schema_type` and `schema_element` are their own
+  kinds rather than a reuse of `struct` and `typedef`, because reference resolution is by name across
+  the repo: sharing a kind with C++ would let `type="Address"` resolve, confidently and with nothing
+  reporting the guess, onto an unrelated `struct Address`.
+- **`.xsd` never reaches the XML config scanner.** `name` is one of that scanner's key attributes, so
+  a schema sent there files every component as a `config_key` setting.
+
+Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
+entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and
+line numbers the stdlib tree parsers do not report.
 
 ### Architecture decisions (ADRs)
 

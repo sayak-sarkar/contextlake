@@ -16,7 +16,7 @@ from dataclasses import MISSING
 
 import pytest
 
-from contextlake.kb import hcl, parse, xml_cfg
+from contextlake.kb import hcl, parse, xml_cfg, xsd
 from contextlake.kb import sql as sql_mod
 from contextlake.kb.dashboard import site
 from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
@@ -112,6 +112,8 @@ def _produced_kinds() -> set[str]:
         # module learned a new object type, and reported the new kinds as produced by
         # nothing while they were being produced on every run.
         | set(sql_mod.EMITTED_KINDS)
+        # kb/xsd.py, declared by that module for the same reason
+        | set(xsd.EMITTED_KINDS)
         | {"adr", xml_cfg.CONFIG_KIND}                   # kb/adr.py, kb/xml_cfg.py
         | {"endpoint", "topic", "route", "state"}        # kb/flow/*
         | {"package"}                                    # kb/manifest.py
@@ -186,7 +188,11 @@ def test_embeddable_membership_is_pinned():
     assert EMBEDDABLE_KINDS == frozenset({
         "class", "function", "method", "interface", "struct", "enum",
         "endpoint", "route", "resource", "table", "view", "adr",
-        "field", "macro", "typedef", "enum_constant", "global_variable"})
+        "field", "macro", "typedef", "enum_constant", "global_variable",
+        # The two XML-Schema kinds join for the reason `table` and `view` are here: a
+        # schema component is a name someone searches for in words ("which type carries
+        # the passenger details"), and its name is the only handle it has.
+        "schema_type", "schema_element"})
 
 
 def test_no_gate_names_a_kind_the_registry_does_not_have():
