@@ -6744,6 +6744,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0] - 2026-08-20
+
 ### Added
 
 - **`get_fleet_doc`: the fleet page can be read now.** `contextlake kb docs` has been
