@@ -303,6 +303,53 @@ Like the SQL extractor, this is a scanner rather than a tree parser, and for the
 entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and
 line numbers the stdlib tree parsers do not report.
 
+### Transformations: XSLT
+
+`.xsl` and `.xslt` files build a stylesheet call graph. `<xsl:call-template name="X"/>` is a call
+by name, so a stylesheet has one, and it was not in the graph at all before. Named templates,
+match templates and `xsl:function` declarations are `function` nodes; top-level `xsl:variable`
+and `xsl:param` declarations are `global_variable` nodes, which is a stylesheet's configuration
+surface. `$name` reads become `uses` edges, attributed to the template they sit in.
+
+A match template has no name to be called by, so its match pattern is its node name, with the
+pattern and any `mode` recorded as attributes. It is not an identifier; it is the only handle
+such a template has, and one with no handle cannot be pointed at from anywhere.
+
+Unlike XML Schema, this mints no new node kinds, and the reason is worth stating because the two
+decisions look inconsistent. Schema references resolve on name alone across the whole repo, so a
+schema type sharing `struct` with C++ would collide. Calls and variable reads are filtered by
+**language family** first, and `xsl` is its own family, so an `xsl:template` named `format`
+cannot resolve onto a Python `format`. The isolation is already there.
+
+Two limits, stated rather than left to be discovered. `<xsl:import>` and `<xsl:include>` are not
+edges: the target is a relative href, and the only honest edge would point at a file node that
+may not exist in the repository. XPath calls to an `xsl:function` are not edges either: the
+function is a node, but the call sits inside a `select` expression and reading that needs an
+XPath parser.
+
+### Embedded SQL: Pro\*C
+
+`.pc` files are C with `EXEC SQL` statements written into the source. They are read twice, and
+the split is the whole design: the **C parse** sees the file with every `EXEC SQL` statement
+blanked out, and the **dataflow pass** sees it intact.
+
+The mask exists because of a measurement. Handed straight to the C grammar, `EXEC SQL INCLUDE
+SQLCA;` and `EXEC SQL BEGIN DECLARE SECTION;` parse as declarations, producing `global_variable`
+nodes named `SQLCA`, `SQL` and `SECTION` -- names of things that do not exist, in a kind that
+bare identifiers elsewhere in the repo resolve `uses` edges onto. Blanking is
+length-and-newline-preserving, so every line number the C parse cites is still the real one, and
+only the statements are blanked: the host variables declared between the declare-section markers
+are ordinary C and stay in the graph.
+
+The dataflow pass needs the SQL, because the SQL is the point: which tables the file reads and
+writes is what an `EXEC SQL` statement is there to say. It already normalises table names through
+the same recipe `.sql` gives its `table` nodes, so an `EXEC SQL SELECT ... FROM CUSTOMERS` and a
+`CREATE TABLE dbo.[Customers]` in another file land on one node without a second copy of that
+rule existing anywhere.
+
+`.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
+selects it, `--languages python` does not.
+
 ### Architecture decisions (ADRs)
 
 A repo's own decision records become first-class `adr` nodes in that repo's shard. The match is any

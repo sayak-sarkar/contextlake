@@ -31,11 +31,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `name` is one of that scanner's key attributes, so a schema sent there would file every
   component as a settings key.
 
+- **XSLT (`.xsl`, `.xslt`) support.** A stylesheet is a program with a real call graph --
+  `<xsl:call-template name="X"/>` is a call by name -- and none of it was in the graph.
+  Named templates, match templates and `xsl:function` declarations are `function` nodes;
+  top-level `xsl:variable` and `xsl:param` declarations are `global_variable` nodes; `$name`
+  reads become `uses` edges attributed to the template they sit in. A match template has no
+  name to be called by, so its match pattern is its node name, with the pattern and any
+  `mode` kept as attributes.
+
+  This mints **no** new kinds, and the contrast with the schema work above is deliberate
+  rather than inconsistent. Schema references resolve on name alone, so they needed kinds of
+  their own. Calls and variable reads are filtered by language family first, and `xsl` is its
+  own family, so an `xsl:template` named `format` cannot reach a Python `format`. The
+  isolation was already there; the test asserting it is what proves so.
+
+  `<xsl:import>`/`<xsl:include>` and XPath calls to an `xsl:function` are **not** extracted,
+  said here rather than left to be discovered. The first would need an edge to a file node
+  that may not exist; the second would need an XPath parser.
+
+- **Pro\*C (`.pc`) support, and the noise nodes that made the mask necessary.** A `.pc` file
+  is C with `EXEC SQL` written into the source. Handed straight to the C grammar it parses,
+  but so does the SQL: measured on a short realistic file, `EXEC SQL INCLUDE SQLCA;` and
+  `EXEC SQL BEGIN DECLARE SECTION;` produced `global_variable` nodes named `SQLCA`, `SQL` and
+  `SECTION` -- names of things that do not exist, in a kind bare identifiers elsewhere in the
+  repository resolve `uses` edges onto.
+
+  So the file is read twice. The C parse sees every `EXEC SQL` statement blanked, preserving
+  length and every newline so the line numbers it cites stay real, and blanking only the
+  statements so the host variables declared between the declare-section markers survive as
+  the ordinary C they are. The dataflow pass sees the file intact, because which tables it
+  reads and writes is what an `EXEC SQL` statement is there to say.
+
+  That pass already normalises table names through the same recipe `kb/sql.py` gives its
+  `table` nodes, so an `EXEC SQL SELECT ... FROM CUSTOMERS` and a
+  `CREATE TABLE dbo.[Customers]` in another file land on one node -- with no second copy of
+  that rule existing anywhere to drift out of sync.
+
+  `.pc` follows C for language filtering rather than carrying a flag of its own.
+
 ### Changed
 
-- **`PARSER_VERSION` is `"10"`.** A repository holding `.xsd` files carries strictly more
-  than it did and no commit-keyed check would say so, so `kb index` rebuilds it. One bump
-  covers the whole language batch rather than one per language.
+- **`PARSER_VERSION` is `"10"`.** A repository holding `.xsd`, `.xsl`, `.xslt` or `.pc`
+  files carries strictly more than it did and no commit-keyed check would say so, so
+  `kb index` rebuilds it. One bump covers the whole language batch rather than one per
+  language: the cost of this constant is a re-index, and there is no reason to charge it
+  three times for work that lands in one release.
 
 
 ## [8.0.0] - 2026-08-20

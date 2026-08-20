@@ -45,10 +45,12 @@ from .model import (
     Node,
     Provenance,
 )
+from .proc import mask_embedded_sql
 from .sql import parse_sql
 from .store.shards import GraphShard
 from .xml_cfg import parse_xml_config
 from .xsd import parse_xsd
+from .xsl import parse_xsl
 
 # DEFAULT_MAX_FILE_BYTES (imported above) stays importable FROM kb.parse, not just
 # kb.config, because kb/cmds/index.py already imports it from here (lazily, to
@@ -236,6 +238,18 @@ XML_EXTS = {".xml"}
 # `xml_cfg._KEY_ATTRS`, so a schema sent there files every `<xs:element name="Order">` as
 # a setting. `.xsd` is therefore matched BEFORE XML_EXTS and never appears in it.
 XSD_EXTS = {".xsd"}
+
+# XSLT uses its own scanner (kb/xsl.py). A stylesheet is a program with a call graph,
+# not a settings file and not a schema, so it gets neither of the other two extractors.
+XSL_EXTS = {".xsl", ".xslt"}
+
+# Pro*C: C with `EXEC SQL` written into the source. Its own dispatch kind rather than a
+# LANG_BY_EXT row, because the C parse and the dataflow pass need DIFFERENT bytes -- the
+# statements masked for one, intact for the other. See kb/proc.py.
+PROC_EXTS = {".pc"}
+# The grammar the masked file is read with. C rather than C++ because Pro*C is a C
+# precompiler; the two share a language family, so a call either way still resolves.
+_PROC_LANG = "c"
 
 # A code file larger than DEFAULT_MAX_FILE_BYTES (imported above from kb/config.py,
 # the single source of truth) is skipped and logged. Hand-written source is
@@ -1349,6 +1363,8 @@ def parse_source(
 # below key off it.
 _HCL, _SQL, _ADR, _CODE, _MANIFEST = "hcl", "sql", "adr", "code", "manifest"
 _XSD = "xsd"
+_XSL = "xsl"
+_PROC = "proc"
 _XML = "xml"
 
 
@@ -2366,6 +2382,12 @@ def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
         return _SQL
     if ext in XSD_EXTS:
         return _XSD
+    if ext in XSL_EXTS:
+        return _XSL
+    # Gated on C rather than on `index_sql`: the file is C source, so `--languages c`
+    # must select it and `--languages python` must not.
+    if ext in PROC_EXTS and ".c" in allowed_exts:
+        return _PROC
     if ext in XML_EXTS:
         return _XML
     if ext == ".md" and is_adr_path(rel):
@@ -2774,6 +2796,33 @@ def _parse_sql_file(repo_id: str, sf: SourceFile, refs: RefCollector,
     return nodes, []
 
 
+def _parse_proc_file(repo_id: str, sf: SourceFile, refs: RefCollector,
+                     ) -> tuple[list[Node], list[Edge]]:
+    """A Pro*C file: parsed as C with its embedded SQL masked out, and as SQL without.
+
+    The mask is applied to the CODE parse only. The dataflow pass reads `sf.source`
+    intact, because that pass is the reason to index the file at all: which tables it
+    reads and writes is what an `EXEC SQL` statement is there to say, and masking it
+    for both would leave a Pro*C file contributing nothing but its C functions.
+    """
+    nodes, edges, calls, inh = parse_source(
+        repo_id, sf.rel, mask_embedded_sql(sf.source), _PROC_LANG)
+    refs.calls.extend(calls)
+    refs.inherits.extend(inh)
+    dr, dw = extract_data_refs(repo_id, sf.rel, sf.source)
+    refs.data_reads.extend(dr)
+    refs.data_writes.extend(dw)
+    return nodes, edges
+
+
+def _parse_xsl_file(repo_id: str, sf: SourceFile, refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    nodes, calls, var_uses = parse_xsl(repo_id, sf.rel, sf.source)
+    refs.calls.extend(calls)
+    refs.constant_uses.extend(var_uses)
+    return nodes, []
+
+
 def _parse_xsd_file(repo_id: str, sf: SourceFile, refs: RefCollector,
                     ) -> tuple[list[Node], list[Edge]]:
     nodes, schema_refs = parse_xsd(repo_id, sf.rel, sf.source)
@@ -2805,7 +2854,7 @@ def _parse_manifest_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
 # nodes that several manifests legitimately share, and the relation that belongs
 # between a manifest and a package is `depends_on`, which the manifest parser already
 # emits -- `contains` would assert the package lives in that file.
-_FILE_CONTAINED_KINDS = frozenset({_XML, _XSD, _SQL, _ADR})
+_FILE_CONTAINED_KINDS = frozenset({_XML, _XSD, _XSL, _SQL, _ADR})
 
 
 def _with_file_containment(repo_id: str, sf: SourceFile, nodes: list[Node],
@@ -2844,6 +2893,8 @@ _PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
     _SQL: _parse_sql_file,
     _XML: _parse_xml_file,
     _XSD: _parse_xsd_file,
+    _XSL: _parse_xsl_file,
+    _PROC: _parse_proc_file,
     _ADR: _parse_adr_file,
     _MANIFEST: _parse_manifest_file,
 }
