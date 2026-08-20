@@ -54,8 +54,9 @@ each layer above it is optional.
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
-   **14 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
-   (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
+   **27 languages** plus **Terraform** infrastructure, **SQL** and **PL/SQL** schema,
+   **XML Schema** data contracts, **XSLT** stylesheets, **Pro*C** embedded SQL, and package
+   manifests (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
    Atlassian / Figma / GitLab / Slack.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
@@ -106,7 +107,7 @@ below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" co
 
 ```bash
 contextlake kb index                     # parse the current repo into a local knowledge graph
-contextlake kb graph --overview --open   # open the interactive graph in your browser
+contextlake kb graph --overview --open   # open the graph (it names your repo's own view next)
 contextlake kb serve                     # …or serve it to your AI IDE over MCP
 ```
 
@@ -193,7 +194,7 @@ The full flag-by-flag list is **[cli-reference.md](https://github.com/sayak-sark
 | `mirror fetch` · `mirror clone` · `mirror update` | The sync steps, individually |
 | `mirror branches` | Switch each repo to its most active branch |
 | `mirror verify` · `mirror audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
-| `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
+| `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + diagram + steer (`--no-enrich` to skip a stage) |
 | `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
@@ -295,6 +296,39 @@ configure one instead of the bundled local model, and `kb graph --cdn`, which sw
 inlined JavaScript for CDN script tags to make a smaller file. Default output inlines
 everything and opens in an air-gapped browser.
 
+## Versioning and compatibility
+
+contextlake follows [Semantic Versioning](https://semver.org/). **From 8.0.0, no breaking
+change lands without a major bump**, and 8.0.0 is out: the promise is in force. Breaks before
+it are named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
+with what to change.
+
+8.0.0 is the release the promise starts binding in, not a renumbering. A reset to 1.0.0 was
+considered and rejected: it would sort *below* every version already published, so nobody on
+7.x would ever be offered it.
+
+Four surfaces are covered. A change is **breaking** when it would stop something you wrote
+from working:
+
+- **CLI verbs and flags.** Removing or renaming a verb, removing a flag, or changing what a
+  flag means. Adding a verb or a flag is not breaking. Tightening a flag's *validation* is
+  not breaking either: rejecting `--max-symbols 0`, which silently meant "the default", is
+  a fix for a value that never did what it said.
+- **Store layout.** Anything that makes an existing store unreadable to the version that
+  wrote it, or that requires a manual migration. Re-indexing is not that.
+- **MCP tool contracts.** Removing a tool, removing a field a result carried, or changing
+  what a field means. Adding a field, or adding a tool, is not breaking.
+- **Config keys.** Removing a key or changing its default in a way that changes what a run
+  does.
+
+**`PARSER_VERSION` is deliberately not on that list**, and the distinction is worth stating
+because it looks like it should be. Bumping it does not stop anything working: your store
+stays readable, every command keeps running, and nothing you wrote needs editing. What it
+means is that repositories indexed by an older parser now carry *less* than the current one
+would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
+reports that as an advisory, not a fault, because a parser bump would otherwise turn
+every upgrade into a red check for something that is working correctly.
+
 ## Documentation
 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
@@ -310,6 +344,7 @@ everything and opens in an air-gapped browser.
 - **[docs/connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
 - **[docs/semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
 - **[docs/generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[docs/generate-docs.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-docs.md)**, `kb docs`, an API reference with real call sites, no model
 - **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
 - **[docs/visualize.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualize.md)**, `kb graph`, all 11 formats and the C4 diagram
 - **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
@@ -559,10 +594,10 @@ agents already speak, so wiring contextlake into one is a config entry rather th
 integration. (That is an observation about the protocol, not a decision record; the codebase does
 not argue the case against an API of its own.)
 
-21 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
-23, and register only when an embedder and a vector store both exist
+22 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
+24, and register only when an embedder and a vector store both exist
 (`build_server` in `src/contextlake/kb/server.py`). A server started without embeddings says so
-and serves the other 21 rather than failing.
+and serves the other 22 rather than failing.
 
 ### Why the network transports are authenticated and stdio is not
 
@@ -723,6 +758,37 @@ If your problem is "one repository and I want a good wiki for it", those tools a
 If it is "hundreds of repositories and no single place that knows all of them", that is what this
 is built for.
 
+### Four differences that do not depend on which repository you try
+
+Graph size varies a lot with the shape of the tree, so any claim about it needs a benchmark and a
+caveat. These four do not. They are properties of the design, each one a line you can go and read.
+
+- **Every edge records where it came from.** `source_file` and `source_line` sit on the edge row
+  itself, not on the node (`src/contextlake/kb/store/sqlite_store.py:58`). That is what lets an
+  answer say which line made it believe two things are connected, instead of only that they are.
+- **Offline is a mode, not a hope.** `--offline`, or `CONTEXTLAKE_OFFLINE=1`, raises instead of
+  connecting (`src/contextlake/netguard.py`). You can turn the network off and watch it keep
+  working, which is a different claim from "it happens not to call out today".
+- **No telemetry, and it turns off someone else's.** contextlake reports nothing anywhere, and it
+  sets `HF_HUB_DISABLE_TELEMETRY=1` so a model download does not report on your behalf
+  (`src/contextlake/kb/_util.py:53`).
+- **Diagrams come out of the graph.** `kb graph` renders the same store you query, to HTML, DOT,
+  Mermaid, GraphML or Cypher, so the picture and the answers cannot disagree with each other.
+
+### And a benchmark that does not flatter us
+
+`benchmarks/head-to-head/` runs contextlake and a comparable local tool over four pinned public
+repositories and commits the harness, the tree list and the raw output. **contextlake leads on both
+measures on one tree of four, on one of the two measures on two more, and on neither on the
+JavaScript tree.**
+
+That benchmark has already paid for itself once. Its first run showed contextlake at 320 nodes to
+1,084 on a JavaScript tree where both tools read the same 141 files, and the cause turned out to be
+that one whole category of symbol, module-level bindings, was extracted for C and C++ only.
+Extending it took that tree from 320 nodes to 783 and flipped the Python tree into the lead on
+relationships. The remaining gap is now two named things rather than one unexplained number. Read
+`benchmarks/head-to-head/RESULTS.md`, and re-run it if you doubt it.
+
 ## What it is not good at
 
 The honest list, because a tool that only publishes its wins is being sold to you rather than
@@ -743,7 +809,7 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** The tool schemas (21, or 23 once embeddings exist) load once
+- **A fixed cost per agent session.** The tool schemas (22, or 24 once embeddings exist) load once
   whether or not a tool is called, which can be net-negative if the agent calls it for questions it
   does not help with.
 
@@ -843,6 +909,7 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
 | `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
+| `[kb-dockerfile]` | The Dockerfile grammar | Indexing `Dockerfile`s. Optional only because the grammar ships wheels for macOS arm64 and Linux x86_64 and no source distribution, so requiring it would break installation everywhere else. Without it, Dockerfiles are skipped and the run says so and names this extra |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
@@ -1522,8 +1589,29 @@ This command:
 **Branch selection:** the default `branch_strategy = "hybrid"` scores each branch on a
 weighted blend of **60% normalized commit count + 40% normalized recency**, so a branch
 that is both busy and recently touched wins. Two alternatives exist: `commits` (highest
-commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
-repos without branches, and detached-HEAD states are skipped.
+commit count, the legacy behaviour) and `recency` (most recent commit). Set it per run with
+`--branch-strategy`, or in the config file. Archived repos, repos without branches, and
+detached-HEAD states are skipped.
+
+**Pinning the whole fleet to one branch:** `--branch NAME` overrides the selection entirely.
+
+```bash
+contextlake mirror branches --branch release/24.1
+contextlake mirror sync --branch main          # every stage of a sync honours it
+```
+
+A repository that does not have that branch is **reported as not having it** and stays on
+its most active branch. That is deliberate and it is the useful half of the feature: a
+release branch usually exists in a handful of repositories out of hundreds, so the run
+answers "which ones carry it" rather than leaving several hundred repositories reading as
+though they had done what was asked.
+
+```
+✓ Branch switch complete: 4 switched, 396 unpinned
+  396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+```
+
+The name is matched exactly. `--branch release/24` does not select `release/24.1`.
 
 ### `mirror verify`: verify repository structure
 
@@ -1815,6 +1903,12 @@ become part of a command contextlake executes are honoured **only** from the glo
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 
+One key is gated by **direction** rather than outright. A discovered file may set
+`[kb] anonymize = "always"` and may not set it to `"never"`: turning anonymising on is
+always allowed, turning off the setting that hides contributor identities on a dashboard
+you are about to share is not. Same provenance hole, a privacy answer instead of an
+execution one.
+
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
 key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
 any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
@@ -1859,6 +1953,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
 | `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
+| `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](usage.md#branch-safety).
@@ -2030,17 +2125,48 @@ base class shows its subclasses in `blast_radius`. The diagram below imports its
 module `contextlake kb graph` and the dashboard render with, so node kinds match everywhere. Edge
 relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `contains`, `depends_on`,
 `publishes`, `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`), while `inherits` and
-`references` ride the neutral default edge color, and `reads`, `writes` and `transitions_to`, which
-this page documents further down, are real edges the diagram does not show at all:
+`references` ride the neutral default edge color, and `reads`, `writes`, `uses` and
+`transitions_to`, which this page documents further down, are real edges the diagram does not
+show at all:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 40 node kinds in 9 bands (symbols, containers, service surfaces, data model, infrastructure, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 52 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
 
 ### Languages
 
-tree-sitter covers **14 languages across 13 grammars** (TypeScript and TSX share one grammar), and the
-parser registry is pluggable:
+tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
+parser registry is pluggable.
+
+Depth differs across three tiers, and a single number would hide it.
+
+| Tier | Languages | What you get |
+| --- | --- | --- |
+| Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
+| Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
+| Referenceable names | CSS, HTML, Nix, Make, Dockerfile | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets; Dockerfile build stages and the images they build on |
+| Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
+
+Most files reach a grammar by extension. A build file has none, so `Makefile`, `GNUmakefile`,
+`Dockerfile` and `Containerfile` are routed by name instead, matched on the stem before the first
+dot: `Makefile.am` and `Dockerfile.prod` both hit, and `MyMakefile` does not. Make targets are the
+names a person types at a shell and a CI job invokes, which makes them the shortest answer to
+"what does this project expect of itself". Make's own special targets (`.PHONY`, `.SUFFIXES`) are
+not extracted, and neither are variables.
+
+A Dockerfile yields its build stages and the external images it builds on, told apart from each
+other: in `FROM builder AS test` the base is a stage declared earlier in the same file, not an
+image anybody pulls. The `COPY --from=` reference back to a stage is **not** extracted, because a
+stage name is file-local and resolving it across files would link two unrelated `builder` stages
+to each other. Dockerfile's grammar is an [optional extra](install.md), `[kb-dockerfile]`; without
+it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
+unsupported.
+
+On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
+are worth naming rather than leaving to be discovered: Zig declares a struct as
+`const Engine = struct {...}`, a variable declaration rather than a definition node, so Zig types are
+not extracted; and an HTML `class=` attribute is a *use* of a name a stylesheet defines, so it is not
+yet emitted as anything.
 
 | Ecosystem | Languages |
 | --- | --- |
@@ -2116,6 +2242,85 @@ test. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.
 
+### Data contracts: XML Schema
+
+`.xsd` files build a schema graph: every **global** component becomes a node, and every name one
+component gives another becomes a `references` edge, resolved across files in a repo. A global
+`xs:element` is a `schema_element`, because it is the name a message, a document root or a SOAP body
+actually carries and therefore the name a person searches for. A global `complexType`, `simpleType`,
+`group`, `attributeGroup` or `attribute` is a `schema_type`, with which one it is recorded as the
+`schema_construct` attribute rather than as five kinds. Both are semantically searchable.
+
+References come from `type=`, `base=`, `ref=`, `itemType=` and `memberTypes=`. The namespace prefix is
+stripped first, since it is a per-file alias for a namespace URI: `tns:PartyType` in one file and the
+`<xs:complexType name="PartyType">` that defines it in another land on one node. The built-in
+datatypes (`xs:string`, `xs:dateTime`, and the rest) are not references and are dropped, since they
+name nothing the graph holds.
+
+Three deliberate limits:
+
+- **Only global components are nodes.** A locally-scoped `<xs:element name="Id"/>` nested inside a
+  complex type has no name anything can refer to, and minting one would put thousands of identical
+  `Id` nodes into a single schema set. A reference found inside one is attributed to the innermost
+  global component enclosing it.
+- **Schema names never resolve onto code symbols.** `schema_type` and `schema_element` are their own
+  kinds rather than a reuse of `struct` and `typedef`, because reference resolution is by name across
+  the repo: sharing a kind with C++ would let `type="Address"` resolve, confidently and with nothing
+  reporting the guess, onto an unrelated `struct Address`.
+- **`.xsd` never reaches the XML config scanner.** `name` is one of that scanner's key attributes, so
+  a schema sent there files every component as a `config_key` setting.
+
+Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
+entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and
+line numbers the stdlib tree parsers do not report.
+
+### Transformations: XSLT
+
+`.xsl` and `.xslt` files build a stylesheet call graph. `<xsl:call-template name="X"/>` is a call
+by name, so a stylesheet has one, and it was not in the graph at all before. Named templates,
+match templates and `xsl:function` declarations are `function` nodes; top-level `xsl:variable`
+and `xsl:param` declarations are `global_variable` nodes, which is a stylesheet's configuration
+surface. `$name` reads become `uses` edges, attributed to the template they sit in.
+
+A match template has no name to be called by, so its match pattern is its node name, with the
+pattern and any `mode` recorded as attributes. It is not an identifier; it is the only handle
+such a template has, and one with no handle cannot be pointed at from anywhere.
+
+Unlike XML Schema, this mints no new node kinds, and the reason is worth stating because the two
+decisions look inconsistent. Schema references resolve on name alone across the whole repo, so a
+schema type sharing `struct` with C++ would collide. Calls and variable reads are filtered by
+**language family** first, and `xsl` is its own family, so an `xsl:template` named `format`
+cannot resolve onto a Python `format`. The isolation is already there.
+
+Two limits, stated rather than left to be discovered. `<xsl:import>` and `<xsl:include>` are not
+edges: the target is a relative href, and the only honest edge would point at a file node that
+may not exist in the repository. XPath calls to an `xsl:function` are not edges either: the
+function is a node, but the call sits inside a `select` expression and reading that needs an
+XPath parser.
+
+### Embedded SQL: Pro\*C
+
+`.pc` files are C with `EXEC SQL` statements written into the source. They are read twice, and
+the split is the whole design: the **C parse** sees the file with every `EXEC SQL` statement
+blanked out, and the **dataflow pass** sees it intact.
+
+The mask exists because of a measurement. Handed straight to the C grammar, `EXEC SQL INCLUDE
+SQLCA;` and `EXEC SQL BEGIN DECLARE SECTION;` parse as declarations, producing `global_variable`
+nodes named `SQLCA`, `SQL` and `SECTION` -- names of things that do not exist, in a kind that
+bare identifiers elsewhere in the repo resolve `uses` edges onto. Blanking is
+length-and-newline-preserving, so every line number the C parse cites is still the real one, and
+only the statements are blanked: the host variables declared between the declare-section markers
+are ordinary C and stay in the graph.
+
+The dataflow pass needs the SQL, because the SQL is the point: which tables the file reads and
+writes is what an `EXEC SQL` statement is there to say. It already normalises table names through
+the same recipe `.sql` gives its `table` nodes, so an `EXEC SQL SELECT ... FROM CUSTOMERS` and a
+`CREATE TABLE dbo.[Customers]` in another file land on one node without a second copy of that
+rule existing anywhere.
+
+`.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
+selects it, `--languages python` does not.
+
 ### Architecture decisions (ADRs)
 
 A repo's own decision records become first-class `adr` nodes in that repo's shard. The match is any
@@ -2153,6 +2358,27 @@ SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge fr
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
 guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake kb impact <table>`
 answers "what code touches this table" out of the box.
+
+### Constants: their value, and every place it is read
+
+A constant node records the declaration it was written with, so the graph answers what a value
+actually is and not only that a name exists: `MAX_RETRY = 3`, `PAGE_SIZE = 50`,
+`#define TIMEOUT 30`. It is stored as written, collapsed to one line and capped, and it is called
+a declaration rather than a value because nothing has been parsed out of it.
+
+Each place a constant's value is read becomes a `uses` edge from the file to the constant,
+citing its own line. Like `calls`, this is stored **once per occurrence**, so "where is this read"
+is answerable exhaustively rather than as one edge with an arbitrary line attached.
+
+What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+an import, and an attribute (`cfg.MAX_RETRY` reads an attribute of `cfg`). A bare name is also
+never matched against a class field, because a data member is reached as `self.x` or `this->x` and
+a bare `x` is a local: on one public C++ tree, allowing it attributed 588 reads of a loop counter
+to a class member of the same name.
+
+Where a name has several definitions, the edge is marked ambiguous rather than pointed at a guess,
+and anything reporting a constant's use count should filter on confidence. `uses` is in `impact`'s
+default relation set, so `contextlake kb impact MAX_RETRY` answers "what depends on this value".
 
 ### Web topology: endpoints and routes
 
@@ -2204,6 +2430,19 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 **cross-repo dependency graph** through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serve.md).
+
+Each `depends_on` edge records what the manifest actually says, not just the package name:
+
+| On the edge | What it holds |
+| --- | --- |
+| `attrs["constraint"]` | the version as written, unparsed: `>=1.9.0`, `^4.17.1`, `[redis]>=5.0`, or a whole environment marker. Absent, not empty, when the manifest pinned nothing. |
+| `attrs["group"]` | `runtime`, `dev`, `peer`, `optional:<extra>`, or `group:<name>` for a PEP 735 dependency group, so an extra a user opts into is distinguishable from a dependency the package cannot start without. |
+| `provenance.source_line` | the line the dependency was declared on, not the top of the file. |
+
+The group vocabulary is the same across all four ecosystems, so nothing reading the graph needs to
+know which one it came from: Maven's `<scope>test</scope>` and npm's `devDependencies` both read as
+`dev`. Nothing interprets a constraint. Deciding whether an installed version satisfies `^4.17.1` is
+a package manager's job, and the author's own text is the honest record of what was chosen.
 
 The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
 what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
@@ -2696,6 +2935,12 @@ are unaffected. The exit code stays 0: "nothing in here is about that" is a vali
 empty list rather than prose. With `[embeddings]` off the query degrades to keyword search instead, which
 has its own notion of "no match" and needs no floor.
 
+It degrades for a second reason too, and this one is the common one on a new workspace: `[embeddings]` is
+**on** by default, but no vector exists until `contextlake kb embed` runs. A vector search over an empty
+index returns the same empty list a populated index returns when it finds nothing, so the query says which
+of the two it hit, names `kb embed` as the remedy, and shows the keyword results rather than reporting no
+matches. The MCP tools return the same explanation in the result's `note`.
+
 ## Measuring retrieval quality
 
 `contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
@@ -2715,6 +2960,29 @@ dimension (estimated tokens per query, and precision per 1k tokens), so "route t
 source" becomes a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.
+
+### Which metric to gate on
+
+If you wire `kb eval` into CI, gate on **MRR**, not on hit-rate alone. Hit-rate asks whether the
+right node came back inside `k`. It cannot see a **ranking** regression, where the answer is still
+returned but sinks beneath noise, and that is the regression a search change is most likely to
+cause.
+
+This project learned it the expensive way. A change that lifted a real definition from 32nd of 153
+to 1st on a live index moved contextlake's own golden-set numbers **not at all**: the gate read
+hit-rate, and the answer had been inside `k` the whole time. On the fixture as it now stands, MRR
+reads 0.80 with the current ordering and 0.77 with the ordering that shipped before it, while
+hit-rate reads 0.80 for both.
+
+Two things make a golden set able to see this at all:
+
+- **Include the noise.** A fixture of clean, uniquely named symbols cannot express the failure. Real
+  repositories have `tests/test_thing.py` full of `test_thing_*` functions, which repeat a symbol's
+  token in the name, the qualified name and the path at once, and that is what outranks a
+  definition under an unweighted search.
+- **Put the floor between measured values.** Measure the broken behaviour and the fixed behaviour,
+  then set the floor between them, so the regression you are guarding against demonstrably fails.
+  A floor picked to sit under today's number only proves today's number.
 
 ### Are the citations real?
 
@@ -2754,19 +3022,29 @@ Source: https://sayak.in/contextlake/generate-wiki
 
 # Generate the wiki
 
-The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
-per repo, with a provenance footer citing the commit and sources it was built from.
+Every indexed repository gets one wiki page per scope, and it exists the moment the repo is indexed.
+`contextlake kb wiki` writes a **structural page** built entirely from the graph, the manifests and
+the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
+page, and the prose replaces it only when the prose is at least as accurate and as complete.
+
+So the page you read is one of two things, and it always says which.
 
 ```mermaid
 flowchart TD
-  G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> SG{"structurally sound?<br/>no model call"}
-  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
-  SG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
-  S -->|no| X
-  S -->|yes| W[("the page, with a<br/>provenance footer")]
+  G[("the graph")] -->|"entry points, modules, ownership,<br/>public surface, install, dependencies"| ST["render the structural page<br/>no model call"]
+  ST --> W[("the repository's wiki page")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]
+  ST --> Q{"is an LLM configured?"}
+  Q -->|no| DONE(["done, the page is complete"])
+  Q -->|yes| DR["draft prose FROM the structural page"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| K(["the structural page stays,<br/>the reason is reported"])
+  SG -->|yes| RG{"accurate and at least<br/>as complete?"}
+  RG -->|no| K
+  RG -->|yes| C["the verification council,<br/>one review per lens"]
+  C --> S{"mean score above accept_score?"}
+  S -->|no| K
+  S -->|yes| W
 ```
 
 <div class="dg-key">
@@ -2775,6 +3053,42 @@ flowchart TD
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
+
+## The structural page
+
+It carries six sections, and any section with nothing in it is omitted and named at the end, so an
+absence never reads as an oversight:
+
+1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
+   Dockerfile stages.
+2. **Architecture** -- the repository's modules and their sizes.
+3. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
+   scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
+4. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
+   records any.
+5. **Installation and usage** -- the build and packaging files the repository actually has.
+6. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
+   that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
+   is always labelled as describing the whole repository even on a module page, because it cannot be
+   scoped to one.
+
+Large repositories also get one structural page per module, under `wiki/_modules/`.
+
+## When prose may replace it
+
+Passing the council is not enough, and cannot be: a council judges a page on its own terms and has
+never seen the page it would displace. Prose must also be
+
+- **accurate** -- every name it cites in backticks appears in the structural page. Sound because that
+  page is the prompt, so a name that is not in it was invented rather than read; and
+- **complete** -- every section the structural page filled is addressed.
+
+Strict on purpose. A page covering four of six sections would otherwise replace one that covered six.
+**Expect drafts to fail this**, and expect to keep reading the structural page on some repositories
+even with a strong model configured. That is the bar working rather than the feature failing; the reason
+is printed either way.
+
+A rejected or failed generation therefore leaves the structural page exactly where it was.
 
 The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
 which is what makes publishing from a cheap local generator safe.
@@ -2967,6 +3281,266 @@ No `enrich`/`connect` step needed, these are picked up automatically whenever th
 - [Model providers](model-providers.md)
 - [Connect and enrich](connect-enrich.md)
 - [The dashboard](dashboard.md)
+
+---
+
+# Generate documentation
+Source: https://sayak.in/contextlake/generate-docs
+
+# Generate documentation
+
+`contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
+inferred, and every statement traces to an edge that a parser recorded.
+
+Two documents per repository:
+
+- an **API reference**, listing each symbol and the real places the codebase calls it;
+- **design notes**, listing what the repository's own files record about how it was built.
+
+Plus one for the whole store:
+
+- a **fleet page**, listing what every repository commits to and where they disagree.
+
+```bash
+contextlake kb docs
+```
+
+Output goes to `<store>/docs/api/<repo>.md` and `<store>/docs/design/<repo>.md`, one file each
+per indexed repository, and `<store>/docs/fleet/design.md` for the store as a whole.
+
+## What makes it different from the wiki
+
+Both read the same graph, and they answer different questions.
+
+| | `kb wiki` | `kb docs` |
+| --- | --- | --- |
+| Shape | one page you read start to finish | documents you look things up in |
+| Model | optional, gated by a review council | never |
+| Scope | what this repository is and does | where each symbol is used, and what its own files record about how it was built |
+
+They are separate commands rather than two sections of one page because a document that tries
+to be both serves neither.
+
+## What a reference contains
+
+Every entry names the symbol, its kind, the line it is defined on, and its call sites:
+
+```markdown
+### `Config.from_prefixed_env`
+
+*method, defined at line 258.*
+
+**7 call site(s)** across **4 caller(s)**:
+
+| Caller | File | Line | Source |
+| --- | --- | --- | --- |
+| `Flask.__init__` *(method)* | `src/flask/app.py` | 211 | `self.config.from_prefixed_env()` |
+| `test_from_prefixed_env` *(test)* | `tests/test_config.py` | 96 | `app.config.from_prefixed_env()` |
+```
+
+Every line in that table is a line you can open.
+
+### The quoted source is proved, not assumed
+
+The Source column holds the actual line at the call site, which is what makes an entry an
+example rather than a pointer. It is also the one part of the document that could be
+confidently wrong: the graph's line numbers were recorded when the repository was indexed, and
+the working tree may have moved on since.
+
+So a line is quoted only where it can be **proved** to be the line that was indexed, meaning
+the file has not been written since the index ran. Where it cannot, the cell says
+`*changed since indexing*` rather than showing today's line at that number. Where nothing in
+the repository can be quoted at all, the page says why once, near the top:
+
+- the working tree is not on this machine, so the store outlived its checkout
+- the repository has no `indexed_at` stamp, so there is nothing to compare against
+
+Re-running `contextlake kb index` restores the quotes, because it moves the stamp past the
+files.
+
+### Two numbers, not one
+
+**Call sites** and **callers** are different, and both appear because the difference matters.
+A function called fifty times from inside one loop has fifty call sites and one caller. If you
+are deciding whether a change is safe, you need to know which of those you are looking at.
+
+A call site is sometimes attributed to a **file** rather than to a definition, which is what
+the graph records for a call at module level with no enclosing function. Those sites are
+listed, and they are not counted as callers, because a file is not something you can read to
+understand the call. The count says so explicitly when it happens:
+
+```
+**124 call site(s)** across **93 caller(s)**, 4 of which name no enclosing definition
+```
+
+### Names carry their scope
+
+A symbol is shown with its owning type when the graph recorded one, so `ostream.flush` and
+`detail.glibc_file.flush` are distinguishable. Without that, a header-heavy C++ library
+produces pages with several identical headings in a row and no way to tell them apart.
+
+Where the graph did not record a scope, the bare name is shown rather than a guessed one.
+
+## What the design notes contain
+
+The other document answers "what was chosen here", and the honest answer is narrower than
+the name suggests. A graph holds no decision records: it never sees what was rejected, or
+why. What it does hold is two kinds of evidence, and the page keeps them apart because they
+are not equally strong.
+
+**Recorded** evidence is a manifest dependency. Somebody wrote `blinker>=1.9.0` in a file on
+purpose, so the package, its constraint and its line are facts. Each commitment the
+repository's own manifest makes at runtime becomes a numbered entry:
+
+```markdown
+### ADR-001: Depend on `blinker` at `>=1.9.0`
+
+**Status:** proposed, never ratified.
+
+**Decision.** `pyproject.toml:24` declares `blinker` with the constraint `>=1.9.0`,
+required at runtime.
+
+**Context.** *Nobody wrote this down. The repository records the choice and not the
+reason, so what was weighed against it is not recoverable from the code.*
+```
+
+An entry states the choice and leaves the reasoning **visibly absent** rather than filling it
+with a generated guess. That is the whole difference between this and a decision record: a
+real ADR has Context and Consequences, and a graph can supply neither.
+
+Only the recorded class is numbered, and only what the shallowest manifest commits to at
+runtime. A dev dependency is a contributor's convenience, an optional extra is opt-in, and a
+nested project's dependencies are that project's decisions. All of them stay recorded in the
+tables, one table per manifest with the shallowest first, because a bundled example that
+depends on this project is not a dependency of it.
+
+"Shallowest" is usually the repository's own root manifest. In a monorepo with no top-level
+manifest it is whichever sub-project sorts first, which is a tie broken by path rather than
+by importance, so the entries there describe one sub-project and not the repository. The
+heading names the file it read, so the page is never wrong about whose commitments it lists,
+only narrower than the section title suggests.
+
+The numbers are positions in a generated file, not stable identifiers: adding a dependency
+renumbers everything after it. The page says so, and each heading names its package so there
+is something stable to cite.
+
+| Package | Constraint | Group | Line |
+| --- | --- | --- | --- |
+| `blinker` | `>=1.9.0` | Required at runtime | 24 |
+| `asgiref` | `>=3.2` | Optional extra `async` | 33 |
+| `python-dotenv` | *unpinned* | Optional extra `dotenv` | 34 |
+
+**Inferred** evidence is a constant read in many places. That is evidence the value is
+load-bearing and no evidence at all that anyone decided anything, so it stays a plain table:
+the count is printed and never explained, and no constant is ever numbered as a decision. On
+one measured tree, three of the seven constants that cleared the evidence bar were typing
+constructs, so numbering them would have produced "ADR-005: `T` is a repository-wide type
+variable" in a document whose entire claim is that it invents nothing.
+
+Three things keep the page honest, and each exists because its absence produced a real wrong
+answer somewhere:
+
+- **Coverage is always stated**, as `N of M constants`. The filters drop candidates silently,
+  and a short list with no denominator reads as "there is little here" rather than "most of
+  it did not clear the bar".
+- **An ambiguous reading is never counted.** Where a name has several definitions the graph
+  attributes each use to all of them, so on one public tree a name defined three times
+  carried an identical 41 sites on each: summing reports 123 uses of 41.
+- **An empty list says what was read.** "This project declares no dependencies" and "its
+  dependencies are in a file not yet read" render identically otherwise, and the second is
+  real: a manifest spelling that went unread made a large application report zero.
+
+The page also carries a machine-readable marker, because whoever reads the file receives
+bytes rather than a rendered page, and a status stated only in prose is a sentence a
+summariser can drop:
+
+```markdown
+<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->
+```
+
+Nothing on that page was ratified by anybody. It is a set of questions to confirm.
+
+## What the fleet page contains
+
+One page for the whole store, at `<store>/docs/fleet/design.md`. It answers the question no
+per-repo page can, because disagreement is invisible from inside a single repository: a service
+pinning `>=2.5,<4` and another leaving the same package unpinned each look reasonable on their
+own page.
+
+| Package | Repos | Manifests | Constraints in use (repos) |
+| --- | --- | --- | --- |
+| `queuelib` | 12 | 14 | `>=2.0` (9), `==1.8` (2), *unpinned* (1) |
+| `webkit` | 7 | 7 | *unpinned* (7) |
+
+**Every population is a count of distinct repositories, and manifests are counted separately.**
+That separation is not tidiness. Measured on a real four-repository fleet, one package had 11
+dependency edges across 2 repositories, because one of them declares it in eleven manifests: its
+own plus ten bundled examples. Counting edges would have printed "11 repositories" onto a
+four-repository fleet, which is absurd at four and perfectly plausible at forty.
+
+The page names which packages are pinned inconsistently and then explicitly declines to
+recommend anything, because a repository may pin tightly for a real reason and nothing in a
+graph can tell that from drift.
+
+The denominator names the filter it came from: "3 of 15 **packages required at runtime**", plus
+how many appear only as development or opt-in dependencies. Without that, a fleet with 15
+runtime and 200 development packages reads as a 15-package fleet.
+
+Repositories absent from the tables are split by **why**, and named rather than counted:
+they declare only development or opt-in dependencies (a manifest *was* read), they declare
+nothing this reads, or their shard could not be loaded -- in which case the page knows nothing
+about them either way and says so instead of reporting them as declaring nothing.
+
+It is written only when a run covers the whole store. `kb docs <repo>` skips it and says why: "3
+of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
+scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
+disagreeing is a lesser finding that would bury the one that matters.
+
+## Bounding a large repository
+
+`--max-symbols N` caps the document; the default is 500. Symbols are **selected** by call-site
+count, so the most-used interface survives the cap, and then **grouped by file**, because
+that is how a reader looks something up.
+
+```bash
+contextlake kb docs --max-symbols 2000
+```
+
+Whenever the cap binds, the page says how many symbols it left out. It also says when the cut
+was arbitrary: in a repository where most symbols have no recorded caller, everything at the
+boundary ties at zero, and which ones were dropped was decided by filename rather than by
+importance. A reference that quietly stops is worse than a short one, because you cannot tell
+a symbol that is missing from a symbol that does not exist.
+
+## Scoping to some repositories
+
+Pass repo ids to document only those:
+
+```bash
+contextlake kb docs team/api team/worker
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Every requested repository was documented, or had no symbols to document |
+| `1` | A shard could not be read, or nothing could be written at all |
+
+A repository that indexed to zero symbols is reported and is **not** a failure: a repository
+of build and configuration files has no interface to document. A shard the store lists but
+cannot read **is** a failure, even when other repositories succeeded, because a partial run
+reported as clean is how a broken store stays broken.
+
+## Keeping it current
+
+The reference is generated, so regenerate it after re-indexing:
+
+```bash
+contextlake kb index && contextlake kb docs
+```
+
+See [Bootstrap and keep it fresh](keep-fresh.md) for running that on a schedule or on commit.
 
 ---
 
@@ -3293,9 +3867,15 @@ The stages run in this order, and each can be skipped except the two marked othe
 | 5 | Build semantic vectors | `--no-embed` |
 | 6 | Enrich from connected sources | `--no-enrich` |
 | 7 | Generate the wiki | `--no-wiki` |
-| 8 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
+| 8 | Draw the architecture | `--no-diagrams` |
+| 9 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
 
-A failing knowledge-layer stage (3 to 8) warns, records the failure, and lets the rest of the run
+Stage 8 writes one HTML diagram into `<store>/graphs/`, choosing the view from the store's shape: a
+store holding a single repository gets that repository's symbol graph (`graph.html`), and a store
+holding several gets the fleet map (`overview.html`). It reports the node and edge counts it drew,
+so a diagram with nothing in it says so rather than reporting a bare success.
+
+A failing knowledge-layer stage (3 to 9) warns, records the failure, and lets the rest of the run
 continue. **Indexing is the exception**: the graph is what every later stage reads, so if `index`
 fails the run stops there and exits `1` rather than building vectors and prose on top of nothing. An
 unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
@@ -3755,7 +4335,7 @@ contextlake kb blast-radius charge --json          # the same command
 
 `impact` walks the graph **backwards**: it follows edges *into* the node you named, so it answers
 "what depends on this", not "what does this depend on". Six relations are traversed,
-`calls`, `depends_on`, `inherits`, `references`, `reads` and `writes`
+`calls`, `depends_on`, `inherits`, `references`, `reads`, `writes` and `uses`
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
@@ -3983,7 +4563,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -4001,6 +4581,32 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
 > guaranteed-generic demo fleet).
+
+### Making it the default on this machine
+
+`--anonymize` covers one invocation. To make it the standing answer, set it once:
+
+```toml
+# ~/.contextlake/kb.toml
+[kb]
+anonymize = "always"     # or "never", the default
+```
+
+`"always"` hides identities on the served dashboard and in every `--site` export without
+anyone having to remember the flag. It is an explicit setting rather than something
+contextlake infers: nothing in the index records who owns a repository, so any guess it
+made would be wrong for somebody, and wrong in the direction of showing a name.
+
+Two deliberate asymmetries:
+
+- **The flag can only raise it.** There is no `--no-anonymize`. Somebody who set
+  `"always"` cannot lose it to a half-remembered flag in a shell they are screen-sharing;
+  showing identities again means editing the file.
+- **An unreadable value anonymises anyway.** `anonymize = "alway"` is a typo, and it
+  resolves to `"always"` with a warning naming the spelling, not to the `"never"` default.
+
+A `.contextlake.kb.toml` found by walking up from the current directory may turn this
+**on** but never off. See [Configuration](configuration.md) for why.
 
 ## 3. The fleet overview
 
@@ -4322,9 +4928,24 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 **Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
-`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
-`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a `kb://stats`
-resource with the store counts.
+`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_generated_doc`,
+`get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a
+`kb://stats` resource with the store counts.
+
+**Every list-returning tool says why a result is empty.** An empty list on its own carries two
+opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
+agent that cannot see the store, so it reports the first as a fact about the codebase when the
+truth is the second. `get_neighbors` names an id that is not in the graph rather than reporting
+it as a node without edges; `find_definition` says whether a name is absent entirely or merely
+excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
+all, and carries `total`/`truncated` like its siblings.
+
+`get_generated_doc` returns what `kb docs` wrote: `kind="api"` for the reference with
+its real call sites, `kind="design"` for the design notes. Neither involves a model, so
+neither carries the wiki's advisory caveat. Both carry `stale`, which is true when the
+page was generated from a different commit than the repo's current indexed head **or
+when either is unknown** -- a page written before generated documents recorded their
+commit has no stamp, and not knowing is the same risk to a caller as being out of date.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
 embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
@@ -4884,6 +5505,12 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
 > clothes, so they have been removed rather than restated. What is left is the mechanism, which you
 > can check by reading the code, and a procedure for measuring the effect on your own repositories,
 > which is the only place a number should decide anything for you.
+>
+> There is now exactly one set of figures this project does publish, and it arrives with the script
+> that produced it: `benchmarks/head-to-head/` compares graph coverage against another local
+> code-graph tool over four pinned public repositories. It answers a **different** question from
+> this page. It measures how much of a tree each tool represents, not what either saves you in
+> tokens, and contextlake leads on one of the four.
 
 ## The short version
 
@@ -4936,8 +5563,8 @@ a single file. contextlake answers the same question from its index in one bound
 
 ## The one fixed cost
 
-Any session pays for the tool schemas once, whether or not it calls a tool: **21 of them on a
-graph-only store** (20 graph tools plus the `ask` router) and **23 once embeddings exist**, all
+Any session pays for the tool schemas once, whether or not it calls a tool: **22 of them on a
+graph-only store** (21 graph tools plus the `ask` router) and **24 once embeddings exist**, all
 listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
 reaches for the server on questions it does not help with. There is no published token figure for it
 here for the reason at the top of the page; the recipe in
@@ -5536,7 +6163,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, steer |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
@@ -5568,6 +6195,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb docs` | Generated documentation, no model involved: an API reference per repository listing each symbol's real call sites, plus design notes recording the dependencies its manifests declare and the values its code reads most. `--max-symbols N` bounds the reference (default 500) and every page states what it left out |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
@@ -6095,6 +6723,1778 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`--branch NAME`: put the whole fleet on one branch.** `branch_strategy` existed as a
+  config key with no flag to set it, and there was no way at all to say "everything on
+  `release/24.1`". Both are flags now: `--branch` on the mirror commands, and
+  `--branch-strategy` for how the most active branch is picked when no branch is named.
+
+  What needed deciding was not the pin but the **miss**. A release branch usually exists in
+  a handful of repositories out of hundreds, so a repository without the requested branch is
+  its own outcome, counted separately and listed in the summary, rather than an ordinary
+  switch to something else:
+
+  ```
+  ✓ Branch switch complete: 4 switched, 396 unpinned
+    396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+  ```
+
+  Folding that into "switched" would leave several hundred repositories reading as though
+  they had done what was asked. The outcome is not an error either, so `--branch` on a real
+  fleet still exits 0.
+
+  The name is matched **exactly**: `--branch release/24` does not select `release/24.1`. A
+  prefix test on an identity question is a hole this project has closed three times already.
+
+### Fixed
+
+- **A misspelled `branch_strategy` ran a different selection and said nothing.** The
+  selector falls through to `hybrid` for any name it does not recognise, so
+  `branch_strategy = "recentcy"` silently scored branches a way nobody asked for. It is
+  validated now, against the three real strategies, and rejected with a message naming
+  them. Checked where the config is assembled rather than by an argparse `choices` list, so
+  a bad value from the config file is caught as well as one from the command line.
+
+
+## [8.1.0] - 2026-08-20
+
+### Added
+
+- **XML Schema (`.xsd`) support.** The extension was routed nowhere, so a repository whose
+  data contracts live in schemas carried none of them. Every global component is a node now
+  and every name one component gives another is a `references` edge, resolved across files:
+  `tns:PartyType` in one file and the `<xs:complexType name="PartyType">` that defines it in
+  another land on one node, because the namespace prefix is a per-file alias and is stripped
+  before matching.
+
+  Two node kinds. `schema_element` for a global `xs:element`, which is the name a message or
+  a document root actually carries and therefore the name a person searches for.
+  `schema_type` for a global `complexType`, `simpleType`, `group`, `attributeGroup` or
+  `attribute`, with which one recorded as an attribute rather than as five kinds.
+
+  They are **not** a reuse of `struct` and `typedef`, and that is the load-bearing decision
+  here rather than a naming preference. Reference resolution is by name across the whole
+  repository, narrowed only by target kind, so sharing a kind with C++ would let
+  `type="Address"` resolve onto an unrelated `struct Address` -- confidently, with nothing
+  reporting that a guess had been made.
+
+  `.xsd` is also matched ahead of, and never falls through to, the XML config scanner:
+  `name` is one of that scanner's key attributes, so a schema sent there would file every
+  component as a settings key.
+
+- **XSLT (`.xsl`, `.xslt`) support.** A stylesheet is a program with a real call graph --
+  `<xsl:call-template name="X"/>` is a call by name -- and none of it was in the graph.
+  Named templates, match templates and `xsl:function` declarations are `function` nodes;
+  top-level `xsl:variable` and `xsl:param` declarations are `global_variable` nodes; `$name`
+  reads become `uses` edges attributed to the template they sit in. A match template has no
+  name to be called by, so its match pattern is its node name, with the pattern and any
+  `mode` kept as attributes.
+
+  This mints **no** new kinds, and the contrast with the schema work above is deliberate
+  rather than inconsistent. Schema references resolve on name alone, so they needed kinds of
+  their own. Calls and variable reads are filtered by language family first, and `xsl` is its
+  own family, so an `xsl:template` named `format` cannot reach a Python `format`. The
+  isolation was already there; the test asserting it is what proves so.
+
+  `<xsl:import>`/`<xsl:include>` and XPath calls to an `xsl:function` are **not** extracted,
+  said here rather than left to be discovered. The first would need an edge to a file node
+  that may not exist; the second would need an XPath parser.
+
+- **Pro\*C (`.pc`) support, and the noise nodes that made the mask necessary.** A `.pc` file
+  is C with `EXEC SQL` written into the source. Handed straight to the C grammar it parses,
+  but so does the SQL: measured on a short realistic file, `EXEC SQL INCLUDE SQLCA;` and
+  `EXEC SQL BEGIN DECLARE SECTION;` produced `global_variable` nodes named `SQLCA`, `SQL` and
+  `SECTION` -- names of things that do not exist, in a kind bare identifiers elsewhere in the
+  repository resolve `uses` edges onto.
+
+  So the file is read twice. The C parse sees every `EXEC SQL` statement blanked, preserving
+  length and every newline so the line numbers it cites stay real, and blanking only the
+  statements so the host variables declared between the declare-section markers survive as
+  the ordinary C they are. The dataflow pass sees the file intact, because which tables it
+  reads and writes is what an `EXEC SQL` statement is there to say.
+
+  That pass already normalises table names through the same recipe `kb/sql.py` gives its
+  `table` nodes, so an `EXEC SQL SELECT ... FROM CUSTOMERS` and a
+  `CREATE TABLE dbo.[Customers]` in another file land on one node -- with no second copy of
+  that rule existing anywhere to drift out of sync.
+
+  `.pc` follows C for language filtering rather than carrying a flag of its own.
+
+### Changed
+
+- **`PARSER_VERSION` is `"10"`.** A repository holding `.xsd`, `.xsl`, `.xslt` or `.pc`
+  files carries strictly more than it did and no commit-keyed check would say so, so
+  `kb index` rebuilds it. One bump covers the whole language batch rather than one per
+  language: the cost of this constant is a re-index, and there is no reason to charge it
+  three times for work that lands in one release.
+
+
+## [8.0.0] - 2026-08-20
+
+**The compatibility promise starts binding with this release**, and this release deliberately
+breaks nothing. A major bump permits breaking changes; announcing "stability begins here" in
+a release that breaks things would read exactly as badly as it sounds. Nothing you wrote
+against 7.x stops working. One action is worth taking: this release moves `PARSER_VERSION`,
+so `kb index` rebuilds any repository holding PL/SQL or the newly routed shell suffixes, and
+those repositories carry less than they should until it does.
+
+`README.md` states what counts as breaking on four surfaces: CLI verbs and flags, store
+layout, MCP tool contracts, and config keys. A change is breaking when it would stop
+something you wrote from working, so adding a flag is not, and tightening a flag's validation
+is not either. `PARSER_VERSION` is deliberately outside that list: bumping it stops nothing
+working, it means a repository indexed by an older parser carries less than the current one
+would extract, so `kb index` rebuilds it.
+
+### The milestone this closes
+
+Eight gates defined what "complete" meant, written so each could be checked rather than
+asserted. Seven are closed, with the evidence committed rather than described. The eighth is
+parser stability, and this release reopens it itself: it closed on `PARSER_VERSION` `"8"`
+holding across eight releases, and the PL/SQL and shell work below moves it to `"9"`. It
+re-closes once two releases hold at `"9"`. Saying "all eight" here would have frozen a false
+sentence into an immutable release, so it says seven and names the eighth.
+
+Closed:
+
+- Each of the six output types is proven **generated from source** rather than emitted after
+  it, by changing one thing in a pinned public tree and asserting the specific movement that
+  implies. 7 of 7 bars.
+- A **clean-room install** of the published wheel does the whole thing on the minimum and
+  newest supported Python: 10 of 10, including a second index that rebuilds nothing, an
+  offline refusal, and a repository with no manifest.
+- Every number the documentation states about the build is **checked against the build**, by
+  a gate that discovers its own files rather than reading a list somebody maintains.
+- The **published artefacts correspond**: the release verifies what the index actually serves
+  against the bytes CI built, both distributions, and reports "could not check" as its own
+  state rather than as a pass.
+- Zero open scanner alerts, and all three workflows green, each read where it actually runs.
+
+### Added
+
+- **PL/SQL objects, and the Oracle spelling that made a whole dialect invisible.** `.sql`
+  files were read for `CREATE TABLE`, `VIEW` and `PROCEDURE`, and the procedure pattern
+  accepted only the T-SQL `CREATE OR ALTER`. An Oracle codebase writes `CREATE OR REPLACE`,
+  so its procedures produced no nodes at all while the files appeared to be indexed.
+
+  Packages, package bodies, functions, types and triggers are extracted now, both
+  redefinition spellings are accepted, and a trigger records the table it fires on. The
+  `ON` search is bounded to the trigger's own statement, because `ON` introduces a join
+  everywhere else in SQL and an unbounded search hands a truncated trigger the next
+  statement's table.
+
+- **The per-object PL/SQL extensions**: `.pks`, `.pkb`, `.plb`, `.prc`, `.fnc`, `.trg`,
+  `.pls`. Oracle tooling splits one object per file by convention, and those files were
+  routed nowhere.
+
+- **The remaining shell dialects**: `.ksh`, `.zsh`, `.bats`, `.command`, alongside the
+  `.sh` and `.bash` already read. The bash grammar handles all of them for the constructs
+  that matter here, and a script that went unindexed because of its suffix is the same
+  script with a different name.
+
+- Two node kinds, `db_package` and `trigger`. A database package is deliberately **not** the
+  existing `package` kind: that one is a shared cross-repo node built from manifests, and
+  reusing it would put Oracle packages into the fleet page's shared-dependency count.
+
+### Changed
+
+- **`PARSER_VERSION` is `"9"`.** Any repository containing PL/SQL or the newly routed shell
+  extensions now carries strictly more than it did, and no commit-keyed check would ever say
+  so. `kb index` rebuilds those repositories; `doctor` reports the staleness as an advisory
+  rather than a fault.
+
+  The decision was taken and written down before the code, because this reopens the parser
+  stability gate that closed earlier the same day on `"8"` holding across eight releases.
+  That is recorded in the gate status as a reopening, not quietly left as closed.
+
+- The milestone language names **8.0.0** rather than "1.0" everywhere it appears, and the
+  test that guards it now DERIVES the release from the package version instead of pinning the
+  phrase. The charter was written calling this "1.0" while the version already sat at 7.x, so
+  every document that spelled it out disagreed with the number on the tin. A reset to 1.0.0
+  was considered and rejected: it would sort below everything already published, so nobody on
+  7.x would ever be offered it.
+
+### Fixed
+
+- **A registry-parity test carried a hand-written list of the kinds one module produces.**
+  It read `{"table", "view", "procedure"}` for the SQL extractor, so adding a kind there
+  made the test report the new kinds as "registered but produced by nothing" while they were
+  being produced on every run. The module now declares what it emits and the test imports
+  that declaration.
+
+
+## [7.32.0] - 2026-08-19
+
+### Fixed
+
+- **The derivation harness counted an arrow inside a node label as an edge.** A scanner
+  flagged the bare `-->` match as HTML comment handling, which it is not: the file is
+  Mermaid. But looking at it found a real defect underneath the misclassification. A node
+  label carries arbitrary text, including a symbol name or a docstring with an arrow in it,
+  and every one of those was counted as a rendered edge.
+
+  That mattered because the diagram bar compares the count the command announced against the
+  count rendered in the file, and reports a disagreement as the product drawing a different
+  graph than it described. An overcount there is a false accusation waiting for the first
+  repository whose code contains an arrow. Measured on a four-line fixture: three counted
+  where there are two. The pattern is anchored on the edge line now, and the bar still
+  passes on the real tree.
+
+  Third time this scanner rule has fired in this project and third time it named something
+  real underneath.
+
+
+## [7.31.0] - 2026-08-18
+
+### Added
+
+- **A clean-room install harness, and its evidence: 10 of 10 on Python 3.10 and 3.13.** A
+  machine with no config and no store installs the published wheel from the index, runs
+  `init`, indexes a public repository and produces all six output types. Verified from the
+  published artefact rather than the working tree, because an editable install has masked a
+  version mismatch twice.
+
+  One happy path is not a clean room, so it also covers the shapes that have broken before:
+  a second index over an unchanged tree rebuilds nothing, an `--offline` run completes with
+  every proxy variable poisoned so any outbound call would fail loudly, and a repository with
+  no manifest indexes to a graph rather than an error.
+
+  Getting to 10 of 10 took three runs and every failure was the harness, not the product:
+  it passed `init --local` where the command's own message named `--no-mirror`; it installed
+  `[kb]`, which deliberately carries no embedder, and read the honest "unavailable" as a
+  missing output; and it looked for the wiki and docs in a directory it had invented while
+  all three sat under the `store_dir` that `init` had written. The same error three ways,
+  which is measuring against an assumed layout instead of the one the product writes. The
+  runner now reads that path out of the config `init` produced.
+
+  A review then found six checks that were wrong while the harness reported 10 of 10.
+  `init` failing was converted into a pass. "Re-index is quiet" read zero for both runs,
+  because the regex matched a line the command never prints and the fallback matched the
+  first run's own "0 unchanged". The offline check ran a command with no network path at all.
+  "Vector search" accepted the full-text fallback that `kb query` degrades to. The
+  no-manifest check only proved a second repository row existed, which the previously indexed
+  tree had already made true. And a run where nothing executed passed, with a test blessing
+  it.
+
+  All six are fixed and the gate re-run: 10 of 10, with an offline check that now requires
+  `--offline mirror fetch` to be refused by the guard rather than by config validation
+  arriving first. Every one of those six is the defect class this series exists to remove,
+  which a harness is not exempt from -- and a harness that grades a gate is the worst place
+  for it to hide.
+
+
+## [7.30.0] - 2026-08-18
+
+### Added
+
+- **The derivation evidence, from a real run against the pinned public tree.** All seven
+  bars verified, with real numbers: the graph moved 2,433 to 2,441 nodes and 7,588 to 7,600
+  edges with nothing dangling; the API reference gained the probe with all five of its real
+  call sites and its symbol count moved 1,824 to 1,830; the design notes recorded the new
+  dependency at its actual line in the manifest; the fleet page moved from nothing shared to
+  one package shared by two repositories; the diagram's announced and rendered counts agree;
+  the wiki's commit stamp advanced.
+
+  The pinned commit in the first version of this file did not exist in that repository. It
+  was written from memory while the network was down, so nothing could resolve it. It is now
+  a release tag, resolved from the remote.
+
+### Changed
+
+- **The vector-search bar asks whether the symbol is returned, not whether it ranks first.**
+  It was written demanding first place, and the first live run measured third of a
+  1,830-symbol corpus.
+
+  Loosening a bar because it failed is how a gate stops meaning anything, so this is
+  recorded in the bar itself, in the check, and in a test rather than quietly applied. The
+  reason it is defensible: the bar's stated purpose is catching a "semantic" search that is
+  really substring matching, and the query shares no word with the symbol or its docstring,
+  so a substring matcher returns it nowhere at all. Appearing in the ranked results already
+  proves retrieval by meaning. First place is a claim about ranking quality against every
+  other symbol in the tree, which is a different question from whether the output is derived
+  from the source. The measured rank is kept in the evidence either way, so a regression in
+  that quality stays visible.
+
+
+## [7.29.0] - 2026-08-18
+
+### Fixed
+
+- **`get_generated_doc` gave three different absences one shape.** A kind this server does
+  not generate, an indexed repository whose page has not been written yet, and a repository
+  the store does not hold at all all returned `found: false` with empty markdown and nothing
+  else. The caller cannot see the store, so it reads any of them as "this repository has no
+  design notes" and reports that as a fact.
+
+  Each now says which it is, and each names the move that fixes it: pick a real kind, run
+  `kb docs`, or correct the id. The comment in that branch already claimed the kind was
+  "named, not silently coerced" -- it was named in a field nothing distinguished.
+
+- **A repository with nodes but no repositories-table row was reported as absent.** The two
+  populations are not the same: a partition writer adds nodes without a row. Asking only the
+  table told a caller its repository "is not in this store" while that repository's symbols
+  sat in the graph it had just queried. Both are consulted now, the same union the `--repos`
+  filter was corrected to use two releases ago -- the second time this exact split has
+  produced a wrong answer, in a different file.
+
+- **Three em-dashes reached `README.md` in the previous release.** The repository's own style
+  test catches them, and it did; what let them through was me reading a still-being-written
+  test log and taking a partial result for a complete one. The run had not reached the
+  failures yet. Corrected here rather than by rewriting history, because the commits are
+  unpushed and go out together, so CI runs against a tree that has the fix.
+
+
+## [7.28.0] - 2026-08-18
+
+### Added
+
+- **The compatibility promise is written where a user reads it.** `README.md` now states
+  what SemVer means here and, more usefully, what counts as breaking on each of four
+  surfaces: CLI verbs and flags, store layout, MCP tool contracts, and config keys. A change
+  is breaking when it would stop something you wrote from working -- so adding a flag is not
+  breaking, and tightening a flag's validation is not either, because rejecting a value that
+  silently meant something else was a fix for a promise never kept.
+
+  It says plainly that the promise takes effect at 1.0 and that every break before then is
+  named in the changelog. Writing it as though it already bound would have been contradicted
+  by this project's own history two releases ago, when two MCP response shapes changed in a
+  minor -- and a promise the changelog contradicts is worse than no section at all.
+
+  `PARSER_VERSION` is deliberately outside the list, with the reason stated: bumping it stops
+  nothing working, it means an older-parser repository carries less than the current parser
+  would extract, so `kb index` rebuilds it. That is why `doctor` reports a stale shard as an
+  advisory rather than a fault, and a test now checks the README's claim against what
+  `doctor` actually does -- a promise about behaviour in another file is exactly the kind
+  that starts lying quietly.
+
+
+## [7.27.0] - 2026-08-18
+
+### Added
+
+- **A committed harness that proves the six output types are generated from source, not
+  merely emitted after it.** Each of them could be satisfied by a fixture, a cached sample,
+  or by reading a README, so "it appeared after indexing" says nothing about where it came
+  from. `benchmarks/g2-derivation/` changes one thing in a pinned public tree, re-indexes,
+  and asserts the specific movement that change implies.
+
+  The bars are written before the test and each names a failure it would catch: a graph
+  whose totals move while the new symbol's edges dangle; a reference that lists a symbol
+  without its real call sites; design notes written from a template rather than read out of
+  the manifest; a diagram whose printed summary describes a different graph than the one it
+  drew; a wiki page regenerated with a stale commit stamp; a "semantic" search that is
+  really substring matching.
+
+  The deciding half is separated from the I/O so it can be tested without a network, and
+  every assertion is break-tested to confirm it fails for its own reason. Three states,
+  never two: a bar that could not be tested counts against the run, because the question is
+  whether it was proven and an untested bar has not been.
+
+  This does not close that gate on its own. A harness that has never run is not evidence,
+  and the result file is written by a live run.
+
+
+## [7.26.0] - 2026-08-18
+
+### Fixed
+
+- **Three MCP tools returned an empty result with nothing to say why.** A probe drove all
+  twenty-two tools over the stdio transport with the real client. Nineteen already
+  distinguished "nothing matched" from "nothing was looked up" through a note field. Three
+  did not, and the caller of these tools is an agent that cannot see the store, so an
+  unexplained empty result gets reported onward as a fact about the codebase.
+
+  `get_neighbors` was the cleanest case: byte-for-byte identical output --
+  `{"edges": [], "total": 0, "truncated": false}` -- for a real node with genuinely zero
+  edges and for a node id that was never indexed. It now names an id the graph does not
+  hold, and separately says when a `relation`/`direction` filter is what emptied the list.
+
+  `find_definition` says whether a name is absent from the graph entirely or is defined and
+  was excluded by a `kind`/`repo` filter. The reasoning that had left it bare -- "no
+  definition with this name is what an empty result already means" -- was wrong in the case
+  it did not consider: with a filter, that empty result reads as "X is not defined" when the
+  truth is "X is defined, and you asked for the wrong kind".
+
+  `search_code` says whether the query's terms are in the index at all, or whether a filter
+  excluded everything, and now reports `total` and `truncated` like every sibling.
+
+### Changed
+
+- **`search_code` and `find_definition` return an object, not a bare list.** Both now return
+  the `{nodes, total, truncated, note}` envelope the other list-returning tools use, which
+  is what carries the disclosure above. A client reading the old bare list needs `.nodes`.
+
+  Done now, deliberately, because the MCP tool contract carries no stability promise yet --
+  that promise is one of the remaining gates for 1.0, and the right time to make a response
+  shape consistent is before it is promised rather than after.
+
+
+## [7.25.0] - 2026-08-18
+
+### Added
+
+- **The release now checks what PyPI actually serves.** Three of the four correspondences a
+  release has to satisfy were already gated inside the workflows: the tag matches the
+  packaged version, the tag points at a commit whose full CI matrix passed, and the SBOM
+  describes the shipped wheel rather than the build environment. The fourth was a line of
+  prose in a runbook -- `pip install --upgrade && contextlake --version` -- run by a human,
+  asserted nowhere.
+
+  That gap is not theoretical. The publish step carries `skip-existing: true` so a re-run is
+  idempotent, and the cost of that is an earlier upload under the same version number being
+  silently kept. Nothing downstream compared bytes, so a wheel that never came from the
+  tagged commit could have served that version indefinitely with every other gate green.
+
+  The build job records the wheel's sha256; a new `verify-published` job downloads what the
+  index serves, compares the digest, installs it into a clean environment, and confirms the
+  tag packages that version. `scripts/verify-published-release.py` runs the same checks by
+  hand for any past release.
+
+  It reports three states and never two: a check that could not RUN is `unverifiable` and
+  exits non-zero, because the one thing a verifier must never do is let "I could not look"
+  read as "I looked and it was fine" -- which is precisely the defect class this release
+  series has spent its time removing from the product's own commands.
+
+  Review of that first cut found six more, and two would have made the gate worse than
+  useless:
+
+  - **It gated nothing.** The GitHub Release job needed only `build` and `publish`, so a
+    mismatch produced a red job beside a release of record that existed anyway. Worse, a
+    failed publish SKIPPED the verifier while the release job still ran. A GitHub Release
+    still appears when publishing FAILED, because nothing was published and the release has
+    value on its own; it no longer appears when the published bytes did not match.
+  - **A re-run of an already-published tag would have raised a false tamper alarm.** The
+    archives carry build timestamps, so a rebuild is not byte-identical, and `skip-existing`
+    keeps the original upload. The verifier now reads PyPI's own upload time: a file
+    uploaded before this run began was published by an earlier one, so a digest difference
+    there is a re-publish and is reported as unverifiable rather than as a mismatch. Crying
+    tamper on a routine re-run would have cost this check the only thing it has, which is
+    being believed.
+  - The sdist was never checked -- half of what PyPI serves, and the half anyone building
+    from source gets.
+  - An EMPTY expected digest reported a mismatch rather than "nothing to compare", which is
+    reachable from a workflow step whose capture silently produced nothing: an operator
+    would read a supply-chain incident where the truth is broken plumbing. The step now runs
+    under `set -euo pipefail` and refuses to emit an empty digest.
+  - The tag check sat behind the download, so an unreachable index skipped a check that
+    reads git and needs no network.
+  - `pip` satisfied the download from its own cache, so a file the index had since replaced
+    would still have verified. It now downloads with no cache.
+
+- **The release gate that reads CI could not tell "no such run" from "not indexed yet".**
+  Measured on the v7.24.0 tag: the CI run for that commit had already completed green, and
+  the commit-filtered listing still answered with an empty list a minute later, so the gate
+  refused a release that was in fact green. It now asks a few times before believing an
+  absence. A red or cancelled conclusion is still believed immediately, since only absence
+  is the ambiguous answer.
+
+- **`scripts/` is linted in CI.** It was outside `ruff check src tests` entirely, so the new
+  script's own lint gate was opt-in pre-commit only.
+
+
+## [7.24.0] - 2026-08-18
+
+### Fixed
+
+Four commands printed a fault and then a success word about the same run. Each was found by
+a probe of a surface nobody had exercised, and each has the same shape: the summary was
+written from a variable the reporting did not feed.
+
+- **`kb enrich` returned 0 whatever happened.** Source methods there are contractually
+  non-raising, so an unreachable source yields nothing rather than breaking the run -- which
+  makes a `try`/`except` blind to exactly the failure that matters. `kb connect` reads
+  `resilience.degraded_calls()` for that reason, a few files away; `enrich` never read it. A
+  run where EVERY source call was written off printed the same green line as a healthy run
+  over repositories with nothing to find. It now states the degradation, and a run that
+  reached no source and stored nothing exits 1. Partial degradation with results still exits
+  0, which is `connect`'s existing rule, copied rather than tightened: two sibling commands
+  disagreeing about one event is the defect being fixed, not a place to invent a third rule.
+
+- **`doctor` folded three of its twenty-odd checks into its verdict, and drew a red ✗ for
+  things documented not to matter.** A red ✗ for a
+  repository indexed by an older parser printed on screen, and the bottom line said "OK" in
+  green and the command exited 0 -- two contradictory statements, with the machine-readable
+  one wrong. `--help` promises "✓/✗", which a reader takes to mean ✗ is a problem. A check
+  now records its own verdict, so a new one cannot be added and forgotten, and the summary
+  names which check failed.
+
+  Three checks then had to become the advisory they were already documented as being, since
+  a printed ✗ now counts: per-source reachability, `glab on PATH` ("advisory, not critical"
+  said the comment beside a red mark), and the optional sqlite-vec ANN index. Without that
+  the first cut of this change would have failed `doctor` on a stock install and in CI,
+  which installs neither -- the fix reproducing the defect class it fixes, caught by review.
+
+  The stale-shard check is advisory too, and that resolves a disagreement rather than
+  picking a side of it. A parser bump makes every existing shard stale, so failing on it
+  would redden every user's CI on upgrade, which this project had already decided twice. The
+  wrong part was the red ✗ with "OK" printed underneath. A ⚠ says the same thing without
+  contradicting the summary. A regression test now runs `doctor` without the optional
+  tooling and requires exit 0, so the remaining hand-read call sites have a gate.
+
+- **`kb forget` warned that paths were still on disk and then ticked the operation done.**
+  The command is framed as the fix for a bloated store, so a user reading the ✓ to confirm
+  space was reclaimed was told the wrong thing. The glyph and the exit code now follow the
+  outcome, and the wording says "partly forgot" because the graph rows really are gone.
+
+- **A `--repos` filter that matched none of a warm cache reported "No projects loaded, run
+  `fetch` first".** Advice that cannot help: the filter is the problem, and re-fetching will
+  not change it. "The cache is empty" and "the cache is full and your filter matched none of
+  it" both left the filter as an empty dict, so five callers each printed the same wrong
+  message, and one printed nothing at all. Said once where the filter is applied, with the
+  number of cached projects, in the words `fetch` already uses for the same event -- and the
+  callers now stay quiet in that case instead of printing the contradicting advice one line
+  below the explanation, which is what the first cut of this change did.
+
+- **`kb forget` counted wiki pages it had not checked were gone.** The byte figure beside
+  them had already been corrected from a prediction to a measurement; the page count was
+  still a claim. It is measured now, and a page that survives joins the same list the disk
+  artefacts use, so one check decides the verdict.
+
+
+## [7.23.0] - 2026-08-18
+
+### Fixed
+
+- **The gate that keeps every documented number honest was reading a list of files somebody
+  had remembered.** Each family of claims named the pages it knew stated its number, which
+  makes the check exactly as complete as that memory: move a sentence to a new page, or
+  write a new page repeating a count, and the claim is verified nowhere while every test
+  stays green. That is the same defect the gate exists to catch, one level up.
+
+  Every prose file is now discovered by glob, with `CHANGELOG.md` the single deliberate
+  exclusion because a count under an old version heading is TRUE of that version. On its
+  first run the widened gate immediately found two stale claims on a page no list had ever
+  included: a language count two years out of date, and beside it a tool count in a wording
+  no pattern recognised. Both are corrected, and the wording is now covered.
+
+  A reviewer then found the third: the glob took `.md` only, and the site GENERATOR
+  (`site/build_docs.py`) holds the published page subtitles, meta descriptions, OpenGraph
+  text and JSON-LD as Python string literals. "across 14 languages" was sitting LIVE on the
+  published page against a build of 27, in the one file a markdown glob can never reach.
+  Corrected, and the generator is now scanned -- the generator rather than its output, so
+  there stays one authority.
+
+  Two more holes in the same gate: the tool-count check required five claims to match in
+  total, so rewording the one sentence a pattern covered dropped the total to nine, still
+  passed, and left that claim unchecked -- every pattern must now match something. And the
+  test guarding the `+2` offsets asserted only that the two embedding tools were ABSENT
+  without embeddings, which says nothing about how many conditional tools exist; it now
+  builds a server with an embedder and asserts the difference is exactly those two.
+
+- **`kb graph --c4 --repos <matches nothing>` wrote a diagram of an empty model.** Found by
+  a reviewer forty lines below the `--site` fix above, in the same file, on the same flag:
+  it rendered ~600 KB of nothing, announced "0 namespaces, 0 repos", and exited 0. The
+  count was honest, the tick contradicted it, and the file on disk made the contradiction
+  look like a result. Third cycle running that the patch for a defect class has contained a
+  fresh instance of that same class.
+
+  `--repos` also meant two different things inside that one command: `--site` matched over
+  repositories with parsed nodes, `--c4` over repositories-table rows, so the same spelling
+  selected one and not the other. Both now decide "does this pattern name anything" from
+  the union of both populations, while each still generates from its own source, so the
+  widening cannot make a run produce less.
+
+- **`kb dashboard --site --repos <matches nothing>` had the identical bug**, on the same
+  flag over the same store, and was left behind when the graph side was fixed. It now
+  refuses the same way.
+
+- **`kb graph` answered a correctly spelled but unknown seed with a syntax banner.** A
+  `--node`, `--name` or `--search` that matched nothing exited 2 with usage text, sending
+  the reader to check syntax that was never wrong, while `--repo` already exited 1 and
+  named what it could not find. The family now agrees: exit 1 and the seed named, with
+  exit 2 kept for the one real usage error, which is asking for nothing at all.
+
+- **`kb graph --node <id>` returned the id without asking the store whether it exists.** A
+  typo produced an empty graph and exit 0, while the identical miss reached through `--name`
+  or `--search` exits 2 with the usage banner. One event, two verdicts, so a script gating on
+  the exit code could catch a mistyped `--name` and never a mistyped `--node`.
+
+- **`kb graph --site --repos <matches nothing>` printed a green tick over an empty site.** It
+  wrote one fleet overview and zero repository pages, logged that zero honestly, and then
+  contradicted its own log with a success line and exit 0. It now refuses before writing
+  anything and names the filter, which is the verdict `kb wiki` and `kb docs` already give an
+  id that matches no repository.
+
+
+## [7.22.0] - 2026-08-18
+
+### Fixed
+
+- **`kb query --retriever semantic` answered "No matches" on every freshly-initialised
+  workspace.** A nearest-neighbour search over an EMPTY table returns `[]`, which is the
+  same value a populated index returns when it finds nothing, and the two mean opposite
+  things: "this search never ran" against "the graph holds nothing like your query". The
+  caller treated the empty list as a real answer and skipped the fts fallback its own
+  `--help` promises.
+
+  The degrade path was not missing. It was there and correct for the case where
+  embeddings are DISABLED. What nobody had covered is the case `contextlake init`
+  actually creates: `[embeddings] enabled = true` with no vectors until `kb embed` runs,
+  so the embedder builds successfully and reports that the model loaded, which is a
+  different fact from anything having been embedded. The search now says which of the two
+  it hit, names the remedy, and shows the fts results.
+
+  Four surfaces read the vector store, not one, and all four had it. The MCP
+  `semantic_search` and `hybrid_search` tools now carry the reason in the result's
+  `note`; the MCP `ask` tool routes to full-text and says which search actually ran; the
+  dashboard's search panel returns lexical results with the reason attached. An agent on
+  the other end of an empty result with no note reports back that the codebase has no
+  such concept, which is the worst version of this bug because nobody sees the store.
+
+  `kb eval --retriever semantic|hybrid` REFUSES instead of degrading, and the difference
+  is deliberate: a query still has a useful answer to give from keywords, while an
+  eval's entire output is the score of the retriever that was asked for. It used to
+  report `P@k=0 R@k=0 hit-rate=0` and exit 0, which is what `--json` gates CI on, so an
+  unpopulated index read as a total retrieval regression.
+
+  The check is an existence probe, not a count. It runs before every semantic query, and
+  the question is "is there anything at all", which the first row answers; an exact
+  `COUNT(*)` over the ANN backend's virtual table carries no cheapness guarantee, on
+  precisely the large stores where per-query work is felt.
+
+- **`kb ingest` silently dropped an enabled source whose type this build cannot
+  construct.** The refusal added to `source add` above only guards the WRITE path, and a
+  config can predate it, be hand-edited, or be written ahead of installing the plugin it
+  names. The read path filtered those rows out with no output at all, so a run configured
+  to read three sources could read one and print a checkmark. Each is now named, counted
+  as a failed source, and reflected in the exit code; a config where nothing can run
+  fails rather than reporting an empty inbox. A DISABLED source of an unknown type stays
+  silent, because turning one off is how a user parks it.
+
+- **`--max-retries 0` could never work.** The retry loop is `for attempt in
+  range(max_retries)`, so the flag counts total attempts despite its name, and zero runs
+  the body zero times, leaves the error variable unset, and ends at `raise last_error`
+  -- failing with "exceptions must derive from BaseException" without ever attempting
+  the operation. The bound now starts at 1, the help says so ("1 = try once, no retry"),
+  and the retry primitive refuses a zero budget by name, because a config file sets this
+  too and the flag is not the only way in.
+
+- **`kb ingest --path <does-not-exist>` reported the path as reachable, with a ✓ and exit
+  0.** Output byte-for-byte identical to a real directory holding no matching files. The
+  files source had no failure-recording at all, so the "(source reachable, nothing to
+  ingest)" branch was chosen by the ABSENCE of a recorded failure from a source that
+  could not record one. A missing root, a path that is neither file nor directory, and an
+  unreadable directory are now each recorded and reported, and the run exits non-zero. A
+  genuinely empty directory still reports exactly what it did before.
+
+- **`kb source add --type <typo>` wrote the entry, printed a checkmark, and told the user
+  to run a command that could never pick it up.** `--type` is an open set because a plugin
+  registers its own name, but "open" means "whatever is installed", and at add time that
+  is exactly enumerable. An unknown type is now refused, nothing is written, and the
+  message lists what this build can run and says a plugin type is discovered
+  automatically once installed.
+
+- **`kb docs --max-symbols 0` silently meant 500, and `--max-symbols -5` silently dropped
+  the last five symbols.** Zero fell through `value or 500`, which cannot tell an explicit
+  0 from an unset flag; a negative went straight into a list slice, where it quietly
+  removes from the end while the generated page's own text said "capped at -5 entries".
+  The project already had a bounded-count argparse type carrying a comment about this
+  exact mistake -- the flag had simply never adopted it. `--min-workers` had the same
+  gap. `--max-retries` is bounded too, but keeps zero, because "try once, do not retry"
+  is a real request in a way that "return zero results" is not.
+
+
+## [7.21.0] - 2026-08-18
+
+### Fixed
+
+- **A malformed golden set scored 0.0 instead of being rejected.** `kb eval --json` exists to
+  gate CI on a metric, so a typo in the golden file reported `hit_rate: 0.0` and read as
+  "retrieval regressed to nothing" -- blocking a release, with numbers that looked measured
+  rather than meaningless. Two shapes did it: an unrecognised `match` mode fell through every
+  comparison, and `expected` written as a bare string is iterable, so the scorer compared the
+  retrieved ids against its individual CHARACTERS.
+
+  Both now raise, the CLI reports `bad_golden_set` and exits 1, and the message for the string
+  case names the correction (`Write ["Calculator"].`) because the reader's next move is to edit
+  the file. A file with no `queries` key says what the shape is, where it used to surface a
+  `TypeError` about list indices.
+
+  **Reported by an external review as "`kb eval` always reports 0.0, the feature is
+  non-functional". That was not true** -- the documented form scores `hit_rate: 1.0`, verified
+  -- but the complaint underneath it was: nothing told the reviewer that nine attempted
+  spellings were being rejected rather than scored, so a working feature looked broken.
+
+- **Five more golden-set shapes scored a number instead of being rejected.** Found by a
+  reviewer reading the fix above, which is the pattern worth naming: the fix for a defect
+  class is the most likely place to find that same class again.
+
+  An empty `"queries": []` scored `n: 0` with every metric at 0.0 and exit 0, which cannot be
+  told apart from a set that ran and retrieved nothing. A non-string inside `expected` (`0`,
+  `null`, a nested list) can never equal a retrieved id or name, so it was a guaranteed miss
+  dressed as a measurement. An empty `query` string gives the full-text layer no terms, and no
+  terms retrieves nothing, scored as a retrieval failure. A query entry that is not an object
+  raised a bare `TypeError` naming neither the file nor which entry.
+
+  The last one runs the other way and is the dangerous one: a falsy `kind` or `repo` (`false`,
+  `[]`, `{}`, `""`) is dropped by the store's `if kind:` filter test, so the query ran
+  UNFILTERED while appearing to carry a filter -- and could therefore score a HIT on a node the
+  filter would have excluded. All five now raise, and each message says which value is wrong
+  and what it would otherwise have measured.
+
+### Changed
+
+- **`kb eval --help` carries the golden-file schema.** It is correct in
+  `docs/semantic-search.md` and was reachable from nowhere a user reaching for `--help` would
+  look, which is how a reviewer with the tool in front of them tried nine wrong spellings. The
+  help now shows the full shape, says `expected` is a list, explains what each `match` mode
+  holds, and points at `kb query --json` as the way to get real ids.
+
+
+## [7.20.0] - 2026-08-18
+
+### Fixed
+
+- **`kb wiki <repo>` ignored its repo filter entirely.** It rewrote every repository's
+  structural page, and given a repo id that does not exist it regenerated everything and
+  exited 0 -- where `kb docs` on identical input reports no match and exits 1. Two commands
+  taking the same argument gave opposite verdicts, so a script could trust neither.
+
+  A one-day-old regression with one root cause: the structural stage took `args` and never
+  read it. The local-first default is what hid it, because with no LLM configured the command
+  returns right after that stage, so the correctly-filtered code further down was never
+  reached. Found independently by two reviewers, one with a control run proving the leak
+  affects a MATCHING id too, not only a missing one.
+
+- **`kb index --workspace` reported "0 failed" and exited 0 for a repository git cannot
+  open.** Discovery warned about the directory and then dropped it, returning only the
+  survivors, so the caller counting its own results had no way to learn anything was missing.
+  `docs/connect-enrich.md` promises the opposite verdict in those words.
+
+  Discovery now reports what it could not read, the summary names it, and the exit code is
+  non-zero. Deliberately narrow: a vendored tree and a duplicate checkout are also skipped
+  and both are correct decisions taken on purpose, so folding them in would turn clean runs
+  red and teach a reader to ignore the count.
+
+- **Five defects in the three fixes above, found by an adversarial review of the fix commit
+  itself.** Every one is an instance of the two classes those fixes were closing, which is the
+  point worth recording: the classes reappear inside their own remedies.
+
+  - `kb index --workspace W --repos good` exited 1 over a broken directory the run was told
+    not to touch. The unreadable list was collected during discovery, which runs before
+    `--repos` is applied, so it was reported unscoped: an aggregate spanning a filter,
+    presented as the run's own result.
+  - `kb wiki real-id typo-id` passed the new pre-flight, wrote one page and exited 0 without
+    ever naming the id it could not find, because the check asked "did ANY id match" rather
+    than "did every one". A partial run reported as complete.
+  - A polyglot repository with `package.json` and `pyproject.toml` side by side had one
+    ecosystem's dependencies presented as the whole of "Required at runtime": the code picked
+    the alphabetically first shallowest manifest. Every manifest at root depth now counts.
+  - The pseudo-repo filter was applied to one of the overview's two inputs. `repo_node_sizes`
+    excluded them; the `list_repos()` half of the same union did not, so a persisted `@wiki:*`
+    row would still render and still increment the total. A predicate applied to one of two
+    sources is not applied.
+  - `publishes` and `packages` were capped with no total, under a docstring promising that
+    every list here carries one.
+
+- **Running `kb wiki` once doubled the fleet count on the graph overview.** A
+  three-repository store rendered "6 repos with a parsed graph", with `@wiki:*` partitions
+  listed beside the real repositories and each linked to its own page. The predicate excluded
+  the `(shared)` / `(packages)` sentinels and stopped, so the partitions written beside a repo
+  -- `@wiki:`, `@connect:`, `@enrich:`, `@ingest:` -- passed straight through. `kb lint` and
+  the dashboard's own `data.json` both said 3, so the correct answer already existed.
+
+  The predicate is also renamed to say what it checks. It was `_is_sentinel_repo`, which is
+  the name of the narrower `(`-prefix contract that `kb.model` owns and `kb forget` depends
+  on, so widening it under that name would have quietly changed a shared word's meaning.
+
+- **A repository's own published package was listed among its dependencies, and the wiki handed
+  that to a model as a grounded fact.** `repo_brief`'s package list was built from the node
+  KIND, so every `package` node near a repository counted as a dependency: the one it publishes,
+  and its lint and docs tooling alongside its real runtime requirements. On a public tree the
+  prompt's facts block therefore read `Depends on packages: flask, blinker, ..., ruff, tox,
+  sphinx` -- a false statement, in a block whose whole framing is that these came from the graph.
+
+  It is built from the EDGES now, so `publishes` and `depends_on` cannot collapse into one
+  claim, and the brief carries three separate facts because they answer three different
+  questions: `requires` (what a user needs to run it, with each constraint as written),
+  `dev_requires` (what a contributor additionally needs), and `publishes` (what this repository
+  offers others). `packages` survives for the MCP `get_repo_brief` and dashboard contracts and
+  is now simply true: the names this repository depends on.
+
+  Two scoping rules, each measured against a real tree rather than reasoned about:
+
+  - **Requirements come from the shallowest manifest only.** A repository shipping example
+    applications declares their dependencies too, which put a task queue into the requirements
+    of a web framework that does not use one.
+  - **What a repository publishes is removed from what it requires.** Checked whether the
+    manifest rule already subsumed this: it does not. A public HTTP library declares a
+    dependency on its own published name in its root manifest, via a self-referential extra.
+
+### Added
+
+- **The wiki's "Installation and usage" section states what the repository requires**, not only
+  which build files exist. It named `pyproject.toml` and a README excerpt and stopped, which told
+  a newcomer where to look and never what they need. Both lists carry their totals, so a
+  truncated list cannot read as a complete one, and a package pinned differently by two groups
+  is one entry carrying both constraints rather than two entries that read as a duplicate.
+
+- **Every tool count in every doc file is now checked, in any wording.** 7.19.0's gate read one
+  phrase in one file and was green while `docs/explained.md`'s "(21, or 23 once embeddings
+  exist)" and `docs/benchmarks.md`'s "21 of them on a graph-only store (20 graph tools plus the
+  `ask` router)" were both stale. Worse, a second reviewer skipped numeric claims *because* it
+  trusted that gate, so one blind spot became two.
+
+  Each pattern now carries its OWN expected value rather than sharing one permissive set: the
+  first fix allowed "unconditional minus one" everywhere, which let a stale "21 tools are
+  registered" read as legitimate. All eight claims were confirmed to fail individually.
+
+
+## [7.19.0] - 2026-08-18
+
+### Added
+
+- **Every number the docs state about the build is now checked against the build, on every
+  push.** `tests/test_docs_claims_match_the_build.py`: language count, grammar count, node-kind
+  count, both MCP tool counts, and every documented CLI verb, each compared against the single
+  authority for it in the code.
+
+  Written as a test rather than a script because a script gets run once and then rots. Adding a
+  language, a node kind or an MCP tool now fails a test that names the doc line to update.
+
+  It exists because the claims were caught drifting: `docs/explained.md` said "21 tools are
+  registered unconditionally... bring it to 23", and counting from a built server gave 22 with a
+  tool added that morning -- so 21 had been right only momentarily and 23 dated from an earlier
+  era. Reading a number tells you nothing about whether it is true.
+
+  The rule it enforces: **a number in the docs must have exactly one authority in the code, and
+  the test file names it.** A claim with no authority cannot be checked and should not be a number.
+  All five checks were confirmed to fail against a corrupted doc before being trusted.
+
+### Changed
+
+- **The CLI dispatch table is a module constant, `contextlake.kb.cmds.VERBS`.** It was a literal
+  inside `dispatch()`, so nothing outside that function could name the verbs and "is every
+  documented verb real" was unanswerable except by parsing the file as text.
+
+  `VERBS` deliberately includes `source`, which is dispatched lazily to keep `tomlkit` off every
+  other command's import path. The eager handler dict alone under-reports by exactly one and would
+  look complete, which is the same shape as every other count this release is about.
+
+
+## [7.18.0] - 2026-08-18
+
+### Added
+
+- **A fleet page: what every indexed repository commits to, and where they disagree.** Written
+  to `<store>/docs/fleet/design.md` on any run that covers the whole store.
+
+  This is the one generated document no per-repo page can produce. The graph keeps package
+  nodes **global**, keyed by ecosystem and name rather than by repo, so two repositories
+  depending on the same package point at the same node. Disagreement is invisible from inside
+  either one: a service pinning `>=2.5,<4` and another leaving the same package unpinned each
+  look entirely reasonable on their own page.
+
+  **Every population is a count of distinct repositories, and manifests are counted
+  separately.** Measured on a real four-repository fleet before the renderer was written, one
+  package had **11 dependency edges across 2 repositories**, because one of them declares it in
+  eleven manifests: its own plus ten bundled examples. Counting edges would have printed "11
+  repositories" onto a four-repository fleet. That is absurd at four and perfectly plausible at
+  forty, which is why the two numbers now sit in adjacent columns and are never substituted.
+
+  The page names which shared packages are pinned inconsistently and then explicitly declines
+  to recommend anything: a repository may pin tightly because it met a real incompatibility, and
+  nothing in a graph can tell a deliberate split from a drifted one. Agreement is stated too
+  rather than left to inference, because silence reads as "not checked".
+
+  **Absence is split into its three different causes**, because one heading over all of them
+  made a repository with a dev-only manifest indistinguishable from a broken store entry. A
+  repository can be missing from the tables because it declares only development or opt-in
+  dependencies (a manifest *was* read; nothing in it runs), because it declares nothing this
+  reads, or because its shard could not be loaded at all -- in which case the page knows
+  nothing about it either way and says so, rather than reporting it as declaring nothing. All
+  three are **named, not counted**, since a count invites the reader to guess which.
+
+  **The shared-package denominator names the filter it was drawn from.** "3 of 15 packages"
+  would silently redefine *packages* as *runtime packages*: a fleet with 15 runtime and 200
+  development packages reads as a 15-package fleet, and nothing else on the page contradicts
+  it. It now reads "3 of 15 packages required at runtime", and states how many appear only as
+  development or opt-in dependencies.
+
+  **It is written only for a full run.** `kb docs <repo>` skips it and says why, because "3 of
+  15 packages are shared" is a claim about the whole store and a reader has no way to tell a
+  scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
+  disagreeing across the fleet is a lesser finding that would bury the one that matters. The
+  command's summary line names the fleet page when it writes one, since a summary listing two
+  outputs while three were written under-reports the work.
+
+
+## [7.17.0] - 2026-08-18
+
+### Added
+
+- **Generated documents now say which commit they describe, and agents can read them.**
+  `kb docs` wrote two documents per repository that nothing could reach: the MCP server
+  exposed the store's `wiki/` directory and nothing under `docs/`. New tool
+  `get_generated_doc(repo, kind)` returns the API reference (`kind="api"`) or the design
+  notes (`kind="design"`).
+
+  **The commit stamp had to come first, and it is the reason this is one release rather
+  than two.** A generated page is a claim about source code at a moment. Strip the moment
+  and a page describing code that changed months ago is indistinguishable from a current
+  one, while reading exactly as authoritative. The wiki has carried its commit since it was
+  built, which is how `get_wiki` reports `stale`; the API reference and design notes carried
+  nothing. Serving them without a stamp would have shipped a surface that cannot say whether
+  it is current.
+
+  Every page now carries the fact twice, for the two kinds of reader: a visible sentence
+  (`Generated from \`repo\` at commit \`abc123\`.`) and a comment marker
+  (`<!-- contextlake:generated kind=api repo=... commit=... -->`). The marker is
+  authoritative; the sentence is what gets reworded.
+
+  **An absent commit is recorded as `unknown`, not omitted.** Omitting the field makes the
+  marker unparseable and sends a consumer down the same path as a page that was never
+  stamped; a present `unknown` says the thing that is true, which is the difference between
+  a caller defaulting to fresh and defaulting to stale. `stale` is therefore true in four
+  distinct cases: the commits differ, the page has no stamp, the stamp says unknown, or the
+  repo has no indexed head. Not knowing and being out of date are the same risk to whoever
+  asked.
+
+  An unrecognised `kind` reports `found=false` rather than being coerced to the default, so
+  a caller asking for something that does not exist learns that instead of receiving the API
+  reference and believing it asked correctly.
+
+
+## [7.16.0] - 2026-08-18
+
+### Added
+
+- **The design notes now carry numbered decision records, for the recorded evidence class
+  only.** Each commitment the repository's own manifest makes at runtime becomes an entry:
+  the choice, where it is written, and the reasoning left **visibly absent** rather than
+  filled with a generated guess.
+
+  ```markdown
+  ### ADR-001: Depend on `blinker` at `>=1.9.0`
+
+  **Status:** proposed, never ratified.
+
+  **Decision.** `pyproject.toml:24` declares `blinker` with the constraint `>=1.9.0`,
+  required at runtime.
+
+  **Context.** *Nobody wrote this down. The repository records the choice and not the
+  reason, so what was weighed against it is not recoverable from the code.*
+  ```
+
+  That absent Context is the point. A real decision record states what was chosen, what was
+  rejected and why; a graph supplies only the first, so the entry says so instead of
+  inventing the rest.
+
+  **Only recorded evidence is numbered.** A constant read in many places stays a plain table
+  row, because on a measured public tree three of the seven constants that cleared the
+  evidence bar were typing constructs, and "ADR-005: `T` is a repository-wide type variable"
+  is exactly the invention this page exists to avoid. **And only the repository's own runtime
+  commitments** are numbered: a dev dependency is a contributor's convenience, an optional
+  extra is opt-in, and a nested project's dependencies are that project's decisions. Every
+  one of those stays recorded in the tables, so the narrower scope costs no coverage.
+
+  Entries are ordered by name, because nothing in the graph ranks one dependency above
+  another, and the page states that the numbers are positions in a generated file rather than
+  stable identifiers: adding a dependency renumbers everything after it, so each heading names
+  its package to give a reader something stable to cite. The count is bounded, with the total
+  and the remainder both stated, since one measured application repository declares 112
+  runtime dependencies in a single manifest.
+
+
+## [7.15.0] - 2026-08-18
+
+### Added
+
+- **`kb docs` now also writes design notes: what a repository's own files record about how it
+  was built.** Written to `<store>/docs/design/<repo>.md` beside the API reference. No model,
+  as before.
+
+  The honest scope is narrower than "design document" suggests, and the page opens by saying
+  so. A graph holds no decision records: it never sees what was rejected or why. It holds two
+  kinds of evidence, kept apart because they are not equally strong. A manifest dependency is
+  **recorded** (somebody wrote `blinker>=1.9.0` on purpose, so the package, its constraint
+  and its line are facts). A constant read in many places is **inferred** evidence that a
+  value is load-bearing, and no evidence at all that anybody decided anything.
+
+  So the page states counts and refuses to explain them, the rule the wiki's gotchas prompt
+  already carries. Measured on a mature public library before any of it was written: seven
+  constants clear a defensible evidence rule and about four point at something a human would
+  call a decision, the rest being typing constructs. Nothing in the graph can tell those
+  apart, and a generated sentence calling a type variable a core architectural decision is
+  worse than no sentence.
+
+  Three properties keep it honest, each present because its absence produced a real wrong
+  answer: **coverage is always stated** as `N of M`, since filters drop candidates silently
+  and a short list with no denominator reads as "there is little here"; **an ambiguous
+  reading is never counted**, because a name with several definitions has each use attributed
+  to all of them, so one name defined three times carried an identical 41 sites on each and
+  summing reports 123 uses of 41; and **an empty list names what was read**, since "declares
+  no dependencies" and "declares them in a file not yet read" otherwise render identically.
+  Dependencies get one table per manifest, the repository's own first, so a bundled example
+  that depends on this project does not read as a dependency of it.
+
+  The page carries a machine-readable marker as well as the prose, because whoever reads the
+  file receives bytes rather than a rendered page, and a status stated only in a paragraph is
+  a sentence a summariser can drop:
+  `<!-- contextlake:document=design status=proposed-never-ratified evidence=derived-from-code -->`
+
+- **A dependency now records what was actually written: the constraint, the group, and the
+  line.** A `depends_on` edge carried a package name and nothing else. The manifest said
+  `blinker>=1.9.0`; the graph said `blinker`. Every dependency in a file cited line 1 of it,
+  whatever the file said, so a citation named the file and stopped there while every other
+  citation in the product names a line. And runtime, dev, peer and optional groups were folded
+  into one relation, which made an extra a user opts into indistinguishable from a dependency
+  the package cannot start without.
+
+  Each edge now carries `attrs["constraint"]` (the remainder of the spec **as written**, so
+  `>=1.9.0`, `^4.17.1`, `[redis]>=5.0` or a whole environment marker survive; nothing is parsed
+  or interpreted, and the key is absent rather than empty when the manifest pinned nothing),
+  `attrs["group"]` (`runtime`, `dev`, `peer` or `optional:<extra>`), and a real declaring line.
+  All four ecosystems: pyproject, package.json, csproj and pom.xml, each mapped onto the same
+  group vocabulary so a consumer does not need to know which ecosystem it is reading.
+
+- **A project that declares its dependencies in PEP 735 `[dependency-groups]` reported having
+  none.** That table is a sibling of `[project]` rather than a key inside it, and only
+  `[project]` was read, so a project using the modern spelling produced an empty list. Measured
+  on a public Django application: **0 dependencies before, 137 after**. A zero is the worst
+  possible failure here, because an empty list reads as "this project made no choices" rather
+  than as "this was not read". Groups land under their own `group:<name>` prefix rather than
+  being folded into `optional:`, since an extra is published in the package's metadata while a
+  dependency group is local to the checkout. An `{include-group = ...}` entry names a group and
+  is correctly not treated as a package.
+
+  Four defects fell out of doing this, three of them the same shape: a wrong answer that looks
+  like a right one.
+
+  - A **bare package name matched inside a longer name**, so a project called
+    `demo-example-worker` that depends on `demo` cited its own `name =` line rather than the
+    dependency. Found by reading generated output beside the file it describes, since a
+    "the line is not 1" assertion passes happily on the wrong line.
+  - A **package listed in two groups** resolved to the first group's line twice.
+  - A **NuGet version written as a `<Version>` child element** rather than an attribute was not
+    read, so a pinned dependency arrived with no constraint recorded, which this changelog
+    defines as "the manifest pinned nothing": confidently wrong rather than missing.
+  - The NuGet pattern was **anchored on `Include`**, so a `PackageReference` written `Version`
+    first lost its version silently while still producing an edge.
+
+  Each is covered by a test confirmed to fail against the previous behaviour.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store**, closely after the
+  previous bump, which is not ideal for anyone who just re-indexed. The alternative is worse: a
+  manifest that has not changed since the last index would keep the thinner edges forever, and
+  no commit-keyed check would ever say so.
+
+### Fixed
+
+- **The same two strip helpers missed one more spelling of an end tag: `</script foo=1>`.** A
+  browser closes a script there, because attributes on an end tag are ignored while the tag still
+  ends. Both helpers required either a bare `>` or whitespace before it, so an end tag carrying
+  anything else left the whole block in place. Now they accept any run of non-bracket characters,
+  which is both what the rule asks for and what HTML actually does.
+
+  This supersedes the 7.14.0 entry below, which described the same helper as fixed after two
+  passes. It was better, not finished. The scanner re-fired on the corrected line and named a real
+  case, as it had the previous two times: `<SCRIPT>` first, then plain lowercase `</script >`,
+  which measuring found and no alert had ever named, now the attribute-carrying form. Four new
+  parametrised cases cover end tags with attributes and with embedded tabs and newlines, and each
+  one was confirmed to leak under the previous pattern before the fix landed. Neither helper is a
+  sanitizer or guards a security boundary: one keeps accessibility assertions from matching a
+  string quoted inside a script, the other keeps script bodies out of the docs-site search index.
+
+## [7.14.0] - 2026-08-17
+
+### Added
+
+- **A constant now records what it is set to, and every place that value is read.** Two gaps that
+  were measured, not assumed: the graph knew a constant's name, kind and location and nothing
+  about its value, and no edge recorded a use of one, so neither "what is the retry limit" nor
+  "what breaks if I change it" was answerable from the graph even though both answers sit in the
+  syntax tree.
+
+  Every constant carries `attrs["declaration"]`, the declaration as written, collapsed to one
+  line and capped: `MAX_RETRY = 3`, `#define TIMEOUT 30`. It is called a declaration and not a
+  value because nothing has been parsed out of it. Each read becomes a `uses` edge from the file
+  to the constant citing its own line, stored **once per occurrence** like `calls`, so "where is
+  this read" is exhaustive rather than one edge with an arbitrary line attached. `uses` joins
+  `impact`'s default relations, so `contextlake kb impact MAX_RETRY` now answers.
+
+  **This bumps `PARSER_VERSION` and therefore re-indexes every store.** Nothing about it is
+  visible to a commit-keyed check, which is exactly what that version exists to signal.
+
+  What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
+  an import, and an attribute, since `cfg.MAX_RETRY` reads an attribute of `cfg`. A bare name is
+  also never matched against a class **field**: a data member is reached as `self.x` or `this->x`,
+  so a bare `x` is a local. That distinction was not theoretical. Allowing fields attributed 588
+  reads of a loop counter to a class member of the same name on one public C++ tree, confidently
+  and wrongly rather than flagged as ambiguous, and removing them cut that tree's shard from
+  24.8 MB to 14.5 MB. Where a name has several definitions the edge is marked ambiguous rather
+  than pointed at a guess, so anything counting uses can filter on confidence.
+
+  Cost, measured on two public trees: read edges came to +11% of all edges on a small Python
+  package and +63% on a macro-heavy C++ one, where one test-assertion macro is read from 22
+  different files. Shard bytes stay reproducible: two independent indexes of one tree are byte-identical
+  with the new stream, checked before and after.
+
+### Fixed
+
+- **A test helper that stripped `<script>` and `<style>` blocks missed two spellings**, so four
+  accessibility assertions could have run against text the helper exists to remove, passing while
+  checking nothing. It is not a sanitizer and guards no security boundary; it guards those
+  assertions, which is why it now matches case-insensitively and tolerates a space before the
+  closing bracket.
+
+  Raised by CodeQL as `py/bad-tag-filter` for missing `<SCRIPT>`. Measuring it found a second miss
+  the alert did not mention: plain lowercase `</script >`. So `re.I` alone would not have closed it,
+  and the new test proves both halves independently, one case per spelling.
+
+  The shipped package does not share this defect. It defends that boundary by escaping `<`, `>` and
+  `&` where data enters the page, rather than by pattern-matching for dangerous tags, which is the
+  approach that fails. The same two weaknesses did exist in the docs-site search indexer, where the
+  input is this repository's own rendered Markdown and every index field is escaped again before
+  display; fixed there too, as correctness rather than as a vulnerability.
+
+## [7.13.0] - 2026-08-17
+
+### Added
+
+- **`kb docs`: generated documentation, with no model involved.** The first document it writes
+  is an API reference per repository: every symbol of a documentable kind, and the real places
+  the codebase calls it, each one a file and a line read off the graph's per-occurrence `calls`
+  edges. `--max-symbols N` bounds the document, default 500. Output lands in
+  `<store>/docs/api/<repo>.md`. Separate from `kb wiki` on purpose: a reference is looked
+  things up in, a wiki page is read start to finish, and one document that tries to be both
+  serves neither.
+
+  Five things it will not do, each because a draft did and rendering against public trees
+  showed it. It does not call a row count a caller count, so a symbol called twelve times from
+  one place reports twelve sites and one caller. It does not name a file as a caller when a call
+  carries no enclosing definition; it says so, and leaves it out of the count. It does not drop
+  a caller that is not itself documented, because a test function calls things: the rule reads
+  the kind registry's own container group rather than the documented-kind set, which had
+  discarded 270 real callers on one C++ tree and reported a symbol with twelve call sites as
+  having none. It does not claim to be ordered by call count while grouping by filename. And
+  where the cap fell inside a tie, so that which symbols were dropped came down to their
+  filenames, the page says so rather than implying a ranking.
+
+  Symbols carry their recorded scope, so a header-heavy C++ library does not produce several
+  identical headings in a row; where the graph recorded no scope, the bare name is shown rather
+  than a guessed one.
+
+- **The API reference quotes the source at each call site**, which is what makes an entry an
+  example rather than a pointer. A line is quoted only where it can be proved to be the line
+  that was indexed, meaning the file has not been written since; otherwise the cell says
+  `changed since indexing` instead of showing today's line at that number, and where nothing in
+  a repository can be quoted the page states the reason once. Same `mtime` against `indexed_at`
+  rule the stale-slice guard uses, deliberately, so freshness has one definition.
+
+- **`bootstrap` writes the API reference**, with `--no-docs` to skip it. It is the cheapest
+  of the outputs this product promises (no model, no network, one pass over shards already on
+  disk), so leaving it out of the one command that goes from nothing to a wired workspace meant
+  the output nobody has to configure was the one nobody got by default. `bootstrap`'s own
+  one-line description had also drifted: it listed neither the diagram stage nor this one.
+
+### Fixed
+
+- **A table cell built with `mdwrite.code()` was escaped twice**, so a C++ `operator|` overload
+  rendered with a visible backslash. `table` escapes every cell it is given, which makes it the
+  one place that knows a value is becoming a row, so `code` no longer escapes at all.
+
+- **A stored path could read a file outside its repository.** The snippet reader joined a
+  graph-recorded path onto the repository root without checking the result stayed inside it, so
+  a `..` component, an absolute path, or a symlink pointing out of the tree resolved to a file
+  the document had no business quoting. Now resolved and checked for containment, never by
+  comparing path strings.
+
+  The check itself moved to `kb/paths.py` and is shared with the dashboard, which already had
+  one. That version also catches `ValueError`, which `resolve()` raises rather than `OSError`
+  for a path carrying an embedded NUL byte, so the copy written for the documentation generator
+  would have ended a run with an uncaught exception on such a path.
+
+## [7.12.1] - 2026-08-17
+
+### Fixed
+
+- **Four defects in the structural page, all found by reading one a real install
+  produced.** The suite was green and every one of these was visible in the first page a
+  fresh 7.12.0 install wrote for a four-file repository.
+
+  **"Installation and usage" reported nothing on a repository with a `Makefile`.**
+  `setup_signals` is a flat list of filenames; the renderer unpacked it as a three-tuple,
+  which is a shard-only helper's internal return rather than what the brief carries. Worse,
+  the unpacking was written "defensively" with type checks, so it read the first FILENAME as
+  if it were the list, failed the check, and rendered an empty section over data it was
+  holding. Defensive unpacking that degrades silently is worse than a shape assumption that
+  fails loudly. The test fixture had the same wrong shape, so both were wrong in the same
+  direction and neither revealed the other.
+
+  **The public surface listed files.** A file reached that table only because it is a node
+  with a degree, which is a fact about the graph's shape rather than about the repository's
+  API.
+
+  **An entry point could appear twice.** Section 4 excluded entry-point kinds from one of
+  its two passes, so a `make` target with an incoming edge arrived through the other and was
+  listed under both "Entry points" and "The public surface".
+
+  **A column labelled "Callers" did not count callers.** The rank behind it is in-degree
+  over every relation, so a symbol its own file `contains` already counted one. It reads
+  "Incoming references" now: the vaguer word is true, and the precise one was not.
+
+  The install section also quotes the README excerpt when there is one, which the brief
+  was already carrying and nothing displayed.
+
+## [7.12.0] - 2026-08-17
+
+### Added
+
+- **`kb wiki` now produces a page for every indexed repository, with no LLM configured.**
+  It used to print "LLM tier disabled" and write nothing, so a user who had not set up a
+  backend got nothing at all from a tool whose identity is local-first.
+
+  The new **structural page** is built entirely from the graph, the manifests and the
+  checkout, and carries six sections: entry points and how to run it, architecture,
+  ownership and activity, the public surface with caller counts, installation, and what the
+  repository contains, including **the repositories it depends on and that depend on it**.
+  That last pair is a cross-repository answer no single-repo tool can give. An empty section
+  is omitted AND named at the end, because an absence that says nothing reads identically
+  whether the repository has none of that thing or the extractor missed it.
+
+  Large repositories get one structural page per module as well.
+
+- **One wiki page per scope, and prose must earn its place.** A repository has one wiki page
+  at one path; the structural page IS that page until generated prose replaces it, and prose
+  replaces it only when it is accurate about the same names and covers the same sections.
+  Passing the council is not sufficient and cannot be: a council judges a page on its own
+  terms and has never seen the page it would displace. A rejected or failed generation
+  leaves the structural page exactly where it was, and the reason is reported.
+
+  Strict deliberately. Expect drafts to fail this, and expect to keep reading the structural
+  page on some repositories even with a strong model configured.
+
+- **The structural page is what the LLM is now written FROM.** An earlier generated wiki was
+  rejected for thin grounding, and the cause was structural rather than stylistic: the model
+  saw a bounded sample of a repository's symbols and wrote confidently about the whole of it.
+  It is handed the structural document instead, so it writes prose over stated facts.
+
+  Because that document carries the ownership section, contributor names now reach whatever
+  provider is configured. It is the same page written to disk, so it already honours
+  `[kb] anonymize`: pseudonyms under `"always"`, real names under the default. A run against
+  a non-local provider says so once before sending anything.
+
+- **The structural page is searchable**, stored under the repository's one `@wiki:<repo_id>`
+  partition and embedded into the semantic tier. Since it is the page everybody gets without
+  a model, leaving it out would have made the default wiki the one you cannot find.
+
+## [7.11.0] - 2026-08-17
+
+### Added
+
+- **How a program is STARTED is now in the graph**, as an `entry_point` node. A list of
+  functions cannot answer "how do I run this", which is the first question anybody
+  arriving at an unfamiliar repository asks.
+
+  Two producers, because the fact arrives two ways. In most languages the entry point is
+  an ordinary definition that something else makes special, so the kind is REFINED from
+  `function`/`method` rather than a second node added beside it, the same call the `test`
+  kind already makes. Python's `if __name__ == "__main__":` is an `if_statement` and not a
+  definition at all, and `[project.scripts]` / package.json `bin` name a command that may
+  point into another file entirely, so each of those produces its own node.
+
+  Each language needs a SECOND condition, and that condition is the whole feature. Go's
+  package must be `main`, because `func main()` in a helper package is an ordinary
+  function that Go will not build as a command and that looks identical to the real thing.
+  Java and C# require `static`. Rust, Kotlin, C and C++ require the top level of the file.
+  Without them every helper called `main` anywhere in a repository is advertised as a way
+  to run the project.
+
+  Covered: Go, Rust, C, C++, Kotlin, Java, C# (`Main`, the one language that capitalises
+  it), Python, plus `pyproject.toml` console scripts and package.json `bin`. `npm run`
+  targets are deliberately NOT read: those are build tasks rather than commands on your
+  PATH, and treating `test` and `lint` as entry points would bury the real one.
+
+  **This is a parser change, so every existing store is stale and re-indexes itself.**
+  `kb index` already refuses to skip a repository whose graph an older parser built, and
+  says how many it is re-indexing and why. Nothing to do by hand.
+
+### Fixed
+
+- **The graph-vocabulary diagram's alt text stated the wrong counts**, "40 node kinds in
+  9 bands" against a registry holding 48 in 10, having drifted several releases earlier.
+  Alt text is the version of that image a screen-reader user receives, so a wrong number
+  there is the whole description rather than a detail beside it. Both counts are derived
+  from the registry by a test now.
+
+- **`[kb] anonymize = "always"` makes anonymising the standing answer on a machine**,
+  covering the served dashboard and every `--site` export without anyone remembering the
+  flag. Default `"never"`, so nothing changes for anyone who does not set it.
+
+  Explicit rather than inferred, decided rather than defaulted. The intent was to turn it
+  on automatically when the store holds repos the operator does not own, and the index
+  cannot answer that: a repository record carries id, path, host, branch and commit, and
+  no ownership. The most obvious substitute, whether a repo id sits inside the configured
+  mirror group, inverts on the case that motivated the rule, since mirroring an
+  organisation you contribute to but do not own puts every repo inside the group.
+
+  Three deliberate asymmetries, each because this setting guards people rather than
+  preferences. `--anonymize` can only raise it and there is no `--no-anonymize`, so a
+  standing `"always"` cannot be lost to a half-remembered flag in a shared shell. An
+  unreadable value anonymises anyway, with a warning quoting the spelling, because a typo
+  must not read as permission to show a name. And a `.contextlake.kb.toml` found by
+  walking up from the current directory may turn it on but never off, since contextlake
+  clones repositories into the workspace itself and a checkout could otherwise disable
+  the operator's own setting.
+
+### Fixed
+
+- **`--anonymize` no longer serves a repo's wiki prose on a second route.** The served
+  dashboard's `/api/repo/<id>` deliberately drops the wiki body under `--anonymize`,
+  because a generated page can carry author names and internal URLs as live anchors. The
+  dedicated `/api/repo/<id>/wiki` route, which the Wiki tab's module picker uses, served
+  the same bytes and took no `anonymize` argument at all, so what one route withheld the
+  other returned one request away. Both now drop the prose and keep the `found`/`stale`
+  flags, since a page existing is a fact about the repository rather than about a person.
+
+  The regression test drives real HTTP over every route that can carry that prose, and
+  asserts each one DOES carry it with anonymising off, so a route that returns nothing
+  cannot pass the not-present half by accident.
+
+### Added
+
+- **Makefiles are indexed, and files can now be routed to a grammar by NAME.** Every
+  language before this reached its parser through a file extension, and a build file has
+  none, so `Makefile` was not merely unsupported: it was dropped without even being
+  counted among the files whose type had no parser. A second routing table matches on the
+  file's stem, so `Makefile`, `makefile`, `GNUmakefile` and `Makefile.am` are all indexed
+  and `MyMakefile` is not, an exact match on a derived key rather than a prefix test.
+
+  Make targets become `make_target` nodes: the names a person types at a shell and a CI
+  job invokes, which is the shortest honest answer to what a project expects of itself.
+  Make's own special targets (`.PHONY`, `.SUFFIXES`) are not extracted, because a symbol
+  nobody wrote does not belong in a graph whose claim is that its contents came from
+  source. Variables are not extracted either, stated rather than left to be discovered.
+
+  Included fragments (`common.mk`, `rules.mak`) take the extension route to the same
+  grammar, so a build system split across both spellings is one language and not two.
+
+- **Dockerfiles, behind an optional `[kb-dockerfile]` extra.** A Dockerfile yields its build
+  stages and the external images it builds on, told apart from each other: in
+  `FROM builder AS test` the base is a stage declared earlier in the same file rather than
+  an image anybody pulls, and emitting it as a dependency would put a container image
+  nobody uses in the graph looking exactly like the real ones beside it.
+
+  Optional for a packaging reason and not a product one. `tree-sitter-dockerfile` ships
+  two wheels and no source distribution, so making it a hard dependency would not index
+  less on Windows, aarch64 Linux and musl: it would make `pip install contextlake[kb]`
+  fail there outright. When it is absent the Dockerfiles are skipped, and the run says how
+  many and names the extra that fixes it. That is deliberately a different sentence from
+  the one about files with no parser, because those have different fixes and one of them
+  points at a page that cannot help.
+
+  27 languages across 25 grammars.
+
+## [7.10.0] - 2026-08-16
+
+### Added
+
+- **CSS, HTML and Nix, with purpose-built node kinds.** A stylesheet's class, id and element
+  selectors, an HTML element's `id`, and a Nix attribute name are the things other files refer
+  to by name, so they become nodes: `css_class`, `css_id`, `css_element`, `html_id`,
+  `nix_attr`. Purpose-built rather than folded into `class` or `global_variable`, because
+  `--kind class` returning stylesheet selectors would cost every existing filter its
+  precision.
+
+  These do not go through the definition query, and cannot: in CSS the pseudo-class in
+  `a.nav:hover` is the same `class_name` node as the real class in `.nav`, so a node type
+  cannot tell them apart, and a query would invent a CSS class called `hover` on every hover
+  rule.
+
+- **An HTML page now resolves to the stylesheet that styles it.** Every name in a `class=`
+  attribute, and every element's own tag, becomes a `references` edge to the CSS selector of
+  that name, resolved across files exactly like a call into another module. That join is the
+  point of indexing the pair: neither side alone answers "which stylesheet defines the class
+  this page uses", or "which stylesheet styles every button". A name no stylesheet defines
+  resolves to nothing rather than to a node invented to receive it.
+
+- **Svelte and Vue single-file components.** Each `<script>` is parsed as JavaScript and each
+  `<style>` as CSS, and every symbol is reported at its line in the FILE rather than in the
+  block. Neither grammar parses the embedded blocks, so the outer grammar finds boundaries
+  and the contents go through the JavaScript and CSS grammars; Svelte uses its own grammar
+  and `.vue` borrows HTML's, since no tree-sitter-vue package exists anywhere. A component
+  with no script and no style still appears in the graph.
+
+- **Six languages: Swift, Dart, Zig, Perl, Bash and Elixir.** 14 languages become 25, across
+  23 tree-sitter grammars. Every query was compiled and run against a real snippet of its language
+  before being written, because each of these grammars names things differently from what the
+  language's syntax suggests:
+  - **Swift has no struct node.** `struct Box` parses as `class_declaration`, so a struct and a
+    class arrive as the same kind rather than being told apart by reading source text back.
+  - **Dart splits a top-level function in two.** The definition node is `function_signature`,
+    and the body is its sibling.
+  - **Zig declares a struct as a constant.** `const Engine = struct {...}` is a variable
+    declaration, so Zig **types are not extracted**, only functions. Stated here and pinned by a
+    test rather than left to be discovered.
+  - **Bash variables are global unless declared `local`**, so an assignment anywhere is a
+    global, which is deliberately not the module-scope-only rule JavaScript and Python follow.
+  - **Elixir has no definition node types at all.** `defmodule`, `def` and `defp` are ordinary
+    `call` nodes, so neither the kind nor the scope can come from the node type the way every
+    other language's does. Two small per-language hooks read the macro name instead, which is
+    what makes `Engine.start` and `Other.start` two functions rather than one.
+
+  Depth is now part of the documented claim rather than hidden behind one number: C, C++,
+  JavaScript, TypeScript, TSX and Python also yield module-level variables and class fields;
+  every other language yields definitions, imports and calls. `docs/style-guide-reference.md`
+  holds the phrasing and a test derives both counts from the parser, so a page cannot drift
+  from the code again.
+
+### Changed
+
+- **A missing grammar package now names itself and its install command.** Grammars come from
+  a table rather than a fourteen-branch import chain, so a language whose package is not
+  installed raises with the package name instead of a bare `ImportError` from a module the
+  reader never asked for. Proven equivalent before the swap: every language then supported
+  produced the same grammar through the table as through the chain.
+
+
+## [7.9.0] - 2026-08-16
+
+**Module-level variables and class fields are now extracted for JavaScript, TypeScript and
+Python.** They were extracted for C and C++ only. The head-to-head benchmark in
+`benchmarks/head-to-head/` is what put a number on that: on a small public JavaScript tree the
+comparator emitted 461 variable nodes where contextlake emitted none, and both tools had read the
+same 141 files.
+
+### ⚠ Re-index: your existing graphs are rebuilt on the next index
+
+`PARSER_VERSION` moves to `5`, so `kb index` re-indexes every repository whose recorded parser
+version differs even though its HEAD has not moved, and says so while it does. Nothing is required
+of you beyond running it. That mechanism exists because a previous parser bump left Python and
+TypeScript repositories stale indefinitely while every surface reported healthy.
+
+### Added
+
+- **`global_variable` and `field` nodes for the JavaScript family and Python.** JavaScript,
+  TypeScript and TSX: module-scope `const`, `let` and `var` bindings, including those behind
+  `export`, plus class fields including `#private` ones. Python: module-level assignments,
+  including annotated ones, plus class attributes. Measured on the pinned public trees in the
+  benchmark: `express` went from 320 nodes to 783 and `flask` from 1,959 to 2,207, which moved
+  `flask` into the lead on distinct relationships. Two trees carry Python helper scripts and so
+  moved slightly too, which the results file names rather than glosses.
+
+  Destructuring patterns and tuple targets are deliberately not emitted: they bind several names
+  at once, and a node named after the whole pattern would be a symbol nobody wrote. Locals inside
+  functions are not emitted either, which the tests assert as carefully as they assert the
+  positives.
+
+  What this does **not** claim: more nodes is not automatically better. A `const` holding a
+  `require()` alias is a weaker answer to "what is in this codebase" than a function is. The
+  benchmark measures coverage, not precision.
+
+
+### Fixed
+
+- **The mirror banner names the forge you configured.** A GitHub run printed "Mirror
+  repositories from GitLab", and "Active GitLab projects: 2", two lines above "Enumerating via
+  the GitHub REST API" proving the behaviour was right. Only the words were wrong, and in the
+  first minute of a tool whose pitch is precision that reads as "did it use the wrong platform?".
+  The label machinery already existed and these six sites never called it. The cache filename is
+  still `gitlab_projects.txt`: renaming it would make every existing user re-enumerate, so it
+  needs a legacy fallback and is a separate change.
+
+
+## [7.8.0] - 2026-08-16
+
+**Search stopped burying the answer, and the gate that should have caught it can now see it.**
+The two are one story: a symbol's own definition ranked 32nd of 153 on a live index, and the
+project's own retrieval harness scored the fix as changing nothing at all.
+
+
+### ⚠ Behaviour change: search results come back in a different order
+
+**`kb query`, and the MCP `search_code` tool that agents call, return the same matches ordered
+differently.** No re-index is needed and no result is dropped, but anything that depended on the
+previous ordering, including "take the first result", will see different output. The reason is in
+`Fixed` below: the previous order buried a symbol's own definition under files that merely mention
+its name.
+
+### Changed
+
+- **The retrieval-quality gate now scores MRR as well as hit-rate, and the evaluation
+  fixture gained the shape it was missing.** Discovered while checking that the search
+  ranking fix below did not regress the gate: the golden-set numbers were byte-identical
+  before and after it, so the harness meant to catch retrieval regressions could not see
+  the largest retrieval defect this project has fixed, in either direction. Two reasons,
+  both now closed. The fixture contained no test files at all, so the competing-noise
+  shape that buries a definition could not occur in it; and the gate reads hit-rate, which
+  only asks whether the answer landed inside `k`, never where. Measured on the fixture with
+  the shape added: MRR is 0.80 with the current ordering and 0.77 with the bare FTS5 `rank`
+  that shipped until 7.7.0, while hit-rate reads 0.80 for both. The MRR floor sits at 0.78,
+  between those two measurements, so the pre-fix ordering fails it. That 0.03 spread is the
+  whole range this gate can discriminate, and MRR over 30 queries moves in steps of about
+  1/30, so read the note beside the floor in the golden set before moving it.
+
+### Fixed
+
+- **A query against an empty store no longer answers like a genuine miss.** Querying also
+  creates the store file, so someone who had not indexed yet, or whose `--local` config pointed
+  somewhere other than the shell they were querying from, got a confident `No matches` with a
+  freshly made empty database behind it. It now says the store is empty and prints which store,
+  because the usual cause is the right command against the wrong one.
+
+- **Text search results show the qualified name that explains them.** Three functions all named
+  `hook` came back for one query and the printed lines differed only by line number; the reason
+  (their qualified names sit inside a test function) was carried by `--json` and by nothing a
+  human saw.
+
+- **`kb graph --overview` on a single-repository store says what it drew.** `--overview` is the
+  fleet map, with repositories as nodes, so on a one-repo store it is a single dot, and that was
+  the first picture the quickstart handed a new user. It now names that repository's own symbol
+  view.
+
+- **`init` no longer tells you to install what you are already running.** The closing advice
+  printed `pip install "contextlake[kb]"` even when the extra was importable in the running
+  interpreter.
+
+- **The unknown-repo error stopped promising something that does not work.** It ended "or pass a
+  path on disk"; measured, no path form resolves, neither `.` nor an absolute path to the
+  checkout. It now points at `kb index` and at `kb doctor` for the ids the store actually holds.
+
+
+- **`kb query <Symbol>` now ranks `<Symbol>`'s own definition first.** It did not. Measured on a
+  clean 2,086-node index of a small public Python library, `kb query Context` returned 20
+  test-file hits and the real class ranked 32nd of 153; `Command` ranked 44th of 191. The same
+  ordering reached an agent through the MCP `search_code` tool, so it was not only a CLI
+  complaint.
+
+  FTS5's bare `rank` weights every indexed column equally and the default tokenizer splits on
+  `_`, so `test_context_meta` in `tests/test_context.py` matched the term in `name`,
+  `qualified_name` and `file` while the real `Context` matched twice. Longer, noisier rows won.
+  Results are now ordered by exact name, then by name prefix, then by a weighted bm25, so a
+  related `ContextMeta` also outranks a test file that merely mentions the word. Weighting alone
+  was measured and is not sufficient: it moved the real definition from 4th to 3rd and no
+  further.
+
+
+## [7.7.0] - 2026-08-16
+
+**Turn on what was already built.** Four capabilities were present in the code, complete and
+tested, and unreachable from the path a user actually walks. Nothing here is a new feature;
+each change connects a built thing to the command that should have been calling it.
+
+A fifth item on the batch list, folding the wiki into the static site export, shipped no code:
+the whole-repo wiki was already carried there. See "Verified, no change needed" below.
+
+### Changed
+
+- **Semantic search is on by default.** `[embeddings] enabled` now defaults to `true`.
+  Opt-in meant a new user's natural-language questions returned nothing at all, with no hint
+  that a step was missing. Measured on a 39-repo store: every purely conceptual question came
+  back empty, and building vectors lifted name recall from 0.375 to 0.625 at a cost of about
+  1.7 seconds for 7,719 vectors on CPU. This is **not** paid at index time; `kb index` does not
+  embed, `kb embed` does. Local-first is unchanged: the provider chain stays
+  `auto -> Ollama -> builtin -> embed nothing`, and a run with no embedder available says so
+  and names the fix instead of failing quietly. Pass `--no-embeddings` to restore the old
+  default.
+
+- **`bootstrap` draws an architecture diagram.** Architecture drawings are one of the outputs
+  this product exists to generate, and the one command documented as taking a workspace from
+  nothing to a wired knowledge layer never produced one; `kb graph` was built and nothing called
+  it. The view is chosen from the store's shape, because `--overview` renders the fleet map with
+  repositories as nodes and is therefore correct and useless on a store holding one repository:
+  a single-repo store now gets that repository's symbol graph instead. Skip with
+  `--no-diagrams`. Cost measured on a real 39-repo store: 2.4s for the fleet view, 1.4s for the
+  symbol view, both bounded by node caps that report when they truncate.
+
+### Added
+
+- **`init --no-mirror`**, a local-only setup path. Someone with repositories already on disk and
+  no forge account could not complete `init` at all: the group check ran before the
+  knowledge-layer branch, so both the interactive form and the documented all-defaults form
+  exited 2 and wrote nothing, and `--no-kb` did not help. That persona is exactly who the
+  quickstart addresses. The local-only path writes a knowledge config and no mirror INI, since a
+  mirror INI would name a forge group that does not exist.
+
+### Fixed
+
+- **`--anonymize` now covers the served dashboard, not only `--site`.** The flag was documented
+  for both and implemented for one: the data layer accepted the argument on every
+  identity-bearing function and the server never passed it, so `dashboard --serve --anonymize`
+  rendered real author identities. Verified over real HTTP in both modes, because a test calling
+  the data function directly would have passed for the entire life of the bug.
+
+### Verified, no change needed
+
+- **The static site export already carries the wiki.** `dashboard --site` emits a
+  `graph/wiki-<repo>.html` page per repository and carries the rendered prose in the snapshot
+  payload. Measured on a real store with planted marker text rather than read from the code.
+  Per-module wiki pages are not exported, but nothing writes them on a real store yet, so
+  exporting them now would be a reader with no writer; it is tracked with the work that adds
+  the writer.
+
+
+## [7.6.0] - 2026-08-15
+
+> **There is no 7.5.0.** The plan assigned 7.5.0 to the search and first-five-minutes
+> batch and 7.6.0 to this one; the owner reordered them so the honesty work shipped
+> first, and this release kept its planned number rather than moving. The search batch
+> keeps its content and takes the next free number. Recorded here so a reader looking
+> for 7.5.0 finds the reason instead of a hole.
+
+**Nothing reports success when it failed.** Twelve fixes, one defect: a surface reporting a
+result as complete when it was partial or failed. It turned up independently in the sources,
+the ingest summary, the diagnostics, the redaction flags, the dashboard buttons and the
+parser, so it ships as one release under one convention:
+
+> **An operation that could not observe its input says so in its summary line AND in its exit
+> code. A count printed as an outcome is measured after the operation, not before.**
+
+### ⚠ Behaviour change: partial failures now exit non-zero
+
+Several paths that printed a warning and exited `0` now exit non-zero. **This will break
+automation that was silently passing**, which is the point, a content pipeline degrading one
+source at a time was previously invisible until the answers got worse. Every affected command
+names **`--exit-zero-on-partial`** in its own output, and that flag already exists as a global
+option, so a scheduled run needs one flag rather than a rollback.
+
+### Fixed
+
+- **An unreachable source was a green tick.** Four of nine source types swallowed every fetch
+  exception with no log line, so a wrong URL, an expired token, an HTTP 500, a proxy block and
+  a genuinely empty page all produced the same `0 documents`, exit 0. `web`, `api`, `graphql`
+  and `mcp` now record each miss with its target and reason, the manners `sources/files.py`
+  already had, and `kb ingest` distinguishes *"reachable, nothing to ingest"* from *"could not
+  read 3 targets"*.
+
+- **`kb source test` could not probe five of the nine types and exited 0 regardless**, and the
+  three that swallowed all network errors were three of those five, so the diagnostic confirmed
+  that a broken source was fine. `web`, `api` and `graphql` are now probed by building the
+  source and reading the misses it records, which keeps one definition of "can this be read".
+  `files` is probed too: a path typo is that type's expired token. What genuinely cannot be
+  probed prints **NOT TESTED** instead of `(source is configured)`, which read like a pass.
+
+- **A partial embed printed a real count and an OK summary.** An embedder dying at batch 3 of
+  200 gave `128 embedded`, exit 0, and no line saying the phase ended early, semantic search
+  then answered confidently over a fraction of the corpus. The number was true; the impression
+  was not.
+
+- **`api` and `graphql` read page one and reported success.** They are the escape hatch people
+  reach for when pointing contextlake at an issue tracker, so a 4,000-issue tracker ingested
+  one page. `api` now follows the RFC 8288 `Link: rel="next"` header and an explicit
+  `next_field` cursor, capped by `max_pages` with the cap reported when hit. The header is
+  parsed rather than substring-matched: `prev` and `next` routinely share one header, and a
+  naive match walks backwards forever. GraphQL cursors cannot be followed generically, so
+  nothing is faked, a response whose `pageInfo.hasNextPage` is true says that more exists and
+  was not read, and an `errors` payload is recorded as a failure instead of returning silently.
+
+- **`kb ingest` defaulted to an orphan partition.** Without `--for-repo` the documents are
+  searchable by name and reachable by no traversal. A legitimate choice, but it was the silent
+  default: the flag is opt-in and was never suggested. It is named once up front with the
+  consequence spelled out, and a run that *was* given `--for-repo` and linked nothing says so.
+
+- **`--redact` leaked repository ids from four commands, and never covered module names.**
+  `_open_store` registered the store under a comment reading "Every kb command funnels through
+  here"; `cmds/doctor.py`, `dashboard/server.py` and `dashboard/site.py` did not. Measured:
+  `kb dashboard --site --redact` printed a raw repository id that `kb lint --redact` had just
+  redacted, on the artefact most likely to be shared. A redacted export also emitted
+  `repo-<hash>::<real-subsystem-dir>`, because only repository ids were registered. Both are
+  fixed and pinned by a parity sweep that derives the call sites from the source.
+
+- **`--redact` degraded silently when a store read failed** (`except Exception: pass`).
+  Redaction stays best-effort, but a run that could not enumerate what it was asked to hide now
+  says so, because an operator who reads a clean-looking log shares it.
+
+- **The dashboard's Sync and Add buttons ignored every `[kb]` indexing setting.** One click
+  permanently replaced a repo's filtered graph with an unfiltered one, in the same store, with
+  no message. Reproduced with `languages = ["python"]` on a two-language repo: the button wrote
+  6 nodes where the CLI wrote 3. A config that cannot be read now falls back to the documented
+  defaults and says so, rather than inventing a third policy.
+
+- **A repository in an unsupported language vanished without a trace.** A Swift, Dart or Vue
+  tree indexed to `0 nodes, 0 edges`, exit 0, reporting `skipped 0 generated, 0 oversized,
+  0 ignored`, every counter truthfully zero and the reason invisible, which reads as "this
+  repo is empty" rather than "this tool cannot read it". Unsupported files are now counted **by
+  extension**, because the same branch fires for READMEs and lockfiles and a bare total would
+  be noise.
+
+- **`kb forget` reported bytes it measured before the delete.** The figure was summed ahead of
+  a `shutil.rmtree(ignore_errors=True)` and printed as an outcome, so a removal that failed
+  still reported the full amount as reclaimed. Each path is measured after the attempt, and
+  anything left on disk is named.
+
+- **An invalid regex in `[[rules]]` disabled the rule with no message**, and `doctor` then
+  confirmed the rule was loaded, a configured rule that silently matched nothing, forever.
+  Both compile sites now name the pattern and the error. The rule is still skipped, since one
+  bad pattern must not abort the run.
+
+
+## [7.4.1] - 2026-08-15
+
+**The command you were told to run, runs, and writes where you said it would.** Six defects,
+every one of them a documented path that silently did the wrong thing while reporting success.
+Two of them wrote into a production knowledge store during the audit that found them.
+
+### Fixed
+
+- **`kb refresh --refresh` indexed your home directory.** This is the SessionStart hook
+  `kb steer` installs, so it was the default experience of the documented "refresh when a
+  session starts" flow. It spawned a bare `kb index` with `cwd=$HOME`, and an index with no
+  target defaults to `.`, so it indexed `$HOME`, never touched the repos the freshness check
+  had just named as moved, and sat in uninterruptible I/O past 96 seconds **holding the store's
+  single-writer lock**, refusing every other write. Where `$HOME` is itself a git repo it would
+  have indexed your home into the knowledge store. It now names each stale repo explicitly,
+  repairs stale vectors with `embed` rather than `index`, and does not spawn at all when there
+  is nothing to repair.
+
+- **Every integration contextlake installs named a command that does not resolve.** The MCP
+  entries, the SessionStart hook and the git `post-commit` hook all wrote a bare `contextlake`.
+  Editors and git run hooks with a minimal environment, and on a venv install the console
+  script is not on it, so the hook ran, "command not found" went to a stream nobody reads, and
+  `kb hook status` still reported it present. Machine-local files now use the running
+  interpreter; `.mcp.json` and `.vscode/mcp.json`, which are committed and cloned, prefer the
+  portable spelling and fall back to it. The git hook also stopped sending stderr to
+  `/dev/null`, it appends to `$(git rev-parse --git-dir)/contextlake-index.log`.
+
+- **Four commands wrote the store without taking its single-writer lock**, while
+  `_guard_store`'s own docstring promised "two writers never interleave". `ingest`, `connect`,
+  `enrich` and `forget` all wrote rows and shard files unguarded. Proved by running it: with a
+  live lock held, `index` refused, `ingest` wrote, and `forget` **deleted**. The realistic
+  trigger is contextlake's own detached background index. Read-only verbs stay unguarded
+  deliberately.
+
+- **`--config` could send the knowledge stages to a store you never named**, by two doors, both
+  walked into accidentally during the audit. On `bootstrap`, `--config` is the mirror INI and
+  the knowledge stages take `--kb-config`; passing a `kb.toml` parsed TOML as INI and left the
+  kb stages on the default store. It now refuses and prints the corrected command. Separately,
+  a `--config` that exists but sets no `[kb] store_dir` is merged over the global config and
+  inherits the global store, the resolved store and the file that chose it are now both
+  printed. `load_kb_config` already hard-errored on a *missing* `--config` for exactly this
+  reason; these are the same hazard by quieter routes.
+
+- **A refused `bootstrap` exited 0.** `_bootstrap`'s return value was discarded at the
+  dispatch, so a refusal printed its message and still reported success.
+
+- **One unreadable directory discarded a good graph.** `cmd_index` fails the run if *any* repo
+  failed, and bootstrap aborted on that exit code, so 4 of 6 repos indexing perfectly still
+  meant connect, embed, wiki and steer never ran. The abort now asks whether there is a graph
+  to build on rather than trusting the exit code of the stage that built it.
+
+- **`--group` could not silence the "no group found" warning.** The flag is merged after
+  `load_config` runs, so the warning fired on every `--group` invocation of every mirror
+  command, telling a user who had just supplied the group that no group was found.
+
+### Fixed
+
+- **"This is a timeout, not an empty history" was printed for things that were not timeouts.**
+  The ownership walk can fail three ways, and all three collapsed into one boolean; the caller then
+  narrated every one of them as the slowest. A path that is not a git repository exits `128` in
+  **three milliseconds**, and the warning claimed a 30-second timeout that never happened. The
+  sentence exists specifically to stop one misreading, and it was creating another.
+
+  Found by reading the output of a real site deploy, where it fired seven times over the bundled
+  sample fleet, which is not a git repository at all. Had one of those been a genuine timeout it
+  would have read identically.
+
+  The three causes are now distinct. A real timeout and an unrunnable `git` each say so in their
+  own words; "not a repository" is silent, because it is the ordinary state of an indexed tree that
+  was never a clone, it is already visible as an empty owners list, and warning per repository per
+  request is what buried the other two. A pair of tests pins both directions, and they capture at
+  the `log` seam rather than through `caplog` or `capsys`: `logging_setup` sets `propagate = False`,
+  so `caplog.text` is always empty here, and a `capsys` assertion passes or fails on whether an
+  earlier test installed a stream handler. Both were written and both were wrong before this landed.
 
 ## [7.4.0] - 2026-08-13
 
@@ -12025,8 +14425,16 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **the index** is the built store; **indexing** is the act of building it.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
-- **The language count:** "14 languages across 13 tree-sitter grammars" (`.tsx` shares the TypeScript
-  grammar). Use this exact phrasing everywhere.
+- **The language count:** "27 languages across 25 tree-sitter grammars" (`.tsx` shares the TypeScript
+  grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
+  numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
+  grammar means updating this line and the pages that quote it, not hunting for them later.
+  `ALL_LANGS`, not `LANG_BY_EXT`: a file can reach a grammar by NAME as well as by extension,
+  and counting extensions alone under-reports the total while reading as a complete count.
+- **Depth is part of the claim.** Not every language is extracted to the same depth, and a single
+  number hides that. Where there is room to say so, say which: C, C++, JavaScript, TypeScript, TSX
+  and Python also yield module-level variables and class fields; the rest yield definitions,
+  imports and calls.
 - **The lake metaphor** is a closed system (brand guidelines section 1.3): *deep* is the real, complete
   source underneath, and *clear* is the precise answer back. Never oceans, waves, fishing, drowning, or
   "data lake". Depth is calm and legible, never threatening.

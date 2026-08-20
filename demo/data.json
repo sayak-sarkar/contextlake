@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-08-13",
+  "snapshot_date": "2026-08-20",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -274,9 +274,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-auth"
-        ],
+        "packages": [],
         "files": [
           "manifest.py",
           "src/AuthService.py",
@@ -432,9 +430,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-orders"
-        ],
+        "packages": [],
         "files": [
           "manifest.cs",
           "src/CatalogService.cs",
@@ -590,9 +586,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-notify"
-        ],
+        "packages": [],
         "files": [
           "manifest.js",
           "src/EmailSender.js",
@@ -748,9 +742,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-payments"
-        ],
+        "packages": [],
         "files": [
           "manifest.cs",
           "src/CardGateway.cs",
@@ -907,9 +899,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-shared"
-        ],
+        "packages": [],
         "files": [
           "manifest.ts",
           "src/Logger.ts",
@@ -1065,9 +1055,7 @@
             "count": 1
           }
         ],
-        "packages": [
-          "acme-webui"
-        ],
+        "packages": [],
         "files": [
           "manifest.tsx",
           "src/ApiClient.tsx",

@@ -20,10 +20,11 @@
 
 - [Knowledge layer](https://sayak.in/contextlake/knowledge-layer): Turn the mirror into a queryable graph with search, a wiki, and connectors.
 - [Mirror repositories](https://sayak.in/contextlake/usage): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.
-- [Index the code graph](https://sayak.in/contextlake/index-code-graph): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
+- [Index the code graph](https://sayak.in/contextlake/index-code-graph): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.
 - [Connect and enrich](https://sayak.in/contextlake/connect-enrich): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
 - [Semantic search](https://sayak.in/contextlake/semantic-search): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
 - [Generate the wiki](https://sayak.in/contextlake/generate-wiki): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
+- [Generate documentation](https://sayak.in/contextlake/generate-docs): An API reference straight from the graph, with every symbol's real call sites and no model involved.
 
 ## Use it
 
