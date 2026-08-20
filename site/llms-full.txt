@@ -1589,8 +1589,29 @@ This command:
 **Branch selection:** the default `branch_strategy = "hybrid"` scores each branch on a
 weighted blend of **60% normalized commit count + 40% normalized recency**, so a branch
 that is both busy and recently touched wins. Two alternatives exist: `commits` (highest
-commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
-repos without branches, and detached-HEAD states are skipped.
+commit count, the legacy behaviour) and `recency` (most recent commit). Set it per run with
+`--branch-strategy`, or in the config file. Archived repos, repos without branches, and
+detached-HEAD states are skipped.
+
+**Pinning the whole fleet to one branch:** `--branch NAME` overrides the selection entirely.
+
+```bash
+contextlake mirror branches --branch release/24.1
+contextlake mirror sync --branch main          # every stage of a sync honours it
+```
+
+A repository that does not have that branch is **reported as not having it** and stays on
+its most active branch. That is deliberate and it is the useful half of the feature: a
+release branch usually exists in a handful of repositories out of hundreds, so the run
+answers "which ones carry it" rather than leaving several hundred repositories reading as
+though they had done what was asked.
+
+```
+✓ Branch switch complete: 4 switched, 396 unpinned
+  396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+```
+
+The name is matched exactly. `--branch release/24` does not select `release/24.1`.
 
 ### `mirror verify`: verify repository structure
 
@@ -1932,6 +1953,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
 | `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
+| `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](usage.md#branch-safety).
@@ -6701,6 +6723,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`--branch NAME`: put the whole fleet on one branch.** `branch_strategy` existed as a
+  config key with no flag to set it, and there was no way at all to say "everything on
+  `release/24.1`". Both are flags now: `--branch` on the mirror commands, and
+  `--branch-strategy` for how the most active branch is picked when no branch is named.
+
+  What needed deciding was not the pin but the **miss**. A release branch usually exists in
+  a handful of repositories out of hundreds, so a repository without the requested branch is
+  its own outcome, counted separately and listed in the summary, rather than an ordinary
+  switch to something else:
+
+  ```
+  ✓ Branch switch complete: 4 switched, 396 unpinned
+    396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+  ```
+
+  Folding that into "switched" would leave several hundred repositories reading as though
+  they had done what was asked. The outcome is not an error either, so `--branch` on a real
+  fleet still exits 0.
+
+  The name is matched **exactly**: `--branch release/24` does not select `release/24.1`. A
+  prefix test on an identity question is a hole this project has closed three times already.
+
+### Fixed
+
+- **A misspelled `branch_strategy` ran a different selection and said nothing.** The
+  selector falls through to `hybrid` for any name it does not recognise, so
+  `branch_strategy = "recentcy"` silently scored branches a way nobody asked for. It is
+  validated now, against the three real strategies, and rejected with a message naming
+  them. Checked where the config is assembled rather than by an argparse `choices` list, so
+  a bad value from the config file is caught as well as one from the command line.
+
 
 ## [8.1.0] - 2026-08-20
 

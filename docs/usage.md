@@ -193,8 +193,29 @@ This command:
 **Branch selection:** the default `branch_strategy = "hybrid"` scores each branch on a
 weighted blend of **60% normalized commit count + 40% normalized recency**, so a branch
 that is both busy and recently touched wins. Two alternatives exist: `commits` (highest
-commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
-repos without branches, and detached-HEAD states are skipped.
+commit count, the legacy behaviour) and `recency` (most recent commit). Set it per run with
+`--branch-strategy`, or in the config file. Archived repos, repos without branches, and
+detached-HEAD states are skipped.
+
+**Pinning the whole fleet to one branch:** `--branch NAME` overrides the selection entirely.
+
+```bash
+contextlake mirror branches --branch release/24.1
+contextlake mirror sync --branch main          # every stage of a sync honours it
+```
+
+A repository that does not have that branch is **reported as not having it** and stays on
+its most active branch. That is deliberate and it is the useful half of the feature: a
+release branch usually exists in a handful of repositories out of hundreds, so the run
+answers "which ones carry it" rather than leaving several hundred repositories reading as
+though they had done what was asked.
+
+```
+✓ Branch switch complete: 4 switched, 396 unpinned
+  396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+```
+
+The name is matched exactly. `--branch release/24` does not select `release/24.1`.
 
 ### `mirror verify`: verify repository structure
 

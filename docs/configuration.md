@@ -157,6 +157,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
 | `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
+| `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](usage.md#branch-safety).

@@ -59,7 +59,14 @@ _SCALAR_FLAGS = (
     "min_workers",
     "error_threshold",
     "safe_branches",
+    "branch",
+    "branch_strategy",
 )
+
+# The three selections `core.select_most_active_branch` implements. Listed here because the
+# value is validated in `apply_cli_overrides` rather than by argparse -- see the comment
+# there for why -- and a name that is not one of these silently ran the hybrid selection.
+_BRANCH_STRATEGIES = frozenset({"commits", "recency", "hybrid"})
 
 
 # CLI verb aliases: the MCP tools call these capabilities who_knows / blast_radius,
@@ -435,6 +442,7 @@ _DEFAULTS = {
     "exit_zero_on_partial": False,
     "max_retries": None, "backoff_initial": None, "backoff_max": None,
     "min_workers": None, "error_threshold": None, "safe_branches": None,
+    "branch": None, "branch_strategy": None,
     # bootstrap
     "kb_config": None, "no_sync": False, "no_connect": False,
     "no_embed": False, "no_enrich": False, "no_wiki": False,
@@ -613,6 +621,11 @@ def _add_mirror(p, hidden=False):
              "(e.g. 'team/api,catalog-api,frontend/*') — great for a demo subset. "
              "Patterns are anchored: a plain name matches that repo exactly, never "
              "one that merely contains it. For a substring match, glob it: '*api*'")
+    add("--branch", metavar="NAME",
+        help="put every repository on this branch instead of picking its most active one. "
+             "A repository that does not have it is reported as not having it and stays "
+             "on its most active branch, so 'which repos carry release/24.1' is answered "
+             "rather than assumed")
     add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
     add("--exit-zero-on-partial", action="store_true", dest="exit_zero_on_partial",
@@ -652,6 +665,13 @@ def _add_mirror(p, hidden=False):
         help="disable branch protection (allow operations on any branch)")
     add_advanced("--safe-branches",
         help="comma-separated safe branches (default: main,master,develop,development)")
+    # No choices=[...] here, for the reason the `completion` positional gives: this
+    # codebase defaults advanced flags to SUPPRESS, and older argparse validates that
+    # sentinel against choices. The value is checked in apply_cli_overrides instead, which
+    # also catches a bad value coming from the config file rather than only from the flag.
+    add_advanced("--branch-strategy",
+        help="how the most active branch is picked when --branch is not given: "
+             "commits | recency | hybrid (default: hybrid)")
     add_advanced("--require-clean-workspace", action="store_true", dest="require_clean_workspace",
         help="require clean workspace before operations (default: true)")
     add_advanced("--no-require-clean-workspace", action="store_false",
@@ -1524,6 +1544,16 @@ def apply_cli_overrides(args, config):
         value = getattr(args, name, None)
         if value is not None:
             config[name] = str(value)
+
+    # Checked here rather than by argparse `choices`, so a bad value is caught whether it
+    # arrived on the command line or from the config file. An unrecognised strategy used to
+    # fall through `select_most_active_branch` to the hybrid branch, so a typed
+    # `--branch-strategy recentcy` silently ran a different selection than the one asked for.
+    strategy = config.get("branch_strategy")
+    if strategy and strategy not in _BRANCH_STRATEGIES:
+        raise ConfigError(
+            f"branch_strategy: {strategy!r} is not one of "
+            f"{', '.join(sorted(_BRANCH_STRATEGIES))}")
 
     return config
 

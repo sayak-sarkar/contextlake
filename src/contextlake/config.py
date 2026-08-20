@@ -65,6 +65,11 @@ DEFAULT_CONFIG = {
     'max_workers': '8',
     'clone_method': 'auto',  # auto -> git with GITLAB_TOKEN auth when set, else glab, else git
     'branch_strategy': 'hybrid',  # most-active selection: commits | recency | hybrid
+    # Pin every repository to one named branch. Empty (the default) keeps the
+    # most-active selection above. A repository without that branch is REPORTED as
+    # not having it and stays on its most active one, rather than silently reading as
+    # though the request had been carried out.
+    'branch': '',
     'clean_corrupted': 'true',
     'max_retries': '3',
     'backoff_initial': '1',

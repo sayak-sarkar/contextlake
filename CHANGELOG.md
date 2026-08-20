@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--branch NAME`: put the whole fleet on one branch.** `branch_strategy` existed as a
+  config key with no flag to set it, and there was no way at all to say "everything on
+  `release/24.1`". Both are flags now: `--branch` on the mirror commands, and
+  `--branch-strategy` for how the most active branch is picked when no branch is named.
+
+  What needed deciding was not the pin but the **miss**. A release branch usually exists in
+  a handful of repositories out of hundreds, so a repository without the requested branch is
+  its own outcome, counted separately and listed in the summary, rather than an ordinary
+  switch to something else:
+
+  ```
+  ✓ Branch switch complete: 4 switched, 396 unpinned
+    396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+  ```
+
+  Folding that into "switched" would leave several hundred repositories reading as though
+  they had done what was asked. The outcome is not an error either, so `--branch` on a real
+  fleet still exits 0.
+
+  The name is matched **exactly**: `--branch release/24` does not select `release/24.1`. A
+  prefix test on an identity question is a hole this project has closed three times already.
+
+### Fixed
+
+- **A misspelled `branch_strategy` ran a different selection and said nothing.** The
+  selector falls through to `hybrid` for any name it does not recognise, so
+  `branch_strategy = "recentcy"` silently scored branches a way nobody asked for. It is
+  validated now, against the three real strategies, and rejected with a message naming
+  them. Checked where the config is assembled rather than by an argparse `choices` list, so
+  a bad value from the config file is caught as well as one from the command line.
+
+
 ## [8.1.0] - 2026-08-20
 
 ### Added

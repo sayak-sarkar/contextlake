@@ -1329,6 +1329,25 @@ def _parse_iso(date_str):
     return 0.0
 
 
+def resolve_target_branch(branch_info, strategy="hybrid", pin=""):
+    """Which branch to switch to, and whether a requested pin was honoured.
+
+    Returns ``(name, pin_missing)``. ``pin_missing`` is True only when a branch was
+    asked for and this repository does not have it -- the caller reports that as its own
+    outcome rather than switching to something else without saying so. A fleet where a
+    feature branch exists in four repositories out of four hundred must not report the
+    other three hundred and ninety-six as having quietly done what was asked.
+    """
+    if not branch_info:
+        return None, bool(pin)
+    pin = (pin or "").strip()
+    if pin:
+        if any(b["name"] == pin for b in branch_info):
+            return pin, False
+        return select_most_active_branch(branch_info, strategy), True
+    return select_most_active_branch(branch_info, strategy), False
+
+
 def select_most_active_branch(branch_info, strategy="hybrid"):
     """Pick the most active branch from [{name, count, ts}, ...].
 
@@ -1421,7 +1440,10 @@ def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, confi
     if not branch_info:
         return ("skip", local_path, f"{prefix} (no other branches found on origin)")
 
-    new_branch = select_most_active_branch(branch_info, strategy)
+    new_branch, pin_missing = resolve_target_branch(
+        branch_info, strategy, config.get("branch", ""))
+    if pin_missing:
+        prefix += f" (no branch {config.get('branch', '')!r} here)"
     if dry_run:
         return ("dry-run", local_path, f"{prefix} -- would switch to {new_branch}")
 
@@ -1454,6 +1476,7 @@ def switch_repository_branch(local_path, projects, work_dir, config):
     pull_timeout = _int(config, "pull_timeout", "60")
     protect = _is_truthy(config, "protect_working_branches", "true")
     strategy = config.get("branch_strategy", "hybrid")
+    pin = config.get("branch", "")
     dry_run = _is_truthy(config, "dry_run")
 
     try:
@@ -1497,15 +1520,21 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         if not branch_info:
             return ("skip", local_path, "No branches found")
 
-        most_active = select_most_active_branch(branch_info, strategy)
-        if current == most_active:
-            return ("ok", local_path, f"Already on {most_active}")
+        target, pin_missing = resolve_target_branch(branch_info, strategy, pin)
+        # Reported as its own state, both when a switch follows and when none is needed.
+        # "This repository has no branch called X" is the answer the request asked for,
+        # and folding it into "ok" or "switched" would answer a different question.
+        note = f" (no branch {pin!r} here)" if pin_missing else ""
+        state = "unpinned" if pin_missing else None
+        if current == target:
+            return (state or "ok", local_path, f"Already on {target}{note}")
 
         if dry_run:
-            return ("dry-run", local_path, f"Would switch {current} -> {most_active}")
+            return (state or "dry-run", local_path,
+                    f"Would switch {current} -> {target}{note}")
 
         checkout = subprocess.run(
-            ["git", "checkout", "--quiet", most_active],
+            ["git", "checkout", "--quiet", target],
             capture_output=True, text=True, errors="replace", cwd=full_path,
             timeout=branch_timeout,
         )
@@ -1515,10 +1544,10 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         # already fetched --all above, so this is a local ff (best effort -- a
         # diverged branch is simply left at its current tip).
         subprocess.run(
-            ["git", "merge", "--ff-only", "--quiet", f"origin/{most_active}"],
+            ["git", "merge", "--ff-only", "--quiet", f"origin/{target}"],
             capture_output=True, cwd=full_path, timeout=pull_timeout,
         )
-        return ("switched", local_path, f"{current} -> {most_active}")
+        return (state or "switched", local_path, f"{current} -> {target}{note}")
 
     except subprocess.TimeoutExpired:
         return ("error", local_path, "Timeout")
@@ -1596,7 +1625,8 @@ def _repo_fields(status, path, message, duration_ms=None):
 
 # Per-repo statuses that are not failures. Anything else a worker returns is one
 # (the loops below already treat every unrecognised status as an error).
-_REPO_OK_STATES = frozenset({"ok", "nochange", "switched", "skip", "note", "dry-run"})
+_REPO_OK_STATES = frozenset(
+    {"ok", "nochange", "switched", "skip", "note", "dry-run", "unpinned"})
 
 
 def _bucket_result(buckets, ok_keys, skipped_keys):
@@ -1801,7 +1831,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     max_workers = _int(config, "max_workers", "8")
 
     buckets = {"switched": [], "already": [], "skipped": [], "empty": [], "dry-run": [],
-               "errors": []}
+               "unpinned": [], "errors": []}
     total = len(local_repos)
     progress = style.Progress(total, label="branches")
 
@@ -1816,6 +1846,12 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             if status == "switched":
                 buckets["switched"].append(path)
                 log(_status(i, total, "switched", path, message), inline=True, **fields)
+            elif status == "unpinned":
+                # Its own bucket, not folded into "already" or "switched": the run was
+                # asked to put every repository on one named branch, and which ones do
+                # not have it is the answer, not an aside.
+                buckets["unpinned"].append(path)
+                log(_status(i, total, "note", path, message), inline=True, **fields)
             elif status == "ok":
                 buckets["already"].append(path)
                 log(_status(i, total, "ok", path, message), inline=True, **fields)
@@ -1836,13 +1872,19 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     progress.done()
     glyph = style.ok() if not buckets["errors"] else style.warn()
     log(f"{glyph} Branch switch complete: {_summarize(buckets)}")
+    if buckets["unpinned"]:
+        # Named before the failures, because this is the answer to what was asked rather
+        # than a fault: `--branch release/x` on a fleet reports which repositories have it.
+        log(f"  {len(buckets['unpinned'])} repo(s) have no branch "
+            f"{config.get('branch', '')!r}; each stayed on its most active branch")
+        _report_list("Without that branch", buckets["unpinned"], limit=5)
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
             "contextlake mirror branches --repos <name>")
     return _bucket_result(buckets,
                           ok_keys=("switched", "already"),
-                          skipped_keys=("skipped", "empty", "dry-run"))
+                          skipped_keys=("skipped", "empty", "dry-run", "unpinned"))
 
 
 def _report_list(label, items, limit=10):
