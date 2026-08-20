@@ -211,7 +211,7 @@ answers "which ones carry it" rather than leaving several hundred repositories r
 though they had done what was asked.
 
 ```
-✓ Branch switch complete: 4 switched, 396 unpinned
+✓ Branch switch complete: 4 switched, 0 already, 0 skipped, 0 empty, 0 dry-run, 396 unpinned, 0 errors
   396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
 ```
 
