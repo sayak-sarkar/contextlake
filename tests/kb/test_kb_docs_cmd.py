@@ -19,6 +19,7 @@ from argparse import Namespace
 from datetime import date
 
 from contextlake.kb.cmds.docs import cmd_docs
+from contextlake.kb.docs.stamp import FLEET_REPO, UNKNOWN, fingerprint, read_stamp
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.state import check_schema
 from contextlake.kb.store.shards import GraphShard, write_shard
@@ -79,6 +80,47 @@ def test_writes_one_file_per_repo(tmp_path, monkeypatch):
     # The content is the reference, not an empty placeholder.
     body = (store_dir / "docs" / "api" / written[0]).read_text()
     assert "API reference" in body and "call site(s)" in body
+
+
+def test_an_unscoped_run_writes_a_STAMPED_fleet_page(tmp_path, monkeypatch):
+    """The fleet page had unit tests of its renderer and none of the path that writes it.
+
+    So nothing checked that `cmd_docs` passes the members the stamp is built from. Without
+    them the page is written stamped `unknown`, which reads to `get_fleet_doc` as "nothing
+    is known about whether this is current" on a page generated seconds ago.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _store(tmp_path, {"team/a": "full", "team/b": "full"})
+
+    assert _run(tmp_path) == 0
+    page = store_dir / "docs" / "fleet" / "design.md"
+    assert page.is_file(), "no fleet page was written by an unscoped run"
+
+    marker = read_stamp(page.read_text())
+    assert marker is not None, "the fleet page carries no stamp"
+    kind, repo, value = marker
+    assert (kind, repo) == ("fleet", FLEET_REPO)
+    assert value != UNKNOWN, "the members never reached the renderer"
+    # And it is the fingerprint of what the store actually holds, not some other value.
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        expected = fingerprint((r.id, r.head_commit, store.get_repo_parser_version(r.id))
+                               for r in store.list_repos())
+    finally:
+        store.close()
+    assert value == expected
+
+
+def test_a_scoped_run_writes_no_fleet_page_and_says_why(tmp_path, monkeypatch, gls_logs):
+    """A fleet view of PART of the store would report shares and disagreements that are not
+    true of the whole, and a reader could not tell the page was scoped. Skipping silently
+    would be the other half of the same problem, so the run says it."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _store(tmp_path, {"team/a": "full", "team/b": "full"})
+
+    assert _run(tmp_path, args=["team/a"]) == 0
+    assert not (store_dir / "docs" / "fleet").exists()
+    assert "fleet page skipped" in gls_logs.text
 
 
 def test_an_unreadable_shard_exits_non_zero_even_when_another_repo_was_written(

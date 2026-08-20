@@ -225,10 +225,10 @@ agents already speak, so wiring contextlake into one is a config entry rather th
 integration. (That is an observation about the protocol, not a decision record; the codebase does
 not argue the case against an API of its own.)
 
-22 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
-24, and register only when an embedder and a vector store both exist
+23 tools are registered unconditionally; `semantic_search` and `hybrid_search` bring it to
+25, and register only when an embedder and a vector store both exist
 (`build_server` in `src/contextlake/kb/server.py`). A server started without embeddings says so
-and serves the other 22 rather than failing.
+and serves the other 23 rather than failing.
 
 ### Why the network transports are authenticated and stdio is not
 
@@ -440,7 +440,7 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** The tool schemas (22, or 24 once embeddings exist) load once
+- **A fixed cost per agent session.** The tool schemas (23, or 25 once embeddings exist) load once
   whether or not a tool is called, which can be net-negative if the agent calls it for questions it
   does not help with.
 

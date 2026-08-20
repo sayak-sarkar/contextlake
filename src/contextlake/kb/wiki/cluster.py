@@ -10,9 +10,9 @@ contract (``generate.SYSTEM`` + the council gate) at cluster scope.
 
 from __future__ import annotations
 
-import hashlib
 from datetime import date
 
+from ..docs.stamp import fingerprint
 from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from .generate import SYSTEM, repo_brief
 
@@ -134,20 +134,14 @@ def cluster_page_name(namespace: str) -> str:
 def cluster_fingerprint(brief: dict) -> str:
     """Stable short hash of the member (repo, head, parser) triples, for freshness skip.
 
-    The parser version is part of the key because a cluster page can go stale without a
-    single member commit moving: the parser changes what it extracts from the same code,
-    so the page then describes a graph that no longer exists.
-
-    ``usedforsecurity=False`` because this is a cache key, not a signature: it answers
-    "have the member commits moved" and nothing trusts it. Without the flag a
-    FIPS-enabled host refuses SHA-1 outright and raises, so `kb wiki --namespaces`
-    crashes there on a hash whose weakness is irrelevant to what it is used for.
+    Delegates to :func:`..docs.stamp.fingerprint`, which the fleet page's stamp uses for the
+    identical question over a different member set. Two copies of "hash the member triples"
+    would have to be kept in step by hand, and the two documents would disagree about
+    whether the same store had moved.
     """
     parsers = brief.get("parsers") or {}
-    pairs = sorted((r, h, parsers.get(r))
-                   for r, h in (brief.get("heads") or {}).items())
-    return hashlib.sha1(repr(pairs).encode("utf-8"),
-                        usedforsecurity=False).hexdigest()[:12]
+    return fingerprint((r, h, parsers.get(r))
+                       for r, h in (brief.get("heads") or {}).items())
 
 
 def _busiest_coupling(internal_edges: list[dict], *, top_n: int = 5) -> list[dict]:

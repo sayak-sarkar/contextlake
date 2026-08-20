@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`get_fleet_doc`: the fleet page can be read now.** `contextlake kb docs` has been
+  generating `docs/fleet/design.md` -- which packages more than one repository requires,
+  which of those are pinned differently, and which repositories declare no runtime
+  dependency at all -- and **no MCP tool could return it**. `get_generated_doc` accepts
+  `api` and `design` and refuses everything else, so the one document that answers a
+  fleet-wide question was reachable only by opening a file. On a tool whose job is serving a
+  knowledge graph to an editor, that is the same defect as a node with no incident edges.
+
+  It is a separate tool rather than a third `kind`, because the fleet page has no repository:
+  it is one file for the whole store, so the tool takes no `repo` argument rather than
+  accepting one it would have to ignore.
+
+- **The fleet page carries provenance.** It stamped nothing, and explained in prose that it
+  "spans many commits" -- honest to a human and useless to a program, which is exactly the
+  gap the stamp module exists to close. It now carries a **fingerprint of every member's
+  commit and parser version**, so it answers the same yes/no a per-repo page answers with
+  its commit.
+
+  Three states, not two. `stale=true` with a fingerprint means the store moved. `stale=true`
+  with no fingerprint means the page predates stamping and **nothing is known** about
+  whether it is current. A caller that cannot see the store cannot tell those apart unless
+  told, so it is told. The parser version is in the key because a page can go stale without
+  a single commit moving.
+
+  This also catches something a per-repo commit stamp cannot express at all: a new
+  repository joining the store makes the page wrong without any existing member changing,
+  because its populations count a fleet that grew.
+
+### Fixed
+
+- **The cluster page and the fleet page now share one fingerprint rule.** Both ask "have the
+  member commits or parser versions moved", and two copies of that would have to be kept in
+  step by hand -- after which the two documents could disagree about whether the same store
+  had changed.
+
+- **A comment stated a checked fact that had expired.** `docs/design.py` recorded that the
+  MCP server "exposes the store's `wiki/` directory, and nothing yet returns anything under
+  `docs/`". That stopped being true when `get_generated_doc` shipped. Corrected rather than
+  left standing, and the part worth keeping is kept: the marker was not added because
+  something reads it.
+
+### Changed
+
+- The fleet-page renderer takes a `members` argument. Empty stamps the page `unknown` rather
+  than leaving it unstamped: an absent marker reads as "nothing to report" and a present
+  `unknown` reads as "checked, could not tell", and a consumer defaults to fresh on the
+  first and stale on the second.
+
+
 - **`--branch NAME`: put the whole fleet on one branch.** `branch_strategy` existed as a
   config key with no flag to set it, and there was no way at all to say "everything on
   `release/24.1`". Both are flags now: `--branch` on the mirror commands, and

@@ -39,10 +39,12 @@ from .stamp import stamp
 # it is invisible in every Markdown renderer and present in every byte stream, which is
 # exactly the pair of properties this needs.
 #
-# Deliberately NOT justified by "the MCP server serves this": checked, and it does not. The
-# server exposes the store's `wiki/` directory (`get_wiki`), and nothing yet returns anything
-# under `docs/`. The marker earns its place without that claim, and stating it would have put
-# an unbacked sentence in a public changelog.
+# This was once justified by NOT claiming "the MCP server serves this", because at the time
+# it did not: the server exposed only the store's `wiki/` directory. That has since stopped
+# being true -- `get_generated_doc` serves `docs/api/` and `docs/design/`, and
+# `get_fleet_doc` serves `docs/fleet/` -- so the comment is corrected rather than left
+# stating a checked fact that expired. The marker earned its place before any of that, which
+# is the part worth keeping: it was not added because something reads it.
 STATUS_MARKER = (
     "<!-- contextlake:document=design status=proposed-never-ratified "
     "evidence=derived-from-code -->"

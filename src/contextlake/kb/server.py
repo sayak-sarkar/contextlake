@@ -391,6 +391,21 @@ class GeneratedDocOut(BaseModel):
     note: str | None = None
 
 
+class FleetDocOut(BaseModel):
+    found: bool
+    stale: bool                  # a member has moved, or been reparsed, since generation
+    doc_fingerprint: str | None  # what the page was generated from
+    current_fingerprint: str | None  # what the store holds now
+    repo_count: int              # repositories the store holds right now
+    markdown: str
+    # Same three-state discipline as `GeneratedDocOut`, and it matters more here because
+    # this page has no commit of its own. `stale=True` with both fingerprints present means
+    # the store moved; `stale=True` with `doc_fingerprint=None` means the page predates
+    # stamping and NOTHING is known about whether it is current. Those are different facts
+    # and a caller that cannot see the store cannot tell them apart without being told.
+    note: str | None = None
+
+
 class ReadmeOut(BaseModel):
     repo: str
     found: bool
@@ -1342,6 +1357,67 @@ def build_server(
             doc_commit=sanitize_label(doc_commit) if doc_commit else None,
             current_commit=sanitize_label(current) if current else None,
             markdown=sanitize_label(raw, max_len=200_000))
+
+    @bounded_tool
+    def get_fleet_doc() -> FleetDocOut:
+        """The whole store's design notes: shared dependencies, and where they disagree.
+
+        Distinct from ``get_generated_doc``, which describes ONE repository and takes a
+        ``repo``. This page has no repo -- it is one file for the store -- so it takes no
+        argument, rather than accepting a ``repo`` it would have to ignore.
+
+        It answers what no single repository's page can: which packages more than one
+        repository requires, which of those are pinned differently across them, and which
+        repositories declare no runtime dependency at all. It reports disagreement and does
+        not judge it; a split may be deliberate, and nothing here knows.
+
+        **Staleness has a different meaning here.** A per-repo page carries the commit it
+        was generated from. This one spans many, so it carries a fingerprint of every
+        member's commit and parser version, and is stale when that no longer matches the
+        store. A page generated before stamping existed reports ``stale=True`` with no
+        ``doc_fingerprint``, which is "nothing is known", not "known to be out of date".
+        """
+        from .docs.fleet import FLEET_KIND
+        from .docs.stamp import UNKNOWN, fingerprint, read_stamp
+
+        repos = list(store.list_repos())
+        current = fingerprint(
+            (r.id, getattr(r, "head_commit", None), store.get_repo_parser_version(r.id))
+            for r in repos) if repos else None
+
+        sp = getattr(store, "path", None)
+        doc_file = Path(sp).parent / "docs" / "fleet" / "design.md" if sp else None
+        if not doc_file or not doc_file.exists():
+            return FleetDocOut(
+                found=False, stale=True, doc_fingerprint=None,
+                current_fingerprint=current, repo_count=len(repos), markdown="",
+                # The scoped-run case is named because it is the likely one: `kb docs` writes
+                # this page only on a full run, and a caller who ran it scoped has a store
+                # full of per-repo pages and no fleet page, with nothing saying why.
+                note=("No fleet page has been generated yet. `contextlake kb docs` writes it, "
+                      "but only on an UNSCOPED run: a fleet view of part of the store would "
+                      "report shares and disagreements that are not true of the whole, so a "
+                      "run naming particular repos skips it."))
+
+        raw = doc_file.read_text(encoding="utf-8", errors="replace")
+        parsed = read_stamp(raw)
+        doc_fp = parsed[2] if parsed and parsed[0] == FLEET_KIND else None
+        if doc_fp == UNKNOWN:
+            doc_fp = None
+        stale = doc_fp is None or current is None or doc_fp != current
+        note = None
+        if doc_fp is None:
+            note = ("This page carries no fingerprint, so whether it is current is UNKNOWN "
+                    "rather than known to be stale. It was generated before fleet pages were "
+                    "stamped; regenerate with `contextlake kb docs` to get one that can say.")
+        elif stale:
+            note = ("At least one repository has been re-indexed, or reparsed, since this "
+                    "page was written. Regenerate with `contextlake kb docs`.")
+        return FleetDocOut(
+            found=True, stale=stale,
+            doc_fingerprint=sanitize_label(doc_fp) if doc_fp else None,
+            current_fingerprint=current, repo_count=len(repos),
+            markdown=sanitize_label(raw, max_len=200_000), note=note)
 
     @bounded_tool
     def get_readme(repo: str) -> ReadmeOut:

@@ -34,6 +34,13 @@ import collections
 from typing import NamedTuple
 
 from ..mdwrite import code, table
+from .stamp import FLEET_REPO, fingerprint, stamp
+
+#: The `kind=` this page stamps itself with, and the value `get_fleet_doc` matches on.
+#: Its own kind rather than reusing `design`: a consumer asking for the fleet page and
+#: a consumer asking for one repository's design notes are asking different questions, and
+#: the marker is the only thing that tells the two files apart once they have been read.
+FLEET_KIND = "fleet"
 
 # Only what a repository cannot run without. A dev dependency disagreeing across the fleet is
 # not the same finding, and mixing the two would bury the one that matters. Same vocabulary
@@ -105,7 +112,8 @@ def _constraint_cell(by_constraint) -> str:
     return ", ".join(f"{code(c) if c != UNPINNED else c} ({len(repos)})" for c, repos in parts)
 
 
-def render_fleet_design(deps, *, repos, unreadable=(), max_shared: int = DEFAULT_MAX_SHARED,
+def render_fleet_design(deps, *, repos, unreadable=(), members=(),
+                        max_shared: int = DEFAULT_MAX_SHARED,
                         max_named_repos: int = DEFAULT_MAX_NAMED_REPOS) -> str:
     """The fleet page as Markdown.
 
@@ -114,6 +122,12 @@ def render_fleet_design(deps, *, repos, unreadable=(), max_shared: int = DEFAULT
     declare. ``unreadable`` names repos whose shard could not be read, which is a THIRD
     fact: this page promises to tell absent from unread, and without it an unreadable repo
     would be filed under "declares nothing" and the page would be wrong about it.
+
+    ``members`` is ``(repo_id, head_commit, parser_version)`` for every repository the page
+    was built from, and becomes the provenance stamp. Empty stamps the page ``unknown``
+    rather than leaving it unstamped: an absent marker and a marker saying "checked, could
+    not tell" are different facts to a consumer, and the second is the honest one when the
+    caller had nothing to give.
     """
     unread = sorted(set(unreadable))
     # The population INCLUDES unreadable repos: they are indexed repositories, the store
@@ -126,13 +140,21 @@ def render_fleet_design(deps, *, repos, unreadable=(), max_shared: int = DEFAULT
     shared = {p: c for p, c in constraints.items() if len(_repos_of(c)) > 1}
     disagreeing = sorted(p for p, c in shared.items() if len(c) > 1)
 
+    member_list = list(members)
     lines = [
         f"# Fleet design notes: {len(all_repos)} repositories",
         "",
+        # Stamped like every other generated document, and for the reason `.stamp` gives:
+        # this page used to say "it spans many commits" and stop, which is honest to a human
+        # and useless to a program. One fingerprint over the member set answers the same
+        # yes/no a single-repo page answers with its commit.
+        *stamp(FLEET_KIND, FLEET_REPO,
+               fingerprint(member_list) if member_list else None,
+               noun="fingerprint"),
         "**Nobody wrote this page.** It reads every indexed repository's manifests and reports "
         "what they have in common. Each repository's own design notes carry the commit they "
-        "were generated from; this page spans many commits, so treat it as a view over the "
-        "store as last indexed rather than a snapshot of any one repository.",
+        "were generated from; this one spans many, so the stamp above is a fingerprint of "
+        "every member's commit and parser version rather than any single commit.",
         "",
         "Every population below counts **distinct repositories**. Manifests are counted "
         "separately and the two are never mixed: one repository can declare the same package "

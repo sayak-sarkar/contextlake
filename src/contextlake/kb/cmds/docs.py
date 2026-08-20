@@ -106,9 +106,21 @@ def cmd_docs(args) -> int:
         if written and not scoped:
             fleet_dir = store_dir.joinpath(*FLEET_DIR)
             fleet_dir.mkdir(parents=True, exist_ok=True)
+            # The stamp's members are read from the repos table, the same source the cluster
+            # page's fingerprint uses. A repo with no recorded head contributes `unknown`
+            # rather than being dropped: dropping it would make a store with an unindexed
+            # member fingerprint identically to one without that member at all.
+            members = []
+            for repo_id, _p in targets:
+                row = store.get_repo(repo_id)
+                members.append((
+                    repo_id,
+                    getattr(row, "head_commit", None) if row is not None else None,
+                    store.get_repo_parser_version(repo_id),
+                ))
             (fleet_dir / "design.md").write_text(
                 render_fleet_design(fleet, repos=[r for r, _p in targets],
-                                    unreadable=unreadable),
+                                    unreadable=unreadable, members=members),
                 encoding="utf-8")
             wrote_fleet = True
         elif scoped:

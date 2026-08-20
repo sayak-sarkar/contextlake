@@ -37,8 +37,8 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 `search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_generated_doc`,
-`get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a
-`kb://stats` resource with the store counts.
+`get_fleet_doc`, `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`,
+`graph_health`, plus a `kb://stats` resource with the store counts.
 
 **Every list-returning tool says why a result is empty.** An empty list on its own carries two
 opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
@@ -54,6 +54,26 @@ neither carries the wiki's advisory caveat. Both carry `stale`, which is true wh
 page was generated from a different commit than the repo's current indexed head **or
 when either is unknown** -- a page written before generated documents recorded their
 commit has no stamp, and not knowing is the same risk to a caller as being out of date.
+
+`get_fleet_doc` returns the one page that describes the **whole store**: which packages
+more than one repository requires, which of those are pinned differently across them, and
+which repositories declare no runtime dependency at all. It takes **no `repo` argument**,
+because there is one such page per store rather than one per repository -- which is also
+why it is a separate tool instead of a third `kind` on `get_generated_doc`.
+
+Its staleness means something different, and the difference matters. A per-repo page
+carries the commit it was generated from; this one spans many, so it carries a
+**fingerprint of every member's commit and parser version**. It is stale when that no
+longer matches the store -- which catches a case a single commit cannot express at all: a
+new repository joining makes the page wrong without any existing member moving, because
+its populations count a fleet that grew. A page carrying no fingerprint reports
+`stale=true` with `doc_fingerprint` absent, meaning **nothing is known** rather than
+known to be out of date, and the `note` says so.
+
+It is written only by an **unscoped** `kb docs` run. A fleet view of part of the store
+would report shares and disagreements that are not true of the whole, and a reader could
+not tell the page had been scoped, so a run naming particular repos skips it and says it
+did. `get_fleet_doc` names that as the likely cause when the page is missing.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
 embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in

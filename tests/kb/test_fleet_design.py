@@ -15,6 +15,7 @@ it is pinned here rather than left to review.
 from __future__ import annotations
 
 from contextlake.kb.docs.fleet import FleetDep, render_fleet_design
+from contextlake.kb.docs.stamp import FLEET_REPO, UNKNOWN, fingerprint, read_stamp
 
 R1, R2, R3 = "acme/orders", "acme/billing", "acme/web"
 
@@ -155,16 +156,77 @@ def test_an_empty_store_names_what_it_reads():
     assert "pyproject.toml" in page and "package.json" in page
 
 
-def test_the_page_says_it_spans_many_commits():
-    """It cannot carry one commit stamp, so it says why rather than carrying none silently.
+def test_the_page_carries_a_fingerprint_of_every_member():
+    """It cannot carry one commit, so it carries a hash of all of them.
 
-    Every per-repo document records the commit it describes. This one is a view over the
-    store as last indexed, and a reader comparing it against a single repository's page
-    needs to know the difference.
+    It used to carry NOTHING and explain in prose that it spanned many commits. That is
+    honest to a human and useless to a program, which is the whole gap `docs/stamp.py`
+    exists to close -- and it mattered the moment an MCP tool could return this page.
     """
+    page = render_fleet_design(
+        [_dep("web", R1)], repos=[R1],
+        members=[(R1, "abc123", "10"), ("other", "def456", "10")])
+    marker = read_stamp(page)
+    assert marker is not None, "the page carries no machine-readable stamp"
+    kind, repo, value = marker
+    assert kind == "fleet", kind
+    assert repo == FLEET_REPO, repo
+    assert value == fingerprint([(R1, "abc123", "10"), ("other", "def456", "10")])
+    # The human sentence must not call a fingerprint a commit. The marker and the prose
+    # disagreeing is exactly what `stamp` says to avoid.
+    assert "at fingerprint" in page
+    assert "at commit" not in page
+
+
+def test_a_member_moving_changes_the_fingerprint():
+    """The point of stamping it. If this did not move, the stamp would be decoration."""
+    before = render_fleet_design([_dep("web", R1)], repos=[R1],
+                                 members=[(R1, "abc123", "10")])
+    after = render_fleet_design([_dep("web", R1)], repos=[R1],
+                                members=[(R1, "ZZZ999", "10")])
+    assert read_stamp(before)[2] != read_stamp(after)[2]
+
+
+def test_a_parser_bump_alone_changes_the_fingerprint():
+    """A page can go stale without a single commit moving: the parser changes what is
+    extracted from the same code. That happened twice in one day on this project."""
+    before = render_fleet_design([_dep("web", R1)], repos=[R1],
+                                 members=[(R1, "abc123", "9")])
+    after = render_fleet_design([_dep("web", R1)], repos=[R1],
+                                members=[(R1, "abc123", "10")])
+    assert read_stamp(before)[2] != read_stamp(after)[2]
+
+
+def test_the_fingerprint_does_not_depend_on_member_order():
+    """The store does not promise an order, and a page that re-fingerprints on every run
+    because the rows came back differently would report a fresh store as stale."""
+    a = render_fleet_design([_dep("web", R1)], repos=[R1],
+                            members=[(R1, "a", "10"), ("z", "b", "10")])
+    b = render_fleet_design([_dep("web", R1)], repos=[R1],
+                            members=[("z", "b", "10"), (R1, "a", "10")])
+    assert read_stamp(a)[2] == read_stamp(b)[2]
+
+
+def test_a_member_with_no_head_is_stamped_unknown_not_dropped():
+    """Dropping it would make a store with an unindexed member fingerprint identically to
+    one that does not have that member at all -- two different stores, one hash."""
+    with_unindexed = render_fleet_design(
+        [_dep("web", R1)], repos=[R1], members=[(R1, "a", "10"), ("z", None, None)])
+    without = render_fleet_design([_dep("web", R1)], repos=[R1], members=[(R1, "a", "10")])
+    assert read_stamp(with_unindexed)[2] != read_stamp(without)[2]
+
+
+def test_no_members_stamps_unknown_rather_than_leaving_the_page_unstamped():
+    """An absent marker reads as "nothing to report"; a present `unknown` reads as
+    "checked, could not tell". A consumer defaults to fresh on the first and stale on the
+    second, which is the difference this whole module is about."""
     page = render_fleet_design([_dep("web", R1)], repos=[R1])
-    assert "spans many commits" in page
-    assert "as last indexed" in page
+    marker = read_stamp(page)
+    assert marker is not None
+    assert marker[2] == UNKNOWN
+    # And the page still says in prose that nobody wrote it. The stamp is for a
+    # program; this sentence is what stops a human reading it as a design authority.
+    assert "Nobody wrote this page" in page
 
 
 def test_the_shared_table_is_bounded_and_says_so():

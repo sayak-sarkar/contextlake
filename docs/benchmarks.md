@@ -68,8 +68,8 @@ a single file. contextlake answers the same question from its index in one bound
 
 ## The one fixed cost
 
-Any session pays for the tool schemas once, whether or not it calls a tool: **22 of them on a
-graph-only store** (21 graph tools plus the `ask` router) and **24 once embeddings exist**, all
+Any session pays for the tool schemas once, whether or not it calls a tool: **23 of them on a
+graph-only store** (22 graph tools plus the `ask` router) and **25 once embeddings exist**, all
 listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
 reaches for the server on questions it does not help with. There is no published token figure for it
 here for the reason at the top of the page; the recipe in
