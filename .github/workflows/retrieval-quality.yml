@@ -54,8 +54,11 @@ jobs:
           echo "KB_EVAL_CONFIG=$cfg" >> "$GITHUB_ENV"
           # A real source tree parsed by the real parser, not a hand-written shard:
           # the score then describes what retrieval does to what the parser actually
-          # produces. 42 nodes across 13 kinds, including the five symbol kinds 7.0.0
-          # added, so a retrieval change that only helps functions cannot hide here.
+          # produces, so a retrieval change that only helps functions cannot hide here.
+          # Measured 2026-08-22 on parser version 10: 52 nodes and 54 edges across 14
+          # kinds. That shape moves whenever the parser learns a new kind, which is why
+          # the gate below reads its floors from the golden set rather than from a count
+          # written here.
           contextlake kb index --config "$cfg" \
             --source examples/fixtures/eval-repo --repo telemetry
 
@@ -92,9 +95,11 @@ jobs:
               with open(step_summary, "a", encoding="utf-8") as f:
                   f.write(summary)
 
-          # FLOOR, not a target. Measured on this fixture at the time of writing:
-          # hit-rate 0.8, precision@10 0.7241, recall@10 0.8, MRR 0.8 over 30
-          # queries. The 6 misses are ALL the natural-language phrasings ("reject
+          # FLOOR, not a target. Re-measured 2026-08-22 on parser version 10:
+          # hit-rate 0.8, precision@10 0.6941, recall@10 0.8, MRR 0.8 over 30
+          # queries. Only hit-rate and MRR are gated; precision is reported and
+          # drifts with the fixture's node count, which is why it had gone stale
+          # here (it read 0.7241, taken when the fixture held 42 nodes). The 6 misses are ALL the natural-language phrasings ("reject
           # an implausible sensor value", "sample buffer"); every exact-name query
           # hits. FTS5 has no synonym or semantic matching, so those 6 are not a
           # defect here -- they are the measurable gap the semantic retriever
