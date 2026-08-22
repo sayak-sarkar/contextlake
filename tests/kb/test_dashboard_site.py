@@ -175,3 +175,21 @@ def test_group_depth_flows_into_the_snapshot(tmp_path):
     out2 = build_dashboard_site(tmp_path / "s2", tmp_path / "d2", sample=True, group_depth=2)
     g2 = {g["group"] for g in json.loads((out2 / "data.json").read_text())["overview"]["groups"]}
     assert g2 == {"(ungrouped)"}
+
+
+def test_the_docs_tab_is_left_out_of_a_static_export(tmp_path):
+    """No generated document is bundled into the repo-detail payload, so the Docs tab
+    has nothing to show in a snapshot. A tab that can never fill reads as broken in a
+    published site, so it is filtered out when MODE is "static".
+
+    Asserted against the shipped source text, the way the wiki-command test above is:
+    the suite has no JavaScript runtime, so the alternative is asserting nothing. The
+    check is written against the CONDITION rather than the whole line, so reformatting
+    the array does not break it while deleting the filter does.
+    """
+    build_dashboard_site(tmp_path / "store", tmp_path / "out", sample=True)
+    js = (tmp_path / "out" / "dashboard.js").read_text(encoding="utf-8")
+    assert 't !== "docs" || MODE !== "static"' in js, (
+        "the static export would offer a Docs tab it can never fill")
+    # And the tab still exists for the live dashboard, or the filter would be pointless.
+    assert '"anatomy", "readme", "wiki", "docs"' in js

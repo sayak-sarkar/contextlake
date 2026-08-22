@@ -678,7 +678,13 @@
           h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/arch/" + id); } },
             h("span", { html: icon("ui-arch") }), "View in architecture"))));
 
-      var tabs = ["anatomy", "readme", "wiki", "docs", "owners", "links", "diagrams"];
+      // "docs" is live-only: unlike the wiki, no generated document is bundled into the
+      // repo-detail payload, so a static export has nothing to put in the tab. Offering
+      // one that can never fill reads as broken in a published snapshot, so it is left
+      // out there rather than shown empty. renderDocsTab still handles the static case,
+      // for a deep link that names ?tab=docs directly.
+      var tabs = ["anatomy", "readme", "wiki", "docs", "owners", "links", "diagrams"]
+        .filter(function (t) { return t !== "docs" || MODE !== "static"; });
       var cur = tabs.indexOf(tab) >= 0 ? tab : "anatomy";
       // role="group" + aria-pressed, not tablist/tab: there is no tabpanel in this
       // document and no roving tabindex, so the tab roles promised a structure that
