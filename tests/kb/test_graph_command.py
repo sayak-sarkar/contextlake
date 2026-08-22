@@ -1011,7 +1011,10 @@ def test_build_site_repos_filter(store, tmp_path):
 def test_md_to_html_renders_and_escapes():
     h = viz._md_to_html(
         "# Title\n\nA `code` and **bold**.\n\n- one\n- two\n\n```\nx=1\n```\n\n<script>x</script>")
-    assert "<h1>Title</h1>" in h and "<code>code</code>" in h and "<strong>bold</strong>" in h
+    # Matched on the heading's TEXT, not its exact tag: headings now carry an `id` for
+    # section anchoring (see tests/kb/test_wiki_heading_anchors.py), and this test is about
+    # rendering and escaping, not about the attribute list.
+    assert ">Title</h1>" in h and "<code>code</code>" in h and "<strong>bold</strong>" in h
     assert "<ul>" in h and "<li>one</li>" in h and "<pre><code>x=1" in h
     assert "&lt;script&gt;" in h and "<script>" not in h   # injection escaped
 

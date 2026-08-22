@@ -259,6 +259,37 @@ def _read_static_raw(name: str) -> str:
     return (files("contextlake.kb") / "static" / name).read_text(encoding="utf-8")
 
 
+def _slugify(text: str) -> str:
+    """A stable, URL-safe anchor for one heading's text.
+
+    Stability is the whole point: a link into a wiki page has to survive the page being
+    regenerated, so this maps the words rather than the position. Markdown punctuation is
+    stripped first -- a heading written ``## `parse.py` internals`` should anchor on
+    ``parse-py-internals``, not on the backticks.
+
+    Non-ASCII is kept. `id` allows it, browsers resolve it, and transliterating a heading
+    written in another language would silently produce an anchor its author cannot predict.
+    A heading with no word characters at all (an emoji, a rule) falls back to ``section``,
+    which the caller's counter then makes unique.
+    """
+    import re as _re
+    import unicodedata
+
+    t = unicodedata.normalize("NFKC", text or "")
+    t = _re.sub(r"`([^`]*)`", r"\1", t)          # inline code
+    t = _re.sub(r"\*\*?([^*]*)\*?\*", r"\1", t)   # bold / italic
+    t = _re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", t)  # links -> their text
+    t = t.strip().lower()
+    # Dots, slashes and colons SEPARATE, they do not vanish: `parse.py` must anchor on
+    # `parse-py`, not `parsepy`. Filenames and dotted names are the common case in these
+    # headings, and eliding the separator runs the words together into something a reader
+    # would not guess.
+    t = _re.sub(r"[./:]+", "-", t)
+    t = _re.sub(r"[^\w\s-]", "", t, flags=_re.UNICODE)
+    t = _re.sub(r"[\s_-]+", "-", t).strip("-")
+    return t or "section"
+
+
 def _md_to_html(md: str) -> str:
     """A tiny, dependency-free Markdown -> HTML renderer for wiki prose.
 
@@ -292,6 +323,18 @@ def _md_to_html(md: str) -> str:
     in_list = False
     lines = md.split("\n")
     i = 0
+    # Heading ids, and the counter that keeps them unique. Two headings in one document
+    # may legitimately read the same ("Overview" under two subsystems), and duplicate ids
+    # are a WCAG 4.1.1 failure AND make any link to them land non-deterministically. This
+    # function also renders arbitrary repository READMEs (dashboard/data.py), not only
+    # generated wiki pages, so the collision is ordinary rather than hypothetical.
+    seen_ids: dict[str, int] = {}
+
+    def heading_id(text: str) -> str:
+        slug = _slugify(text)
+        n = seen_ids.get(slug, 0) + 1
+        seen_ids[slug] = n
+        return slug if n == 1 else f"{slug}-{n}"
 
     def flush_para():
         if para:
@@ -320,7 +363,11 @@ def _md_to_html(md: str) -> str:
                 out.append("</ul>")
                 in_list = False
             lvl = len(h.group(1))
-            out.append(f"<h{lvl}>{inline(h.group(2))}</h{lvl}>")
+            # The id comes from the RAW heading text, not from `inline()`'s output: that
+            # output is HTML, and slugifying it would fold tags and entities into the
+            # anchor. A reader linking to a section should get the words they saw.
+            out.append(f'<h{lvl} id="{heading_id(h.group(2))}">'
+                       f"{inline(h.group(2))}</h{lvl}>")
             i += 1
             continue
         li = _re.match(r"\s*[-*]\s+(.*)", line)
