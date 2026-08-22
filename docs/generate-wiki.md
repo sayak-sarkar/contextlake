@@ -34,18 +34,24 @@ flowchart TD
 
 ## The structural page
 
-It carries six sections, and any section with nothing in it is omitted and named at the end, so an
+It carries seven sections, and any section with nothing in it is omitted and named at the end, so an
 absence never reads as an oversight:
 
 1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
    Dockerfile stages.
-2. **Architecture** -- the repository's modules and their sizes.
-3. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
+2. **Getting started** -- the ordered path a newcomer takes: install what the repository declares,
+   run its entry point, read the symbol everything routes through, run the tests, and who to ask.
+   Every step restates a fact from another section and points at it, rather than copying detail
+   that could then drift. A step with no evidence behind it is dropped rather than written as
+   "none found", and the section opens by saying it was assembled from the graph -- nobody wrote
+   this procedure, and a reader who thinks otherwise will trust it further than it can bear.
+3. **Architecture** -- the repository's modules and their sizes.
+4. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
-4. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
+5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
    records any.
-5. **Installation and usage** -- the build and packaging files the repository actually has.
-6. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
+6. **Installation and usage** -- the build and packaging files the repository actually has.
+7. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
    that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
    is always labelled as describing the whole repository even on a module page, because it cannot be
    scoped to one.
@@ -61,7 +67,7 @@ never seen the page it would displace. Prose must also be
   page is the prompt, so a name that is not in it was invented rather than read; and
 - **complete** -- every section the structural page filled is addressed.
 
-Strict on purpose. A page covering four of six sections would otherwise replace one that covered six.
+Strict on purpose. A page covering four of seven sections would otherwise replace one that covered seven.
 **Expect drafts to fail this**, and expect to keep reading the structural page on some repositories
 even with a strong model configured. That is the bar working rather than the feature failing; the reason
 is printed either way.

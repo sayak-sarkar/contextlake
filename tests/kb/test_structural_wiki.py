@@ -1,4 +1,4 @@
-"""The structural wiki page: six sections, rendered from facts, no model involved.
+"""The structural wiki page: seven sections, rendered from facts, no model involved.
 
 Two properties get most of the attention here.
 
@@ -46,10 +46,10 @@ def _full(**kw) -> str:
     return render_structural_page(FULL_BRIEF, **base)
 
 
-# --- the six sections ---------------------------------------------------------------
+# --- the sections ---------------------------------------------------------------
 
 
-def test_a_complete_brief_renders_all_six_sections():
+def test_a_complete_brief_renders_every_section():
     page = _full()
     for title in SECTION_TITLES.values():
         assert f"## {title}" in page, f"missing section: {title}"
@@ -326,3 +326,59 @@ def test_the_surface_column_does_not_claim_to_count_callers():
     page = render_structural_page(brief, repo_id="t/a")
     assert "Incoming references" in page
     assert "| Callers |" not in page
+
+
+# --- Getting started (D-AG) -----------------------------------------------------------
+
+
+def test_getting_started_sits_after_entry_points_and_before_ownership():
+    """The position is the binding half of D-AG, not a layout preference: the section is
+    an onboarding path, and a path placed after the ownership table is one nobody reads
+    in order."""
+    page = _full()
+    entry = page.index("## Entry points and how to run it")
+    started = page.index("## Getting started")
+    ownership = page.index("## Ownership and activity")
+    assert entry < started < ownership
+
+
+def test_getting_started_says_it_was_assembled_not_authored():
+    """The steps look like a procedure somebody wrote. Nobody did, and a reader who
+    believes otherwise will trust it further than the graph can support."""
+    section = _section_of(_full(), "Getting started")
+    assert "not from a written onboarding guide" in section
+
+
+def test_getting_started_numbers_only_the_steps_it_has_evidence_for():
+    """A numbered list padded with "none found" is worse than a shorter one: the value of
+    an order is that every line in it is actionable."""
+    # No owners and no test symbols -> neither the "Ask" nor the "Run the tests" step.
+    page = render_structural_page(FULL_BRIEF, repo_id="t/a", modules=MODULES, owners=None)
+    section = _section_of(page, "Getting started")
+    assert "Ask" not in section
+    assert "Run the tests" not in section
+    # and the surviving steps are still numbered from 1, with no gap
+    numbers = [line.split(".", 1)[0] for line in section.splitlines() if line[:1].isdigit()]
+    assert numbers == [str(i) for i in range(1, len(numbers) + 1)], numbers
+
+
+def test_getting_started_counts_agree_with_singular_and_plural():
+    brief = dict(FULL_BRIEF)
+    brief["kinds"] = {"test": 1}
+    brief["hubs"] = [{"kind": "function", "name": "load", "file": "x.py", "count": 1}]
+    section = _section_of(
+        render_structural_page(brief, repo_id="t/a", owners=OWNERS), "Getting started")
+    assert "1 test symbol is indexed" in section
+    assert "called from 1 place" in section and "1 places" not in section
+
+
+def test_getting_started_is_omitted_and_named_when_nothing_is_known():
+    """It must obey the same rule as every other section: absent rather than empty, and
+    named in the closing line so the absence is legible."""
+    page = render_structural_page({"langs": {"go": 1}}, repo_id="t/a")
+    assert "## Getting started" not in page
+    assert "Getting started" in page.split("## Sections omitted", 1)[1]
+
+
+def _section_of(page: str, title: str) -> str:
+    return page.split(f"## {title}", 1)[1].split("\n## ", 1)[0]

@@ -1,4 +1,4 @@
-"""The structural wiki page: six sections, no model in the loop.
+"""The structural wiki page: seven sections, no model in the loop.
 
 Every line here is read off the graph, the manifests and the checkout. Nothing is
 inferred, nothing is phrased, and there is no API key involved, so this page exists for
@@ -13,7 +13,8 @@ document instead means stage 2 is prose over stated facts rather than inference 
 sample.
 
 **An empty section is omitted and named.** A small library has no entry points and no
-decision records, and six headings two-thirds of which say "none found" is a worse page.
+decision records, and seven headings two-thirds of which say "none found" is a worse
+page.
 But an omission that says nothing is worse still: absent then reads identically whether
 the repository has no entry points or the extractor missed them, and telling those apart
 is most of what this project is for. So the omitted ones are listed once, at the end.
@@ -26,6 +27,7 @@ from __future__ import annotations
 # same words the headings would have used.
 SECTION_TITLES = {
     "entry_points": "Entry points and how to run it",
+    "getting_started": "Getting started",
     "architecture": "Architecture",
     "ownership": "Ownership and activity",
     "surface": "The public surface",
@@ -83,6 +85,77 @@ def _entry_points(brief: dict) -> list[str]:
     """
     rows = [r for r in brief.get("top_symbols", []) if r.get("kind") in _ENTRY_KINDS]
     return _table(["Name", "Kind", "File", "Signature"], _symbol_rows(rows, limit=40))
+
+
+def _plural(n: int, word: str) -> str:
+    """``n word`` with a naive plural. Only ever called on the handful of nouns below,
+    all of which pluralise with a bare -s, so the naivety is bounded by its call sites
+    rather than being a general claim about English."""
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
+def _getting_started(brief: dict, owners: list[dict] | None) -> list[str]:
+    """The ordered path a newcomer takes, assembled from the facts around it.
+
+    The rest of this page is reference tables. Not one of them says what to do FIRST, and
+    a reader arriving at unfamiliar code needs an order more than another table.
+
+    Every step restates a fact that is already on this page and points at the section
+    carrying the detail, rather than copying the detail here where it would drift. Nobody
+    wrote this procedure: it is assembled from what the graph holds, and the opening line
+    says so instead of implying the repository documents an onboarding path.
+
+    A step whose evidence is missing is DROPPED, not written as "none found". The value of
+    an ordered list is that every line in it is actionable, and a numbered list padded with
+    absences is a worse answer than a shorter list -- the same reasoning that omits whole
+    sections above, applied inside one.
+    """
+    steps: list[str] = []
+
+    requires_total = brief.get("requires_total") or len(brief.get("requires") or [])
+    setup = _setup_files(brief)
+    if requires_total or setup:
+        what = []
+        if requires_total:
+            what.append(_plural(requires_total, "package") + " declared at runtime")
+        if setup:
+            what.append(f"build files including `{_md_cell(setup[0])}`")
+        steps.append(f"**Install what it declares** — {', and '.join(what)}. "
+                     f"The full lists are under *{SECTION_TITLES['install']}*.")
+
+    entries = [r for r in brief.get("top_symbols") or [] if r.get("kind") in _ENTRY_KINDS]
+    if entries:
+        e = entries[0]
+        where = f" in `{_md_cell(e.get('file'))}`" if e.get("file") else ""
+        how_many = f"one of {len(entries)} ways in" if len(entries) > 1 else "the way in"
+        steps.append(f"**Run it** — `{_md_cell(e.get('name'))}`{where} is {how_many}. "
+                     f"The rest are under *{SECTION_TITLES['entry_points']}*.")
+
+    hubs = brief.get("hubs") or []
+    if hubs:
+        hb = hubs[0]
+        where = f" in `{_md_cell(hb.get('file'))}`" if hb.get("file") else ""
+        count = hb.get("count")
+        called = f", called from {_plural(count, 'place')}" if count else ""
+        steps.append(f"**Read `{_md_cell(hb.get('name'))}` first**{where}{called} — more of "
+                     f"the surface is under *{SECTION_TITLES['surface']}*.")
+
+    tests = (brief.get("kinds") or {}).get("test")
+    if tests:
+        steps.append(f"**Run the tests** — {_plural(tests, 'test symbol')} "
+                     f"{'is' if tests == 1 else 'are'} indexed, so there is something to "
+                     f"run before you change anything.")
+
+    if owners:
+        top = owners[0]
+        share = round(100 * float(top.get("share") or 0))
+        steps.append(f"**Ask {_md_cell(top.get('name'))}** — {share}% of recent work here. "
+                     f"Others are under *{SECTION_TITLES['ownership']}*.")
+
+    if not steps:
+        return []
+    return ["Assembled from this page, not from a written onboarding guide.", "",
+            *[f"{i}. {line}" for i, line in enumerate(steps, 1)]]
 
 
 def _architecture(brief: dict, modules: list[dict] | None) -> list[str]:
@@ -304,6 +377,7 @@ def render_structural_page(
     """
     body: dict[str, list[str]] = {
         "entry_points": _entry_points(brief),
+        "getting_started": _getting_started(brief, owners),
         "architecture": _architecture(brief, modules),
         "ownership": _ownership(owners),
         "surface": _surface(brief),
