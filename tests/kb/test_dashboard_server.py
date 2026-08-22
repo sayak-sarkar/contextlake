@@ -997,3 +997,126 @@ def _get(url, tries=50):
             last = e
             time.sleep(0.05)
     raise AssertionError(f"request failed: {last}")
+
+
+# --- generated documents (docs/api, docs/design) -------------------------------------
+
+
+def _write_doc(store_dir, kind, repo_id, commit, body):
+    """A generated page written the way `kb docs` writes one.
+
+    Uses the product's own `stamp()` and directory constants rather than a hand-typed
+    marker, so a change to either shape breaks this test instead of quietly making it
+    describe a format nothing writes any more.
+    """
+    from contextlake.kb.cmds.docs import API_DIR, DESIGN_DIR
+    from contextlake.kb.docs.stamp import stamp
+    from contextlake.kb.visualize import repo_slug
+
+    d = store_dir.joinpath(*(API_DIR if kind == "api" else DESIGN_DIR))
+    d.mkdir(parents=True, exist_ok=True)
+    lines = [f"# {repo_id}", "", *stamp(kind, repo_id, commit), body, ""]
+    f = d / (repo_slug(repo_id) + ".md")
+    f.write_text("\n".join(lines), encoding="utf-8")
+    return f
+
+
+def test_repo_docs_endpoint_serves_both_kinds(served, tmp_path):
+    _write_doc(tmp_path, "api", "team/app", "h1", "The **api** reference.")
+    _write_doc(tmp_path, "design", "team/app", "h1", "The **design** notes.")
+
+    api = json.loads(_get(served + "/api/repo/team/app/docs"))
+    assert api["found"] and api["kind"] == "api" and api["stale"] is False
+    assert "<strong>api</strong>" in api["html"]
+    assert api["doc_commit"] == "h1" and api["current_commit"] == "h1"
+
+    design = json.loads(_get(served + "/api/repo/team/app/docs?kind=design"))
+    assert design["found"] and design["kind"] == "design" and design["stale"] is False
+    assert "<strong>design</strong>" in design["html"]
+
+
+def test_repo_docs_reports_stale_when_the_page_describes_another_commit(served, tmp_path):
+    # The repo's indexed head is h1; this page was generated from h0.
+    _write_doc(tmp_path, "api", "team/app", "h0", "Written before the code moved.")
+    out = json.loads(_get(served + "/api/repo/team/app/docs"))
+    assert out["found"] is True
+    assert out["stale"] is True, "a page generated from a different commit must read stale"
+    assert out["doc_commit"] == "h0" and out["current_commit"] == "h1"
+
+
+def test_repo_docs_treats_an_unstamped_page_as_stale(served, tmp_path):
+    # A page written before generated documents carried a commit. Not knowing and being
+    # out of date are the same risk to a caller, so it must not read as fresh.
+    from contextlake.kb.cmds.docs import API_DIR
+    from contextlake.kb.visualize import repo_slug
+
+    d = tmp_path.joinpath(*API_DIR)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / (repo_slug("team/app") + ".md")).write_text("# team/app\n\nNo marker here.\n")
+
+    out = json.loads(_get(served + "/api/repo/team/app/docs"))
+    assert out["found"] is True and out["stale"] is True
+    assert out["doc_commit"] is None
+
+
+def test_repo_docs_refuses_an_unknown_kind_by_name(served, tmp_path):
+    # "no such kind" and "not generated yet" are different answers and a caller acts on
+    # them differently, so the note must not claim the page is merely missing.
+    _write_doc(tmp_path, "api", "team/app", "h1", "present")
+    out = json.loads(_get(served + "/api/repo/team/app/docs?kind=bogus"))
+    assert out["found"] is False and out["stale"] is True
+    assert "not a kind" in out["note"]
+    assert "kb docs" not in out["note"], "an unknown kind is not a 'run kb docs' situation"
+
+
+def test_repo_docs_reports_a_missing_page_without_claiming_the_repo_is_unknown(served):
+    out = json.loads(_get(served + "/api/repo/team/app/docs"))
+    assert out["found"] is False and out["html"] is None
+    assert "kb docs" in out["note"]
+
+
+@pytest.fixture
+def served_with_docs_collision(tmp_path, monkeypatch):
+    # A repo literally named "team/docs" alongside an ordinary "team/app", so the
+    # sub-route marker and a real repo id are the same string. Mirrors
+    # served_with_wiki_collision; the two sub-routes share the collision, so they
+    # share the shape of the regression test.
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    s = SqliteStore(tmp_path / "index.sqlite")
+    nodes = [
+        Node(id="docs_sym", repo="team/docs", kind="class", name="DocsRepoSymbol", lang="python"),
+        Node(id="app_sym", repo="team/app", kind="class", name="AppRepoSymbol", lang="python"),
+    ]
+    s.upsert_repo(Repo(id="team/docs", path=str(tmp_path), head_commit="hd"))
+    s.upsert_repo(Repo(id="team/app", path=str(tmp_path), head_commit="ha"))
+    write_shard(tmp_path, GraphShard(repo="team/docs", head_commit="hd",
+                                     nodes=[nodes[0]], edges=[]))
+    write_shard(tmp_path, GraphShard(repo="team/app", head_commit="ha",
+                                     nodes=[nodes[1]], edges=[]))
+    reindex_shard(s, tmp_path, "team/docs")
+    reindex_shard(s, tmp_path, "team/app")
+    s.mark_indexed("team/docs", "hd", "2026-06-01T00:00:00Z")
+    s.mark_indexed("team/app", "ha", "2026-06-01T00:00:00Z")
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def test_repo_docs_route_does_not_hijack_a_repo_literally_named_docs(served_with_docs_collision):
+    # GET /api/repo/team/docs must return team/docs's OWN repo-detail payload, not be
+    # misrouted into the sub-route as if "team" were the repo and "docs" the marker.
+    # Full-match-wins, the precedence the /wiki block established.
+    base = served_with_docs_collision
+    detail = json.loads(_get(base + "/api/repo/team/docs"))
+    assert detail.get("repo") == "team/docs", "a real repo named team/docs was hijacked"
+    assert "found" not in detail or "kind" not in detail, "got a docs payload, not repo detail"
+
+    # The control: the sub-route still works for a repo that is NOT a collision.
+    scoped = json.loads(_get(base + "/api/repo/team/app/docs"))
+    assert scoped["kind"] == "api" and scoped["found"] is False

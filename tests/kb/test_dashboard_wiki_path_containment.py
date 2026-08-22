@@ -1,4 +1,5 @@
-"""The dashboard's wiki routes must not read outside the store's wiki directory.
+"""The dashboard's wiki and generated-document routes must not read outside their
+directory under the store.
 
 ``repo_id`` (URL path) and ``module`` (``?module=``) both become part of a filename.
 The name builder replaced only ``/``, so a ``\\``-separated value walked out of the
@@ -19,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from contextlake.kb.cmds.wiki import _module_wiki_filename
-from contextlake.kb.dashboard.data import _wiki_out, _within
+from contextlake.kb.dashboard.data import _docs_out, _wiki_out, _within
 
 
 class _Store:
@@ -118,3 +119,60 @@ def test_traversal_via_repo_id_is_also_refused(tmp_path):
 
     out = _wiki_out(_Store(), store_dir, "..\\..\\secret")
     assert out["found"] is False
+
+
+# --- the same class, on the generated-document route ----------------------
+
+def test_docs_read_refuses_a_file_outside_the_docs_dir(tmp_path, monkeypatch):
+    """`/api/repo/<id>/docs` builds a filename from `repo_id` the same way, so it
+    inherits the same exposure and needs the check proved independently of the
+    name builder."""
+    from contextlake.kb.cmds.docs import API_DIR
+
+    store_dir = tmp_path / "store"
+    store_dir.joinpath(*API_DIR).mkdir(parents=True)
+    # The canary sits where the traversal actually LANDS. `docs/api` is two levels
+    # under the store, so "../../secret" resolves to <store>/secret.md -- outside the
+    # docs directory, which is what containment is for. An earlier version of this
+    # test put the canary in tmp_path, one level further out, so the escaped path
+    # pointed at a file that did not exist and the test passed with the guard
+    # deleted. A traversal test whose target is absent proves nothing.
+    secret = store_dir / "secret.md"
+    secret.write_text("CANARY\n", encoding="utf-8")
+
+    monkeypatch.setattr("contextlake.kb.visualize.repo_slug",
+                        lambda repo_id: "../../secret")
+
+    out = _docs_out(_Store(), store_dir, "team/app", "api")
+    assert out["found"] is False, "the read site followed a path out of the docs dir"
+    assert out["html"] is None
+
+
+def test_docs_traversal_via_repo_id_is_also_refused(tmp_path):
+    """`repo_slug` replaces `/` and nothing else, so a backslash-separated id walks
+    out of the directory on Windows, where contextlake ships a binary and CI does
+    not run."""
+    from contextlake.kb.cmds.docs import API_DIR
+
+    store_dir = tmp_path / "store"
+    store_dir.joinpath(*API_DIR).mkdir(parents=True)
+    (tmp_path / "secret.md").write_text("CANARY\n", encoding="utf-8")
+
+    out = _docs_out(_Store(), store_dir, "..\\..\\secret", "api")
+    assert out["found"] is False
+
+
+def test_a_legitimate_docs_page_still_reads(tmp_path):
+    """The containment check must not break the ordinary path."""
+    from contextlake.kb.cmds.docs import API_DIR
+    from contextlake.kb.visualize import repo_slug
+
+    store_dir = tmp_path / "store"
+    d = store_dir.joinpath(*API_DIR)
+    d.mkdir(parents=True)
+    (d / (repo_slug("team/app") + ".md")).write_text(
+        "# Reference\n\nA real page.\n", encoding="utf-8")
+
+    out = _docs_out(_Store(), store_dir, "team/app", "api")
+    assert out["found"] is True
+    assert "Reference" in out["html"]

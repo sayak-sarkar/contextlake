@@ -347,6 +347,18 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                         module = (q.get("module") or [None])[0]
                         return 200, _json_bytes(kbdata.repo_wiki(
                             req, sd, repo_id, module=module, anonymize=anonymize))
+                if rest.endswith("/docs"):
+                    # Same collision and the same resolution as "/wiki" above: a repo can
+                    # legitimately be named "team/docs", and full-match-wins is the
+                    # prescribed precedence. Written as its own block rather than folded
+                    # into the "/wiki" one so each sub-route's marker length stays local
+                    # to the strip that uses it.
+                    full_candidate = urllib.parse.unquote(rest)
+                    if req.get_repo(full_candidate) is None:
+                        repo_id = urllib.parse.unquote(rest[:-len("/docs")])
+                        kind = (q.get("kind") or ["api"])[0]
+                        return 200, _json_bytes(kbdata.repo_docs(
+                            req, sd, repo_id, kind=kind, anonymize=anonymize))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id,
                                                            anonymize=anonymize))

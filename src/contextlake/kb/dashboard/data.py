@@ -316,6 +316,64 @@ def _wiki_out(store, store_dir: Path, repo_id: str, *, module: str | None = None
             "html": _md_to_html(sanitize_label(raw, max_len=200_000))}
 
 
+#: The kinds `kb docs` generates. Named here so an unknown kind is refused with a
+#: sentence rather than resolved into a path that happens not to exist -- "no such
+#: kind" and "not generated yet" are different answers and a caller acts on them
+#: differently.
+_DOC_KINDS = ("api", "design")
+
+
+def _docs_out(store, store_dir: Path, repo_id: str, kind: str) -> dict:
+    """A generated document rendered to sanitized HTML, with its staleness flag.
+
+    Reuses ``get_generated_doc``'s resolution rather than restating it: the directory
+    constants come from ``cmds.docs`` (the module that WRITES the files) and the slug
+    from ``visualize.repo_slug``, so reader and writer cannot drift apart. That pairing
+    is the whole risk here -- a reader that builds the filename its own way looks correct
+    and matches nothing.
+
+    Unlike the wiki these pages involve no model: every line traces to an edge a parser
+    recorded, so they carry no advisory caveat. What they DO share is staleness, and for
+    the same reason -- a page generated from a different commit than the repo's current
+    indexed head describes code that may have moved. An unstamped page (one written
+    before generated documents carried a commit) reads as stale too, because not knowing
+    and being out of date are the same risk to a caller.
+    """
+    from ..cmds.docs import API_DIR, DESIGN_DIR
+    from ..docs.stamp import read_stamp
+    from ..visualize import _md_to_html, repo_slug
+
+    wanted = (kind or "api").strip().lower()
+    r = store.get_repo(repo_id)
+    current = r.head_commit if r else None
+    base = {"repo": sanitize_label(repo_id), "kind": sanitize_label(wanted),
+            "found": False, "stale": True, "html": None, "doc_commit": None,
+            "current_commit": sanitize_label(current) if current else None}
+    if wanted not in _DOC_KINDS:
+        return {**base, "note": (f"{wanted!r} is not a kind this store generates. The kinds "
+                                 f"are 'api' (the reference) and 'design' (the design notes). "
+                                 f"Nothing was looked up, so this is not evidence that "
+                                 f"{sanitize_label(repo_id)} has no such page.")}
+
+    docs_dir = store_dir.joinpath(*(API_DIR if wanted == "api" else DESIGN_DIR))
+    doc_file = docs_dir / (repo_slug(repo_id) + ".md")
+    # Same containment check the wiki route makes, for the same reason: `repo_id` arrives
+    # from the URL path and becomes a filename through a replace-list, not a parser. A
+    # refusal reads as "no such page" because a traversal attempt is not a server error.
+    if not _within(docs_dir, doc_file) or not doc_file.exists():
+        return {**base, "note": (f"No {wanted} page has been generated for "
+                                 f"{sanitize_label(repo_id)} yet -- run `contextlake kb docs`.")}
+
+    raw = doc_file.read_text(encoding="utf-8", errors="replace")
+    read = read_stamp(raw)
+    doc_commit = read[2] if read else None
+    stale = doc_commit is None or current is None or doc_commit != current
+    return {**base, "found": True, "stale": stale,
+            "doc_commit": sanitize_label(doc_commit) if doc_commit else None,
+            "html": _md_to_html(sanitize_label(raw, max_len=200_000)),
+            "note": None}
+
+
 def cluster_detail(store, store_dir, namespace: str, *, anonymize: bool = False,
                    edges: list | None = None) -> dict | None:
     """A namespace cluster narrative: the rendered cluster wiki HTML plus member
@@ -624,6 +682,27 @@ def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None,
         out = {"found": out["found"], "stale": out["stale"], "html": None}
     out["repo"] = sanitize_label(repo_id)
     out["module"] = module
+    return out
+
+
+def repo_docs(store, store_dir, repo_id: str, *, kind: str = "api",
+              anonymize: bool = False) -> dict:
+    """A generated document for one repo: its API reference or its design notes.
+
+    Its own lightweight sub-route for the same reason ``repo_wiki`` is one -- the panel
+    switches between the two kinds with one small fetch instead of re-fetching the whole
+    repo-detail payload each time.
+
+    ``anonymize`` drops the body and keeps the flags, the rule ``repo_detail`` and
+    ``repo_wiki`` both apply. It is not optional here either: the API reference quotes
+    real call sites and the design notes quote manifest lines, so the body can carry
+    internal paths and identifiers that ``--anonymize`` exists to withhold. Serving them
+    in full on a second route would undo the first.
+    """
+    sd = _store_dir(store, store_dir)
+    out = _docs_out(store, sd, repo_id, kind)
+    if anonymize:
+        out = {**out, "html": None}
     return out
 
 
