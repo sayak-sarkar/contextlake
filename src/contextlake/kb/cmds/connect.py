@@ -23,6 +23,10 @@ _DEFAULT_LINK_PATTERNS = {
     # allowed -- real Figma `node-id` query values can carry it unencoded.
     "figma.com": r"https://(?:www\.)?figma\.com/(?:file|design)/[^\s)\]>.,;'\"}]+",
     "slack.com": r"https://[\w-]+\.slack\.com/archives/[^\s)\]>.,;'\"}]+",
+    # Both the agent UI's ticket URL and a Help Center article URL. The instance
+    # subdomain is required by the pattern, not optional: a bare `zendesk.com/...`
+    # names no instance and the connector would have nothing to key a node on.
+    "zendesk.com": r"https://[\w-]+\.zendesk\.com/[^\s)\]>.,;'\"}]+",
 }
 
 
@@ -71,6 +75,8 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
         enrich_repo_figma,
         enrich_repo_gitlab,
         enrich_repo_slack,
+        enrich_repo_zendesk,
+        zendesk_hosts,
     )
 
     enrichers, names = [], []
@@ -115,6 +121,16 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
                 lambda repo_id, keys, links, symbol_keys, c=conn, st=store,
                        e=embedder, v=vector_store:
                 enrich_repo_gitlab(c, repo_id, st, embedder=e, vector_store=v)
+            )
+            names.append(s.name)
+        elif s.type == "zendesk":
+            hosts = zendesk_hosts(s)
+            log(f"  source {s.name!r} (zendesk): ready, no network needed")
+            enrichers.append(
+                lambda repo_id, keys, links, symbol_keys, h=hosts, st=store,
+                       e=embedder, v=vector_store:
+                enrich_repo_zendesk(h, repo_id, st, links=links, embedder=e,
+                                    vector_store=v)
             )
             names.append(s.name)
         elif s.type == "slack":
@@ -162,10 +178,11 @@ def cmd_connect(args) -> int:
     try:
         cfg = kb_config(args)
         sources = [s for s in cfg.sources
-                   if s.type in ("atlassian", "figma", "gitlab", "slack") and s.enabled]
+                   if s.type in ("atlassian", "figma", "gitlab", "slack", "zendesk")
+                   and s.enabled]
         if not sources:
             log('No connector sources configured '
-                '(add [[sources]] type="atlassian"/"figma"/"gitlab"/"slack")')
+                '(add [[sources]] type="atlassian"/"figma"/"gitlab"/"slack"/"zendesk")')
             return 0
         has_gitlab = any(s.type == "gitlab" for s in sources)
         branch_key, link_patterns = _rule_patterns(cfg.rules)

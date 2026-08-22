@@ -146,6 +146,13 @@ name = "team"
 #                                         # symbol they mention by name is linked to the channel
 # Verification degrades gracefully if unset -- links are still classified and stored.
 
+[[sources]]
+type = "zendesk"
+name = "support"
+# No mcp, no token, no network: a Zendesk link states the association by itself, and
+# reading the ticket body behind the API is a separate decision with a real cost.
+# hosts = ["zendesk.com"]   # override only for an instance on a vanity domain
+
 # --- Association rules (0..N) -----------------------------------------------
 # Link external knowledge to repos. Rule TYPES are generic; the patterns/maps
 # are yours.
@@ -160,4 +167,5 @@ file = "~/.contextlake/key-map.toml"   # maps issue/space keys -> repo paths
 [[rules]]
 type = "link_scrape"
 # scans README/docs for these URL patterns
-patterns = ["https://*.atlassian.net/wiki/", "https://www.figma.com/", "https://*.slack.com/archives/"]
+patterns = ["https://*.atlassian.net/wiki/", "https://www.figma.com/",
+            "https://*.slack.com/archives/", "https://*.zendesk.com/"]

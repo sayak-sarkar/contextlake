@@ -2508,6 +2508,16 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
 - **GitLab**: links each repo to its open **merge requests and issues** (read through your authenticated
   `glab`).
+- **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
+  `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
+  (`repo --documented_by--> document`). **It makes no network call**, which makes it the one connector
+  that runs inside the offline boundary rather than as an opt-in exception to it: Zendesk's API needs a
+  per-instance token, and the association is already stated by the link itself. The cost is that a ticket
+  node carries no subject line -- an article gets its title from the URL slug, a ticket has none to get,
+  and inventing one would state something the graph cannot support. Node ids carry the instance
+  subdomain, because ticket numbers restart at 1 per instance. `hosts` is configurable for an instance
+  served from a vanity domain; the default claims only `*.zendesk.com`, since claiming an arbitrary host
+  would take links belonging to another connector.
 - **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
   (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
@@ -2528,7 +2538,7 @@ and work alongside hand-editing if you mix approaches.
 The commands:
 
 - **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type, offering every type this build ships, the four connectors (`atlassian`, `figma`, `gitlab`,
+  type, offering every type this build ships, the five connectors (`atlassian`, `figma`, `gitlab`, `zendesk`,
   `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
   installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`

@@ -171,7 +171,7 @@ def test_shipped_example_parses(tmp_path, monkeypatch):
         / "examples" / "kb.toml.example"
     )
     c = load_kb_config(str(example))
-    assert len(c.sources) == 5  # two atlassian + gitlab + figma + slack
+    assert len(c.sources) == 6  # two atlassian + gitlab + figma + slack + zendesk
     assert any(s.type == "figma" for s in c.sources)
     assert any(s.type == "gitlab" for s in c.sources)
     assert any(s.type == "slack" for s in c.sources)

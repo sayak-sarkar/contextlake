@@ -29,7 +29,7 @@ from .config import load_kb_config
 # Connector sources feed `connect` (external reference enrichment); every other
 # type -- built-in ingest sources and third-party plugin types alike -- feeds
 # `ingest` (RAG documents).
-_CONNECT_TYPES = {"atlassian", "figma", "gitlab", "slack"}
+_CONNECT_TYPES = {"atlassian", "figma", "gitlab", "slack", "zendesk"}
 
 
 def _pipeline_for(source_type: str) -> str:

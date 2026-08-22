@@ -214,6 +214,41 @@ def enrich_repo_figma(connector, repo_id, store, *, links=(), embedder=None, vec
     return nodes, edges
 
 
+def zendesk_hosts(src):
+    """Configured Zendesk hosts, or the default. No connector object is built.
+
+    Every other source type here constructs one to hold an MCP endpoint and
+    credentials; Zendesk reads nothing over the network, so the only thing config can
+    say is which hosts to claim. Returning the hosts rather than an empty connector
+    keeps that visible instead of pretending there is a client.
+    """
+    from .zendesk import DEFAULT_HOSTS
+
+    extra = getattr(src, "model_extra", None) or {}
+    return tuple(extra.get("hosts", DEFAULT_HOSTS))
+
+
+def enrich_repo_zendesk(hosts, repo_id, store, *, links=(), embedder=None,
+                        vector_store=None):
+    """Associate zendesk.com links to ticket/article nodes, from the URL alone.
+
+    Takes ``hosts`` where its siblings take a connector, because there is nothing to
+    connect to: see :mod:`.zendesk` for why fetching ticket bodies is a deliberate
+    non-goal rather than a missing half. ``store`` is accepted and unused, so the
+    dispatch in ``cmd_connect`` stays one shape across every source type.
+
+    When an ``embedder``/``vector_store`` pair is configured the nodes are embedded, the
+    same as every other connector's, so a support ticket is semantically searchable
+    alongside the code it discusses.
+    """
+    from .zendesk import associate_tickets
+
+    _ = store
+    nodes, edges = associate_tickets(repo_id, links=links, site_hosts=hosts)
+    _embed_connector_nodes(repo_id, nodes, embedder, vector_store)
+    return nodes, edges
+
+
 def enrich_repo_slack(connector, repo_id, store, *, links=(), embedder=None, vector_store=None):
     """Associate slack.com links to channel/message nodes (from the URL itself).
 
