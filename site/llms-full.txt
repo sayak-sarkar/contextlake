@@ -6780,6 +6780,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.0] - 2026-08-22
+
+### ⚠ Re-embed: your stored document vectors are rebuilt once
+
+`EMBED_CONTENT_VERSION` moves 4 -> 5. Both halves of the staleness rule apply at once: the
+text a vector is built from changed, and every stored key changed shape. `kb embed` notices
+the mismatch and re-embeds everything once; `kb ingest` rewrites document vectors and sweeps
+the partition first, so an old whole-document vector cannot linger beside the new chunks.
+Nothing is required of you beyond the next run costing more than usual.
+
+### Changed
+
+- **A document is embedded as several chunks instead of one vector.** An ingested document
+  used to be `texts.append(doc.text)` -- one vector over the whole page. For a 14 KB document
+  that vector is an average of everything the page discusses, so a question about one
+  paragraph in it matched poorly or not at all. There was no chunking anywhere in that path;
+  the `chunk_size` in the vector store is a sqlite-vec KNN tuning parameter and has never had
+  anything to do with text.
+
+  So the question was never "which chunking strategy", it was "chunking versus none".
+  Measured with `kb eval` on 29 real documents (424 KB, mean 14.6 KB) and 53 queries selected
+  by position rather than by hand:
+
+  | | one vector per document | chunked, ~1200 chars | delta |
+  | --- | ---: | ---: | ---: |
+  | hit rate | 71.7% | 94.3% | +22.6pp |
+  | MRR | 45.2% | 80.4% | +35.2pp |
+  | tokens/query | 276 | 291 | +15 |
+
+  13 queries fixed, 1 lost. The control holds: queries were stratified by depth *before*
+  indexing, the unchunked arm is already worse deep in a document (62.5% against 79.3%) which
+  is the dilution the hypothesis predicts, and chunking helps depth (+29.2pp) more than the
+  surface (+17.2pp). The obvious confound -- each chunk repeats the document title, which
+  helps retrieval by itself -- was ruled out on evidence rather than waved away: all 13
+  queries chunking fixed share **zero** words with their document's title.
+
+  **What this does not establish**, because a number without its limits is worse than no
+  number: one embedder (`model2vec`, which averages; a transformer would truncate instead,
+  plausibly worse for a 14 KB document, unmeasured), verbatim-sentence queries so the
+  absolute figures are optimistic and only the delta is sound, one single-topic corpus, and a
+  chunk size that was never tuned. The full write-up is in `docs/semantic-search.md`.
+
+  The splitter packs whole paragraphs rather than cutting at a fixed width, and never drops a
+  short trailing chunk -- the last chunk of a document is usually its conclusion. Defaults are
+  1200 characters with 200 of overlap, which are the values that were measured.
+
+- **Chunking is invisible to everything that reads the store.** A document is one node and
+  several vectors, so the stored key gained a chunk suffix and `search()` collapses a
+  document's chunks to its best-scoring one before returning. All four call sites still
+  receive node ids and never learn that chunks exist. The sqlite-vec backend over-fetches its
+  KNN window by a fixed factor, because rows and nodes stopped being the same thing and one
+  talkative document could otherwise fill a `k`-wide window on its own.
+
+- **A hanging test is a red test now.** The suite had `pytest-timeout` as a dev dependency and
+  never set a timeout, so a test that never returns had no ceiling at all. Be precise about
+  what this buys: it catches hangs that do **not** allocate. It does not save a run from a
+  fast runaway allocation, which reaches the machine's memory limit long before any timeout
+  fires -- only the code being correct does that.
+
+
 ## [8.2.0] - 2026-08-20
 
 ### Added
