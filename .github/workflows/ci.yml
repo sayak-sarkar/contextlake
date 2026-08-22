@@ -69,7 +69,13 @@ jobs:
           # import failure, which runs in both configurations, because a path that is
           # only reachable on platforms CI does not run on would otherwise never be
           # covered anywhere.
-          pip install -e ".[dev,kb,kb-dockerfile]"
+          #
+          # kb-vec is named for the same reason. Without it the sqlite-vec ANN backend
+          # skips itself here, and `security.yml` -- the only other workflow that installs
+          # the extra -- runs pip-audit and CodeQL rather than pytest. The result was a
+          # backend whose tests passed on a maintainer's machine and ran in no CI job at
+          # all, which is indistinguishable from having no tests for it.
+          pip install -e ".[dev,kb,kb-dockerfile,kb-vec]"
       - name: Lint (ruff)
         run: ruff check src tests scripts benchmarks
       # The coverage floor lives here, on the full-suite job, and deliberately
