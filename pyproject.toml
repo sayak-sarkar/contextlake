@@ -130,6 +130,13 @@ kb-full = ["contextlake[kb]", "contextlake[kb-local]", "contextlake[kb-vec]"]
 # `PdfReader(path, strict=False)`, `.pages`, `.metadata` and `.extract_text()`, all of
 # which long predate it. Lower it further only with another run behind the change.
 kb-pdf = ["pypdf>=5.0"]
+# Local OCR, so `files` can read text out of an image. The models ship inside the wheel:
+# nothing is downloaded on first run and nothing leaves the machine, which is what keeps
+# image ingestion inside the offline boundary. The alternative on offer elsewhere is a
+# vision LLM per image, which would have been the first ingest path to leave local-first.
+# Heavy (it pulls onnxruntime and opencv), hence its own extra rather than a place in
+# `kb` -- the same call `kb-fastembed` makes for the same reason.
+kb-ocr = ["rapidocr-onnxruntime>=1.2"]
 # Optional built-in, CPU-only generative LLM for the wiki tier (no Ollama / API
 # key). Small auto-downloaded int4 model via openvino-genai. Heavier + slow on CPU;
 # off by default. See docs/knowledge-layer.md.

@@ -165,8 +165,10 @@ pip install "contextlake[kb-pdf]"
 table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
 in it, a custom `include` replaces the defaults rather than adding to them.
 
-What it does **not** do is the load-bearing half. There is no OCR, no vision model and no network
-call. A scanned or image-only PDF has no text layer, and contextlake says so and stores nothing,
+What the PDF path does **not** do is the load-bearing half. It runs no OCR and no vision model
+over a PDF's pages, and makes no network call. (Images ingested as their own files *are* OCR'd --
+see below -- but a PDF's pages are not rasterised to reach that path.) A scanned or image-only PDF
+has no text layer, and contextlake says so and stores nothing,
 rather than aggregating an empty document that would look like knowledge in search results and in
 the wiki:
 
@@ -183,6 +185,40 @@ use, and it does double duty here: it gates the file on disk, and it bounds the 
 it. Reading stops at the first page boundary past the cap and the document is kept and marked
 `truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
 `max_bytes` on the source to take more.
+
+### Images: read locally, or not at all
+
+Screenshots, exported diagrams and photographed whiteboards carry text that is otherwise invisible
+to search. `*.png`, `*.jpg`, `*.jpeg`, `*.webp` and `*.bmp` are default globs, and the text comes
+from a **local** OCR engine in its own extra:
+
+```bash
+pip install "contextlake[kb-ocr]"
+```
+
+The choice of engine is the whole point of this feature. The obvious way to read an image is to
+send it to a vision-capable model, and that would have made this the first ingest path to leave
+local-first: an image would go over the network, per file, to a third party. `[kb-ocr]` ships its
+models inside the wheel instead, so a first run downloads nothing and no image leaves the machine.
+The offline boundary holds for images exactly as it does for code.
+
+It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
+separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.
+
+An OCR'd document is marked. Its node carries `ocr = true` in `attrs`, because OCR misreads and a
+reader deciding how far to trust a line should not have to infer that from a file extension.
+
+The quiet outcome is the common one and it is still loud: an image the engine reads no words in --
+a logo, an icon, a photograph -- is reported and stored as nothing, rather than becoming an empty
+document that looks like knowledge:
+
+```
+files: skipping logo.png -- the OCR engine read no text in it. An image with no words in it
+  (a logo, an icon, a photograph) is expected to land here.
+```
+
+Without the extra, images are skipped with one line per run naming the count and the install
+command, the same shape the PDF reader uses.
 
 Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
 document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character

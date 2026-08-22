@@ -80,6 +80,7 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
 | `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
+| `[kb-ocr]` | Local OCR for ingesting images (rapidocr-onnxruntime, about 390 MB) | Screenshots, exported diagrams and whiteboards. Models ship inside the wheel, so nothing is downloaded and no image leaves the machine |
 | `[kb-dockerfile]` | The Dockerfile grammar | Indexing `Dockerfile`s. Optional only because the grammar ships wheels for macOS arm64 and Linux x86_64 and no source distribution, so requiring it would break installation everywhere else. Without it, Dockerfiles are skipped and the run says so and names this extra |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 

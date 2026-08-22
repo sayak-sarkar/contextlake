@@ -1,8 +1,14 @@
-"""Built-in source: local text / markdown files, plus the text layer of local PDFs.
+"""Built-in source: local text / markdown files, the text layer of local PDFs, and
+text read out of local images.
 
-Text and markdown need nothing but the standard library. PDFs need one optional
-extra (``kb-pdf`` -> ``pypdf``), imported lazily, so the core stays as it was for
-everyone who never ingests a PDF.
+Text and markdown need nothing but the standard library. PDFs need one optional extra
+(``kb-pdf`` -> ``pypdf``) and images need another (``kb-ocr`` -> ``rapidocr-onnxruntime``),
+both imported lazily, so the core stays as it was for everyone who ingests neither.
+
+The OCR engine runs **locally**: its models ship inside the wheel, so a first run needs no
+download and the offline boundary (INV-2) holds. That is the whole reason this reads images
+with OCR rather than by sending them to a vision model, which would have put an ingest path
+outside local-first for the first time.
 """
 
 from __future__ import annotations
@@ -14,11 +20,18 @@ from pathlib import Path
 from ...logging_setup import log
 from .base import Document, FetchFailures
 
-_DEFAULT_GLOBS = ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf")
+_DEFAULT_GLOBS = ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf",
+                  "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp")
 _MAX_BYTES = 1_000_000
 # The extra that carries pypdf. Named alongside `kb-vec` / `kb-local` /
 # `kb-fastembed`: an optional add-on to the knowledge layer, not to the mirror.
 _PDF_EXTRA = "kb-pdf"
+# Suffixes routed to OCR. Kept as a set beside the globs rather than derived from them:
+# a user who narrows `include` to one image type must still reach the OCR branch, and a
+# user who adds an image type the engine cannot decode should fail in the engine with a
+# readable message rather than be silently read as UTF-8 text.
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+_OCR_EXTRA = "kb-ocr"
 
 
 class FilesSource(FetchFailures):
@@ -73,10 +86,20 @@ class FilesSource(FetchFailures):
                 self._record_missing(str(root), f"{type(e).__name__}: {e}")
                 return
         needs_extra: list[str] = []   # PDFs skipped because pypdf is not installed
+        needs_ocr: list[str] = []     # images skipped because the OCR engine is not
         for p in files:
             if not p.is_file():
                 continue
             rel = os.path.relpath(p, base)
+            if p.suffix.lower() in _IMAGE_EXTS:
+                # Branched before the text path for the same reason the PDF suffix is:
+                # an image decoded as UTF-8 raises UnicodeDecodeError, which that path
+                # swallows, so a missed branch here is indistinguishable from "no
+                # images found".
+                doc = self._image_document(p, rel, needs_ocr)
+                if doc is not None:
+                    yield doc
+                continue
             if p.suffix.lower() == ".pdf":
                 # Branch on the suffix BEFORE any read_text(): a PDF decoded as
                 # UTF-8 raises UnicodeDecodeError, which the text path swallows,
@@ -102,6 +125,59 @@ class FilesSource(FetchFailures):
                 f"layer needs the {_PDF_EXTRA!r} extra (pypdf), which is not installed. "
                 f"Install it with: pip install 'contextlake[{_PDF_EXTRA}]'. "
                 f"Skipped: {shown}{more}", level=logging.WARNING)
+        if needs_ocr:
+            shown = ", ".join(needs_ocr[:3])
+            more = f" (and {len(needs_ocr) - 3} more)" if len(needs_ocr) > 3 else ""
+            log(f"files: skipped {len(needs_ocr)} image(s) -- reading text out of an "
+                f"image needs the {_OCR_EXTRA!r} extra, which is not installed. It runs "
+                f"locally and its models ship with it, so nothing is downloaded and "
+                f"nothing is sent anywhere. Install it with: "
+                f"pip install 'contextlake[{_OCR_EXTRA}]'. Skipped: {shown}{more}",
+                level=logging.WARNING)
+
+    def _image_document(self, path: Path, rel: str, needs_ocr: list[str]):
+        """One :class:`Document` for an image's OCR'd text, or ``None`` with a WARNING.
+
+        Four ways an image yields nothing, and each says which one by name at WARNING:
+        it is larger than ``max_bytes``, the extra is absent, the engine could not decode
+        it, or it decoded fine and holds no text. The last is the common one -- a logo, an
+        icon, a photograph -- and it is the reason this is a WARNING per file rather than
+        an error: a repository full of decorative images is normal, not broken.
+
+        The text is what the engine read, not what the image "says". OCR misreads, and a
+        document ingested from one is evidence at lower confidence than a text file. It is
+        stamped ``attrs["ocr"] = True`` so a consumer can tell the difference rather than
+        having to guess from the file extension.
+        """
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return None  # vanished under us, same as the text path
+        if size > self.max_bytes:
+            log(f"files: skipping {rel} -- {size} bytes is over max_bytes "
+                f"({self.max_bytes}); raise `max_bytes` on this source to ingest it. "
+                f"Screenshots pass 1 MB routinely, so this is the limit an image is "
+                f"most likely to hit.", level=logging.WARNING)
+            return None
+        engine = _ocr_engine()
+        if engine is None:
+            needs_ocr.append(rel)     # warned once, at the end of the run
+            return None
+        try:
+            lines = _ocr_lines(engine, path)
+        except Exception as e:  # noqa: BLE001 - one unreadable image costs only itself
+            log(f"files: skipping {rel} -- the OCR engine could not read it "
+                f"({type(e).__name__}: {e}).", level=logging.WARNING)
+            return None
+        text = "\n".join(lines).strip()
+        if not text:
+            log(f"files: skipping {rel} -- the OCR engine read no text in it. An image "
+                f"with no words in it (a logo, an icon, a photograph) is expected to "
+                f"land here.", level=logging.WARNING)
+            return None
+        return Document(id=rel, title=rel, text=text, uri=str(path.resolve()),
+                        attrs={"chars": len(text), "lines": len(lines), "ocr": True})
+
 
     def _pdf_document(self, path: Path, rel: str, needs_extra: list[str]):
         """One :class:`Document` for a PDF, or ``None`` with a WARNING saying why.
@@ -157,6 +233,44 @@ class FilesSource(FetchFailures):
             attrs["pages_unreadable"] = unreadable
         return Document(id=rel, title=title or rel, text=text,
                         uri=str(path.resolve()), attrs=attrs)
+
+
+def _ocr_engine():
+    """The OCR engine, or ``None`` when the ``kb-ocr`` extra is not installed.
+
+    Returns rather than raises, for the same reason :func:`_pdf_reader_cls` does: a
+    missing optional extra is a configuration fact the caller reports once with an
+    install line, not an exception that ends the run.
+
+    Built once and cached. Construction loads the models and costs far more than a
+    single image does, so building per file would make a directory of screenshots
+    pathologically slow. ``False`` is cached for the absent case so a large tree does
+    not retry the import once per image.
+    """
+    global _OCR_ENGINE
+    if _OCR_ENGINE is None:
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+        except ImportError:
+            _OCR_ENGINE = False
+        else:
+            _OCR_ENGINE = RapidOCR()
+    return _OCR_ENGINE or None
+
+
+#: Cache for :func:`_ocr_engine`. ``None`` = not tried, ``False`` = extra absent.
+_OCR_ENGINE = None
+
+
+def _ocr_lines(engine, path: Path) -> list[str]:
+    """The text lines the engine read, in the order it returned them.
+
+    The engine returns ``(results, elapsed)`` where each result is
+    ``[box, text, confidence]``, and ``results`` is ``None`` rather than ``[]`` for an
+    image it found nothing in -- so the ``or []`` is load-bearing, not defensive.
+    """
+    results, _ = engine(str(path))
+    return [r[1] for r in (results or []) if len(r) > 1 and str(r[1]).strip()]
 
 
 def _pdf_reader_cls():
