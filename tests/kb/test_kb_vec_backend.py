@@ -8,7 +8,12 @@ always run.
 import pytest
 
 from contextlake.kb.embeddings import store as store_mod
-from contextlake.kb.embeddings.store import SqliteVecStore, VectorStore, build_vector_store
+from contextlake.kb.embeddings.store import (
+    SqliteVecStore,
+    VectorStore,
+    build_vector_store,
+    chunk_key,
+)
 
 try:
     import sqlite_vec  # noqa: F401
@@ -175,3 +180,34 @@ def test_vec_store_survives_dim_written_without_table(tmp_path):
     assert reopened.upsert([("n1", "team/api", [0.1] * 8)]) == 1
     assert reopened.count() == 1
     reopened.close()
+
+
+@requires_vec
+def test_a_chunky_document_cannot_crowd_distinct_nodes_out_of_the_window(tmp_path):
+    """The vec backend must over-fetch, or chunking silently shrinks every result set.
+
+    This backend asks the KNN index for a fixed number of ROWS, then collapses chunk rows
+    down to their nodes. Rows and nodes stopped being the same thing when chunking landed:
+    one talkative document now owns many rows, and if the window is only `k` wide that one
+    document can fill it entirely. The caller asked for k documents and gets one.
+
+    `_CHUNK_OVERFETCH` is the widening factor, and nothing else measures it -- the brute
+    store scores every vector, so the chunking suite cannot see this. Here the query sits
+    almost on top of twelve chunks of a single document, with two other documents ranked
+    just behind them. Unwidened, the top three ROWS are all the same document and this
+    returns one node.
+    """
+    s = SqliteVecStore(tmp_path / "v.sqlite")
+    try:
+        items = [(chunk_key("chatty", i), "r1", [1.0, 0.001 * i, 0.0]) for i in range(12)]
+        items += [(chunk_key("quiet_b", 0), "r1", [0.8, 0.6, 0.0]),
+                  (chunk_key("quiet_c", 0), "r1", [0.7, 0.7, 0.0])]
+        s.upsert(items)
+
+        hits = s.search([1.0, 0.0, 0.0], k=3)
+
+        # Node ids, never chunk keys: collapsing is what keeps chunking invisible.
+        assert [h[0] for h in hits] == ["chatty", "quiet_b", "quiet_c"]
+        assert len({h[0] for h in hits}) == 3
+    finally:
+        s.close()

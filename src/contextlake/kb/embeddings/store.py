@@ -28,6 +28,17 @@ def _unpack(blob: bytes) -> array.array:
     return a
 
 
+#: Separates a node id from its chunk index in a stored vector key. See `chunk_key`.
+CHUNK_SEP = "\x1f"
+
+#: How many rows to pull before collapsing chunks back to nodes. Several chunks of one
+#: document can occupy the top of the ranking, so asking the backend for exactly k rows
+#: would routinely return fewer than k distinct documents. Eight is generous enough that a
+#: document would have to own the entire neighbourhood to shorten the result, and small
+#: enough that the extra rows cost nothing measurable.
+_CHUNK_OVERFETCH = 8
+
+
 def _norm(vec) -> float:
     return math.sqrt(sum(x * x for x in vec)) or 1.0
 
@@ -160,7 +171,9 @@ class VectorStore:
             dot = sum(a * b for a, b in zip(query, _unpack(blob), strict=True))
             scored.append((node_id, dot / (qnorm * norm)))
         scored.sort(key=lambda t: t[1], reverse=True)
-        return scored[:k]
+        # Collapse before trimming, not after: trimming first would drop a document whose
+        # only high-ranking chunk sat behind several chunks of a different one.
+        return _collapse_chunks(scored, k)
 
     def close(self) -> None:
         self.conn.close()
@@ -292,13 +305,14 @@ class SqliteVecStore:
             sql = ("SELECT node_id, distance FROM vec_items "  # noqa: S608 - placeholders only
                    f"WHERE embedding MATCH ? AND repo_id IN ({','.join('?' * len(ids))}) "
                    "ORDER BY distance LIMIT ?")
-            params: tuple = (q, *ids, k)
+            params: tuple = (q, *ids, k * _CHUNK_OVERFETCH)
         else:
             sql = ("SELECT node_id, distance FROM vec_items "
                    "WHERE embedding MATCH ? ORDER BY distance LIMIT ?")
-            params = (q, k)
+            params = (q, k * _CHUNK_OVERFETCH)
         # vec0 returns cosine distance; convert to similarity to match VectorStore.
-        return [(node_id, 1.0 - dist) for node_id, dist in self.conn.execute(sql, params)]
+        rows = [(node_id, 1.0 - dist) for node_id, dist in self.conn.execute(sql, params)]
+        return _collapse_chunks(rows, k)
 
     def close(self) -> None:
         self.conn.close()
@@ -445,6 +459,52 @@ def set_content_version(store, version: int) -> None:
         (str(version),),
     )
     store.conn.commit()
+
+
+def chunk_key(node_id: str, index: int) -> str:
+    """The stored key for chunk ``index`` of ``node_id``.
+
+    A document is one NODE and several VECTORS, and both backends key their vector row on
+    `node_id` as a PRIMARY KEY -- sqlite-vec's virtual table cannot take a composite one --
+    so the chunk index has to live inside the key.
+
+    The separator is ASCII Unit Separator (0x1f), a control character. It cannot occur in a
+    normalized node id (`ids.normalize_id` maps every non-word character to `_`) and cannot
+    occur in a path on any real filesystem, so splitting on it is unambiguous. A printable
+    separator like `#` would not be: a document id is a relative path, and a file may legally
+    contain one.
+
+    Index 0 of a single-chunk document still gets a key, deliberately. Making the first chunk
+    indistinguishable from an unchunked vector would leave two shapes in the store meaning the
+    same thing, and every reader would have to handle both forever.
+    """
+    return f"{node_id}{CHUNK_SEP}{int(index)}"
+
+
+def base_node_id(key: str) -> str:
+    """The node id a stored key belongs to. Unchunked keys pass through unchanged."""
+    return key.split(CHUNK_SEP, 1)[0]
+
+
+def _collapse_chunks(scored, k: int):
+    """`[(key, score)]` -> `[(node_id, best score)]`, ranked, at most ``k``.
+
+    A document's chunks compete with each other, and a caller asked for k NODES. Keeping the
+    best-scoring chunk per node is what makes chunking invisible to every consumer: the four
+    call sites of `search()` still receive node ids and never learn that chunks exist.
+
+    Fewer than k results is possible. For the brute-force store that means what it says: every
+    vector was scored, so there really are not k distinct nodes. For sqlite-vec it does not --
+    that backend sees a window of `k * _CHUNK_OVERFETCH` rows, and a document chunky enough to
+    fill the window can hide distinct nodes that sit just past its edge. Widening the window is
+    the lever if that is ever observed.
+    """
+    best: dict[str, float] = {}
+    for key, score in scored:
+        node_id = base_node_id(key)
+        if score > best.get(node_id, float("-inf")):
+            best[node_id] = score
+    return sorted(best.items(), key=lambda t: t[1], reverse=True)[:k]
 
 
 def build_vector_store(path: str | Path, *, backend: str = "auto", chunk_size: int = 1024):

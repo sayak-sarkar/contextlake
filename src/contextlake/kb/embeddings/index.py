@@ -48,7 +48,23 @@ from ..store.shards import read_shard
 #      tens of thousands of symbols no semantic query could reach. See
 #      `testing/d8-embedding-measurement.md` for the cost side, which is real and
 #      bounded: -5.25pp existing-kind recall@10 for +180% vectors.
-EMBED_CONTENT_VERSION = 4
+#   5: an ingested DOCUMENT is stored as several chunk vectors instead of one vector over
+#      its whole text, and the stored key gained a chunk suffix (`store.chunk_key`). Both
+#      halves of the staleness rule above apply at once: the text a vector is built from
+#      changed, AND every stored key changed shape. A store left at 4 holds one averaged
+#      vector per document under a key nothing writes any more.
+#
+#      This is the first bump made on a measurement rather than a judgement. On 29 real
+#      documents with 53 position-selected queries: hit rate 71.7% -> 94.3%, MRR
+#      45.2% -> 80.4%, +15 tokens per query, 13 queries fixed and 1 lost. The controls, and
+#      what the measurement does NOT establish, are in `docs/semantic-search.md`.
+#
+#      Note what this bump does and does not do for documents. Only `kb embed` and the
+#      freshness report read this number; the DOCUMENT path never consults it, so bumping
+#      it marks an old store stale but does not itself re-embed a document. `kb ingest`
+#      rewrites document vectors, and sweeps the partition first so the old whole-document
+#      vector cannot linger next to the new chunks.
+EMBED_CONTENT_VERSION = 5
 
 # Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose
 # docstring can't drown the identifying tokens (name/signature) in the vector.

@@ -121,11 +121,15 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     write_shard(store_dir, GraphShard(repo=part, head_commit=head or "wiki",
                                       nodes=nodes, edges=edges))
     if embedder is not None and vs is not None:
-        # Unpacked: `_embed_documents` reports (count, early-stop reason). Every caller
-        # of THIS function discards the result, so the reason is surfaced by the WARNING
-        # the helper logs rather than threaded up. Returning the tuple here would make
-        # this function's own contract (an int) quietly untrue.
-        written, _stopped = _embed_documents(vs, embedder, part, nodes, texts, batch_size)
+        # Unpacked: `_embed_documents` reports (documents, vectors, early-stop reason).
+        # Documents and vectors stopped being the same number when chunking landed -- one
+        # document is now one node and one-or-more vectors -- and the count this function
+        # is contracted to return is documents, which is the first element as before.
+        # Every caller of THIS function discards the result, so the reason is surfaced by
+        # the WARNING the helper logs rather than threaded up. Returning the tuple here
+        # would make this function's own contract (an int) quietly untrue.
+        written, _vectors, _stopped = _embed_documents(vs, embedder, part, nodes, texts,
+                                                       batch_size)
         return written
     return 0
 
