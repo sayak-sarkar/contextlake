@@ -202,16 +202,25 @@ def test_a_missing_engine_is_cached_too(monkeypatch):
     assert tried["n"] == 1, f"import retried {tried['n']} times, expected once"
 
 
-def test_images_are_in_the_default_globs():
-    from contextlake.kb.sources.files import _DEFAULT_GLOBS, _IMAGE_EXTS
+_TEXT_GLOBS = {"*.md", "*.markdown", "*.mdx", "*.rst", "*.txt"}
+
+
+def test_every_default_glob_is_routed_somewhere():
+    """A glob with no route is worse than no glob: the file is found, read as UTF-8,
+    raises UnicodeDecodeError, and is swallowed -- so a binary type silently contributes
+    nothing while appearing to be supported.
+
+    Written against ALL the routes rather than the image one. The first version excluded a
+    hardcoded list of text suffixes and asserted everything else was an image, which broke
+    the moment video globs were added -- correctly, but for a reason that had nothing to
+    do with images.
+    """
+    from contextlake.kb.sources.files import _DEFAULT_GLOBS, _IMAGE_EXTS, _VIDEO_EXTS
 
     assert "*.png" in _DEFAULT_GLOBS and "*.jpg" in _DEFAULT_GLOBS
-    # every default image glob has a matching routing suffix, or the file is found and
-    # then read as UTF-8 text instead of being sent to OCR
-    for g in _DEFAULT_GLOBS:
-        if g in ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf"):
-            continue
-        assert g.lstrip("*") in _IMAGE_EXTS, f"{g} is globbed but never routed to OCR"
+    routed = _TEXT_GLOBS | {"*.pdf"} | {f"*{e}" for e in _IMAGE_EXTS | _VIDEO_EXTS}
+    unrouted = [g for g in _DEFAULT_GLOBS if g not in routed]
+    assert not unrouted, f"globbed but routed nowhere, so read as text and dropped: {unrouted}"
 
 
 def test_an_image_is_not_read_as_text(tmp_path, monkeypatch):

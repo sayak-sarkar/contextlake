@@ -230,6 +230,44 @@ files: skipping logo.png -- the OCR engine read no text in it. An image with no 
 Without the extra, images are skipped with one line per run naming the count and the install
 command, the same shape the PDF reader uses.
 
+### Video: two layers, because they promise different things
+
+A recorded design review holds two kinds of text, and contextlake reads them with two
+separate extras so you can take one without the other. `*.mp4`, `*.mov`, `*.mkv` and `*.webm`
+are default globs.
+
+```bash
+pip install "contextlake[kb-video]"        # decode + on-screen text
+pip install "contextlake[kb-transcribe]"   # ...and the spoken track
+```
+
+**`[kb-video]`** decodes the file and runs sampled frames through the same local OCR engine
+images use. It adds `av`, which bundles its own ffmpeg, so there is **no system package to
+install first** and nothing is downloaded at runtime: as offline as image ingestion. It reads
+the slides, the terminal and the UI.
+
+**`[kb-transcribe]`** adds the spoken track via a local speech model. That model is fetched
+once on first use and cached under `~/.contextlake/models`, the same way `[kb-local]`'s
+embedder is -- a weaker offline promise than frame OCR's, which is exactly why it is a
+separate extra rather than folded into the first. `CONTEXTLAKE_WHISPER_MODEL` picks the size;
+the default is the smallest useful one, because a first run downloads it.
+
+The work is bounded rather than the file. `max_bytes` gates every other type because file
+size predicts how much text a document contributes; for a video it predicts resolution and
+length instead, so a 1 MB cap would reject every real recording. What is capped is the
+sampling: one frame every 5 seconds, at most 60 frames, so a two-hour recording costs the
+same as a ten-minute one. Repeated on-screen lines are said once -- a slide holds still across
+many samples, and keeping every hit would drown the transcript in its own echo.
+
+Three outcomes are stated rather than implied:
+
+- **No transcriber installed.** The video is still ingested from its frames, the document
+  carries `transcribed = false`, and one line per run names the extra. "The meeting discussed
+  nothing" and "nobody installed the speech model" must never look the same.
+- **No audio track at all.** A screen recording with no microphone is ordinary, so it is
+  reported as exactly that and not as a failed transcription.
+- **Nothing readable either way.** Reported and stored as nothing, never as an empty document.
+
 Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
 document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character
 offset in the document's text where each page starts) in the `attrs` that land on its graph node.

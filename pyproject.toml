@@ -137,6 +137,14 @@ kb-pdf = ["pypdf>=5.0"]
 # Heavy (it pulls onnxruntime and opencv), hence its own extra rather than a place in
 # `kb` -- the same call `kb-fastembed` makes for the same reason.
 kb-ocr = ["rapidocr-onnxruntime>=1.2"]
+# Video, in two layers because they make different promises. `kb-video` only decodes:
+# `av` bundles ffmpeg, so there is no system package to install first, and frames are
+# read by the OCR engine above, which downloads nothing. `kb-transcribe` adds the spoken
+# track, and its speech model is fetched once on first use the way `kb-local`'s embedder
+# is -- a weaker offline promise than frame OCR's, which is exactly why it is a separate
+# extra a user can decline while still reading a video's slides.
+kb-video = ["av>=12.0", "contextlake[kb-ocr]"]
+kb-transcribe = ["faster-whisper>=1.0", "contextlake[kb-video]"]
 # Optional built-in, CPU-only generative LLM for the wiki tier (no Ollama / API
 # key). Small auto-downloaded int4 model via openvino-genai. Heavier + slow on CPU;
 # off by default. See docs/knowledge-layer.md.

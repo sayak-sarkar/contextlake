@@ -1,5 +1,5 @@
-"""Built-in source: local text / markdown files, the text layer of local PDFs, and
-text read out of local images.
+"""Built-in source: local text / markdown files, the text layer of local PDFs, text read
+out of local images, and both halves of a local video.
 
 Text and markdown need nothing but the standard library. PDFs need one optional extra
 (``kb-pdf`` -> ``pypdf``) and images need another (``kb-ocr`` -> ``rapidocr-onnxruntime``),
@@ -9,6 +9,13 @@ The OCR engine runs **locally**: its models ship inside the wheel, so a first ru
 download and the offline boundary (INV-2) holds. That is the whole reason this reads images
 with OCR rather than by sending them to a vision model, which would have put an ingest path
 outside local-first for the first time.
+
+A video is read in two layers, because they make different promises. ``kb-video`` decodes it
+and OCRs sampled frames -- the slides, the terminal, the UI -- and is as offline as image
+ingestion is. ``kb-transcribe`` adds the spoken track, and its speech model is fetched once on
+first use the way ``kb-local``'s embedder is. Taking the first without the second is a
+supported configuration and says so in the document it produces, because "no words were
+spoken" and "nobody installed the transcriber" must never look the same.
 """
 
 from __future__ import annotations
@@ -21,7 +28,8 @@ from ...logging_setup import log
 from .base import Document, FetchFailures
 
 _DEFAULT_GLOBS = ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf",
-                  "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp")
+                  "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp",
+                  "*.mp4", "*.mov", "*.mkv", "*.webm")
 _MAX_BYTES = 1_000_000
 # The extra that carries pypdf. Named alongside `kb-vec` / `kb-local` /
 # `kb-fastembed`: an optional add-on to the knowledge layer, not to the mirror.
@@ -32,6 +40,23 @@ _PDF_EXTRA = "kb-pdf"
 # readable message rather than be silently read as UTF-8 text.
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 _OCR_EXTRA = "kb-ocr"
+_VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm"}
+#: Decoding a video needs a demuxer. `av` bundles ffmpeg, so this stays pip-only and
+#: adds no system binary -- the property that keeps `pip install contextlake[...]`
+#: workable on a machine where installing ffmpeg is not an option.
+_VIDEO_EXTRA = "kb-video"
+#: Transcription is layered ON TOP of that rather than folded into it. Frame OCR is
+#: fully offline (the OCR models ship in their wheel); a speech model is fetched once
+#: on first use, the way `kb-local` and `llm-local` already do. Those are different
+#: promises, so they are different extras and a user can take the first without the
+#: second.
+_TRANSCRIBE_EXTRA = "kb-transcribe"
+#: One frame every N seconds, and never more than this many. A recorded review is
+#: mostly a still slide, so sampling densely buys near-duplicate text at linear cost;
+#: the cap bounds a long video to a predictable amount of OCR rather than an amount
+#: proportional to its length.
+_FRAME_EVERY_SECONDS = 5.0
+_MAX_FRAMES = 60
 
 
 class FilesSource(FetchFailures):
@@ -87,10 +112,17 @@ class FilesSource(FetchFailures):
                 return
         needs_extra: list[str] = []   # PDFs skipped because pypdf is not installed
         needs_ocr: list[str] = []     # images skipped because the OCR engine is not
+        needs_video: list[str] = []       # videos skipped: no decoder
+        needs_transcribe: list[str] = []  # videos read WITHOUT their audio
         for p in files:
             if not p.is_file():
                 continue
             rel = os.path.relpath(p, base)
+            if p.suffix.lower() in _VIDEO_EXTS:
+                doc = self._video_document(p, rel, needs_video, needs_transcribe)
+                if doc is not None:
+                    yield doc
+                continue
             if p.suffix.lower() in _IMAGE_EXTS:
                 # Branched before the text path for the same reason the PDF suffix is:
                 # an image decoded as UTF-8 raises UnicodeDecodeError, which that path
@@ -133,6 +165,27 @@ class FilesSource(FetchFailures):
                 f"locally and its models ship with it, so nothing is downloaded and "
                 f"nothing is sent anywhere. Install it with: "
                 f"pip install 'contextlake[{_OCR_EXTRA}]'. Skipped: {shown}{more}",
+                level=logging.WARNING)
+        if needs_video:
+            shown = ", ".join(needs_video[:3])
+            more = f" (and {len(needs_video) - 3} more)" if len(needs_video) > 3 else ""
+            log(f"files: skipped {len(needs_video)} video(s) -- decoding one needs the "
+                f"{_VIDEO_EXTRA!r} extra, which is not installed. It bundles its own "
+                f"ffmpeg, so there is no system package to install first. Add it with: "
+                f"pip install 'contextlake[{_VIDEO_EXTRA}]'. Skipped: {shown}{more}",
+                level=logging.WARNING)
+        if needs_transcribe:
+            shown = ", ".join(needs_transcribe[:3])
+            more = (f" (and {len(needs_transcribe) - 3} more)"
+                    if len(needs_transcribe) > 3 else "")
+            # Not a failure: these videos WERE ingested, from their frames. Said out loud
+            # because a transcript-shaped absence is the kind a reader fills in wrongly --
+            # "the meeting discussed nothing" rather than "nobody installed the speech
+            # model". The document itself carries the same fact in `attrs`.
+            log(f"files: read {len(needs_transcribe)} video(s) from their FRAMES ONLY -- "
+                f"the spoken track needs the {_TRANSCRIBE_EXTRA!r} extra, which is not "
+                f"installed. Add it with: pip install "
+                f"'contextlake[{_TRANSCRIBE_EXTRA}]'. Silent so far: {shown}{more}",
                 level=logging.WARNING)
 
     def _image_document(self, path: Path, rel: str, needs_ocr: list[str]):
@@ -177,6 +230,94 @@ class FilesSource(FetchFailures):
             return None
         return Document(id=rel, title=rel, text=text, uri=str(path.resolve()),
                         attrs={"chars": len(text), "lines": len(lines), "ocr": True})
+
+
+    def _video_document(self, path: Path, rel: str, needs_video: list[str],
+                        needs_transcribe: list[str]):
+        """One :class:`Document` for a video: its spoken track, its on-screen text, or both.
+
+        `max_bytes` is deliberately NOT applied to the file. It exists to bound how much
+        text a document contributes, and for every other type the file size predicts that;
+        for a video it predicts resolution and length instead, and a 1 MB cap would reject
+        essentially every real recording while admitting nothing useful. What is bounded
+        is the work: at most :data:`_MAX_FRAMES` frames, one every
+        :data:`_FRAME_EVERY_SECONDS`, so cost is capped rather than proportional to length.
+        """
+        frames_read = 0
+        transcript = ""
+        lines: list[str] = []
+        try:
+            frames = _video_frames(path)
+        except _NoDecoder:
+            needs_video.append(rel)      # warned once, at the end of the run
+            return None
+        except Exception as e:  # noqa: BLE001 - one bad container costs only itself
+            log(f"files: skipping {rel} -- could not decode the video "
+                f"({type(e).__name__}: {e}).", level=logging.WARNING)
+            return None
+
+        engine = _ocr_engine()
+        if engine is not None:
+            seen: set[str] = set()
+            for frame in frames:
+                frames_read += 1
+                try:
+                    text = "\n".join(_ocr_lines(engine, frame))
+                except Exception as e:  # noqa: BLE001 - one bad frame is not fatal
+                    log(f"files: {rel} frame {frames_read}: OCR failed "
+                        f"({type(e).__name__}); continuing", level=logging.DEBUG)
+                    continue
+                # A slide holds still for many samples. Keeping every hit would repeat the
+                # same deck once per interval and drown the transcript in its own echo.
+                for ln in text.splitlines():
+                    key = ln.strip()
+                    if key and key not in seen:
+                        seen.add(key)
+                        lines.append(key)
+        else:
+            # Frames were decoded but nothing can read them. Counted under the OCR extra's
+            # own warning rather than silently dropped.
+            for _ in frames:
+                frames_read += 1
+
+        transcriber = _transcriber()
+        if transcriber is None:
+            needs_transcribe.append(rel)
+        elif not _has_audio(path):
+            # A screen recording with no microphone is the common case, not a fault, and
+            # calling it one would send a reader looking for a broken transcriber. Found
+            # by running the real model over a real silent clip: the decoder raises
+            # IndexError from inside faster-whisper when no audio stream exists, which the
+            # catch below would have reported as "transcription failed".
+            log(f"files: {rel} carries no audio track, so there is nothing to "
+                f"transcribe; reading its frames only.", level=logging.INFO)
+        else:
+            try:
+                transcript = _transcribe(transcriber, path).strip()
+            except Exception as e:  # noqa: BLE001
+                log(f"files: {rel} -- transcription failed ({type(e).__name__}: {e}); "
+                    f"keeping the on-screen text.", level=logging.WARNING)
+
+        parts = []
+        if transcript:
+            parts.append(transcript)
+        if lines:
+            parts.append("On screen:\n" + "\n".join(lines))
+        text = "\n\n".join(parts).strip()
+        if not text:
+            log(f"files: skipping {rel} -- no speech was transcribed and no on-screen "
+                f"text was read from {frames_read} sampled frame(s). A screen recording "
+                f"of something wordless lands here.", level=logging.WARNING)
+            return None
+        return Document(
+            id=rel, title=rel, text=text, uri=str(path.resolve()),
+            attrs={"chars": len(text), "frames_sampled": frames_read,
+                   "on_screen_lines": len(lines),
+                   # Stated either way, never omitted. An absent field reads as "nothing to
+                   # report"; `false` reads as "checked, and the transcriber was absent",
+                   # which is the difference between a quiet video and an unread one.
+                   "transcribed": bool(transcript),
+                   "ocr": bool(lines)})
 
 
     def _pdf_document(self, path: Path, rel: str, needs_extra: list[str]):
@@ -235,6 +376,104 @@ class FilesSource(FetchFailures):
                         uri=str(path.resolve()), attrs=attrs)
 
 
+class _NoDecoder(Exception):
+    """The ``kb-video`` extra is absent. Its own type so the caller can tell "nobody
+    installed a decoder" from "this file is not a video", which need different messages."""
+
+
+def _video_frames(path: Path, *, every: float = _FRAME_EVERY_SECONDS,
+                  max_frames: int = _MAX_FRAMES) -> list:
+    """Frames sampled from ``path`` as BGR arrays, at most ``max_frames`` of them.
+
+    Returns a list rather than a generator on purpose: the caller counts what it read even
+    when no OCR engine is installed, and a generator that is never drained would report
+    zero frames for a video that decoded perfectly well.
+
+    Seeking is avoided. A keyframe-sparse recording seeks badly, and decoding forward
+    while skipping is both simpler and correct on every container -- the cost is bounded
+    by ``max_frames`` regardless.
+    """
+    try:
+        import av
+    except ImportError as e:
+        raise _NoDecoder from e
+
+    out = []
+    with av.open(str(path)) as container:
+        streams = [st for st in container.streams if st.type == "video"]
+        if not streams:
+            return out
+        stream = streams[0]
+        stream.thread_type = "AUTO"
+        next_at = 0.0
+        for frame in container.decode(stream):
+            if frame.time is None or frame.time + 1e-9 < next_at:
+                continue
+            out.append(frame.to_ndarray(format="bgr24"))
+            next_at = frame.time + every
+            if len(out) >= max_frames:
+                break
+    return out
+
+
+def _has_audio(path: Path) -> bool:
+    """Whether ``path`` carries an audio stream at all.
+
+    Asked before transcribing rather than discovered by catching the failure, because the
+    two are different facts: a silent screen recording is ordinary, and a transcriber that
+    threw is not. Returns ``True`` when the container cannot be inspected, so an
+    unreadable-but-present audio track is attempted rather than silently written off.
+    """
+    try:
+        import av
+    except ImportError:
+        # No decoder is "cannot inspect", not "no audio" -- the same fail-open the
+        # docstring promises. Production never reaches here without `av`, because
+        # decoding raises _NoDecoder first; returning False would only matter under a
+        # stubbed decoder, and it would matter by contradicting this function's contract.
+        return True
+    try:
+        with av.open(str(path)) as container:
+            return any(st.type == "audio" for st in container.streams)
+    except Exception:  # noqa: BLE001 - inspection failing is not proof of no audio
+        return True
+
+
+def _transcriber():
+    """The speech model, or ``None`` when the ``kb-transcribe`` extra is not installed.
+
+    Cached like :func:`_ocr_engine`, and for the same reason: loading it dominates the cost
+    of a short video. ``CONTEXTLAKE_WHISPER_MODEL`` picks the size; the default is the
+    smallest useful one, because a first run downloads it and a 1.5 GB surprise is a poor
+    default even when the larger model is better.
+    """
+    global _TRANSCRIBER
+    if _TRANSCRIBER is None:
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError:
+            _TRANSCRIBER = False
+        else:
+            name = os.environ.get("CONTEXTLAKE_WHISPER_MODEL", "tiny")
+            _TRANSCRIBER = WhisperModel(name, device="cpu", compute_type="int8")
+    return _TRANSCRIBER or None
+
+
+#: Cache for :func:`_transcriber`. ``None`` = not tried, ``False`` = extra absent.
+_TRANSCRIBER = None
+
+
+def _transcribe(model, path: Path) -> str:
+    """The spoken text of ``path``, one segment per line.
+
+    ``transcribe`` returns a generator plus an info object; the generator is where the work
+    actually happens, so it is drained here rather than handed back to a caller who might
+    reasonably assume the call already did it.
+    """
+    segments, _info = model.transcribe(str(path))
+    return "\n".join(seg.text.strip() for seg in segments if seg.text and seg.text.strip())
+
+
 def _ocr_engine():
     """The OCR engine, or ``None`` when the ``kb-ocr`` extra is not installed.
 
@@ -262,14 +501,19 @@ def _ocr_engine():
 _OCR_ENGINE = None
 
 
-def _ocr_lines(engine, path: Path) -> list[str]:
+def _ocr_lines(engine, source) -> list[str]:
     """The text lines the engine read, in the order it returned them.
+
+    ``source`` is a path for an image file and a decoded frame array for a video. Only a
+    path is stringified: ``str()`` on a frame produces a truncated repr of the pixel data,
+    which the engine would take as a filename, fail to open, and report as an unreadable
+    image -- a wrong answer that looks like a legitimate one.
 
     The engine returns ``(results, elapsed)`` where each result is
     ``[box, text, confidence]``, and ``results`` is ``None`` rather than ``[]`` for an
     image it found nothing in -- so the ``or []`` is load-bearing, not defensive.
     """
-    results, _ = engine(str(path))
+    results, _ = engine(str(source) if isinstance(source, (str, Path)) else source)
     return [r[1] for r in (results or []) if len(r) > 1 and str(r[1]).strip()]
 
 
