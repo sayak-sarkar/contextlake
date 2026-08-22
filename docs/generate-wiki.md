@@ -175,6 +175,40 @@ and the reported issues are the reviewers' own. In every case the page is **skip
 so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
 backend, or a stronger reviewer, and it is attempted again from scratch.
 
+## Steering it from the repository: `.contextlake/wiki.toml`
+
+A repository can have a say in its own page. Drop a `.contextlake/wiki.toml` in its root:
+
+```toml
+# Free text the page quotes, attributed, above the sections.
+notes = "This is a thin client. The behaviour lives in the server repo; prefer its docs."
+
+# Optional. Names the subsystems that get their own page, replacing the automatic choice.
+pages = ["api", "workers"]
+```
+
+**`notes` is quoted, never absorbed.** Everything else on the page is derived from the graph;
+this is the repository asserting something about itself, and the page says so in those words
+rather than blending it into its own voice. It is bounded (2000 characters, 10 notes) because
+it lands verbatim in generated output. A note that is not a string is dropped rather than
+having its repr printed into a wiki page.
+
+There is no separate "send the notes to the model" step, and that is deliberate: **the
+structural page IS the prompt**, so putting the notes on that page is what puts them in front
+of the model on the prose path. One insertion point, both paths, and the replacement gate keeps
+working -- a name the notes introduce becomes a name a draft may legitimately cite.
+
+**`pages` steers, it cannot invent.** Names are matched against the modules the graph actually
+found; anything unmatched is dropped with a warning. A file inside a cloned repository is
+untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
+is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
+silently delete a repository's whole module set on the next prune.
+
+Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
+that would execute something are refused from files found this way (`kb/trust.py`). Quoting a
+repository's own prose is the same trust level as the README excerpt the page has always
+carried.
+
 ## Per-subsystem pages for large, federated repos
 
 A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of

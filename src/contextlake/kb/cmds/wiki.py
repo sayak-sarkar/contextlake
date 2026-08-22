@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 
 from ... import style
@@ -147,8 +148,19 @@ _DOMINANT_MODULE_SHARE = 0.6        # a module owning this share of nodes -> not
 _MAX_MODULE_PAGES_PER_REPO = 20
 
 
-def _module_page_plan(store, repo_id: str, node_count: int) -> tuple[list[dict], bool]:
+def _module_page_plan(store, repo_id: str, node_count: int,
+                      *, override: list[str] | None = None) -> tuple[list[dict], bool]:
     """``(modules worth their own wiki page, may we prune stale module pages?)``
+
+    ``override`` is the repository's own `pages` list from `.contextlake/wiki.toml`. When it
+    names anything, it replaces the heuristic entirely -- a maintainer saying which subsystems
+    deserve a page is better evidence than a node-count threshold, and half-honouring it would
+    produce a page set matching neither.
+
+    Only names the graph actually found are kept. A prefix that matches no module is dropped
+    with a warning rather than conjured: the file may steer the choice among real subsystems,
+    never invent one, which is what keeps an untrusted in-repo file unable to fabricate a page.
+    Pruning is allowed, because an explicit list is a complete statement of what should exist.
 
     A module qualifies when the repo is large AND genuinely federated (no
     single module dominates it) -- not just one big repo with one big
@@ -172,10 +184,22 @@ def _module_page_plan(store, repo_id: str, node_count: int) -> tuple[list[dict],
       embeddings until then, so this run leaves the pages alone and a later
       run (with a working index) prunes if they really are stale.
     """
-    if node_count < _FEDERATED_NODE_FLOOR:
-        return [], True
     from ..visualize.payload import repo_modules
 
+    if override:
+        known = {m["prefix"]: m for m in repo_modules(store, repo_id)}
+        chosen = [known[name] for name in override if name in known]
+        missing = [name for name in override if name not in known]
+        if missing:
+            log(f"  {repo_id}: wiki.toml names {len(missing)} module(s) the graph does not "
+                f"hold, ignored: {', '.join(missing[:5])}", level=logging.WARNING)
+        if chosen:
+            return chosen[:_MAX_MODULE_PAGES_PER_REPO], True
+        # Every name was unknown. Falling through to the heuristic rather than returning
+        # nothing: the file was wrong, and answering a wrong file with no pages at all would
+        # let one typo silently delete a repository's whole module set.
+    if node_count < _FEDERATED_NODE_FLOOR:
+        return [], True
     modules = repo_modules(store, repo_id)
     if not modules:
         return [], False
@@ -446,6 +470,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     """
     from ..visualize import repo_slug
     from ..wiki.generate import repo_brief
+    from ..wiki.steering import read_wiki_steering
     from ..wiki.structural import render_structural_page, repo_dependencies, repo_owners
 
     # The CANONICAL wiki paths, not a parallel directory. A repository has ONE wiki page
@@ -468,7 +493,11 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     # helper additionally requires `r.path` and would silently drop a path-less repo whose
     # structural page this stage can still write from the shard alone.
     wanted = _wanted_repo_ids(args)
-    for repo_id in [r.id for r in store.list_repos() if not wanted or r.id in wanted]:
+    # The Repo rows are kept, not just their ids: a repository's steering file lives in its
+    # working tree and `path` is the only thing that finds it. One pass, no second query.
+    _repos = [r for r in store.list_repos() if not wanted or r.id in wanted]
+    _repo_paths = {r.id: r.path for r in _repos}
+    for repo_id in [r.id for r in _repos]:
         # The module plan first, because the whole-repo brief takes it: the generated
         # path passes `subsystem_modules` so its page can name the subsystem pages, and
         # a brief built without it is a DIFFERENT brief that path cannot reuse.
@@ -486,7 +515,9 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
             # a repo that indexed to zero nodes and still published 119 lines presenting
             # the forge's boilerplate README as the project's architecture.
             continue
-        modules, _prune = _module_page_plan(store, repo_id, len(shard.nodes))
+        steering = read_wiki_steering(_repo_paths.get(repo_id))
+        modules, _prune = _module_page_plan(store, repo_id, len(shard.nodes),
+                                            override=steering["pages"])
         brief = repo_brief(store_dir, repo_id, store=store,
                            subsystem_modules=modules or None)
         if brief is None or not brief.get("coverage_total"):
@@ -500,7 +531,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         page = render_structural_page(
             brief, repo_id=repo_id, modules=modules,
             owners=repo_owners(store, repo_id, anonymize=anonymize),
-            dependencies=deps)
+            dependencies=deps, notes=steering["notes"])
         pages[(repo_id, None)] = page
         whole = out_dir / (repo_slug(repo_id) + ".md")
         if _write_if_not_generated(whole, page):

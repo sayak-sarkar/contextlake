@@ -366,7 +366,7 @@ def is_structural_page(text: str) -> bool:
 def render_structural_page(
     brief: dict, *, repo_id: str, path_prefix: str | None = None,
     modules: list[dict] | None = None, owners: list[dict] | None = None,
-    dependencies: dict | None = None,
+    dependencies: dict | None = None, notes: list[str] | None = None,
 ) -> str:
     """The whole page as Markdown, sections with nothing in them omitted and named.
 
@@ -393,6 +393,18 @@ def render_structural_page(
         head = [f"# {repo_id}"]
 
     lines = [*head, ""]
+    if notes:
+        # Quoted and attributed, never merged into the page's own voice. Everything else
+        # here is derived from the graph; this is the repository asserting something about
+        # itself, and a reader weighs those differently. Placed above the sections because
+        # it is guidance for reading them, and blockquoted for the same reason the README
+        # excerpt in `_install` is.
+        lines += ["> **From the repository's own `.contextlake/wiki.toml`.** Written by its "
+                  "maintainers, not derived from the graph.", ">"]
+        for note in notes:
+            for para in note.splitlines():
+                lines.append(f"> {_md_cell(para)}" if para.strip() else ">")
+        lines.append("")
     for key, section in body.items():
         if not section:
             continue
