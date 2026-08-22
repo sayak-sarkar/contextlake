@@ -166,6 +166,13 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# A hanging test used to be the worst failure shape available: no output, no error, and a
+# run that looks merely slow while it consumes the machine. `pytest-timeout` is in `dev`,
+# which every CI job installs, so this is always active. The value is far above the slowest
+# real test (wiki generation, the MCP-server lifecycle poll) and only ever fires on a hang.
+# `thread` rather than `signal` because it also works inside pytest-xdist workers.
+timeout = 300
+timeout_method = "thread"
 markers = [
     "slow: noticeably slower than the suite median (wiki-page generation, a real MCP-server lifecycle poll loop, etc); deselect with `pytest -m 'not slow'` for a fast inner loop.",
 ]
