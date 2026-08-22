@@ -163,3 +163,66 @@ def test_each_of_those_routes_really_does_carry_the_prose_otherwise(
     assert WIKI_SECRET in body, (
         f"{route} did not carry the wiki prose even with anonymising OFF, so its "
         f"anonymised assertion proves nothing. Fix the fixture, not the assertion.")
+
+
+# --- the same guarantee, on the generated-document route --------------------------
+
+# Distinct from WIKI_SECRET so a test that finds THIS one has proved a generated
+# document's body travelled, not the wiki's.
+DOC_SECRET = "Owned by Wilhelmina Testerson, runbook at internal.example.invalid"
+
+
+def _with_docs(tmp_path, monkeypatch, *, anonymize: bool):
+    srv, base, store = _serve(tmp_path, monkeypatch, anonymize=anonymize)
+    from contextlake.kb.cmds.docs import API_DIR, DESIGN_DIR
+    from contextlake.kb.docs.stamp import stamp
+    from contextlake.kb.visualize import repo_slug
+
+    for dirs, kind in ((API_DIR, "api"), (DESIGN_DIR, "design")):
+        d = tmp_path.joinpath(*dirs)
+        d.mkdir(parents=True, exist_ok=True)
+        lines = [f"# team/app {kind}", "", *stamp(kind, "team/app", "h1"), DOC_SECRET, ""]
+        (d / (repo_slug("team/app") + ".md")).write_text("\n".join(lines), encoding="utf-8")
+    return srv, base, store
+
+
+# Both kinds, listed for the same reason the wiki routes are: a kind added later that
+# serves the same bytes and is not here simply goes unchecked.
+_DOC_PROSE_ROUTES = [
+    "/api/repo/team%2Fapp/docs?kind=api",
+    "/api/repo/team%2Fapp/docs?kind=design",
+]
+
+
+@pytest.mark.parametrize("route", _DOC_PROSE_ROUTES)
+def test_no_route_serves_generated_document_prose_when_anonymized(
+        tmp_path, monkeypatch, route):
+    srv, base, store = _with_docs(tmp_path, monkeypatch, anonymize=True)
+    try:
+        payload = _get(base, route)
+    finally:
+        srv.shutdown()
+        store.close()
+    body = json.dumps(payload)
+    assert DOC_SECRET not in body, f"{route} served document prose with --anonymize on"
+    assert "Testerson" not in body, f"{route} served an identity with --anonymize on"
+    # Same rule as the wiki: drop the PROSE, keep the knowledge that a page exists, so
+    # the Docs tab can tell "anonymised" from "never generated".
+    assert payload.get("found") is True, (
+        f"{route} lost the `found` flag; anonymising must not hide that a page exists: "
+        f"{payload}")
+
+
+@pytest.mark.parametrize("route", _DOC_PROSE_ROUTES)
+def test_each_document_route_really_does_carry_the_prose_otherwise(
+        tmp_path, monkeypatch, route):
+    """The half that makes the half above mean something, for the document routes."""
+    srv, base, store = _with_docs(tmp_path, monkeypatch, anonymize=False)
+    try:
+        body = json.dumps(_get(base, route))
+    finally:
+        srv.shutdown()
+        store.close()
+    assert DOC_SECRET in body, (
+        f"{route} did not carry the document prose even with anonymising OFF, so its "
+        f"anonymised assertion proves nothing. Fix the fixture, not the assertion.")

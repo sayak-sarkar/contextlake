@@ -97,6 +97,21 @@ def stamp(kind: str, repo_id: str, head_commit: str | None, *, noun: str = "comm
     return [marker, "", sentence, ""]
 
 
+def strip_marker(text: str) -> str:
+    """``text`` with the machine-readable marker removed, for rendering to a human.
+
+    The marker is an HTML comment so a Markdown reader hides it. A renderer that
+    escapes HTML rather than passing it through does not: it turns the comment into a
+    visible paragraph of ``<!-- contextlake:generated ... -->`` at the top of the page.
+    The dashboard's renderer escapes by design, so it strips first and reads the stamp
+    from the original.
+
+    Only the marker goes. The human sentence underneath it stays, because that is the
+    part written to be read.
+    """
+    return _MARKER.sub("", text or "", count=1).lstrip("\n")
+
+
 def read_stamp(text: str) -> tuple[str, str, str] | None:
     """`(kind, repo, commit)` from a document's marker, or `None` if it carries none.
 

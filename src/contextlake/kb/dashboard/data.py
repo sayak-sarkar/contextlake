@@ -340,7 +340,7 @@ def _docs_out(store, store_dir: Path, repo_id: str, kind: str) -> dict:
     and being out of date are the same risk to a caller.
     """
     from ..cmds.docs import API_DIR, DESIGN_DIR
-    from ..docs.stamp import read_stamp
+    from ..docs.stamp import read_stamp, strip_marker
     from ..visualize import _md_to_html, repo_slug
 
     wanted = (kind or "api").strip().lower()
@@ -370,7 +370,10 @@ def _docs_out(store, store_dir: Path, repo_id: str, kind: str) -> dict:
     stale = doc_commit is None or current is None or doc_commit != current
     return {**base, "found": True, "stale": stale,
             "doc_commit": sanitize_label(doc_commit) if doc_commit else None,
-            "html": _md_to_html(sanitize_label(raw, max_len=200_000)),
+            # Stripped, not rendered: the marker is an HTML comment and this renderer
+            # escapes HTML, so leaving it in puts a line of angle-bracket noise at the
+            # top of every page. The stamp is read from `raw` above, before the strip.
+            "html": _md_to_html(sanitize_label(strip_marker(raw), max_len=200_000)),
             "note": None}
 
 

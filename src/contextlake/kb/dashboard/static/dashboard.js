@@ -195,6 +195,15 @@
       if (module) url += "?module=" + encodeURIComponent(module);
       return fetchJSON(url);
     },
+    // The generated API reference / design notes for one repo. Its own route for the
+    // same reason repoWiki is: the Docs tab switches between the two kinds and should
+    // re-fetch only this section. Unlike the wiki these are NOT bundled into the
+    // repo-detail payload, so the first render always fetches.
+    repoDocs: function (id, kind) {
+      if (MODE === "static") return Promise.reject(new Error("live only"));
+      return fetchJSON("/api/repo/" + encPath(id) + "/docs?kind=" +
+        encodeURIComponent(kind || "api"));
+    },
     // sequencediagram needs a single symbol seed, not a whole repo, so it's served off
     // /api/impact/diagram (same family as impact() below) rather than /api/repo/.../diagram.
     sequenceDiagram: function (nodeId, hops) {
@@ -669,7 +678,7 @@
           h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/arch/" + id); } },
             h("span", { html: icon("ui-arch") }), "View in architecture"))));
 
-      var tabs = ["anatomy", "readme", "wiki", "owners", "links", "diagrams"];
+      var tabs = ["anatomy", "readme", "wiki", "docs", "owners", "links", "diagrams"];
       var cur = tabs.indexOf(tab) >= 0 ? tab : "anatomy";
       // role="group" + aria-pressed, not tablist/tab: there is no tabpanel in this
       // document and no roving tabindex, so the tab roles promised a structure that
@@ -738,6 +747,8 @@
       else pane.appendChild(stateBlock({ kind: "empty", title: "No README found in this repo" }));
     } else if (tab === "wiki") {
       renderWikiTab(pane, d, id);
+    } else if (tab === "docs") {
+      renderDocsTab(pane, d, id);
     } else if (tab === "owners") {
       if (!d.owners || !d.owners.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No owners", msg: "Derived from git history — none available." })); return; }
       var ot = table(["Owner", "Commits", "Lines", "Share", ""],
@@ -852,6 +863,87 @@
       pane.insertBefore(h("div", { class: "cl-row" },
         h("label", { class: "cl-muted" }, "Subsystem:"), select), contentWrap);
     }
+  }
+
+  // ---- Documents (repo page) ---------------------------------------------
+  // `kb docs` writes two pages per repo and neither involves a model: every line
+  // traces to an edge a parser recorded. That is the whole reason this tab reads
+  // differently from Wiki next door -- the wiki carries an advisory caveat because
+  // it is synthesized prose, and repeating that caveat here would understate these.
+  // What they DO share is staleness, so the same chip appears for the same reason.
+  var DOC_KINDS = [
+    { key: "api", label: "API reference", blurb: "Every callable symbol, with the file-and-line call sites the graph recorded." },
+    { key: "design", label: "Design notes", blurb: "What the repo's own files record: declared dependencies, and the values its code reads most." }
+  ];
+  function docsEmptyState(id, kind) {
+    return stateBlock({
+      kind: "empty",
+      title: "No " + kind.label.toLowerCase() + " generated for this repo yet",
+      msg: "Built from the graph, with no model involved.",
+      cmd: "contextlake kb docs",
+      action: genAction("Generate documents", "contextlake kb docs")
+    });
+  }
+  function docsContentNode(doc, id, kind) {
+    if (!doc || !doc.found) return docsEmptyState(id, kind);
+    var head = [h("strong", null, kind.label)];
+    // Three states, not two. `stamp.py` distinguishes an absent marker ("nothing to
+    // report") from a present commit=unknown ("checked, could not determine"), and
+    // collapsing them would throw away the difference it went to trouble to keep.
+    if (doc.stale) {
+      var why;
+      if (!doc.doc_commit) why = "STALE — this page carries no commit";
+      else if (doc.doc_commit === "unknown") why = "STALE — generated at an unknown commit";
+      else why = "STALE — generated at " + String(doc.doc_commit).slice(0, 8);
+      head.push(h("span", { class: "cl-healthchip cl-healthchip--stale" }, why));
+    }
+    return h("div", { class: "cl-card" },
+      h("div", { class: "cl-row" }, head),
+      h("p", { class: "cl-muted" }, kind.blurb + " No model was involved."),
+      h("div", { class: "cl-md", html: doc.html || "" }));
+  }
+  function renderDocsTab(pane, d, id) {
+    if (MODE === "static") {
+      pane.appendChild(stateBlock({
+        kind: "empty", title: "Generated documents are live-only",
+        msg: "The static export does not carry them. Run the dashboard against the store to read them."
+      }));
+      return;
+    }
+    var current = "api";
+    var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Document kind" });
+    var body = h("div", null, stateBlock({ kind: "loading", title: "Loading…" }));
+
+    function load(key) {
+      current = key;
+      Array.prototype.forEach.call(strip.children, function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset.kind === key));
+      });
+      body.replaceChildren(stateBlock({ kind: "loading", title: "Loading…" }));
+      var kind = DOC_KINDS.filter(function (k) { return k.key === key; })[0];
+      CL.data.repoDocs(id, key).then(function (doc) {
+        if (current !== key) return;   // a later click already won
+        body.replaceChildren(docsContentNode(doc, id, kind));
+      }).catch(function (e) {
+        if (current !== key) return;
+        body.replaceChildren(stateBlock({
+          kind: "error", title: "Could not load the " + kind.label.toLowerCase(),
+          msg: String((e && e.message) || e)
+        }));
+      });
+    }
+
+    DOC_KINDS.forEach(function (k) {
+      var b = h("button", {
+        class: "cl-tab", type: "button", "aria-pressed": String(k.key === current),
+        onclick: function () { load(k.key); }
+      }, k.label);
+      b.dataset.kind = k.key;
+      strip.appendChild(b);
+    });
+    pane.appendChild(strip);
+    pane.appendChild(body);
+    load("api");
   }
 
   // ---- Diagrams (repo page) ----------------------------------------------
