@@ -6910,6 +6910,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Depth and edge-direction controls on the graph page. Clicking a node to expand it
+  used to bring back exactly one hop of neighbours in both directions, with no way to
+  ask for more or to follow only what a node calls (or only what calls it). The two
+  controls sit under the layout row and apply to the next node you expand; expanding
+  is additive, so they never remove what you have already explored. `/neighbors` now
+  reads `hops` as well as the `relation` and `direction` it already parsed, clamped to
+  a maximum of 3 to match the slider.
+
+### Changed
+
+- The graph page's node legend is grouped by the kind vocabulary's ten bands
+  (Symbols, Containers, Service surfaces, Data model, Infrastructure, Presentation,
+  Configuration, Documents, Cross-source, Boundary) instead of one flat run of up to
+  52 pills. The grouping is projected from the kind registry, not retyped, so it
+  cannot drift from the colours beside it. Bands with nothing in them are not drawn,
+  and any kind the projection does not cover falls through to a visible `Other` band
+  rather than disappearing from the legend.
+
 ## [8.4.0] - 2026-08-23
 
 Additive throughout. No re-embed, no schema change, no breaking surface: every new capability

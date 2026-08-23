@@ -134,6 +134,28 @@ pip install -e ".[release]"        # build + twine
    a useful subset: it reads git only, needs no network, and still exits non-zero to say the
    rest was unchecked.
 
+9. **Refresh the published artefacts that state a version.** Several published pages carry
+   a version label and a set of measured figures, and neither updates itself. A page that
+   says `v8.3.0` after 8.4.0 has shipped is not merely stale: it is a claim about which
+   release it describes, and it is now false.
+
+   Source for these lives under `~/Work/ContextLake/decks/`, one directory per artefact, so
+   the file survives the session that published it. Publish with the artefact's **existing
+   URL** -- publishing without it creates a second artefact instead of updating the first.
+
+   Two rules, both learned the hard way:
+
+   - **A version label is not a find-and-replace.** Some occurrences are historical claims
+     ("until v8.3.0 a document was embedded as a single vector") and stay at the old number.
+     Read each one.
+   - **Bumping the label without adding the release's content makes the page lie.** If the
+     new version added capabilities the page does not cover, either cover them or leave the
+     label where it is. A deck labelled v8.4.0 that describes only 8.3.0 is worse than one
+     honestly labelled v8.3.0.
+
+   Re-measure any figure the page states (test counts, line counts, node counts) rather than
+   carrying it forward -- see `measurement-baselines-go-stale`.
+
 ## Tokenless publishing via GitHub Actions (recommended)
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to
