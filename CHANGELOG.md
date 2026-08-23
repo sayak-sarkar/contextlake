@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.4.0] - 2026-08-23
+
+Additive throughout. No re-embed, no schema change, no breaking surface: every new capability
+arrives behind an optional extra or a file you do not have to write.
+
+### Added
+
+- **Images are ingested, read by a local OCR engine.** `files` gained `*.png`, `*.jpg`,
+  `*.jpeg`, `*.webp` and `*.bmp` behind the new `[kb-ocr]` extra. The engine's models ship
+  inside its wheel, so a first run downloads nothing and no image leaves the machine.
+
+  That property is the whole reason this exists in this shape. The obvious way to read an image
+  is to send it to a vision model, and that would have made ingestion the first path to leave
+  local-first. The offline claim is asserted rather than stated: the live test blocks
+  `socket.getaddrinfo` and `socket.create_connection` before calling the engine.
+
+  An image the engine reads no words in -- a logo, an icon, a photograph -- is reported and
+  stored as nothing, never as an empty document that would look like knowledge. OCR'd documents
+  carry `ocr = true`, because OCR misreads and a reader should not have to infer that from a
+  file extension.
+
+- **Video is ingested, in two layers, because they promise different things.** `[kb-video]`
+  decodes and reads on-screen text from sampled frames; it bundles its own ffmpeg, so there is
+  no system package to install and nothing is fetched at runtime. `[kb-transcribe]` adds the
+  spoken track, and its speech model is fetched once on first use the way `[kb-local]`'s
+  embedder is. Folding them together would have sold the weaker offline promise as the stronger
+  one, so you can take slides without speech.
+
+  The work is bounded rather than the file. `max_bytes` gates every other type because size
+  predicts how much text a document contributes; for a video it predicts resolution and length,
+  so a 1 MB cap would reject every real recording while admitting nothing. Capped instead: one
+  frame every 5 seconds, at most 60. Repeated on-screen lines are said once, since a slide holds
+  still across many samples.
+
+  Three outcomes are stated rather than implied: no transcriber installed (the video is still
+  read from its frames, and the document says `transcribed = false`), no audio track at all (a
+  screen recording with no microphone is ordinary, not a failed transcription), and nothing
+  readable either way (reported, stored as nothing).
+
+- **A Zendesk connector, and it is the only one that needs no network.** It claims
+  `*.zendesk.com` links found in a repository's docs and classifies them to a ticket
+  (`discussed_in`) or a Help Center article (`documented_by`). Zendesk's API needs a
+  per-instance token and the link already states the association, so fetching the body would buy
+  a subject line at the cost of credentials and an egress exception. Node ids carry the instance
+  subdomain, because ticket numbers restart at 1 per instance.
+
+- **A repository can steer its own wiki page**, with `.contextlake/wiki.toml`. `notes` is free
+  text quoted into the page and attributed in those words, bounded, and never absorbed into the
+  page's own voice: everything else there is derived from the graph, and a reader weighs those
+  differently. `pages` replaces the automatic choice of which subsystems get their own page, and
+  cannot invent one -- names are matched against modules the graph actually found.
+
+- **A "Getting started" section in the generated wiki page.** The rest of the page is reference
+  tables and not one of them says what to do first. This is an ordered path: install what the
+  repository declares, run its entry point, read the symbol everything routes through, run the
+  tests, ask the largest recent contributor. It opens by saying it was assembled from the graph,
+  because nobody wrote that procedure down.
+
+- **The dashboard can see generated documents.** `kb docs` has been writing an API reference and
+  design notes per repository, both reachable over MCP, and the one human UI over the store could
+  not show them. Adds a Documents tab and `GET /api/repo/<id>/docs?kind=api|design`.
+
+- **Every rendered heading carries a stable, unique anchor**, so a section of a wiki page can be
+  linked to at all. Repeated headings are disambiguated rather than duplicated, which matters
+  because duplicate `id`s are a WCAG 4.1.1 failure and make any link to them land
+  non-deterministically.
+
+### Fixed
+
+- **The sqlite-vec backend was tested in no CI job at all.** `ci.yml` did not install `kb-vec`,
+  so every test guarding that backend skipped, and `security.yml` -- the only workflow carrying
+  the extra -- runs pip-audit and CodeQL rather than pytest. Measured either side of the fix on
+  one job: **3803 passed / 66 skipped becomes 3866 / 3**. Sixty-three tests that had never
+  executed in CI now do.
+
+- **A generated document's machine-readable stamp rendered as visible text** in the dashboard.
+  The marker is an HTML comment, which a Markdown reader hides and this renderer escapes, so
+  every page opened with a line of angle-bracket noise.
+
+- The static dashboard export no longer offers a Documents tab it can never fill.
+
+### Changed
+
+- A hanging test is now a red test: the suite sets a timeout. Be precise about what that buys --
+  it catches hangs that do **not** allocate, and would not save a run from a fast runaway
+  allocation.
+- `retrieval-quality.yml`'s recorded measurements were stale and are refreshed and dated.
+
+
 ## [8.3.0] - 2026-08-22
 
 ### ⚠ Re-embed: your stored document vectors are rebuilt once

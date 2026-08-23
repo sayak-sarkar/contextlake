@@ -46,7 +46,9 @@ each layer above it is optional.
    **XML Schema** data contracts, **XSLT** stylesheets, **Pro*C** embedded SQL, and package
    manifests (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
-   Atlassian / Figma / GitLab / Slack.
+   Atlassian / Figma / GitLab / Slack / Zendesk. Non-code content comes in too: Markdown and
+   text, a **PDF's text layer**, text read out of **images** by a local OCR engine, and a
+   **video's** slides and spoken track. All of it local, all of it optional extras.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
@@ -185,11 +187,11 @@ The full flag-by-flag list is **[cli-reference.md](https://github.com/sayak-sark
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + diagram + steer (`--no-enrich` to skip a stage) |
 | `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
-| `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `kb connect` | Link repos to Atlassian / Figma / GitLab / Zendesk items (`--watch` to keep refreshing) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
-| `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install) |
+| `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins). `files` reads text, Markdown, a PDF's text layer, images via local OCR (`[kb-ocr]`), and video frames plus speech (`[kb-video]`, `[kb-transcribe]`) |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install). A repo can steer its own page with `.contextlake/wiki.toml` |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -216,7 +218,8 @@ is already scrubbed of workspace paths, group and repo names), and `--access-log
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
 graph** and serves it to AI tools over **MCP**. It can link repos directly to the Atlassian /
-Figma / GitLab / Slack items and code symbols that reference them, add **semantic search**,
+Figma / GitLab / Slack / Zendesk items and code symbols that reference them, add **semantic
+search**,
 write a curated **wiki**, **visualize** the graph
 (offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
 generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
