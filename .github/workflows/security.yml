@@ -149,7 +149,8 @@ jobs:
   # idiom.
   #
   # The backlog is now triaged to zero and `S` is in pyproject.toml's
-  # [tool.ruff.lint] select, so it runs inside `ruff check src tests` -- which is
+  # [tool.ruff.lint] select, so it runs inside `ruff check src tests scripts benchmarks`
+  # -- which is
   # already a *blocking* step in ci.yml on every push and PR, and again in release.yml's
   # build gate. That is strictly stronger than this job ever was, and it also means a
   # contributor's local `ruff check` sees the same rules CI does.

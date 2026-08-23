@@ -48,8 +48,9 @@ Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 # minor ruff release that adds a rule to a selected group turns CI red with nobody having
 # changed a line, and `S` (flake8-bandit) is a large group that grows. The bound makes
 # that arrive as a Dependabot PR to look at instead of a red build on unrelated work.
-# When raising it, run `ruff check src tests` on the new version first -- new findings are
-# expected and each one needs reading, not a blanket noqa.
+# When raising it, run `ruff check src tests scripts benchmarks` on the new version first
+# -- the same four paths ci.yml and release.yml lint, not a subset -- and read each new
+# finding rather than reaching for a blanket noqa.
 # pypdf rides in `dev` as well as in its own `kb-pdf` extra, deliberately: the PDF
 # ingest tests skip themselves when it is absent, and a job that skips them is green
 # without having exercised the feature at all. The test environment must hold it.
