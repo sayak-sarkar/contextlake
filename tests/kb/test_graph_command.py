@@ -2066,3 +2066,78 @@ def test_trace_downstream_walks_the_whole_chain_not_one_hop(store, tmp_path):
     # E is a leaf: offering a downstream trace that can only ever return nothing is worse
     # than not offering it.
     assert _grab(dom, "trace-leaf") == "absent"
+
+
+# --- F3: cross-cluster edges aggregate and deduplicate --------------------------------
+#
+# The fleet overview rolls every cross-namespace repo->repo edge into ONE `agg:` edge per
+# (source ns, target ns, relation), summing weights. That is the whole of F3 as the roadmap
+# describes it, and it already shipped; these pin it so it stays.
+#
+# NOT tested here, deliberately: the collapsed-cluster display state. Collapsing is driven
+# by `applySemanticZoom`, which is scheduled through `requestAnimationFrame` -- and rAF
+# never fires under `--dump-dom`, because nothing paints. Measured, not assumed: a probe
+# that registered its own rAF callback recorded `raf-ran = 0` while the zoom event itself
+# fired. A test that "checked" the collapsed state through this harness would be asserting
+# against the expanded one.
+
+_AGG_HARNESS = """
+<script>
+(function(){
+  function out(id, txt){
+    var d = document.createElement("div"); d.id = id; d.textContent = txt;
+    document.body.appendChild(d);
+  }
+  setTimeout(function(){
+    var agg = cy.edges("[aggregated]");
+    out("agg-count", String(agg.length));
+    var rows = [];
+    agg.forEach(function(e){
+      rows.push(e.data("source") + "~" + e.data("target")
+                + ":" + e.data("relation") + "=" + e.data("weight"));
+    });
+    rows.sort();
+    out("agg-rows", rows.join(" | "));
+    out("agg-context", agg.filter('[relation = "flow"]').data("context") || "");
+  }, 700);
+})();
+</script>
+</body>"""
+
+
+@pytest.mark.skipif(_chrome_binary() is None,
+                    reason="no Chrome/Chromium available to render the page")
+def test_crossing_edges_roll_up_to_one_per_namespace_pair_and_relation(tmp_path):
+    """Four crossing edges, two relations, one namespace pair -> two rolled-up edges."""
+    nodes = [{"id": f"alpha/a{i}", "kind": "repo", "name": f"alpha/a{i}", "deg": 1}
+             for i in range(2)]
+    nodes += [{"id": f"beta/b{i}", "kind": "repo", "name": f"beta/b{i}", "deg": 1}
+              for i in range(2)]
+    # three depends_on and one flow, all alpha -> beta, plus one edge INSIDE alpha that
+    # must not roll up at all
+    edges = [
+        {"src": "alpha/a0", "dst": "beta/b0", "relation": "depends_on",
+         "confidence": "INFERRED", "weight": 1.0},
+        {"src": "alpha/a0", "dst": "beta/b1", "relation": "depends_on",
+         "confidence": "INFERRED", "weight": 2.0},
+        {"src": "alpha/a1", "dst": "beta/b0", "relation": "depends_on",
+         "confidence": "INFERRED", "weight": 1.0},
+        {"src": "alpha/a1", "dst": "beta/b1", "relation": "flow",
+         "confidence": "INFERRED", "weight": 1.0},
+        {"src": "alpha/a0", "dst": "alpha/a1", "relation": "depends_on",
+         "confidence": "INFERRED", "weight": 5.0},
+    ]
+    page = tmp_path / "overview.html"
+    page.write_text(
+        viz.to_html(viz.to_payload(nodes, edges, {"mode": "overview"}))
+        .replace("</body>", _AGG_HARNESS), encoding="utf-8")
+    dom = _dump_dom(_chrome_binary(), page, tmp_path / "profile")
+
+    # two relations across one pair -> exactly two, not five and not four
+    assert _grab(dom, "agg-count") == "2"
+    # weights sum per (pair, relation); the intra-namespace edge (weight 5) is absent,
+    # which is what makes this a CROSS-cluster rollup rather than a global one
+    assert _grab(dom, "agg-rows") == (
+        "ns:alpha~ns:beta:depends_on=4 | ns:alpha~ns:beta:flow=1")
+    # the rollup says what it stands for, so a reader is not left with a bare thick line
+    assert "cross-namespace HTTP call" in _grab(dom, "agg-context")
