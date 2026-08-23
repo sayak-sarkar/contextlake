@@ -728,7 +728,7 @@ __LIB_TAG__
           <option value="in">incoming</option>
         </select></label>
       </div>
-      <p class="hint" id="hopshelp">Applies to the next node you expand.</p>
+      <p id="hopshelp">Applies to the next node you expand.</p>
       <label class="tog" id="nodeprow" hidden><input type="checkbox" id="shownodeps">
         show repos with no detected dependency <span id="nodepn" class="cnt"></span></label>
     </div>

@@ -97,7 +97,7 @@
      so the two can no longer share a rule. */
   /* The expand controls sit under the layout row; the hint carries their scope,
      which is not guessable from the labels alone. --muted holds AA on the sidebar. */
-  .hint{font-size:10.5px;color:var(--muted);margin:-2px 0 8px;line-height:1.35}
+  #hopshelp{font-size:10.5px;color:var(--muted);margin:-2px 0 8px;line-height:1.35}
   #hops{width:74px;accent-color:var(--brand);vertical-align:-3px}
   #edgelegend{display:flex;flex-wrap:wrap;gap:5px}
   #legend{display:flex;flex-direction:column;gap:9px}
