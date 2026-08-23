@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Folded leaves are now visible in the count, not only absent from the picture.** Leaf
+  folding writes a tally onto each container and onto the page meta, and nothing read either
+  of them, so on a `--site` page the majority of a large repository's nodes left the graph
+  with no surface saying so. The status bar now states the total, and selecting a container
+  shows its own tally with the kinds that make it up. The graph is unchanged; what changed
+  is that it says what it did.
+- The graph page's status bar said "1 edges".
+
 ### Added
 
 - **Trace downstream** on the graph page. Selecting a node highlights its immediate

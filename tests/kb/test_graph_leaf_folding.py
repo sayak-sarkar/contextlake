@@ -103,3 +103,47 @@ def test_a_graph_with_nothing_foldable_is_returned_untouched():
     edges = [_e("a", "b", "calls")]
     nd, ed, tally = fold_contained_leaves(list(nodes), list(edges))
     assert nd == nodes and ed == edges and tally == {}
+
+
+# --- the count has to REACH the reader ---------------------------------------------------
+#
+# Folding writes `folded`/`folded_kinds` onto the container and `folded_leaves` onto the
+# meta, and for a while nothing read any of them. On a real repository page that meant the
+# majority of nodes left the graph with no surface saying so -- and this module's own
+# docstring, and payload.py's, both claim "nothing is hidden silently". These pin the read
+# side, because the write side alone is the half-fix shape: it looks complete and matches
+# nothing.
+
+def test_the_container_carries_the_tally_into_the_rendered_node_data():
+    from contextlake.kb.visualize.diagrams import _cytoscape_elements
+
+    payload = to_payload(
+        [_n("f", "file"), _n("k1", "config_key"), _n("k2", "config_key"), _n("m", "macro")],
+        [_e("f", "k1"), _e("f", "k2"), _e("f", "m")],
+        {"mode": "repo"}, fold_leaves=True)
+    node = next(el["data"] for el in _cytoscape_elements(payload)
+                if el["data"]["id"] == "f")
+    assert node["folded"] == 3
+    # ordered by count, so the biggest contributor reads first
+    assert node["folded_kinds"] == "config_key 2, macro 1"
+
+
+def test_a_container_that_folded_nothing_carries_no_tally():
+    """An absent key, not a zero: `row()` drops empty values, and "folded 0" is noise."""
+    from contextlake.kb.visualize.diagrams import _cytoscape_elements
+
+    payload = to_payload([_n("f", "file"), _n("g", "function"), _n("h", "function")],
+                         [_e("f", "g", "contains"), _e("g", "h", "calls")],
+                         {"mode": "repo"}, fold_leaves=True)
+    for el in _cytoscape_elements(payload):
+        assert "folded" not in el["data"], el["data"]
+
+
+def test_the_page_states_the_fold_in_its_status_bar_and_inspector():
+    """The two surfaces a reader actually looks at, asserted on the shipped JS."""
+    from contextlake.kb.visualize import html_render as hr
+
+    js = hr._app_js()
+    assert "META.folded_leaves" in js
+    assert "leaves folded into their containers" in js
+    assert 'row("folded"' in js

@@ -485,6 +485,15 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
             "count": attrs.get("node_count"), "href": n.get("href") or "",
             "lang": n.get("lang") or "", "deg": degree.get(n["id"], 0),
         }
+        # Leaf folding writes `folded`/`folded_kinds` onto the container, and until
+        # this was carried through, nothing read them: 74% of the nodes could leave a
+        # site page with no surface saying so. The tally is the whole reason folding
+        # is allowed to hide anything, so it travels with the node.
+        if n.get("folded"):
+            data["folded"] = n["folded"]
+            kinds = n.get("folded_kinds") or {}
+            data["folded_kinds"] = ", ".join(
+                f"{k} {v}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
         parent = n.get("parent") or ""
         if parent:
             data["parent"] = parent

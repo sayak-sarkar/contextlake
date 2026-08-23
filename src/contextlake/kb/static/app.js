@@ -154,9 +154,18 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   var OVERVIEW = (META.mode === "overview");
   function isNoDep(n){ return OVERVIEW && n.data("deg") === 0; }
   var noDepCount = cy.nodes().filter(isNoDep).length;
+  // "1 edges" was showing on any single-edge graph.
+  function plural(n, word){ return n + " " + word + (n === 1 ? "" : "s"); }
   document.getElementById("meta").textContent =
-    cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges"
-    + (noDepCount ? " \u00b7 " + noDepCount + " with no detected dependency" : "");
+    plural(cy.nodes().length, "node") + " \u00b7 " + plural(cy.edges().length, "edge")
+    + (noDepCount ? " \u00b7 " + noDepCount + " with no detected dependency" : "")
+    // Folding removes the majority of nodes on a large repo page. Saying so is not a
+    // nicety: an unstated reduction reads as "this is the whole graph".
+    + (META.folded_leaves
+        ? " \u00b7 " + META.folded_leaves + (META.folded_leaves === 1
+            ? " leaf folded into its container"
+            : " leaves folded into their containers")
+        : "");
   if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
   // honesty: when the view was capped, say so (never imply completeness)
   if(META.truncated){
@@ -1188,7 +1197,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var fileline = d.file ? (d.file + (d.line ? ":" + d.line : "")) : "";
     info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
-      + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
+      + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg)
+      + row("folded", d.folded ? (d.folded + (d.folded_kinds ? " (" + d.folded_kinds + ")" : "")) : "")
+      + "</dl>"
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
       + (n.outgoers("edge").length

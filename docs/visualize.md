@@ -154,6 +154,57 @@ address it was bound to (`--host`) or `localhost`, port included, that pinning i
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
 you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
 
+## Working the served graph
+
+The page `--serve` gives you is a surface you drive, not a picture you look at. Four controls
+carry most of the work.
+
+### Expand a node, as far as you want
+
+Click a node and contextlake fetches its neighbours from the store and adds them to the canvas.
+Two controls in the sidebar decide what that fetch asks for:
+
+- **depth**: how many hops out to walk, 1 to 3. The server caps it at 3, so a slider at its
+  maximum and the server's ceiling are the same number.
+- **edges**: `both`, `outgoing`, or `incoming`. This chooses which edges the walk is allowed to
+  follow, so it changes which nodes come back, not how they're drawn.
+
+Both apply to the **next** node you expand. Expanding is additive, so nothing you've
+already opened is removed when you change them.
+
+Set `edges` to `outgoing` and you're asking "what does this depend on"; set it to `incoming` and
+you're asking "what depends on this".
+
+### Trace what a node reaches
+
+Selecting a node highlights the things next to it. To follow the chain instead, use
+**Trace downstream** in the inspector. It walks edge direction as far as it goes and reports how
+many nodes it found ("4 nodes downstream"). It appears only on nodes that have an outgoing edge.
+
+It traces the graph currently on the canvas. In `--serve` mode that's whatever you've expanded so
+far, so if a trace looks short, expand further with **depth** raised, then run it again.
+
+### Filter with the legend
+
+The **Nodes** legend groups every kind present into the vocabulary's ten bands: Symbols,
+Containers, Service surfaces, Data model, Infrastructure, Presentation, Configuration, Documents,
+Cross-source, Boundary. A band appears only when something in it is on the canvas.
+
+Click any kind to hide it, and any relationship in the **Relationships** legend to hide those
+edges. **Reset view & filters** in the toolbar brings everything back.
+
+### What's folded away, and where it went
+
+On `--site` pages, structural leaves are folded into their container rather than drawn. A node
+folds when nothing points out of it and the only thing pointing at it is `contains`: a config
+key, a macro, a struct field. On a large repository these are most of the graph, and drawing
+them adds a dot and a label that answer nothing the container doesn't already answer.
+
+Nothing disappears quietly. The status bar says how many went
+(`412 leaves folded into their containers`), and selecting a container shows the tally for that
+node, as `folded  19 (config_key 14, macro 5)`. The full graph is still in the store; use
+`contextlake kb graph --kind config_key` or the MCP tools to reach it.
+
 ## Composed namespace C4 diagram
 
 `contextlake kb graph --c4` renders a different kind of view: a composed **C4-Context/Container** diagram over
