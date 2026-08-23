@@ -491,11 +491,12 @@
       var openState = JSON.parse(lsGet("bands", "{}") || "{}");
 
       // Fleet layout: cards (rich) / list (dense rows) / table (full names, sortable look).
-      var MODES = ["cards", "list", "table"];
+      var MODES = ["cards", "list", "table", "treemap"];
       var viewMode = MODES.indexOf(lsGet("fleetview", "cards")) >= 0 ? lsGet("fleetview", "cards") : "cards";
       var bandsWrap = h("div");
       function repoCollection(repos) {
         if (viewMode === "table") return repoTable(repos);
+        if (viewMode === "treemap") return repoTreemap(repos);
         // A real <ul>/<li>, not role="list" over role="listitem" buttons -- see
         // the .cl-grid comment in dashboard.css. The card keeps its button role.
         var box = h("ul", { class: viewMode === "list" ? "cl-repolist" : "cl-grid" });
@@ -533,7 +534,8 @@
         });
       }
       var seg = h("div", { class: "cl-modeseg", role: "group", "aria-label": "Fleet layout" });
-      [["cards", "Cards", "ui-cards"], ["list", "List", "ui-list"], ["table", "Table", "ui-table"]].forEach(function (m) {
+      [["cards", "Cards", "ui-cards"], ["list", "List", "ui-list"], ["table", "Table", "ui-table"],
+       ["treemap", "Treemap", "ui-treemap"]].forEach(function (m) {
         seg.appendChild(h("button", {
           type: "button", "aria-pressed": String(viewMode === m[0]), title: m[1] + " layout",
           onclick: function () {
@@ -604,6 +606,94 @@
           (r.node_count || 0) + " nodes"),
         h("span", { class: "cl-repocard__stat" }, r.default_branch || "—")));
   }
+  // Squarified treemap. Sized by node_count, which spans five thousandfold across a
+  // real fleet -- a bar chart of that is one visible bar and a row of slivers, which is
+  // why this earns a layout of its own rather than being a restyled list.
+  //
+  // Hand-rolled rather than pulled in: the algorithm is the standard Bruls/Huizing/van
+  // Wijk squarify, and a charting library would be a new dependency for one view.
+  function squarify(items, x, y, w, hgt) {
+    var out = [], total = items.reduce(function (a, it) { return a + it.value; }, 0);
+    if (!total) return out;
+    var scale = (w * hgt) / total;
+    var rest = items.map(function (it) {
+      return { item: it, area: it.value * scale };
+    });
+    function worst(row, side) {
+      var sum = row.reduce(function (a, r) { return a + r.area; }, 0);
+      var mx = Math.max.apply(null, row.map(function (r) { return r.area; }));
+      var mn = Math.min.apply(null, row.map(function (r) { return r.area; }));
+      var s2 = sum * sum, w2 = side * side;
+      return Math.max((w2 * mx) / s2, s2 / (w2 * mn));
+    }
+    while (rest.length) {
+      var horizontal = w >= hgt, side = horizontal ? hgt : w;
+      var row = [rest.shift()];
+      while (rest.length && worst(row.concat(rest[0]), side) <= worst(row, side)) {
+        row.push(rest.shift());
+      }
+      var rowArea = row.reduce(function (a, r) { return a + r.area; }, 0);
+      var thick = rowArea / side, off = 0;
+      row.forEach(function (r) {
+        var len = r.area / thick;
+        out.push(horizontal
+          ? { item: r.item, x: x, y: y + off, w: thick, h: len }
+          : { item: r.item, x: x + off, y: y, w: len, h: thick });
+        off += len;
+      });
+      if (horizontal) { x += thick; w -= thick; } else { y += thick; hgt -= thick; }
+    }
+    return out;
+  }
+
+  function repoTreemap(repos) {
+    // A repo with no node_count has not been indexed. It cannot be sized, and giving it
+    // a zero area would delete it from the picture -- so it is listed separately and
+    // said out loud rather than quietly dropped.
+    var sized = [], unsized = [];
+    repos.forEach(function (r) {
+      (r.node_count ? sized : unsized).push(r);
+    });
+    sized.sort(function (a, b) { return b.node_count - a.node_count; });
+    var box = h("div", { class: "cl-treemap-wrap" });
+    if (sized.length) {
+      var W = 1000, H = Math.max(260, Math.min(520, 90 * Math.sqrt(sized.length)));
+      var tiles = squarify(sized.map(function (r) {
+        return { repo: r, value: r.node_count };
+      }), 0, 0, W, H);
+      var max = sized[0].node_count;
+      var map = h("div", { class: "cl-treemap", style: "aspect-ratio:" + W + "/" + H });
+      tiles.forEach(function (t) {
+        var r = t.item.repo, nm = splitRepo(r.id);
+        // intensity carries the size a second time, so the ranking survives for anyone
+        // who cannot compare areas at a glance
+        var lift = 0.18 + 0.62 * Math.sqrt(r.node_count / max);
+        var big = t.w > 8.5 && t.h > 7;
+        map.appendChild(h("button", {
+          type: "button", class: "cl-tile", title: r.id + " \u2014 " + num(r.node_count) + " nodes",
+          "aria-label": r.id + ", " + num(r.node_count) + " nodes",
+          style: "left:" + (t.x / W * 100) + "%;top:" + (t.y / H * 100) + "%;width:"
+            + (t.w / W * 100) + "%;height:" + (t.h / H * 100) + "%;--lift:" + lift.toFixed(3),
+          onclick: function () { go("#/repo/" + r.id); }
+        }, big ? h("span", { class: "cl-tile__label" },
+                   h("span", { class: "cl-tile__name" }, nm.base),
+                   h("span", { class: "cl-tile__n" }, num(r.node_count))) : null));
+      });
+      box.appendChild(map);
+    }
+    if (unsized.length) {
+      var u = h("div", { class: "cl-treemap-unsized" },
+        h("span", { class: "cl-muted" },
+          num(unsized.length) + " not indexed yet, so not sized:"));
+      unsized.forEach(function (r) {
+        u.appendChild(h("button", { type: "button", class: "cl-btn", title: r.id,
+          onclick: function () { go("#/repo/" + r.id); } }, splitRepo(r.id).base));
+      });
+      box.appendChild(u);
+    }
+    return box;
+  }
+
   function repoRow(r) {
     var health = r.indexed_at ? "fresh" : "stale";
     var nm = splitRepo(r.id);

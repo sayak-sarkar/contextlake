@@ -6963,6 +6963,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A treemap layout for the fleet**, alongside Cards, List and Table. Repository size
+  spans thousands-fold across a real fleet, and a list gives every repository the same
+  visual weight regardless. The treemap sizes each one by its node count, so where the
+  graph actually lives is the first thing you see. Squarified layout, hand-rolled, no new
+  dependency. A repository that has not been indexed cannot be sized, so it is listed
+  beside the map and said out loud rather than drawn as a zero-area tile that would simply
+  vanish.
+
 - **An unresolved-references review surface, in Knowledge health.** When the parser cannot
   pin a reference to one definition it says so, and that verdict has been in the graph as
   `AMBIGUOUS` edges with full provenance without any surface that let you read it. The

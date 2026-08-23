@@ -345,3 +345,56 @@ def test_state_blocks_speak_through_the_persistent_live_region():
     body = JS[JS.index("function stateBlock"):]
     body = body[:body.index("\n  }")]
     assert "announceState(" in body
+
+
+# --- static-asset parity (V6) ----------------------------------------------------------
+#
+# Both of these failed silently while building the treemap, which is why they are guards
+# rather than notes. A `<use href="#ui-treemap">` pointing at a symbol that does not exist
+# renders nothing at all -- no console error, just a button with a missing icon. And an
+# undefined custom property inside `color-mix()` makes the whole declaration invalid, so
+# CSS drops it and the tile renders with no fill.
+
+import re
+from pathlib import Path
+
+_STATIC = Path(__file__).resolve().parents[2] / "src/contextlake/kb/dashboard/static"
+
+
+def _js():
+    return (_STATIC / "dashboard.js").read_text(encoding="utf-8")
+
+
+def _css():
+    return (_STATIC / "dashboard.css").read_text(encoding="utf-8")
+
+
+def _html():
+    return (_STATIC / "dashboard.html").read_text(encoding="utf-8")
+
+
+def test_every_icon_the_js_references_exists_in_the_sprite():
+    have = set(re.findall(r'id="(ui-[a-z-]+)"', _html()))
+    want = set(re.findall(r'"(ui-[a-z-]+)"', _js()))
+    missing = sorted(want - have)
+    assert not missing, f"referenced but not in the sprite (renders blank): {missing}"
+
+
+def test_every_custom_property_the_css_uses_is_defined():
+    css = _css()
+    defined = set(re.findall(r"(--cl-[a-z0-9-]+)\s*:", css))
+    bare = set(re.findall(r"var\(\s*(--cl-[a-z0-9-]+)\s*\)", css))
+    missing = sorted(bare - defined)
+    assert not missing, f"used with no fallback and never defined: {missing}"
+
+
+def test_the_fleet_layout_modes_and_their_buttons_stay_in_step():
+    """MODES drives aria-pressed by INDEX, so a list that drifts mislabels every button."""
+    js = _js()
+    modes = re.search(r'var MODES = \[([^\]]+)\]', js).group(1)
+    modes = re.findall(r'"([a-z]+)"', modes)
+    buttons = re.search(r'\[\["cards".*?\]\]\.forEach', js, re.S).group(0)
+    labelled = re.findall(r'\["([a-z]+)", "[A-Za-z]+", "ui-[a-z-]+"\]', buttons)
+    assert modes == labelled, (
+        f"MODES {modes} and the button list {labelled} disagree; aria-pressed is set by "
+        "index, so the wrong button would read as selected")
