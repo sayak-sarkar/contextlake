@@ -2141,3 +2141,72 @@ def test_crossing_edges_roll_up_to_one_per_namespace_pair_and_relation(tmp_path)
         "ns:alpha~ns:beta:depends_on=4 | ns:alpha~ns:beta:flow=1")
     # the rollup says what it stands for, so a reader is not left with a bare thick line
     assert "cross-namespace HTTP call" in _grab(dom, "agg-context")
+
+
+# --- F4: a node's source reference is copyable, and says whether it copied -------------
+#
+# Edges have offered "copy file:line" since provenance shipped. Nodes carry the same
+# `file`/`line` (diagrams.py puts both on every node) and offered no way to take it
+# anywhere, so the asymmetry was in the presentation, not the data.
+
+_COPY_HARNESS = """
+<script>
+(function(){
+  function out(id, txt){
+    var d = document.createElement("div"); d.id = id; d.textContent = txt;
+    document.body.appendChild(d);
+  }
+  // A stub, because a headless page has no clipboard permission and the real call
+  // rejects -- which would exercise the failure path, not the success one.
+  var copied = null;
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: function(t){ copied = t; return Promise.resolve(); } }
+  });
+  setTimeout(function(){
+    cy.getElementById("svc/handler.py::run").emit("tap");
+    setTimeout(function(){
+      var btn = document.querySelector("#info .copy-prov");
+      out("copy-present", btn ? "present" : "absent");
+      out("copy-payload-attr", btn ? btn.getAttribute("data-prov") : "");
+      out("copy-label", btn ? btn.textContent : "");
+      if(btn){ btn.click(); }
+      setTimeout(function(){
+        out("copy-clipboard", String(copied));
+        out("copy-confirmed", document.querySelector("#info .copy-prov").textContent);
+        // a node with no file must not offer a control that would copy nothing
+        cy.getElementById("nofile").emit("tap");
+        setTimeout(function(){
+          out("copy-absent-when-no-file",
+              document.querySelector("#info .copy-prov") ? "present" : "absent");
+        }, 150);
+      }, 250);
+    }, 250);
+  }, 400);
+})();
+</script>
+</body>"""
+
+
+@pytest.mark.skipif(_chrome_binary() is None,
+                    reason="no Chrome/Chromium available to render the page")
+def test_a_node_source_reference_can_be_copied_and_confirms_it(tmp_path):
+    nodes = [{"id": "svc/handler.py::run", "kind": "function", "name": "run",
+              "file": "svc/handler.py", "line": 42, "deg": 1},
+             {"id": "nofile", "kind": "function", "name": "nofile", "deg": 1}]
+    edges = [{"src": "svc/handler.py::run", "dst": "nofile", "relation": "calls",
+              "confidence": "EXTRACTED", "weight": 1.0}]
+    page = tmp_path / "graph.html"
+    page.write_text(
+        viz.to_html(viz.to_payload(nodes, edges, {"mode": "neighborhood"}))
+        .replace("</body>", _COPY_HARNESS), encoding="utf-8")
+    dom = _dump_dom(_chrome_binary(), page, tmp_path / "profile")
+
+    assert _grab(dom, "copy-present") == "present"
+    assert _grab(dom, "copy-payload-attr") == "svc/handler.py:42"
+    assert _grab(dom, "copy-label") == "copy file:line"
+    # the value actually reaches the clipboard, not merely the attribute
+    assert _grab(dom, "copy-clipboard") == "svc/handler.py:42"
+    # and the control says so. A silent success is indistinguishable from a dead button.
+    assert _grab(dom, "copy-confirmed") == "copied"
+    assert _grab(dom, "copy-absent-when-no-file") == "absent"

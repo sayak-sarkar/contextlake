@@ -1200,6 +1200,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg)
       + row("folded", d.folded ? (d.folded + (d.folded_kinds ? " (" + d.folded_kinds + ")" : "")) : "")
       + "</dl>"
+      // Edges have offered "copy file:line" since provenance shipped; nodes carried the
+      // same `file`/`line` and offered no way to take it anywhere. A `file://` link would
+      // be blocked from a --serve page and an editor scheme is environment-specific, so
+      // the clipboard is the affordance that works everywhere.
+      + (fileline ? '<button type="button" class="copy-prov" data-prov="'
+                    + esc(fileline) + '">copy file:line</button>' : "")
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
       + (n.outgoers("edge").length
@@ -1232,7 +1238,24 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   }
   info.addEventListener("click", function(ev){
     var b = ev.target.closest && ev.target.closest(".copy-prov");
-    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); return; }
+    if(b){
+      var say = function(msg){
+        // The button is focused when clicked, so rewriting its own label is what a
+        // screen reader announces; restore it so the control still says what it does.
+        var was = b.getAttribute("data-label") || b.textContent;
+        b.setAttribute("data-label", was);
+        b.textContent = msg;
+        setTimeout(function(){ b.textContent = b.getAttribute("data-label") || was; }, 1600);
+      };
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(b.getAttribute("data-prov"))
+          .then(function(){ say("copied"); })
+          .catch(function(){ say("copy failed"); });
+      } else {
+        say("clipboard unavailable");
+      }
+      return;
+    }
     if(ev.target.closest && ev.target.closest(".rmore")){
       if(curNode){ showInfo(curNode, true); }
       return;

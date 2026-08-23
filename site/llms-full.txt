@@ -6961,6 +6961,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Copy a node's `file:line` from the inspector.** Edges have offered this since
+  provenance shipped; nodes carried the same location and gave you no way to take it
+  anywhere. Both controls now confirm what happened, including when the clipboard is
+  unavailable, which is the normal case for a page opened straight off disk rather than
+  served.
+
 ### Fixed
 
 - **Folded leaves are now visible in the count, not only absent from the picture.** Leaf
