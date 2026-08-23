@@ -588,7 +588,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
             n["href"] = pages[n["id"]]
     meta["mode"] = "overview"
     (out / "overview.html").write_text(
-        to_html(to_payload(nodes, edges, meta), cdn=cdn,
+        to_html(to_payload(nodes, edges, meta, fold_leaves=True), cdn=cdn,
                 layout=overview_layout, assets="sibling", site=True,
                 title="contextlake — fleet overview"), encoding="utf-8")
 
@@ -602,7 +602,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
         rn, re_ = repo_subgraph(store, r, max_nodes=repo_max_nodes, meta=m)
         m.update(mode="repo", repo=r)
         (out / pages[r]).write_text(
-            to_html(to_payload(rn, re_, m), cdn=cdn,
+            to_html(to_payload(rn, re_, m, fold_leaves=True), cdn=cdn,
                     layout=repo_layout, assets="sibling", site=True,
                     title=f"contextlake — {r}"), encoding="utf-8")
         if wiki_dir:

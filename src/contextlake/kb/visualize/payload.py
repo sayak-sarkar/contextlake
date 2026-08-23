@@ -75,13 +75,96 @@ def _edge_dict(e) -> dict:
             "verified_at": verified.isoformat() if verified else None}
 
 
-def to_payload(nodes, edges, meta: dict | None = None) -> dict:
-    """Normalize (Node|dict, Edge|dict) lists into the canonical payload."""
+def fold_contained_leaves(nd: list[dict], ed: list[dict]) -> tuple[list[dict], list[dict], dict]:
+    """Collapse structural leaves into a count on their container.
+
+    A node is a leaf here when, **within this payload**, it is the source of no edge and
+    the only relation reaching it is ``contains``. Such a node adds a dot and a label to
+    the picture and answers no question the container does not already answer: nothing
+    calls it, it calls nothing, and its one edge says where it lives.
+
+    Measured on a 663k-node store, five kinds satisfy that -- `config_key`, `macro`,
+    `field`, `enum_constant`, `global_variable` -- and they are **74.1% of all nodes**.
+
+    **The rule is structural on purpose, and the kind list above is not in the code.**
+    Three ways a hardcoded list would have been wrong. It would encode one fleet's shape:
+    `config_key` alone is 55.6% of that store, is 100% XML, and three repositories hold
+    71.8% of it. It would keep folding a kind the day a parser learns to emit a real edge
+    from it. And it would need `typedef` remembered as an exception -- 22k nodes that are
+    also never a source, but which `inherits` edges reach, so folding them would hide a
+    type hierarchy. Asking the graph instead gets all three right for free.
+
+    The container keeps the tally, so nothing is hidden silently: a folded container
+    carries ``folded`` (how many) and ``folded_kinds`` (a kind -> count map) for the
+    renderer to show. A leaf whose container is not in this payload is KEPT -- folding it
+    into something absent would drop it from the picture entirely.
+    """
+    by_id = {n["id"]: n for n in nd if n.get("id")}
+    sources = {e.get("src") for e in ed}
+    incoming: dict[str, set] = {}
+    container: dict[str, str] = {}
+    for e in ed:
+        dst, rel, src = e.get("dst"), e.get("relation"), e.get("src")
+        if dst is None:
+            continue
+        incoming.setdefault(dst, set()).add(rel)
+        if rel == "contains":
+            container.setdefault(dst, src)
+
+    foldable = {
+        nid for nid in by_id
+        if nid not in sources
+        and incoming.get(nid) == {"contains"}
+        and container.get(nid) in by_id
+    }
+    if not foldable:
+        return nd, ed, {}
+
+    for nid in foldable:
+        parent = by_id[container[nid]]
+        parent["folded"] = parent.get("folded", 0) + 1
+        kinds = parent.setdefault("folded_kinds", {})
+        k = by_id[nid].get("kind") or "unknown"
+        kinds[k] = kinds.get(k, 0) + 1
+
+    kept_nodes = [n for n in nd if n.get("id") not in foldable]
+    kept_edges = [e for e in ed
+                  if e.get("src") not in foldable and e.get("dst") not in foldable]
+    tally: dict = {}
+    for nid in foldable:
+        k = by_id[nid].get("kind") or "unknown"
+        tally[k] = tally.get(k, 0) + 1
+    return kept_nodes, kept_edges, tally
+
+
+def to_payload(nodes, edges, meta: dict | None = None, *, fold_leaves: bool = False) -> dict:
+    """Normalize (Node|dict, Edge|dict) lists into the canonical payload.
+
+    ``fold_leaves`` collapses structural leaves into a count on their container (see
+    :func:`fold_contained_leaves`). **Off by default, and the default is the interesting
+    part.** Folding is a property of the interactive graph VIEW, which has a readability
+    problem, and not of the payload, which several exports consume whole.
+
+    Defaulting it on broke the class diagram, and the way it broke is the argument: a
+    `method` reached only by `contains` satisfies the structural leaf rule exactly, and in
+    a UML class view the methods ARE the content. `to_json`, `to_dot`, `to_mermaid`,
+    `to_class_diagram`, `to_sequence_diagram` and `to_state_diagram` all read this payload
+    and all need every node. Only `to_html` opts in.
+    """
     nd = [_node_dict(n) for n in nodes]
     ed = [_edge_dict(e) for e in edges]
     m = dict(meta or {})
+    # The counts describe what the caller HANDED us, recorded before any folding, so
+    # "how big is this subgraph" and "how much is drawn" stay separable. A reader told
+    # only the post-fold number would think the graph were smaller than it is.
     m.setdefault("node_count", len(nd))
     m.setdefault("edge_count", len(ed))
+    if fold_leaves:
+        nd, ed, folded = fold_contained_leaves(nd, ed)
+        if folded:
+            m["folded_leaves"] = sum(folded.values())
+            m["folded_leaf_kinds"] = folded
+            m["drawn_node_count"] = len(nd)
     return {"nodes": nd, "edges": ed, "meta": m}
 
 
