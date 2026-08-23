@@ -78,7 +78,7 @@ completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource
 `erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
 dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
 and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
-arbitrary slice (see [The dashboard](dashboard.md)).
+arbitrary slice (see [The dashboard](using-the-dashboard.md)).
 
 ## Output formats
 
@@ -113,7 +113,7 @@ Output is chosen with `--format`:
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
-  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](index-code-graph.md)):
+  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
   `contextlake kb graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
   only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
   relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
@@ -124,7 +124,7 @@ Output is chosen with `--format`:
   definitions grouped by an inferred category
   (network/compute/storage/database/security/other/module; a resource type matching none of the
   keyword lists lands in `other` and gets its own subgraph),
-  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake kb graph --repo
+  from the HCL extractor (see [Index & Code Graph](indexing-the-code-graph.md)): `contextlake kb graph --repo
   acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
   type-name interpolation references draw the connections between resources. A single-category view
@@ -152,7 +152,7 @@ with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a
 `Host` header names the
 address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
+you intend to browse rather than a wildcard (see [dashboard.md](using-the-dashboard.md#11-mutating-routes)).
 
 ## Working the served graph
 
@@ -249,6 +249,6 @@ just never used until this view asks for it.
 
 ## See also
 
-- [The dashboard](dashboard.md)
-- [Index the code graph](index-code-graph.md)
-- [Serve it to your editor](serve.md)
+- [The dashboard](using-the-dashboard.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Serve it to your editor](serving-over-mcp.md)

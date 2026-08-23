@@ -27,7 +27,7 @@ is not shipped in the package).
 
 Using pip, uv, Docker, or a standalone binary instead, or picking extras individually? Every
 channel, the extras table, upgrading, and uninstalling are on one page:
-**[Install and upgrade](docs/install.md)**. Verify whichever you chose with:
+**[Install and upgrade](docs/installing.md)**. Verify whichever you chose with:
 
 ```bash
 contextlake --version
@@ -108,7 +108,7 @@ contextlake doctor --fix llm-local
 That installs into the interpreter contextlake is running in and prints the exact command
 before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
 index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
-upgrade](docs/install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+upgrade](docs/installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`

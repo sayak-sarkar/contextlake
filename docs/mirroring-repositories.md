@@ -3,7 +3,7 @@
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for scheduling a
-sync see [Bootstrap and keep it fresh](keep-fresh.md); for the knowledge layer see the
+sync see [Bootstrap and keep it fresh](keeping-it-fresh.md); for the knowledge layer see the
 [Knowledge layer](knowledge-layer.md) overview.
 
 > [!NOTE]
@@ -387,7 +387,7 @@ looks in one place rather than guessing which page owns their symptom.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keep-fresh.md), scheduling a sync and re-indexing on commit
+- [Bootstrap and keep it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
 - [Configuration](configuration.md), the full settings reference
 - [Reading the console output](console-output.md), the status glyphs and the exit codes
 - [Knowledge layer](knowledge-layer.md), what to build on top of the mirror

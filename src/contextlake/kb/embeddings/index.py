@@ -57,7 +57,7 @@ from ..store.shards import read_shard
 #      This is the first bump made on a measurement rather than a judgement. On 29 real
 #      documents with 53 position-selected queries: hit rate 71.7% -> 94.3%, MRR
 #      45.2% -> 80.4%, +15 tokens per query, 13 queries fixed and 1 lost. The controls, and
-#      what the measurement does NOT establish, are in `docs/semantic-search.md`.
+#      what the measurement does NOT establish, are in `docs/searching-semantically.md`.
 #
 #      Note what this bump does and does not do for documents. Only `kb embed` and the
 #      freshness report read this number; the DOCUMENT path never consults it, so bumping

@@ -99,7 +99,7 @@ def test_an_overlap_at_least_as_large_as_the_chunk_cannot_hang():
 # --- keys --------------------------------------------------------------------------------
 
 def test_a_chunk_key_round_trips_to_its_node_id():
-    node = "@ingest:cli:docs/usage.md"
+    node = "@ingest:cli:docs/mirroring-repositories.md"
     assert base_node_id(chunk_key(node, 0)) == node
     assert base_node_id(chunk_key(node, 17)) == node
 

@@ -251,4 +251,4 @@ The reference is generated, so regenerate it after re-indexing:
 contextlake kb index && contextlake kb docs
 ```
 
-See [Bootstrap and keep it fresh](keep-fresh.md) for running that on a schedule or on commit.
+See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.

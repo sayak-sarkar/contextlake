@@ -5,7 +5,7 @@ and why each part is built the way it is. Read the first section and stop, and y
 a whole answer; each section after it goes one level deeper.
 
 This is the page for deciding whether to adopt contextlake and for understanding the reasoning
-behind it. For getting it running, start at [Install and upgrade](install.md) instead.
+behind it. For getting it running, start at [Install and upgrade](installing.md) instead.
 
 The shape of the whole thing, before any of the detail:
 
@@ -68,7 +68,7 @@ that file states the intent plainly: the anti-hallucination contract is structur
 | Layer | What it does | What you get without the next one |
 | --- | --- | --- |
 | **Mirror** | Clones every repository you can reach on a GitLab group, GitHub org, Bitbucket workspace or Gitea owner, keeps each on its most active branch, and keeps them current | A local, always-fresh copy of the fleet. Useful on its own, with `grep` if nothing else |
-| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](ask-the-graph.md) |
+| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](asking-the-graph.md) |
 | **Serve** | Exposes the graph over MCP, plus a local dashboard and a graph visualizer | Answers inside your editor and your agents |
 
 Each layer depends only on the one below it, never sideways and never upward:
@@ -242,7 +242,7 @@ The token gate is ASGI middleware wrapping the whole application
 (`BearerAuthMiddleware` in `src/contextlake/kb/server.py`), which has a consequence worth knowing
 before you debug it: an unauthenticated request to *any* path, the root included, gets `401`, not
 `404`. Nothing is encrypted in transit; for anything past your own machine, put TLS or an SSH
-tunnel in front. See [Serve it to your editor](serve.md).
+tunnel in front. See [Serve it to your editor](serving-over-mcp.md).
 
 ## Confidence and provenance
 
@@ -299,7 +299,7 @@ against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
 `tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
 Both documented gap classes, and the false positive that masking comments removed, are written down
-in [Index the code graph](index-code-graph.md#databases-sql-ddl).
+in [Index the code graph](indexing-the-code-graph.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you
@@ -448,7 +448,7 @@ described.
 
 - [Benchmarks](benchmarks.md), where the token and correctness impact comes from, and how to measure
   it on your own repositories
-- [Install and upgrade](install.md), if you have decided to try it
+- [Install and upgrade](installing.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
-- [Ask the graph](ask-the-graph.md), the questions this page promised you can ask
-- [Index the code graph](index-code-graph.md), what the graph actually contains
+- [Ask the graph](asking-the-graph.md), the questions this page promised you can ask
+- [Index the code graph](indexing-the-code-graph.md), what the graph actually contains

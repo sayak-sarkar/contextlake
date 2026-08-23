@@ -172,7 +172,7 @@ pip install "contextlake[kb-pdf]"
 ```
 
 `[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
-table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
+table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
 in it, a custom `include` replaces the defaults rather than adding to them.
 
 What the PDF path does **not** do is the load-bearing half. It runs no OCR and no vision model
@@ -416,6 +416,6 @@ for, so the run should not read as clean.
 
 ## See also
 
-- [Index the code graph](index-code-graph.md)
-- [Semantic search](semantic-search.md)
-- [Serve it to your editor](serve.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)

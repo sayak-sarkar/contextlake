@@ -45,3 +45,12 @@ playground/
 # superpowers:subagent-driven-development plan workspaces (task briefs, review
 # packages, progress ledger). Self-cleaning, but must never enter git history.
 .superpowers/
+
+# Generated docs-site pages. `site/build_docs.py` writes one .html per PAGES entry and
+# prunes the rest, so committing them means every docs edit carries a rebuilt page in its
+# diff -- and a `git add -A` silently adds thirty of them. Two files here are NOT generated
+# and stay tracked: index.html (the hand-maintained landing page, which build_docs only
+# preserves) and graph-embed.html.
+site/*.html
+!site/index.html
+!site/graph-embed.html

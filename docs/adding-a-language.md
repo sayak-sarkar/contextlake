@@ -178,7 +178,7 @@ five hand-written places:
 | --- | --- |
 | `README.md` | the count in the feature list |
 | `ROADMAP.md` | the count in the knowledge-graph bullet |
-| `docs/index-code-graph.md` | the count in the [Languages](index-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/indexing-the-code-graph.md` | the count in the [Languages](indexing-the-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
 | `docs/style-guide-reference.md` | the mandated phrasing itself |
 | `site/build_docs.py` | the "Index the code graph" page subtitle |
 
@@ -517,7 +517,7 @@ to hold your query to.
 
 ## See also
 
-- [Index the code graph](index-code-graph.md#languages), what the graph looks like once your language
+- [Index the code graph](indexing-the-code-graph.md#languages), what the graph looks like once your language
   is in it
 - [CONTRIBUTING.md](../CONTRIBUTING.md), the development loop, commit style, and how to submit
 - [Word and term reference](style-guide-reference.md), the house rules the docs edits in step 8 follow

@@ -4399,7 +4399,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   neither does anything until the preview layout is selected.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
-  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
+  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serving-over-mcp.md#transports).
 - Ingested documents now link to the code symbols they mention by name, via a new
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as
@@ -4859,7 +4859,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   default `--help` now keeps out of the listing -- every one already has a `.contextlake.ini`
   equivalent, so hiding them by default removes ~60% of the visible flag surface on 8 commands for
   zero functional cost. The flags themselves are unchanged and still fully documented in
-  [Mirror repositories](docs/usage.md).
+  [Mirror repositories](docs/mirroring-repositories.md).
 - `Examples:` epilogs added to `fetch`/`clone`/`update`/`branches`/`verify`/`status`/`audit`'s own
   `--help`, matching the worked examples every other command already carried.
 
@@ -5079,7 +5079,7 @@ spec-cli-simplification.md`.
   - `--llm-chat` mints the same per-launch token `--allow-mutations` uses, and every chat request while
     it's active must carry it -- a page other than this dashboard can't silently trigger a paid call. The
     free layer needs no token, same risk level as any other read-only `/api/*` route.
-  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#12-chat).
+  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md#12-chat).
 
 ## [2.59.1] - 2026-07-29
 
@@ -5215,7 +5215,7 @@ spec-cli-simplification.md`.
   duration only, so a concurrent CLI command sees a clean `409` instead of an
   interleaved write. New `kb/dashboard/mutations.py`. Verified against a real
   git repo (not mocks) end-to-end, including a live curl pass against the
-  playground store. See [dashboard.md §11](docs/dashboard.md#11-mutating-routes).
+  playground store. See [dashboard.md §11](docs/using-the-dashboard.md#11-mutating-routes).
 
 - **Per-symbol ticket attribution.** `tracked_by` edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
@@ -6542,7 +6542,7 @@ real one; this release closes them.
 - **`--llm <provider>` and `--llm-model <model>` CLI flags** for `wiki` — enable the LLM tier
   inline (`builtin` | `ollama` | `openai`) without editing `kb.toml`, e.g.
   `contextlake wiki acme/app --llm builtin`.
-- **A guided dashboard tour** ([docs/dashboard.md](docs/dashboard.md)) — a step-by-step
+- **A guided dashboard tour** ([docs/dashboard.md](docs/using-the-dashboard.md)) — a step-by-step
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.
 

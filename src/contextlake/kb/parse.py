@@ -56,7 +56,7 @@ from .xsl import parse_xsl
 # kb.config, because kb/cmds/index.py already imports it from here (lazily, to
 # avoid an eager tree-sitter import). It used to be its own literal here
 # (5 * 1024 * 1024 = 5,242,880 bytes, "5 MiB") disagreeing with KbConfig's
-# separately hardcoded 5,000,000 ("5 MB"). docs/index-code-graph.md documents the
+# separately hardcoded 5,000,000 ("5 MB"). docs/indexing-the-code-graph.md documents the
 # knob as "5 MB" (decimal), so kb/config.py's value is the one that survived.
 
 # Directories never worth walking.
@@ -2997,7 +2997,7 @@ def index_repo_dir(
             # the UNION of both routing tables -- counting LANG_BY_EXT alone would omit
             # every language a file reaches by name and still read as a complete total.
             log(f"  contextlake indexes {len(ALL_LANGS)} languages; see "
-                f"docs/contributing-languages.md to add one.")
+                f"docs/adding-a-language.md to add one.")
         else:
             log(f"  {total} file(s) had no parser for their type: {shown}{more}")
     # A DIFFERENT sentence from the one above, deliberately. "no parser for their type"

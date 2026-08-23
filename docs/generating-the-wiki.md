@@ -87,7 +87,7 @@ Ollama that already has the model pulled, else the built-in CPU model, else it s
 [Model providers](model-providers.md)).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
-(see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
+(see [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
@@ -285,11 +285,11 @@ from, and a **STALE** badge if the indexed commit has since moved.
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
-background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes).
+background, see [The dashboard → Mutating routes](using-the-dashboard.md#11-mutating-routes).
 
 ## Recorded decisions
 
-A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
+A repo's own ADR/decision docs (see [Index & Code Graph](indexing-the-code-graph.md#architecture-decisions-adrs))
 are authored facts, not connector content, so they don't need attribution the way "External context"
 does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
 No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
@@ -297,5 +297,5 @@ No `enrich`/`connect` step needed, these are picked up automatically whenever th
 ## See also
 
 - [Model providers](model-providers.md)
-- [Connect and enrich](connect-enrich.md)
-- [The dashboard](dashboard.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [The dashboard](using-the-dashboard.md)

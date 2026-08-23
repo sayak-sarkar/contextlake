@@ -50,7 +50,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     from ..repo_migrate import migrate_stale_repo_ids
     # Collected, not merely logged: a directory git cannot open was warned about and then
     # dropped from discovery, so the tally below counted only what survived and reported
-    # "0 failed" with exit 0. `docs/connect-enrich.md` promises the opposite verdict.
+    # "0 failed" with exit 0. `docs/connecting-and-enriching.md` promises the opposite verdict.
     unusable: list[str] = []
     repos = discover_repos(str(workspace), unusable=unusable)
     # discover_repos returns (repo_id, path) PAIRS -- pass the paths, not the pairs.

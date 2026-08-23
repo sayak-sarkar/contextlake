@@ -52,7 +52,7 @@ def test_max_file_bytes_default_agrees_across_every_source(tmp_path, monkeypatch
     config.py, repeated a third time as the `kb.get("max_file_bytes", 5_000_000)`
     fallback in load_kb_config(). A file sized between the two disagreeing values
     was silently skipped or parsed depending on which entry point it came
-    through. docs/index-code-graph.md and docs/style-guide-formatting.md both
+    through. docs/indexing-the-code-graph.md and docs/style-guide-formatting.md both
     document the knob as "5 MB" (decimal), so 5_000_000 is the value that must
     win everywhere; pre-fix, the first assertion below fails with
     `assert 5242880 == 5000000`.

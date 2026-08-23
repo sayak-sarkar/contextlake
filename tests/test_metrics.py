@@ -86,7 +86,7 @@ def test_scan_prefers_gitlab_dates(tmp_path):
 
 
 def test_scan_honors_repos_filter(tmp_path):
-    """docs/usage.md promises `--repos` for "every mirror command" -- audit is
+    """docs/mirroring-repositories.md promises `--repos` for "every mirror command" -- audit is
     a mirror-tier command (docs/cli-reference.md) but scan_repo_metrics used
     to call get_local_repos directly and never consult repo_filter at all."""
     for rel in ("team/api", "team/web", "other/thing"):

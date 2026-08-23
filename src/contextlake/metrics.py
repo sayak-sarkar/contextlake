@@ -99,7 +99,7 @@ def scan_repo_metrics(work_dir: str, projects: dict | None = None,
     ``projects`` is the GitLab project map (from the fetch cache); when present its
     ``created_at`` / ``last_activity_at`` enrich each record, else dates fall back to
     the local git history. ``config``'s ``--repos``/``repo_filter`` is honored the
-    same way fetch/clone/update/branches/verify/status already do -- docs/usage.md
+    same way fetch/clone/update/branches/verify/status already do -- docs/mirroring-repositories.md
     promises this for "every mirror command", audit included.
     """
     projects = projects or {}

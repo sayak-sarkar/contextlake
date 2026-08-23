@@ -52,7 +52,7 @@ LOCAL_CONFIG = ".contextlake.kb.toml"
 # So `languages = None` now means "every language the parser supports", matching the
 # behaviour users have always had, and an explicit list finally filters.
 # The single source of truth for the indexer's oversize-file cutoff. Decimal
-# 5,000,000 (5 MB), not 5 * 1024**2 (5 MiB, 5,242,880 bytes): docs/index-code-graph.md
+# 5,000,000 (5 MB), not 5 * 1024**2 (5 MiB, 5,242,880 bytes): docs/indexing-the-code-graph.md
 # and docs/style-guide-formatting.md both document this knob as "5 MB", and this is
 # the user-facing [kb] config value, so it wins over parse.py's binary-unit constant
 # of the same name -- kb/parse.py imports this constant rather than defining its own,

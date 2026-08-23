@@ -50,7 +50,7 @@ Rules are easier to follow when you can see the rewrite.
 | "It is important to note that `sync` is incremental." | "`sync` is incremental." |
 | "This tool leverages embeddings to facilitate retrieval." | "It embeds your code so you can search it in plain language." |
 | "Kill the running process." | "Stop the running process." |
-| "Please click here to read the guide." | "Read the [indexing guide](index-code-graph.md)." |
+| "Please click here to read the guide." | "Read the [indexing guide](indexing-the-code-graph.md)." |
 
 ### A heading
 
@@ -92,7 +92,7 @@ Ask your assistant a cross-repo question. You should see it call a contextlake t
 files the answer came from.
 
 ## See also
-- [Serve it to your editor](serve.md)
+- [Serve it to your editor](serving-over-mcp.md)
 ```
 
 ## A to Z

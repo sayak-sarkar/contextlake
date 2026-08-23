@@ -62,7 +62,7 @@ contextlake doctor --fix llm-local          # --dry-run prints the command and s
 It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
 The standalone binary installs it on first run and the full Docker image ships it baked in,
 so neither channel hits this. See [Install and
-upgrade](install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](model-providers.md#installing-the-built-in-llm).
 
 Releases before 7.0.0 ran a GGUF through `llama-cpp-python` and did need a wheel index plus a
@@ -81,7 +81,7 @@ files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (
 ```
 
 Do that, then re-run the ingest. `[kb-pdf]` is a small pure-Python extra and is not part of
-`[kb-full]`, see [the extras table](install.md#the-extras-and-which-one-you-want).
+`[kb-full]`, see [the extras table](installing.md#the-extras-and-which-one-you-want).
 
 A different message means the PDFs were read and refused for a stated reason, one per file:
 
@@ -95,7 +95,7 @@ to ingest, and it declines rather than storing an empty document that would look
 search results. Run the file through an OCR tool of your choice first, or ingest the source
 document the PDF was made from. The other two refusals name themselves the same way: a PDF that
 cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](connect-enrich.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+you can raise on the source. See [Aggregating documents](connecting-and-enriching.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 
@@ -114,7 +114,7 @@ instead, so the run looked like it succeeded and the index vanished when the con
 Three assets are published per release: Linux x86-64, macOS Apple silicon, and Windows x86-64.
 macOS on Intel and Linux on arm64 are not among them, and no fourth asset is hiding under a
 different name. Install with `pipx`, `pip` or `uv` on those platforms, or use the Docker image.
-See [The standalone binary](install.md#the-standalone-binary).
+See [The standalone binary](installing.md#the-standalone-binary).
 
 ## `contextlake doctor --fix` says the environment is externally managed
 
@@ -154,8 +154,8 @@ Symptoms specific to mirroring a fleet, and what to do about each.
 | **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
 | **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
 | **Nested `.git` directories** | A repo cloned into a subfolder of itself. `contextlake mirror verify` flags it; fix by moving the inner tree up one level and removing the empty folder. |
-| **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Keep it fresh on a schedule](keep-fresh.md#keep-it-fresh-on-a-schedule). |
-| **Large log files** | `--log-file` rotates itself; a shell redirect does not. See [Log files and rotation](keep-fresh.md#log-files-and-rotation). |
+| **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Keep it fresh on a schedule](keeping-it-fresh.md#keep-it-fresh-on-a-schedule). |
+| **Large log files** | `--log-file` rotates itself; a shell redirect does not. See [Log files and rotation](keeping-it-fresh.md#log-files-and-rotation). |
 
 ## Still stuck
 
@@ -165,7 +165,7 @@ missing, which is most of what anyone would ask you for anyway.
 
 ## See also
 
-- [Install and upgrade](install.md), every channel, and how to upgrade safely
+- [Install and upgrade](installing.md), every channel, and how to upgrade safely
 - [Reading the console output](console-output.md), decoding a run
 - [Command reference](cli-reference.md), the exact flags
 - [CONTRIBUTING.md](../CONTRIBUTING.md), problems you hit working on contextlake itself

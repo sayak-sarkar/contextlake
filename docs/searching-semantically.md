@@ -69,7 +69,7 @@ per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
 **Five more kinds are embedded, from outside the code itself**: frontend `route` nodes, SQL `table` and
 `view` definitions, Terraform `resource` nodes, and `adr` architecture decision records. That makes 17
 embeddable kinds in all, which is why
-[Index the code graph](index-code-graph.md) can promise that a route, a table or a decision record is
+[Index the code graph](indexing-the-code-graph.md) can promise that a route, a table or a decision record is
 semantically searchable, and it is worth knowing before you write off a natural-language query about
 your schema or your infrastructure as out of scope.
 
@@ -238,6 +238,6 @@ It is off by default: it does filesystem work proportional to the results and ne
 
 ## See also
 
-- [Index the code graph](index-code-graph.md)
-- [Connect and enrich](connect-enrich.md)
-- [Serve it to your editor](serve.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [Serve it to your editor](serving-over-mcp.md)

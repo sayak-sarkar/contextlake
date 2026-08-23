@@ -5,9 +5,10 @@ discovery, indexed the rest, and reported **"0 failed" with exit 0**. `discover_
 logged the skip and returned only the survivors, so the caller counting its own results had
 no way to learn anything had been dropped.
 
-`docs/connect-enrich.md:329` promises the opposite verdict, in those words: the exit code is
-non-zero when any repository was skipped, "the same verdict `kb index` gives a workspace
-where one repo failed to parse", because "the graph an agent will cite from is not the one
+`docs/connecting-and-enriching.md:329` promises the opposite verdict, in those
+words: the exit code is non-zero when any repository was skipped, "the same
+verdict `kb index` gives a workspace where one repo failed to parse", because
+"the graph an agent will cite from is not the one
 you asked for, so the run should not read as clean".
 
 The distinction the fix preserves: a VENDORED tree and a DUPLICATE checkout are also skipped,

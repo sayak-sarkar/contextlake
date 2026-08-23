@@ -109,7 +109,7 @@ Unset, `review_provider` means the council reviews with the same client that gen
 which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
-[Generate the wiki](generate-wiki.md) for the full rationale.
+[Generate the wiki](generating-the-wiki.md) for the full rationale.
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
@@ -132,7 +132,7 @@ contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]
 ```
 
 An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
-[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
+[Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
 including why the standalone binary and the full Docker image need nothing at all.
 
 ### What it runs, and what it costs you
@@ -245,6 +245,6 @@ downloads at runtime. See `examples/kb.toml.example`.
 
 ## See also
 
-- [Generate the wiki](generate-wiki.md)
-- [Semantic search](semantic-search.md)
-- [Connect and enrich](connect-enrich.md)
+- [Generate the wiki](generating-the-wiki.md)
+- [Semantic search](searching-semantically.md)
+- [Connect and enrich](connecting-and-enriching.md)

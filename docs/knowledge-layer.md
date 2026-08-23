@@ -25,13 +25,13 @@ flowchart LR
 </div>
 
 Each stage adds to the same store, and you can stop after any of them. Run the whole chain with one
-command using [`bootstrap`](keep-fresh.md), or work through it stage by stage below.
+command using [`bootstrap`](keeping-it-fresh.md), or work through it stage by stage below.
 
 ## Install the extra
 
 The knowledge layer needs the `[kb]` extra (Python 3.10 or newer), or `[kb-full]` if you
 also want local semantic search with no Ollama and no API key. See
-[Install and upgrade](install.md) for every channel and the full extras table.
+[Install and upgrade](installing.md) for every channel and the full extras table.
 
 ```bash
 pip install "contextlake[kb-full]"
@@ -47,29 +47,29 @@ doubles as a CI health gate:
 </p>
 
 The fastest way to build all of it is one command, `contextlake bootstrap` (see
-[Bootstrap and keep it fresh](keep-fresh.md)). The rest of this section is the map of what that pipeline does,
+[Bootstrap and keep it fresh](keeping-it-fresh.md)). The rest of this section is the map of what that pipeline does,
 stage by stage.
 
 ## Building it, stage by stage
 
-- **[Index the code graph](index-code-graph.md)**: parse your repos into a typed graph of files, symbols,
+- **[Index the code graph](indexing-the-code-graph.md)**: parse your repos into a typed graph of files, symbols,
   call/inheritance edges, infrastructure, SQL, and web topology.
-- **[Connect and enrich](connect-enrich.md)**: link repos to their issues, docs, and designs, ingest
+- **[Connect and enrich](connecting-and-enriching.md)**: link repos to their issues, docs, and designs, ingest
   external documents, and pull grounded external facts in.
-- **[Semantic search](semantic-search.md)**: embed the graph for natural-language and hybrid retrieval,
+- **[Semantic search](searching-semantically.md)**: embed the graph for natural-language and hybrid retrieval,
   and measure retrieval quality with `eval`.
-- **[Generate the wiki](generate-wiki.md)**: turn the graph into grounded, council-verified prose per repo
+- **[Generate the wiki](generating-the-wiki.md)**: turn the graph into grounded, council-verified prose per repo
   (and per namespace).
 - **[Model providers](model-providers.md)**: choose the embeddings and wiki backend (built-in CPU, Ollama,
   OpenAI, Anthropic, or an agent CLI).
-- **[Bootstrap and keep it fresh](keep-fresh.md)**: run the whole pipeline in one command and keep it current.
+- **[Bootstrap and keep it fresh](keeping-it-fresh.md)**: run the whole pipeline in one command and keep it current.
 
 ## Using what you built
 
-- **[Serve it to your editor](serve.md)**: expose the graph over MCP so agents query it directly.
-- **[The dashboard](dashboard.md)**: a local, offline-first UI over the whole knowledge system.
-- **[Visualize the graph](visualize.md)**: bounded interactive graph slices and the C4 diagram.
-- **[Ask the graph](ask-the-graph.md)**: query it, trace what a change would break, and find who owns it.
+- **[Serve it to your editor](serving-over-mcp.md)**: expose the graph over MCP so agents query it directly.
+- **[The dashboard](using-the-dashboard.md)**: a local, offline-first UI over the whole knowledge system.
+- **[Visualize the graph](visualizing-the-graph.md)**: bounded interactive graph slices and the C4 diagram.
+- **[Ask the graph](asking-the-graph.md)**: query it, trace what a change would break, and find who owns it.
 
 For the command list see the [`contextlake` command reference](cli-reference.md); to decode a run see
 [Reading the console output](console-output.md).

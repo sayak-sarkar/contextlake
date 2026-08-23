@@ -187,7 +187,7 @@ A Dockerfile yields its build stages and the external images it builds on, told 
 other: in `FROM builder AS test` the base is a stage declared earlier in the same file, not an
 image anybody pulls. The `COPY --from=` reference back to a stage is **not** extracted, because a
 stage name is file-local and resolving it across files would link two unrelated `builder` stages
-to each other. Dockerfile's grammar is an [optional extra](install.md), `[kb-dockerfile]`; without
+to each other. Dockerfile's grammar is an [optional extra](installing.md), `[kb-dockerfile]`; without
 it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
 unsupported.
 
@@ -209,7 +209,7 @@ Frameworks are indexed through their base language: **React / Next.js / Node.js*
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
 
 Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
-entries. [Adding a language](contributing-languages.md) is the ordered recipe, with the verification
+entries. [Adding a language](adding-a-language.md) is the ordered recipe, with the verification
 commands that prove a new grammar works.
 
 #### C++ completeness
@@ -241,7 +241,7 @@ example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOU
 resolution is a future refinement. Render it with `contextlake kb graph --repo <repo> --format
 deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/other/module, where `other` catches any resource type none of the keyword lists
-claims), see [Visualize](visualize.md).
+claims), see [Visualize](visualizing-the-graph.md).
 
 ### Databases: SQL DDL
 
@@ -251,7 +251,7 @@ semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
-`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
 
 **Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
@@ -359,7 +359,7 @@ qualify, one file per decision. Each node takes its
 title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
 content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
 into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
-are semantically searchable, and their content feeds into [wiki generation](generate-wiki.md) as a
+are semantically searchable, and their content feeds into [wiki generation](generating-the-wiki.md) as a
 grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
 data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
 way an import or call site is, so nothing is inferred from that mention.
@@ -371,7 +371,7 @@ become `transitions_to` edges between `state` nodes, labeled with the method tha
 Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
 and C# (regex, every edge `INFERRED`). Render with `contextlake kb graph --repo <repo> --format statediagram`
-(a Mermaid entity state machine), see [Visualize](visualize.md).
+(a Mermaid entity state machine), see [Visualize](visualizing-the-graph.md).
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
@@ -458,7 +458,7 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `pom.xml`) to build a
 **cross-repo dependency graph** through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
-[the full tool list under Serve](serve.md).
+[the full tool list under Serve](serving-over-mcp.md).
 
 Each `depends_on` edge records what the manifest actually says, not just the package name:
 
@@ -484,6 +484,6 @@ getting a silent best-guess.
 
 ## See also
 
-- [Connect and enrich](connect-enrich.md)
-- [Semantic search](semantic-search.md)
-- [Serve it to your editor](serve.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)

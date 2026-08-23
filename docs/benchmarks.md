@@ -70,7 +70,7 @@ a single file. contextlake answers the same question from its index in one bound
 
 Any session pays for the tool schemas once, whether or not it calls a tool: **23 of them on a
 graph-only store** (22 graph tools plus the `ask` router) and **25 once embeddings exist**, all
-listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
+listed in [Serve](serving-over-mcp.md). That cost is real, and it can leave you net-negative if the agent
 reaches for the server on questions it does not help with. There is no published token figure for it
 here for the reason at the top of the page; the recipe in
 [Measure it on your own repositories](#measure-it-on-your-own-repositories) counts it in the same

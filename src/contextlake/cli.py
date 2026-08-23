@@ -1237,7 +1237,7 @@ Examples:
 
 The http/sse transports print a bearer token to stderr at startup and require
 it on every request (Authorization: Bearer <token>); set CONTEXTLAKE_MCP_TOKEN
-to pin one across restarts. stdio needs no token. See docs/serve.md.
+to pin one across restarts. stdio needs no token. See docs/serving-over-mcp.md.
                 """)
     p.add_argument("--transport", choices=["stdio", "http", "sse"], default=_S,
                    help="MCP transport (default stdio; http = Streamable HTTP, "
@@ -2302,7 +2302,7 @@ def _run(argv, metrics):
     # Decided outside the try so the intent is unmistakable and no future
     # except-clause can swallow it. Before this, every mirror command exited 0 no
     # matter how much of the fleet failed, so nothing unattended -- the cron
-    # wrapper in docs/usage.md, the oneshot systemd unit in examples/ -- could
+    # wrapper in docs/mirroring-repositories.md, the oneshot systemd unit in examples/ -- could
     # tell a healthy mirror from a dead one.
     if result.failed:
         if getattr(args, "exit_zero_on_partial", False):

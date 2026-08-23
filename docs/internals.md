@@ -119,7 +119,7 @@ recently committed branch. And when the upstream branch a repo is on disappears,
 runs again to pick a replacement rather than leaving the clone stranded.
 
 Branch switching is skipped entirely for a repository on a working branch, see
-[Branch safety](usage.md#branch-safety).
+[Branch safety](mirroring-repositories.md#branch-safety).
 
 ### Authenticating a refresh
 
@@ -349,7 +349,7 @@ Connector results, once fetched, stay queryable offline.
 ## See also
 
 - [contextlake, explained](explained.md), the same decisions at reasoning depth
-- [Index the code graph](index-code-graph.md), what the parser actually extracts
+- [Index the code graph](indexing-the-code-graph.md), what the parser actually extracts
 - [Configuration](configuration.md), the full settings reference
-- [Mirror repositories](usage.md), the commands this layer implements
+- [Mirror repositories](mirroring-repositories.md), the commands this layer implements
 - [`contextlake` command reference](cli-reference.md), every flag

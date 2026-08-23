@@ -359,7 +359,7 @@ refusing to start over a typo in a shell profile is worse than serving at the de
 ## Every cited node says whether the file moved under it
 
 The staleness contextlake tracked until now is per **repo**: has the head commit or the parser
-version moved since this graph was built ([Keep it fresh](keep-fresh.md)). That is the right
+version moved since this graph was built ([Keep it fresh](keeping-it-fresh.md)). That is the right
 question for the graph as a whole and it is blind to the one that bites hardest in practice, an
 agent editing files *between* index runs, inside the same commit. The graph says
 `src/billing/refund.py:88`, twenty lines get inserted above it, and the answer still says 88. A
@@ -377,7 +377,7 @@ as the answer is built:
 When the status is not `verified` a **`citation_note`** says which of those it is, in a sentence
 meant for the agent reading it. `unverifiable` is not a polite `verified`: it means nothing was
 checked, and the two are kept apart for the same reason `kb eval --verify-citations` keeps them
-apart ([Semantic search](semantic-search.md#are-the-citations-real)). The answer is still returned
+apart ([Semantic search](searching-semantically.md#are-the-citations-real)). The answer is still returned
 either way: the guard discloses, it never withholds a result or refuses.
 
 **What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that

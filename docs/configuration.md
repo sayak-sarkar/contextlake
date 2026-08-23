@@ -136,7 +136,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN` | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
 | `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it | `gitlab.com` | `gitlab.example.com` |
-| `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](usage.md)) | none, meaning every repository | `team/*,shared-libs` |
+| `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](mirroring-repositories.md)) | none, meaning every repository | `team/*,shared-libs` |
 | `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
 | `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
 | `dns_attempts` | DNS retry attempts, set alongside `dns_timeout` and subject to the same `RES_OPTIONS` rule | `3` | `5` |
@@ -160,10 +160,10 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
-`auto_stash`) live with [Mirror repositories](usage.md#branch-safety).
+`auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
 
 ## See also
 
 - [Quickstart](../QUICKSTART.md)
-- [Mirror repositories](usage.md)
+- [Mirror repositories](mirroring-repositories.md)
 - [Knowledge layer](knowledge-layer.md)

@@ -30,7 +30,7 @@ editing current, and the lock is what stops the two of them from writing at once
 - A configured workspace: `contextlake init`, or the two config files in place. See
   [Configuration](configuration.md).
 - The `[kb]` extra installed, for everything past the mirror stage.
-  See [Install and upgrade](install.md).
+  See [Install and upgrade](installing.md).
 
 ## One command for the whole pipeline
 
@@ -45,7 +45,7 @@ contextlake bootstrap --llm builtin
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
 whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
 one extra step first, `contextlake doctor --fix llm-local` (see [Install and
-upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
+upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
 `--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
@@ -314,7 +314,7 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 
 ## See also
 
-- [Index the code graph](index-code-graph.md), the stage everything else builds on
-- [Generate the wiki](generate-wiki.md), the stage that needs a model
+- [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
+- [Generate the wiki](generating-the-wiki.md), the stage that needs a model
 - [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
 - [Troubleshooting](troubleshooting.md), when a scheduled run stops working

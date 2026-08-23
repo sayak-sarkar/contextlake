@@ -75,7 +75,7 @@ safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--a
 `--protect-working-branches`, `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and
 their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
 `--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
-[Branch safety](usage.md#branch-safety)), so they are kept out of the default listing. Run
+[Branch safety](mirroring-repositories.md#branch-safety)), so they are kept out of the default listing. Run
 `contextlake mirror <command> --help-advanced` to see them. The flag exists on those 8 commands and
 on `bootstrap`, which takes the same flag group, and nowhere else: nothing under `kb` has a hidden
 tier to reveal, and there is no top-level `contextlake --help-advanced` either.
@@ -112,7 +112,7 @@ These span both tiers, or neither, so they are not namespaced.
 | `mirror sync` | fetch, clone, update, branches, verify, audit, in that order |
 | `mirror audit` | Repo health and age report, as JSON and CSV |
 
-Covered in depth under [Mirror repositories](usage.md).
+Covered in depth under [Mirror repositories](mirroring-repositories.md).
 
 ### Knowledge-layer commands
 
@@ -130,7 +130,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
-| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualize.md) |
+| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualizing-the-graph.md) |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
@@ -140,7 +140,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
 `doctor --fix`'s own flags, and the two privilege tiers behind them, are on
-[Install and upgrade](install.md#installing-what-is-missing).
+[Install and upgrade](installing.md#installing-what-is-missing).
 
 ## Exit codes
 
@@ -152,9 +152,9 @@ uvicorn's graceful shutdown. The conditions behind each are on
 
 ## See also
 
-- [Ask the graph](ask-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
-- [Index the code graph](index-code-graph.md)
-- [Serve it to your editor](serve.md)
+- [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
+- [Index the code graph](indexing-the-code-graph.md)
+- [Serve it to your editor](serving-over-mcp.md)
 - [Reading the console output](console-output.md)
-- [Install and upgrade](install.md), the commands `--fix` runs for you, written out
+- [Install and upgrade](installing.md), the commands `--fix` runs for you, written out
 - [Troubleshooting](troubleshooting.md), when one of them fails

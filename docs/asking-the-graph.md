@@ -6,7 +6,7 @@ citation you can open, all three take `--json`, and none of them needs an editor
 
 The same three answers reach an agent over MCP as `search_code` / `semantic_search` /
 `hybrid_search`, `blast_radius`, and `who_knows`; see
-[Serve it to your editor](serve.md). This page is the terminal-side equivalent.
+[Serve it to your editor](serving-over-mcp.md). This page is the terminal-side equivalent.
 
 ```mermaid
 flowchart LR
@@ -30,10 +30,10 @@ than a path and it does open the store, only to find the clone.
 
 ## Prerequisites
 
-- A store with an indexed repo in it: [Index the code graph](index-code-graph.md), or
+- A store with an indexed repo in it: [Index the code graph](indexing-the-code-graph.md), or
   `contextlake bootstrap`. `kb owners` is the exception, it reads git directly and needs neither.
 - For `--retriever semantic` or `hybrid`, a `contextlake kb embed` run as well:
-  [Semantic search](semantic-search.md).
+  [Semantic search](searching-semantically.md).
 
 > [!IMPORTANT]
 > Query an empty store and you get `No matches`, exit `0`, which looks exactly like a genuine miss.
@@ -127,7 +127,7 @@ contextlake kb blast-radius charge --json          # the same command
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
-[Entity state machines](index-code-graph.md#entity-state-machines).
+[Entity state machines](indexing-the-code-graph.md#entity-state-machines).
 
 Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited **highest-confidence first**
@@ -278,8 +278,8 @@ Three behaviours that bite scripts:
 
 ## See also
 
-- [Serve it to your editor](serve.md), the same answers as MCP tools
-- [Index the code graph](index-code-graph.md), what the graph contains to be asked about
-- [Semantic search](semantic-search.md), what `--retriever semantic` needs first
-- [The dashboard](dashboard.md), the same queries in a browser
+- [Serve it to your editor](serving-over-mcp.md), the same answers as MCP tools
+- [Index the code graph](indexing-the-code-graph.md), what the graph contains to be asked about
+- [Semantic search](searching-semantically.md), what `--retriever semantic` needs first
+- [The dashboard](using-the-dashboard.md), the same queries in a browser
 - [Reading the console output](console-output.md), decoding a run

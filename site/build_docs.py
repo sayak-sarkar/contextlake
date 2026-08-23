@@ -73,14 +73,14 @@ PAGES = [
      "Understand it", "A local context layer for your AI tools: mirror your repos, "
      "index them into a knowledge graph, and serve it over MCP.",
      "pebble-doc.png",
-     [("explained.html", "contextlake, explained"), ("install.html", "Install and upgrade"),
+     [("explained.html", "contextlake, explained"), ("installing.html", "Installing and upgrading"),
       ("quickstart.html", "Quickstart")]),
     ("explained.html", "docs/explained.md", "contextlake, explained", "contextlake, explained",
      "Understand it", "What changes on your screen, the three layers underneath it, the design "
      "decisions and the alternatives they turned down, the confidence model, and the honest limits.",
      "pebble-doc.png",
-     [("benchmarks.html", "Benchmarks"), ("install.html", "Install and upgrade")]),
-    ("install.html", "docs/install.md", "Install and upgrade", "Install and upgrade",
+     [("benchmarks.html", "Benchmarks"), ("installing.html", "Installing and upgrading")]),
+    ("installing.html", "docs/installing.md", "Installing and upgrading", "Installing and upgrading",
      "Get started", "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone "
      "binary, plus the extras table, upgrading safely, and a clean uninstall.",
      "pebble-doc.png",
@@ -89,91 +89,91 @@ PAGES = [
      "Get started", "Install, bootstrap, and wire your editor, "
      "the whole Mirror -> Knowledge -> Serve path in a few minutes.",
      "pebble-doc.png",
-     [("usage.html", "Mirror repositories"), ("knowledge-layer.html", "Knowledge layer")]),
-    ("usage.html", "docs/usage.md", "Mirror repositories", "Mirror repositories",
+     [("mirroring-repositories.html", "Mirroring repositories"), ("knowledge-layer.html", "The knowledge layer")]),
+    ("mirroring-repositories.html", "docs/mirroring-repositories.md", "Mirroring repositories", "Mirroring repositories",
      "Build your knowledge base", "Mirror your Git repos locally and keep them fresh: fetch, "
      "clone, update, most-active branch, verify, and audit, with branch-safety guardrails.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("index-code-graph.html", "Index the code graph")]),
+     [("knowledge-layer.html", "The knowledge layer"), ("indexing-the-code-graph.html", "Indexing the code graph")]),
     ("configuration.html", "docs/configuration.md", "Configuration", "Configuration",
      "Get started", "Config-file precedence and the full settings reference for the "
      "mirror layer.",
      "pebble-doc.png",
-     [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories")]),
-    ("index-code-graph.html", "docs/index-code-graph.md", "Index the code graph",
-     "Index the code graph",
+     [("quickstart.html", "Quickstart"), ("mirroring-repositories.html", "Mirroring repositories")]),
+    ("indexing-the-code-graph.html", "docs/indexing-the-code-graph.md", "Indexing the code graph",
+     "Indexing the code graph",
      "Build your knowledge base", "Turn your mirrored repos into a queryable code graph: "
      "incremental indexing, and the full node and edge model across 27 languages, Terraform, "
      "SQL, and web topology.",
      "pebble-doc.png",
-     [("connect-enrich.html", "Connect and enrich"), ("semantic-search.html", "Semantic search")]),
-    ("connect-enrich.html", "docs/connect-enrich.md", "Connect and enrich", "Connect and enrich",
+     [("connecting-and-enriching.html", "Connecting and enriching"), ("searching-semantically.html", "Searching semantically")]),
+    ("connecting-and-enriching.html", "docs/connecting-and-enriching.md", "Connecting and enriching", "Connecting and enriching",
      "Build your knowledge base", "Link repos to their issues, docs, and designs, manage "
      "sources, and pull grounded external facts into the knowledge layer with query-driven "
      "enrichment.",
      "pebble-doc.png",
-     [("semantic-search.html", "Semantic search"), ("generate-wiki.html", "Generate the wiki")]),
-    ("semantic-search.html", "docs/semantic-search.md", "Semantic search", "Semantic search",
+     [("searching-semantically.html", "Searching semantically"), ("generating-the-wiki.html", "Generating the wiki")]),
+    ("searching-semantically.html", "docs/searching-semantically.md", "Searching semantically", "Searching semantically",
      "Build your knowledge base", "Natural-language and hybrid graph-propagation retrieval: "
      "embed your code, tune the vector backend, and query across repos and languages.",
      "pebble-doc.png",
-     [("generate-wiki.html", "Generate the wiki"), ("model-providers.html", "Model providers")]),
-    ("generate-wiki.html", "docs/generate-wiki.md", "Generate the wiki", "Generate the wiki",
+     [("generating-the-wiki.html", "Generating the wiki"), ("model-providers.html", "Model providers")]),
+    ("generating-the-wiki.html", "docs/generating-the-wiki.md", "Generating the wiki", "Generating the wiki",
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
      "pebble-doc.png",
-     [("generate-docs.html", "Generate documentation"),
-      ("keep-fresh.html", "Bootstrap and keep it fresh")]),
-    ("generate-docs.html", "docs/generate-docs.md", "Generate documentation",
-     "Generate documentation",
+     [("generating-documentation.html", "Generating documentation"),
+      ("keeping-it-fresh.html", "Keeping it fresh")]),
+    ("generating-documentation.html", "docs/generating-documentation.md", "Generating documentation",
+     "Generating documentation",
      "Build your knowledge base", "An API reference straight from the graph, with every "
      "symbol's real call sites and no model involved.",
      "pebble-doc.png",
-     [("model-providers.html", "Model providers"), ("keep-fresh.html", "Bootstrap and keep it fresh")]),
+     [("model-providers.html", "Model providers"), ("keeping-it-fresh.html", "Keeping it fresh")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
      "Reference", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
      "pebble-doc.png",
-     [("generate-wiki.html", "Generate the wiki"), ("install.html", "Install and upgrade")]),
-    ("keep-fresh.html", "docs/keep-fresh.md", "Bootstrap and keep it fresh",
-     "Bootstrap and keep it fresh",
+     [("generating-the-wiki.html", "Generating the wiki"), ("installing.html", "Installing and upgrading")]),
+    ("keeping-it-fresh.html", "docs/keeping-it-fresh.md", "Keeping it fresh",
+     "Keeping it fresh",
      "Operate it", "Run the whole pipeline in one command, schedule it, re-index on commit with "
      "a git hook, and watch an unattended run.",
      "pebble-doc.png",
-     [("console-output.html", "Reading the console output"), ("troubleshooting.html", "Troubleshooting")]),
-    ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
+     [("console-output.html", "Console output"), ("troubleshooting.html", "Troubleshooting")]),
+    ("knowledge-layer.html", "docs/knowledge-layer.md", "The knowledge layer", "The knowledge layer",
      "Build your knowledge base", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
      "pebble-doc.png",
-     [("index-code-graph.html", "Index the code graph"), ("keep-fresh.html", "Bootstrap and keep it fresh")]),
-    ("ask-the-graph.html", "docs/ask-the-graph.md", "Ask the graph", "Ask the graph",
+     [("indexing-the-code-graph.html", "Indexing the code graph"), ("keeping-it-fresh.html", "Keeping it fresh")]),
+    ("asking-the-graph.html", "docs/asking-the-graph.md", "Asking the graph", "Asking the graph",
      "Use it", "Search the graph from the terminal, trace what a change would break, and find "
      "who to ask: `kb query`, `kb impact`, and `kb owners`.",
      "pebble-doc.png",
-     [("serve.html", "Serve (MCP)"), ("dashboard.html", "Dashboard")]),
-    ("dashboard.html", "docs/dashboard.md", "Dashboard", "The dashboard",
+     [("serving-over-mcp.html", "Serving over MCP"), ("using-the-dashboard.html", "Using the dashboard")]),
+    ("using-the-dashboard.html", "docs/using-the-dashboard.md", "Using the dashboard", "The dashboard",
      "Use it", "A guided tour of the local, offline-first dashboard: "
      "the fleet overview, per-repo anatomy, the architecture graph, blast radius, and "
      "generating a wiki.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
-    ("serve.html", "docs/serve.md", "Serve (MCP)", "Serve it to your editor",
+     [("knowledge-layer.html", "The knowledge layer"), ("serving-over-mcp.html", "Serving over MCP")]),
+    ("serving-over-mcp.html", "docs/serving-over-mcp.md", "Serving over MCP", "Serve it to your editor",
      "Use it", "Expose the knowledge layer over MCP and wire your editors "
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
-     [("dashboard.html", "Dashboard"), ("visualize.html", "Visualize the graph")]),
-    ("visualize.html", "docs/visualize.md", "Visualize the graph", "Visualize the graph",
+     [("using-the-dashboard.html", "Using the dashboard"), ("visualizing-the-graph.html", "Visualizing the graph")]),
+    ("visualizing-the-graph.html", "docs/visualizing-the-graph.md", "Visualizing the graph", "Visualizing the graph",
      "Use it", "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, "
      "HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed "
      "namespace C4 diagram.",
      "pebble-doc.png",
-     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
+     [("using-the-dashboard.html", "Using the dashboard"), ("serving-over-mcp.html", "Serving over MCP")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
      "Understand it", "Where the token, cost, and correctness impact of connecting the "
      "contextlake MCP to your AI coding tools comes from, new-code grounding first, "
      "plus search, maintenance, the caveats, and how to measure it on your own repos.",
      "pebble-doc.png",
-     [("explained.html", "contextlake, explained"), ("install.html", "Install and upgrade")]),
+     [("explained.html", "contextlake, explained"), ("installing.html", "Installing and upgrading")]),
     ("internals.html", "docs/internals.md", "Architecture and internals",
      "Architecture and internals",
      "Reference", "How all three layers work inside: the store on disk, concurrency, "
@@ -185,9 +185,9 @@ PAGES = [
      "Reference", "Every contextlake command at a glance, with links to the page that "
      "documents each in depth.",
      "pebble-doc.png",
-     [("console-output.html", "Reading the console output"), ("docs.html", "Overview")]),
-    ("console-output.html", "docs/console-output.md", "Reading the console output",
-     "Reading the console output",
+     [("console-output.html", "Console output"), ("docs.html", "Overview")]),
+    ("console-output.html", "docs/console-output.md", "Console output",
+     "Console output",
      "Operate it", "Decode the progress bar, the status glyph vocabulary, the JSON logs, "
      "the stdout/stderr split, and the four exit codes.",
      "pebble-doc.png",
@@ -196,7 +196,7 @@ PAGES = [
      "Operate it", "Install and mirror problems that have actually been hit, each with the "
      "fix and the reason behind it.",
      "pebble-doc.png",
-     [("install.html", "Install and upgrade"), ("cli-reference.html", "Command reference")]),
+     [("installing.html", "Installing and upgrading"), ("cli-reference.html", "Command reference")]),
     ("changelog.html", "CHANGELOG.md", "Changelog", "Changelog",
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
@@ -234,13 +234,13 @@ PAGES = [
      "the palette, and the mark, with the full spec linked.",
      "pebble-doc.png",
      [("style-guide.html", "Writing style"), ("docs.html", "Overview")]),
-    ("contributing-languages.html", "docs/contributing-languages.md", "Adding a language",
+    ("adding-a-language.html", "docs/adding-a-language.md", "Adding a language",
      "Adding a language",
      "Project", "The ordered contributor recipe for teaching contextlake a new source "
      "language: the nine edits, the parts to leave alone, and the commands that prove the "
      "grammar works.",
      "pebble-doc.png",
-     [("index-code-graph.html", "Index the code graph"), ("style-guide.html", "Writing style")]),
+     [("indexing-the-code-graph.html", "Indexing the code graph"), ("style-guide.html", "Writing style")]),
 ]
 TO_PAGE = {src: out for out, src, *_ in PAGES}
 TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
@@ -259,17 +259,17 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # the hero and the sidebar can never tell a reader two different things about where they are.
 NAV_GROUPS = [
     ("Understand it", ["docs.html", "explained.html", "benchmarks.html"]),
-    ("Get started", ["install.html", "quickstart.html", "configuration.html"]),
-    ("Build your knowledge base", ["knowledge-layer.html", "usage.html", "index-code-graph.html",
-                                   "connect-enrich.html", "semantic-search.html",
-                                   "generate-wiki.html", "generate-docs.html"]),
-    ("Use it", ["ask-the-graph.html", "serve.html", "dashboard.html", "visualize.html"]),
-    ("Operate it", ["keep-fresh.html", "console-output.html", "troubleshooting.html"]),
+    ("Get started", ["installing.html", "quickstart.html", "configuration.html"]),
+    ("Build your knowledge base", ["knowledge-layer.html", "mirroring-repositories.html", "indexing-the-code-graph.html",
+                                   "connecting-and-enriching.html", "searching-semantically.html",
+                                   "generating-the-wiki.html", "generating-documentation.html"]),
+    ("Use it", ["asking-the-graph.html", "serving-over-mcp.html", "using-the-dashboard.html", "visualizing-the-graph.html"]),
+    ("Operate it", ["keeping-it-fresh.html", "console-output.html", "troubleshooting.html"]),
     ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
                    "changelog.html"]),
     ("Project", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                  "style-guide-formatting.html", "style-guide-reference.html", "brand.html",
-                 "contributing-languages.html"]),
+                 "adding-a-language.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
 # Per-page-type hero accent: the learning-journey bands each get one brand hue (reused from the

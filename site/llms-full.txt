@@ -64,7 +64,7 @@ each layer above it is optional.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
-Each layer has its own guide: the mirror in **[Mirror repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**,
+Each layer has its own guide: the mirror in **[Mirror repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**,
 settings in **[Configuration](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, the knowledge
 layer and serving in **[Knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, and the whole flow start to
 finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**.
@@ -90,7 +90,7 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 ```
 
 Docker, the standalone binaries, the full extras table, upgrading, and uninstalling all live
-on one page: **[Install and upgrade](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**.
+on one page: **[Install and upgrade](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**.
 If an install misbehaves, see
 **[Troubleshooting](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**.
 
@@ -173,19 +173,19 @@ Run any command as `contextlake <command>`; each has scoped help via
 `contextlake <command> --help`. Each verb lives under the noun it belongs to, `mirror` for
 mirroring git repositories, `kb` for the knowledge layer, except `init`, `bootstrap`,
 `version`, `completion`, and `doctor`, which span both tiers or neither. Per-command docs live
-with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
+with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**;
 the **knowledge-layer** build commands one page each, `kb index` in
-**[index-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/index-code-graph.md)**,
+**[index-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**,
 `kb connect`/`kb ingest`/`kb enrich` in
-**[connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**,
+**[connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**,
 `kb embed`/`kb eval` in
-**[semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**
+**[semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**
 and `kb wiki` in
-**[generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**
+**[generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**
 (with **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**
 as the map over all four); the query commands
-(`kb query`, `kb impact`, `kb owners`) in **[ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**;
-and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
+(`kb query`, `kb impact`, `kb owners`) in **[ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/asking-the-graph.md)**;
+and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serving-over-mcp.md)**.
 The full flag-by-flag list is **[cli-reference.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**.
 
 | Command | What it does |
@@ -257,7 +257,7 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
 
-**[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, step by step, with screenshots.
+**[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, step by step, with screenshots.
 
 ## Local by default, and you can prove it
 
@@ -335,24 +335,24 @@ every upgrade into a red check for something that is working correctly.
 ## Documentation
 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
-- **[docs/install.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**, every install channel, upgrading, and uninstalling
+- **[docs/installing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**, every install channel, upgrading, and uninstalling
 - **[docs/troubleshooting.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
-- **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
+- **[docs/using-the-dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, the dashboard, a guided tour with screenshots
 - **[docs/cli-reference.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**, every command and flag, plus shell completion
 - **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
 - **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
-- **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, the mirror commands and branch safety
+- **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
-- **[docs/index-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/index-code-graph.md)**, `kb index`, and what the graph captures
-- **[docs/connect-enrich.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connect-enrich.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
-- **[docs/semantic-search.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/semantic-search.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
-- **[docs/generate-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
-- **[docs/generate-docs.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generate-docs.md)**, `kb docs`, an API reference with real call sites, no model
+- **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
+- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
+- **[docs/searching-semantically.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
+- **[docs/generating-the-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[docs/generating-documentation.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-documentation.md)**, `kb docs`, an API reference with real call sites, no model
 - **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
-- **[docs/visualize.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualize.md)**, `kb graph`, all 11 formats and the C4 diagram
-- **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
-- **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
-- **[docs/keep-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keep-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
+- **[docs/visualizing-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualizing-the-graph.md)**, `kb graph`, all 11 formats and the C4 diagram
+- **[docs/asking-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/asking-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
+- **[docs/serving-over-mcp.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serving-over-mcp.md)**, serve the graph over MCP + wire your editor
+- **[docs/keeping-it-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keeping-it-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
 - **[docs/explained.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
 - **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
@@ -377,7 +377,7 @@ and why each part is built the way it is. Read the first section and stop, and y
 a whole answer; each section after it goes one level deeper.
 
 This is the page for deciding whether to adopt contextlake and for understanding the reasoning
-behind it. For getting it running, start at [Install and upgrade](install.md) instead.
+behind it. For getting it running, start at [Install and upgrade](installing.md) instead.
 
 The shape of the whole thing, before any of the detail:
 
@@ -440,7 +440,7 @@ that file states the intent plainly: the anti-hallucination contract is structur
 | Layer | What it does | What you get without the next one |
 | --- | --- | --- |
 | **Mirror** | Clones every repository you can reach on a GitLab group, GitHub org, Bitbucket workspace or Gitea owner, keeps each on its most active branch, and keeps them current | A local, always-fresh copy of the fleet. Useful on its own, with `grep` if nothing else |
-| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](ask-the-graph.md) |
+| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](asking-the-graph.md) |
 | **Serve** | Exposes the graph over MCP, plus a local dashboard and a graph visualizer | Answers inside your editor and your agents |
 
 Each layer depends only on the one below it, never sideways and never upward:
@@ -614,7 +614,7 @@ The token gate is ASGI middleware wrapping the whole application
 (`BearerAuthMiddleware` in `src/contextlake/kb/server.py`), which has a consequence worth knowing
 before you debug it: an unauthenticated request to *any* path, the root included, gets `401`, not
 `404`. Nothing is encrypted in transit; for anything past your own machine, put TLS or an SSH
-tunnel in front. See [Serve it to your editor](serve.md).
+tunnel in front. See [Serve it to your editor](serving-over-mcp.md).
 
 ## Confidence and provenance
 
@@ -671,7 +671,7 @@ against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
 `tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
 Both documented gap classes, and the false positive that masking comments removed, are written down
-in [Index the code graph](index-code-graph.md#databases-sql-ddl).
+in [Index the code graph](indexing-the-code-graph.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you
@@ -820,15 +820,15 @@ described.
 
 - [Benchmarks](benchmarks.md), where the token and correctness impact comes from, and how to measure
   it on your own repositories
-- [Install and upgrade](install.md), if you have decided to try it
+- [Install and upgrade](installing.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
-- [Ask the graph](ask-the-graph.md), the questions this page promised you can ask
-- [Index the code graph](index-code-graph.md), what the graph actually contains
+- [Ask the graph](asking-the-graph.md), the questions this page promised you can ask
+- [Index the code graph](indexing-the-code-graph.md), what the graph actually contains
 
 ---
 
-# Install and upgrade
-Source: https://sayak.in/contextlake/install
+# Installing and upgrading
+Source: https://sayak.in/contextlake/installing
 
 # Install and upgrade
 
@@ -968,7 +968,7 @@ That bare `kb index` indexes the mount as one repository, which is right when yo
 repository. Mount a directory that *holds* repositories and it is refused, telling you to run
 `kb index --workspace .` instead -- `.` being the mount, since that is the container's working
 directory. See [Which command for which
-directory](index-code-graph.md#which-command-for-which-directory).
+directory](indexing-the-code-graph.md#which-command-for-which-directory).
 
 The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:
@@ -1273,7 +1273,7 @@ is not shipped in the package).
 
 Using pip, uv, Docker, or a standalone binary instead, or picking extras individually? Every
 channel, the extras table, upgrading, and uninstalling are on one page:
-**[Install and upgrade](docs/install.md)**. Verify whichever you chose with:
+**[Install and upgrade](docs/installing.md)**. Verify whichever you chose with:
 
 ```bash
 contextlake --version
@@ -1354,7 +1354,7 @@ contextlake doctor --fix llm-local
 That installs into the interpreter contextlake is running in and prints the exact command
 before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
 index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
-upgrade](docs/install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+upgrade](docs/installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
@@ -1397,15 +1397,15 @@ or the systemd user units in [`examples/`](examples/). See the
 
 ---
 
-# Mirror repositories
-Source: https://sayak.in/contextlake/usage
+# Mirroring repositories
+Source: https://sayak.in/contextlake/mirroring-repositories
 
 # Mirror repositories
 
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for scheduling a
-sync see [Bootstrap and keep it fresh](keep-fresh.md); for the knowledge layer see the
+sync see [Bootstrap and keep it fresh](keeping-it-fresh.md); for the knowledge layer see the
 [Knowledge layer](knowledge-layer.md) overview.
 
 > [!NOTE]
@@ -1789,7 +1789,7 @@ looks in one place rather than guessing which page owns their symptom.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keep-fresh.md), scheduling a sync and re-indexing on commit
+- [Bootstrap and keep it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
 - [Configuration](configuration.md), the full settings reference
 - [Reading the console output](console-output.md), the status glyphs and the exit codes
 - [Knowledge layer](knowledge-layer.md), what to build on top of the mirror
@@ -1938,7 +1938,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN` | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
 | `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it | `gitlab.com` | `gitlab.example.com` |
-| `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](usage.md)) | none, meaning every repository | `team/*,shared-libs` |
+| `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](mirroring-repositories.md)) | none, meaning every repository | `team/*,shared-libs` |
 | `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
 | `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
 | `dns_attempts` | DNS retry attempts, set alongside `dns_timeout` and subject to the same `RES_OPTIONS` rule | `3` | `5` |
@@ -1962,18 +1962,18 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
-`auto_stash`) live with [Mirror repositories](usage.md#branch-safety).
+`auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
 
 ## See also
 
 - [Quickstart](../QUICKSTART.md)
-- [Mirror repositories](usage.md)
+- [Mirror repositories](mirroring-repositories.md)
 - [Knowledge layer](knowledge-layer.md)
 
 ---
 
-# Index the code graph
-Source: https://sayak.in/contextlake/index-code-graph
+# Indexing the code graph
+Source: https://sayak.in/contextlake/indexing-the-code-graph
 
 # Index the code graph
 
@@ -2164,7 +2164,7 @@ A Dockerfile yields its build stages and the external images it builds on, told 
 other: in `FROM builder AS test` the base is a stage declared earlier in the same file, not an
 image anybody pulls. The `COPY --from=` reference back to a stage is **not** extracted, because a
 stage name is file-local and resolving it across files would link two unrelated `builder` stages
-to each other. Dockerfile's grammar is an [optional extra](install.md), `[kb-dockerfile]`; without
+to each other. Dockerfile's grammar is an [optional extra](installing.md), `[kb-dockerfile]`; without
 it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
 unsupported.
 
@@ -2186,7 +2186,7 @@ Frameworks are indexed through their base language: **React / Next.js / Node.js*
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
 
 Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
-entries. [Adding a language](contributing-languages.md) is the ordered recipe, with the verification
+entries. [Adding a language](adding-a-language.md) is the ordered recipe, with the verification
 commands that prove a new grammar works.
 
 #### C++ completeness
@@ -2218,7 +2218,7 @@ example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOU
 resolution is a future refinement. Render it with `contextlake kb graph --repo <repo> --format
 deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/other/module, where `other` catches any resource type none of the keyword lists
-claims), see [Visualize](visualize.md).
+claims), see [Visualize](visualizing-the-graph.md).
 
 ### Databases: SQL DDL
 
@@ -2228,7 +2228,7 @@ semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
-`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
 
 **Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
@@ -2336,7 +2336,7 @@ qualify, one file per decision. Each node takes its
 title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
 content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
 into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
-are semantically searchable, and their content feeds into [wiki generation](generate-wiki.md) as a
+are semantically searchable, and their content feeds into [wiki generation](generating-the-wiki.md) as a
 grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
 data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
 way an import or call site is, so nothing is inferred from that mention.
@@ -2348,7 +2348,7 @@ become `transitions_to` edges between `state` nodes, labeled with the method tha
 Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
 and C# (regex, every edge `INFERRED`). Render with `contextlake kb graph --repo <repo> --format statediagram`
-(a Mermaid entity state machine), see [Visualize](visualize.md).
+(a Mermaid entity state machine), see [Visualize](visualizing-the-graph.md).
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
@@ -2435,7 +2435,7 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `pom.xml`) to build a
 **cross-repo dependency graph** through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
-[the full tool list under Serve](serve.md).
+[the full tool list under Serve](serving-over-mcp.md).
 
 Each `depends_on` edge records what the manifest actually says, not just the package name:
 
@@ -2461,14 +2461,14 @@ getting a silent best-guess.
 
 ## See also
 
-- [Connect and enrich](connect-enrich.md)
-- [Semantic search](semantic-search.md)
-- [Serve it to your editor](serve.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)
 
 ---
 
-# Connect and enrich
-Source: https://sayak.in/contextlake/connect-enrich
+# Connecting and enriching
+Source: https://sayak.in/contextlake/connecting-and-enriching
 
 # Connect and enrich
 
@@ -2644,7 +2644,7 @@ pip install "contextlake[kb-pdf]"
 ```
 
 `[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
-table](install.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
+table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
 in it, a custom `include` replaces the defaults rather than adding to them.
 
 What the PDF path does **not** do is the load-bearing half. It runs no OCR and no vision model
@@ -2888,14 +2888,14 @@ for, so the run should not read as clean.
 
 ## See also
 
-- [Index the code graph](index-code-graph.md)
-- [Semantic search](semantic-search.md)
-- [Serve it to your editor](serve.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)
 
 ---
 
-# Semantic search
-Source: https://sayak.in/contextlake/semantic-search
+# Searching semantically
+Source: https://sayak.in/contextlake/searching-semantically
 
 # Semantic search
 
@@ -2968,7 +2968,7 @@ per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
 **Five more kinds are embedded, from outside the code itself**: frontend `route` nodes, SQL `table` and
 `view` definitions, Terraform `resource` nodes, and `adr` architecture decision records. That makes 17
 embeddable kinds in all, which is why
-[Index the code graph](index-code-graph.md) can promise that a route, a table or a decision record is
+[Index the code graph](indexing-the-code-graph.md) can promise that a route, a table or a decision record is
 semantically searchable, and it is worth knowing before you write off a natural-language query about
 your schema or your infrastructure as out of scope.
 
@@ -3137,14 +3137,14 @@ It is off by default: it does filesystem work proportional to the results and ne
 
 ## See also
 
-- [Index the code graph](index-code-graph.md)
-- [Connect and enrich](connect-enrich.md)
-- [Serve it to your editor](serve.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [Serve it to your editor](serving-over-mcp.md)
 
 ---
 
-# Generate the wiki
-Source: https://sayak.in/contextlake/generate-wiki
+# Generating the wiki
+Source: https://sayak.in/contextlake/generating-the-wiki
 
 # Generate the wiki
 
@@ -3235,7 +3235,7 @@ Ollama that already has the model pulled, else the built-in CPU model, else it s
 [Model providers](model-providers.md)).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
-(see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
+(see [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
@@ -3433,11 +3433,11 @@ from, and a **STALE** badge if the indexed commit has since moved.
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
-background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes).
+background, see [The dashboard → Mutating routes](using-the-dashboard.md#11-mutating-routes).
 
 ## Recorded decisions
 
-A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
+A repo's own ADR/decision docs (see [Index & Code Graph](indexing-the-code-graph.md#architecture-decisions-adrs))
 are authored facts, not connector content, so they don't need attribution the way "External context"
 does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
 No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
@@ -3445,13 +3445,13 @@ No `enrich`/`connect` step needed, these are picked up automatically whenever th
 ## See also
 
 - [Model providers](model-providers.md)
-- [Connect and enrich](connect-enrich.md)
-- [The dashboard](dashboard.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [The dashboard](using-the-dashboard.md)
 
 ---
 
-# Generate documentation
-Source: https://sayak.in/contextlake/generate-docs
+# Generating documentation
+Source: https://sayak.in/contextlake/generating-documentation
 
 # Generate documentation
 
@@ -3706,7 +3706,7 @@ The reference is generated, so regenerate it after re-indexing:
 contextlake kb index && contextlake kb docs
 ```
 
-See [Bootstrap and keep it fresh](keep-fresh.md) for running that on a schedule or on commit.
+See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
 
 ---
 
@@ -3824,7 +3824,7 @@ Unset, `review_provider` means the council reviews with the same client that gen
 which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
-[Generate the wiki](generate-wiki.md) for the full rationale.
+[Generate the wiki](generating-the-wiki.md) for the full rationale.
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
@@ -3847,7 +3847,7 @@ contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]
 ```
 
 An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
-[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
+[Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
 including why the standalone binary and the full Docker image need nothing at all.
 
 ### What it runs, and what it costs you
@@ -3960,14 +3960,14 @@ downloads at runtime. See `examples/kb.toml.example`.
 
 ## See also
 
-- [Generate the wiki](generate-wiki.md)
-- [Semantic search](semantic-search.md)
-- [Connect and enrich](connect-enrich.md)
+- [Generate the wiki](generating-the-wiki.md)
+- [Semantic search](searching-semantically.md)
+- [Connect and enrich](connecting-and-enriching.md)
 
 ---
 
-# Bootstrap and keep it fresh
-Source: https://sayak.in/contextlake/keep-fresh
+# Keeping it fresh
+Source: https://sayak.in/contextlake/keeping-it-fresh
 
 # Bootstrap and keep it fresh
 
@@ -4001,7 +4001,7 @@ editing current, and the lock is what stops the two of them from writing at once
 - A configured workspace: `contextlake init`, or the two config files in place. See
   [Configuration](configuration.md).
 - The `[kb]` extra installed, for everything past the mirror stage.
-  See [Install and upgrade](install.md).
+  See [Install and upgrade](installing.md).
 
 ## One command for the whole pipeline
 
@@ -4016,7 +4016,7 @@ contextlake bootstrap --llm builtin
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
 whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
 one extra step first, `contextlake doctor --fix llm-local` (see [Install and
-upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
+upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
 `--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
@@ -4285,14 +4285,14 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 
 ## See also
 
-- [Index the code graph](index-code-graph.md), the stage everything else builds on
-- [Generate the wiki](generate-wiki.md), the stage that needs a model
+- [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
+- [Generate the wiki](generating-the-wiki.md), the stage that needs a model
 - [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
 - [Troubleshooting](troubleshooting.md), when a scheduled run stops working
 
 ---
 
-# Knowledge layer
+# The knowledge layer
 Source: https://sayak.in/contextlake/knowledge-layer
 
 # Knowledge layer
@@ -4322,13 +4322,13 @@ flowchart LR
 </div>
 
 Each stage adds to the same store, and you can stop after any of them. Run the whole chain with one
-command using [`bootstrap`](keep-fresh.md), or work through it stage by stage below.
+command using [`bootstrap`](keeping-it-fresh.md), or work through it stage by stage below.
 
 ## Install the extra
 
 The knowledge layer needs the `[kb]` extra (Python 3.10 or newer), or `[kb-full]` if you
 also want local semantic search with no Ollama and no API key. See
-[Install and upgrade](install.md) for every channel and the full extras table.
+[Install and upgrade](installing.md) for every channel and the full extras table.
 
 ```bash
 pip install "contextlake[kb-full]"
@@ -4344,37 +4344,37 @@ doubles as a CI health gate:
 </p>
 
 The fastest way to build all of it is one command, `contextlake bootstrap` (see
-[Bootstrap and keep it fresh](keep-fresh.md)). The rest of this section is the map of what that pipeline does,
+[Bootstrap and keep it fresh](keeping-it-fresh.md)). The rest of this section is the map of what that pipeline does,
 stage by stage.
 
 ## Building it, stage by stage
 
-- **[Index the code graph](index-code-graph.md)**: parse your repos into a typed graph of files, symbols,
+- **[Index the code graph](indexing-the-code-graph.md)**: parse your repos into a typed graph of files, symbols,
   call/inheritance edges, infrastructure, SQL, and web topology.
-- **[Connect and enrich](connect-enrich.md)**: link repos to their issues, docs, and designs, ingest
+- **[Connect and enrich](connecting-and-enriching.md)**: link repos to their issues, docs, and designs, ingest
   external documents, and pull grounded external facts in.
-- **[Semantic search](semantic-search.md)**: embed the graph for natural-language and hybrid retrieval,
+- **[Semantic search](searching-semantically.md)**: embed the graph for natural-language and hybrid retrieval,
   and measure retrieval quality with `eval`.
-- **[Generate the wiki](generate-wiki.md)**: turn the graph into grounded, council-verified prose per repo
+- **[Generate the wiki](generating-the-wiki.md)**: turn the graph into grounded, council-verified prose per repo
   (and per namespace).
 - **[Model providers](model-providers.md)**: choose the embeddings and wiki backend (built-in CPU, Ollama,
   OpenAI, Anthropic, or an agent CLI).
-- **[Bootstrap and keep it fresh](keep-fresh.md)**: run the whole pipeline in one command and keep it current.
+- **[Bootstrap and keep it fresh](keeping-it-fresh.md)**: run the whole pipeline in one command and keep it current.
 
 ## Using what you built
 
-- **[Serve it to your editor](serve.md)**: expose the graph over MCP so agents query it directly.
-- **[The dashboard](dashboard.md)**: a local, offline-first UI over the whole knowledge system.
-- **[Visualize the graph](visualize.md)**: bounded interactive graph slices and the C4 diagram.
-- **[Ask the graph](ask-the-graph.md)**: query it, trace what a change would break, and find who owns it.
+- **[Serve it to your editor](serving-over-mcp.md)**: expose the graph over MCP so agents query it directly.
+- **[The dashboard](using-the-dashboard.md)**: a local, offline-first UI over the whole knowledge system.
+- **[Visualize the graph](visualizing-the-graph.md)**: bounded interactive graph slices and the C4 diagram.
+- **[Ask the graph](asking-the-graph.md)**: query it, trace what a change would break, and find who owns it.
 
 For the command list see the [`contextlake` command reference](cli-reference.md); to decode a run see
 [Reading the console output](console-output.md).
 
 ---
 
-# Ask the graph
-Source: https://sayak.in/contextlake/ask-the-graph
+# Asking the graph
+Source: https://sayak.in/contextlake/asking-the-graph
 
 # Ask the graph
 
@@ -4384,7 +4384,7 @@ citation you can open, all three take `--json`, and none of them needs an editor
 
 The same three answers reach an agent over MCP as `search_code` / `semantic_search` /
 `hybrid_search`, `blast_radius`, and `who_knows`; see
-[Serve it to your editor](serve.md). This page is the terminal-side equivalent.
+[Serve it to your editor](serving-over-mcp.md). This page is the terminal-side equivalent.
 
 ```mermaid
 flowchart LR
@@ -4408,10 +4408,10 @@ than a path and it does open the store, only to find the clone.
 
 ## Prerequisites
 
-- A store with an indexed repo in it: [Index the code graph](index-code-graph.md), or
+- A store with an indexed repo in it: [Index the code graph](indexing-the-code-graph.md), or
   `contextlake bootstrap`. `kb owners` is the exception, it reads git directly and needs neither.
 - For `--retriever semantic` or `hybrid`, a `contextlake kb embed` run as well:
-  [Semantic search](semantic-search.md).
+  [Semantic search](searching-semantically.md).
 
 > [!IMPORTANT]
 > Query an empty store and you get `No matches`, exit `0`, which looks exactly like a genuine miss.
@@ -4505,7 +4505,7 @@ contextlake kb blast-radius charge --json          # the same command
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
-[Entity state machines](index-code-graph.md#entity-state-machines).
+[Entity state machines](indexing-the-code-graph.md#entity-state-machines).
 
 Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited **highest-confidence first**
@@ -4656,16 +4656,16 @@ Three behaviours that bite scripts:
 
 ## See also
 
-- [Serve it to your editor](serve.md), the same answers as MCP tools
-- [Index the code graph](index-code-graph.md), what the graph contains to be asked about
-- [Semantic search](semantic-search.md), what `--retriever semantic` needs first
-- [The dashboard](dashboard.md), the same queries in a browser
+- [Serve it to your editor](serving-over-mcp.md), the same answers as MCP tools
+- [Index the code graph](indexing-the-code-graph.md), what the graph contains to be asked about
+- [Semantic search](searching-semantically.md), what `--retriever semantic` needs first
+- [The dashboard](using-the-dashboard.md), the same queries in a browser
 - [Reading the console output](console-output.md), decoding a run
 
 ---
 
-# Dashboard
-Source: https://sayak.in/contextlake/dashboard
+# Using the dashboard
+Source: https://sayak.in/contextlake/using-the-dashboard
 
 # The dashboard: a guided tour
 
@@ -4869,7 +4869,7 @@ each to that symbol's repo-scoped architecture graph, curated wiki, and connecto
 connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
 distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
 docstring or the git-blame commit message on its defining line, see
-[Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
+[Connect and enrich](connecting-and-enriching.md#connectors)), live-JQL confirmed the same way a branch-derived key
 is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
 ## 8. Path
@@ -4921,7 +4921,7 @@ contextlake kb wiki acme/catalog-api --llm builtin
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
+[Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
 needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
@@ -4935,7 +4935,7 @@ always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
-**Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
+**Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generating-the-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
 subsystem's own page, or the **Whole repo** option to go back, without leaving the tab. The dropdown
@@ -4945,7 +4945,7 @@ option that would 404. Live-only, like MCP console/Settings above (no `--site` e
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
-See [Generate the wiki](generate-wiki.md).
+See [Generate the wiki](generating-the-wiki.md).
 
 ## 10. MCP console & Settings
 
@@ -4980,7 +4980,7 @@ regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
 The MCP server this card starts is itself authenticated (see
-[Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
+[Serve](serving-over-mcp.md#authenticating-the-network-transports)): the HTTP transport requires
 `Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
 output discarded, the dashboard mints that token instead of letting the server print one, and
 the card shows it alongside the endpoint, that card is the only place it appears. **Restart
@@ -5053,8 +5053,8 @@ configured `[llm]` provider -- everything else stays local).
 
 ---
 
-# Serve (MCP)
-Source: https://sayak.in/contextlake/serve
+# Serving over MCP
+Source: https://sayak.in/contextlake/serving-over-mcp
 
 # Serve it to your editor (MCP)
 
@@ -5417,7 +5417,7 @@ refusing to start over a typo in a shell profile is worse than serving at the de
 ## Every cited node says whether the file moved under it
 
 The staleness contextlake tracked until now is per **repo**: has the head commit or the parser
-version moved since this graph was built ([Keep it fresh](keep-fresh.md)). That is the right
+version moved since this graph was built ([Keep it fresh](keeping-it-fresh.md)). That is the right
 question for the graph as a whole and it is blind to the one that bites hardest in practice, an
 agent editing files *between* index runs, inside the same commit. The graph says
 `src/billing/refund.py:88`, twenty lines get inserted above it, and the answer still says 88. A
@@ -5435,7 +5435,7 @@ as the answer is built:
 When the status is not `verified` a **`citation_note`** says which of those it is, in a sentence
 meant for the agent reading it. `unverifiable` is not a polite `verified`: it means nothing was
 checked, and the two are kept apart for the same reason `kb eval --verify-citations` keeps them
-apart ([Semantic search](semantic-search.md#are-the-citations-real)). The answer is still returned
+apart ([Semantic search](searching-semantically.md#are-the-citations-real)). The answer is still returned
 either way: the guard discloses, it never withholds a result or refuses.
 
 **What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
@@ -5467,8 +5467,8 @@ have it draft wiki pages from the graph without the built-in `wiki` command.
 
 ---
 
-# Visualize the graph
-Source: https://sayak.in/contextlake/visualize
+# Visualizing the graph
+Source: https://sayak.in/contextlake/visualizing-the-graph
 
 # Visualize the graph
 
@@ -5550,7 +5550,7 @@ completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource
 `erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
 dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
 and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
-arbitrary slice (see [The dashboard](dashboard.md)).
+arbitrary slice (see [The dashboard](using-the-dashboard.md)).
 
 ## Output formats
 
@@ -5585,7 +5585,7 @@ Output is chosen with `--format`:
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
-  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](index-code-graph.md)):
+  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
   `contextlake kb graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
   only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
   relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
@@ -5596,7 +5596,7 @@ Output is chosen with `--format`:
   definitions grouped by an inferred category
   (network/compute/storage/database/security/other/module; a resource type matching none of the
   keyword lists lands in `other` and gets its own subgraph),
-  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake kb graph --repo
+  from the HCL extractor (see [Index & Code Graph](indexing-the-code-graph.md)): `contextlake kb graph --repo
   acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
   type-name interpolation references draw the connections between resources. A single-category view
@@ -5624,7 +5624,7 @@ with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a
 `Host` header names the
 address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
+you intend to browse rather than a wildcard (see [dashboard.md](using-the-dashboard.md#11-mutating-routes)).
 
 ## Working the served graph
 
@@ -5721,9 +5721,9 @@ just never used until this view asks for it.
 
 ## See also
 
-- [The dashboard](dashboard.md)
-- [Index the code graph](index-code-graph.md)
-- [Serve it to your editor](serve.md)
+- [The dashboard](using-the-dashboard.md)
+- [Index the code graph](indexing-the-code-graph.md)
+- [Serve it to your editor](serving-over-mcp.md)
 
 ---
 
@@ -5802,7 +5802,7 @@ a single file. contextlake answers the same question from its index in one bound
 
 Any session pays for the tool schemas once, whether or not it calls a tool: **23 of them on a
 graph-only store** (22 graph tools plus the `ask` router) and **25 once embeddings exist**, all
-listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
+listed in [Serve](serving-over-mcp.md). That cost is real, and it can leave you net-negative if the agent
 reaches for the server on questions it does not help with. There is no published token figure for it
 here for the reason at the top of the page; the recipe in
 [Measure it on your own repositories](#measure-it-on-your-own-repositories) counts it in the same
@@ -6064,7 +6064,7 @@ recently committed branch. And when the upstream branch a repo is on disappears,
 runs again to pick a replacement rather than leaving the clone stranded.
 
 Branch switching is skipped entirely for a repository on a working branch, see
-[Branch safety](usage.md#branch-safety).
+[Branch safety](mirroring-repositories.md#branch-safety).
 
 ### Authenticating a refresh
 
@@ -6294,9 +6294,9 @@ Connector results, once fetched, stay queryable offline.
 ## See also
 
 - [contextlake, explained](explained.md), the same decisions at reasoning depth
-- [Index the code graph](index-code-graph.md), what the parser actually extracts
+- [Index the code graph](indexing-the-code-graph.md), what the parser actually extracts
 - [Configuration](configuration.md), the full settings reference
-- [Mirror repositories](usage.md), the commands this layer implements
+- [Mirror repositories](mirroring-repositories.md), the commands this layer implements
 - [`contextlake` command reference](cli-reference.md), every flag
 
 ---
@@ -6381,7 +6381,7 @@ safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--a
 `--protect-working-branches`, `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and
 their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
 `--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
-[Branch safety](usage.md#branch-safety)), so they are kept out of the default listing. Run
+[Branch safety](mirroring-repositories.md#branch-safety)), so they are kept out of the default listing. Run
 `contextlake mirror <command> --help-advanced` to see them. The flag exists on those 8 commands and
 on `bootstrap`, which takes the same flag group, and nowhere else: nothing under `kb` has a hidden
 tier to reveal, and there is no top-level `contextlake --help-advanced` either.
@@ -6418,7 +6418,7 @@ These span both tiers, or neither, so they are not namespaced.
 | `mirror sync` | fetch, clone, update, branches, verify, audit, in that order |
 | `mirror audit` | Repo health and age report, as JSON and CSV |
 
-Covered in depth under [Mirror repositories](usage.md).
+Covered in depth under [Mirror repositories](mirroring-repositories.md).
 
 ### Knowledge-layer commands
 
@@ -6436,7 +6436,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
-| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualize.md) |
+| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualizing-the-graph.md) |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
@@ -6446,7 +6446,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
 `doctor --fix`'s own flags, and the two privilege tiers behind them, are on
-[Install and upgrade](install.md#installing-what-is-missing).
+[Install and upgrade](installing.md#installing-what-is-missing).
 
 ## Exit codes
 
@@ -6458,16 +6458,16 @@ uvicorn's graceful shutdown. The conditions behind each are on
 
 ## See also
 
-- [Ask the graph](ask-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
-- [Index the code graph](index-code-graph.md)
-- [Serve it to your editor](serve.md)
+- [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
+- [Index the code graph](indexing-the-code-graph.md)
+- [Serve it to your editor](serving-over-mcp.md)
 - [Reading the console output](console-output.md)
-- [Install and upgrade](install.md), the commands `--fix` runs for you, written out
+- [Install and upgrade](installing.md), the commands `--fix` runs for you, written out
 - [Troubleshooting](troubleshooting.md), when one of them fails
 
 ---
 
-# Reading the console output
+# Console output
 Source: https://sayak.in/contextlake/console-output
 
 # Reading the console output
@@ -6698,13 +6698,13 @@ separately.
   discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
   disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
   it instead of echoing the value. `stdio` prints no token because it needs none. See
-  [Serve](serve.md).
+  [Serve](serving-over-mcp.md).
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
   populated graph.
 - **A single-writer lock message** naming another process means two runs targeted one store at once (see
-  the git-hook note under [Bootstrap and keep it fresh](keep-fresh.md)).
+  the git-hook note under [Bootstrap and keep it fresh](keeping-it-fresh.md)).
 
 Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced; the real
 progress still shows.
@@ -6742,7 +6742,7 @@ connections and shuts down first, then re-raises the signal it captured so the e
 reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
 handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
 a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](serve.md#stopping-it).
+[Serve it to your editor](serving-over-mcp.md#stopping-it).
 
 Three things worth knowing about `1`:
 
@@ -6766,8 +6766,8 @@ reproduce the failure under a debugger.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keep-fresh.md)
-- [Index the code graph](index-code-graph.md)
+- [Bootstrap and keep it fresh](keeping-it-fresh.md)
+- [Index the code graph](indexing-the-code-graph.md)
 - [`contextlake` command reference](cli-reference.md)
 
 ---
@@ -6839,7 +6839,7 @@ contextlake doctor --fix llm-local          # --dry-run prints the command and s
 It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
 The standalone binary installs it on first run and the full Docker image ships it baked in,
 so neither channel hits this. See [Install and
-upgrade](install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](model-providers.md#installing-the-built-in-llm).
 
 Releases before 7.0.0 ran a GGUF through `llama-cpp-python` and did need a wheel index plus a
@@ -6858,7 +6858,7 @@ files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (
 ```
 
 Do that, then re-run the ingest. `[kb-pdf]` is a small pure-Python extra and is not part of
-`[kb-full]`, see [the extras table](install.md#the-extras-and-which-one-you-want).
+`[kb-full]`, see [the extras table](installing.md#the-extras-and-which-one-you-want).
 
 A different message means the PDFs were read and refused for a stated reason, one per file:
 
@@ -6872,7 +6872,7 @@ to ingest, and it declines rather than storing an empty document that would look
 search results. Run the file through an OCR tool of your choice first, or ingest the source
 document the PDF was made from. The other two refusals name themselves the same way: a PDF that
 cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](connect-enrich.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+you can raise on the source. See [Aggregating documents](connecting-and-enriching.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 
@@ -6891,7 +6891,7 @@ instead, so the run looked like it succeeded and the index vanished when the con
 Three assets are published per release: Linux x86-64, macOS Apple silicon, and Windows x86-64.
 macOS on Intel and Linux on arm64 are not among them, and no fourth asset is hiding under a
 different name. Install with `pipx`, `pip` or `uv` on those platforms, or use the Docker image.
-See [The standalone binary](install.md#the-standalone-binary).
+See [The standalone binary](installing.md#the-standalone-binary).
 
 ## `contextlake doctor --fix` says the environment is externally managed
 
@@ -6931,8 +6931,8 @@ Symptoms specific to mirroring a fleet, and what to do about each.
 | **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
 | **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
 | **Nested `.git` directories** | A repo cloned into a subfolder of itself. `contextlake mirror verify` flags it; fix by moving the inner tree up one level and removing the empty folder. |
-| **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Keep it fresh on a schedule](keep-fresh.md#keep-it-fresh-on-a-schedule). |
-| **Large log files** | `--log-file` rotates itself; a shell redirect does not. See [Log files and rotation](keep-fresh.md#log-files-and-rotation). |
+| **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Keep it fresh on a schedule](keeping-it-fresh.md#keep-it-fresh-on-a-schedule). |
+| **Large log files** | `--log-file` rotates itself; a shell redirect does not. See [Log files and rotation](keeping-it-fresh.md#log-files-and-rotation). |
 
 ## Still stuck
 
@@ -6942,7 +6942,7 @@ missing, which is most of what anyone would ask you for anyway.
 
 ## See also
 
-- [Install and upgrade](install.md), every channel, and how to upgrade safely
+- [Install and upgrade](installing.md), every channel, and how to upgrade safely
 - [Reading the console output](console-output.md), decoding a run
 - [Command reference](cli-reference.md), the exact flags
 - [CONTRIBUTING.md](../CONTRIBUTING.md), problems you hit working on contextlake itself
@@ -11353,7 +11353,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   neither does anything until the preview layout is selected.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
-  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
+  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serving-over-mcp.md#transports).
 - Ingested documents now link to the code symbols they mention by name, via a new
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as
@@ -11813,7 +11813,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   default `--help` now keeps out of the listing -- every one already has a `.contextlake.ini`
   equivalent, so hiding them by default removes ~60% of the visible flag surface on 8 commands for
   zero functional cost. The flags themselves are unchanged and still fully documented in
-  [Mirror repositories](docs/usage.md).
+  [Mirror repositories](docs/mirroring-repositories.md).
 - `Examples:` epilogs added to `fetch`/`clone`/`update`/`branches`/`verify`/`status`/`audit`'s own
   `--help`, matching the worked examples every other command already carried.
 
@@ -12033,7 +12033,7 @@ spec-cli-simplification.md`.
   - `--llm-chat` mints the same per-launch token `--allow-mutations` uses, and every chat request while
     it's active must carry it -- a page other than this dashboard can't silently trigger a paid call. The
     free layer needs no token, same risk level as any other read-only `/api/*` route.
-  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#12-chat).
+  - See [`docs/dashboard.md` §12](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md#12-chat).
 
 ## [2.59.1] - 2026-07-29
 
@@ -12169,7 +12169,7 @@ spec-cli-simplification.md`.
   duration only, so a concurrent CLI command sees a clean `409` instead of an
   interleaved write. New `kb/dashboard/mutations.py`. Verified against a real
   git repo (not mocks) end-to-end, including a live curl pass against the
-  playground store. See [dashboard.md §11](docs/dashboard.md#11-mutating-routes).
+  playground store. See [dashboard.md §11](docs/using-the-dashboard.md#11-mutating-routes).
 
 - **Per-symbol ticket attribution.** `tracked_by` edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
@@ -13496,7 +13496,7 @@ real one; this release closes them.
 - **`--llm <provider>` and `--llm-model <model>` CLI flags** for `wiki`, enable the LLM tier
   inline (`builtin` | `ollama` | `openai`) without editing `kb.toml`, e.g.
   `contextlake wiki acme/app --llm builtin`.
-- **A guided dashboard tour** ([docs/dashboard.md](docs/dashboard.md)), a step-by-step
+- **A guided dashboard tour** ([docs/dashboard.md](docs/using-the-dashboard.md)), a step-by-step
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.
 
@@ -14979,7 +14979,7 @@ Rules are easier to follow when you can see the rewrite.
 | "It is important to note that `sync` is incremental." | "`sync` is incremental." |
 | "This tool leverages embeddings to facilitate retrieval." | "It embeds your code so you can search it in plain language." |
 | "Kill the running process." | "Stop the running process." |
-| "Please click here to read the guide." | "Read the [indexing guide](index-code-graph.md)." |
+| "Please click here to read the guide." | "Read the [indexing guide](indexing-the-code-graph.md)." |
 
 ### A heading
 
@@ -15021,7 +15021,7 @@ Ask your assistant a cross-repo question. You should see it call a contextlake t
 files the answer came from.
 
 ## See also
-- [Serve it to your editor](serve.md)
+- [Serve it to your editor](serving-over-mcp.md)
 ```
 
 ## A to Z
@@ -15163,7 +15163,7 @@ rules, see the full [brand guidelines spec](https://github.com/sayak-sarkar/cont
 ---
 
 # Adding a language
-Source: https://sayak.in/contextlake/contributing-languages
+Source: https://sayak.in/contextlake/adding-a-language
 
 # Adding a language
 
@@ -15345,7 +15345,7 @@ five hand-written places:
 | --- | --- |
 | `README.md` | the count in the feature list |
 | `ROADMAP.md` | the count in the knowledge-graph bullet |
-| `docs/index-code-graph.md` | the count in the [Languages](index-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/indexing-the-code-graph.md` | the count in the [Languages](indexing-the-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
 | `docs/style-guide-reference.md` | the mandated phrasing itself |
 | `site/build_docs.py` | the "Index the code graph" page subtitle |
 
@@ -15684,7 +15684,7 @@ to hold your query to.
 
 ## See also
 
-- [Index the code graph](index-code-graph.md#languages), what the graph looks like once your language
+- [Index the code graph](indexing-the-code-graph.md#languages), what the graph looks like once your language
   is in it
 - [CONTRIBUTING.md](../CONTRIBUTING.md), the development loop, commit style, and how to submit
 - [Word and term reference](style-guide-reference.md), the house rules the docs edits in step 8 follow

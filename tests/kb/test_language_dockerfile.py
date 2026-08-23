@@ -204,7 +204,7 @@ def test_the_skip_is_counted_and_names_the_extra(tmp_path, monkeypatch,
     assert "2 dockerfile file(s) skipped" in out, out
     assert "contextlake[kb-dockerfile]" in out, out
     # NOT the other sentence: the language is supported, so telling the user it has no
-    # parser would point them at docs/contributing-languages.md, which cannot help.
+    # parser would point them at docs/adding-a-language.md, which cannot help.
     assert "no parser for their type" not in out
     assert "parse error" not in out
     # The rest of the repo still indexes. A missing optional grammar is not a failed run.

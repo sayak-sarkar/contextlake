@@ -4,9 +4,9 @@ This is the gate that was missing. `site/build_docs.py` validates its own nav an
 Next-steps targets, and nothing checked the body text — so a link could rot silently and
 only a human reading the page would notice. Two findings in the last docs audit were
 exactly that, and one of them was worse than a broken page: the CLI *printed* a
-`docs/usage.md#shell-completion` pointer at users after the restructure had moved that
-section to `cli-reference.md`, so anyone who followed the instruction the tool gave them
-landed somewhere without the steps.
+`docs/mirroring-repositories.md#shell-completion` pointer at users after the
+restructure had moved that section to `cli-reference.md`, so anyone who
+followed the instruction the tool gave them landed somewhere without the steps.
 
 Scope, and why it stops where it does:
 

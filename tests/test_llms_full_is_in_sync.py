@@ -8,7 +8,7 @@ disagreeing, and nothing notices: the whole suite stays green while a published
 artifact contradicts the documentation it was generated from.
 
 That is not hypothetical. A ``--repos`` scope paragraph was corrected in
-``docs/usage.md`` and the committed corpus kept the superseded wording, found only
+``docs/mirroring-repositories.md`` and the committed corpus kept the superseded wording, found only
 because the agent that made the edit thought to mention it.
 
 The check recomputes what ``gen_llms_full`` would write and compares. It does not

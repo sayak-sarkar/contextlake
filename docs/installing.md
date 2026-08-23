@@ -136,7 +136,7 @@ That bare `kb index` indexes the mount as one repository, which is right when yo
 repository. Mount a directory that *holds* repositories and it is refused, telling you to run
 `kb index --workspace .` instead -- `.` being the mount, since that is the container's working
 directory. See [Which command for which
-directory](index-code-graph.md#which-command-for-which-directory).
+directory](indexing-the-code-graph.md#which-command-for-which-directory).
 
 The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:

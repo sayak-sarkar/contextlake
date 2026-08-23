@@ -6,7 +6,7 @@ one specific paragraph in it matches poorly or not at all. Measured on 29 real d
 with 53 position-selected queries, chunking took the right document from **71.7% to 94.3%**
 hit rate and MRR from **45.2% to 80.4%**, for about 15 extra tokens per query. The
 measurement, its controls, and what it does NOT establish are in
-`docs/semantic-search.md`.
+`docs/searching-semantically.md`.
 
 **The defaults here are the ones that were measured.** 1200 characters with 200 of overlap.
 Changing them is fine, but it makes the numbers above describe a configuration that is no

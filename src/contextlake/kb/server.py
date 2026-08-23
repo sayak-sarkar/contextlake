@@ -2167,7 +2167,7 @@ def build_http_app(
     never reach the app they build.
 
     sse is the legacy HTTP+SSE transport (superseded by streamable-http in the
-    MCP spec, kept for older clients that only speak SSE -- see docs/serve.md);
+    MCP spec, kept for older clients that only speak SSE -- see docs/serving-over-mcp.md);
     its ``/messages/`` POST endpoint is behind the same gate as ``/sse``.
     """
     tool_concurrency = resolve_tool_concurrency(tool_concurrency)

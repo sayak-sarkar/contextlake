@@ -200,7 +200,7 @@ each to that symbol's repo-scoped architecture graph, curated wiki, and connecto
 connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
 distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
 docstring or the git-blame commit message on its defining line, see
-[Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
+[Connect and enrich](connecting-and-enriching.md#connectors)), live-JQL confirmed the same way a branch-derived key
 is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
 ## 8. Path
@@ -252,7 +252,7 @@ contextlake kb wiki acme/catalog-api --llm builtin
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
+[Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
 needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
@@ -266,7 +266,7 @@ always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
-**Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
+**Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generating-the-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
 subsystem's own page, or the **Whole repo** option to go back, without leaving the tab. The dropdown
@@ -276,7 +276,7 @@ option that would 404. Live-only, like MCP console/Settings above (no `--site` e
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
-See [Generate the wiki](generate-wiki.md).
+See [Generate the wiki](generating-the-wiki.md).
 
 ## 10. MCP console & Settings
 
@@ -311,7 +311,7 @@ regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
 The MCP server this card starts is itself authenticated (see
-[Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
+[Serve](serving-over-mcp.md#authenticating-the-network-transports)): the HTTP transport requires
 `Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
 output discarded, the dashboard mints that token instead of letting the server print one, and
 the card shows it alongside the endpoint, that card is the only place it appears. **Restart

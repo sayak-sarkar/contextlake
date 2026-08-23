@@ -226,13 +226,13 @@ separately.
   discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
   disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
   it instead of echoing the value. `stdio` prints no token because it needs none. See
-  [Serve](serve.md).
+  [Serve](serving-over-mcp.md).
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
   populated graph.
 - **A single-writer lock message** naming another process means two runs targeted one store at once (see
-  the git-hook note under [Bootstrap and keep it fresh](keep-fresh.md)).
+  the git-hook note under [Bootstrap and keep it fresh](keeping-it-fresh.md)).
 
 Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced; the real
 progress still shows.
@@ -270,7 +270,7 @@ connections and shuts down first, then re-raises the signal it captured so the e
 reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
 handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
 a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](serve.md#stopping-it).
+[Serve it to your editor](serving-over-mcp.md#stopping-it).
 
 Three things worth knowing about `1`:
 
@@ -294,6 +294,6 @@ reproduce the failure under a debugger.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keep-fresh.md)
-- [Index the code graph](index-code-graph.md)
+- [Bootstrap and keep it fresh](keeping-it-fresh.md)
+- [Index the code graph](indexing-the-code-graph.md)
 - [`contextlake` command reference](cli-reference.md)
