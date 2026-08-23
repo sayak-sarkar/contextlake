@@ -6963,23 +6963,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Copy a node's `file:line` from the inspector.** Edges have offered this since
-  provenance shipped; nodes carried the same location and gave you no way to take it
-  anywhere. Both controls now confirm what happened, including when the clipboard is
-  unavailable, which is the normal case for a page opened straight off disk rather than
-  served.
-
-### Fixed
-
-- **Folded leaves are now visible in the count, not only absent from the picture.** Leaf
-  folding writes a tally onto each container and onto the page meta, and nothing read either
-  of them, so on a `--site` page the majority of a large repository's nodes left the graph
-  with no surface saying so. The status bar now states the total, and selecting a container
-  shows its own tally with the kinds that make it up. The graph is unchanged; what changed
-  is that it says what it did.
-- The graph page's status bar said "1 edges".
-
-### Added
+- Depth and edge-direction controls on the graph page. Clicking a node to expand it
+  used to bring back exactly one hop of neighbours in both directions, with no way to
+  ask for more or to follow only what a node calls (or only what calls it). The two
+  controls sit under the layout row and apply to the next node you expand; expanding
+  is additive, so they never remove what you have already explored. `/neighbors` now
+  reads `hops` as well as the `relation` and `direction` it already parsed, clamped to
+  a maximum of 3 to match the slider.
 
 - **Trace downstream** on the graph page. Selecting a node highlights its immediate
   neighbours in both directions, which answers "what is next to this" but not "what does
@@ -6988,13 +6978,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nodes that have an outgoing edge. It walks the graph currently on the canvas, which the
   button says, because in `--serve` mode that is whatever has been expanded so far.
 
-- Depth and edge-direction controls on the graph page. Clicking a node to expand it
-  used to bring back exactly one hop of neighbours in both directions, with no way to
-  ask for more or to follow only what a node calls (or only what calls it). The two
-  controls sit under the layout row and apply to the next node you expand; expanding
-  is additive, so they never remove what you have already explored. `/neighbors` now
-  reads `hops` as well as the `relation` and `direction` it already parsed, clamped to
-  a maximum of 3 to match the slider.
+- **Copy a node's `file:line` from the inspector.** Edges have offered this since
+  provenance shipped; nodes carried the same location and gave you no way to take it
+  anywhere. Both controls now confirm what happened, including when the clipboard is
+  unavailable, which is the normal case for a page opened straight off disk rather than
+  served.
 
 ### Changed
 
@@ -7005,6 +6993,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot drift from the colours beside it. Bands with nothing in them are not drawn,
   and any kind the projection does not cover falls through to a visible `Other` band
   rather than disappearing from the legend.
+
+### Fixed
+
+- **Folded leaves are now visible in the count, not only absent from the picture.** Leaf
+  folding writes a tally onto each container and onto the page meta, and nothing read either
+  of them, so on a `--site` page the majority of a large repository's nodes left the graph
+  with no surface saying so. The status bar now states the total, and selecting a container
+  shows its own tally with the kinds that make it up. The graph is unchanged; what changed
+  is that it says what it did.
+- The graph page's status bar said "1 edges".
 
 ## [8.4.0] - 2026-08-23
 
