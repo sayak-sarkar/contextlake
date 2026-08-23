@@ -38,15 +38,20 @@ pip install -e ".[release]"        # build + twine
 1. **Green build.** From a clean `main`:
 
    ```bash
-   ruff check src tests
+   ruff check src tests scripts benchmarks
    pytest
    ```
 
-   `src tests`, not `.`, because that is the scope `ci.yml`, `release.yml` and
-   `.pre-commit-config.yaml` all use. This step said `ruff check .` for a release cycle and
-   failed every time it was run: the repo-root launcher trips `S606` by design, so anyone
-   following the checklist literally hit a red gate that CI does not have. A checklist whose
-   first step cannot pass gets skipped, which is worse than not having it.
+   **Those four paths, because that is exactly what `ci.yml` and `release.yml` run.** Not
+   `.`: the repo-root launcher trips `S606` by design, so a literal `ruff check .` hits a
+   red gate CI does not have, and a checklist whose first step cannot pass gets skipped.
+
+   This step read `ruff check src tests` until 2026-08-23, two paths short, while claiming
+   in the same breath that it matched CI. It does not fail on its own -- it passes, and
+   then CI fails on the paths it never looked at. **A checklist that is narrower than the
+   gate it stands in for is worse than no checklist, because it produces a green you
+   believe.** Re-derive this line from the workflow rather than trusting it; if the two
+   ever diverge again, the workflow is right.
 
 2. **Bump the version** in one place: `src/contextlake/__init__.py` →
    `__version__ = "X.Y.Z"`. This is the single source of truth; `pyproject.toml`

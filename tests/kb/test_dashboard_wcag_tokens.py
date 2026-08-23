@@ -355,8 +355,6 @@ def test_state_blocks_speak_through_the_persistent_live_region():
 # undefined custom property inside `color-mix()` makes the whole declaration invalid, so
 # CSS drops it and the tile renders with no fill.
 
-import re
-from pathlib import Path
 
 _STATIC = Path(__file__).resolve().parents[2] / "src/contextlake/kb/dashboard/static"
 

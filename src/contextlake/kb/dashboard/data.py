@@ -920,20 +920,20 @@ def _unresolved_references(store, *, limit: int = 20) -> dict:
             "SELECT COUNT(*) FROM edges WHERE confidence = 'AMBIGUOUS'")
         total_edges = cur.fetchone()[0]
         if total_edges:
-            site = ("e.src || char(1) || IFNULL(e.source_file,'') "
-                    "|| char(1) || IFNULL(e.source_line,0)")
             total_sites = store.conn.execute(
-                f"SELECT COUNT(DISTINCT {site}) FROM edges e "
+                "SELECT COUNT(DISTINCT e.src || char(1) || IFNULL(e.source_file,'')"
+                " || char(1) || IFNULL(e.source_line,0)) FROM edges e "
                 "WHERE e.confidence = 'AMBIGUOUS'").fetchone()[0]
             rows = store.conn.execute(
-                f"""SELECT n.name,
-                           COUNT(DISTINCT {site}) AS sites,
-                           COUNT(*) AS candidate_edges,
-                           MIN(IFNULL(e.source_file,'') || ':'
-                               || IFNULL(e.source_line,0)) AS example
-                    FROM edges e JOIN nodes n ON n.node_id = e.dst
-                    WHERE e.confidence = 'AMBIGUOUS' AND n.name IS NOT NULL
-                    GROUP BY n.name ORDER BY sites DESC, n.name LIMIT ?""",
+                """SELECT n.name,
+                          COUNT(DISTINCT e.src || char(1) || IFNULL(e.source_file,'')
+                                || char(1) || IFNULL(e.source_line,0)) AS sites,
+                          COUNT(*) AS candidate_edges,
+                          MIN(IFNULL(e.source_file,'') || ':'
+                              || IFNULL(e.source_line,0)) AS example
+                   FROM edges e JOIN nodes n ON n.node_id = e.dst
+                   WHERE e.confidence = 'AMBIGUOUS' AND n.name IS NOT NULL
+                   GROUP BY n.name ORDER BY sites DESC, n.name LIMIT ?""",
                 (limit,)).fetchall()
             for name, sites, cand, example in rows:
                 names.append({
