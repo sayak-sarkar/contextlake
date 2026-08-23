@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trace downstream** on the graph page. Selecting a node highlights its immediate
+  neighbours in both directions, which answers "what is next to this" but not "what does
+  this eventually reach". The inspector now offers a transitive walk that follows edge
+  direction as far as it goes, and reports how many nodes it found. It appears only on
+  nodes that have an outgoing edge. It walks the graph currently on the canvas, which the
+  button says, because in `--serve` mode that is whatever has been expanded so far.
+
 - Depth and edge-direction controls on the graph page. Clicking a node to expand it
   used to bring back exactly one hop of neighbours in both directions, with no way to
   ask for more or to follow only what a node calls (or only what calls it). The two

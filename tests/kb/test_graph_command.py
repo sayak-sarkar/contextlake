@@ -2002,3 +2002,67 @@ def test_the_page_sends_the_parameters_the_server_parses():
     # The slider's max and the server's clamp are the same number by intent; if one
     # moves without the other the UI either lies or silently under-fetches.
     assert 'max="3"' in page
+
+
+# --- F2: transitive downstream trace ------------------------------------------------
+
+_TRACE_HARNESS = """
+<script>
+(function(){
+  function out(id, txt){
+    var d = document.createElement("div"); d.id = id; d.textContent = txt;
+    document.body.appendChild(d);
+  }
+  setTimeout(function(){
+    var a = cy.getElementById("A");
+    a.emit("tap");                                  // opens the inspector on A
+    setTimeout(function(){
+      var btn = document.getElementById("tracedown");
+      out("trace-button", btn ? "present" : "absent");
+      // one-hop highlight, for contrast: this is what focus() alone produces
+      out("trace-before", String(cy.nodes(".hi").length));
+      if(btn){ btn.click(); }
+      setTimeout(function(){
+        out("trace-after", String(cy.nodes(".hi").length));
+        out("trace-label", document.querySelector("#info .tracebtn").textContent);
+        // a leaf has no outgoing edge, so it must not offer the control at all
+        cy.getElementById("E").emit("tap");
+        setTimeout(function(){
+          out("trace-leaf", document.getElementById("tracedown") ? "present" : "absent");
+        }, 150);
+      }, 200);
+    }, 250);
+  }, 400);
+})();
+</script>
+</body>"""
+
+
+@pytest.mark.skipif(_chrome_binary() is None,
+                    reason="no Chrome/Chromium available to render the page")
+def test_trace_downstream_walks_the_whole_chain_not_one_hop(store, tmp_path):
+    """The point of F2 is transitivity, and only a real render can show it.
+
+    A -> B -> C -> D -> E. Selecting A highlights its closed neighbourhood, which is
+    A and B. Tracing downstream must reach every one of the five. A markup assertion
+    cannot tell those two apart, which is why this drives a browser.
+    """
+    ids = _chain(store, length=5)
+    nodes, edges = viz.extract_subgraph(store, ["A"], hops=5, max_nodes=50, max_fanout=10)
+    assert len(nodes) == len(ids), "fixture did not load the whole chain"
+
+    page = tmp_path / "graph.html"
+    page.write_text(
+        viz.to_html(viz.to_payload(nodes, edges, {"mode": "neighborhood"}))
+        .replace("</body>", _TRACE_HARNESS), encoding="utf-8")
+    dom = _dump_dom(_chrome_binary(), page, tmp_path / "profile")
+
+    assert _grab(dom, "trace-button") == "present"
+    # focus() alone: A and B. If this ever equals 5, the contrast below is vacuous and
+    # the test would pass without the trace doing anything.
+    assert _grab(dom, "trace-before") == "2"
+    assert _grab(dom, "trace-after") == "5"
+    assert _grab(dom, "trace-label") == "4 nodes downstream"
+    # E is a leaf: offering a downstream trace that can only ever return nothing is worse
+    # than not offering it.
+    assert _grab(dom, "trace-leaf") == "absent"

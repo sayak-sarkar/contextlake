@@ -1191,6 +1191,11 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
+      + (n.outgoers("edge").length
+          ? '<button type="button" class="tracebtn" id="tracedown">Trace downstream \u2192</button>'
+            + '<div class="hint">Follows edge direction as far as it goes, through the graph'
+            + (LIVE ? ' currently loaded — expand further to widen it.' : '.') + '</div>'
+          : "")
       + connList(n, allConns)
       + (LIVE ? '<div class="hint">select any node to expand its neighbours</div>' : "");
     openInspector(fromKeyboard);
@@ -1219,6 +1224,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); return; }
     if(ev.target.closest && ev.target.closest(".rmore")){
       if(curNode){ showInfo(curNode, true); }
+      return;
+    }
+    if(ev.target.closest && ev.target.closest(".tracebtn")){
+      if(curNode){
+        var n = traceDownstream(curNode);
+        var h = document.querySelector("#info .tracebtn");
+        if(h){ h.textContent = n + (n === 1 ? " node downstream" : " nodes downstream"); }
+      }
       return;
     }
     var rn = ev.target.closest && ev.target.closest(".rn");
@@ -1260,6 +1273,25 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       cy.resize();
       fitClampedAnimated(eles, 80, 300);
     }, 210);
+  }
+
+  // Transitive downstream reach, as a SEPARATE action from focus(). focus() highlights the
+  // closed neighbourhood in both directions, which is what you want while inspecting a
+  // node, and it is shared with edge activation and the text view -- widening it would
+  // change every one of those.
+  //
+  // `successors()` walks the graph CURRENTLY ON THE CANVAS, not the store. That is a real
+  // limit, not an implementation detail: in --serve mode the canvas holds whatever has
+  // been expanded so far, so the depth control decides how much of the true downstream
+  // set is even present to be found. The button says so rather than letting a reader read
+  // a partial answer as a complete one.
+  function traceDownstream(node){
+    var reach = node.successors();
+    cy.elements().addClass("faded").removeClass("hi");
+    reach.add(node).removeClass("faded").addClass("hi");
+    refreshDomFx();
+    marchAnts(reach.edges());
+    return reach.nodes().length;
   }
 
   function focus(node){

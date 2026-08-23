@@ -164,6 +164,10 @@
     background:var(--brand);color:var(--on-brand);text-decoration:none;font-size:12px;
     font-weight:500;box-shadow:var(--e1)}
   #info .gopage:hover{background:var(--brand-h)}
+  #info .tracebtn{display:inline-block;margin:10px 0 2px;padding:7px 12px;border-radius:8px;
+    background:var(--surface);color:var(--text);border:1px solid var(--line);font-size:12px;
+    font-weight:500;cursor:pointer;font-family:inherit}
+  #info .tracebtn:hover{border-color:var(--brand);color:var(--brand)}
   .sitenav{display:flex;gap:4px;margin-left:2px}
   .sitenav a{font-size:12px;color:var(--muted);text-decoration:none;padding:3px 9px;
     border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
