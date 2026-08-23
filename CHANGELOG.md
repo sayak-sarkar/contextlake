@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.6.0] - 2026-08-23
+## [8.6.0] - 2026-08-24
 
 Three ways to read what the graph already knew. Presentation-layer throughout: no schema
 change, no parser change, `EMBED_CONTENT_VERSION` untouched, so nothing re-embeds.
