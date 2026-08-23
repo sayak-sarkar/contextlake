@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Depth and edge-direction controls on the graph page. Clicking a node to expand it
+  used to bring back exactly one hop of neighbours in both directions, with no way to
+  ask for more or to follow only what a node calls (or only what calls it). The two
+  controls sit under the layout row and apply to the next node you expand; expanding
+  is additive, so they never remove what you have already explored. `/neighbors` now
+  reads `hops` as well as the `relation` and `direction` it already parsed, clamped to
+  a maximum of 3 to match the slider.
+
 ### Changed
 
 - The graph page's node legend is grouped by the kind vocabulary's ten bands

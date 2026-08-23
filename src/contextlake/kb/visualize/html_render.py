@@ -712,6 +712,23 @@ __LIB_TAG__
           stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>SVG</button>
       </div>
+      <!-- These two govern the NEXT click-to-expand, not the current canvas: expanding
+           is additive, so retroactively narrowing an already-explored graph would
+           delete nodes the reader put there on purpose. Both are sent to /neighbors,
+           which does the traversal -- depth is not narrowed in the browser, because
+           the direction case provably loses nodes when it is (max_fanout is applied
+           to the both-direction neighbour list, so in-edges crowd out the out-edges a
+           directed view needs, and no later hop recovers them). -->
+      <div class="row" role="group" aria-label="Expand behaviour">
+        <label>depth <input type="range" id="hops" min="1" max="3" step="1" value="1"
+          aria-describedby="hopshelp"><span class="cnt" id="hopsv">1</span></label>
+        <label>edges <select id="direction" aria-label="Which edges to follow when expanding">
+          <option value="both">both</option>
+          <option value="out">outgoing</option>
+          <option value="in">incoming</option>
+        </select></label>
+      </div>
+      <p class="hint" id="hopshelp">Applies to the next node you expand.</p>
       <label class="tog" id="nodeprow" hidden><input type="checkbox" id="shownodeps">
         show repos with no detected dependency <span id="nodepn" class="cnt"></span></label>
     </div>

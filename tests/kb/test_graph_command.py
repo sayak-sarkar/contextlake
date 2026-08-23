@@ -18,6 +18,7 @@ from contextlake.kb import visualize as viz
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.visualize import _CDN_URL
+from contextlake.kb.visualize import html_render as hr
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "examples" / "fixtures" / "sample-graph.json"
@@ -1899,3 +1900,100 @@ def test_png_and_svg_exports_produce_real_output_in_both_render_modes(store, tmp
             assert state["cardsAfter"] == 4 and state["restored"] is True
             assert len(cards) == 4                        # every node kept its HTML card
             assert b"cl-card" in svg and b"box-shadow" in svg
+
+
+# --- V1: expand depth + direction ---------------------------------------------------
+#
+# `/neighbors` read `relation` and `direction` off the query string but pinned `hops`
+# at 1, and the page had never sent any of the three -- it fetched a bare
+# `?id=...&direction=both`. Depth was CLI-only purely because no control existed.
+# These pin BOTH halves: a server that parses a parameter no client sends is the
+# half-fix shape, and it matches nothing.
+
+def _payload_chain(store):
+    n, e = viz.extract_subgraph(store, ["A"], hops=1, max_nodes=10, max_fanout=5)
+    return viz.to_payload(n, e, {"mode": "neighborhood"})
+
+
+def _rendered_page():
+    nodes = [{"id": "a", "kind": "function", "name": "a", "deg": 0}]
+    return hr.to_html(viz.to_payload(nodes, [], {"mode": "overview"}))
+
+
+def _chain(store, length=5):
+    """A -> B -> C -> ... so that hop count is the only thing that can change."""
+    ids = [chr(ord("A") + i) for i in range(length)]
+    store.upsert_nodes("r", [_node(i) for i in ids])
+    store.upsert_edges("r", [_edge(ids[i], ids[i + 1]) for i in range(length - 1)])
+    return ids
+
+
+def _serve(store, payload):
+    port = _free_port()
+    srv = viz.build_graph_server(store, payload, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    return srv, f"http://127.0.0.1:{port}"
+
+
+def test_neighbors_honours_the_hops_parameter(store):
+    """The depth slider must actually reach further, not just change the URL."""
+    _chain(store, length=5)
+    srv, base = _serve(store, _payload_chain(store))
+    try:
+        seen = {}
+        for hops in (1, 2, 3):
+            body = json.loads(_get(base + f"/neighbors?id=A&hops={hops}"))
+            seen[hops] = {n["id"] for n in body["nodes"]}
+        # A chain makes the expected sets exact, not merely "more than before".
+        assert seen[1] == {"A", "B"}
+        assert seen[2] == {"A", "B", "C"}
+        assert seen[3] == {"A", "B", "C", "D"}
+    finally:
+        srv.shutdown()
+
+
+def test_neighbors_clamps_hops_and_survives_junk(store):
+    """An unbounded hops off a query string is a self-inflicted DoS on a large store."""
+    _chain(store, length=8)
+    srv, base = _serve(store, _payload_chain(store))
+    try:
+        at_three = {n["id"] for n in json.loads(_get(base + "/neighbors?id=A&hops=3"))["nodes"]}
+        for hostile in ("99", "-4", "0", "abc", ""):
+            got = {n["id"] for n in
+                   json.loads(_get(base + f"/neighbors?id=A&hops={hostile}"))["nodes"]}
+            assert got <= at_three, f"hops={hostile!r} reached past the clamp: {got}"
+        # ...and the clamp is a ceiling, not a floor that silently pins everything to 1.
+        assert len(at_three) == 4
+    finally:
+        srv.shutdown()
+
+
+def test_neighbors_direction_selects_which_edges_are_followed(store):
+    """Direction is a traversal choice, so it must change the node set, not the styling."""
+    _chain(store, length=5)
+    srv, base = _serve(store, _payload_chain(store))
+    try:
+        out = {n["id"] for n in json.loads(
+            _get(base + "/neighbors?id=C&hops=1&direction=out"))["nodes"]}
+        inc = {n["id"] for n in json.loads(
+            _get(base + "/neighbors?id=C&hops=1&direction=in"))["nodes"]}
+        assert out == {"C", "D"}
+        assert inc == {"B", "C"}
+    finally:
+        srv.shutdown()
+
+
+def test_the_page_sends_the_parameters_the_server_parses():
+    """The read/write pair. Either half alone is invisible and does nothing."""
+    js = hr._app_js()
+    assert '"&hops=" + encodeURIComponent(expandHops())' in js
+    assert '"&direction=" + encodeURIComponent(expandDir())' in js
+    page = _rendered_page()
+    assert 'id="hops"' in page and 'type="range"' in page
+    assert 'id="direction"' in page
+    for value in ("both", "out", "in"):
+        assert f'<option value="{value}">' in page
+    # The slider's max and the server's clamp are the same number by intent; if one
+    # moves without the other the UI either lies or silently under-fetches.
+    assert 'max="3"' in page

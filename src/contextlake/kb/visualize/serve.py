@@ -50,8 +50,19 @@ def build_graph_server(store: Store, initial_payload: dict, *, host: str = "127.
             return 400, "application/json", b'{"error":"id required"}'
         req_store = store_factory(store_path) if store_path else store
         try:
+            # `hops` was the one query parameter this endpoint never read: the
+            # roadmap's "the plumbing already exists and is unused" holds for
+            # `relation` and `direction` but not for depth, which was pinned at 1.
+            # Clamped hard -- an unbounded hops off a query string against a
+            # multi-hundred-thousand-node store is a self-inflicted DoS, and 3 is
+            # also the slider's maximum, so the client can never ask for more.
+            try:
+                hops = int((q.get("hops") or ["1"])[0])
+            except ValueError:
+                hops = 1
+            hops = max(1, min(hops, 3))
             nodes, edges = extract_subgraph(
-                req_store, [nid], hops=1, max_nodes=200, max_fanout=max_fanout,
+                req_store, [nid], hops=hops, max_nodes=200, max_fanout=max_fanout,
                 relation=(q.get("relation") or [None])[0],
                 direction=(q.get("direction") or ["both"])[0])
         finally:

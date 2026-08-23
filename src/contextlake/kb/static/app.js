@@ -1542,10 +1542,29 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   // settles every hook at whatever theme we ended up in.
   applyTheme(themeName(), true);
 
+  // The depth slider and the direction select both feed /neighbors, which runs the
+  // traversal server-side. Narrowing a both-direction fetch down to a directed view in
+  // the browser was measured against the live store and loses up to 11 of 14 nodes:
+  // max_fanout is applied to the combined neighbour list, so in-edges crowd out the
+  // out-edges the directed view needs and no later hop brings them back. Depth could
+  // safely be narrowed client-side (measured: never loses a node) but there is nothing
+  // to gain -- these controls change the NEXT expand rather than repainting the canvas,
+  // so the slider costs no round-trip of its own either way.
+  var hopsEl = document.getElementById("hops");
+  var dirEl = document.getElementById("direction");
+  var hopsOut = document.getElementById("hopsv");
+  if(hopsEl && hopsOut){
+    hopsEl.addEventListener("input", function(){ hopsOut.textContent = hopsEl.value; });
+  }
+  function expandHops(){ return hopsEl ? hopsEl.value : "1"; }
+  function expandDir(){ return dirEl ? dirEl.value : "both"; }
+
   function expand(id){
     var cyEl = document.getElementById("cy");
     cyEl.classList.add("loading");
-    fetch("/neighbors?id=" + encodeURIComponent(id) + "&direction=both")
+    fetch("/neighbors?id=" + encodeURIComponent(id)
+          + "&hops=" + encodeURIComponent(expandHops())
+          + "&direction=" + encodeURIComponent(expandDir()))
       .then(function(r){ return r.json(); })
       .then(function(p){
         cyEl.classList.remove("loading");
