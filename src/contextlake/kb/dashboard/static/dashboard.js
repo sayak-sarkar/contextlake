@@ -1555,6 +1555,23 @@
       body.appendChild(h("div", { class: "cl-statgrid" },
         statTile(hd.checked, "Checked"), statTile(hd.stale, "Stale repos"),
         statTile(unreadable, "Unreadable"), statTile(hd.dangling, "Dangling edges")));
+      var ur = hd.unresolved;
+      if (ur && ur.supported && ur.sites) {
+        var uc2 = h("div", { class: "cl-card" },
+          h("strong", null, "Unresolved references"),
+          h("p", { class: "cl-muted" },
+            num(ur.sites) + " reference" + (ur.sites === 1 ? "" : "s") +
+            " the parser could not pin to one definition, across " + num(ur.edges) +
+            " candidate edges. This is the parser saying so, not a fault to fix by " +
+            "re-indexing. Ranked by name, because one disambiguation covers " +
+            "every site that shares it."));
+        uc2.appendChild(table(
+          ["Name", "Sites", "Avg candidates", "First seen at"],
+          ur.names.map(function (n) {
+            return [n.name, num(n.sites), String(n.candidates), n.example];
+          })));
+        body.appendChild(uc2);
+      }
       if (clean) { body.appendChild(stateBlock({ kind: "ok", title: "Clear water", msg: "No stale repos, no dangling edges." })); return body; }
       if (hd.stale_repos && hd.stale_repos.length) {
         var sc = h("div", { class: "cl-card" }, h("strong", null, "Stale repos"));

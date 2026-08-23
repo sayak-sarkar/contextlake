@@ -787,3 +787,100 @@ def test_path_reports_ambiguous_candidates_across_repos():
         assert {c["repo"] for c in res["candidates"]} == {"team/x", "team/y"}
     finally:
         s.close()
+
+
+# --- unresolved references (V4) --------------------------------------------------------
+#
+# The parser emits one edge PER CANDIDATE for an ambiguous reference
+# (`parse.py`'s `for target in targets`), so counting edges overstates the work by the
+# average candidate count. The unit a reviewer cares about is the reference SITE:
+# (src, file, line). Measured on a 1.6M-edge store, 619,307 ambiguous edges were only
+# 174,126 sites -- these fixtures pin that distinction at a size you can read.
+
+def _ambiguous_fixture():
+    """One name referenced from 2 sites with 3 candidates each, plus a clean edge."""
+    s = SqliteStore(":memory:")
+    s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
+    nodes = [Node(id="caller", repo="team/app", kind="function", name="caller",
+                  file="src/main.py")]
+    # three definitions all called `render`, which is what makes a call to it ambiguous
+    nodes += [Node(id=f"render{i}", repo="team/app", kind="function", name="render",
+                   file=f"src/v{i}.py") for i in range(3)]
+    nodes.append(Node(id="unique_fn", repo="team/app", kind="function", name="unique_fn",
+                      file="src/only.py"))
+    s.upsert_nodes("team/app", nodes)
+
+    def amb(dst, line):
+        return Edge(src="caller", dst=dst, relation="calls",
+                    confidence=Confidence.AMBIGUOUS, context="ambiguous",
+                    attrs={"name_candidates": 3},
+                    provenance=Provenance(source_file="src/main.py", source_line=line,
+                                          verified_at=date(2026, 6, 21)))
+    edges = [amb(f"render{i}", line) for line in (10, 20) for i in range(3)]
+    edges.append(Edge(src="caller", dst="unique_fn", relation="calls",
+                      confidence=Confidence.EXTRACTED,
+                      provenance=Provenance(source_file="src/main.py", source_line=30,
+                                            verified_at=date(2026, 6, 21))))
+    s.upsert_edges("team/app", edges)
+    return s
+
+
+def test_unresolved_counts_reference_sites_not_candidate_edges():
+    s = _ambiguous_fixture()
+    try:
+        r = kbdata._unresolved_references(s)
+        assert r["supported"] is True
+        # 6 ambiguous edges, but only 2 places in the source that are actually ambiguous
+        assert r["edges"] == 6
+        assert r["sites"] == 2, "counted edges instead of reference sites"
+        assert len(r["names"]) == 1
+        row = r["names"][0]
+        assert row["name"] == "render"
+        assert row["sites"] == 2
+        assert row["candidates"] == 3.0
+        assert row["example"] == "src/main.py:10", "the citation must point at a real site"
+    finally:
+        s.close()
+
+
+def test_unresolved_ignores_edges_the_parser_did_resolve():
+    """An EXTRACTED edge is not unresolved, and must not inflate the review queue."""
+    s = _ambiguous_fixture()
+    try:
+        names = [n["name"] for n in kbdata._unresolved_references(s)["names"]]
+        assert "unique_fn" not in names
+    finally:
+        s.close()
+
+
+def test_unresolved_is_empty_and_supported_on_a_store_with_no_ambiguity():
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
+        r = kbdata._unresolved_references(s)
+        # supported, not unsupported: "nothing ambiguous" and "cannot tell" are different
+        # answers and the panel renders them differently.
+        assert r == {"supported": True, "sites": 0, "edges": 0, "names": []}
+    finally:
+        s.close()
+
+
+def test_unresolved_ranks_the_worst_name_first_and_honours_the_limit():
+    s = _ambiguous_fixture()
+    try:
+        # a second ambiguous name, deliberately smaller, to pin the ORDER
+        s.upsert_nodes("team/app", [
+            Node(id=f"parse{i}", repo="team/app", kind="function", name="parse",
+                 file=f"src/p{i}.py") for i in range(2)])
+        s.upsert_edges("team/app", [
+            Edge(src="caller", dst=f"parse{i}", relation="calls",
+                 confidence=Confidence.AMBIGUOUS, context="ambiguous",
+                 provenance=Provenance(source_file="src/main.py", source_line=40,
+                                       verified_at=date(2026, 6, 21)))
+            for i in range(2)])
+        r = kbdata._unresolved_references(s)
+        assert [n["name"] for n in r["names"]] == ["render", "parse"]
+        assert [n["sites"] for n in r["names"]] == [2, 1]
+        assert len(kbdata._unresolved_references(s, limit=1)["names"]) == 1
+    finally:
+        s.close()

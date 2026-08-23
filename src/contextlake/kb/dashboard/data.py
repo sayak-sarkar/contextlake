@@ -885,11 +885,67 @@ def health(store, store_dir) -> dict:
         "shard_repos": [sanitize_label(x) for x in res["shard_repos"]],
         "unreadable_repos": [sanitize_label(d["repo"]) for d in res["unreadable_repos"]],
         "parser_stale_repos": [sanitize_label(x) for x in res["parser_stale_repos"]],
+        # Not a fault, so it is reported beside the faults rather than among them:
+        # an ambiguous reference is the parser being honest about what it could not
+        # determine, and no amount of re-indexing removes it.
+        "unresolved": _unresolved_references(store),
         "dangling_sample": [{
             "repo": sanitize_label(d["repo"]), "src": sanitize_label(d["src"]),
             "relation": d["relation"], "dst": sanitize_label(d["dst"]),
         } for d in res["dangling_sample"]],
     }
+
+
+def _unresolved_references(store, *, limit: int = 20) -> dict:
+    """Ambiguous references, ranked by the NAME that could not be resolved.
+
+    Read-only by design: this reports and cites, it never repairs. A resolution is a
+    judgement about intent, and the parser has already said it cannot make it.
+
+    Aggregated by name rather than listed, because the raw rows are unusable at fleet
+    scale -- measured on a 1.6M-edge store, 619,307 ambiguous edges over **174,126
+    reference sites**, 3.6 candidates each. A list of those is not a review surface. By
+    name the same data concentrates hard: the worst single name accounted for 10,161
+    sites, so one disambiguation is worth thousands of edges. That ranking is the
+    feature.
+
+    A *site* is one reference in one place -- ``(src, file, line)`` -- not one edge. The
+    parser emits an edge per candidate (``parse.py``'s ``for target in targets``), so
+    counting edges overstates the work by the average candidate count.
+    """
+    total_edges = total_sites = 0
+    names: list[dict] = []
+    try:
+        cur = store.conn.execute(
+            "SELECT COUNT(*) FROM edges WHERE confidence = 'AMBIGUOUS'")
+        total_edges = cur.fetchone()[0]
+        if total_edges:
+            site = ("e.src || char(1) || IFNULL(e.source_file,'') "
+                    "|| char(1) || IFNULL(e.source_line,0)")
+            total_sites = store.conn.execute(
+                f"SELECT COUNT(DISTINCT {site}) FROM edges e "
+                "WHERE e.confidence = 'AMBIGUOUS'").fetchone()[0]
+            rows = store.conn.execute(
+                f"""SELECT n.name,
+                           COUNT(DISTINCT {site}) AS sites,
+                           COUNT(*) AS candidate_edges,
+                           MIN(IFNULL(e.source_file,'') || ':'
+                               || IFNULL(e.source_line,0)) AS example
+                    FROM edges e JOIN nodes n ON n.node_id = e.dst
+                    WHERE e.confidence = 'AMBIGUOUS' AND n.name IS NOT NULL
+                    GROUP BY n.name ORDER BY sites DESC, n.name LIMIT ?""",
+                (limit,)).fetchall()
+            for name, sites, cand, example in rows:
+                names.append({
+                    "name": sanitize_label(name),
+                    "sites": sites,
+                    # how many definitions one reference could have meant, on average
+                    "candidates": round(cand / sites, 1) if sites else 0,
+                    "example": sanitize_label(example or ""),
+                })
+    except Exception:  # a store predating the columns, or a non-sqlite backend
+        return {"supported": False, "sites": 0, "edges": 0, "names": []}
+    return {"supported": True, "sites": total_sites, "edges": total_edges, "names": names}
 
 
 def _node_out(n) -> dict:

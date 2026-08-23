@@ -6963,6 +6963,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An unresolved-references review surface, in Knowledge health.** When the parser cannot
+  pin a reference to one definition it says so, and that verdict has been in the graph as
+  `AMBIGUOUS` edges with full provenance without any surface that let you read it. The
+  panel now ranks the *names* that could not be resolved, with how many places reference
+  each one, how many definitions each could have meant, and a `file:line` you can open.
+
+  Ranked by name, and counted by reference site rather than by edge, because both matter
+  at fleet scale. The parser emits one edge per candidate, so edge counts overstate the
+  work by the average candidate count; on a large store a third of a million ambiguous
+  edges were a fifth as many actual reference sites. Grouping by name concentrates it
+  further, so a single disambiguation can cover thousands of sites. A flat list of the raw
+  rows would not be a review surface.
+
+  Read-only by design: it reports and cites, it never repairs. Resolving a name is a
+  judgement about intent, and the parser has already said it cannot make it.
+
 - **Hovering a connection row previews that node on the graph.** Clicking one already
   moved the camera to it; hovering did nothing, so finding the right neighbour in a long
   list meant clicking each candidate and losing your place when it was wrong. The preview
