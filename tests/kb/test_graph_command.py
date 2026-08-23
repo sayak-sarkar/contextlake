@@ -2231,11 +2231,24 @@ _PEEK_HARNESS = """
   }
   function cam(){ var p = cy.pan(); return [Math.round(p.x), Math.round(p.y),
                                             cy.zoom().toFixed(4)].join(","); }
+  var settleTicks = 0;
+  function whenCameraSettles(done){
+    var last = null, stable = 0;
+    (function tick(){
+      settleTicks++;
+      var now = cam();
+      stable = (now === last) ? stable + 1 : 0;
+      last = now;
+      if (stable >= 3) { done(); return; }
+      setTimeout(tick, 60);
+    })();
+  }
   setTimeout(function(){
     cy.getElementById("a").emit("tap");
     setTimeout(function(){
       var row = document.querySelector("#info .rn");
       out("peek-row", row ? row.getAttribute("data-id") : "none");
+      whenCameraSettles(function(){
       var before = cam();
       var hiBefore = cy.nodes(".hi").length, fadedBefore = cy.nodes(".faded").length;
       row.dispatchEvent(new MouseEvent("mouseenter", {bubbles: false}));
@@ -2249,6 +2262,7 @@ _PEEK_HARNESS = """
         row.dispatchEvent(new MouseEvent("mouseleave", {bubbles: false}));
         setTimeout(function(){
           out("peek-off", String(cy.nodes(".peek").length));
+          out("peek-settle-ticks", String(settleTicks));
           // keyboard must reach it too: the rows are <button>s, so focus is the path
           row.focus();
           setTimeout(function(){
@@ -2258,6 +2272,7 @@ _PEEK_HARNESS = """
           }, 120);
         }, 120);
       }, 120);
+      });
     }, 300);
   }, 400);
 })();
@@ -2285,6 +2300,12 @@ def test_a_panel_row_previews_a_node_without_moving_the_camera(tmp_path):
     assert _grab(dom, "peek-camera-moved") == "no"
     assert _grab(dom, "peek-disturbed-selection") == "no"
     assert _grab(dom, "peek-off") == "0"
+    # How many polls the settle-wait needed. 4 is the floor (three stable reads plus the
+    # first). A higher number means the tap's own frameOn animation was still moving the
+    # camera and the wait absorbed it -- which is the race this harness used to lose.
+    # Reported rather than asserted upward, because whether rAF runs at all differs
+    # between this machine and CI, and a bound would just encode one of them.
+    assert int(_grab(dom, "peek-settle-ticks")) >= 4
     # and a keyboard user gets the same affordance, not a mouse-only one
     assert _grab(dom, "peek-on-focus") == "1"
     assert _grab(dom, "peek-off-blur") == "0"
