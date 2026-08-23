@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The graph page's node legend is grouped by the kind vocabulary's ten bands
+  (Symbols, Containers, Service surfaces, Data model, Infrastructure, Presentation,
+  Configuration, Documents, Cross-source, Boundary) instead of one flat run of up to
+  52 pills. The grouping is projected from the kind registry, not retyped, so it
+  cannot drift from the colours beside it. Bands with nothing in them are not drawn,
+  and any kind the projection does not cover falls through to a visible `Other` band
+  rather than disappearing from the legend.
+
 ## [8.4.0] - 2026-08-23
 
 Additive throughout. No re-embed, no schema change, no breaking surface: every new capability

@@ -233,3 +233,69 @@ def test_the_committed_graph_page_carries_every_kind_colour():
         "(from a checkout whose directory is named contextlake; the exporter selects --repo "
         "by directory name, so it finds nothing in a worktree)"
     )
+
+
+# --- the banded legend (V5) -------------------------------------------------------
+#
+# The graph page's node legend groups its pills by the registry's ten bands instead of
+# rendering one flat run of 52. The risk a straight swap carries is that the band source
+# (`kind_groups()`, a projection of KIND_REGISTRY over KIND_GROUP_ORDER) covers fewer
+# kinds than the render source (KIND_COLORS): every uncovered kind would stop rendering
+# and nothing would say so. It is 52/52 today, which is exactly when a guard is cheap.
+
+def _legend_html(kinds) -> str:
+    """The `#legend` element only, for a payload carrying one node of each kind."""
+    from contextlake.kb.visualize import html_render as hr
+    from contextlake.kb.visualize.payload import to_payload
+    nodes = [{"id": f"n{i}", "kind": k, "name": k, "deg": 0}
+             for i, k in enumerate(kinds)]
+    page = hr.to_html(to_payload(nodes, [], {"mode": "overview"}))
+    m = re.search(r'<div id="legend">(.*?)</div>\s*</div>\s*<div class="sgroup">',
+                  page, re.S)
+    assert m, "could not isolate #legend from the rendered page"
+    return m.group(1)
+
+
+def test_the_banded_legend_renders_every_kind_it_used_to():
+    """No kind may be lost between the flat colour map and the ten bands."""
+    from contextlake.kb.visualize.styling import KIND_COLORS
+
+    body = _legend_html(KIND_COLORS)
+    rendered = set(re.findall(r'data-kind="([^"]+)"', body))
+    assert rendered == set(KIND_COLORS), (
+        f"missing from the banded legend: {sorted(set(KIND_COLORS) - rendered)}")
+
+
+def test_an_ungrouped_kind_lands_in_a_visible_band_rather_than_vanishing():
+    """The union guard: a kind whose band is not in KIND_GROUP_ORDER still renders.
+
+    This is the drift `kind_groups()`'s own docstring records having happened before.
+    Simulated by shrinking KIND_GROUP_ORDER, which is what a kind assigned to a new
+    band looks like from the projection's side.
+    """
+    from contextlake.kb import kinds as kmod
+    from contextlake.kb.visualize.styling import KIND_COLORS
+
+    real = kmod.KIND_GROUP_ORDER
+    orphaned = {k for k, s in kmod.KIND_REGISTRY.items() if s.group == real[-1]}
+    assert orphaned, "the last band is empty; pick another to orphan"
+    try:
+        kmod.KIND_GROUP_ORDER = real[:-1]
+        body = _legend_html(KIND_COLORS)
+    finally:
+        kmod.KIND_GROUP_ORDER = real
+    rendered = set(re.findall(r'data-kind="([^"]+)"', body))
+    assert orphaned <= rendered, (
+        f"orphaned kinds vanished instead of falling through to Other: "
+        f"{sorted(orphaned - rendered)}")
+    assert ">Other</h3>" in body
+
+
+def test_no_band_renders_a_heading_with_nothing_under_it():
+    """kind_counts is post-fold, so bands go empty routinely -- and must not show."""
+    from contextlake.kb.visualize.styling import KIND_COLORS
+
+    one = next(iter(KIND_COLORS))
+    body = _legend_html([one])
+    assert body.count("<h3") == 1, "an empty band rendered a bare heading"
+    assert body.count('class="lg"') == 1

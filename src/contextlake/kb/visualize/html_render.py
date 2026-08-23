@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..kinds import kind_groups
 from ..security import json_for_script
 from .diagrams import _cytoscape_elements
 from .payload import overview_subgraph, repo_node_sizes, repo_subgraph, to_payload
@@ -162,12 +163,39 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     # boots in (nothing is filtered out yet). syncLegend() writes the same polarity, so
     # the server-rendered value and the live one can never disagree. Without this the
     # only cue that a whole node kind is hidden is a CSS class.
+    def _lg(k: str) -> str:
+        return (f'<button type="button" class="lg" aria-pressed="true" '
+                f'data-kind="{html.escape(k, quote=True)}">'
+                f'{_kind_swatch(k, KIND_COLORS[k])}'
+                f'<span class="lbl">{html.escape(k)}</span>'
+                f'<span class="cnt">{kind_counts[k]}</span></button>')
+
+    # The legend is grouped by the registry's ten bands instead of one flat run of
+    # 52 pills. `kind_groups()` projects KIND_REGISTRY over KIND_GROUP_ORDER, and
+    # KIND_COLORS is itself a projection of the same registry -- so the two agree at
+    # 52/52 today. The band list is still UNIONED with the flat source rather than
+    # replacing it: a kind whose `group` fell outside KIND_GROUP_ORDER would render
+    # today and silently vanish under a straight swap, and this registry has drifted
+    # before (see kind_groups()'s own docstring). Anything ungrouped lands in a
+    # trailing "Other" band where it is visible, not lost.
+    present = [k for k in KIND_COLORS if kind_counts.get(k, 0) > 0]
+    banded, seen_kinds = [], set()
+    for group, kinds in kind_groups():
+        members = [k for k in kinds if k in present]
+        seen_kinds.update(members)
+        # An empty band must not render a bare heading. Bands go empty routinely:
+        # kind_counts is built from payload["nodes"], which is already post-fold, so
+        # a view that folds its leaf kinds away drops whole bands with it.
+        if members:
+            banded.append((group, members))
+    leftover = [k for k in present if k not in seen_kinds]
+    if leftover:
+        banded.append(("Other", leftover))
+
     legend = "".join(
-        f'<button type="button" class="lg" aria-pressed="true" '
-        f'data-kind="{html.escape(k, quote=True)}">'
-        f'{_kind_swatch(k, c)}<span class="lbl">{html.escape(k)}</span>'
-        f'<span class="cnt">{kind_counts[k]}</span></button>'
-        for k, c in KIND_COLORS.items() if kind_counts.get(k, 0) > 0)
+        f'<div class="band"><h3 class="bandname">{html.escape(g)}</h3>'
+        f'<div class="bandrow">{"".join(_lg(k) for k in ks)}</div></div>'
+        for g, ks in banded)
     # edge legend = relations actually present (known hues first, then open-vocab)
     rel_counts = Counter(e.get("relation") for e in payload["edges"])
     present = {r for r in rel_counts if r}
