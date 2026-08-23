@@ -2210,3 +2210,81 @@ def test_a_node_source_reference_can_be_copied_and_confirms_it(tmp_path):
     # and the control says so. A silent success is indistinguishable from a dead button.
     assert _grab(dom, "copy-confirmed") == "copied"
     assert _grab(dom, "copy-absent-when-no-file") == "absent"
+
+
+# --- F6: panel rows preview without committing the view -------------------------------
+#
+# Clicking a connection row already animates the camera (`frameOn`), and reduced motion is
+# already respected (`dur()` collapses it to instant). The missing half was foglamp's
+# "hover previews, click commits": hovering a row did nothing, so finding the right
+# neighbour meant clicking each one and losing your place when it was wrong.
+#
+# The preview must not move the camera and must not disturb the faded/hi state of the
+# selection being worked from -- otherwise it is a second commit, not a preview.
+
+_PEEK_HARNESS = """
+<script>
+(function(){
+  function out(id, txt){
+    var d = document.createElement("div"); d.id = id; d.textContent = txt;
+    document.body.appendChild(d);
+  }
+  function cam(){ var p = cy.pan(); return [Math.round(p.x), Math.round(p.y),
+                                            cy.zoom().toFixed(4)].join(","); }
+  setTimeout(function(){
+    cy.getElementById("a").emit("tap");
+    setTimeout(function(){
+      var row = document.querySelector("#info .rn");
+      out("peek-row", row ? row.getAttribute("data-id") : "none");
+      var before = cam();
+      var hiBefore = cy.nodes(".hi").length, fadedBefore = cy.nodes(".faded").length;
+      row.dispatchEvent(new MouseEvent("mouseenter", {bubbles: false}));
+      setTimeout(function(){
+        out("peek-on", String(cy.nodes(".peek").length));
+        out("peek-target", cy.nodes(".peek").map(function(n){ return n.id(); }).join(","));
+        out("peek-camera-moved", cam() === before ? "no" : "YES");
+        out("peek-disturbed-selection",
+            (cy.nodes(".hi").length === hiBefore
+             && cy.nodes(".faded").length === fadedBefore) ? "no" : "YES");
+        row.dispatchEvent(new MouseEvent("mouseleave", {bubbles: false}));
+        setTimeout(function(){
+          out("peek-off", String(cy.nodes(".peek").length));
+          // keyboard must reach it too: the rows are <button>s, so focus is the path
+          row.focus();
+          setTimeout(function(){
+            out("peek-on-focus", String(cy.nodes(".peek").length));
+            row.blur();
+            setTimeout(function(){ out("peek-off-blur", String(cy.nodes(".peek").length)); }, 120);
+          }, 120);
+        }, 120);
+      }, 120);
+    }, 300);
+  }, 400);
+})();
+</script>
+</body>"""
+
+
+@pytest.mark.skipif(_chrome_binary() is None,
+                    reason="no Chrome/Chromium available to render the page")
+def test_a_panel_row_previews_a_node_without_moving_the_camera(tmp_path):
+    nodes = [{"id": "a", "kind": "function", "name": "a", "deg": 1},
+             {"id": "b", "kind": "function", "name": "b", "deg": 1}]
+    edges = [{"src": "a", "dst": "b", "relation": "calls",
+              "confidence": "EXTRACTED", "weight": 1.0}]
+    page = tmp_path / "graph.html"
+    page.write_text(
+        viz.to_html(viz.to_payload(nodes, edges, {"mode": "neighborhood"}))
+        .replace("</body>", _PEEK_HARNESS), encoding="utf-8")
+    dom = _dump_dom(_chrome_binary(), page, tmp_path / "profile")
+
+    assert _grab(dom, "peek-row") == "b", "no connection row to hover"
+    assert _grab(dom, "peek-on") == "1"
+    assert _grab(dom, "peek-target") == "b"
+    # the two properties that make this a preview rather than a second selection
+    assert _grab(dom, "peek-camera-moved") == "no"
+    assert _grab(dom, "peek-disturbed-selection") == "no"
+    assert _grab(dom, "peek-off") == "0"
+    # and a keyboard user gets the same affordance, not a mouse-only one
+    assert _grab(dom, "peek-on-focus") == "1"
+    assert _grab(dom, "peek-off-blur") == "0"

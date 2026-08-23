@@ -79,6 +79,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           "text-opacity": 1, "z-index": 99 } },
       { selector: "node.found", style: { "border-width": 4, "border-color": ink.found,
           "text-opacity": 1, "z-index": 100 } },
+      // `peek` is the hover/focus PREVIEW from a panel row: it says "this is the one"
+      // without committing the view. Deliberately weaker than hi and below it in
+      // z-index, because a preview must never out-shout the actual selection, and it
+      // forces the label back on so a peeked node is identifiable at low zoom.
+      { selector: "node.peek", style: { "border-width": 3, "border-color": ink.hi,
+          "border-opacity": 0.75, "text-opacity": 1, "z-index": 98 } },
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": label,
           "text-rotation": "autorotate", "text-background-color": surf,
@@ -1274,6 +1280,24 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       if(node && node.nonempty()){ focus(node); showInfo(node); frameOn(node.closedNeighborhood()); }
     }
   });
+  // Delegated with capture, because mouseenter/focus do not bubble.
+  ["mouseenter", "focus"].forEach(function(ev){
+    info.addEventListener(ev, function(e){
+      var t = e.target;
+      var rn = t && t.classList && t.classList.contains("rn") ? t : null;
+      if(rn){ peek(rn.getAttribute("data-id")); }
+    }, true);
+  });
+  ["mouseleave", "blur"].forEach(function(ev){
+    info.addEventListener(ev, function(e){
+      var t = e.target;
+      if(t && t.classList && t.classList.contains("rn")){ unpeek(); }
+    }, true);
+  });
+  // A row can be removed while still peeked (the inspector rebuilds its innerHTML on
+  // every selection), and then no mouseleave or blur ever arrives.
+  info.addEventListener("click", function(){ unpeek(); });
+
   // Escape inside the inspector closes it and puts focus back where it came from, so a
   // keyboard user is never stranded in a panel they cannot leave in one step.
   info.addEventListener("keydown", function(e){
@@ -1326,6 +1350,24 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     refreshDomFx();
     marchAnts(reach.edges());
     return reach.nodes().length;
+  }
+
+  // Hover previews, click commits. Clicking a panel row already animates the camera
+  // (frameOn); hovering one did nothing at all, so finding a neighbour in the list
+  // meant clicking it and losing your place if it was the wrong one.
+  //
+  // The preview moves NO camera and changes no faded/hi state, so it cannot disturb a
+  // selection you are working from. It is wired to focus as well as hover, because a
+  // hover-only affordance does not exist for a keyboard user -- the rows are already
+  // <button>s, so they receive focus for free.
+  var peeked = null;
+  function peek(id){
+    unpeek();
+    var n = id && cy.getElementById(id);
+    if(n && n.nonempty()){ peeked = n; n.addClass("peek"); }
+  }
+  function unpeek(){
+    if(peeked){ peeked.removeClass("peek"); peeked = null; }
   }
 
   function focus(node){

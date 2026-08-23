@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hovering a connection row previews that node on the graph.** Clicking one already
+  moved the camera to it; hovering did nothing, so finding the right neighbour in a long
+  list meant clicking each candidate and losing your place when it was wrong. The preview
+  rings the node without moving the camera and without disturbing the selection you are
+  working from. It fires on keyboard focus as well as hover, because the rows are buttons
+  and a hover-only affordance does not exist for someone not using a mouse.
+
 ## [8.5.0] - 2026-08-23
 
 The graph page becomes something you drive. Every change is presentation-layer: no schema
