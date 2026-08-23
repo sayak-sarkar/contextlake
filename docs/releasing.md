@@ -54,6 +54,12 @@ pip install -e ".[release]"        # build + twine
    and the CLI `--version` and MCP serverInfo read the same string, so they can
    never drift apart.
 
+> [!IMPORTANT]
+> `CHANGELOG.md` is itself a page of the docs site, so **every** edit to it -- not just a
+> release's -- puts `site/llms-full.txt` out of date. Regenerate with
+> `.venv/bin/python site/build_docs.py` in the same commit.
+> `tests/test_llms_full_is_in_sync.py` catches it, but only after the fact.
+
 3. **Update `CHANGELOG.md`:** move the items under `## [Unreleased]` into a new
    `## [X.Y.Z] - YYYY-MM-DD` section.
 
