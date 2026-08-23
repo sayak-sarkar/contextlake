@@ -291,6 +291,14 @@ def test_an_ungrouped_kind_lands_in_a_visible_band_rather_than_vanishing():
     assert ">Other</h3>" in body
 
 
+def test_an_empty_payload_renders_an_empty_legend_not_ten_headings():
+    """`to_html` on a payload with no nodes is reachable, and banding runs on every render."""
+    body = _legend_html([])
+    assert "<h3" not in body, "ten bare band headings over an empty graph"
+    assert 'class="lg"' not in body
+    assert body.strip() == ""
+
+
 def test_no_band_renders_a_heading_with_nothing_under_it():
     """kind_counts is post-fold, so bands go empty routinely -- and must not show."""
     from contextlake.kb.visualize.styling import KIND_COLORS

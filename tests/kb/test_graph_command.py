@@ -1959,12 +1959,17 @@ def test_neighbors_clamps_hops_and_survives_junk(store):
     srv, base = _serve(store, _payload_chain(store))
     try:
         at_three = {n["id"] for n in json.loads(_get(base + "/neighbors?id=A&hops=3"))["nodes"]}
-        for hostile in ("99", "-4", "0", "abc", ""):
+        assert at_three == {"A", "B", "C", "D"}
+        # An exact set per input, not `<= at_three`: a subset assertion is satisfied by a
+        # server that clamps everything to 1, and equally by one that returns an empty
+        # graph. Both would pass while the ceiling went untested.
+        floors_to_one = {"A", "B"}
+        for hostile, expected in (("99", at_three), ("4", at_three), ("3", at_three),
+                                  ("-4", floors_to_one), ("0", floors_to_one),
+                                  ("abc", floors_to_one), ("", floors_to_one)):
             got = {n["id"] for n in
                    json.loads(_get(base + f"/neighbors?id=A&hops={hostile}"))["nodes"]}
-            assert got <= at_three, f"hops={hostile!r} reached past the clamp: {got}"
-        # ...and the clamp is a ceiling, not a floor that silently pins everything to 1.
-        assert len(at_three) == 4
+            assert got == expected, f"hops={hostile!r} gave {sorted(got)}"
     finally:
         srv.shutdown()
 
