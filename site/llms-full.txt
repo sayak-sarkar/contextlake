@@ -56,7 +56,7 @@ each layer above it is optional.
 
 2. **Knowledge layer** *(optional)*. Turn the mirror into a graph you can query.
 
-   - **Code and dependencies** across 27 languages, plus Terraform, SQL and PL/SQL schema,
+   - **Code and dependencies** across **27 languages**, plus Terraform, SQL and PL/SQL schema,
      XML Schema, XSLT, Pro*C embedded SQL, and package manifests (npm, PyPI, NuGet, Maven).
    - **Semantic search**, so you can find code by what it does, not just by its name.
    - **A wiki**, reviewed and scored page by page. Pages that score low are dropped.
