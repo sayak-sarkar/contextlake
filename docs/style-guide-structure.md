@@ -66,7 +66,7 @@ Answers "where am I, and where do I go next?".
 
 - **Lead first.** Open every page with a one-to-three-sentence, plain-language summary of what it is and
   why you'd use it, before any section heading. A reader who stops after the lead still leaves with the
-  gist. This is the highest-leverage fix for scannability.
+  gist. Of every rule on this page, this one buys the most scannability for the least effort.
 - **One H1, body starts at H2, never skip a level.** The site strips the H1 and shows the hero title, so
   your first real heading is H2.
 - **Short paragraphs, three to seven lines.** Single-line paragraphs are fine. Break up anything longer.

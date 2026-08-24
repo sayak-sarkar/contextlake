@@ -3,7 +3,7 @@
 **Status:** Final / decision-grade. This document is the single source of truth for the contextlake visual and verbal identity. It supersedes all earlier brand files. Build directly from it into `BRANDING.md`, the `/brand` site page, and image-model prompts.
 
 **Asset status (updated as the system shipped):** `docs/branding/mascot.md` is rewritten to Section 5.
-The identity is consolidated on one painterly register (Section 2, 2026-07-28) — the earlier flat
+The identity is consolidated on one painterly register (Section 2, 2026-07-28) -- the earlier flat
 vector mark (`docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg`) is retired and
 kept only for history, not referenced by any current spec or build. `docs/branding/wordmark.svg` is
 re-exported single-color (Section 2.4). `docs/branding/mark.png` is now a painterly crop (Section 2.1).
@@ -99,28 +99,28 @@ One controlling metaphor. It is a system, not a one-off pun. Do not invent new a
 
 **Consolidated to one register (2026-07-28).** contextlake previously ran a dual-element identity: a
 flat, front-facing vector otter-head mark (fur `#2F5A63`, deepwater keyline) alongside the painterly
-mascot. That flat mark is **retired** — it was a separate, incorrectly-colored design (a cool
+mascot. That flat mark is **retired** -- it was a separate, incorrectly-colored design (a cool
 blue-grey/slate fill that never matched the shipped painterly art) rather than a deliberate second
 register, and it is no longer used anywhere. The identity is now **one Pebble, rendered painterly, at
 every size the format allows**, plus the **`contextlake` wordmark** in live Space Grotesk.
 
 The retired flat-mark assets (`docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg`,
 `pebble-logo-flat.png`, `pebble-logo-flat-cut.png`) are kept in the repo for history but are not
-referenced by any build, page, or spec — do not resurrect them as "the logo."
+referenced by any build, page, or spec -- do not resurrect them as "the logo."
 
 ### 2.1 The mark
 
 The mark is a painterly Pebble crop: front-facing or three-quarter head-and-shoulders, cradling the
 context-pebble, on the standard palette background (rounded-square container, solid **deepwater
-`#0E2A33`**, never transparent — a transparent mark vanishes on dark browser tab strips and dark UI
+`#0E2A33`**, never transparent -- a transparent mark vanishes on dark browser tab strips and dark UI
 chrome). Source: the same painterly generation pipeline as the mascot (§5), cropped/composed for a
 square or near-square frame. Current canonical source asset: `docs/img/icon-512.png`; the small
 nav/footer embed (`docs/branding/mark.png`) is a resize of the same source, not a separate artwork.
 
 **One exception, for practical legibility, not aesthetics:** below about 48px, painterly shading
 degrades to a muddy blob (fine gradients and soft edges don't survive that much downsampling). At
-**16–64px** (browser favicon, tab strip), contextlake ships the **context-pebble alone** — the object
-Pebble is holding, not Pebble — because a character has too many parts to survive 16 pixels however
+**16–64px** (browser favicon, tab strip), contextlake ships the **context-pebble alone** -- the object
+Pebble is holding, not Pebble -- because a character has too many parts to survive 16 pixels however
 it is simplified. This is a rendering necessity, not a second brand register: it is a *detail of the
 same artwork*, using the same palette and the same object §2.2 already defines, not an independent
 flat logo with its own construction rules. Built by `site/tools/gen_small_mark.py`; see §2.3, which
@@ -135,7 +135,7 @@ star-dots, or node-graph inside it at any scale.
 
 ### 2.3 The small tier: the context-pebble (16–64px)
 
-**Revised 2026-08-13.** Below 64px the mark is **not Pebble** — it is the thing Pebble is holding.
+**Revised 2026-08-13.** Below 64px the mark is **not Pebble** -- it is the thing Pebble is holding.
 
 The previous rule asked for a simplified Pebble silhouette here, and it did not work. A pale
 mist-teal otter on a deepwater-teal ground is a difference in *tone*, not in *contrast*, and head,
@@ -147,7 +147,7 @@ So the small tier renders the **context-pebble** alone. It is a detail of the sa
 than a second logo, which is what lets it be legible without becoming a different brand.
 
 - **Container:** rounded-square (iOS squircle), corner radius 22% of the edge, solid **deepwater
-  `#0E2A33`** — never pure black, never transparent (a transparent favicon vanishes on a dark tab
+  `#0E2A33`** -- never pure black, never transparent (a transparent favicon vanishes on a dark tab
   strip).
 - **The pebble:** a **current `#2BB3A3`** disc at 34% of the edge, with a faint teal halo kept
   strictly outside its rim, and one light arc along the upper-left. A disc is the shape that survives
@@ -155,10 +155,10 @@ than a second logo, which is what lets it be legible without becoming a differen
 - **Interior marks are deepwater, not light.** Measured against the teal disc: deepwater is
   **5.78:1**, mist **2.08:1**, sun gold **1.37:1**. Light-on-teal is what disappears first on a poor
   display, so the constellation is dark on a bright stone. The sun glint keeps a deepwater collar for
-  the same reason — hue difference alone does not separate it.
+  the same reason -- hue difference alone does not separate it.
 - **Progressive detail, drawn per size, never downscaled from one artwork:**
-  - **16, 32** — the pebble and one gold glint. Nothing else fits.
-  - **48, 64** — the constellation appears: three nodes and the edges between them.
+  - **16, 32** -- the pebble and one gold glint. Nothing else fits.
+  - **48, 64** -- the constellation appears: three nodes and the edges between them.
 - **Above 64px the identity returns to painterly Pebble** (§2.1): 180/192/512 and the maskable 512
   with 10% safe padding are the full crop. Small is a detail of large, not a rival to it.
 - Built by `site/tools/gen_small_mark.py`; every size is composed at 8× and reduced once, so edges
@@ -213,7 +213,7 @@ Below the horizontal/stacked minimums, drop the wordmark and show mark-only.
 7. Split `contextlake` into two words, colors, or lines.
 8. AI-generate or hand-redraw the wordmark lettering.
 9. Violate clear space (§2.6) or go below the §2.7 minimums.
-10. Reintroduce a flat vector mark as an alternate "logo register" — retired per §2, not to be revived.
+10. Reintroduce a flat vector mark as an alternate "logo register" -- retired per §2, not to be revived.
 11. Swap the lockup arrangement or invent lockups beyond §2.5.
 
 ---
@@ -428,12 +428,12 @@ This section is canon. Pebble and the context-pebble are fixed; their silhouette
 Pebble is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
 
 **Corrected back to blue-grey (2026-07-28), after a same-day detour to "brown."** A pixel-sampling exercise
-against `docs/img/pebble-peek.png`/`icon-512.png` briefly concluded Pebble was warm brown — but those
+against `docs/img/pebble-peek.png`/`icon-512.png` briefly concluded Pebble was warm brown -- but those
 files are themselves off-canon art from a later, unlocked ChatGPT session, not the original design.
 Tracing the actual asset history (`pebble_images/pebble.png`, the first generation) confirmed the
 character was always blue-grey. Blue-grey also fits the product: contextlake's whole primitive palette
-is cool (deepwater/lake/current), the shipped theme is moonlit navy, and `shore #D7C5A0` — the only warm
-primitive — is explicitly restricted to illustration dividers (§7.2), never a UI or mascot color. A
+is cool (deepwater/lake/current), the shipped theme is moonlit navy, and `shore #D7C5A0` -- the only warm
+primitive -- is explicitly restricted to illustration dividers (§7.2), never a UI or mascot color. A
 blue-grey otter is *of* the same water as the product; a brown one would be a warm object with no
 palette support. **The shipped painterly art (`docs/img/pebble-peek.png`, `icon-512.png`, the hero images)
 is currently off-canon and needs regeneration** to match; see §7.3.
@@ -499,7 +499,7 @@ Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never dis
 - **Resting-on-pebble (idle/empty states):** seated beside/leaning on the pebble at rest, glow dimmed.
 
 **Gaze rule:** in every pose, **gaze points toward the content, the CTA, or the pebble, never off-page
-or viewer-locked** — including the mark (§2.1), which is a cropped painterly pose, not a separate logo
+or viewer-locked** -- including the mark (§2.1), which is a cropped painterly pose, not a separate logo
 convention.
 
 ### 5.7 Inverse-density rule (how much Pebble)
@@ -516,10 +516,10 @@ Pebble's presence is **inversely proportional to surface information-density.**
 
 Pebble renders **painterly** everywhere: rich, dimensional, subsurface glow, soft volumetric light, no
 hard black outlines, forms separated by value and rim light. Hero, OG/social, large illustration,
-onboarding, the mark (§2.1), app icons, README banners — all the same rendering.
+onboarding, the mark (§2.1), app icons, README banners -- all the same rendering.
 
 The **only** exception is the 16–64px favicon tier (§2.3), which shows the context-pebble by itself,
-used purely because painterly shading doesn't survive that much downsampling — a technical necessity,
+used purely because painterly shading doesn't survive that much downsampling -- a technical necessity,
 not a second brand register. There is no separate "flat mark" style to keep in sync; there is one Pebble and one small-size
 simplification of it.
 
@@ -567,7 +567,7 @@ subsurface pebble glow, atmospheric depth, painterly edges, no outline (form rea
 Format: PNG → WebP/AVIF.
 
 **The one exception:** at browser favicon and tab-strip sizes (16–64px), painterly shading turns to mud
-on downsample. That tier alone uses the context-pebble mark from §2.3 — solid shapes, no gradient,
+on downsample. That tier alone uses the context-pebble mark from §2.3 -- solid shapes, no gradient,
 corner radius 22% of the tile, PNG. It keeps the same pebble palette (`#2BB3A3` disc, one `#E7B53C`
 glint) so it still belongs to the same world; what it drops is the character, because six shapes do not
 fit in 256 pixels. It is a crop of the story, not a second illustration style to maintain in parallel.
@@ -630,8 +630,8 @@ choice. The 16–64px favicon tier (§2.3) is the only surface that drops the ch
 |---|---|---|---|---|
 | **Landing hero** | Layered scene (§6.2) + motion (§6.3) | WebP/AVIF + PNG fallback, layers separate | painterly lake, dark-first | Gaze → CTA; ≥8% clear margin; static pose is the no-JS/reduced-motion baseline |
 | **Landing sections** | mark or a supporting painterly spot, ≤1 per page | PNG/WebP | mist `#EAF4F4` or deepwater | Never stack two painterly scenes on one page |
-| **Docs** | mark in header; optional single banner ≥320px tall per top-level section | PNG/WebP | mist light, deepwater code blocks | — |
-| **Graph / tool UI (in-product nav)** | a small bundled glyph (currently a hand-drawn inline SVG, `kb/dashboard/static/dashboard.html`) — painterly raster doesn't inline cheaply at nav-icon size | inline SVG or bundled data-URI, zero external fetch | deepwater dark-first | Ships offline: never load remote assets at runtime. Carries the §7.2 second brand signal |
+| **Docs** | mark in header; optional single banner ≥320px tall per top-level section | PNG/WebP | mist light, deepwater code blocks | -- |
+| **Graph / tool UI (in-product nav)** | a small bundled glyph (currently a hand-drawn inline SVG, `kb/dashboard/static/dashboard.html`) -- painterly raster doesn't inline cheaply at nav-icon size | inline SVG or bundled data-URI, zero external fetch | deepwater dark-first | Ships offline: never load remote assets at runtime. Carries the §7.2 second brand signal |
 | **README, GitHub** | hero banner (1280×640 safe), shields badges | PNG/WebP via raw URL; SVG badges | reads on GitHub light **and** dark | Use `<picture>` with light/dark sources; never transparent-on-white only |
 | **README, PyPI** | same banner, **absolute URLs only** | PNG (PyPI strips some SVG; no relative paths) | PyPI light | All `src` absolute `https://`; one banner, no animation |
 | **OG / social** | 1200×630 card | JPG/PNG, exact 1200×630 | painterly, text-safe | Wordmark in real Space Grotesk; title in central 80% safe area |
@@ -653,7 +653,7 @@ choice. The 16–64px favicon tier (§2.3) is the only surface that drops the ch
 |---|---|---|---|
 | **The mark** | **Off-canon**: `docs/branding/mark.png` (resize of `docs/img/icon-512.png`) is warm brown, not the locked blue-grey (§5.1/§5.3) | **Regenerate** once new blue-grey painterly art exists (no ChatGPT generation has combined blue-grey fur + the teal pebble yet); until then this is a known, flagged gap, not silently accepted as canon | PNG |
 | `docs/img/pebble-peek.png`, `docs/img/icon-512.png`, hero/OG art | **Off-canon**: same brown-fur drift as the mark, from an unlocked later ChatGPT session | **Regenerate** to blue-grey; not yet done, blocked on new art generation | PNG/WebP |
-| `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** — not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
+| `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** -- not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
 | `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
 | `docs/branding/mascot.md` | rewritten to Section 5, then corrected back to blue-grey 2026-07-28 | keep in sync with §5 | markdown |
 | `docs/img/icon-16/32/48/64.png` | context-pebble (`site/tools/gen_small_mark.py`): teal disc, deepwater interior marks, one sun glint | **Regenerate** with the tool; never hand-edit | PNG, deepwater-solid bg |

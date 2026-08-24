@@ -17,25 +17,49 @@ whose bytes are meant to match what a terminal actually shows, so "fixing" an
 em-dash there would make the documentation disagree with the program.
 """
 
+import subprocess
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-# The prose surfaces. `docs/*.md` builds the site; README is also the PyPI project
-# page; QUICKSTART is linked from both.
-DOC_FILES = sorted(REPO.glob("docs/**/*.md")) + [
-    REPO / "README.md",
-    REPO / "QUICKSTART.md",
-    # Added after the guard was found not to cover it: contributor-facing prose
-    # is still prose, and it had accumulated its own em-dashes unnoticed.
-    REPO / "CONTRIBUTING.md",
-    # Same lesson a second time. A `docs/*.md` glob missed both the nested pages
-    # under docs/ and the root-level roadmap, and an audit found every "Shipped"
-    # bullet in ROADMAP.md carrying one. A rule that covers most of the prose
-    # gets re-broken in the part it does not cover.
-    REPO / "ROADMAP.md",
-]
+
+# DERIVED, not listed. This guard has now been re-broken three times in the part it did not
+# cover: `docs/*.md` missed the nested pages and ROADMAP; the hand-list that replaced it then
+# missed SECURITY.md and the two vendored-asset READMEs, which had quietly accumulated 31
+# em-dashes between them while every run stayed green. Its own docstring already recorded the
+# lesson twice. A file set somebody has to remember to extend is the defect, not the omission.
+#
+# Two exclusions, both because the file is not hand-written prose anybody is editing to style:
+#   CHANGELOG.md      historical record, append-only. Rewriting a shipped entry is forbidden.
+#   tests/**          generated wiki fixtures. Editing them breaks the tests that own them.
+#
+# `benchmarks/` is NOT excluded, and that is the point of asking git rather than the disk: the
+# cloned corpora under it are untracked, so the listing returns only this project's own four
+# files there. An exclusion written from a filesystem walk would have dropped them.
+_EXCLUDED = {"CHANGELOG.md"}
+
+
+def _prose_files() -> list[Path]:
+    """Every TRACKED markdown file that is hand-written prose.
+
+    From `git ls-files`, not the filesystem: `rglob` reaches `.venv/`, `.pytest_cache/` and
+    the cloned benchmark corpora under `benchmarks/`, which together outnumber this project's
+    own prose thirty to one.
+    """
+    try:
+        listing = subprocess.run(["git", "-C", str(REPO), "ls-files", "*.md"],
+                                 capture_output=True, text=True, check=True).stdout.split()
+    except (OSError, subprocess.CalledProcessError):  # sdist, or no git on PATH
+        pytest.skip("not a git checkout, so the tracked-file set cannot be derived")
+    out = [REPO / rel for rel in listing
+           if "tests" not in Path(rel).parts and rel not in _EXCLUDED]
+    # A listing that silently comes back empty passes every parametrised case below.
+    assert len(out) >= 30, f"only {len(out)} prose files discovered; the listing is wrong"
+    return out
+
+
+DOC_FILES = _prose_files()
 
 
 def _prose_lines(text: str):

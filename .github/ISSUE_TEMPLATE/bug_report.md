@@ -33,4 +33,4 @@ or tokens first.
 - OS:
 
 **Additional context**
-Anything else that might help — config (redacted), how many repos, etc.
+Anything else that might help -- config (redacted), how many repos, etc.

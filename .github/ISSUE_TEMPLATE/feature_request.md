@@ -17,4 +17,4 @@ the best odds.
 Other approaches, workarounds, or existing flags you've tried.
 
 **Additional context**
-Anything else — examples, links, scale (how many repos), etc.
+Anything else -- examples, links, scale (how many repos), etc.

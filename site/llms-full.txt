@@ -14626,11 +14626,16 @@ Run this against every page before it ships.
 9. Every image has alt text; status and diagrams aren't color-only; terms are inclusive.
 10. Zero em-dashes; "contextlake" is lowercase; abbreviations are defined; only example values appear.
 
-## References
+## See also
 
-For general technical-writing guidance beyond contextlake's own conventions, these public style guides are
-worth reading:
+The four detail pages first, then the wider reading. Internal links before external, which is the
+order [the formatting page](style-guide-formatting.md) asks every page to use.
 
+- [Voice and tone](style-guide-voice.md)
+- [Page types and structure](style-guide-structure.md)
+- [Formatting, accessibility, and inclusive language](style-guide-formatting.md)
+- [Word and term reference](style-guide-reference.md)
+- [Brand guidelines](brand.md)
 - [Google developer documentation style guide](https://developers.google.com/style)
 - [Microsoft Writing Style Guide](https://learn.microsoft.com/en-us/style-guide/welcome/)
 - [MDN writing guidelines](https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines)
@@ -14673,7 +14678,7 @@ like something you'd say to a colleague you respect, rewrite it.
 
 ## Grounded writing: the anti-hallucination habits
 
-These are contextlake's signature, and they're also just good technical writing.
+These are contextlake's signature, and they are good technical writing on their own merits.
 
 - **Claim, then citation.** Wherever a page states what the tool does, show where it comes from: "the count
   comes from `graph_stats`", "you'll see `1976 vectors written`". A cited noun out-persuades any adjective.
@@ -14800,7 +14805,7 @@ Answers "where am I, and where do I go next?".
 
 - **Lead first.** Open every page with a one-to-three-sentence, plain-language summary of what it is and
   why you'd use it, before any section heading. A reader who stops after the lead still leaves with the
-  gist. This is the highest-leverage fix for scannability.
+  gist. Of every rule on this page, this one buys the most scannability for the least effort.
 - **One H1, body starts at H2, never skip a level.** The site strips the H1 and shows the hero title, so
   your first real heading is H2.
 - **Short paragraphs, three to seven lines.** Single-line paragraphs are fine. Break up anything longer.

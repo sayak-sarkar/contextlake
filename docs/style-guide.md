@@ -69,11 +69,16 @@ Run this against every page before it ships.
 9. Every image has alt text; status and diagrams aren't color-only; terms are inclusive.
 10. Zero em-dashes; "contextlake" is lowercase; abbreviations are defined; only example values appear.
 
-## References
+## See also
 
-For general technical-writing guidance beyond contextlake's own conventions, these public style guides are
-worth reading:
+The four detail pages first, then the wider reading. Internal links before external, which is the
+order [the formatting page](style-guide-formatting.md) asks every page to use.
 
+- [Voice and tone](style-guide-voice.md)
+- [Page types and structure](style-guide-structure.md)
+- [Formatting, accessibility, and inclusive language](style-guide-formatting.md)
+- [Word and term reference](style-guide-reference.md)
+- [Brand guidelines](brand.md)
 - [Google developer documentation style guide](https://developers.google.com/style)
 - [Microsoft Writing Style Guide](https://learn.microsoft.com/en-us/style-guide/welcome/)
 - [MDN writing guidelines](https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines)

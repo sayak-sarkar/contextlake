@@ -31,7 +31,7 @@ like something you'd say to a colleague you respect, rewrite it.
 
 ## Grounded writing: the anti-hallucination habits
 
-These are contextlake's signature, and they're also just good technical writing.
+These are contextlake's signature, and they are good technical writing on their own merits.
 
 - **Claim, then citation.** Wherever a page states what the tool does, show where it comes from: "the count
   comes from `graph_stats`", "you'll see `1976 vectors written`". A cited noun out-persuades any adjective.
