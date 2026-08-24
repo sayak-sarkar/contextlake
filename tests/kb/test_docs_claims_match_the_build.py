@@ -252,6 +252,46 @@ def test_every_tool_count_anywhere_in_the_docs_matches_the_build():
         f"{unconditional}.")
 
 
+# A number sitting next to the word "tool", in any wording at all. The pattern table above is
+# phrase-specific by design -- each entry declares its own expected value -- and that is exactly
+# what makes it blind to a sentence nobody has written yet. Break-tested: a new page saying "The
+# server exposes 99 tools." PASSED the table, because no pattern claimed it.
+#
+# The language, grammar and node-kind families do not have this hole: their patterns are already
+# wording-agnostic (`(\d+) languages`). Only the tool family trades generality for per-phrase
+# expected values, so only the tool family needs the inverse check.
+#
+# 20 characters of slack absorbs "23 graph tools" and "25 registered tools" without reaching the
+# next sentence.
+_TOOL_ADJACENT = re.compile(r"\b(\d+)\b(?=[^.\n]{0,20}?\btools?\b)")
+
+
+def test_no_tool_count_escapes_the_pattern_table():
+    """Every number written beside the word "tool" must be claimed by a pattern above.
+
+    Without this, the gate above verifies the claims it happens to know the wording of and
+    reports success, which is the defect it exists to catch one level up. A rewrite authors
+    hundreds of new sentences; a rule saying "add a pattern when you add a claim" is an
+    intention, and an intention is what let `releasing.md` ship a wrong command for a cycle.
+    """
+    uncovered: list[tuple[str, str]] = []
+    for rel in _doc_files():
+        text = _text(rel)
+        covered = set()
+        for pat, _offset in _TOOL_COUNT_PATTERNS:
+            for m in re.finditer(pat, text):
+                covered.add(m.span(1))
+        for m in _TOOL_ADJACENT.finditer(text):
+            if m.span(1) in covered:
+                continue
+            line = text[: m.start()].count("\n") + 1
+            uncovered.append((f"{rel}:{line}", text[max(0, m.start() - 40):m.end() + 30]))
+    assert not uncovered, (
+        f"{len(uncovered)} tool-count claim(s) match no pattern in _TOOL_COUNT_PATTERNS, so "
+        f"nothing checks them against the build. Add a pattern beside the claim, in the same "
+        f"commit: {uncovered}")
+
+
 def test_the_embeddings_pair_really_is_the_conditional_two():
     """The `+2` offsets have to be a measured CARDINALITY, not an assumption.
 
