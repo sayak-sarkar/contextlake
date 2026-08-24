@@ -12,16 +12,23 @@ declared, says so.
 
 ## What the graph captures
 
-Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
-interfaces, imports, an intra-repo **call graph**, and an **inheritance graph** (`inherits` edges for
-`extends` / `implements` / base classes), so "what extends `BaseController`?" is one hop, and changing a
-base class shows its subclasses in `blast_radius`. The diagram below imports its colors from the same
-module `contextlake kb graph` and the dashboard render with, so node kinds match everywhere. Edge
-relations mostly do: 10 of them carry a dedicated hue (`calls`, `imports`, `contains`, `depends_on`,
-`publishes`, `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`), while `inherits` and
-`references` ride the neutral default edge color, and `reads`, `writes`, `uses` and
-`transitions_to`, which this page documents further down, are real edges the diagram does not
-show at all:
+Indexing builds a typed graph of your source. tree-sitter reads each file and pulls out:
+
+- files, classes, functions and methods, interfaces, and imports
+- an **intra-repo call graph**, so you can ask who calls what
+- an **inheritance graph** (`inherits` edges for `extends`, `implements`, and base classes)
+
+That last one means "what extends `BaseController`?" is a single hop, and changing a base class
+shows its subclasses in `blast_radius`.
+
+The diagram below takes its colours from the same module `contextlake kb graph` and the
+dashboard use, so node kinds look the same everywhere. Edge relations mostly match too:
+
+- **10 have their own colour**: `calls`, `imports`, `contains`, `depends_on`, `publishes`,
+  `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`
+- **2 use the default grey**: `inherits` and `references`
+- **4 are real but not drawn**: `reads`, `writes`, `uses` and `transitions_to`. This page covers
+  them further down.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 52 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
@@ -41,26 +48,36 @@ Depth differs across three tiers, and a single number would hide it.
 | Referenceable names | CSS, HTML, Nix, Make, Dockerfile | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets; Dockerfile build stages and the images they build on |
 | Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
 
-Most files reach a grammar by extension. A build file has none, so `Makefile`, `GNUmakefile`,
-`Dockerfile` and `Containerfile` are routed by name instead, matched on the stem before the first
-dot: `Makefile.am` and `Dockerfile.prod` both hit, and `MyMakefile` does not. Make targets are the
-names a person types at a shell and a CI job invokes, which makes them the shortest answer to
-"what does this project expect of itself". Make's own special targets (`.PHONY`, `.SUFFIXES`) are
-not extracted, and neither are variables.
+Most files reach a grammar by their extension. Build files have none, so they are matched by
+name instead: `Makefile`, `GNUmakefile`, `Dockerfile` and `Containerfile`.
 
-A Dockerfile yields its build stages and the external images it builds on, told apart from each
-other: in `FROM builder AS test` the base is a stage declared earlier in the same file, not an
-image anybody pulls. The `COPY --from=` reference back to a stage is **not** extracted, because a
-stage name is file-local and resolving it across files would link two unrelated `builder` stages
-to each other. Dockerfile's grammar is an [optional extra](installing.md), `[kb-dockerfile]`; without
-it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
-unsupported.
+The match runs on the stem before the first dot. `Makefile.am` and `Dockerfile.prod` both hit.
+`MyMakefile` does not.
 
-On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
-are worth naming rather than leaving to be discovered: Zig declares a struct as
-`const Engine = struct {...}`, a variable declaration rather than a definition node, so Zig types are
-not extracted; and an HTML `class=` attribute is a *use* of a name a stylesheet defines, so it is not
-yet emitted as anything.
+Make targets are worth extracting because they are the names a person types at a shell and a CI
+job runs. That makes them the shortest answer to "what does this project expect of itself".
+
+Not extracted: Make's own special targets (`.PHONY`, `.SUFFIXES`), and variables.
+
+A Dockerfile gives you its build stages and the external images it builds on, kept apart. In
+`FROM builder AS test`, `builder` is a stage declared earlier in the same file, not an image
+anyone pulls.
+
+`COPY --from=` references are **not** extracted. A stage name is local to its file, so resolving
+those across files would wrongly link two unrelated `builder` stages.
+
+The Dockerfile grammar is an [optional extra](installing.md), `[kb-dockerfile]`. Without it,
+Dockerfiles are skipped and the run tells you which extra to install, rather than calling the
+file unsupported.
+
+On one public JavaScript tree, the full tier's extra kinds were 463 of its 783 nodes.
+
+Two gaps, named here so you do not have to find them yourself:
+
+- **Zig types are not extracted.** Zig declares a struct as `const Engine = struct {...}`, which
+  is a variable declaration, not a definition node.
+- **HTML `class=` attributes produce nothing yet.** A `class=` is a *use* of a name some
+  stylesheet defines, and that link is not emitted.
 
 | Ecosystem | Languages |
 | --- | --- |
@@ -79,21 +96,28 @@ commands that prove a new grammar works.
 
 #### C++ completeness
 
-A method defined outside its class (`ReturnType Class::method(...) { ... }`, at any `::` qualification
-depth) resolves to a `method` contained by its class, repo-wide, and not only the file it is declared in,
-so an out-of-line definition in one file still shows up under its class even when the class itself is
-declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
-class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
-matching `.cpp` is visible as one unit rather than the class half going missing. This parsing choice is
-kept transparent to `languages` filtering: `.h` files are indexed whenever either `"c"` or `"cpp"` is
-enabled, since C and C++ headers are shared infrastructure -- restricting `kb.toml`'s `languages` to
-`["c"]` still indexes `.h` files, no need to list both. An `#ifdef`/`#else` (or `#ifndef`/`#else`)
-pair -- two definitions of the same method in different branches of the *same* conditional -- collapses
-into one node instead of appearing as duplicate, ambiguous call targets. A bare `#ifndef` header guard with
-no `#else` does **not** trigger this: both copies would sit in the same (only) branch, so nothing collapses,
-and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
-[Health and maintenance](indexing-the-code-graph.md#health-and-maintenance) above: `doctor` flags any C/C++ shard indexed before
-these fixes landed, as a signal to re-index.
+C and C++ get extra handling, because both languages spread one thing across several files.
+
+- **A method defined outside its class** (`ReturnType Class::method(...) { ... }`, at any `::`
+  depth) is attached to its class across the whole repo, not just the file it sits in. So an
+  out-of-line definition still appears under its class, even when the class is declared in a
+  different header.
+- **A `namespace { ... }` block is its own container**, the same as a class or a file.
+- **Headers (`.h`) are parsed as C++.** A class declared in a header and defined in a matching
+  `.cpp` shows up as one unit, instead of the class half going missing.
+- **`.h` files are indexed if either `"c"` or `"cpp"` is enabled.** C and C++ headers are shared,
+  so setting `languages = ["c"]` in `kb.toml` still picks them up. You do not need to list both.
+- **Two definitions in opposite branches of one `#ifdef`/`#else` collapse into one node.**
+  Without that, they would look like duplicate call targets.
+
+Two things that deliberately do **not** collapse:
+
+- A bare `#ifndef` header guard with no `#else`. Both copies sit in the same branch, so there is
+  nothing to merge.
+- Genuine overloads, anywhere. They stay separate definitions.
+
+If a C or C++ shard was indexed before these fixes landed, `doctor` flags it so you know to
+re-index. See [Health and maintenance](indexing-the-code-graph.md#health-and-maintenance).
 
 ### Infrastructure: Terraform / HCL
 
@@ -138,12 +162,18 @@ target already met.
 
 ### Data contracts: XML Schema
 
-`.xsd` files build a schema graph: every **global** component becomes a node, and every name one
-component gives another becomes a `references` edge, resolved across files in a repo. A global
-`xs:element` is a `schema_element`, because it is the name a message, a document root or a SOAP body
-actually carries and therefore the name a person searches for. A global `complexType`, `simpleType`,
-`group`, `attributeGroup` or `attribute` is a `schema_type`, with which one it is recorded as the
-`schema_construct` attribute rather than as five kinds. Both are semantically searchable.
+`.xsd` files build a schema graph. Every **global** component becomes a node. Every name one
+component gives another becomes a `references` edge, resolved across files in the repo.
+
+Two node kinds:
+
+- **`schema_element`** for a global `xs:element`. This is the name a message, a document root or
+  a SOAP body actually carries, so it is the name people search for.
+- **`schema_type`** for a global `complexType`, `simpleType`, `group`, `attributeGroup` or
+  `attribute`. Which one it was is kept in the `schema_construct` attribute, rather than
+  splitting these into five separate kinds.
+
+Both are semantically searchable.
 
 References come from `type=`, `base=`, `ref=`, `itemType=` and `memberTypes=`. The namespace prefix is
 stripped first, since it is a per-file alias for a namespace URI: `tns:PartyType` in one file and the
@@ -180,11 +210,15 @@ A match template has no name to be called by, so its match pattern is its node n
 pattern and any `mode` recorded as attributes. It is not an identifier; it is the only handle
 such a template has, and one with no handle cannot be pointed at from anywhere.
 
-Unlike XML Schema, this mints no new node kinds, and the reason is worth stating because the two
-decisions look inconsistent. Schema references resolve on name alone across the whole repo, so a
-schema type sharing `struct` with C++ would collide. Calls and variable reads are filtered by
-**language family** first, and `xsl` is its own family, so an `xsl:template` named `format`
-cannot resolve onto a Python `format`. The isolation is already there.
+This adds no new node kinds, unlike XML Schema. The two choices look inconsistent, so here is
+why they differ.
+
+- Schema references resolve on **name alone**, across the whole repo. A schema type called
+  `struct` would collide with C++.
+- Calls and variable reads are filtered by **language family** first. `xsl` is its own family,
+  so an `xsl:template` named `format` cannot resolve onto a Python `format`.
+
+The isolation is already there, so no new kinds are needed.
 
 Two limits, stated rather than left to be discovered. `<xsl:import>` and `<xsl:include>` are not
 edges: the target is a relative href, and the only honest edge would point at a file node that
@@ -198,45 +232,68 @@ XPath parser.
 the split is the whole design: the **C parse** sees the file with every `EXEC SQL` statement
 blanked out, and the **dataflow pass** sees it intact.
 
-The mask exists because of a measurement. Handed straight to the C grammar, `EXEC SQL INCLUDE
-SQLCA;` and `EXEC SQL BEGIN DECLARE SECTION;` parse as declarations, producing `global_variable`
-nodes named `SQLCA`, `SQL` and `SECTION` -- names of things that do not exist, in a kind that
-bare identifiers elsewhere in the repo resolve `uses` edges onto. Blanking is
-length-and-newline-preserving, so every line number the C parse cites is still the real one, and
-only the statements are blanked: the host variables declared between the declare-section markers
-are ordinary C and stay in the graph.
+The mask exists because of a measurement.
 
-The dataflow pass needs the SQL, because the SQL is the point: which tables the file reads and
-writes is what an `EXEC SQL` statement is there to say. It already normalises table names through
-the same recipe `.sql` gives its `table` nodes, so an `EXEC SQL SELECT ... FROM CUSTOMERS` and a
-`CREATE TABLE dbo.[Customers]` in another file land on one node without a second copy of that
-rule existing anywhere.
+Fed straight to the C grammar, `EXEC SQL INCLUDE SQLCA;` and `EXEC SQL BEGIN DECLARE SECTION;`
+parse as declarations. That produces `global_variable` nodes called `SQLCA`, `SQL` and
+`SECTION`. None of those things exist, and bare identifiers elsewhere in the repo would resolve
+`uses` edges onto them.
+
+Two properties keep the masking safe:
+
+- It preserves length and newlines, so every line number the C parse reports is still real.
+- It blanks only the statements. Host variables declared between the declare-section markers are
+  ordinary C and stay in the graph.
+
+The dataflow pass still reads the SQL, because the SQL is the whole point. What an `EXEC SQL`
+statement exists to say is which tables the file reads and writes.
+
+It normalises table names with the same rule `.sql` files use for their `table` nodes. So an
+`EXEC SQL SELECT ... FROM CUSTOMERS` and a `CREATE TABLE dbo.[Customers]` in another file land on
+one node, and that rule lives in exactly one place.
 
 `.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
 selects it, `--languages python` does not.
 
 ### Architecture decisions (ADRs)
 
-A repo's own decision records become first-class `adr` nodes in that repo's shard. The match is any
-`.md` file with a directory segment named `adr`, `adrs` or `decisions` anywhere in its path, case
-insensitively, so `docs/adr/`, `docs/decisions/`, `decisions/`, `adrs/` and `architecture/adr/` all
-qualify, one file per decision. Each node takes its
-title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
-content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
-into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
-are semantically searchable, and their content feeds into [wiki generation](generating-the-wiki.md) as a
-grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
-data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
-way an import or call site is, so nothing is inferred from that mention.
+A repo's own decision records become `adr` nodes in that repo's shard, one node per file.
+
+**What counts as an ADR file:** any `.md` file with a directory named `adr`, `adrs` or
+`decisions` anywhere in its path, matched case-insensitively. So `docs/adr/`,
+`docs/decisions/`, `decisions/`, `adrs/` and `architecture/adr/` all qualify.
+
+Each node takes its title from the file's first `# ` heading, or from the filename if there is
+none.
+
+**Why ADRs are treated differently from connector content.** An ADR is written by hand and
+checked into git. It is a recorded fact, so it needs no attribution or hedging. Content pulled
+from Jira or Figma comes over the network from a system this repo does not own, so it does.
+
+What you get:
+
+- `adr` nodes are semantically searchable.
+- Their content feeds [wiki generation](generating-the-wiki.md) as a grounded "Recorded
+  decisions" section, cited next to the repo's other facts.
+
+What you do not get: edges to other nodes. An ADR that mentions a class by name is not a
+verified reference the way an import or a call site is, so nothing is inferred from it.
 
 ### Entity state machines
 
-Guarded assignments to a status/state/stage field (`if order.status == Created: order.status = Paid`)
-become `transitions_to` edges between `state` nodes, labeled with the method that makes the transition.
-Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
-the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
-and C# (regex, every edge `INFERRED`). Render with `contextlake kb graph --repo <repo> --format statediagram`
-(a Mermaid entity state machine), see [Visualize](visualizing-the-graph.md).
+A guarded assignment to a status, state or stage field becomes a `transitions_to` edge between
+`state` nodes, labelled with the method that makes the change. For example:
+
+    if order.status == Created: order.status = Paid
+
+**Only guarded transitions are emitted.** The source state has to be established by a comparison
+on the same field just before. That way a diagram never claims a transition the code does not
+actually make.
+
+Supported in Python, JS/TS and C#. Detection is regex-based, so every edge is marked `INFERRED`.
+
+Render it with `contextlake kb graph --repo <repo> --format statediagram`, which produces a
+Mermaid state diagram. See [Visualizing the graph](visualizing-the-graph.md).
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
@@ -245,13 +302,19 @@ explicitly if you do want that walk.
 
 ### Intra-repo dataflow: reads and writes
 
-Application code querying a table or view it never explicitly imports still shows up in the graph: a
-literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in a string (any language,
-SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge from the file to the
-`table`/`view` node the SQL DDL extractor already found, resolved by name across the whole repo the same
-way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
-guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake kb impact <table>`
-answers "what code touches this table" out of the box.
+Application code that queries a table it never imports still shows up in the graph.
+
+A literal `SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET` or `DELETE FROM` inside a string
+becomes a `reads` or `writes` edge, from the file to the `table` or `view` node the SQL DDL
+extractor already found. This works in any language, because embedded SQL text looks the same
+wherever it sits. Names resolve across the whole repo, the same way a foreign-key `references`
+edge does.
+
+A query against a table this repo never defines is left unlinked. That is an honest miss, not a
+guessed link.
+
+`reads` and `writes` are in the default relation set for `impact`, so
+`contextlake kb impact <table>` answers "what code touches this table" with no extra flags.
 
 ### Constants: their value, and every place it is read
 
@@ -264,11 +327,16 @@ Each place a constant's value is read becomes a `uses` edge from the file to the
 citing its own line. Like `calls`, this is stored **once per occurrence**, so "where is this read"
 is answerable exhaustively rather than as one edge with an arbitrary line attached.
 
-What is deliberately not a use: the declaration itself, a write (`TOTAL += 1`, `global TOTAL`),
-an import, and an attribute (`cfg.MAX_RETRY` reads an attribute of `cfg`). A bare name is also
-never matched against a class field, because a data member is reached as `self.x` or `this->x` and
-a bare `x` is a local: on one public C++ tree, allowing it attributed 588 reads of a loop counter
-to a class member of the same name.
+These are deliberately **not** counted as a use:
+
+- the declaration itself
+- a write, such as `TOTAL += 1` or `global TOTAL`
+- an import
+- an attribute, since `cfg.MAX_RETRY` reads an attribute of `cfg`
+
+A bare name is also never matched against a class field. A data member is reached as `self.x` or
+`this->x`, so a bare `x` is a local variable. On one public C++ tree, allowing that match
+attributed 588 reads of a loop counter to a class member with the same name.
 
 Where a name has several definitions, the edge is marked ambiguous rather than pointed at a guess,
 and anything reporting a constant's use count should filter on confidence. `uses` is in `impact`'s

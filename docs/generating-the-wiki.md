@@ -39,12 +39,14 @@ absence never reads as an oversight:
 
 1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
    Dockerfile stages.
-2. **Getting started** -- the ordered path a newcomer takes: install what the repository declares,
-   run its entry point, read the symbol everything routes through, run the tests, and who to ask.
-   Every step restates a fact from another section and points at it, rather than copying detail
-   that could then drift. A step with no evidence behind it is dropped rather than written as
-   "none found", and the section opens by saying it was assembled from the graph -- nobody wrote
-   this procedure, and a reader who thinks otherwise will trust it further than it can bear.
+2. **Getting started**, the ordered path a newcomer takes: install what the repo declares, run
+   its entry point, read the symbol everything routes through, run the tests, and find who to
+   ask.
+
+   Three rules keep it honest. Every step restates a fact from another section and links to it,
+   instead of copying detail that could drift. A step with no evidence is dropped, not written
+   as "none found". The section says up front that it was assembled from the graph, because
+   nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
 3. **Architecture** -- the repository's modules and their sizes.
 4. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
@@ -108,45 +110,61 @@ review_provider = "anthropic"  # …but have a real model decide what gets publi
 review_model = "claude-haiku-4-5"   # optional; defaults to the provider's own default
 ```
 
-`review_provider` accepts the same values as `provider` and wins unconditionally, so the inverse split
-(generate with a strong model, review with a cheap one) works too. It is strictly opt-in and never
-inferred from a stray API key in your environment, because it is not free: a run makes
-**pages × `council_size`** review calls against that provider (3 lenses per page by default, lower
-`council_size` to 1 to cut it threefold). Note that `contextlake doctor` checks the *generation* provider
-only, so a missing key for the review provider shows up as a run where every page is rejected with
-`N reviewer(s) returned nothing parseable` rather than as a doctor warning.
+`review_provider` takes the same values as `provider`, and always wins. So the reverse split
+also works: generate with a strong model, review with a cheap one.
 
-How many symbols get sampled into that grounding set scales with the repo's own size:
-`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Up to 22,500 graph
-nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
-reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
-dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.
-Within that sample, `top_symbols` reserves at least one slot per distinct symbol kind (e.g. a SQL
-table node, which has no call edges) so a structurally low-degree kind is never squeezed out
-entirely by pure degree-ranking; `hubs`/`dispatchers` never do this backfill with a fabricated
-zero-count row, since those two carry a real caller/callee count claim. One kind is excluded from
-that reservation: a file-less `module` node is an import/`#include` **target**, not a symbol the
-repo defines, so it is not handed a guaranteed slot (it still ranks in on its own degree, as a
-heavily-included header legitimately does). The provenance footer also states the resulting
-coverage as a fact, "Grounded in N/M file-backed symbols (X%)", the count of distinct symbols the
-sample actually touched versus the repo's file-backed symbol count. Both sides count file-backed
-nodes only, so the ratio means the same thing on a whole-repo page and on one of its per-subsystem
-pages, which can structurally contain nothing else.
+It is strictly opt-in, and never inferred from a stray API key in your environment, because it
+is not free. A run makes **pages x `council_size`** review calls against that provider. The
+default is 3 lenses per page. Set `council_size = 1` to cut that threefold.
 
-The page has a fixed section order, Overview, Setup & Run, Architecture, Dependencies, Gotchas,
-Decisions, but a section is only ever written when the graph actually has something to ground it:
-"Setup & Run" needs a README excerpt or a detected config file, and separately flags when an indexed
-file lives under a directory literally named `generated/` (e.g. `src/generated/widgets.py`), so the
-model is warned off presenting that file's contents as hand-authored design. (`setup_signals` also
-counts legacy C/C++ project/workspace files such as `.vcxproj`/`.dsp` by category, e.g. "3 legacy
-MSVC6 project (.dsp) file(s) detected" -- since those extensions aren't part of the indexed
-language set and never reach the graph, the count comes from a recursive, bounded scan of the
-repo's live checkout, the same way `setup_signals` already detects `package.json`/`Dockerfile`.)
-"Gotchas" needs at least one symbol with
-real callers in the graph, and states only the caller-count fact ("N caller(s) in the graph, worth
-extra care/tests when changed"), the model is explicitly told not to characterize *why* a symbol
-has many callers, so it never invents a label like "foundational" or "critical infrastructure". A
-repo with no such signal simply gets fewer sections, never an empty heading. "External context"
+One thing to watch: `contextlake doctor` checks the *generation* provider only. A missing key for
+the review provider shows up as a run where every page is rejected with
+`N reviewer(s) returned nothing parseable`, not as a doctor warning.
+
+The number of symbols sampled into that grounding set scales with the repo's size, rather than
+being a flat 15:
+
+    max(15, min(80, node_count // 1500))
+
+- Up to 22,500 nodes the floor keeps it at 15, so nothing changes for small repos.
+- Past that it grows with the repo, reaching its cap of 80 at around 120,000 nodes.
+- A large repo therefore gets proportionally more grounding depth, and the prompt still costs a
+  fixed amount.
+
+Inside that sample:
+
+- **`top_symbols` reserves at least one slot per symbol kind.** A SQL table node has no call
+  edges, so pure degree ranking would squeeze it out entirely.
+- **`hubs` and `dispatchers` do not backfill.** Both carry a real caller or callee count, and
+  padding them with a fabricated zero-count row would make that claim false.
+- **A file-less `module` node gets no reserved slot.** It is an import target, not a symbol the
+  repo defines. It can still rank in on its own degree, as a heavily-included header does.
+
+The provenance footer states the result as a fact: "Grounded in N/M file-backed symbols (X%)".
+That is how many distinct symbols the sample touched, against the repo's file-backed symbol
+count. Both sides count file-backed nodes only, so the ratio means the same thing on a
+whole-repo page and on a per-subsystem page.
+
+The page has a fixed section order: Overview, Setup & Run, Architecture, Dependencies,
+Gotchas, Decisions.
+
+**A section is written only when the graph has something to ground it.** A repo with no signal
+for a section gets fewer sections, never an empty heading.
+
+What each one needs:
+
+- **Setup & Run** needs a README excerpt or a detected config file. It also flags any indexed
+  file under a directory named `generated/`, so the model is warned off presenting generated
+  code as hand-written design.
+- **Gotchas** needs at least one symbol with real callers. It states only the count, for
+  example "N caller(s) in the graph, worth extra care when changed". The model is told not to
+  explain *why* a symbol has many callers, so it cannot invent a label like "foundational".
+
+`setup_signals` also counts legacy C and C++ project files such as `.vcxproj` and `.dsp`, and
+reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
+are not in the indexed language set and never reach the graph, so the count comes from a
+bounded scan of the live checkout. That is the same way `setup_signals` already finds
+`package.json` and `Dockerfile`. "External context"
 (below) is a separate, always-conditional block on top of that list, not
 one of the named sections.
 
@@ -211,30 +229,46 @@ carried.
 
 ## Per-subsystem pages for large, federated repos
 
-A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
-them, is treated as genuinely federated, one big source directory doesn't count, but a repo split
-into several comparable subsystems does. `contextlake kb wiki` generates one additional page per
-qualifying subsystem automatically, no new flag needed, in addition to (never instead of) the
-whole-repo page. Each subsystem page is grounded only in that module's own symbols, files, and
-dependencies (a segment-boundary-correct scope, so a module named `api` never also pulls in a
-sibling like `apiv2/`), and its title, framing, and provenance footer all say plainly that it
-covers only that module, not the repository as a whole. Subsystem pages live under
-`wiki/_modules/` and get their own `@wiki:<repo>::<module>` partition, so a natural-language
-question can land on a subsystem's own explanation, cited back to its own page file.
+A repo qualifies as **genuinely federated** when it has at least 5,000 graph nodes and no
+single top-level module owns more than 60% of them. One big source directory does not qualify.
+A repo split into several comparable subsystems does.
 
-Generation is capped at 20 subsystem pages per run, so one `wiki` invocation on a very large repo
-stays bounded. Which 20 depends on what is already on disk: subsystems with no page yet are taken
-first, in largest-first node-count order, and only then the already-paged ones. A repo's first run
-has no pages at all, so it degrades to exactly "the 20 largest"; every run after that works through
-the never-paged tail, which is how repeated `wiki` runs cover the whole repo instead of re-picking
-the same top 20 forever. The run logs how many are still waiting
-(`N qualifying modules, generating 20 this run (M deferred to a later run)`), rather than going
-silent about it. When subsystem pages exist,
-the whole-repo overview page's Architecture section names and briefly describes each one instead
-of trying to summarize their internals inline, and points the reader to its dedicated page. The
-overview page only picks this up the next time it's actually regenerated, though, a repo already
-wiki'd at its current commit has its overview skipped as unchanged (subsystem pages still generate
-fresh), so an existing store only gets the naming after its next commit change, or a `--force` run
+For those, `contextlake kb wiki` writes one extra page per subsystem automatically. No new flag.
+These are added to the whole-repo page, never used instead of it.
+
+Each subsystem page:
+
+- is grounded only in that module's own symbols, files and dependencies
+- respects segment boundaries, so a module named `api` never pulls in a sibling `apiv2/`
+- says plainly in its title, framing and provenance footer that it covers one module
+
+They live under `wiki/_modules/` with their own `@wiki:<repo>::<module>` partition. A
+natural-language question can therefore land on a subsystem's own explanation, cited back to
+that page.
+
+Generation is capped at **20 subsystem pages per run**, so one `wiki` call on a very large repo
+stays bounded.
+
+Which 20 depends on what is already on disk:
+
+1. Subsystems with no page yet, largest first by node count.
+2. Then subsystems that already have a page.
+
+A first run has no pages, so it becomes exactly "the 20 largest". Every run after that works
+through the never-paged tail. This is how repeated runs cover the whole repo, instead of
+re-picking the same top 20 forever.
+
+The run says how many are still waiting, rather than going quiet about it:
+
+    N qualifying modules, generating 20 this run (M deferred to a later run)
+
+**Once subsystem pages exist**, the whole-repo overview names and briefly describes each one and
+links to it, instead of summarising their internals inline.
+
+One catch: the overview only picks that up the next time it is actually regenerated. A repo
+already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
+pages still generate. So an existing store gets the naming after its next commit, or on a
+`--force` run
 (the dashboard's Regenerate button has a force option too).
 
 ## Searchable prose
@@ -245,37 +279,55 @@ natural-language question can land on the wiki's explanation of a subsystem, cit
 and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
 existed are backfilled on the next `wiki` run without any LLM calls.
 
-Each section is also **linked to the symbols it names** (`documented_by`), so "where is this function
-explained?" is one graph hop from the symbol rather than a text search. Module pages link through the repo
-they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none. Only the
-symbols get these edges, never the repo as a whole -- a repo's **Links** panel is for external knowledge
-(Jira, Confluence, Figma, GitLab), and a wiki page is contextlake's own output, not a cross-link.
+Each section is also **linked to the symbols it names**, with a `documented_by` edge. So
+"where is this function explained?" is one graph hop from the symbol, not a text search.
+
+- Module pages link through the repo they belong to, so subsystem pages link too.
+- A cluster page spans many repos, so it links to none.
+- Only symbols get these edges, never the repo itself. A repo's **Links** panel is for external
+  knowledge such as Jira, Confluence, Figma and GitLab. A wiki page is contextlake's own output,
+  so it does not belong there.
 
 ## Cluster (namespace) wiki
 
-Beyond per-repo pages, `contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a
-whole group of repos (everything under that repo-id prefix), narrating how they fit together: which
-services call which over HTTP, publish/consume which events, and share which packages, split into coupling
-*within* the namespace and coupling to repos *outside* it. Use `--namespaces --depth N` to generate one
-page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
-resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
-so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
-Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
-"Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
-(busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
-(the ones whose changes are most likely to ripple outside the namespace), both read directly off data the
-cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
-`get_wiki`, and shown per group in the dashboard's fleet overview.
+`contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a whole group of
+repos, meaning everything under that repo-id prefix. Use `--namespaces --depth N` to generate one
+page per namespace at that depth.
+
+A cluster page narrates how the repos fit together:
+
+- which services call which over HTTP
+- which events they publish and consume
+- which packages they share
+
+It splits coupling *inside* the namespace from coupling to repos *outside* it.
+
+It grounds strictly in cross-repo edges the graph already resolved. No new extraction happens.
+It reuses the same review council and provenance footer as a per-repo page, so it stays advisory
+and cited. When the graph shows no coupling, it says so instead of inventing a link.
+
+Cluster pages get the same fixed sections and the same nothing-invented rule. That includes a
+"Gotchas" section when there is a real coupling risk to ground it:
+
+- the highest-weight internal edges, meaning the busiest coupling in the namespace
+- the member repos with the most boundary edges, whose changes are most likely to ripple outside
+
+Both come straight off data the cluster brief already computes. No new metric.
+
+You can reach cluster pages over MCP by passing a namespace to `get_wiki`, and they appear per
+group in the dashboard's fleet overview.
 
 ## Incorporating connector enrichment
 
-When `contextlake kb enrich` has populated a repo's `@enrich:<repo>` enrichment documents (via Atlassian or
-MCP search sources), the wiki synthesizer draws on them and incorporates an "External context" section
-into each repo's curated page. Each external fact is directly quoted from its source (Confluence page,
-Jira issue, or MCP search result) and attributed by source URL or name, never presented as a free
-assertion or as an undisclosed code fact. The council still gates the enriched page before it is written,
-ensuring external context supplements rather than displaces code-backed facts and that attribution is
-clear and verifiable.
+Once `contextlake kb enrich` has populated a repo's `@enrich:<repo>` documents, from Atlassian
+or MCP search sources, the wiki adds an **External context** section to that repo's page.
+
+Every external fact is quoted directly from its source, a Confluence page, a Jira issue or an
+MCP search result, and attributed by URL or name. None of it is presented as a free assertion or
+passed off as a code fact.
+
+The council still gates the enriched page before it is written. External context supplements
+code-backed facts, and never displaces them.
 
 The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
 strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
