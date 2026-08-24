@@ -782,6 +782,17 @@
     <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
+
+    <div id="tryit" class="tryit">
+      <label class="tryit-label" for="tryit-q">Try a lookup against the sample fleet</label>
+      <input id="tryit-q" type="search" autocomplete="off" spellcheck="false"
+             placeholder="AuthService, auth-service, .py &hellip;">
+      <div class="tryit-out" aria-live="polite"></div>
+      <p class="tryit-foot">Runs in your browser against the demo fleet, no server and no network
+        call beyond this page. This is a name lookup, not semantic search &mdash; that needs an
+        embedding model. What it shows is the <em>shape</em> of an answer: every hit cites the repo
+        and file it came from.</p>
+    </div>
   </div>
 </section>
 
@@ -1241,5 +1252,6 @@ document.addEventListener("click",function(e){if(nav.classList.contains("open")&
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
 <script defer src="cmdk.js"></script>
+<script src="tryit.js" defer></script>
 </body>
 </html>
