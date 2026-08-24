@@ -15,7 +15,7 @@ from __future__ import annotations
 from ... import style
 from ...logging_setup import log
 from ..store.shards import read_shard
-from ._common import _connect_targets, _guard_store, _open_store
+from ._common import _connect_targets, _guard_store, _open_store, kb_config
 
 # The store subdirectory each output writes into. One directory per KIND of document, so a
 # repository's API reference and its design notes cannot collide on a filename.
@@ -30,9 +30,23 @@ def cmd_docs(args) -> int:
     """Write the API reference for each indexed repository."""
     from ..docs.api import render_api_reference
     from ..docs.design import render_design_document
+    from ..docs.draft import render_orientation
     from ..docs.fleet import FleetDep, render_fleet_design
     from ..docs.snippets import SnippetReader
     from ..visualize import repo_slug
+
+    # OPT-IN prose tier. Absent --llm this stays None and the run is byte-for-byte what it
+    # always was: no model, no network, every line traceable to the graph.
+    llm = None
+    if getattr(args, "llm", None):
+        from ..config import apply_llm_overrides
+        from ..llm import build_llm
+        cfg = kb_config(args)
+        apply_llm_overrides(cfg, provider=args.llm, model=getattr(args, "llm_model", None))
+        llm = build_llm(cfg.llm)
+        if llm is None:
+            log("--llm was requested but no model could be built; writing the "
+                "deterministic documents only.")
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "docs"):
@@ -85,6 +99,10 @@ def cmd_docs(args) -> int:
             page = render_api_reference(shard, repo_id=repo_id, max_symbols=limit,
                                         snippets=SnippetReader(store, repo_id))
             out_dir.mkdir(parents=True, exist_ok=True)
+            if llm is not None:
+                block = render_orientation(llm, page, repo_id=repo_id)
+                if block:
+                    page = block + page
             (out_dir / (repo_slug(repo_id) + ".md")).write_text(page, encoding="utf-8")
             design_dir.mkdir(parents=True, exist_ok=True)
             (design_dir / (repo_slug(repo_id) + ".md")).write_text(

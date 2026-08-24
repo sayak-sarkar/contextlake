@@ -1123,8 +1123,8 @@ fail (exit 1).
                    help="print what would be removed, remove nothing")
 
     p = command("docs",
-                "generate documentation from the graph (API reference and design notes, "
-                "no model)",
+                "generate documentation from the graph (API reference and design notes; "
+                "model-free by default)",
                 epilog="""
 Two documents per repository, neither involving a model, so neither needs an LLM configured.
 
@@ -1147,6 +1147,14 @@ Examples:
   contextlake kb docs team/app               just this one
   contextlake kb docs --max-symbols 2000     a larger reference for a big repository
 """)
+    p.add_argument("--llm", default=_S, metavar="PROVIDER",
+                   choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
+                   help="ADD a short model-written orientation above the API reference. "
+                        "Opt-in: without it no model runs and the documents are entirely "
+                        "graph-derived. The paragraph is marked and never replaces a "
+                        "generated fact")
+    p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
+                   help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
     p.add_argument("args", nargs="*", metavar="repo",
                    help="only these repo ids (default: all indexed)")
     p.add_argument("--max-symbols", dest="max_symbols", type=_COUNT, default=_S, metavar="N",

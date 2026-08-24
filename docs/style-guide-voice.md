@@ -4,6 +4,29 @@ How contextlake sounds: warm, grounded, and clear. This page covers the voice de
 writing for every reader. It extends section 1.6 of the [brand guidelines](brand.md) into doc-length
 writing, and it's part of the [documentation style guide](style-guide.md).
 
+## Plain language comes first
+
+Set by the project owner on 2026-08-25 after reading pages that were technically correct and
+still hard to follow. **If a rule below ever conflicts with this section, this section wins.**
+
+- Use everyday words. Reach for the plain one every time: "use" not "utilise", "about" not
+  "approximately", "so" not "therefore".
+- If a technical term is unavoidable, define it in brackets the first time (like this).
+- Short sentences. One idea each. Active voice.
+- Turn any paragraph carrying three or more points into a bullet list or numbered steps.
+- **No em-dashes anywhere.** Use a comma, a full stop, or brackets.
+- Say the outcome in the first sentence. Do not build up to it.
+- Cut any sentence that adds no fact.
+
+### Habits that make a page tiring to read
+
+Drop these. They are the main reason generated prose feels heavy:
+
+- "It is worth noting that", "It is important to understand", "In essence", "Ultimately"
+- The "not X, but Y" frame used over and over
+- Saying the same finding three ways before stating it plainly
+- Closing paragraphs that sound weighty and add nothing
+
 ## The defaults
 
 These five are mechanical. A linter can check them, and reviewers should.
