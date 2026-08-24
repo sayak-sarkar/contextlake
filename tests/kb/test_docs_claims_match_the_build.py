@@ -228,13 +228,18 @@ def test_the_stated_node_kind_count_matches_the_registry():
 # `offset` is added to the unconditional count to get the expected value.
 _TOOL_COUNT_PATTERNS = [
     (r"\*?\*?(\d+)\*?\*? tools are registered", 0),
+    # benchmarks.md was reworded for plain language on 2026-08-25 and these two patterns went
+    # silent, which is the `silent` assertion below doing its job. Updated in the same commit as
+    # the rewording, per the rule in TIER1-RESULTS.md.
+    (r"\*\*(\d+) on a graph-only store\*\*", 0),
+    (r"which is (\d+) graph tools plus", -1),
     (r"bring it to\s*\n?\*?\*?(\d+)", +2),
     (r"serves the other \*?\*?(\d+)", 0),
     (r"tool schemas \((\d+), or \d+ once", 0),
     (r"tool schemas \(\d+, or (\d+) once", +2),
-    (r"\*\*(\d+) of them on a\s*\n?graph-only store\*\*", 0),
+
     # The only place a count legitimately excludes the router, because the sentence adds it back.
-    (r"\((\d+) graph tools plus", -1),
+
     (r"\*\*(\d+) once embeddings exist\*\*", +2),
     # The roadmap counts the tools BESIDE the router, so both of its numbers sit one below the
     # unconditional total, which includes `ask`. Added after widening the file set found a stale
