@@ -7137,6 +7137,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.6.1] - 2026-08-24
+
+A documentation-structure release. No behaviour changed, no schema moved,
+`EMBED_CONTENT_VERSION` untouched, so nothing re-embeds.
+
+### Fixed
+
+- **Two strings the CLI prints at users named documentation files that no longer exist.**
+  `kb serve --help` pointed at `docs/serve.md` and the unsupported-language error pointed at
+  `docs/contributing-languages.md`; both were renamed in 8.6.0's documentation pass and the
+  strings were not. Anyone following the tool's own instruction was sent to a missing file.
+
+### Changed
+
+- **Five documentation pages were split**, so a page is one type rather than a task and a
+  lookup table braided together. `indexing-the-code-graph` gave up its 337-line node and
+  edge model to a new **The code graph model**; `connecting-and-enriching` gave up document
+  source configuration to **Document sources and RAG**; `serving-over-mcp` gave up transports
+  and concurrency limits to **MCP transports and limits**; `generating-documentation` gave up
+  its output description to **What the generator produces**; and `searching-semantically`
+  gave up the embedding and model reference to **Embeddings and models**.
+
+  Nine pages were candidates. Five cleared the bar: the off-type block had to be contiguous,
+  at least 100 lines, and at least 40% of the page. The published set is now 36 pages.
+
+- **`docs/embedding-reference.md` said 17 embeddable kinds against a set of 19.**
+  `schema_element` and `schema_type` had joined `EMBEDDABLE_KINDS` and the total was never
+  updated.
+
+- 57 em-dashes removed from prose that the guard did not cover.
+
+### Internal
+
+- **The em-dash guard now derives its file set from `git ls-files`** rather than a hand-kept
+  list, after being re-broken a third time in the part it did not cover: three files held 31
+  em-dashes while every run stayed green. 52 files covered, up from 33.
+
+- **A tool count written in a wording no pattern recognises now fails.** The existing gate
+  declares an expected value per phrase, which is what made it blind to a sentence nobody had
+  written yet; a new page reading "The server exposes 99 tools." passed it.
+
+- **A third kind-count gate** covers `EMBEDDABLE_KINDS`, which neither the node-kind nor the
+  language gate could see.
+
 ## [8.6.0] - 2026-08-24
 
 Three ways to read what the graph already knew. Presentation-layer throughout: no schema
