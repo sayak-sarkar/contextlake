@@ -39,19 +39,32 @@ pip install -e ".[release]"        # build + twine
 
    ```bash
    ruff check src tests scripts benchmarks
-   pytest
+   pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88
    ```
 
-   **Those four paths, because that is exactly what `ci.yml` and `release.yml` run.** Not
-   `.`: the repo-root launcher trips `S606` by design, so a literal `ruff check .` hits a
-   red gate CI does not have, and a checklist whose first step cannot pass gets skipped.
+   **Those four lint paths and that coverage floor, because that is what the workflows
+   run.** Not `ruff check .`: the repo-root launcher trips `S606` by design, so a literal
+   `.` hits a red gate CI does not have, and a checklist whose first step cannot pass gets
+   skipped.
 
-   This step read `ruff check src tests` until 2026-08-23, two paths short, while claiming
-   in the same breath that it matched CI. It does not fail on its own -- it passes, and
-   then CI fails on the paths it never looked at. **A checklist that is narrower than the
-   gate it stands in for is worse than no checklist, because it produces a green you
-   believe.** Re-derive this line from the workflow rather than trusting it; if the two
-   ever diverge again, the workflow is right.
+   The coverage floor is `ci.yml`'s, not `release.yml`'s. Where they differ, run the
+   stricter one, because both must go green for a tag to publish:
+
+   | Workflow and job | What it runs |
+   | --- | --- |
+   | `ci.yml`, `core` | `pytest --ignore=tests/kb --cov=contextlake --cov-report=term-missing` |
+   | `ci.yml`, `knowledge-layer` | `pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88` |
+   | `release.yml`, release gate | `pytest -q` |
+
+   **This step has now been narrower than the gate twice.** It read `ruff check src tests`
+   until 2026-08-23, two paths short, while claiming in the same breath that it matched CI;
+   the fix corrected the lint line and left `pytest` bare, so the 88% floor stayed
+   undocumented for another cycle. Neither version fails on its own. Both pass, and then CI
+   fails on what the local command never measured.
+
+   **A checklist narrower than the gate it stands in for is worse than no checklist,
+   because it produces a green you believe.** Re-derive this block from the workflows rather
+   than trusting it; where the two diverge, the workflow is right.
 
 2. **Bump the version** in one place: `src/contextlake/__init__.py` →
    `__version__ = "X.Y.Z"`. This is the single source of truth; `pyproject.toml`
@@ -99,6 +112,13 @@ pip install -e ".[release]"        # build + twine
    python -m build            # creates dist/contextlake-X.Y.Z.{tar.gz,whl}
    twine check dist/*         # must report PASSED for both artifacts
    ```
+
+   **Your machine is the minority configuration.** `ci.yml`'s `core` job installs
+   `.[dev]` alone and runs `pytest --ignore=tests/kb`; a development venv holding every
+   extra cannot reproduce it, and a full local green says nothing about that job. It also
+   runs `python -m pytest --collect-only -q --ignore=tests/kb`, which catches the
+   repo-root shim shadowing the installed package. To check the core tier before pushing,
+   build a venv from that exact install line rather than reusing `.venv`.
 
    Optional clean-room smoke test:
 
