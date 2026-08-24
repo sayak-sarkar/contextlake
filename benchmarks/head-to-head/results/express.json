@@ -9,24 +9,24 @@
   "runs": [
     {
       "tool": "contextlake",
-      "version": "contextlake 7.9.0",
+      "version": "contextlake 8.6.1",
       "ok": true,
-      "seconds": 0.6,
+      "seconds": 1.07,
       "log_tail": "",
       "nodes": {
-        "total": 783
+        "total": 805
       },
       "edges": {
-        "rows": 959,
-        "distinct_relationships": 766,
-        "rows_per_relationship": 1.252
+        "rows": 1901,
+        "distinct_relationships": 1080,
+        "rows_per_relationship": 1.76
       }
     },
     {
       "tool": "@colbymchenry/codegraph@1.5.0",
       "version": "1.5.0",
       "ok": true,
-      "seconds": 1.2,
+      "seconds": 2.02,
       "log_tail": "",
       "nodes": {
         "total": 1084
