@@ -352,3 +352,13 @@ every upgrade into a red check for something that is working correctly.
 ## License
 
 MIT, see [LICENSE](https://github.com/sayak-sarkar/contextlake/blob/main/LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*
+
+## Documentation
+
+- [Full documentation](https://sayak.in/contextlake/docs.html)
+- [Quickstart](QUICKSTART.md)
+- [Installing and upgrading](docs/installing.md)
+- [Command reference](docs/cli-reference.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)

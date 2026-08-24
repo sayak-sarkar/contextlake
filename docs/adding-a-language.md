@@ -490,7 +490,7 @@ visible rather than returning nothing.
 Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
 makes it a useful template: it shows which parts are genuinely required.
 
-**The mandatory set, in the order above:**
+### The mandatory set, in the order above
 
 | Step | File | What was added |
 | --- | --- | --- |

@@ -65,3 +65,8 @@ patterns were guesses: five of seven bars could never have passed and three woul
 reported the product broken. And the pinned commit it carried did not exist in that
 repository at all, written from memory while the network was down. Measurement code that has
 never run against its real subject is a hypothesis, not a harness.
+
+## See also
+
+- [The head-to-head harness](../head-to-head/README.md)
+- [What contextlake saves](../../docs/benchmarks.md)

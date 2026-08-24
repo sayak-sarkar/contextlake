@@ -278,7 +278,7 @@ carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
 See [Generate the wiki](generating-the-wiki.md).
 
-## 10. MCP console & Settings
+## 10. MCP console and settings
 
 Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):
@@ -381,3 +381,10 @@ startup.
 Everything here runs entirely on your machine, and is read-only unless you opt into
 `--allow-mutations` (§11) or `--llm-chat` (§12, which sends questions to your
 configured `[llm]` provider -- everything else stays local).
+
+## See also
+
+- [Visualizing the graph](visualizing-the-graph.md)
+- [Asking the graph](asking-the-graph.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [Serving over MCP](serving-over-mcp.md)

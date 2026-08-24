@@ -232,4 +232,12 @@ common install and mirror failures are already written up there with their cause
 
 ## Security
 
-Please don't file security issues in public. See [SECURITY.md](SECURITY.md).
+Don't file security issues in public. See [SECURITY.md](SECURITY.md).
+
+## See also
+
+- [Quickstart](QUICKSTART.md)
+- [Adding a language](docs/adding-a-language.md)
+- [Releasing and publishing](docs/releasing.md)
+- [Documentation style guide](docs/style-guide.md)
+- [Security policy](SECURITY.md)

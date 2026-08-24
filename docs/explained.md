@@ -200,7 +200,7 @@ project-local `store_dir` or `languages` should keep working. A separate trust r
 (`contextlake trust <path>` plus a trusted-paths file) was rejected as a new top-level CLI surface
 belonging to neither namespace, when `--config PATH` already means "I meant this file".
 
-### Parser staleness is repaired, not just reported
+### Parser staleness is repaired, not only reported
 
 The clearest recorded reasoning in the project, because it documents a failure it shipped. When
 `PARSER_VERSION` moved to `2`, the staleness check only examined C and C++ repositories and the

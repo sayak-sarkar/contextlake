@@ -65,3 +65,8 @@ reported it. Six checks were wrong, and the harness passed anyway:
 Every one is the defect class this project has spent a release series removing: a surface
 reporting a result it did not measure. A harness is not exempt from it, and a harness that
 grades a gate is the worst place for it to hide.
+
+## See also
+
+- [The head-to-head harness](../head-to-head/README.md)
+- [What contextlake saves](../../docs/benchmarks.md)

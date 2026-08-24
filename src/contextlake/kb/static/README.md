@@ -97,3 +97,8 @@ version **here** *and* the matching `_CDN_URL` / `_EXT_CDN_URLS` constants in
 (`mermaid.min.js`, used by the dashboard's Diagrams tab, lives in
 `kb/dashboard/static/` alongside the SPA shell it's lazy-loaded into -- see that
 directory's own README, not here.)
+
+## See also
+
+- [Visualizing the graph](../../../../docs/visualizing-the-graph.md)
+- [The dashboard's own static assets](../dashboard/static/README.md)

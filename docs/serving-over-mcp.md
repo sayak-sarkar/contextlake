@@ -209,3 +209,10 @@ Transport choices, concurrency limits and the provenance each cited node carries
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
 *"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
+
+## See also
+
+- [MCP transports and limits](mcp-transports.md)
+- [Asking the graph](asking-the-graph.md)
+- [Using the dashboard](using-the-dashboard.md)
+- [Troubleshooting](troubleshooting.md)

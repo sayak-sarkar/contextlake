@@ -86,7 +86,7 @@ Shows the current state of your workspace compared to the remote, from the fetch
 contextlake mirror status
 ```
 
-**Example output:**
+#### Example output
 
 ```text
   • GitLab projects (active)  128

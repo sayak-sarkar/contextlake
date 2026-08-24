@@ -148,3 +148,11 @@ Use `--log-file`, not a `>>` shell redirect: the handler behind `--log-file` rot
 
 or the systemd user units in [`examples/`](examples/). See the
 [README](README.md) for the full command reference and configuration.
+
+## Next steps
+
+- [Mirroring repositories](docs/mirroring-repositories.md)
+- [Indexing the code graph](docs/indexing-the-code-graph.md)
+- [Serving over MCP](docs/serving-over-mcp.md)
+- [Using the dashboard](docs/using-the-dashboard.md)
+- [Troubleshooting](docs/troubleshooting.md)

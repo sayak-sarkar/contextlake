@@ -23,8 +23,8 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
   is not greenfield invention, it is mostly *grounding*: which service to call, its real signature,
   the pattern to follow, whether a utility already exists, where it plugs in. That work is almost
   entirely retrieval, and it is where hallucinated integrations and duplicated code come from.
-  contextlake answers those questions from an index, cited, and matches *concepts* rather than just
-  keywords.
+  contextlake answers those questions from an index, cited, and matches *concepts* rather than
+  keywords alone.
 - **Search of every kind**, semantic / knowledge search, "who calls X", "what breaks if I change X",
   "which repo has X", is the other strong case, where brute-force is intractable or hugely wasteful
   on a large fleet.
@@ -205,3 +205,10 @@ The comparison is straightforward to run, and yours is the one worth having:
 
 The point is not a single magic number, it is to see, on *your* codebase and *your* question mix,
 where the retrieval cost actually lives.
+
+## See also
+
+- [contextlake, explained](explained.md)
+- [Searching semantically](searching-semantically.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Serving over MCP](serving-over-mcp.md)

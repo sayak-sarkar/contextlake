@@ -98,3 +98,8 @@ python benchmarks/head-to-head/run.py --all
 
 If your numbers differ from these, the numbers you produced are the ones that count. Both tools
 move; this file records one dated run, not a standing fact.
+
+## See also
+
+- [The harness, and what it measures](README.md)
+- [What contextlake saves](../../docs/benchmarks.md)

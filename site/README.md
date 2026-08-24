@@ -28,3 +28,8 @@ python3 site/build_docs.py   # build into site/ (HTML + synced assets)
 ```
 
 Regenerate diagrams/icons when the brand changes: `python3 site/tools/gen_*.py`.
+
+## See also
+
+- [Documentation style guide](../docs/style-guide.md)
+- [Releasing and publishing](../docs/releasing.md)

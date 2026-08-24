@@ -1,8 +1,11 @@
-# Security Policy
+# Security policy
+
+How to report a vulnerability in contextlake, what is in scope, which versions are
+supported, and the advisories published so far.
 
 ## Reporting a vulnerability
 
-Please report security issues **privately** -- do not open a public issue.
+Report security issues **privately**. Do not open a public issue.
 
 Email **sayak.bugsmith@gmail.com** with:
 
@@ -123,7 +126,7 @@ instructions.
 ## Supported versions
 
 This is a young project; security fixes land on `main` and ship in the next
-release. Please run a recent version before reporting.
+release. Run a recent version before reporting.
 
 ## Published advisories
 
@@ -163,3 +166,9 @@ installs, not by reading the advisory. The suppression is gone from `security.ym
 
 Users on earlier versions who never installed `[llm-local]` were never exposed: the package
 was only ever reached through that extra.
+
+## See also
+
+- [Configuration](docs/configuration.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)

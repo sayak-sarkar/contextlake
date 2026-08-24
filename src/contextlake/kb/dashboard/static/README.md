@@ -26,3 +26,8 @@ untrusted input.
 
 To update: download the pinned version from jsdelivr, replace the file, bump
 the version here and in `dashboard.js`'s comments referencing it.
+
+## See also
+
+- [Using the dashboard](../../../../docs/using-the-dashboard.md)
+- [The graph view's static assets](../../static/README.md)

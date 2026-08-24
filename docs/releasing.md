@@ -12,7 +12,7 @@ Install the release tooling and make sure you can publish:
 pip install -e ".[release]"        # build + twine
 ```
 
-**A PyPI account + token (first time):**
+### A PyPI account and token, the first time
 
 1. Create an account at <https://pypi.org/account/register/> and verify your email.
 2. Enable two-factor auth (PyPI **requires** it to upload).
@@ -321,3 +321,9 @@ root from your OS store instead.
 
 **`File already exists`** on upload. PyPI is immutable: a version can never be
 re-uploaded, even after deletion. Bump to a new `PATCH` version and release again.
+
+## See also
+
+- [Contributing](../CONTRIBUTING.md)
+- [Security policy](../SECURITY.md)
+- [Changelog](../CHANGELOG.md)

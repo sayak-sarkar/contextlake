@@ -70,3 +70,9 @@ below the mirror is optional and stays off by default.
 
 Have an idea or a use case? Open an issue: the design goal is a generic, product-grade
 tool, so concrete needs shape what lands next.
+
+## See also
+
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [contextlake, explained](docs/explained.md)

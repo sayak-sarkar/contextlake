@@ -1,7 +1,7 @@
 # Troubleshooting
 
 Problems that have actually been hit while installing or running contextlake, each with the
-fix and the reason behind it. If you hit something that is not here, please
+fix and the reason behind it. If you hit something that is not here,
 [open an issue](https://github.com/sayak-sarkar/contextlake/issues): a reproducible failure
 is worth more to this page than a guess.
 

@@ -101,7 +101,7 @@ The harness deletes contextlake's store before each run, and that is load-bearin
 tidiness. `kb index` is incremental and correctly skips a repository whose HEAD and parser version
 have not moved, so a second run against a surviving store timed a no-op: 0.19s where the first run
 of the same tree took 1.38s. Node and edge counts were identical either way, because they are read
-back from the store, which is what made it easy to miss. Only the seconds were wrong, and only on
+back from the store, which is why it went unnoticed. Only the seconds were wrong, and only on
 re-runs.
 
 ## If you get different numbers
@@ -109,3 +109,8 @@ re-runs.
 That is the point of committing the harness. Both tools change; a newer version of either will move
 these figures. Re-run it, and if the result contradicts what this project publishes, the result
 wins.
+
+## See also
+
+- [The measured results](RESULTS.md)
+- [What contextlake saves](../../docs/benchmarks.md)

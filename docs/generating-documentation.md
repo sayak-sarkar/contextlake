@@ -79,3 +79,10 @@ contextlake kb index && contextlake kb docs
 ```
 
 See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
+
+## See also
+
+- [What the generator produces](generated-docs-reference.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [The code graph model](code-graph-model.md)
+- [Command reference](cli-reference.md)
