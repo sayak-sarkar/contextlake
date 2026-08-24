@@ -4244,15 +4244,23 @@ The wiki's quality is bounded by the model behind it. The graph facts fed in are
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
 a smaller model mostly means *more rejections* and blander accepted pages).
 
-The constraint that decides this for most people is **hardware, not model quality**. Generating one wiki
-page is not one model call: it is the page, plus one review from each council lens. A rejected page is
-reported and skipped, not rewritten, so a rejection costs you the page rather than another round of calls.
-So the question is not whether a 1.5B-3B model writes better prose than the built-in
-0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
-the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
-`timeout` below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
-generic prose the council often rejects. The same 1.5B-3B models answer in seconds once Ollama has a
-**GPU** (including Ollama on a Windows host with a discrete GPU, reached from WSL). So:
+For most people the deciding factor is **hardware, not model quality**.
+
+Generating one wiki page is not one model call. It is the page, plus one review from each
+council lens. A rejected page is reported and skipped, not rewritten, so a rejection costs you
+the page rather than another round of calls.
+
+So the real question is not whether a 1.5B to 3B model writes better prose than the built-in
+0.5B. It does. The question is whether your machine can finish that many calls.
+
+- **On a CPU with no GPU**, a single call from a 1.5B to 3B model usually takes minutes. The run
+  hits the default 300-second `timeout` below before a page is finished.
+- **The built-in 0.5B stays under that timeout.** It pays for that with thin, generic prose the
+  council often rejects.
+- **With a GPU, the same 1.5B to 3B models answer in seconds.** That includes Ollama on a
+  Windows host with a discrete GPU, reached from WSL.
+
+So:
 
 - **CPU-only, offline, quick:** the **built-in 0.5B**, fast to set up, basic prose. Or a **hosted API** if
   quality matters and you accept per-token cost.
@@ -4842,12 +4850,16 @@ contextlake kb blast-radius charge --json          # the same command
 | `--limit N` | Most affected nodes to list | `100` |
 | `--json` | A JSON object on stdout | off |
 
-`impact` walks the graph **backwards**: it follows edges *into* the node you named, so it answers
-"what depends on this", not "what does this depend on". Six relations are traversed,
-`calls`, `depends_on`, `inherits`, `references`, `reads`, `writes` and `uses`
-(`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
-CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
-`transitions_to` is deliberately outside the default set, see
+`impact` walks the graph **backwards**. It follows edges *into* the node you named, so it answers
+"what depends on this", not "what does this depend on".
+
+**Seven relations** are traversed by default: `calls`, `depends_on`, `inherits`, `references`,
+`reads`, `writes` and `uses`. See `DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`.
+
+There is no CLI flag to change that set. The MCP `blast_radius` tool takes a `relations` argument
+if you need a different walk.
+
+`transitions_to` is deliberately left out of the default set. See
 [Entity state machines](code-graph-model.md#entity-state-machines).
 
 Each affected node is reported once, at the first hop that reached it, with the relation it came
