@@ -1,6 +1,16 @@
 # Document sources and RAG
 
-## Aggregating documents (RAG)
+Not everything worth retrieving lives in code. This page is the reference for
+`contextlake kb ingest` and the `[[sources]]` block: which source types are built in, what each
+one extracts, what it refuses to guess at, and every key you can set.
+
+| Source type | Ships with | Reads |
+| --- | --- | --- |
+| `files` | core, no extra install | a folder of files on disk |
+| `mcp` | core | resources, and optionally a search tool, on an MCP server |
+| anything heavier | a plugin package | whatever the plugin's `iter_documents()` yields |
+
+## Aggregating documents
 
 Not everything lives in code. `contextlake kb ingest` pulls **external documents** into the same knowledge
 layer, they become `kind="document"` graph nodes and, when embeddings are on, their bodies are embedded so
@@ -13,7 +23,7 @@ contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to t
 
 `--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
 by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
-hop instead of a search. Without it, documents are still stored and embedded, they just link to nothing.
+hop instead of a search. Without it, documents are still stored and embedded, but they link to nothing.
 The per-source equivalent is `for_repo = "group/app"` on a `[[sources]]` entry.
 
 Sources follow a tiny seam, so common ones are **built-in and config-only** while anything heavier is a
@@ -54,7 +64,7 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
   a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
 ```
 
-Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+Three other outcomes are equally loud, because a skipped PDF and a directory with no PDFs must
 never look the same: the extra not being installed (one line per run, naming the count and the
 install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
 file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
@@ -140,7 +150,7 @@ document carries `pages` (how many the file has), `pages_read` and `page_offsets
 offset in the document's text where each page starts) in the `attrs` that land on its graph node.
 The document's `uri` stays the plain file path, so it is still a citable path on disk.
 
-**Writing a plugin** is just a class with `iter_documents()` and one entry point, no fork, no core
+**Writing a plugin** is one class with `iter_documents()` and one entry point, no fork, no core
 dependency:
 
 ```toml
@@ -212,7 +222,7 @@ args = ["some-mcp-server"]
 So contextlake both *serves* a knowledge graph over MCP and *consumes* other MCP servers' resources into
 it: the loop closes on the same seam.
 
-An `mcp` source may also declare a search *tool* (not just read its resources) and template
+An `mcp` source may also declare a search *tool* rather than only reading its resources, and template
 codebase-derived terms into the tool's arguments. This is what powers query-driven enrichment in the
 `enrich` stage (above). Declare the tool name and an argument template with substitution placeholders:
 
@@ -239,3 +249,10 @@ source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_t
 name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
+
+## See also
+
+- [Connecting and enriching](connecting-and-enriching.md)
+- [Searching semantically](searching-semantically.md)
+- [Embeddings and models](embedding-reference.md)
+- [Configuration](configuration.md)

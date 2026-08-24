@@ -1,5 +1,15 @@
 # What the generator produces
 
+Section by section, what lands in each of the three documents `contextlake kb docs` writes,
+and the rule each one follows about what it will not claim. Read this to know whether a page
+you are looking at is stating a fact, quoting evidence, or telling you it cannot say.
+
+| Document | Where it lands | What it answers |
+| --- | --- | --- |
+| Reference | one per repository | What is defined here, and who calls it? |
+| Design notes | one per repository | What did this repository commit to, and what is not recoverable? |
+| Fleet page | one per store | Where does the fleet disagree with itself? |
+
 ## What a reference contains
 
 Every entry names the symbol, its kind, the line it is defined on, and its call sites:
@@ -174,3 +184,10 @@ It is written only when a run covers the whole store. `kb docs <repo>` skips it 
 of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
 scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
 disagreeing is a lesser finding that would bury the one that matters.
+
+## See also
+
+- [Generating documentation](generating-documentation.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [The code graph model](code-graph-model.md)
+- [Command reference](cli-reference.md)

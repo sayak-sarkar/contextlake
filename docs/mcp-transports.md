@@ -1,5 +1,15 @@
 # MCP transports and limits
 
+The three transports `contextlake kb serve` speaks, how each one is authenticated, how many
+tool calls it will run at once, and the provenance every cited node carries. Read this before
+exposing the server on a socket, or when a client cannot reach an endpoint it can see.
+
+| Transport | Endpoint | Authenticated | Use it when |
+| --- | --- | --- | --- |
+| `stdio` (default) | none, a pipe | not needed | Your editor spawns the server itself. |
+| `http` | `http://127.0.0.1:8765/mcp` | bearer token | Any new remote or network wiring. |
+| `sse` | `http://127.0.0.1:8765/sse` | bearer token | Only a client that requires it. |
+
 ## Transports
 
 `contextlake kb serve --transport <stdio|http|sse>` (default `stdio`):
@@ -49,7 +59,7 @@ for *after* the shutdown has already finished.
 The graph answers with real file paths, symbol names, docstrings and owner identities, so the
 socket transports do not serve it to anyone who connects.
 
-**A bearer token, printed once to stderr at startup:**
+#### A bearer token, printed once to stderr at startup
 
 ```
 $ contextlake kb serve --transport http
@@ -120,7 +130,7 @@ CONTEXTLAKE_MCP_TOOL_CONCURRENCY=4 contextlake kb serve
 
 **The default is `2`, and raising it makes the server slower.** That is the opposite of what a
 concurrency knob usually does, so it is worth writing down why. The bound applies to every
-transport, not just the network ones.
+transport, not only the network ones.
 
 The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` with no limiter,
 so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
@@ -139,7 +149,7 @@ concurrent tool bodies and that stdio still answers at a limit of one.
 
 **The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
-store round-trips as well, just fewer of them, so in an unbounded burst they sit in exactly the
+store round-trips as well, fewer of them but the same kind, so in an unbounded burst they sit in the
 same contention as the traversals do. Bounding the pool takes that away from them rather than
 making them queue for a slot.
 
@@ -198,3 +208,10 @@ the dashboard reads the graph directly and does not install a probe.
 back a `file` and a `line` with nothing said about whether they still hold. `contextlake kb steer`
 writes the same three-value explanation into the generated agent skills, so an agent that reads
 only its steering files still knows what a `stale` result means.
+
+## See also
+
+- [Serving over MCP](serving-over-mcp.md)
+- [Asking the graph](asking-the-graph.md)
+- [Console output](console-output.md)
+- [Troubleshooting](troubleshooting.md)

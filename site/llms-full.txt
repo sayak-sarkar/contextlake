@@ -2137,6 +2137,16 @@ Source: https://sayak.in/contextlake/code-graph-model
 
 # The code graph model
 
+Every node kind and edge kind `contextlake kb index` emits, and what each one is derived from.
+This is the vocabulary the graph is queried in, so read it when a query returns nothing and you
+need to know whether the thing you asked about is modelled at all.
+
+After the general code model and its language table, eleven sections cover the sources the
+indexer reads beyond ordinary program text: Terraform, SQL DDL, XML Schema, XSLT, embedded SQL,
+decision records, entity state machines, intra-repo dataflow, constants, web topology and
+manifests. Each names what it extracts and, where the extraction is inferred rather than
+declared, says so.
+
 ## What the graph captures
 
 Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
@@ -2207,13 +2217,13 @@ commands that prove a new grammar works.
 #### C++ completeness
 
 A method defined outside its class (`ReturnType Class::method(...) { ... }`, at any `::` qualification
-depth) resolves to a `method` contained by its class, repo-wide -- not just the file it's declared in --
+depth) resolves to a `method` contained by its class, repo-wide, and not only the file it is declared in,
 so an out-of-line definition in one file still shows up under its class even when the class itself is
 declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
 class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
 matching `.cpp` is visible as one unit rather than the class half going missing. This parsing choice is
 kept transparent to `languages` filtering: `.h` files are indexed whenever either `"c"` or `"cpp"` is
-enabled, since C and C++ headers are shared infrastructure -- restricting `kb.toml`'s `languages` to just
+enabled, since C and C++ headers are shared infrastructure -- restricting `kb.toml`'s `languages` to
 `["c"]` still indexes `.h` files, no need to list both. An `#ifdef`/`#else` (or `#ifndef`/`#else`)
 pair -- two definitions of the same method in different branches of the *same* conditional -- collapses
 into one node instead of appearing as duplicate, ambiguous call targets. A bare `#ifndef` header guard with
@@ -2245,7 +2255,7 @@ It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AS
 high-value defs and FK references and is a **deliberate undercount**. Render it with
 `contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
 
-**Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
+**Measured, not asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
 emitted `references` edges against it on every CI run, and asserts this page still quotes what it
@@ -2452,7 +2462,7 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serving-over-mcp.md).
 
-Each `depends_on` edge records what the manifest actually says, not just the package name:
+Each `depends_on` edge records what the manifest actually says, not only the package name:
 
 | On the edge | What it holds |
 | --- | --- |
@@ -2473,6 +2483,13 @@ getting a silent best-guess.
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
+
+## See also
+
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Asking the graph](asking-the-graph.md)
+- [Adding a language](adding-a-language.md)
+- [Architecture and internals](internals.md)
 
 ---
 
@@ -2670,7 +2687,17 @@ Source: https://sayak.in/contextlake/document-sources
 
 # Document sources and RAG
 
-## Aggregating documents (RAG)
+Not everything worth retrieving lives in code. This page is the reference for
+`contextlake kb ingest` and the `[[sources]]` block: which source types are built in, what each
+one extracts, what it refuses to guess at, and every key you can set.
+
+| Source type | Ships with | Reads |
+| --- | --- | --- |
+| `files` | core, no extra install | a folder of files on disk |
+| `mcp` | core | resources, and optionally a search tool, on an MCP server |
+| anything heavier | a plugin package | whatever the plugin's `iter_documents()` yields |
+
+## Aggregating documents
 
 Not everything lives in code. `contextlake kb ingest` pulls **external documents** into the same knowledge
 layer, they become `kind="document"` graph nodes and, when embeddings are on, their bodies are embedded so
@@ -2683,7 +2710,7 @@ contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to t
 
 `--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
 by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
-hop instead of a search. Without it, documents are still stored and embedded, they just link to nothing.
+hop instead of a search. Without it, documents are still stored and embedded, but they link to nothing.
 The per-source equivalent is `for_repo = "group/app"` on a `[[sources]]` entry.
 
 Sources follow a tiny seam, so common ones are **built-in and config-only** while anything heavier is a
@@ -2724,7 +2751,7 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
   a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
 ```
 
-Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+Three other outcomes are equally loud, because a skipped PDF and a directory with no PDFs must
 never look the same: the extra not being installed (one line per run, naming the count and the
 install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
 file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
@@ -2810,7 +2837,7 @@ document carries `pages` (how many the file has), `pages_read` and `page_offsets
 offset in the document's text where each page starts) in the `attrs` that land on its graph node.
 The document's `uri` stays the plain file path, so it is still a citable path on disk.
 
-**Writing a plugin** is just a class with `iter_documents()` and one entry point, no fork, no core
+**Writing a plugin** is one class with `iter_documents()` and one entry point, no fork, no core
 dependency:
 
 ```toml
@@ -2882,7 +2909,7 @@ args = ["some-mcp-server"]
 So contextlake both *serves* a knowledge graph over MCP and *consumes* other MCP servers' resources into
 it: the loop closes on the same seam.
 
-An `mcp` source may also declare a search *tool* (not just read its resources) and template
+An `mcp` source may also declare a search *tool* rather than only reading its resources, and template
 codebase-derived terms into the tool's arguments. This is what powers query-driven enrichment in the
 `enrich` stage (above). Declare the tool name and an argument template with substitution placeholders:
 
@@ -2909,6 +2936,13 @@ source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_t
 name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
+
+## See also
+
+- [Connecting and enriching](connecting-and-enriching.md)
+- [Searching semantically](searching-semantically.md)
+- [Embeddings and models](embedding-reference.md)
+- [Configuration](configuration.md)
 
 ---
 
@@ -2965,6 +2999,47 @@ The vector store uses an exact pure-Python cosine scan by default; install the o
 - **`batch_size`** (default `64`) sets how many nodes are embedded per batch.
 
 What gets embedded and which model to pick are in [Embeddings and models](embedding-reference.md).
+
+## What a query returns
+
+A single query returns cited hits (`repo · file:line · kind · name`) that span repositories
+*and* languages, here the C# and Python payment paths together. `--retriever fts|semantic|hybrid`
+picks keyword, vector, or graph-propagation ranking.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
+</p>
+
+## When a query finds nothing
+
+A vector index has no concept of "no match". It returns its k nearest however far away they are,
+and every one of them is a real node with a real file and line, so an answer about nothing you
+asked reads as cited and checkable.
+
+`--retriever semantic|hybrid` therefore refuses a query when **not one** of its content terms
+appears anywhere in the index, and names the terms it could not find:
+
+```
+No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionValidator'.
+  No results are shown rather than the nearest k, which would all be real nodes and none of
+  them about this query. Index the repo that should answer it, or retry with a term the graph knows.
+```
+
+One indexed term anywhere in the query is enough to let the hits through, so ordinary
+multi-word questions are unaffected. The exit code stays 0: "nothing in here is about that" is a
+valid answer. The `semantic_search` and `hybrid_search` MCP tools apply the same rule over the
+same store, and return an empty list rather than prose.
+
+### The common case on a new workspace
+
+`[embeddings]` is **on** by default, but no vector exists until `contextlake kb embed` runs. A
+vector search over an empty index returns the same empty list a populated index returns when it
+finds nothing.
+
+So the query says which of the two it hit, names `kb embed` as the remedy, and shows the keyword
+results rather than reporting no matches. The MCP tools return the same explanation in the
+result's `note`. With `[embeddings]` off, the query degrades to keyword search, which has its own
+notion of "no match" and needs no floor.
 
 ## Measuring retrieval quality
 
@@ -3047,126 +3122,148 @@ Source: https://sayak.in/contextlake/embedding-reference
 
 # Embeddings and models
 
+Which nodes get a vector, how a long document is split into several, and which embedding
+model to run. Read this when a natural-language query misses something you expected it to
+find, or before you change the model on a store that already has vectors.
+
 ## What gets embedded
 
-The code **definitions** (classes, functions, methods, interfaces, structs, enums) and HTTP endpoints,
-each with its name, qualified name, file path, and captured **signature and docstring**, so a
-natural-language query like *"refund a payment to the original card"* finds the right function even when
-its name says nothing of the sort. A name alone is thin signal for a natural-language query; the signature
-and the docstring are where the words the query actually uses tend to live. File, module, and package nodes are
-deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
-results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.
+**19 embeddable kinds**, drawn from five different parts of the graph. Everything else in the
+graph is indexed and queryable by name, but has no vector.
 
-**Data members, macros, typedefs, enum constants and file-scope variables are embedded too.** They are
-the majority of the symbols in a C or C++ tree and, before they had vectors, no semantic or hybrid query
-could return one of them at all. They are also thinner signal than a function: a data member usually
-carries a name and a type and nothing else. Measured on a large legacy tree, adding them costs the kinds
-that were already embedded about five percentage points of recall@10 in exchange for tens of thousands of
-symbols going from unreachable to findable. If your tree is C++-heavy and you would rather have the
-sharper ranking than the reach, `kb query --kind` narrows any single query, and the trade-off is recorded
-per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
+| Where it comes from | Kinds |
+| --- | --- |
+| Code symbols | `class`, `function`, `method`, `interface`, `struct`, `enum`, `field`, `macro`, `typedef`, `enum_constant`, `global_variable` |
+| Web and API surface | `endpoint`, `route` |
+| Data contracts | `table`, `view`, `schema_element`, `schema_type` |
+| Infrastructure | `resource` |
+| Decisions | `adr` |
 
-**Five more kinds are embedded, from outside the code itself**: frontend `route` nodes, SQL `table` and
-`view` definitions, Terraform `resource` nodes, and `adr` architecture decision records. That makes 17
-embeddable kinds in all, which is why
-[Index the code graph](indexing-the-code-graph.md) can promise that a route, a table or a decision record is
-semantically searchable, and it is worth knowing before you write off a natural-language query about
-your schema or your infrastructure as out of scope.
+Each one is embedded with its name, qualified name, file path, and captured **signature and
+docstring**. The extra text is the point: a name alone is thin signal, and a query like
+*"refund a payment to the original card"* tends to share its words with the signature and the
+docstring rather than with the identifier.
 
-`kb embed --limit N` caps how many nodes are embedded per repository in one pass: the first `N`
-embeddable nodes of each repo's shard, in shard order. Read it as a **sampling** knob, not a resumable
-one. It takes the same first `N` every time, it replaces that repo's vectors rather than adding to
-them, and a limited pass deliberately never stamps the repo as fully embedded, so nothing is skipped as
-up to date afterwards and a later plain `kb embed` does the whole repository. Use it to try the
-pipeline on a large fleet before committing to a full run, not to embed a repo in instalments.
+The set is wider than code on purpose. A route, a table and an architecture decision record
+are all semantically searchable, which is worth knowing before you write off a
+natural-language question about your schema or your infrastructure as out of scope.
 
-### Ingested documents are chunked
+### The C and C++ trade-off, measured
 
-An **ingested document** (`kb ingest`) is embedded as several overlapping vectors rather than one
-vector over the whole page: about 1200 characters each, with 200 characters of overlap, split on
-paragraph boundaries so a sentence is never cut in half. A document is still one node, and
-`kb query` still returns nodes, so the chunking is invisible from the outside: the vector store
-keys each chunk separately and keeps a document's best-scoring chunk when it ranks results.
+Data members, macros, typedefs, enum constants and file-scope variables are the majority of
+the symbols in a C or C++ tree. Before they had vectors, no semantic or hybrid query could
+return one of them at all.
 
-The reason is dilution. A 14 KB page embedded as one vector is an average of everything the page
-discusses, and a question about one paragraph of it matches that average poorly. Measured on
-contextlake's own 29 documents (424 KB, mean 14.6 KB) with 53 queries selected by their position in
-the document:
+They are also thinner signal than a function: a data member usually carries a name and a type
+and nothing else. Measured on a large legacy tree, adding them costs the kinds that were
+already embedded about **five percentage points of recall@10**, in exchange for tens of
+thousands of symbols going from unreachable to findable.
 
-| | one vector per document | chunked | delta |
+If your tree is C++-heavy and you would rather have the sharper ranking than the reach,
+`kb query --kind` narrows any single query. The trade-off is recorded per kind in
+`src/contextlake/kb/kinds.py`, so it can be revisited with the numbers in view.
+
+### What is deliberately not embedded
+
+File, module and package nodes. A path or a shared package name is low semantic signal, and
+skipping them keeps results clean. It also avoids re-embedding a cross-repo shared node once
+per referencing repository.
+
+## Sampling a large fleet
+
+`kb embed --limit N` caps how many nodes are embedded per repository in one pass: the first
+`N` embeddable nodes of each repo's shard, in shard order.
+
+Read it as a **sampling** knob, not a resumable one.
+
+| Behaviour | What it means for you |
+| --- | --- |
+| Takes the same first `N` every time | A second `--limit` pass adds nothing new. |
+| Replaces that repo's vectors rather than adding to them | The store never accumulates across passes. |
+| Never stamps the repo as fully embedded | A later plain `kb embed` still does the whole repository. |
+
+Use it to try the pipeline on a large fleet before committing to a full run, not to embed a
+repository in instalments.
+
+## How ingested documents are chunked
+
+An **ingested document** (`kb ingest`) is embedded as several overlapping vectors rather than
+one vector over the whole page: **1200 characters** each with **200 characters of overlap**,
+split on paragraph boundaries so a sentence is never cut in half.
+
+A document is still one node and `kb query` still returns nodes, so chunking is invisible from
+the outside. The vector store keys each chunk separately and keeps a document's best-scoring
+chunk when it ranks results.
+
+The reason is dilution. A 14 KB page embedded as one vector is an average of everything the
+page discusses, and a question about one paragraph of it matches that average poorly.
+
+### What the measurement shows
+
+Measured on contextlake's own 29 documents (424 KB, mean 14.6 KB) with 53 queries selected by
+their position in the document.
+
+| | One vector per document | Chunked | Delta |
 | --- | ---: | ---: | ---: |
-| hit rate | 71.7% | 94.3% | +22.6pp |
+| Hit rate | 71.7% | 94.3% | +22.6pp |
 | MRR | 45.2% | 80.4% | +35.2pp |
-| tokens per query | 276 | 291 | +15 |
+| Tokens per query | 276 | 291 | +15 |
 
-13 queries were fixed and 1 regressed. The queries were stratified by depth before indexing, and
-the unchunked arm is already worse at depth (62.5% against 79.3% at the surface), which is the
-dilution the change is aimed at, visible before any chunking. Chunking also helps depth more
-(+29.2pp) than the surface (+17.2pp).
+13 queries were fixed and 1 regressed. The queries were stratified by depth before indexing,
+and the unchunked arm is already worse at depth (62.5% against 79.3% at the surface). That is
+the dilution the change is aimed at, visible before any chunking was applied. Chunking also
+helps depth more (+29.2pp) than the surface (+17.2pp).
 
-**What the measurement does not establish.** One embedder (`model2vec`, which averages; a
-transformer would truncate instead, plausibly worse for a long document, and that was not
-measured), one single-topic corpus, and verbatim-sentence queries, so the absolute numbers are
-optimistic and only the delta is sound. The chunk size itself was never tuned. `split_document` in
-`kb/embeddings/chunk.py` takes `max_chars` and `overlap`, so changing them is easy; changing them
-makes the numbers above describe a configuration that is no longer the one running.
+### What the measurement does not establish
 
-**Upgrading.** Document vectors are only rewritten by `kb ingest`, so an existing store keeps its
-old whole-document vectors until you re-run it. `kb ingest` clears the ingest partition's vectors
-before it writes, so a re-run replaces them cleanly and no stale chunk survives a document that
-shrank.
+One embedder (`model2vec`, which averages; a transformer would truncate instead, plausibly
+worse for a long document, and that was not measured), one single-topic corpus, and
+verbatim-sentence queries. The absolute numbers are optimistic and only the delta is sound.
 
-## Which model?
+The chunk size itself was never tuned. `split_document` in
+`src/contextlake/kb/embeddings/chunk.py` takes `max_chars` and `overlap`, so changing them is
+one argument. Changing them also makes the numbers above describe a configuration that is no
+longer the one running.
 
-The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a
-table instead of running a transformer forward pass, which is why it is small enough to ship as a CPU
-default and fast enough that query latency is not the thing you notice. `minishlab/potion-base-32M` is
-the larger sibling of the same family, one config line away: `model = "minishlab/potion-base-32M"` under
-`[embeddings]` (on a fresh vector store, the identity guard refuses to mix models). The `kb-fastembed`
-extra plus `engine = "fastembed"` swaps the static model for an ONNX transformer (`bge-small`) instead.
+### Upgrading an existing store
 
-Which one is better **on your code** is a question with a local answer, and
-[`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a golden set from queries your team
-actually types, embed with one model, score, re-embed with the other, score again. No published ranking
-of these models against somebody else's corpus is worth as much as that run.
+Document vectors are only rewritten by `kb ingest`, so an existing store keeps its old
+whole-document vectors until you re-run it. `kb ingest` clears the ingest partition's vectors
+before it writes, so a re-run replaces them cleanly and no stale chunk survives a document
+that shrank.
 
-Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD moved since they were
-last embedded, so a scheduled refresh over a large fleet stays cheap. Pass `--force` to re-embed
-everything. When an upgrade changes the embedded text format itself, `embed` detects the stale store and
-re-embeds everything once, announcing why, then incremental behavior resumes.
+## Choosing a model
 
-A single query returns cited hits (`repo · file:line · kind · name`) that span repos *and* languages, here
-the C# and Python payment paths together. `--retriever fts|semantic|hybrid` picks keyword, vector, or
-graph-propagation ranking:
+| Model | How to select it | What it is |
+| --- | --- | --- |
+| `minishlab/potion-base-8M` | the default | A **static** model: it looks each token up in a table instead of running a transformer forward pass. Small enough to ship as a CPU default, fast enough that query latency is not the thing you notice. |
+| `minishlab/potion-base-32M` | `model = "minishlab/potion-base-32M"` under `[embeddings]` | The larger sibling of the same family. |
+| `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. |
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
-</p>
+On a store that already holds vectors the identity guard refuses to mix models, so switch on
+a fresh vector store.
 
-### When the query has no anchor
+Which one is better **on your code** has a local answer, and
+[`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a
+golden set from queries your team actually types, embed with one model, score, re-embed with
+the other, score again. No published ranking against somebody else's corpus is worth as much
+as that run.
 
-A vector index has no concept of "no match": it returns its k nearest however far away they are, and every
-one of them is a real node with a real file and line, so an answer about nothing you asked reads as cited
-and checkable. `--retriever semantic|hybrid` therefore refuses a query when **not one** of its content
-terms appears anywhere in the index, and names the terms it could not find:
+## Re-embedding
 
-```
-No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionValidator'.
-  No results are shown rather than the nearest k, which would all be real nodes and none of
-  them about this query. Index the repo that should answer it, or retry with a term the graph knows.
-```
+`embed` is **incremental**, like `index`. It re-embeds only repositories whose indexed HEAD
+moved since they were last embedded, so a scheduled refresh over a large fleet stays cheap.
 
-One indexed term anywhere in the query is enough to let the hits through, so ordinary multi-word questions
-are unaffected. The exit code stays 0: "nothing in here is about that" is a valid answer. The
-`semantic_search` and `hybrid_search` MCP tools apply the same rule over the same store, and return an
-empty list rather than prose. With `[embeddings]` off the query degrades to keyword search instead, which
-has its own notion of "no match" and needs no floor.
+- `--force` re-embeds everything.
+- When an upgrade changes the embedded text format itself, `embed` detects the stale store,
+  re-embeds everything once and announces why, then incremental behaviour resumes.
 
-It degrades for a second reason too, and this one is the common one on a new workspace: `[embeddings]` is
-**on** by default, but no vector exists until `contextlake kb embed` runs. A vector search over an empty
-index returns the same empty list a populated index returns when it finds nothing, so the query says which
-of the two it hit, names `kb embed` as the remedy, and shows the keyword results rather than reporting no
-matches. The MCP tools return the same explanation in the result's `note`.
+## See also
+
+- [Searching semantically](searching-semantically.md)
+- [Model providers](model-providers.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [The code graph model](code-graph-model.md)
 
 ---
 
@@ -3569,6 +3666,16 @@ Source: https://sayak.in/contextlake/generated-docs-reference
 
 # What the generator produces
 
+Section by section, what lands in each of the three documents `contextlake kb docs` writes,
+and the rule each one follows about what it will not claim. Read this to know whether a page
+you are looking at is stating a fact, quoting evidence, or telling you it cannot say.
+
+| Document | Where it lands | What it answers |
+| --- | --- | --- |
+| Reference | one per repository | What is defined here, and who calls it? |
+| Design notes | one per repository | What did this repository commit to, and what is not recoverable? |
+| Fleet page | one per store | Where does the fleet disagree with itself? |
+
 ## What a reference contains
 
 Every entry names the symbol, its kind, the line it is defined on, and its call sites:
@@ -3743,6 +3850,13 @@ It is written only when a run covers the whole store. `kb docs <repo>` skips it 
 of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
 scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
 disagreeing is a lesser finding that would bury the one that matters.
+
+## See also
+
+- [Generating documentation](generating-documentation.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [The code graph model](code-graph-model.md)
+- [Command reference](cli-reference.md)
 
 ---
 
@@ -5311,6 +5425,16 @@ Source: https://sayak.in/contextlake/mcp-transports
 
 # MCP transports and limits
 
+The three transports `contextlake kb serve` speaks, how each one is authenticated, how many
+tool calls it will run at once, and the provenance every cited node carries. Read this before
+exposing the server on a socket, or when a client cannot reach an endpoint it can see.
+
+| Transport | Endpoint | Authenticated | Use it when |
+| --- | --- | --- | --- |
+| `stdio` (default) | none, a pipe | not needed | Your editor spawns the server itself. |
+| `http` | `http://127.0.0.1:8765/mcp` | bearer token | Any new remote or network wiring. |
+| `sse` | `http://127.0.0.1:8765/sse` | bearer token | Only a client that requires it. |
+
 ## Transports
 
 `contextlake kb serve --transport <stdio|http|sse>` (default `stdio`):
@@ -5360,7 +5484,7 @@ for *after* the shutdown has already finished.
 The graph answers with real file paths, symbol names, docstrings and owner identities, so the
 socket transports do not serve it to anyone who connects.
 
-**A bearer token, printed once to stderr at startup:**
+#### A bearer token, printed once to stderr at startup
 
 ```
 $ contextlake kb serve --transport http
@@ -5431,7 +5555,7 @@ CONTEXTLAKE_MCP_TOOL_CONCURRENCY=4 contextlake kb serve
 
 **The default is `2`, and raising it makes the server slower.** That is the opposite of what a
 concurrency knob usually does, so it is worth writing down why. The bound applies to every
-transport, not just the network ones.
+transport, not only the network ones.
 
 The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` with no limiter,
 so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
@@ -5450,7 +5574,7 @@ concurrent tool bodies and that stdio still answers at a limit of one.
 
 **The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
-store round-trips as well, just fewer of them, so in an unbounded burst they sit in exactly the
+store round-trips as well, fewer of them but the same kind, so in an unbounded burst they sit in the
 same contention as the traversals do. Bounding the pool takes that away from them rather than
 making them queue for a slot.
 
@@ -5509,6 +5633,13 @@ the dashboard reads the graph directly and does not install a probe.
 back a `file` and a `line` with nothing said about whether they still hold. `contextlake kb steer`
 writes the same three-value explanation into the generated agent skills, so an agent that reads
 only its steering files still knows what a `stale` result means.
+
+## See also
+
+- [Serving over MCP](serving-over-mcp.md)
+- [Asking the graph](asking-the-graph.md)
+- [Console output](console-output.md)
+- [Troubleshooting](troubleshooting.md)
 
 ---
 

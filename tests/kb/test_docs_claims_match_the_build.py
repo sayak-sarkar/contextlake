@@ -175,6 +175,31 @@ def test_the_stated_grammar_count_matches_the_distinct_modules():
         "is now wrong as well as the number")
 
 
+def _embeddable_kind_count() -> int:
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+    return len(EMBEDDABLE_KINDS)
+
+
+def test_the_stated_embeddable_kind_count_matches_the_set():
+    """A THIRD kind-shaped number, independent of the other two.
+
+    Added after `docs/embedding-reference.md` was found claiming 17 against a set of 19:
+    `schema_element` and `schema_type` joined the set and the sentence naming the total was
+    never touched. Neither the node-kind gate nor the language gate could see it, because 19
+    is not 52 and not 27 -- a number can be stale in its own dimension while every other
+    dimension checks out.
+    """
+    embeddable = _embeddable_kind_count()
+    claims = _claims(r"\*?\*?(\d+) embeddable kinds")
+    assert claims, "no page states an embeddable-kind count any more; the pattern has gone blind"
+    assert embeddable < _node_kind_count(), (
+        "embeddable kinds should be a strict subset of all node kinds; the source moved")
+    wrong = sorted({(rel, n) for rel, n in claims if n != embeddable})
+    assert not wrong, (
+        f"stale embeddable-kind counts (file, stated): {wrong}; EMBEDDABLE_KINDS holds "
+        f"{embeddable}")
+
+
 def test_the_stated_node_kind_count_matches_the_registry():
     kinds = _node_kind_count()
     claims = _claims(r"(\d+) node kinds")

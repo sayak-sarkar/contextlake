@@ -1,5 +1,15 @@
 # The code graph model
 
+Every node kind and edge kind `contextlake kb index` emits, and what each one is derived from.
+This is the vocabulary the graph is queried in, so read it when a query returns nothing and you
+need to know whether the thing you asked about is modelled at all.
+
+After the general code model and its language table, eleven sections cover the sources the
+indexer reads beyond ordinary program text: Terraform, SQL DDL, XML Schema, XSLT, embedded SQL,
+decision records, entity state machines, intra-repo dataflow, constants, web topology and
+manifests. Each names what it extracts and, where the extraction is inferred rather than
+declared, says so.
+
 ## What the graph captures
 
 Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
@@ -70,13 +80,13 @@ commands that prove a new grammar works.
 #### C++ completeness
 
 A method defined outside its class (`ReturnType Class::method(...) { ... }`, at any `::` qualification
-depth) resolves to a `method` contained by its class, repo-wide -- not just the file it's declared in --
+depth) resolves to a `method` contained by its class, repo-wide, and not only the file it is declared in,
 so an out-of-line definition in one file still shows up under its class even when the class itself is
 declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
 class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
 matching `.cpp` is visible as one unit rather than the class half going missing. This parsing choice is
 kept transparent to `languages` filtering: `.h` files are indexed whenever either `"c"` or `"cpp"` is
-enabled, since C and C++ headers are shared infrastructure -- restricting `kb.toml`'s `languages` to just
+enabled, since C and C++ headers are shared infrastructure -- restricting `kb.toml`'s `languages` to
 `["c"]` still indexes `.h` files, no need to list both. An `#ifdef`/`#else` (or `#ifndef`/`#else`)
 pair -- two definitions of the same method in different branches of the *same* conditional -- collapses
 into one node instead of appearing as duplicate, ambiguous call targets. A bare `#ifndef` header guard with
@@ -108,7 +118,7 @@ It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AS
 high-value defs and FK references and is a **deliberate undercount**. Render it with
 `contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
 
-**Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
+**Measured, not asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
 emitted `references` edges against it on every CI run, and asserts this page still quotes what it
@@ -315,7 +325,7 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serving-over-mcp.md).
 
-Each `depends_on` edge records what the manifest actually says, not just the package name:
+Each `depends_on` edge records what the manifest actually says, not only the package name:
 
 | On the edge | What it holds |
 | --- | --- |
@@ -336,3 +346,10 @@ getting a silent best-guess.
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
+
+## See also
+
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Asking the graph](asking-the-graph.md)
+- [Adding a language](adding-a-language.md)
+- [Architecture and internals](internals.md)
