@@ -95,7 +95,7 @@ to ingest, and it declines rather than storing an empty document that would look
 search results. Run the file through an OCR tool of your choice first, or ingest the source
 document the PDF was made from. The other two refusals name themselves the same way: a PDF that
 cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](connecting-and-enriching.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+you can raise on the source. See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 

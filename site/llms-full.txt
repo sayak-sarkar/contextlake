@@ -671,7 +671,7 @@ against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
 `tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
 Both documented gap classes, and the false positive that masking comments removed, are written down
-in [Index the code graph](indexing-the-code-graph.md#databases-sql-ddl).
+in [Index the code graph](code-graph-model.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you
@@ -2122,6 +2122,21 @@ either of them:
 - **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 
+The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
+
+## See also
+
+- [Connect and enrich](connecting-and-enriching.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)
+
+---
+
+# The code graph model
+Source: https://sayak.in/contextlake/code-graph-model
+
+# The code graph model
+
 ## What the graph captures
 
 Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
@@ -2204,7 +2219,7 @@ pair -- two definitions of the same method in different branches of the *same* c
 into one node instead of appearing as duplicate, ambiguous call targets. A bare `#ifndef` header guard with
 no `#else` does **not** trigger this: both copies would sit in the same (only) branch, so nothing collapses,
 and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
-[Health and maintenance](#health-and-maintenance) above: `doctor` flags any C/C++ shard indexed before
+[Health and maintenance](indexing-the-code-graph.md#health-and-maintenance) above: `doctor` flags any C/C++ shard indexed before
 these fixes landed, as a signal to re-index.
 
 ### Infrastructure: Terraform / HCL
@@ -2459,12 +2474,6 @@ getting a silent best-guess.
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
-## See also
-
-- [Connect and enrich](connecting-and-enriching.md)
-- [Semantic search](searching-semantically.md)
-- [Serve it to your editor](serving-over-mcp.md)
-
 ---
 
 # Connecting and enriching
@@ -2604,6 +2613,62 @@ that names one of the repo's symbols is also linked straight to it (`documented_
 lands on the graph rather than beside it. After
 `contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
 context" section, grounded to the code graph's terms.
+
+Configuring document sources, including the built-in `files` source, plugin packages and MCP endpoints, is in [Document sources and RAG](document-sources.md).
+
+## When a source stops answering
+
+`connect` and `enrich` are the only stages that leave the machine, and a fleet run asks each source once
+per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its `timeout` on
+every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
+call is let through to see whether it came back. A run against an unreachable MCP server finishes in
+seconds instead of `timeout x repos`.
+
+You will see this in the output, it is never silent, because "the source was down" and "the source had
+nothing" would otherwise look identical:
+
+```
+resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
+  failure(s) (TimeoutError) -- further calls are skipped for 60s
+resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
+  consecutive failure(s) (TimeoutError); results from this source will be incomplete
+```
+
+The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
+since a hosted MCP endpoint can carry a token in its path or query.
+
+Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
+themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
+source if the server is merely slow.
+
+## When one repository is unreadable
+
+A repository that fails outright costs that repository, not the run. `connect` names it, skips it, and
+carries on with the rest:
+
+```
+  api-gateway: 'utf-8' codec can't decode byte 0x96 in position 99486: invalid start byte
+⚠ Connect complete: 143 external link(s) stored
+⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
+  them, or narrow with `contextlake kb connect <repo-id>`.
+```
+
+The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
+workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
+for, so the run should not read as clean.
+
+## See also
+
+- [Index the code graph](indexing-the-code-graph.md)
+- [Semantic search](searching-semantically.md)
+- [Serve it to your editor](serving-over-mcp.md)
+
+---
+
+# Document sources and RAG
+Source: https://sayak.in/contextlake/document-sources
+
+# Document sources and RAG
 
 ## Aggregating documents (RAG)
 
@@ -2845,53 +2910,6 @@ name used for reachability checks (default `conversations_info`); `history_tool`
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
-## When a source stops answering
-
-`connect` and `enrich` are the only stages that leave the machine, and a fleet run asks each source once
-per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its `timeout` on
-every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
-call is let through to see whether it came back. A run against an unreachable MCP server finishes in
-seconds instead of `timeout x repos`.
-
-You will see this in the output, it is never silent, because "the source was down" and "the source had
-nothing" would otherwise look identical:
-
-```
-resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
-  failure(s) (TimeoutError) -- further calls are skipped for 60s
-resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
-  consecutive failure(s) (TimeoutError); results from this source will be incomplete
-```
-
-The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
-since a hosted MCP endpoint can carry a token in its path or query.
-
-Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
-themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
-source if the server is merely slow.
-
-## When one repository is unreadable
-
-A repository that fails outright costs that repository, not the run. `connect` names it, skips it, and
-carries on with the rest:
-
-```
-  api-gateway: 'utf-8' codec can't decode byte 0x96 in position 99486: invalid start byte
-⚠ Connect complete: 143 external link(s) stored
-⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
-  them, or narrow with `contextlake kb connect <repo-id>`.
-```
-
-The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
-workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
-for, so the run should not read as clean.
-
-## See also
-
-- [Index the code graph](indexing-the-code-graph.md)
-- [Semantic search](searching-semantically.md)
-- [Serve it to your editor](serving-over-mcp.md)
-
 ---
 
 # Searching semantically
@@ -2945,6 +2963,89 @@ The vector store uses an exact pure-Python cosine scan by default; install the o
 - **`vector_chunk_size`** (the sqlite-vec `vec0` KNN chunk size, default 1024; clamped to a multiple of 8)
   is applied when the vector store is first created, so re-embed from scratch to change an existing store.
 - **`batch_size`** (default `64`) sets how many nodes are embedded per batch.
+
+What gets embedded and which model to pick are in [Embeddings and models](embedding-reference.md).
+
+## Measuring retrieval quality
+
+`contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
+a query with the node ids it should return:
+
+```json
+{
+  "queries": [
+    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
+    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+  ]
+}
+```
+
+Then `contextlake kb eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a **cost**
+dimension (estimated tokens per query, and precision per 1k tokens), so "route to the cheapest sufficient
+source" becomes a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
+(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
+whether the numbers move.
+
+### Which metric to gate on
+
+If you wire `kb eval` into CI, gate on **MRR**, not on hit-rate alone. Hit-rate asks whether the
+right node came back inside `k`. It cannot see a **ranking** regression, where the answer is still
+returned but sinks beneath noise, and that is the regression a search change is most likely to
+cause.
+
+This project learned it the expensive way. A change that lifted a real definition from 32nd of 153
+to 1st on a live index moved contextlake's own golden-set numbers **not at all**: the gate read
+hit-rate, and the answer had been inside `k` the whole time. On the fixture as it now stands, MRR
+reads 0.80 with the current ordering and 0.77 with the ordering that shipped before it, while
+hit-rate reads 0.80 for both.
+
+Two things make a golden set able to see this at all:
+
+- **Include the noise.** A fixture of clean, uniquely named symbols cannot express the failure. Real
+  repositories have `tests/test_thing.py` full of `test_thing_*` functions, which repeat a symbol's
+  token in the name, the qualified name and the path at once, and that is what outranks a
+  definition under an unweighted search.
+- **Put the floor between measured values.** Measure the broken behaviour and the fixed behaviour,
+  then set the floor between them, so the regression you are guarding against demonstrably fails.
+  A floor picked to sit under today's number only proves today's number.
+
+### Are the citations real?
+
+Those metrics answer one question: did the right node come back? They say nothing about whether the
+`file:line` it carries still points at that symbol, and the citation is what an agent is actually told to
+go and read. A wrong citation is worse than a miss, because it looks like an answer.
+
+`--verify-citations` opens every returned node's file at its recorded line and checks the symbol's name is
+there:
+
+```console
+$ contextlake kb eval --golden queries.json --verify-citations
+Citations: 178/180 verified (98.9%) of 184 distinct nodes
+  4 unverifiable (no local checkout for the repo)
+  name_absent: 2
+    src/billing/refund.py:88  (name_absent)
+```
+
+Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
+(the file shrank under a stale index), `name_absent` (the line exists, the symbol is not on it),
+`no_citation` (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
+this machine is reported as **unverifiable** and kept out of the rate, so a run without the mirror reads as
+"nothing was checked" rather than as a pass.
+
+It is off by default: it does filesystem work proportional to the results and needs the checkout present.
+
+## See also
+
+- [Index the code graph](indexing-the-code-graph.md)
+- [Connect and enrich](connecting-and-enriching.md)
+- [Serve it to your editor](serving-over-mcp.md)
+
+---
+
+# Embeddings and models
+Source: https://sayak.in/contextlake/embedding-reference
+
+# Embeddings and models
 
 ## What gets embedded
 
@@ -3025,7 +3126,7 @@ the larger sibling of the same family, one config line away: `model = "minishlab
 extra plus `engine = "fastembed"` swaps the static model for an ONNX transformer (`bge-small`) instead.
 
 Which one is better **on your code** is a question with a local answer, and
-[`kb eval`](#measuring-retrieval-quality) is how to get it: build a golden set from queries your team
+[`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a golden set from queries your team
 actually types, embed with one model, score, re-embed with the other, score again. No published ranking
 of these models against somebody else's corpus is worth as much as that run.
 
@@ -3066,80 +3167,6 @@ It degrades for a second reason too, and this one is the common one on a new wor
 index returns the same empty list a populated index returns when it finds nothing, so the query says which
 of the two it hit, names `kb embed` as the remedy, and shows the keyword results rather than reporting no
 matches. The MCP tools return the same explanation in the result's `note`.
-
-## Measuring retrieval quality
-
-`contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
-a query with the node ids it should return:
-
-```json
-{
-  "queries": [
-    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
-    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
-  ]
-}
-```
-
-Then `contextlake kb eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a **cost**
-dimension (estimated tokens per query, and precision per 1k tokens), so "route to the cheapest sufficient
-source" becomes a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
-(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
-whether the numbers move.
-
-### Which metric to gate on
-
-If you wire `kb eval` into CI, gate on **MRR**, not on hit-rate alone. Hit-rate asks whether the
-right node came back inside `k`. It cannot see a **ranking** regression, where the answer is still
-returned but sinks beneath noise, and that is the regression a search change is most likely to
-cause.
-
-This project learned it the expensive way. A change that lifted a real definition from 32nd of 153
-to 1st on a live index moved contextlake's own golden-set numbers **not at all**: the gate read
-hit-rate, and the answer had been inside `k` the whole time. On the fixture as it now stands, MRR
-reads 0.80 with the current ordering and 0.77 with the ordering that shipped before it, while
-hit-rate reads 0.80 for both.
-
-Two things make a golden set able to see this at all:
-
-- **Include the noise.** A fixture of clean, uniquely named symbols cannot express the failure. Real
-  repositories have `tests/test_thing.py` full of `test_thing_*` functions, which repeat a symbol's
-  token in the name, the qualified name and the path at once, and that is what outranks a
-  definition under an unweighted search.
-- **Put the floor between measured values.** Measure the broken behaviour and the fixed behaviour,
-  then set the floor between them, so the regression you are guarding against demonstrably fails.
-  A floor picked to sit under today's number only proves today's number.
-
-### Are the citations real?
-
-Those metrics answer one question: did the right node come back? They say nothing about whether the
-`file:line` it carries still points at that symbol, and the citation is what an agent is actually told to
-go and read. A wrong citation is worse than a miss, because it looks like an answer.
-
-`--verify-citations` opens every returned node's file at its recorded line and checks the symbol's name is
-there:
-
-```console
-$ contextlake kb eval --golden queries.json --verify-citations
-Citations: 178/180 verified (98.9%) of 184 distinct nodes
-  4 unverifiable (no local checkout for the repo)
-  name_absent: 2
-    src/billing/refund.py:88  (name_absent)
-```
-
-Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
-(the file shrank under a stale index), `name_absent` (the line exists, the symbol is not on it),
-`no_citation` (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
-this machine is reported as **unverifiable** and kept out of the rate, so a run without the mirror reads as
-"nothing was checked" rather than as a pass.
-
-It is off by default: it does filesystem work proportional to the results and needs the checkout present.
-
-## See also
-
-- [Index the code graph](indexing-the-code-graph.md)
-- [Connect and enrich](connecting-and-enriching.md)
-- [Serve it to your editor](serving-over-mcp.md)
 
 ---
 
@@ -3437,7 +3464,7 @@ background, see [The dashboard → Mutating routes](using-the-dashboard.md#11-mu
 
 ## Recorded decisions
 
-A repo's own ADR/decision docs (see [Index & Code Graph](indexing-the-code-graph.md#architecture-decisions-adrs))
+A repo's own ADR/decision docs (see [Index & Code Graph](code-graph-model.md#architecture-decisions-adrs))
 are authored facts, not connector content, so they don't need attribution the way "External context"
 does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
 No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
@@ -3486,6 +3513,61 @@ Both read the same graph, and they answer different questions.
 
 They are separate commands rather than two sections of one page because a document that tries
 to be both serves neither.
+
+Section by section, what lands in the reference, the design notes and the fleet page is in [What the generator produces](generated-docs-reference.md).
+
+## Bounding a large repository
+
+`--max-symbols N` caps the document; the default is 500. Symbols are **selected** by call-site
+count, so the most-used interface survives the cap, and then **grouped by file**, because
+that is how a reader looks something up.
+
+```bash
+contextlake kb docs --max-symbols 2000
+```
+
+Whenever the cap binds, the page says how many symbols it left out. It also says when the cut
+was arbitrary: in a repository where most symbols have no recorded caller, everything at the
+boundary ties at zero, and which ones were dropped was decided by filename rather than by
+importance. A reference that quietly stops is worse than a short one, because you cannot tell
+a symbol that is missing from a symbol that does not exist.
+
+## Scoping to some repositories
+
+Pass repo ids to document only those:
+
+```bash
+contextlake kb docs team/api team/worker
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Every requested repository was documented, or had no symbols to document |
+| `1` | A shard could not be read, or nothing could be written at all |
+
+A repository that indexed to zero symbols is reported and is **not** a failure: a repository
+of build and configuration files has no interface to document. A shard the store lists but
+cannot read **is** a failure, even when other repositories succeeded, because a partial run
+reported as clean is how a broken store stays broken.
+
+## Keeping it current
+
+The reference is generated, so regenerate it after re-indexing:
+
+```bash
+contextlake kb index && contextlake kb docs
+```
+
+See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
+
+---
+
+# What the generator produces
+Source: https://sayak.in/contextlake/generated-docs-reference
+
+# What the generator produces
 
 ## What a reference contains
 
@@ -3661,52 +3743,6 @@ It is written only when a run covers the whole store. `kb docs <repo>` skips it 
 of 15 packages are shared" is a claim about the whole store, and a reader has no way to tell a
 scoped page from a complete one. Only runtime and peer dependencies reach it; a dev dependency
 disagreeing is a lesser finding that would bury the one that matters.
-
-## Bounding a large repository
-
-`--max-symbols N` caps the document; the default is 500. Symbols are **selected** by call-site
-count, so the most-used interface survives the cap, and then **grouped by file**, because
-that is how a reader looks something up.
-
-```bash
-contextlake kb docs --max-symbols 2000
-```
-
-Whenever the cap binds, the page says how many symbols it left out. It also says when the cut
-was arbitrary: in a repository where most symbols have no recorded caller, everything at the
-boundary ties at zero, and which ones were dropped was decided by filename rather than by
-importance. A reference that quietly stops is worse than a short one, because you cannot tell
-a symbol that is missing from a symbol that does not exist.
-
-## Scoping to some repositories
-
-Pass repo ids to document only those:
-
-```bash
-contextlake kb docs team/api team/worker
-```
-
-## Exit codes
-
-| Code | Meaning |
-| --- | --- |
-| `0` | Every requested repository was documented, or had no symbols to document |
-| `1` | A shard could not be read, or nothing could be written at all |
-
-A repository that indexed to zero symbols is reported and is **not** a failure: a repository
-of build and configuration files has no interface to document. A shard the store lists but
-cannot read **is** a failure, even when other repositories succeeded, because a partial run
-reported as clean is how a broken store stays broken.
-
-## Keeping it current
-
-The reference is generated, so regenerate it after re-indexing:
-
-```bash
-contextlake kb index && contextlake kb docs
-```
-
-See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
 
 ---
 
@@ -4505,7 +4541,7 @@ contextlake kb blast-radius charge --json          # the same command
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
-[Entity state machines](indexing-the-code-graph.md#entity-state-machines).
+[Entity state machines](code-graph-model.md#entity-state-machines).
 
 Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited **highest-confidence first**
@@ -4980,7 +5016,7 @@ regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
 The MCP server this card starts is itself authenticated (see
-[Serve](serving-over-mcp.md#authenticating-the-network-transports)): the HTTP transport requires
+[Serve](mcp-transports.md#authenticating-the-network-transports)): the HTTP transport requires
 `Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
 output discarded, the dashboard mints that token instead of letting the server print one, and
 the card shows it alongside the endpoint, that card is the only place it appears. **Restart
@@ -5260,6 +5296,21 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 }
 ```
 
+Transport choices, concurrency limits and the provenance each cited node carries are in [MCP transports and limits](mcp-transports.md).
+
+## Once connected
+
+Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
+*"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
+have it draft wiki pages from the graph without the built-in `wiki` command.
+
+---
+
+# MCP transports and limits
+Source: https://sayak.in/contextlake/mcp-transports
+
+# MCP transports and limits
+
 ## Transports
 
 `contextlake kb serve --transport <stdio|http|sse>` (default `stdio`):
@@ -5458,12 +5509,6 @@ the dashboard reads the graph directly and does not install a probe.
 back a `file` and a `line` with nothing said about whether they still hold. `contextlake kb steer`
 writes the same three-value explanation into the generated agent skills, so an agent that reads
 only its steering files still knows what a `stale` result means.
-
-## Once connected
-
-Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
-*"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
-have it draft wiki pages from the graph without the built-in `wiki` command.
 
 ---
 
@@ -6742,7 +6787,7 @@ connections and shuts down first, then re-raises the signal it captured so the e
 reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
 handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
 a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](serving-over-mcp.md#stopping-it).
+[Serve it to your editor](mcp-transports.md#stopping-it).
 
 Three things worth knowing about `1`:
 
@@ -6872,7 +6917,7 @@ to ingest, and it declines rather than storing an empty document that would look
 search results. Run the file through an OCR tool of your choice first, or ingest the source
 document the PDF was made from. The other two refusals name themselves the same way: a PDF that
 cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](connecting-and-enriching.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+you can raise on the source. See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 
@@ -11353,7 +11398,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   neither does anything until the preview layout is selected.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
-  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serving-over-mcp.md#transports).
+  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/mcp-transports.md#transports).
 - Ingested documents now link to the code symbols they mention by name, via a new
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as
@@ -15345,7 +15390,7 @@ five hand-written places:
 | --- | --- |
 | `README.md` | the count in the feature list |
 | `ROADMAP.md` | the count in the knowledge-graph bullet |
-| `docs/indexing-the-code-graph.md` | the count in the [Languages](indexing-the-code-graph.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/indexing-the-code-graph.md` | the count in the [Languages](code-graph-model.md#languages) section, **and** a new row in the Ecosystem table |
 | `docs/style-guide-reference.md` | the mandated phrasing itself |
 | `site/build_docs.py` | the "Index the code graph" page subtitle |
 
@@ -15684,7 +15729,7 @@ to hold your query to.
 
 ## See also
 
-- [Index the code graph](indexing-the-code-graph.md#languages), what the graph looks like once your language
+- [Index the code graph](code-graph-model.md#languages), what the graph looks like once your language
   is in it
 - [CONTRIBUTING.md](../CONTRIBUTING.md), the development loop, commit style, and how to submit
 - [Word and term reference](style-guide-reference.md), the house rules the docs edits in step 8 follow

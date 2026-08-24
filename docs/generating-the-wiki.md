@@ -289,7 +289,7 @@ background, see [The dashboard → Mutating routes](using-the-dashboard.md#11-mu
 
 ## Recorded decisions
 
-A repo's own ADR/decision docs (see [Index & Code Graph](indexing-the-code-graph.md#architecture-decisions-adrs))
+A repo's own ADR/decision docs (see [Index & Code Graph](code-graph-model.md#architecture-decisions-adrs))
 are authored facts, not connector content, so they don't need attribution the way "External context"
 does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
 No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.

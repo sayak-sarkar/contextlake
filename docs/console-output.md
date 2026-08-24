@@ -270,7 +270,7 @@ connections and shuts down first, then re-raises the signal it captured so the e
 reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
 handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
 a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](serving-over-mcp.md#stopping-it).
+[Serve it to your editor](mcp-transports.md#stopping-it).
 
 Three things worth knowing about `1`:
 

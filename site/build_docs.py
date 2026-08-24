@@ -107,17 +107,35 @@ PAGES = [
      "SQL, and web topology.",
      "pebble-doc.png",
      [("connecting-and-enriching.html", "Connecting and enriching"), ("searching-semantically.html", "Searching semantically")]),
+    ("code-graph-model.html", "docs/code-graph-model.md", "The code graph model",
+     "The code graph model",
+     "Build your knowledge base", "Every node kind and edge kind the parser emits, language "
+     "by language, plus Terraform, SQL and web topology.",
+     "pebble-doc.png",
+     [("indexing-the-code-graph.html", "Indexing the code graph"), ("asking-the-graph.html", "Asking the graph")]),
     ("connecting-and-enriching.html", "docs/connecting-and-enriching.md", "Connecting and enriching", "Connecting and enriching",
      "Build your knowledge base", "Link repos to their issues, docs, and designs, manage "
      "sources, and pull grounded external facts into the knowledge layer with query-driven "
      "enrichment.",
      "pebble-doc.png",
      [("searching-semantically.html", "Searching semantically"), ("generating-the-wiki.html", "Generating the wiki")]),
+    ("document-sources.html", "docs/document-sources.md", "Document sources and RAG",
+     "Document sources and RAG",
+     "Build your knowledge base", "Configure the built-in files source, a plugin package or "
+     "an MCP endpoint, and aggregate documents into the knowledge layer.",
+     "pebble-doc.png",
+     [("connecting-and-enriching.html", "Connecting and enriching"), ("searching-semantically.html", "Searching semantically")]),
     ("searching-semantically.html", "docs/searching-semantically.md", "Searching semantically", "Searching semantically",
      "Build your knowledge base", "Natural-language and hybrid graph-propagation retrieval: "
      "embed your code, tune the vector backend, and query across repos and languages.",
      "pebble-doc.png",
      [("generating-the-wiki.html", "Generating the wiki"), ("model-providers.html", "Model providers")]),
+    ("embedding-reference.html", "docs/embedding-reference.md", "Embeddings and models",
+     "Embeddings and models",
+     "Build your knowledge base", "What gets embedded, how a chunk is built, and which "
+     "embedding model to pick for your hardware.",
+     "pebble-doc.png",
+     [("searching-semantically.html", "Searching semantically"), ("model-providers.html", "Model providers")]),
     ("generating-the-wiki.html", "docs/generating-the-wiki.md", "Generating the wiki", "Generating the wiki",
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
@@ -130,6 +148,12 @@ PAGES = [
      "symbol's real call sites and no model involved.",
      "pebble-doc.png",
      [("model-providers.html", "Model providers"), ("keeping-it-fresh.html", "Keeping it fresh")]),
+    ("generated-docs-reference.html", "docs/generated-docs-reference.md",
+     "What the generator produces", "What the generator produces",
+     "Build your knowledge base", "Section by section, what lands in the API reference, the "
+     "design notes and the fleet page.",
+     "pebble-doc.png",
+     [("generating-documentation.html", "Generating documentation"), ("generating-the-wiki.html", "Generating the wiki")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
      "Reference", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
@@ -162,6 +186,12 @@ PAGES = [
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
      [("using-the-dashboard.html", "Using the dashboard"), ("visualizing-the-graph.html", "Visualizing the graph")]),
+    ("mcp-transports.html", "docs/mcp-transports.md", "MCP transports and limits",
+     "MCP transports and limits",
+     "Use it", "stdio, HTTP and SSE side by side, how many tool calls run at once, and the "
+     "provenance every cited node carries.",
+     "pebble-doc.png",
+     [("serving-over-mcp.html", "Serving over MCP"), ("asking-the-graph.html", "Asking the graph")]),
     ("visualizing-the-graph.html", "docs/visualizing-the-graph.md", "Visualizing the graph", "Visualizing the graph",
      "Use it", "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, "
      "HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed "
@@ -261,9 +291,13 @@ NAV_GROUPS = [
     ("Understand it", ["docs.html", "explained.html", "benchmarks.html"]),
     ("Get started", ["installing.html", "quickstart.html", "configuration.html"]),
     ("Build your knowledge base", ["knowledge-layer.html", "mirroring-repositories.html", "indexing-the-code-graph.html",
-                                   "connecting-and-enriching.html", "searching-semantically.html",
-                                   "generating-the-wiki.html", "generating-documentation.html"]),
-    ("Use it", ["asking-the-graph.html", "serving-over-mcp.html", "using-the-dashboard.html", "visualizing-the-graph.html"]),
+                                   "code-graph-model.html",
+                                   "connecting-and-enriching.html", "document-sources.html",
+                                   "searching-semantically.html", "embedding-reference.html",
+                                   "generating-the-wiki.html", "generating-documentation.html",
+                                   "generated-docs-reference.html"]),
+    ("Use it", ["asking-the-graph.html", "serving-over-mcp.html", "mcp-transports.html",
+                "using-the-dashboard.html", "visualizing-the-graph.html"]),
     ("Operate it", ["keeping-it-fresh.html", "console-output.html", "troubleshooting.html"]),
     ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
                    "changelog.html"]),

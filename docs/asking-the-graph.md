@@ -127,7 +127,7 @@ contextlake kb blast-radius charge --json          # the same command
 (`DEFAULT_RELATIONS` in `src/contextlake/kb/impact.py`). There is no flag to change that set from the
 CLI; the MCP `blast_radius` tool takes a `relations` argument if you need a different walk.
 `transitions_to` is deliberately outside the default set, see
-[Entity state machines](indexing-the-code-graph.md#entity-state-machines).
+[Entity state machines](code-graph-model.md#entity-state-machines).
 
 Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited **highest-confidence first**

@@ -311,7 +311,7 @@ regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
 The MCP server this card starts is itself authenticated (see
-[Serve](serving-over-mcp.md#authenticating-the-network-transports)): the HTTP transport requires
+[Serve](mcp-transports.md#authenticating-the-network-transports)): the HTTP transport requires
 `Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
 output discarded, the dashboard mints that token instead of letting the server print one, and
 the card shows it alongside the endpoint, that card is the only place it appears. **Restart

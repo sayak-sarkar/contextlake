@@ -17,7 +17,7 @@ separate ``ALTER TABLE`` statement).
 The thresholds below are the honestly *measured* current numbers, not a
 target. If a future change to sql.py's regex moves them, that is a real
 signal -- ratchet the floor up (never lower it to make this pass) and update
-docs/indexing-the-code-graph.md's published numbers to match. That last step used to
+docs/code-graph-model.md's published numbers to match. That last step used to
 be a comment aimed at a filename that no longer existed, so the page kept
 quoting a precision the parser had already beaten;
 ``test_published_numbers_match_the_docs`` now checks it instead of asking.
@@ -39,7 +39,7 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sql"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Every page that prints these figures. Both of them drifted once already,
 # because the only thing keeping them current was a comment.
-PUBLISHING_DOCS = ("docs/indexing-the-code-graph.md", "docs/explained.md")
+PUBLISHING_DOCS = ("docs/code-graph-model.md", "docs/explained.md")
 
 
 def _load_ground_truth() -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
@@ -87,7 +87,7 @@ def test_sql_fixture_corpus_precision_recall_floor():
 
     # The two documented gap classes, by name -- if either starts resolving,
     # that's real parser progress and expected_edges.json's "detectable"
-    # flag (plus docs/indexing-the-code-graph.md's published numbers) should be updated.
+    # flag (plus docs/code-graph-model.md's published numbers) should be updated.
     assert ("customers", "customers") in false_negatives
     assert ("inventory_categories", "inventory_categories") in false_negatives
     assert ("shipments", "orders") in false_negatives
@@ -122,7 +122,7 @@ def test_published_numbers_match_the_docs():
 
 
 def test_sql_fixture_corpus_emitted_edges_are_all_inferred_confidence():
-    """docs/indexing-the-code-graph.md's claim ("every SQL edge is INFERRED") is itself
+    """docs/code-graph-model.md's claim ("every SQL edge is INFERRED") is itself
     checked here, not just asserted in prose -- every name in this corpus is
     unique, so nothing should resolve as AMBIGUOUS."""
     shard = index_repo_dir(str(FIXTURE_DIR), "fixtures/sql")

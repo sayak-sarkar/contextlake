@@ -37,7 +37,7 @@ GRAMMARS = len({module for module, _factory in _GRAMMARS.values()})
 # Each page and the phrase it must contain.
 CLAIMS = [
     ("README.md", f"**{LANGUAGES} languages**"),
-    ("docs/indexing-the-code-graph.md", f"**{LANGUAGES} languages across {GRAMMARS} grammars**"),
+    ("docs/code-graph-model.md", f"**{LANGUAGES} languages across {GRAMMARS} grammars**"),
     ("docs/style-guide-reference.md",
      f'"{LANGUAGES} languages across {GRAMMARS} tree-sitter grammars"'),
 ]
@@ -93,10 +93,10 @@ def test_the_vocabulary_diagram_alt_text_states_the_real_counts():
     """
     from contextlake.kb.kinds import KIND_GROUP_ORDER, KIND_REGISTRY
 
-    text = (REPO / "docs/indexing-the-code-graph.md").read_text(encoding="utf-8")
+    text = (REPO / "docs/code-graph-model.md").read_text(encoding="utf-8")
     phrase = f"all {len(KIND_REGISTRY)} node kinds in {len(KIND_GROUP_ORDER)} bands"
     assert phrase in text, (
-        f"docs/indexing-the-code-graph.md does not contain {phrase!r}. The vocabulary diagram's "
+        f"docs/code-graph-model.md does not contain {phrase!r}. The vocabulary diagram's "
         f"alt text must state the counts the registry actually holds; regenerate the "
         f"diagram and update the alt text together.")
 
