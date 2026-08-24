@@ -64,12 +64,17 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
   a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
 ```
 
-Three other outcomes are equally loud, because a skipped PDF and a directory with no PDFs must
-never look the same: the extra not being installed (one line per run, naming the count and the
-install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
-file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
-use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
-it. Reading stops at the first page boundary past the cap and the document is kept and marked
+Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same:
+
+- **The extra is not installed.** One line per run, naming the count and the install command.
+- **A PDF cannot be parsed at all.** Encrypted files are not decrypted.
+- **A file is over `max_bytes`.**
+
+That last one is the source's existing 1 MB cap, the same knob text files use. It does two jobs
+here: it gates the file on disk, and it bounds the text pulled out of it.
+
+Reading stops at the first page boundary past the cap. The document is kept and marked
 `truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
 `max_bytes` on the source to take more.
 
@@ -83,11 +88,14 @@ from a **local** OCR engine in its own extra:
 pip install "contextlake[kb-ocr]"
 ```
 
-The choice of engine is the whole point of this feature. The obvious way to read an image is to
-send it to a vision-capable model, and that would have made this the first ingest path to leave
-local-first: an image would go over the network, per file, to a third party. `[kb-ocr]` ships its
-models inside the wheel instead, so a first run downloads nothing and no image leaves the machine.
-The offline boundary holds for images exactly as it does for code.
+The choice of engine is the whole point of this feature.
+
+The obvious way to read an image is to send it to a vision model. That would have made this the
+first ingest path to leave local-first: every image would go over the network, one file at a
+time, to a third party.
+
+`[kb-ocr]` ships its models inside the wheel instead. A first run downloads nothing, and no image
+leaves the machine. The offline boundary holds for images exactly as it does for code.
 
 It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.

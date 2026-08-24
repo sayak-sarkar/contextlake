@@ -61,14 +61,18 @@ which repositories declare no runtime dependency at all. It takes **no `repo` ar
 because there is one such page per store rather than one per repository -- which is also
 why it is a separate tool instead of a third `kind` on `get_generated_doc`.
 
-Its staleness means something different, and the difference matters. A per-repo page
-carries the commit it was generated from; this one spans many, so it carries a
-**fingerprint of every member's commit and parser version**. It is stale when that no
-longer matches the store -- which catches a case a single commit cannot express at all: a
-new repository joining makes the page wrong without any existing member moving, because
-its populations count a fleet that grew. A page carrying no fingerprint reports
-`stale=true` with `doc_fingerprint` absent, meaning **nothing is known** rather than
-known to be out of date, and the `note` says so.
+Its staleness means something different, and the difference matters.
+
+A per-repo page carries the commit it was generated from. This one spans many repos, so it
+carries a **fingerprint of every member's commit and parser version**. It is stale when that
+fingerprint no longer matches the store.
+
+That catches a case a single commit cannot express: **a new repository joining makes the page
+wrong without any existing member moving**, because the page's populations count a fleet that
+grew.
+
+A page carrying no fingerprint reports `stale=true` with `doc_fingerprint` absent. That means
+**nothing is known**, not known to be out of date, and the `note` says so.
 
 It is written only by an **unscoped** `kb docs` run. A fleet view of part of the store
 would report shares and disagreements that are not true of the whole, and a reader could
@@ -123,14 +127,19 @@ this is the store you meant -- the output path and the store are chosen
 separately.
 ```
 
-That line exists because those two things really are chosen by different inputs: `--out` (or
-`--workspace`, or the current directory) decides where the files land, while the config chain
-decides which store the symbol counts and repository list are read from. Running `steer` from the
-wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md` down to a two-symbol one,
-exit `0`, no warning, and every number in the replacement was accurate for the store that happened
-to resolve. Confident, tiny and wrong is the worst shape a steering file can take, because an
-agent reading it has no way to tell it from a workspace that genuinely holds two symbols. Naming
-the store puts the swap in the diff.
+That line exists because two different inputs decide two different things:
+
+- **Where the files land** comes from `--out`, or `--workspace`, or the current directory.
+- **Which store the symbol counts and repo list come from** comes from the config chain.
+
+Running `steer` from the wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md`
+down to a two-symbol one. Exit `0`, no warning, and every number in the replacement was accurate
+for the store that happened to resolve.
+
+Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
+way to tell it apart from a workspace that genuinely holds two symbols.
+
+Naming the store puts the swap in the diff.
 
 ### What the generated `.mcp.json` pins, and what it deliberately does not
 

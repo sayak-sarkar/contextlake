@@ -2867,12 +2867,17 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
   a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
 ```
 
-Three other outcomes are equally loud, because a skipped PDF and a directory with no PDFs must
-never look the same: the extra not being installed (one line per run, naming the count and the
-install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
-file over `max_bytes`. That last one is the source's existing 1 MB cap, the same knob text files
-use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
-it. Reading stops at the first page boundary past the cap and the document is kept and marked
+Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same:
+
+- **The extra is not installed.** One line per run, naming the count and the install command.
+- **A PDF cannot be parsed at all.** Encrypted files are not decrypted.
+- **A file is over `max_bytes`.**
+
+That last one is the source's existing 1 MB cap, the same knob text files use. It does two jobs
+here: it gates the file on disk, and it bounds the text pulled out of it.
+
+Reading stops at the first page boundary past the cap. The document is kept and marked
 `truncated`, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
 `max_bytes` on the source to take more.
 
@@ -2886,11 +2891,14 @@ from a **local** OCR engine in its own extra:
 pip install "contextlake[kb-ocr]"
 ```
 
-The choice of engine is the whole point of this feature. The obvious way to read an image is to
-send it to a vision-capable model, and that would have made this the first ingest path to leave
-local-first: an image would go over the network, per file, to a third party. `[kb-ocr]` ships its
-models inside the wheel instead, so a first run downloads nothing and no image leaves the machine.
-The offline boundary holds for images exactly as it does for code.
+The choice of engine is the whole point of this feature.
+
+The obvious way to read an image is to send it to a vision model. That would have made this the
+first ingest path to leave local-first: every image would go over the network, one file at a
+time, to a third party.
+
+`[kb-ocr]` ships its models inside the wheel instead. A first run downloads nothing, and no image
+leaves the machine. The offline boundary holds for images exactly as it does for code.
 
 It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.
@@ -5520,14 +5528,18 @@ which repositories declare no runtime dependency at all. It takes **no `repo` ar
 because there is one such page per store rather than one per repository -- which is also
 why it is a separate tool instead of a third `kind` on `get_generated_doc`.
 
-Its staleness means something different, and the difference matters. A per-repo page
-carries the commit it was generated from; this one spans many, so it carries a
-**fingerprint of every member's commit and parser version**. It is stale when that no
-longer matches the store -- which catches a case a single commit cannot express at all: a
-new repository joining makes the page wrong without any existing member moving, because
-its populations count a fleet that grew. A page carrying no fingerprint reports
-`stale=true` with `doc_fingerprint` absent, meaning **nothing is known** rather than
-known to be out of date, and the `note` says so.
+Its staleness means something different, and the difference matters.
+
+A per-repo page carries the commit it was generated from. This one spans many repos, so it
+carries a **fingerprint of every member's commit and parser version**. It is stale when that
+fingerprint no longer matches the store.
+
+That catches a case a single commit cannot express: **a new repository joining makes the page
+wrong without any existing member moving**, because the page's populations count a fleet that
+grew.
+
+A page carrying no fingerprint reports `stale=true` with `doc_fingerprint` absent. That means
+**nothing is known**, not known to be out of date, and the `note` says so.
 
 It is written only by an **unscoped** `kb docs` run. A fleet view of part of the store
 would report shares and disagreements that are not true of the whole, and a reader could
@@ -5582,14 +5594,19 @@ this is the store you meant -- the output path and the store are chosen
 separately.
 ```
 
-That line exists because those two things really are chosen by different inputs: `--out` (or
-`--workspace`, or the current directory) decides where the files land, while the config chain
-decides which store the symbol counts and repository list are read from. Running `steer` from the
-wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md` down to a two-symbol one,
-exit `0`, no warning, and every number in the replacement was accurate for the store that happened
-to resolve. Confident, tiny and wrong is the worst shape a steering file can take, because an
-agent reading it has no way to tell it from a workspace that genuinely holds two symbols. Naming
-the store puts the swap in the diff.
+That line exists because two different inputs decide two different things:
+
+- **Where the files land** comes from `--out`, or `--workspace`, or the current directory.
+- **Which store the symbol counts and repo list come from** comes from the config chain.
+
+Running `steer` from the wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md`
+down to a two-symbol one. Exit `0`, no warning, and every number in the replacement was accurate
+for the store that happened to resolve.
+
+Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
+way to tell it apart from a workspace that genuinely holds two symbols.
+
+Naming the store puts the swap in the diff.
 
 ### What the generated `.mcp.json` pins, and what it deliberately does not
 
