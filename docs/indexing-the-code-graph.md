@@ -124,16 +124,25 @@ and lockfiles from the graph.
 
 ## Health and maintenance
 
-`contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
-ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any shard indexed with an older parser version than the one currently
-installed -- `contextlake kb index` rebuilds those on its next run, so they pick up parser-correctness fixes.
-`contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
-indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
-doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
-but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
-gate red on its own.
+**`contextlake doctor`** checks the environment: FTS5, `git` and `glab` on PATH, the store, the
+embedder and the ANN index. It exits non-zero if anything is wrong, so it works as a CI health
+gate.
+
+It also flags any shard indexed with an older parser version than the one installed. That flag
+is advisory and does not affect the exit code. `contextlake kb index` rebuilds those on its next
+run, so they pick up parser fixes.
+
+**`contextlake kb lint`** audits the graph itself. It reports:
+
+- **stale repos**, where HEAD moved since they were indexed
+- **dangling edges**, where an edge's endpoint node is missing
+- the same **older-parser** repos doctor reports, so the two commands never disagree
+
+Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
+it cannot read.
+
+The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
+upgrading to a build with a new parser could turn a green CI gate red on its own.
 
 Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
 either of them:

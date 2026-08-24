@@ -68,23 +68,36 @@ a single file. contextlake answers the same question from its index in one bound
 
 ## The one fixed cost
 
-Any session pays for the tool schemas once, whether or not it calls a tool: **23 of them on a
-graph-only store** (22 graph tools plus the `ask` router) and **25 once embeddings exist**, all
-listed in [Serve](serving-over-mcp.md). That cost is real, and it can leave you net-negative if the agent
-reaches for the server on questions it does not help with. There is no published token figure for it
-here for the reason at the top of the page; the recipe in
-[Measure it on your own repositories](#measure-it-on-your-own-repositories) counts it in the same
-pass as everything else.
+Any session pays for the tool schemas once, whether or not it calls a tool:
+
+- **23 on a graph-only store**, which is 22 graph tools plus the `ask` router
+- **25 once embeddings exist**
+
+All of them are listed in [Serving over MCP](serving-over-mcp.md).
+
+That cost is real. It can leave you net-negative if the agent reaches for the server on
+questions it does not help with.
+
+There is no published token figure for it here, for the reason at the top of the page. The
+recipe in [Measure it on your own repositories](#measure-it-on-your-own-repositories) counts it
+in the same pass as everything else.
 
 ## By use case, honestly
 
 ### New code development: the most important case
 
-In a real company you rarely write code into a vacuum; you add a feature, endpoint, or service to an
-estate that already has hundreds of repositories. Most of that work is **grounding the new code in
-existing reality**: which service to call and its real signature, the established pattern to model
-on, whether a utility for this already exists, and where the new code plugs in. That is retrieval,
-and it is exactly where an ungrounded model hallucinates an integration or reinvents a helper.
+In a real company you rarely write code into a vacuum. You add a feature, an endpoint or a
+service to an estate that already has hundreds of repositories.
+
+Most of that work is **grounding the new code in what already exists**:
+
+- which service to call, and its real signature
+- the established pattern to model on
+- whether a utility for this already exists
+- where the new code plugs in
+
+All of that is retrieval. It is exactly where an ungrounded model hallucinates an integration or
+reinvents a helper.
 
 A realistic new-code task, *"add a feature that integrates with an existing service, following
 existing conventions"*, decomposes into a sequence of grounding questions the agent asks before it
@@ -113,11 +126,14 @@ Short answer: not the way "measured" implies, but yes at the level of a whole ta
 generation is irreducible. What contextlake reduces is the *number* of generations and the *amount of
 new code* generated, ranked by impact:
 
-1. **It cuts the hallucinate → fail → regenerate loop (biggest lever).** The expensive thing isn't
-   the first draft; it's the second, third, and fourth. An ungrounded model invents an import, calls
-   the wrong service, or guesses a signature; the build fails; the agent regenerates. Every retry is
-   generation tokens spent again. Grounding in the *real* API/signature/pattern collapses N attempts
-   toward 1, the failure mode that dominates new-code work in a large estate.
+1. **It cuts the hallucinate, fail, regenerate loop.** This is the biggest lever.
+
+   The expensive draft is not the first one. It is the second, third and fourth. An ungrounded
+   model invents an import, calls the wrong service, or guesses a signature. The build fails.
+   The agent regenerates. Every retry spends generation tokens again.
+
+   Grounding in the real API, signature and pattern collapses N attempts toward 1. That failure
+   mode dominates new-code work in a large estate.
 2. **Reuse instead of reinvent.** When semantic search surfaces an existing client/util/validator,
    the agent emits a *call* (a few tokens) instead of a reimplementation (tens to hundreds), and
    doesn't add a duplicate to the codebase.
@@ -194,13 +210,19 @@ The comparison is straightforward to run, and yours is the one worth having:
 1. Index your repos (`contextlake bootstrap` or `contextlake kb index --workspace …`).
 2. Pick a handful of representative questions your team actually asks, and write them down before
    you look at any output. Post-hoc question selection is how benchmarks flatter themselves.
-3. For each question, capture **both** sides: the contextlake MCP response (the JSON the agent
-   receives, which you can get from `contextlake kb query --json`, `kb impact --json`, and the other
-   `--json` commands) and the baseline your agent would otherwise gather (the `grep` output plus the
-   files it would then read).
-4. Tokenize both with the **same** tokenizer, the one your model actually uses, and record the
-   tokenizer and the contextlake version alongside the numbers. Both change; a figure without them
-   ages into fiction, which is what happened to the numbers this page used to carry.
+3. For each question, capture **both** sides.
+
+   - The contextlake MCP response, meaning the JSON the agent receives. Get it from
+     `contextlake kb query --json`, `kb impact --json` and the other `--json` commands.
+   - The baseline your agent would otherwise gather: the `grep` output, plus the files it would
+     then read.
+
+4. Tokenize both with the **same** tokenizer, the one your model actually uses.
+
+   Record the tokenizer and the contextlake version next to the numbers. Both change. A figure
+   without them ages into fiction, which is what happened to the numbers this page used to
+   carry.
+
 5. Add the one-off schema cost once per session, not once per query.
 
 The point is not a single magic number, it is to see, on *your* codebase and *your* question mix,

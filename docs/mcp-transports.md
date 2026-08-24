@@ -133,19 +133,30 @@ concurrency knob usually does, so it is worth writing down why. The bound applie
 transport, not only the network ones.
 
 The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` with no limiter,
-so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
-over SQLite, and a traversal is not one query, it is thousands of small round trips through the
-store. Forty threads interleaving those on one connection pool spend their time contending rather
-than working, and what they are contending for is the store round-trips, not the Python: the same
-traversal run over in-memory dictionaries does not degrade the same way. The default therefore has
-to sit near the low end rather than merely below anyio's 40.
+so it uses anyio's default of 40 worker threads.
 
-The bound is applied to the **tool bodies themselves**, not by shrinking that worker pool. The pool
-is sized separately, to the bound plus a reserve for transport I/O, because the SDK's stdio
-transport borrows worker threads for its own `readline` and `flush`: with the pool set to the bound
-outright, `--tool-concurrency 1` left stdin holding the only token and the server answered nothing
-at all. `tests/kb/test_serve_concurrency.py` pins both halves, that the bound still bounds
-concurrent tool bodies and that stdio still answers at a limit of one.
+That is far too many here, for a specific reason. contextlake's tool bodies are graph traversals
+over SQLite, and a traversal is not one query. It is thousands of small round trips through the
+store.
+
+Forty threads interleaving those on one connection pool spend their time contending rather than
+working. What they contend for is the store round trips, not the Python: the same traversal run
+over in-memory dictionaries does not degrade this way.
+
+So the default has to sit near the low end, not merely below anyio's 40.
+
+The bound applies to the **tool bodies themselves**. It does not work by shrinking the worker
+pool.
+
+The pool is sized separately: the bound, plus a reserve for transport I/O. That reserve is
+needed because the SDK's stdio transport borrows worker threads for its own `readline` and
+`flush`.
+
+Without it, the failure was total. With the pool set to the bound outright,
+`--tool-concurrency 1` left stdin holding the only token and the server answered nothing at all.
+
+`tests/kb/test_serve_concurrency.py` pins both halves: that the bound still bounds concurrent
+tool bodies, and that stdio still answers at a limit of one.
 
 **The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
@@ -166,12 +177,16 @@ refusing to start over a typo in a shell profile is worse than serving at the de
 
 ## Every cited node says whether the file moved under it
 
-The staleness contextlake tracked until now is per **repo**: has the head commit or the parser
-version moved since this graph was built ([Keep it fresh](keeping-it-fresh.md)). That is the right
-question for the graph as a whole and it is blind to the one that bites hardest in practice, an
-agent editing files *between* index runs, inside the same commit. The graph says
-`src/billing/refund.py:88`, twenty lines get inserted above it, and the answer still says 88. A
-confidently wrong citation is worse than a miss, because the agent goes and reads it.
+Until now, contextlake tracked staleness per **repo**: has the head commit or the parser version
+moved since this graph was built? See [Keeping it fresh](keeping-it-fresh.md).
+
+That is the right question for the graph as a whole. It is also blind to the case that bites
+hardest in practice: an agent editing files *between* index runs, inside the same commit.
+
+Here is what that looks like. The graph says `src/billing/refund.py:88`. Twenty lines get
+inserted above it. The answer still says 88.
+
+A confidently wrong citation is worse than a miss, because the agent goes and reads it.
 
 Every node a tool returns therefore carries **`citation_status`**, decided against the file on disk
 as the answer is built:
