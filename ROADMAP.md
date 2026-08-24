@@ -17,8 +17,8 @@ below the mirror is optional and stays off by default.
   cross-repo package dependencies. Incremental indexing with bi-temporal `--as-of
   <commit>` queries over per-commit shard snapshots. Namespaced under `kb`
   (`kb index`, `kb lint`, …).
-- **Connectors**: Atlassian (Jira + Confluence), Figma, GitLab (MRs/issues), and Slack,
-  sharing one seam. Beyond repo-level links, a shared `link_to_code` matcher connects
+- **Connectors**: Atlassian (Jira + Confluence), Figma, GitLab (MRs/issues), Slack and
+  Zendesk, sharing one seam. Beyond repo-level links, a shared `link_to_code` matcher connects
   external content directly to the specific symbols it's actually about (a GitLab MR's
   file-touch, a Figma frame name, a Slack message mention), not just the repo.
 - **Semantic search**: a pluggable embedder (built-in CPU model, Ollama, or an API) and
@@ -49,24 +49,27 @@ below the mirror is optional and stays off by default.
 ## Future good-to-haves
 
 - **Diagram-generation capability (item 7)**: a richer, eraser.io-style diagramming
-  surface at the repo/group/fleet level. Rendering research and a working prototype
-  (dagre layout, DOM-card nodes, dual PNG/SVG export, module clustering for large repos)
-  are done; the design and a written spec are still in progress before anything ships
-  against the real product.
-- **Non-code/media ingestion.** PDF, image, and video ingestion as a plugin-seam
-  candidate, deliberately not core, no design work started.
-- **Per-repo wiki-steering file** (`.contextlake/wiki.toml`): let a repo hint what its
-  own wiki should emphasize, DeepWiki-style.
-- **Deeper diagram/wiki cross-linking.** A clickable diagram-node → wiki-section jump
-  between the two already-shipped surfaces.
-- **Fleet-scale dashboard views.** A treemap, a repo-coupling matrix, and query-chip
-  navigation for very large fleets, deferred to its own follow-up spec, not yet scoped.
-- **Docs interactivity** (try-it editors, live visualizations on the docs site), which was
-  quietly descoped earlier; still needs an explicit call to build it for real or close
-  it out formally.
-- **Hosted provider breadth.** More connectors (e.g. Zendesk, explicitly deferred,
-  "not for now") and more embedding/LLM provider options behind the existing pluggable
-  `Embedder`/`LlmClient` interfaces.
+  surface at the repo/group/fleet level. Most of the spike has since landed in the real
+  product's graph page: dagre layout, DOM-card nodes and dual PNG/SVG export all ship.
+  What remains is the group/fleet-level authoring surface itself, and the written spec
+  for it.
+- **Non-code/media ingestion.** *Shipped, and not as a plugin seam.* PDF, image (OCR)
+  and video are all handled inside the built-in `files` source; PDF rides the `kb-pdf`
+  extra. What remains open is broader format coverage, not the seam.
+- ~~Per-repo wiki-steering file~~, **shipped.** A repo's own `.contextlake/wiki.toml`
+  is read from its working tree and stamped on the page that used it.
+- **Deeper diagram/wiki cross-linking.** Half done: wiki headings now carry stable,
+  deduplicated `id` anchors, so the jump targets exist. The clickable diagram-node → 
+  wiki-section jump itself is still to build.
+- **Fleet-scale dashboard views.** The **fleet treemap shipped** as a fourth fleet mode
+  alongside cards, list and table. A repo-coupling matrix and query-chip navigation are
+  still open. (The separate repo-module treemap stays deliberately closed, it is not
+  this item.)
+- **Docs interactivity.** Live visualizations are already on the site; try-it editors are
+  not. The remaining half still needs an explicit call to build or close.
+- **Hosted provider breadth.** More connectors (Zendesk has since shipped) and more
+  embedding/LLM provider options behind the existing pluggable `Embedder`/`LlmClient`
+  interfaces.
 
 Have an idea or a use case? Open an issue: the design goal is a generic, product-grade
 tool, so concrete needs shape what lands next.
