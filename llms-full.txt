@@ -365,6 +365,16 @@ every upgrade into a red check for something that is working correctly.
 
 MIT, see [LICENSE](https://github.com/sayak-sarkar/contextlake/blob/main/LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*
 
+## Documentation
+
+- [Full documentation](https://sayak.in/contextlake/docs.html)
+- [Quickstart](QUICKSTART.md)
+- [Installing and upgrading](docs/installing.md)
+- [Command reference](docs/cli-reference.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+
 ---
 
 # contextlake, explained
@@ -572,7 +582,7 @@ project-local `store_dir` or `languages` should keep working. A separate trust r
 (`contextlake trust <path>` plus a trusted-paths file) was rejected as a new top-level CLI surface
 belonging to neither namespace, when `--config PATH` already means "I meant this file".
 
-### Parser staleness is repaired, not just reported
+### Parser staleness is repaired, not only reported
 
 The clearest recorded reasoning in the project, because it documents a failure it shipped. When
 `PARSER_VERSION` moved to `2`, the staleness check only examined C and C++ repositories and the
@@ -1395,6 +1405,14 @@ Use `--log-file`, not a `>>` shell redirect: the handler behind `--log-file` rot
 or the systemd user units in [`examples/`](examples/). See the
 [README](README.md) for the full command reference and configuration.
 
+## Next steps
+
+- [Mirroring repositories](docs/mirroring-repositories.md)
+- [Indexing the code graph](docs/indexing-the-code-graph.md)
+- [Serving over MCP](docs/serving-over-mcp.md)
+- [Using the dashboard](docs/using-the-dashboard.md)
+- [Troubleshooting](docs/troubleshooting.md)
+
 ---
 
 # Mirroring repositories
@@ -1488,7 +1506,7 @@ Shows the current state of your workspace compared to the remote, from the fetch
 contextlake mirror status
 ```
 
-**Example output:**
+#### Example output
 
 ```text
   • GitLab projects (active)  128
@@ -3659,6 +3677,13 @@ contextlake kb index && contextlake kb docs
 
 See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
 
+## See also
+
+- [What the generator produces](generated-docs-reference.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [The code graph model](code-graph-model.md)
+- [Command reference](cli-reference.md)
+
 ---
 
 # What the generator produces
@@ -4521,6 +4546,13 @@ stage by stage.
 For the command list see the [`contextlake` command reference](cli-reference.md); to decode a run see
 [Reading the console output](console-output.md).
 
+## See also
+
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [The code graph model](code-graph-model.md)
+- [Searching semantically](searching-semantically.md)
+- [Architecture and internals](internals.md)
+
 ---
 
 # Asking the graph
@@ -5097,7 +5129,7 @@ carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
 See [Generate the wiki](generating-the-wiki.md).
 
-## 10. MCP console & Settings
+## 10. MCP console and settings
 
 Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):
@@ -5200,6 +5232,13 @@ startup.
 Everything here runs entirely on your machine, and is read-only unless you opt into
 `--allow-mutations` (§11) or `--llm-chat` (§12, which sends questions to your
 configured `[llm]` provider -- everything else stays local).
+
+## See also
+
+- [Visualizing the graph](visualizing-the-graph.md)
+- [Asking the graph](asking-the-graph.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [Serving over MCP](serving-over-mcp.md)
 
 ---
 
@@ -5417,6 +5456,13 @@ Transport choices, concurrency limits and the provenance each cited node carries
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
 *"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
+
+## See also
+
+- [MCP transports and limits](mcp-transports.md)
+- [Asking the graph](asking-the-graph.md)
+- [Using the dashboard](using-the-dashboard.md)
+- [Troubleshooting](troubleshooting.md)
 
 ---
 
@@ -5931,8 +5977,8 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
   is not greenfield invention, it is mostly *grounding*: which service to call, its real signature,
   the pattern to follow, whether a utility already exists, where it plugs in. That work is almost
   entirely retrieval, and it is where hallucinated integrations and duplicated code come from.
-  contextlake answers those questions from an index, cited, and matches *concepts* rather than just
-  keywords.
+  contextlake answers those questions from an index, cited, and matches *concepts* rather than
+  keywords alone.
 - **Search of every kind**, semantic / knowledge search, "who calls X", "what breaks if I change X",
   "which repo has X", is the other strong case, where brute-force is intractable or hugely wasteful
   on a large fleet.
@@ -6113,6 +6159,13 @@ The comparison is straightforward to run, and yours is the one worth having:
 
 The point is not a single magic number, it is to see, on *your* codebase and *your* question mix,
 where the retrieval cost actually lives.
+
+## See also
+
+- [contextlake, explained](explained.md)
+- [Searching semantically](searching-semantically.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Serving over MCP](serving-over-mcp.md)
 
 ---
 
@@ -6954,7 +7007,7 @@ Source: https://sayak.in/contextlake/troubleshooting
 # Troubleshooting
 
 Problems that have actually been hit while installing or running contextlake, each with the
-fix and the reason behind it. If you hit something that is not here, please
+fix and the reason behind it. If you hit something that is not here,
 [open an issue](https://github.com/sayak-sarkar/contextlake/issues): a reproducible failure
 is worth more to this page than a guess.
 
@@ -7136,6 +7189,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [8.6.1] - 2026-08-24
+
+A documentation-structure release. No behaviour changed, no schema moved,
+`EMBED_CONTENT_VERSION` untouched, so nothing re-embeds.
+
+### Fixed
+
+- **Two strings the CLI prints at users named documentation files that no longer exist.**
+  `kb serve --help` pointed at `docs/serve.md` and the unsupported-language error pointed at
+  `docs/contributing-languages.md`; both were renamed in 8.6.0's documentation pass and the
+  strings were not. Anyone following the tool's own instruction was sent to a missing file.
+
+### Changed
+
+- **Five documentation pages were split**, so a page is one type rather than a task and a
+  lookup table braided together. `indexing-the-code-graph` gave up its 337-line node and
+  edge model to a new **The code graph model**; `connecting-and-enriching` gave up document
+  source configuration to **Document sources and RAG**; `serving-over-mcp` gave up transports
+  and concurrency limits to **MCP transports and limits**; `generating-documentation` gave up
+  its output description to **What the generator produces**; and `searching-semantically`
+  gave up the embedding and model reference to **Embeddings and models**.
+
+  Nine pages were candidates. Five cleared the bar: the off-type block had to be contiguous,
+  at least 100 lines, and at least 40% of the page. The published set is now 36 pages.
+
+- **`docs/embedding-reference.md` said 17 embeddable kinds against a set of 19.**
+  `schema_element` and `schema_type` had joined `EMBEDDABLE_KINDS` and the total was never
+  updated.
+
+- 57 em-dashes removed from prose that the guard did not cover.
+
+### Internal
+
+- **The em-dash guard now derives its file set from `git ls-files`** rather than a hand-kept
+  list, after being re-broken a third time in the part it did not cover: three files held 31
+  em-dashes while every run stayed green. 52 files covered, up from 33.
+
+- **A tool count written in a wording no pattern recognises now fails.** The existing gate
+  declares an expected value per phrase, which is what made it blind to a sentence nobody had
+  written yet; a new page reading "The server exposes 99 tools." passed it.
+
+- **A third kind-count gate** covers `EMBEDDABLE_KINDS`, which neither the node-kind nor the
+  language gate could see.
 
 ## [8.6.0] - 2026-08-24
 
@@ -15838,7 +15935,7 @@ visible rather than returning nothing.
 Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
 makes it a useful template: it shows which parts are genuinely required.
 
-**The mandatory set, in the order above:**
+### The mandatory set, in the order above
 
 | Step | File | What was added |
 | --- | --- | --- |

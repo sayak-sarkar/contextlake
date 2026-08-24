@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1fd75106">
-<link rel="stylesheet" href="tokens.css?v=1fd75106">
-<link rel="stylesheet" href="docs.css?v=1fd75106">
-<link rel="stylesheet" href="cmdk.css?v=1fd75106">
+<link rel="stylesheet" href="fonts.css?v=3b8411b7">
+<link rel="stylesheet" href="tokens.css?v=3b8411b7">
+<link rel="stylesheet" href="docs.css?v=3b8411b7">
+<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -219,7 +219,7 @@ directory-scoped file wholesale was rejected because directory-scoped config is 
 project-local <code>store_dir</code> or <code>languages</code> should keep working. A separate trust registry
 (<code>contextlake trust &lt;path&gt;</code> plus a trusted-paths file) was rejected as a new top-level CLI surface
 belonging to neither namespace, when <code>--config PATH</code> already means "I meant this file".</p>
-<h3 id="parser-staleness-is-repaired-not-just-reported">Parser staleness is repaired, not just reported<a class="anchor" href="#parser-staleness-is-repaired-not-just-reported" title="Link to this section">#</a></h3>
+<h3 id="parser-staleness-is-repaired-not-only-reported">Parser staleness is repaired, not only reported<a class="anchor" href="#parser-staleness-is-repaired-not-only-reported" title="Link to this section">#</a></h3>
 <p>The clearest recorded reasoning in the project, because it documents a failure it shipped. When
 <code>PARSER_VERSION</code> moved to <code>2</code>, the staleness check only examined C and C++ repositories and the
 re-index decision compared the repository HEAD alone. A Python or TypeScript repository indexed by
@@ -466,7 +466,7 @@ described.</p>
 <li><a href="#caching-bounded-by-memory-not-by-entry-count">Caching bounded by memory, not by entry count</a></li>
 <li><a href="#the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons">The repository-list cache moved out of /tmp, for three stated reasons</a></li>
 <li><a href="#config-that-can-run-a-program-is-trusted-by-provenance-not-by-content">Config that can run a program is trusted by provenance, not by content</a></li>
-<li><a href="#parser-staleness-is-repaired-not-just-reported">Parser staleness is repaired, not just reported</a></li>
+<li><a href="#parser-staleness-is-repaired-not-only-reported">Parser staleness is repaired, not only reported</a></li>
 <li><a href="#serving-over-mcp">Serving over MCP</a></li>
 <li><a href="#why-the-network-transports-are-authenticated-and-stdio-is-not">Why the network transports are authenticated and stdio is not</a></li>
 </ul>
@@ -554,6 +554,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=1fd75106"></script>
+<script defer src="cmdk.js?v=3b8411b7"></script>
 </body>
 </html>

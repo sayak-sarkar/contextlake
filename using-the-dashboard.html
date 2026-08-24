@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1fd75106">
-<link rel="stylesheet" href="tokens.css?v=1fd75106">
-<link rel="stylesheet" href="docs.css?v=1fd75106">
-<link rel="stylesheet" href="cmdk.css?v=1fd75106">
+<link rel="stylesheet" href="fonts.css?v=3b8411b7">
+<link rel="stylesheet" href="tokens.css?v=3b8411b7">
+<link rel="stylesheet" href="docs.css?v=3b8411b7">
+<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -309,7 +309,7 @@ option that would 404. Live-only, like MCP console/Settings above (no <code>--si
 <p>With <code>--allow-mutations</code>, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a <strong>Regenerate</strong> button, see <a href="#11-mutating-routes">§11</a>.</p>
 <p>See <a href="generating-the-wiki">Generate the wiki</a>.</p>
-<h2 id="10-mcp-console-settings">10. MCP console &amp; Settings<a class="anchor" href="#10-mcp-console-settings" title="Link to this section">#</a></h2>
+<h2 id="10-mcp-console-and-settings">10. MCP console and settings<a class="anchor" href="#10-mcp-console-and-settings" title="Link to this section">#</a></h2>
 <p>Two read-only panels, live-only (not part of a <code>--site</code> export; both describe this
 machine/process, not the graph itself):</p>
 <p><strong>MCP</strong>: the live tool catalog for <code>contextlake kb serve</code> against this store (introspected
@@ -397,6 +397,13 @@ startup.</p>
 <p>Everything here runs entirely on your machine, and is read-only unless you opt into
 <code>--allow-mutations</code> (§11) or <code>--llm-chat</code> (§12, which sends questions to your
 configured <code>[llm]</code> provider -- everything else stays local).</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="visualizing-the-graph">Visualizing the graph</a></li>
+<li><a href="asking-the-graph">Asking the graph</a></li>
+<li><a href="generating-the-wiki">Generating the wiki</a></li>
+<li><a href="serving-over-mcp">Serving over MCP</a></li>
+</ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer"><span>The knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="serving-over-mcp"><span>Serving over MCP</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
@@ -415,9 +422,10 @@ configured <code>[llm]</code> provider -- everything else stays local).</p>
 <li><a href="#8b-search">8b. Search</a></li>
 <li><a href="#8c-health">8c. Health</a></li>
 <li><a href="#9-generate-a-wiki">9. Generate a wiki</a></li>
-<li><a href="#10-mcp-console-settings">10. MCP console &amp; Settings</a></li>
+<li><a href="#10-mcp-console-and-settings">10. MCP console and settings</a></li>
 <li><a href="#11-mutating-routes">11. Mutating routes</a></li>
 <li><a href="#12-chat">12. Chat</a></li>
+<li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
 </div>
@@ -489,6 +497,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=1fd75106"></script>
+<script defer src="cmdk.js?v=3b8411b7"></script>
 </body>
 </html>
