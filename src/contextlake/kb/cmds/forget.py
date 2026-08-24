@@ -27,6 +27,8 @@ pseudo-repo wants the space back, and was told the repo had been removed.
 
 from __future__ import annotations
 
+import difflib
+
 from ... import style
 from ...logging_setup import log
 from ._common import _guard_store, _open_store, kb_config
@@ -195,7 +197,24 @@ def cmd_forget(args) -> int:
         known = store.get_repo(repo_id) is not None
         if not known and not nodes and not edges:
             log(f"{style.warn()} No repo {repo_id!r} in the store at {store_dir}.")
-            log("  `contextlake kb lint` lists the ids the store actually holds.")
+            # Name the candidates HERE rather than sending the reader to `kb lint`. lint
+            # surfaces ids only through its FINDING categories (stale, empty, parser-stale,
+            # unreadable), so on a healthy store it lists none and the pointer answers nothing.
+            # A repo id also carries an @<commit> suffix, which is the usual reason a
+            # hand-typed id misses by a hair.
+            known_ids = [r.id for r in store.list_repos()]
+            near = difflib.get_close_matches(repo_id, known_ids, n=3, cutoff=0.5)
+            # An id carries an @<commit> suffix, so the usual near-miss is a bare name that
+            # difflib scores below the cutoff on a long hash. Match the stem explicitly.
+            near = near or [r for r in known_ids if r.split("@", 1)[0] == repo_id][:3]
+            if near:
+                log(f"  Did you mean: {', '.join(near)}")
+                log("  A repo id includes its @<commit> suffix.")
+            elif known_ids:
+                log(f"  The store holds {len(known_ids)} repo(s), including: "
+                    f"{', '.join(sorted(known_ids)[:3])}")
+            else:
+                log("  The store holds no repositories.")
             return 1
 
         pages = _wiki_pages(store_dir / "wiki", repo_id)
