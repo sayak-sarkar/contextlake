@@ -978,11 +978,13 @@
     <div class="wn-grid">
       <div class="wn">
         <h3>vs. grep across repos</h3>
-        <p>grep finds strings, one repo at a time. It cannot tell a definition from a call, cannot cross repo boundaries, and buries the answer in matches. contextlake parses code into a <b>typed graph</b>, so you ask for callers, dependents, or owners and get <b>cited file:line answers across the whole fleet</b>.</p>
+        <p>grep finds strings, one repo at a time. It cannot tell a definition from a call, it cannot cross repo boundaries, and it buries the answer in matches.</p>
+        <p>contextlake parses code into a <b>typed graph</b>. Ask for callers, dependents or owners, and get <b>cited file:line answers across the whole fleet</b>.</p>
       </div>
       <div class="wn">
         <h3>vs. a hosted vector DB</h3>
-        <p>A hosted vector database means standing up infra and usually shipping your code to a third party. contextlake is <b>offline and graph-first</b>: exact edges instead of fuzzy nearness, token-cheap for agents, and semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
+        <p>A hosted vector database means standing up infrastructure, and usually shipping your code to a third party.</p>
+        <p>contextlake is <b>offline and graph-first</b>. You get exact edges instead of fuzzy nearness, which is cheaper in tokens for an agent. Semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
       </div>
       <div class="wn">
         <h3>vs. other local code-graph tools</h3>
@@ -990,7 +992,8 @@
       </div>
       <div class="wn">
         <h3>vs. AI wiki generators (DeepWiki)</h3>
-        <p>DeepWiki turns a single <b>public</b> repo into an AI-written wiki, on demand, in the cloud, one at a time, and your own code needs a paid account to go through it privately. contextlake mirrors <b>your whole fleet</b> locally and keeps a graph, search, and wiki <b>offline and current</b> across every repo you have, nothing leaves your disk to get there.</p>
+        <p>DeepWiki writes an AI wiki for one <b>public</b> repo at a time, in the cloud. Running your own code through it privately needs a paid account.</p>
+        <p>contextlake mirrors <b>your whole fleet</b> locally. Graph, search and wiki stay <b>offline and current</b> across every repo you have. Nothing leaves your disk.</p>
       </div>
     </div>
   </div>
