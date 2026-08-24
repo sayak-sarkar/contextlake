@@ -1106,7 +1106,8 @@ fail (exit 1).
                    help="only run these named sources (default: all configured)")
     _add_watch(p, "the connectors")
 
-    p = command("embed", "build semantic vectors for the graph (needs [embeddings] config)")
+    p = command("embed", "build semantic vectors for the graph "
+                         "(zero-config: the built-in CPU embedder needs no [embeddings] section)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="re-embed every repo (default: only changed repos)")
     p.add_argument("--limit", type=_COUNT, default=_S, help="max nodes to embed per repo")
