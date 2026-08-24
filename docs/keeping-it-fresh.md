@@ -42,14 +42,21 @@ editing current, and the lock is what stops the two of them from writing at once
 contextlake bootstrap --llm builtin
 ```
 
-`--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
-whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
-one extra step first, `contextlake doctor --fix llm-local` (see [Install and
-upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
-`--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
-`anthropic`, `cli` or `auto` for better prose; the pre-command form
-`contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
-`kb.toml`, the wiki stage no-ops and everything else still runs.
+`--llm builtin` powers the wiki stage with a zero-setup CPU model, so this one command builds the
+whole knowledge layer: graph, vectors and wiki, for every repo.
+
+On a `pip` install, `builtin` needs one extra step first:
+
+    contextlake doctor --fix llm-local
+
+See [The built-in wiki LLM is one extra](installing.md#the-built-in-wiki-llm-is-one-extra). Skip
+that step entirely with `--llm ollama`, which needs no compiler.
+
+Other options for better prose: `--llm ollama`, `openai`, `anthropic`, `cli` or `auto`. The
+pre-command form `contextlake --llm builtin bootstrap` works too.
+
+With no `--llm`, and `[llm]` disabled in `kb.toml`, the wiki stage does nothing and everything
+else still runs.
 
 The stages run in this order, and each can be skipped except the two marked otherwise:
 
@@ -79,15 +86,19 @@ built from the clones already on disk.
 Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
 there, which in practice means failing to write the report file, ends the run before indexing starts.
 
-Both config files are read from their default locations (`~/.contextlake.ini` and
-`~/.contextlake/kb.toml`, or the nearest ancestor directory's `.contextlake.ini` /
-`.contextlake.kb.toml` if one exists, see
-[Directory-scoped config](configuration.md#directory-scoped-config)); pass `--config` to point
-elsewhere. An unrecognized `[kb]` key or table is warned about and ignored, so a typo like `store`
-for `store_dir` is surfaced rather than silently dropping the run into the wrong store. An explicit
-`--config` path that does not exist is a hard error rather than a silent fall-through to the next
-file in the precedence chain, which could point at a completely different store than the one you
-meant.
+Both config files are read from their default locations: `~/.contextlake.ini` and
+`~/.contextlake/kb.toml`. If a nearer ancestor directory has a `.contextlake.ini` or
+`.contextlake.kb.toml`, that wins instead. See
+[Directory-scoped config](configuration.md#directory-scoped-config). Pass `--config` to point
+somewhere else.
+
+Two guards worth knowing:
+
+- **An unrecognised `[kb]` key or table is warned about, not ignored silently.** So a typo like
+  `store` for `store_dir` is surfaced, rather than quietly dropping the run into the wrong store.
+- **An explicit `--config` path that does not exist is a hard error.** It does not fall through
+  to the next file in the precedence chain, which could point at a completely different
+  store.
 
 ### Composing the stages yourself
 

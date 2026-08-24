@@ -309,11 +309,14 @@ Use it when you want a full rebuild, not because an upgrade requires one.
 
 ### Parser version `4` rebuilds every existing store
 
-`PARSER_VERSION` is now `4` (raised in 7.0.0), which means **every store built before that release
-reports stale**, under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index`
-rebuilds all of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs
-what your first one did, once, rather than the near-instant no-op an unchanged workspace usually
-gets. Budget for it before you run it inside a hook or a CI job on a large mirror.
+`PARSER_VERSION` is now `4`, raised in 7.0.0. So **every store built before that release reports
+stale**, both under `doctor` and in `kb lint`'s advisory line. The next `contextlake kb index`
+rebuilds all of it.
+
+Nothing is broken, and no flag is needed. It is one index run that costs what your first one did,
+once, instead of the near-instant no-op an unchanged workspace usually gets.
+
+Budget for that before you run it inside a hook or a CI job on a large mirror.
 
 The bump earns that. Version `4` is the largest output change this stamp has ever covered
 (`src/contextlake/kb/parse.py`, the comment above `PARSER_VERSION`):
@@ -327,11 +330,13 @@ The bump earns that. Version `4` is the largest output change this stamp has eve
 - C++ internal linkage is honoured in both identity and resolution, so two files' `static` or
   anonymous-namespace symbols stop merging into one.
 
-The catch is that all of it lives in the parser, so it reaches an already-built store only when the
-shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
-you to know it was needed: every change above is invisible to a commit-keyed check, so a graph
-carried forward untouched would keep answering with ids this build no longer produces, and every
-surface would keep calling it healthy.
+The catch: all of it lives in the parser, so it reaches an already-built store only when the
+shards are rebuilt.
+
+A version bump is what makes that happen without you having to know it was needed. Every change
+above is invisible to a commit-keyed check. A graph carried forward untouched would keep
+answering with ids this build no longer produces, and every surface would keep calling it
+healthy.
 
 ## Uninstall
 
