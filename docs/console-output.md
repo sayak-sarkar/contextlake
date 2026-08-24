@@ -5,18 +5,28 @@ A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `
 
 ## The live progress bar
 
-One shared renderer is used by every long-running command, so it looks the same everywhere:
-`[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min` (bar, done/total, percent,
-elapsed time, estimated time remaining, and rate in items/min). The ETA is the **cumulative mean** so far, elapsed time divided
-by items done, projected over what's left (that's what the `~` marks), and it's count-based, each item
-counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
-worker pool the gaps between completions are spiky enough that a short window swung the estimate between
-seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
-When a run's total isn't known up front, the bar drops the percent/ETA and shows `done · elapsed · rate`
-instead, rather than guessing. Across every long-running command (including `connect`, `ingest`, and
-`enrich`, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
-and on section/summary lines; the per-item detail lines scrolling beneath don't repeat it, so they don't
-flicker as the timestamp ticks over.
+Every long-running command uses one shared renderer, so the bar looks the same everywhere:
+
+    [█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min
+
+That is the bar, done out of total, percent, elapsed time, estimated time left, and rate per
+minute.
+
+**How the ETA works.** It is the cumulative mean: elapsed time divided by items done, projected
+over what is left. The `~` marks it as an estimate. It is count-based, so each item counts
+equally regardless of size.
+
+A trailing window was tried and rejected. With a worker pool, gaps between completions are spiky
+enough that a short window swung the estimate between seconds and half an hour. The cumulative
+figure smooths itself and settles as the run goes on.
+
+**When the total is not known up front**, the bar drops the percent and ETA, and shows
+`done · elapsed · rate` instead of guessing.
+
+**Where the clock appears.** Only on the bar itself and on section or summary lines. The
+per-item detail lines below do not repeat it, so they do not flicker as the timestamp ticks.
+This holds for every long-running command, including `connect`, `ingest` and `enrich`, which do
+not use the shared bar.
 
 ## One status vocabulary, everywhere
 
@@ -180,13 +190,20 @@ the exit code), so the metrics can never disagree with the summary line.
 
 ## The stdout / stderr split
 
-The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That
-split means `contextlake kb wiki >> run.log` (or any stdout redirect) captures clean detail lines with no bar
-artifacts or `\r` clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
-redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
-place. When both streams share one terminal (the default interactive case), the bar and the detail lines
-interleave as the run scrolls (the bar reprints below each new detail line rather than repainting perfectly
-in place); redirect stdout to a file to keep the bar as a single live line with the detail captured
+**The bar renders on stderr. The per-item result lines stay on stdout.**
+
+That split matters when you redirect. `contextlake kb wiki >> run.log` captures clean detail
+lines, with no bar artefacts and no `\r` clutter, because the bar never touches stdout.
+
+Two behaviours follow:
+
+- **Not a TTY** (piped, cron, redirected stderr): the bar downgrades to periodic plain summary
+  lines instead of repainting in place.
+- **Both streams on one terminal**, the default interactive case: the bar and detail lines
+  interleave as the run scrolls, so the bar reprints below each new detail line rather than
+  repainting perfectly in place.
+
+Redirect stdout to a file if you want the bar as a single live line with the detail captured
 separately.
 
 ## Decoding specific lines

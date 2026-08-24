@@ -5912,24 +5912,39 @@ search, and a minimap; it opens straight from `file://`:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. `--limit` (default
-`20`) caps how many seed nodes a `--name` or `--search` match contributes, before the walk starts, and
-the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
-only want a view of the first few". Bound the result
-with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
-every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
-nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (**`--repo` views only**, see the mode list below; no cap by default,
-which is what the `html` and `dot` renderers want,
-and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
-`deploymentdiagram` -- a dense repo can
-pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means a `--repo` view always renders, possibly truncated, never errors. A **seeded**
-Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with `--hops` or
-`--max-nodes` instead), and `--max-fanout` (a per-node cap that
-stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
-pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
-is dropped is **logged**, never silently truncated.
+**Pick a seed** with one of `--node`, `--name` (plus `--kind`), `--search`, `--repo` or
+`--overview`.
+
+`--limit` (default `20`) caps how many seed nodes a `--name` or `--search` match contributes,
+before the walk starts. The run logs how many matched when it trims. Use it when a name matches
+300 symbols and you want a view of the first few.
+
+**Then bound the result** with three flags.
+
+`--max-nodes` (default 500, or 5000 on `--overview`)
+
+- `--overview` is a fleet inventory, so it loads every repo by default and any of them is
+  findable.
+- This bounds the **whole file**. One-hop external nodes count against it too, and links take a
+  bounded share of whatever the repo's own nodes leave unused.
+
+`--max-edges` (`--repo` views only)
+
+- No cap by default, which is what the `html` and `dot` renderers want.
+- 400 for the Mermaid formats: `mermaid`, `classdiagram`, `statediagram`, `erdiagram`,
+  `deploymentdiagram`. A dense repo can pack well over 500 edges into 500 nodes, which used to
+  exceed Mermaid's own render limit and fail outright. Capping edges means a `--repo` view
+  always renders. It may be truncated, but it never errors.
+- A **seeded** Mermaid view gets no edge cap, so it can still exceed that limit and fail. Narrow
+  it with `--hops` or `--max-nodes` instead.
+
+`--max-fanout` (per-node cap, stops hub nodes exploding)
+
+- 50 on a seeded view.
+- Uncapped on a `--repo` view unless you pass it, because capping containment fan-out by default
+  would hide a file's own symbols.
+
+Whatever gets dropped is **logged**. Nothing is silently truncated.
 
 `--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
 to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
@@ -5938,16 +5953,19 @@ take: a seeded view, all of them except `--max-edges`, which the seeded path nev
 accepted and then ignored; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
 `--overview`, `--max-nodes` alone.
 
-For a `--repo` view over `--max-nodes`, which nodes
-survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
-rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
-the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
-completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource` nodes), which made
-`erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
-dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
-and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
-arbitrary slice (see [The dashboard](using-the-dashboard.md)).
+When a `--repo` view goes over `--max-nodes`, nodes are kept by **degree**: the
+highest-connected first, ties broken by node id. So a truncated diagram keeps the most connected
+part of the repo, not whatever sorted first.
+
+Degree alone is not the whole rule. Every kind present in the view gets a small floor of slots
+first. Pure degree ranking starved the rare kinds completely: on one measured repo it kept 0 of
+412 `table` nodes and 0 of 402 `resource` nodes, which made `erdiagram` and `deploymentdiagram`
+render empty for a repo that plainly had the data.
+
+On the dashboard, a repo too large for one diagram is narrowed to its largest module
+automatically. That works recursively, to any depth, with a clickable breadcrumb back out and a
+"Narrow further..." picker, instead of an arbitrary slice. See
+[Using the dashboard](using-the-dashboard.md).
 
 ## Output formats
 
@@ -6012,16 +6030,21 @@ Output is chosen with `--format`:
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
-For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
-clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. With `--overview` it serves something larger: the whole cross-linked site,
-overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
-live counterpart of `--site`. It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so
-with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a request only when the
-`Host` header names the
-address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
-an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see [dashboard.md](using-the-dashboard.md#11-mutating-routes)).
+To explore a large graph interactively, run `contextlake kb graph --serve`. It starts a local web
+UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can walk the graph
+without rendering all of it first.
+
+With `--overview` it serves the whole cross-linked site: an overview plus a page per repo, each
+rendered on demand rather than pre-built. That is the live counterpart of `--site`.
+
+It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so with no flags it is at
+`http://127.0.0.1:8765`.
+
+Like the dashboard, it answers a request only when the `Host` header names the address it was
+bound to, or `localhost`, port included. That pinning stops a page on an attacker's domain from
+re-resolving to `127.0.0.1` and reading your graph cross-origin. Bind the address you intend to
+browse rather than a wildcard. See
+[Mutating routes](using-the-dashboard.md#11-mutating-routes).
 
 ## Working the served graph
 
@@ -6076,28 +6099,45 @@ node, as `folded  19 (config_key 14, macro 5)`. The full graph is still in the s
 
 ## Composed namespace C4 diagram
 
-`contextlake kb graph --c4` renders a different kind of view: a composed **C4-Context/Container** diagram over
-the whole fleet, namespaces are the boundaries, repos are the containers inside them, and the aggregated
-`depends_on`, HTTP `flow`, and event `flow` edges become the labeled inter-service connections (grouped by
-flavor and weight, e.g. `http x3`). It renders graph data that `index`/`connect` already extracted, so it
-runs fully offline and adds no new extraction pass. `--group-depth N` (default `1`) controls how deep into
-the namespace path the boundaries are drawn, and `--repos <glob>` scopes the diagram to matching repos.
-Because it only draws coupling the graph already resolved (weight-ranked), it doesn't invent links, and
-folding event-flow in alongside HTTP keeps it from telling an HTTP-only half story:
+`contextlake kb graph --c4` renders a composed **C4 Context and Container** diagram over the whole
+fleet:
+
+- namespaces are the boundaries
+- repos are the containers inside them
+- aggregated `depends_on`, HTTP `flow` and event `flow` edges become the labelled connections
+  between services, grouped by flavour and weight, for example `http x3`
+
+It draws graph data that `index` and `connect` already extracted, so it runs fully offline and
+adds no new extraction pass.
+
+Two flags shape it:
+
+- `--group-depth N` (default `1`) sets how deep into the namespace path the boundaries are drawn.
+- `--repos <glob>` scopes the diagram to matching repos.
+
+It only draws coupling the graph already resolved, ranked by weight, so it invents no links.
+Folding event flow in beside HTTP stops it telling an HTTP-only half story:
 
 ```bash
 contextlake kb graph --c4 --group-depth 2 --open       # HTML, open in the browser
 contextlake kb graph --c4 --format dot > c4.dot        # clustered DOT, copy-pasteable
 ```
 
-Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
-compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
-cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-`statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
-with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
-`--format graphml` and `--format cypher` are neither rejected nor honoured: `--c4` falls through to the
-HTML renderer and, because the output path is only defaulted for `--format html`, prints that HTML to
-stdout. Pass `--output <path>` if you hit it, and use `dot` or `json` for a real C4 export.
+With `--c4`, three formats work:
+
+- **`html`** (default), an interactive page with namespace boundaries as compound nodes, written
+  to `<store>/graphs/c4.html`
+- **`dot`**, Graphviz clustered DOT with `subgraph cluster_*` boundaries
+- **`json`**, the raw payload
+
+**Not supported with `--c4`:** `mermaid`, `classdiagram`, `sequencediagram`, `statediagram`,
+`erdiagram` and `deploymentdiagram`. The command exits with an error. `--serve` does not apply
+either, since the C4 view is a generated file, not a live server.
+
+**One rough edge.** `--format graphml` and `--format cypher` are neither rejected nor honoured.
+`--c4` falls through to the HTML renderer, and because the output path is only defaulted for
+`--format html`, it prints that HTML to stdout. If you hit this, pass `--output <path>`, and use
+`dot` or `json` for a real C4 export.
 
 ### C1: external systems
 
@@ -6387,12 +6427,19 @@ Discovery walks up from the current directory to the filesystem root, the way gi
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
-One carve-out matters for safety. Settings that would cause contextlake to *run a program* are
-honoured only from a file you named explicitly or from your own home config, never from a file found
-by the directory walk, because such a file can arrive inside a repository you cloned. The gate is on
-provenance rather than content, so a project-local `store_dir`, `languages` or `[[rules]]` keeps
-working (`src/contextlake/kb/trust.py`). The full settings tables are on
-[Configuration](configuration.md).
+One carve-out matters for safety.
+
+Settings that would make contextlake **run a program** are honoured only from:
+
+- a file you named explicitly, or
+- your own home config
+
+They are never honoured from a file found by the directory walk, because such a file can arrive
+inside a repository you cloned.
+
+The gate is on where the file came from, not on what it says. So a project-local `store_dir`,
+`languages` or `[[rules]]` keeps working. See `src/contextlake/kb/trust.py`, and the full
+settings tables on [Configuration](configuration.md).
 
 ## The mirror layer
 
@@ -6435,11 +6482,16 @@ A path outside the configured group is returned unchanged.
 Everything in the mirror layer is `ThreadPoolExecutor`, because the work is subprocess-bound rather
 than CPU-bound. `max_workers` defaults to `8` for cloning, updating and branch switching.
 
-Cloning is the one stage with an adaptive pool. It processes in waves and resizes between them,
-stepping the worker count down by one toward `min_workers` (default `2`) when the observed error
-rate exceeds `error_threshold` (default `0.5`), and back up when it falls below half of it. The
-window is 10 results, so it does nothing at all until 10 clones have been recorded
-(`AdaptiveWorkerPool` in `src/contextlake/core.py`). Set `adaptive_workers = false` for a flat pool.
+Cloning is the only stage with an adaptive pool. It works in waves and resizes between them:
+
+- **Steps down** by one worker toward `min_workers` (default `2`) when the error rate goes above
+  `error_threshold` (default `0.5`).
+- **Steps back up** when the error rate falls below half of that.
+
+The window is 10 results, so nothing happens at all until 10 clones have been recorded. See
+`AdaptiveWorkerPool` in `src/contextlake/core.py`.
+
+Set `adaptive_workers = false` for a flat pool.
 
 Every subprocess call carries an explicit timeout: `clone_timeout` 300s, `fetch_timeout` 60s,
 `pull_timeout` 60s, `branch_timeout` 30s (`DEFAULT_CONFIG` in `src/contextlake/config.py`). A repo
@@ -6483,12 +6535,17 @@ environment when a token is available. The token is read from the environment va
 | Bitbucket | `BITBUCKET_TOKEN` | `x-token-auth` |
 | Gitea | `GITEA_TOKEN` | `oauth2` |
 
-The token value itself is only ever read from the environment; the config file names the variable,
-never the secret. It reaches git as an `http.extraHeader` passed through `GIT_CONFIG_KEY_*` /
+The token value is only ever read from the environment. The config file names the variable, never
+the secret.
+
+It reaches git as an `http.extraHeader`, passed through `GIT_CONFIG_KEY_*` and
 `GIT_CONFIG_VALUE_*` in the child environment, offset past any `GIT_CONFIG_*` entries you already
-set. That is deliberate on two counts, both recorded in `src/contextlake/core.py`: it never appears
-on the command line, where `ps` would show it, and it never appears in the clone URL, where git
-would persist it into `.git/config`.
+set.
+
+That is deliberate on two counts, both recorded in `src/contextlake/core.py`:
+
+- It never appears on the command line, where `ps` would show it.
+- It never appears in the clone URL, where git would persist it into `.git/config`.
 
 Without a token, cloning falls back to `glab repo clone` when `glab` is installed, else plain
 `git clone` over HTTPS. Force one path with `clone_method = git` or `glab`.
@@ -6586,12 +6643,17 @@ Two separate questions, asked separately on purpose.
   column, then a cheap peek at the head of the shard file, then a full shard read. An unknown answer
   counts as stale.
 
-`kb index` uses both, short-circuited: a repository whose HEAD moved is queued without consulting
-the parser version at all, and only the otherwise-unchanged repositories are checked for a parser
-mismatch. Those are re-indexed rather than merely reported, and the run announces how many and from
-which version. The comment in `src/contextlake/kb/cmds/index.py` gives the reasoning: a repo at the
-same commit indexed by an older parser holds a graph this build would not produce, and the
-alternative is "a green 'unchanged' over a stale graph, and no amount of wording makes that safe".
+`kb index` uses both checks, short-circuited:
+
+1. A repository whose HEAD moved is queued straight away. The parser version is never consulted.
+2. Only the otherwise-unchanged repositories are checked for a parser mismatch.
+
+Those mismatches are **re-indexed**, not merely reported, and the run says how many and from
+which version.
+
+The reasoning is in `src/contextlake/kb/cmds/index.py`. A repo at the same commit indexed by an
+older parser holds a graph this build would not produce. The alternative is "a green 'unchanged'
+over a stale graph, and no amount of wording makes that safe".
 
 `kb lint` reports the same repositories but deliberately keeps them out of its exit code, on the
 grounds that such a graph is out of date rather than broken, and a version bump should not turn
@@ -6881,18 +6943,28 @@ A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `
 
 ## The live progress bar
 
-One shared renderer is used by every long-running command, so it looks the same everywhere:
-`[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min` (bar, done/total, percent,
-elapsed time, estimated time remaining, and rate in items/min). The ETA is the **cumulative mean** so far, elapsed time divided
-by items done, projected over what's left (that's what the `~` marks), and it's count-based, each item
-counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
-worker pool the gaps between completions are spiky enough that a short window swung the estimate between
-seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
-When a run's total isn't known up front, the bar drops the percent/ETA and shows `done · elapsed · rate`
-instead, rather than guessing. Across every long-running command (including `connect`, `ingest`, and
-`enrich`, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
-and on section/summary lines; the per-item detail lines scrolling beneath don't repeat it, so they don't
-flicker as the timestamp ticks over.
+Every long-running command uses one shared renderer, so the bar looks the same everywhere:
+
+    [█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min
+
+That is the bar, done out of total, percent, elapsed time, estimated time left, and rate per
+minute.
+
+**How the ETA works.** It is the cumulative mean: elapsed time divided by items done, projected
+over what is left. The `~` marks it as an estimate. It is count-based, so each item counts
+equally regardless of size.
+
+A trailing window was tried and rejected. With a worker pool, gaps between completions are spiky
+enough that a short window swung the estimate between seconds and half an hour. The cumulative
+figure smooths itself and settles as the run goes on.
+
+**When the total is not known up front**, the bar drops the percent and ETA, and shows
+`done · elapsed · rate` instead of guessing.
+
+**Where the clock appears.** Only on the bar itself and on section or summary lines. The
+per-item detail lines below do not repeat it, so they do not flicker as the timestamp ticks.
+This holds for every long-running command, including `connect`, `ingest` and `enrich`, which do
+not use the shared bar.
 
 ## One status vocabulary, everywhere
 
@@ -7056,13 +7128,20 @@ the exit code), so the metrics can never disagree with the summary line.
 
 ## The stdout / stderr split
 
-The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That
-split means `contextlake kb wiki >> run.log` (or any stdout redirect) captures clean detail lines with no bar
-artifacts or `\r` clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
-redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
-place. When both streams share one terminal (the default interactive case), the bar and the detail lines
-interleave as the run scrolls (the bar reprints below each new detail line rather than repainting perfectly
-in place); redirect stdout to a file to keep the bar as a single live line with the detail captured
+**The bar renders on stderr. The per-item result lines stay on stdout.**
+
+That split matters when you redirect. `contextlake kb wiki >> run.log` captures clean detail
+lines, with no bar artefacts and no `\r` clutter, because the bar never touches stdout.
+
+Two behaviours follow:
+
+- **Not a TTY** (piped, cron, redirected stderr): the bar downgrades to periodic plain summary
+  lines instead of repainting in place.
+- **Both streams on one terminal**, the default interactive case: the bar and detail lines
+  interleave as the run scrolls, so the bar reprints below each new detail line rather than
+  repainting perfectly in place.
+
+Redirect stdout to a file if you want the bar as a single live line with the detail captured
 separately.
 
 ## Decoding specific lines

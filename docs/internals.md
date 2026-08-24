@@ -38,12 +38,19 @@ Discovery walks up from the current directory to the filesystem root, the way gi
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
-One carve-out matters for safety. Settings that would cause contextlake to *run a program* are
-honoured only from a file you named explicitly or from your own home config, never from a file found
-by the directory walk, because such a file can arrive inside a repository you cloned. The gate is on
-provenance rather than content, so a project-local `store_dir`, `languages` or `[[rules]]` keeps
-working (`src/contextlake/kb/trust.py`). The full settings tables are on
-[Configuration](configuration.md).
+One carve-out matters for safety.
+
+Settings that would make contextlake **run a program** are honoured only from:
+
+- a file you named explicitly, or
+- your own home config
+
+They are never honoured from a file found by the directory walk, because such a file can arrive
+inside a repository you cloned.
+
+The gate is on where the file came from, not on what it says. So a project-local `store_dir`,
+`languages` or `[[rules]]` keeps working. See `src/contextlake/kb/trust.py`, and the full
+settings tables on [Configuration](configuration.md).
 
 ## The mirror layer
 
@@ -86,11 +93,16 @@ A path outside the configured group is returned unchanged.
 Everything in the mirror layer is `ThreadPoolExecutor`, because the work is subprocess-bound rather
 than CPU-bound. `max_workers` defaults to `8` for cloning, updating and branch switching.
 
-Cloning is the one stage with an adaptive pool. It processes in waves and resizes between them,
-stepping the worker count down by one toward `min_workers` (default `2`) when the observed error
-rate exceeds `error_threshold` (default `0.5`), and back up when it falls below half of it. The
-window is 10 results, so it does nothing at all until 10 clones have been recorded
-(`AdaptiveWorkerPool` in `src/contextlake/core.py`). Set `adaptive_workers = false` for a flat pool.
+Cloning is the only stage with an adaptive pool. It works in waves and resizes between them:
+
+- **Steps down** by one worker toward `min_workers` (default `2`) when the error rate goes above
+  `error_threshold` (default `0.5`).
+- **Steps back up** when the error rate falls below half of that.
+
+The window is 10 results, so nothing happens at all until 10 clones have been recorded. See
+`AdaptiveWorkerPool` in `src/contextlake/core.py`.
+
+Set `adaptive_workers = false` for a flat pool.
 
 Every subprocess call carries an explicit timeout: `clone_timeout` 300s, `fetch_timeout` 60s,
 `pull_timeout` 60s, `branch_timeout` 30s (`DEFAULT_CONFIG` in `src/contextlake/config.py`). A repo
@@ -134,12 +146,17 @@ environment when a token is available. The token is read from the environment va
 | Bitbucket | `BITBUCKET_TOKEN` | `x-token-auth` |
 | Gitea | `GITEA_TOKEN` | `oauth2` |
 
-The token value itself is only ever read from the environment; the config file names the variable,
-never the secret. It reaches git as an `http.extraHeader` passed through `GIT_CONFIG_KEY_*` /
+The token value is only ever read from the environment. The config file names the variable, never
+the secret.
+
+It reaches git as an `http.extraHeader`, passed through `GIT_CONFIG_KEY_*` and
 `GIT_CONFIG_VALUE_*` in the child environment, offset past any `GIT_CONFIG_*` entries you already
-set. That is deliberate on two counts, both recorded in `src/contextlake/core.py`: it never appears
-on the command line, where `ps` would show it, and it never appears in the clone URL, where git
-would persist it into `.git/config`.
+set.
+
+That is deliberate on two counts, both recorded in `src/contextlake/core.py`:
+
+- It never appears on the command line, where `ps` would show it.
+- It never appears in the clone URL, where git would persist it into `.git/config`.
 
 Without a token, cloning falls back to `glab repo clone` when `glab` is installed, else plain
 `git clone` over HTTPS. Force one path with `clone_method = git` or `glab`.
@@ -237,12 +254,17 @@ Two separate questions, asked separately on purpose.
   column, then a cheap peek at the head of the shard file, then a full shard read. An unknown answer
   counts as stale.
 
-`kb index` uses both, short-circuited: a repository whose HEAD moved is queued without consulting
-the parser version at all, and only the otherwise-unchanged repositories are checked for a parser
-mismatch. Those are re-indexed rather than merely reported, and the run announces how many and from
-which version. The comment in `src/contextlake/kb/cmds/index.py` gives the reasoning: a repo at the
-same commit indexed by an older parser holds a graph this build would not produce, and the
-alternative is "a green 'unchanged' over a stale graph, and no amount of wording makes that safe".
+`kb index` uses both checks, short-circuited:
+
+1. A repository whose HEAD moved is queued straight away. The parser version is never consulted.
+2. Only the otherwise-unchanged repositories are checked for a parser mismatch.
+
+Those mismatches are **re-indexed**, not merely reported, and the run says how many and from
+which version.
+
+The reasoning is in `src/contextlake/kb/cmds/index.py`. A repo at the same commit indexed by an
+older parser holds a graph this build would not produce. The alternative is "a green 'unchanged'
+over a stale graph, and no amount of wording makes that safe".
 
 `kb lint` reports the same repositories but deliberately keeps them out of its exit code, on the
 grounds that such a graph is out of date rather than broken, and a version bump should not turn

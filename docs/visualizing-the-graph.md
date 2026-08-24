@@ -43,24 +43,39 @@ search, and a minimap; it opens straight from `file://`:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. `--limit` (default
-`20`) caps how many seed nodes a `--name` or `--search` match contributes, before the walk starts, and
-the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
-only want a view of the first few". Bound the result
-with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
-every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
-nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (**`--repo` views only**, see the mode list below; no cap by default,
-which is what the `html` and `dot` renderers want,
-and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
-`deploymentdiagram` -- a dense repo can
-pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means a `--repo` view always renders, possibly truncated, never errors. A **seeded**
-Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with `--hops` or
-`--max-nodes` instead), and `--max-fanout` (a per-node cap that
-stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
-pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
-is dropped is **logged**, never silently truncated.
+**Pick a seed** with one of `--node`, `--name` (plus `--kind`), `--search`, `--repo` or
+`--overview`.
+
+`--limit` (default `20`) caps how many seed nodes a `--name` or `--search` match contributes,
+before the walk starts. The run logs how many matched when it trims. Use it when a name matches
+300 symbols and you want a view of the first few.
+
+**Then bound the result** with three flags.
+
+`--max-nodes` (default 500, or 5000 on `--overview`)
+
+- `--overview` is a fleet inventory, so it loads every repo by default and any of them is
+  findable.
+- This bounds the **whole file**. One-hop external nodes count against it too, and links take a
+  bounded share of whatever the repo's own nodes leave unused.
+
+`--max-edges` (`--repo` views only)
+
+- No cap by default, which is what the `html` and `dot` renderers want.
+- 400 for the Mermaid formats: `mermaid`, `classdiagram`, `statediagram`, `erdiagram`,
+  `deploymentdiagram`. A dense repo can pack well over 500 edges into 500 nodes, which used to
+  exceed Mermaid's own render limit and fail outright. Capping edges means a `--repo` view
+  always renders. It may be truncated, but it never errors.
+- A **seeded** Mermaid view gets no edge cap, so it can still exceed that limit and fail. Narrow
+  it with `--hops` or `--max-nodes` instead.
+
+`--max-fanout` (per-node cap, stops hub nodes exploding)
+
+- 50 on a seeded view.
+- Uncapped on a `--repo` view unless you pass it, because capping containment fan-out by default
+  would hide a file's own symbols.
+
+Whatever gets dropped is **logged**. Nothing is silently truncated.
 
 `--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
 to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
@@ -69,16 +84,19 @@ take: a seeded view, all of them except `--max-edges`, which the seeded path nev
 accepted and then ignored; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
 `--overview`, `--max-nodes` alone.
 
-For a `--repo` view over `--max-nodes`, which nodes
-survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
-rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
-the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
-completely (on one measured repo it kept 0 of 412 `table` and 0 of 402 `resource` nodes), which made
-`erdiagram` and `deploymentdiagram` render empty for a repo that plainly had the data. On the
-dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
-and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
-arbitrary slice (see [The dashboard](using-the-dashboard.md)).
+When a `--repo` view goes over `--max-nodes`, nodes are kept by **degree**: the
+highest-connected first, ties broken by node id. So a truncated diagram keeps the most connected
+part of the repo, not whatever sorted first.
+
+Degree alone is not the whole rule. Every kind present in the view gets a small floor of slots
+first. Pure degree ranking starved the rare kinds completely: on one measured repo it kept 0 of
+412 `table` nodes and 0 of 402 `resource` nodes, which made `erdiagram` and `deploymentdiagram`
+render empty for a repo that plainly had the data.
+
+On the dashboard, a repo too large for one diagram is narrowed to its largest module
+automatically. That works recursively, to any depth, with a clickable breadcrumb back out and a
+"Narrow further..." picker, instead of an arbitrary slice. See
+[Using the dashboard](using-the-dashboard.md).
 
 ## Output formats
 
@@ -143,16 +161,21 @@ Output is chosen with `--format`:
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
-For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
-clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. With `--overview` it serves something larger: the whole cross-linked site,
-overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
-live counterpart of `--site`. It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so
-with no flags it is at `http://127.0.0.1:8765`. Like the dashboard, it answers a request only when the
-`Host` header names the
-address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
-an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see [dashboard.md](using-the-dashboard.md#11-mutating-routes)).
+To explore a large graph interactively, run `contextlake kb graph --serve`. It starts a local web
+UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can walk the graph
+without rendering all of it first.
+
+With `--overview` it serves the whole cross-linked site: an overview plus a page per repo, each
+rendered on demand rather than pre-built. That is the live counterpart of `--site`.
+
+It binds `--host` (default `127.0.0.1`) and `--port` (default `8765`), so with no flags it is at
+`http://127.0.0.1:8765`.
+
+Like the dashboard, it answers a request only when the `Host` header names the address it was
+bound to, or `localhost`, port included. That pinning stops a page on an attacker's domain from
+re-resolving to `127.0.0.1` and reading your graph cross-origin. Bind the address you intend to
+browse rather than a wildcard. See
+[Mutating routes](using-the-dashboard.md#11-mutating-routes).
 
 ## Working the served graph
 
@@ -207,28 +230,45 @@ node, as `folded  19 (config_key 14, macro 5)`. The full graph is still in the s
 
 ## Composed namespace C4 diagram
 
-`contextlake kb graph --c4` renders a different kind of view: a composed **C4-Context/Container** diagram over
-the whole fleet, namespaces are the boundaries, repos are the containers inside them, and the aggregated
-`depends_on`, HTTP `flow`, and event `flow` edges become the labeled inter-service connections (grouped by
-flavor and weight, e.g. `http x3`). It renders graph data that `index`/`connect` already extracted, so it
-runs fully offline and adds no new extraction pass. `--group-depth N` (default `1`) controls how deep into
-the namespace path the boundaries are drawn, and `--repos <glob>` scopes the diagram to matching repos.
-Because it only draws coupling the graph already resolved (weight-ranked), it doesn't invent links, and
-folding event-flow in alongside HTTP keeps it from telling an HTTP-only half story:
+`contextlake kb graph --c4` renders a composed **C4 Context and Container** diagram over the whole
+fleet:
+
+- namespaces are the boundaries
+- repos are the containers inside them
+- aggregated `depends_on`, HTTP `flow` and event `flow` edges become the labelled connections
+  between services, grouped by flavour and weight, for example `http x3`
+
+It draws graph data that `index` and `connect` already extracted, so it runs fully offline and
+adds no new extraction pass.
+
+Two flags shape it:
+
+- `--group-depth N` (default `1`) sets how deep into the namespace path the boundaries are drawn.
+- `--repos <glob>` scopes the diagram to matching repos.
+
+It only draws coupling the graph already resolved, ranked by weight, so it invents no links.
+Folding event flow in beside HTTP stops it telling an HTTP-only half story:
 
 ```bash
 contextlake kb graph --c4 --group-depth 2 --open       # HTML, open in the browser
 contextlake kb graph --c4 --format dot > c4.dot        # clustered DOT, copy-pasteable
 ```
 
-Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
-compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
-cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-`statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
-with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
-`--format graphml` and `--format cypher` are neither rejected nor honoured: `--c4` falls through to the
-HTML renderer and, because the output path is only defaulted for `--format html`, prints that HTML to
-stdout. Pass `--output <path>` if you hit it, and use `dot` or `json` for a real C4 export.
+With `--c4`, three formats work:
+
+- **`html`** (default), an interactive page with namespace boundaries as compound nodes, written
+  to `<store>/graphs/c4.html`
+- **`dot`**, Graphviz clustered DOT with `subgraph cluster_*` boundaries
+- **`json`**, the raw payload
+
+**Not supported with `--c4`:** `mermaid`, `classdiagram`, `sequencediagram`, `statediagram`,
+`erdiagram` and `deploymentdiagram`. The command exits with an error. `--serve` does not apply
+either, since the C4 view is a generated file, not a live server.
+
+**One rough edge.** `--format graphml` and `--format cypher` are neither rejected nor honoured.
+`--c4` falls through to the HTML renderer, and because the output path is only defaulted for
+`--format html`, it prints that HTML to stdout. If you hit this, pass `--output <path>`, and use
+`dot` or `json` for a real C4 export.
 
 ### C1: external systems
 
