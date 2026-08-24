@@ -194,14 +194,18 @@ the symbol you're on.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
-The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links → Ticket**, one click
-each to that symbol's repo-scoped architecture graph, curated wiki, and connector links
-(Jira/Confluence/GitLab). Wiki, Links, and Ticket only appear when they actually apply: an absent wiki,
-connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
-distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
-docstring or the git-blame commit message on its defining line, see
-[Connect and enrich](connecting-and-enriching.md#connectors)), live-JQL confirmed the same way a branch-derived key
-is. Clicking it opens the real tracker URL directly, not another dashboard view.
+The breadcrumb keeps going: **repo, symbol, Diagram, Wiki, Links, Ticket**. Each is one click
+to that symbol's repo-scoped architecture graph, its curated wiki, or its connector links in
+Jira, Confluence or GitLab.
+
+Wiki, Links and Ticket appear only when they apply. A missing wiki, link or ticket is left out
+of the trail, never shown as a dead crumb.
+
+**Ticket is not the same as the repo-level Links crumb.** It is an issue attributed to *this
+specific symbol*, taken from its docstring or from the git-blame commit message on the line
+where it is defined. See
+[Connectors](connecting-and-enriching.md#connectors). It is confirmed by live JQL, the same way
+a branch-derived key is. Clicking it opens the real tracker URL, not another dashboard view.
 
 ## 8. Path
 
@@ -214,12 +218,14 @@ than showing an empty diagram.
 
 ## 8b. Search
 
-The **Search** rail item is a lens in its own right, not just the box that feeds the other tabs.
-It has two modes, **Symbols** and **Semantic**, and a scope toggle that flips between the whole
-fleet and the repo you were last looking at. Each result row carries the symbol's kind, its
-qualified name and its repo; clicking the row opens that repo's anatomy tab, and each row also has
-its own **Blast** button so you can go straight from a search hit to its blast radius without a
-detour.
+**Search** is a lens in its own right, not only the box that feeds the other tabs.
+
+- Two modes: **Symbols** and **Semantic**.
+- A scope toggle, flipping between the whole fleet and the repo you were last looking at.
+- Each result row shows the symbol's kind, its qualified name and its repo.
+- Clicking a row opens that repo's anatomy tab.
+- Each row has its own **Blast** button, so you can go from a search hit straight to its blast
+  radius.
 
 Semantic mode is **live-only**: in a `--site` export it says so and points you at the running
 server. On a live server with no embedder wired up it does not fail either: it returns lexical
@@ -250,19 +256,26 @@ No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click 
 contextlake kb wiki acme/catalog-api --llm builtin
 ```
 
-`--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
-API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
-needs no compiler at all; `openai` uses that backend instead.
-The positional repo id scopes generation to just that repo. Once it's generated, the page
-renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
-symbols and (when available) its own README and conventional setup/config files, with a
-fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions;
-sections with nothing to ground them are left out, never emitted empty), plus an attributed
-"external context" block from connected sources when there's real data to cite, and a
-provenance footer citing the exact commit and source files. A **STALE** badge appears next to
-the heading whenever the indexed commit has moved since the page was generated, that's
-always visible, not tucked behind anything.
+`--llm` turns on the LLM tier inline. Three choices:
+
+- **`builtin`** runs a small CPU model, with no Ollama and no API key. On a `pip` install it
+  needs `contextlake doctor --fix llm-local` first. See
+  [Installing and upgrading](installing.md#the-built-in-wiki-llm-is-one-extra).
+- **`ollama`** needs no compiler at all.
+- **`openai`** uses that backend instead.
+
+A positional repo id limits generation to that one repo.
+
+Once generated, the page renders straight in the Wiki tab. No click-through. It is grounded in
+the repo's real symbols, and in its README and conventional config files when those exist.
+
+Sections follow a fixed order: Overview, Setup & Run, Architecture, Dependencies, Gotchas,
+Decisions. A section with nothing to ground it is left out, never written empty. When connected
+sources have real data to cite, an attributed "external context" block is added. A provenance
+footer names the exact commit and source files.
+
+A **STALE** badge appears beside the heading whenever the indexed commit has moved since the
+page was written. It is always visible, not hidden behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
@@ -293,56 +306,82 @@ it's a summary, not a form; edit `kb.toml` directly to change anything.
 
 ## 11. Mutating routes
 
-Everything above is read-only. `contextlake kb dashboard --serve --allow-mutations`
-additionally exposes four write actions, each behind an explicit confirm dialog in
-the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
-repo** on the fleet overview (clone a URL into `--workspace` + index it),
-**Start / Stop / Restart** for a separate `contextlake kb serve --transport http`
-process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one; see below for its bearer token), and
-**Regenerate** wiki (single-repo on
-that repo's Wiki tab, or fleet-wide on Settings, runs the exact `contextlake kb
-wiki` CLI as a background process, detached from the request that started it, so
-it keeps running even if you close the browser tab).
-Regenerate always shows a real pre-flight count first, "N of M repos will
-regenerate, the rest are already up to date", before you confirm, and a **Force**
-checkbox to bypass that freshness check and regenerate everything in scope
+Everything above is read-only.
+
+`contextlake kb dashboard --serve --allow-mutations` adds four write actions. Each one asks you
+to confirm in the browser first.
+
+| Action | Where | What it does |
+|---|---|---|
+| **Sync now** | a repo page | `git pull --ff-only`, then reindex |
+| **Add repo** | fleet overview | clone a URL into `--workspace`, then index it |
+| **Start / Stop / Restart** | MCP console tab | manages a separate `contextlake kb serve --transport http` process |
+| **Regenerate** | a repo's Wiki tab, or Settings | runs the real `contextlake kb wiki` CLI in the background |
+
+Two notes on those:
+
+- The MCP process is **not** the stdio server your editor spawns. This dashboard cannot see or
+  manage that one. Its bearer token is covered below.
+- Regenerate runs detached from the request that started it, so it keeps going if you close the
+  browser tab.
+
+Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
+are already up to date". A **Force** checkbox skips that freshness check and regenerates
+everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
-The MCP server this card starts is itself authenticated (see
-[Serve](mcp-transports.md#authenticating-the-network-transports)): the HTTP transport requires
-`Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
-output discarded, the dashboard mints that token instead of letting the server print one, and
-the card shows it alongside the endpoint, that card is the only place it appears. **Restart
-mints a new one**, so any client pinned to the old token must be re-pointed at the value the
-card then shows. The token is kept in `<store>/dashboard/mcp-server.pid`, created `0600`, so it
-survives a page reload.
+The MCP server this card starts is authenticated. Its HTTP transport needs
+`Authorization: Bearer <token>` on every request. See
+[Authenticating the network transports](mcp-transports.md#authenticating-the-network-transports).
 
-Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
-sync/clone) and with any non-loopback `--host` (`127.0.0.1`, `localhost` and `::1` are the
-loopback binds; mutating routes are loopback-only by design). A random per-launch token is minted at
-startup and wired into the served page; every `POST` must carry it in an
-`X-Contextlake-Token` header matching exactly, and the request's `Host` header
-must name this host:port -- both close the classic localhost-server holes (a
-form-encoded POST from any open browser tab, and DNS rebinding around the
-loopback bind, respectively). A mutation takes the store's single-writer lock
-for its own duration only, so a concurrent CLI command sees a clean `409`
-instead of an interleaved write.
+The dashboard spawns that server with its output discarded, so the server cannot print a token
+where you would see it. The dashboard mints the token itself and shows it on the card, next to
+the endpoint. **That card is the only place it appears.**
+
+Two things follow:
+
+- **Restart mints a new token.** Any client pinned to the old one has to be re-pointed at the
+  value the card then shows.
+- The token lives in `<store>/dashboard/mcp-server.pid`, created `0600`, so it survives a page
+  reload.
+
+Mutating routes are refused in two cases:
+
+- **With `--sample`.** The demo fleet is fictional, so there is nothing on disk to sync or clone.
+- **With any non-loopback `--host`.** Only `127.0.0.1`, `localhost` and `::1` count as loopback.
+  Mutating routes are loopback-only by design.
+
+Two checks protect every `POST`:
+
+1. **A per-launch token.** A random token is minted at startup and wired into the served page.
+   Every `POST` must send it in an `X-Contextlake-Token` header, matching exactly. This closes
+   the case where any open browser tab submits a form-encoded POST at your local server.
+2. **A `Host` header check.** The request must name this host and port. This closes DNS
+   rebinding, where a hostile site resolves a name to `127.0.0.1` to reach past the loopback
+   bind.
+
+A mutation holds the store's single-writer lock only while it runs. A concurrent CLI command
+gets a clean `409` rather than an interleaved write.
 
 The MCP server those Start/Restart actions spawn is constrained to a loopback bind
 and an unprivileged port (1024-65535), whatever the request asks for. That transport
 has no authentication of its own, so a caller-chosen bind would let one token turn
 this loopback-only dashboard into a public graph server that outlives it.
 
-The `Host` check applies to **every** request, `GET` included, and to every route
-including the static assets -- the read API is your whole code graph, and the
-served `dashboard.js` carries that per-launch token. The same rule now guards
-`contextlake kb graph --serve`'s pages. Practical consequence: a request is
-answered only when its `Host` is the address you bound (`--host`) or `localhost`,
-each with the port. If you bind a wildcard (`--host 0.0.0.0`) and then browse the
-machine's LAN address, you'll get `403 forbidden` -- bind that address instead
-(`--host 192.0.2.10`), or reach it as `http://localhost:PORT`.
+The `Host` check applies to **every** request. That includes `GET`, and every route, static
+assets included. Two reasons: the read API is your whole code graph, and the served
+`dashboard.js` carries the per-launch token. The same rule guards
+`contextlake kb graph --serve`.
+
+What this means in practice: a request is answered only when its `Host` is the address you bound
+with `--host`, or `localhost`, each with the port.
+
+So if you bind a wildcard (`--host 0.0.0.0`) and then browse the machine's LAN address, you get
+`403 forbidden`. Two ways round it:
+
+- bind that address directly, `--host 192.0.2.10`
+- or reach it as `http://localhost:PORT`
 
 ## 12. Chat
 

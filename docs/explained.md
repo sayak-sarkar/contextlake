@@ -167,22 +167,30 @@ rather than a constraint.
 
 ### Caching bounded by memory, not by entry count
 
-A small decision with a measurement attached, and a good example of the house style. The shard
-cache is capped by estimated resident bytes rather than by number of entries, because parsed
-objects cost far more memory than their JSON: measured at roughly 13 times on a real
-20,000-node, 97,000-edge shard, 27.6 MB on disk against about 363 MB resident
-(`src/contextlake/kb/store/shards.py`). An entry-count cap of, say, 256 would pin dozens of large
-shards in memory before it ever fired, which on the multi-hundred-repo fleets this is for trades a
-latency bug for an out-of-memory one.
+A small decision with a measurement attached, and a good example of the house style.
+
+The shard cache is capped by **estimated resident bytes**, not by number of entries. Parsed
+objects cost far more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
+shard: 27.6 MB on disk, about 363 MB resident. Roughly 13 times
+(`src/contextlake/kb/store/shards.py`).
+
+An entry-count cap of, say, 256 would pin dozens of large shards in memory before it ever fired.
+On the multi-hundred-repo fleets this is built for, that trades a latency bug for an
+out-of-memory one.
 
 ### The repository-list cache moved out of `/tmp`, for three stated reasons
 
-The mirror's cache names every repository your account can enumerate, together with its clone URLs,
-which makes its location a privacy decision rather than a scratch-file one. It used to default to
-`/tmp`, and `src/contextlake/config.py` records why that was wrong on three counts: `/tmp` sits
-outside the user's home, so no HOME-based isolation reaches it; it is world-readable on a shared
-host; and its path is predictable, so another user can pre-create a file or symlink there first.
-It now defaults under `~/.cache/contextlake`, in a per-workspace subdirectory created `0700`.
+The mirror's cache names every repository your account can see, along with its clone URLs. That
+makes where it lives a privacy decision, not a scratch-file one.
+
+It used to default to `/tmp`. `src/contextlake/config.py` records why that was wrong, on three
+counts:
+
+- `/tmp` sits outside your home directory, so no HOME-based isolation protects it.
+- It is world-readable on a shared host.
+- Its path is predictable, so another user can pre-create a file or symlink there first.
+
+It now defaults to `~/.cache/contextlake`, in a per-workspace subdirectory created `0700`.
 
 A directory *you* configure explicitly is created but never re-permissioned, on the grounds that
 silently changing the mode of a path you pointed the tool at is a side effect nobody asked for.
@@ -282,11 +290,17 @@ flowchart TD
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
-The alternative is a graph that records only the relationship. It is smaller, faster to build, and
-it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
-With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
-call, and say it does not know when the graph does not know. Without it, the assistant is back to
-sounding confident about everything.
+The alternative is a graph that records only the relationship. It is smaller and faster to
+build. It also makes every fact sound equally certain, which is the exact failure this tool
+exists to fix.
+
+With confidence recorded, an assistant can:
+
+- state a containment as fact
+- hedge on a name-matched call
+- say it does not know, when the graph does not know
+
+Without it, the assistant is back to sounding confident about everything.
 
 `kb impact` is where you see it pay off: incoming edges are walked highest-confidence first, so
 when a result is truncated at `--limit`, what you kept is the trustworthy part rather than an
@@ -319,12 +333,14 @@ the second.
    references already attached, and asked to organise evidence rather than recall it.
 2. **A review council.** A second pass scores the draft against the graph. Pages below the accept
    threshold are reported as rejected rather than published, with per-lens reasons.
-3. **A deterministic gate that runs before the council.** Added because the council was measurably
-   not enough: in a controlled run the shipped default provider scored a page that was one
-   sentence repeated 32 times at 0.967, the highest of that run, and accepted another whose
-   "Gotchas" section was the prompt's own guardrail reproduced word for word. Self-review is not
-   independent, so a model's failure modes are invisible to it, and a stronger judge moved those
-   verdicts without making them reliable.
+3. **A deterministic gate that runs before the council.** The council alone was measurably not
+   enough. In one controlled run, the shipped default provider:
+
+   - scored a page that was one sentence repeated 32 times at **0.967**, the highest of that run
+   - accepted another whose "Gotchas" section was the prompt's own guardrail, copied word for word
+
+   Self-review is not independent. A model cannot see its own failure modes. A stronger judge
+   moved those verdicts without making them reliable.
 4. **Coverage honesty.** Each page states how much of the repository it reflects, and very large
    repositories get a page per subsystem rather than one page claiming to cover everything.
 
@@ -347,12 +363,15 @@ flowchart LR
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
-The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
-six normalized words with the instruction text, while the leaking page shared a run of 61, so the
-instruction-leak rule fires at 12. The highest legitimate sentence repeat across the same corpus is
-4 and the degenerate pages hit 31 and 32, so the repetition rule fires above 8
-(`_LEAK_RUN_WORDS` and `_MAX_REPEATS` in `src/contextlake/kb/wiki/validate.py`, each with the
-measurement in a comment beside it).
+The gate's thresholds are measured, not picked.
+
+- **Instruction leak fires at 12 words.** Pages a human judged sound share no run of even six
+  normalised words with the instruction text. The leaking page shared a run of 61.
+- **Repetition fires above 8.** The highest legitimate sentence repeat across the same corpus is
+  4. The degenerate pages hit 31 and 32.
+
+Both live in `src/contextlake/kb/wiki/validate.py`, as `_LEAK_RUN_WORDS` and `_MAX_REPEATS`, each
+with its measurement in a comment beside it.
 
 That module is also candid about its ceiling, which is the honest version of this section: it
 checks structure, not truth. One page passes the gate while claiming its module is the only module
@@ -413,12 +432,16 @@ repositories and commits the harness, the tree list and the raw output. **contex
 measures on one tree of four, on one of the two measures on two more, and on neither on the
 JavaScript tree.**
 
-That benchmark has already paid for itself once. Its first run showed contextlake at 320 nodes to
-1,084 on a JavaScript tree where both tools read the same 141 files, and the cause turned out to be
-that one whole category of symbol, module-level bindings, was extracted for C and C++ only.
-Extending it took that tree from 320 nodes to 783 and flipped the Python tree into the lead on
-relationships. The remaining gap is now two named things rather than one unexplained number. Read
-`benchmarks/head-to-head/RESULTS.md`, and re-run it if you doubt it.
+That benchmark has already paid for itself once.
+
+Its first run showed contextlake at 320 nodes against 1,084, on a JavaScript tree where both
+tools read the same 141 files. The cause was specific: one whole category of symbol,
+module-level bindings, was extracted for C and C++ only.
+
+Extending it took that tree from 320 nodes to 783, and flipped the Python tree into the lead on
+relationships. What remains is two named gaps, not one unexplained number.
+
+Read `benchmarks/head-to-head/RESULTS.md`. Re-run it if you doubt it.
 
 ## What it is not good at
 
