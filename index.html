@@ -46,9 +46,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=af8f8c0">
-<link rel="stylesheet" href="tokens.css?v=af8f8c0">
-<link rel="stylesheet" href="cmdk.css?v=af8f8c0">
+<link rel="stylesheet" href="fonts.css?v=1fd75106">
+<link rel="stylesheet" href="tokens.css?v=1fd75106">
+<link rel="stylesheet" href="cmdk.css?v=1fd75106">
 <style>
   /* Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
      load from tokens.css -- these :root blocks add only the tokens specific to this
@@ -779,7 +779,7 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=af8f8c0"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=1fd75106"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -839,7 +839,7 @@
           <div class="demo-foot">
             <p class="demo-cap">A real <code style="font-family:var(--ff-m)">blast_radius</code> call, answered from the graph inside your editor. No model, no network.</p>
             <button class="runline" type="button" data-cmd="contextlake kb serve"><span class="rp">$</span><span class="rc">contextlake kb serve</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
-            <a class="doclink" href="serve">MCP setup &rarr;</a>
+            <a class="doclink" href="serving-over-mcp">MCP setup &rarr;</a>
           </div>
         </div></div>
       </div>
@@ -872,7 +872,7 @@
           <div class="demo-foot">
             <p class="demo-cap">Real cosine-ranked hits over contextlake's own code. The built-in CPU model needs no key and no network.</p>
             <button class="runline" type="button" data-cmd="contextlake kb embed"><span class="rp">$</span><span class="rc">contextlake kb embed</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
-            <a class="doclink" href="semantic-search">Semantic search &rarr;</a>
+            <a class="doclink" href="searching-semantically">Semantic search &rarr;</a>
           </div>
         </div></div>
       </div>
@@ -909,7 +909,7 @@
           <div class="demo-foot">
             <p class="demo-cap">A real sync run over a local test fleet. Uncommitted work is detected and left untouched, and the same pass scales to hundreds of repos, concurrent and resumable.</p>
             <button class="runline" type="button" data-cmd="contextlake mirror sync"><span class="rp">$</span><span class="rc">contextlake mirror sync</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
-            <a class="doclink" href="usage">Syncing &rarr;</a>
+            <a class="doclink" href="mirroring-repositories">Syncing &rarr;</a>
           </div>
         </div></div>
       </div>
@@ -993,7 +993,7 @@
       <div class="sec-eyebrow">Meet Pebble</div>
       <p class="pm-lead" id="pm-h">Otters keep a favorite stone. Pebble keeps yours.</p>
       <p class="pm-sub">Every repo you care about, mirrored to your own lake and kept on its most active branch, so the context is always within reach for you and your agents. No stone goes missing, and the work you have not committed yet is never dropped.</p>
-      <a class="doclink pm-link" href="usage">How branch-safety works &rarr;</a>
+      <a class="doclink pm-link" href="mirroring-repositories">How branch-safety works &rarr;</a>
     </div>
   </div>
 </section>
@@ -1240,6 +1240,6 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=af8f8c0"></script>
+<script defer src="cmdk.js?v=1fd75106"></script>
 </body>
 </html>

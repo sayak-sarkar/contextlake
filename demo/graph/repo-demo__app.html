@@ -60,10 +60,27 @@
           stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>SVG</button>
       </div>
+      <!-- These two govern the NEXT click-to-expand, not the current canvas: expanding
+           is additive, so retroactively narrowing an already-explored graph would
+           delete nodes the reader put there on purpose. Both are sent to /neighbors,
+           which does the traversal -- depth is not narrowed in the browser, because
+           the direction case provably loses nodes when it is (max_fanout is applied
+           to the both-direction neighbour list, so in-edges crowd out the out-edges a
+           directed view needs, and no later hop recovers them). -->
+      <div class="row" role="group" aria-label="Expand behaviour">
+        <label>depth <input type="range" id="hops" min="1" max="3" step="1" value="1"
+          aria-describedby="hopshelp"><span class="cnt" id="hopsv">1</span></label>
+        <label>edges <select id="direction" aria-label="Which edges to follow when expanding">
+          <option value="both">both</option>
+          <option value="out">outgoing</option>
+          <option value="in">incoming</option>
+        </select></label>
+      </div>
+      <p id="hopshelp">Applies to the next node you expand.</p>
       <label class="tog" id="nodeprow" hidden><input type="checkbox" id="shownodeps">
         show repos with no detected dependency <span id="nodepn" class="cnt"></span></label>
     </div>
-    <div class="sgroup"><h2>Nodes</h2><div id="legend"><button type="button" class="lg" aria-pressed="true" data-kind="class"><span class="gl" style="background:#fb8500"><img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230E2A33%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M21%2016V8a2%202%200%200%200-1-1.73l-7-4a2%202%200%200%200-2%200l-7%204A2%202%200%200%200%203%208v8a2%202%200%200%200%201%201.73l7%204a2%202%200%200%200%202%200l7-4A2%202%200%200%200%2021%2016z%22%2F%3E%3C%2Fsvg%3E" alt=""></span><span class="lbl">class</span><span class="cnt">1</span></button><button type="button" class="lg" aria-pressed="true" data-kind="function"><span class="gl" style="background:#90be6d"><img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230E2A33%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%228%207%203%2012%208%2017%22%2F%3E%3Cpolyline%20points%3D%2216%207%2021%2012%2016%2017%22%2F%3E%3C%2Fsvg%3E" alt=""></span><span class="lbl">function</span><span class="cnt">1</span></button></div></div>
+    <div class="sgroup"><h2>Nodes</h2><div id="legend"><div class="band"><h3 class="bandname">Symbols</h3><div class="bandrow"><button type="button" class="lg" aria-pressed="true" data-kind="class"><span class="gl" style="background:#fb8500"><img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230E2A33%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M21%2016V8a2%202%200%200%200-1-1.73l-7-4a2%202%200%200%200-2%200l-7%204A2%202%200%200%200%203%208v8a2%202%200%200%200%201%201.73l7%204a2%202%200%200%200%202%200l7-4A2%202%200%200%200%2021%2016z%22%2F%3E%3C%2Fsvg%3E" alt=""></span><span class="lbl">class</span><span class="cnt">1</span></button><button type="button" class="lg" aria-pressed="true" data-kind="function"><span class="gl" style="background:#90be6d"><img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230E2A33%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%228%207%203%2012%208%2017%22%2F%3E%3Cpolyline%20points%3D%2216%207%2021%2012%2016%2017%22%2F%3E%3C%2Fsvg%3E" alt=""></span><span class="lbl">function</span><span class="cnt">1</span></button></div></div></div></div>
     <div class="sgroup"><h2>Relationships</h2><div id="edgelegend"><button type="button" class="lg rel" aria-pressed="true" data-rel="calls"><i style="background:#137A8B"></i><span class="lbl">calls</span><span class="cnt">1</span></button></div></div>
     <details class="legend-keys"><summary>Legend key</summary><div class="kgroup"><h3>Confidence</h3><div class="ck"><span class="ln solid"></span><span class="lbl">Extracted</span><span class="cnt">Direct from source (AST / manifest)</span></div></div></details>
     <div class="sgroup"><h2>Graph as text</h2>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="contextlake, explained · contextlake docs">
 <meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-18"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=af8f8c0">
-<link rel="stylesheet" href="tokens.css?v=af8f8c0">
-<link rel="stylesheet" href="docs.css?v=af8f8c0">
-<link rel="stylesheet" href="cmdk.css?v=af8f8c0">
+<link rel="stylesheet" href="fonts.css?v=1fd75106">
+<link rel="stylesheet" href="tokens.css?v=1fd75106">
+<link rel="stylesheet" href="docs.css?v=1fd75106">
+<link rel="stylesheet" href="cmdk.css?v=1fd75106">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained" class="active">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="generate-docs">Generate documentation</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained" class="active">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Understand it</span><span aria-hidden="true">/</span><span aria-current="page">contextlake, explained</span></nav>
     <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake, explained</h1><p class="doc-sub">What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -52,7 +52,7 @@
 and why each part is built the way it is. Read the first section and stop, and you will still have
 a whole answer; each section after it goes one level deeper.</p>
 <p>This is the page for deciding whether to adopt contextlake and for understanding the reasoning
-behind it. For getting it running, start at <a href="install">Install and upgrade</a> instead.</p>
+behind it. For getting it running, start at <a href="installing">Install and upgrade</a> instead.</p>
 <p>The shape of the whole thing, before any of the detail:</p>
 <pre class="mermaid">flowchart LR
   Q(["your question,<br/>asked in your editor"]) --> T["an MCP tool call"]
@@ -112,7 +112,7 @@ that file states the intent plainly: the anti-hallucination contract is structur
 <tr>
 <td><strong>Knowledge</strong></td>
 <td>Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki</td>
-<td>Terminal answers: <a href="ask-the-graph">Ask the graph</a></td>
+<td>Terminal answers: <a href="asking-the-graph">Ask the graph</a></td>
 </tr>
 <tr>
 <td><strong>Serve</strong></td>
@@ -238,10 +238,10 @@ upgrade into a red CI gate. Two commands, opposite calls, each with its reason w
 agents already speak, so wiring contextlake into one is a config entry rather than a client-side
 integration. (That is an observation about the protocol, not a decision record; the codebase does
 not argue the case against an API of its own.)</p>
-<p>22 tools are registered unconditionally; <code>semantic_search</code> and <code>hybrid_search</code> bring it to
-24, and register only when an embedder and a vector store both exist
+<p>23 tools are registered unconditionally; <code>semantic_search</code> and <code>hybrid_search</code> bring it to
+25, and register only when an embedder and a vector store both exist
 (<code>build_server</code> in <code>src/contextlake/kb/server.py</code>). A server started without embeddings says so
-and serves the other 22 rather than failing.</p>
+and serves the other 23 rather than failing.</p>
 <h3 id="why-the-network-transports-are-authenticated-and-stdio-is-not">Why the network transports are authenticated and stdio is not<a class="anchor" href="#why-the-network-transports-are-authenticated-and-stdio-is-not" title="Link to this section">#</a></h3>
 <p><code>stdio</code> is the default: your editor spawns the server as a child process and talks over a pipe it
 owns, so there is nothing to authenticate against. The HTTP transports are different, because a
@@ -252,7 +252,7 @@ address, and refuse a non-loopback bind unless you pass <code>--allow-remote</co
 (<code>BearerAuthMiddleware</code> in <code>src/contextlake/kb/server.py</code>), which has a consequence worth knowing
 before you debug it: an unauthenticated request to <em>any</em> path, the root included, gets <code>401</code>, not
 <code>404</code>. Nothing is encrypted in transit; for anything past your own machine, put TLS or an SSH
-tunnel in front. See <a href="serve">Serve it to your editor</a>.</p>
+tunnel in front. See <a href="serving-over-mcp">Serve it to your editor</a>.</p>
 <h2 id="confidence-and-provenance">Confidence and provenance<a class="anchor" href="#confidence-and-provenance" title="Link to this section">#</a></h2>
 <p>This is the design decision the rest depends on, so it gets its own section.</p>
 <p>Every edge in the graph records how it was derived. Not as an annotation somebody remembered to
@@ -317,7 +317,7 @@ against a hand-labelled corpus on every CI run: <strong>precision 1.00 and recal
 13 ground-truth edges (<code>tests/kb/fixtures/sql/</code>, scored by
 <code>tests/kb/test_sql_fixture_corpus.py</code>, which also asserts that these pages quote what it measures).
 Both documented gap classes, and the false positive that masking comments removed, are written down
-in <a href="index-code-graph#databases-sql-ddl">Index the code graph</a>.</p>
+in <a href="code-graph-model#databases-sql-ddl">Index the code graph</a>.</p>
 <p>That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an <code>INFERRED</code> SQL edge" is a question with a number, and a number you
 can reproduce is worth more than an adjective.</p>
@@ -437,7 +437,7 @@ described.</p>
 <li><strong>Some structure is skipped rather than guessed at.</strong> Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.</li>
-<li><strong>A fixed cost per agent session.</strong> The tool schemas (22, or 24 once embeddings exist) load once
+<li><strong>A fixed cost per agent session.</strong> The tool schemas (23, or 25 once embeddings exist) load once
   whether or not a tool is called, which can be net-negative if the agent calls it for questions it
   does not help with.</li>
 </ul>
@@ -445,12 +445,12 @@ described.</p>
 <ul>
 <li><a href="benchmarks">Benchmarks</a>, where the token and correctness impact comes from, and how to measure
   it on your own repositories</li>
-<li><a href="install">Install and upgrade</a>, if you have decided to try it</li>
+<li><a href="installing">Install and upgrade</a>, if you have decided to try it</li>
 <li><a href="internals">Architecture and internals</a>, the same machinery at implementation depth</li>
-<li><a href="ask-the-graph">Ask the graph</a>, the questions this page promised you can ask</li>
-<li><a href="index-code-graph">Index the code graph</a>, what the graph actually contains</li>
+<li><a href="asking-the-graph">Ask the graph</a>, the questions this page promised you can ask</li>
+<li><a href="indexing-the-code-graph">Index the code graph</a>, what the graph actually contains</li>
 </ul>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="benchmarks"><span>Benchmarks</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="install"><span>Install and upgrade</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="benchmarks"><span>Benchmarks</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="installing"><span>Installing and upgrading</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
@@ -554,6 +554,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=af8f8c0"></script>
+<script defer src="cmdk.js?v=1fd75106"></script>
 </body>
 </html>

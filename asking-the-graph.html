@@ -4,32 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
-<title>Ask the graph · contextlake docs</title>
+<title>Asking the graph · contextlake docs</title>
 <meta name="description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<link rel="canonical" href="https://sayak.in/contextlake/ask-the-graph">
+<link rel="canonical" href="https://sayak.in/contextlake/asking-the-graph">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
-<meta property="og:title" content="Ask the graph · contextlake docs">
+<meta property="og:title" content="Asking the graph · contextlake docs">
 <meta property="og:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
-<meta property="og:url" content="https://sayak.in/contextlake/ask-the-graph">
+<meta property="og:url" content="https://sayak.in/contextlake/asking-the-graph">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Ask the graph · contextlake docs">
+<meta name="twitter:title" content="Asking the graph · contextlake docs">
 <meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Ask the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/ask-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-17"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Ask the graph", "item": "https://sayak.in/contextlake/ask-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=af8f8c0">
-<link rel="stylesheet" href="tokens.css?v=af8f8c0">
-<link rel="stylesheet" href="docs.css?v=af8f8c0">
-<link rel="stylesheet" href="cmdk.css?v=af8f8c0">
+<link rel="stylesheet" href="fonts.css?v=1fd75106">
+<link rel="stylesheet" href="tokens.css?v=1fd75106">
+<link rel="stylesheet" href="docs.css?v=1fd75106">
+<link rel="stylesheet" href="cmdk.css?v=1fd75106">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,17 +43,17 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="generate-docs">Generate documentation</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph" class="active">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph" class="active">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Ask the graph</span></nav>
-    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Ask the graph</h1><p class="doc-sub">Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Asking the graph</span></nav>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Asking the graph</h1><p class="doc-sub">Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>Three commands answer the questions the graph exists for: <code>kb query</code> finds a symbol, <code>kb impact</code>
 finds what breaks if you change it, and <code>kb owners</code> finds who to ask about it. All three print a
 citation you can open, all three take <code>--json</code>, and none of them needs an editor or an MCP client.</p>
 <p>The same three answers reach an agent over MCP as <code>search_code</code> / <code>semantic_search</code> /
 <code>hybrid_search</code>, <code>blast_radius</code>, and <code>who_knows</code>; see
-<a href="serve">Serve it to your editor</a>. This page is the terminal-side equivalent.</p>
+<a href="serving-over-mcp">Serve it to your editor</a>. This page is the terminal-side equivalent.</p>
 <pre class="mermaid">flowchart LR
   G[("the graph")] --> Q["kb query"]
   G --> I["kb impact"]
@@ -72,10 +72,10 @@ git history, which is why it answers in a directory that was never indexed. Give
 than a path and it does open the store, only to find the clone.</p>
 <h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
 <ul>
-<li>A store with an indexed repo in it: <a href="index-code-graph">Index the code graph</a>, or
+<li>A store with an indexed repo in it: <a href="indexing-the-code-graph">Index the code graph</a>, or
   <code>contextlake bootstrap</code>. <code>kb owners</code> is the exception, it reads git directly and needs neither.</li>
 <li>For <code>--retriever semantic</code> or <code>hybrid</code>, a <code>contextlake kb embed</code> run as well:
-  <a href="semantic-search">Semantic search</a>.</li>
+  <a href="searching-semantically">Semantic search</a>.</li>
 </ul>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
@@ -234,7 +234,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span c
 (<code>DEFAULT_RELATIONS</code> in <code>src/contextlake/kb/impact.py</code>). There is no flag to change that set from the
 CLI; the MCP <code>blast_radius</code> tool takes a <code>relations</code> argument if you need a different walk.
 <code>transitions_to</code> is deliberately outside the default set, see
-<a href="index-code-graph#entity-state-machines">Entity state machines</a>.</p>
+<a href="code-graph-model#entity-state-machines">Entity state machines</a>.</p>
 <p>Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited <strong>highest-confidence first</strong>
 (<code>EXTRACTED</code>, then <code>INFERRED</code>, then <code>AMBIGUOUS</code>), which is what makes a truncated result still worth
@@ -393,13 +393,13 @@ followed by up to three numbered lines ending in a percentage.</p>
 </ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
-<li><a href="serve">Serve it to your editor</a>, the same answers as MCP tools</li>
-<li><a href="index-code-graph">Index the code graph</a>, what the graph contains to be asked about</li>
-<li><a href="semantic-search">Semantic search</a>, what <code>--retriever semantic</code> needs first</li>
-<li><a href="dashboard">The dashboard</a>, the same queries in a browser</li>
+<li><a href="serving-over-mcp">Serve it to your editor</a>, the same answers as MCP tools</li>
+<li><a href="indexing-the-code-graph">Index the code graph</a>, what the graph contains to be asked about</li>
+<li><a href="searching-semantically">Semantic search</a>, what <code>--retriever semantic</code> needs first</li>
+<li><a href="using-the-dashboard">The dashboard</a>, the same queries in a browser</li>
 <li><a href="console-output">Reading the console output</a>, decoding a run</li>
 </ul>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="serve"><span>Serve (MCP)</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="serving-over-mcp"><span>Serving over MCP</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="using-the-dashboard"><span>Using the dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
@@ -491,6 +491,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=af8f8c0"></script>
+<script defer src="cmdk.js?v=1fd75106"></script>
 </body>
 </html>

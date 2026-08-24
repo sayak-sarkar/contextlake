@@ -79,6 +79,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           "text-opacity": 1, "z-index": 99 } },
       { selector: "node.found", style: { "border-width": 4, "border-color": ink.found,
           "text-opacity": 1, "z-index": 100 } },
+      // `peek` is the hover/focus PREVIEW from a panel row: it says "this is the one"
+      // without committing the view. Deliberately weaker than hi and below it in
+      // z-index, because a preview must never out-shout the actual selection, and it
+      // forces the label back on so a peeked node is identifiable at low zoom.
+      { selector: "node.peek", style: { "border-width": 3, "border-color": ink.hi,
+          "border-opacity": 0.75, "text-opacity": 1, "z-index": 98 } },
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": label,
           "text-rotation": "autorotate", "text-background-color": surf,
@@ -154,9 +160,18 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   var OVERVIEW = (META.mode === "overview");
   function isNoDep(n){ return OVERVIEW && n.data("deg") === 0; }
   var noDepCount = cy.nodes().filter(isNoDep).length;
+  // "1 edges" was showing on any single-edge graph.
+  function plural(n, word){ return n + " " + word + (n === 1 ? "" : "s"); }
   document.getElementById("meta").textContent =
-    cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges"
-    + (noDepCount ? " \u00b7 " + noDepCount + " with no detected dependency" : "");
+    plural(cy.nodes().length, "node") + " \u00b7 " + plural(cy.edges().length, "edge")
+    + (noDepCount ? " \u00b7 " + noDepCount + " with no detected dependency" : "")
+    // Folding removes the majority of nodes on a large repo page. Saying so is not a
+    // nicety: an unstated reduction reads as "this is the whole graph".
+    + (META.folded_leaves
+        ? " \u00b7 " + META.folded_leaves + (META.folded_leaves === 1
+            ? " leaf folded into its container"
+            : " leaves folded into their containers")
+        : "");
   if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
   // honesty: when the view was capped, say so (never imply completeness)
   if(META.truncated){
@@ -1188,9 +1203,22 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var fileline = d.file ? (d.file + (d.line ? ":" + d.line : "")) : "";
     info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
-      + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
+      + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg)
+      + row("folded", d.folded ? (d.folded + (d.folded_kinds ? " (" + d.folded_kinds + ")" : "")) : "")
+      + "</dl>"
+      // Edges have offered "copy file:line" since provenance shipped; nodes carried the
+      // same `file`/`line` and offered no way to take it anywhere. A `file://` link would
+      // be blocked from a --serve page and an editor scheme is environment-specific, so
+      // the clipboard is the affordance that works everywhere.
+      + (fileline ? '<button type="button" class="copy-prov" data-prov="'
+                    + esc(fileline) + '">copy file:line</button>' : "")
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
+      + (n.outgoers("edge").length
+          ? '<button type="button" class="tracebtn" id="tracedown">Trace downstream \u2192</button>'
+            + '<div class="hint">Follows edge direction as far as it goes, through the graph'
+            + (LIVE ? ' currently loaded — expand further to widen it.' : '.') + '</div>'
+          : "")
       + connList(n, allConns)
       + (LIVE ? '<div class="hint">select any node to expand its neighbours</div>' : "");
     openInspector(fromKeyboard);
@@ -1216,9 +1244,34 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   }
   info.addEventListener("click", function(ev){
     var b = ev.target.closest && ev.target.closest(".copy-prov");
-    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); return; }
+    if(b){
+      var say = function(msg){
+        // The button is focused when clicked, so rewriting its own label is what a
+        // screen reader announces; restore it so the control still says what it does.
+        var was = b.getAttribute("data-label") || b.textContent;
+        b.setAttribute("data-label", was);
+        b.textContent = msg;
+        setTimeout(function(){ b.textContent = b.getAttribute("data-label") || was; }, 1600);
+      };
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(b.getAttribute("data-prov"))
+          .then(function(){ say("copied"); })
+          .catch(function(){ say("copy failed"); });
+      } else {
+        say("clipboard unavailable");
+      }
+      return;
+    }
     if(ev.target.closest && ev.target.closest(".rmore")){
       if(curNode){ showInfo(curNode, true); }
+      return;
+    }
+    if(ev.target.closest && ev.target.closest(".tracebtn")){
+      if(curNode){
+        var n = traceDownstream(curNode);
+        var h = document.querySelector("#info .tracebtn");
+        if(h){ h.textContent = n + (n === 1 ? " node downstream" : " nodes downstream"); }
+      }
       return;
     }
     var rn = ev.target.closest && ev.target.closest(".rn");
@@ -1227,6 +1280,24 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       if(node && node.nonempty()){ focus(node); showInfo(node); frameOn(node.closedNeighborhood()); }
     }
   });
+  // Delegated with capture, because mouseenter/focus do not bubble.
+  ["mouseenter", "focus"].forEach(function(ev){
+    info.addEventListener(ev, function(e){
+      var t = e.target;
+      var rn = t && t.classList && t.classList.contains("rn") ? t : null;
+      if(rn){ peek(rn.getAttribute("data-id")); }
+    }, true);
+  });
+  ["mouseleave", "blur"].forEach(function(ev){
+    info.addEventListener(ev, function(e){
+      var t = e.target;
+      if(t && t.classList && t.classList.contains("rn")){ unpeek(); }
+    }, true);
+  });
+  // A row can be removed while still peeked (the inspector rebuilds its innerHTML on
+  // every selection), and then no mouseleave or blur ever arrives.
+  info.addEventListener("click", function(){ unpeek(); });
+
   // Escape inside the inspector closes it and puts focus back where it came from, so a
   // keyboard user is never stranded in a panel they cannot leave in one step.
   info.addEventListener("keydown", function(e){
@@ -1260,6 +1331,43 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       cy.resize();
       fitClampedAnimated(eles, 80, 300);
     }, 210);
+  }
+
+  // Transitive downstream reach, as a SEPARATE action from focus(). focus() highlights the
+  // closed neighbourhood in both directions, which is what you want while inspecting a
+  // node, and it is shared with edge activation and the text view -- widening it would
+  // change every one of those.
+  //
+  // `successors()` walks the graph CURRENTLY ON THE CANVAS, not the store. That is a real
+  // limit, not an implementation detail: in --serve mode the canvas holds whatever has
+  // been expanded so far, so the depth control decides how much of the true downstream
+  // set is even present to be found. The button says so rather than letting a reader read
+  // a partial answer as a complete one.
+  function traceDownstream(node){
+    var reach = node.successors();
+    cy.elements().addClass("faded").removeClass("hi");
+    reach.add(node).removeClass("faded").addClass("hi");
+    refreshDomFx();
+    marchAnts(reach.edges());
+    return reach.nodes().length;
+  }
+
+  // Hover previews, click commits. Clicking a panel row already animates the camera
+  // (frameOn); hovering one did nothing at all, so finding a neighbour in the list
+  // meant clicking it and losing your place if it was the wrong one.
+  //
+  // The preview moves NO camera and changes no faded/hi state, so it cannot disturb a
+  // selection you are working from. It is wired to focus as well as hover, because a
+  // hover-only affordance does not exist for a keyboard user -- the rows are already
+  // <button>s, so they receive focus for free.
+  var peeked = null;
+  function peek(id){
+    unpeek();
+    var n = id && cy.getElementById(id);
+    if(n && n.nonempty()){ peeked = n; n.addClass("peek"); }
+  }
+  function unpeek(){
+    if(peeked){ peeked.removeClass("peek"); peeked = null; }
   }
 
   function focus(node){
@@ -1542,10 +1650,29 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   // settles every hook at whatever theme we ended up in.
   applyTheme(themeName(), true);
 
+  // The depth slider and the direction select both feed /neighbors, which runs the
+  // traversal server-side. Narrowing a both-direction fetch down to a directed view in
+  // the browser was measured against the live store and loses up to 11 of 14 nodes:
+  // max_fanout is applied to the combined neighbour list, so in-edges crowd out the
+  // out-edges the directed view needs and no later hop brings them back. Depth could
+  // safely be narrowed client-side (measured: never loses a node) but there is nothing
+  // to gain -- these controls change the NEXT expand rather than repainting the canvas,
+  // so the slider costs no round-trip of its own either way.
+  var hopsEl = document.getElementById("hops");
+  var dirEl = document.getElementById("direction");
+  var hopsOut = document.getElementById("hopsv");
+  if(hopsEl && hopsOut){
+    hopsEl.addEventListener("input", function(){ hopsOut.textContent = hopsEl.value; });
+  }
+  function expandHops(){ return hopsEl ? hopsEl.value : "1"; }
+  function expandDir(){ return dirEl ? dirEl.value : "both"; }
+
   function expand(id){
     var cyEl = document.getElementById("cy");
     cyEl.classList.add("loading");
-    fetch("/neighbors?id=" + encodeURIComponent(id) + "&direction=both")
+    fetch("/neighbors?id=" + encodeURIComponent(id)
+          + "&hops=" + encodeURIComponent(expandHops())
+          + "&direction=" + encodeURIComponent(expandDir()))
       .then(function(r){ return r.json(); })
       .then(function(p){
         cyEl.classList.remove("loading");

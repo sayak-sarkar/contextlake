@@ -4,32 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
-<title>Index the code graph · contextlake docs</title>
-<meta name="description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
+<title>The code graph model · contextlake docs</title>
+<meta name="description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="robots" content="index, follow, max-image-preview:large">
-<link rel="canonical" href="https://sayak.in/contextlake/index-code-graph">
+<link rel="canonical" href="https://sayak.in/contextlake/code-graph-model">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
-<meta property="og:title" content="Index the code graph · contextlake docs">
-<meta property="og:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
-<meta property="og:url" content="https://sayak.in/contextlake/index-code-graph">
+<meta property="og:title" content="The code graph model · contextlake docs">
+<meta property="og:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
+<meta property="og:url" content="https://sayak.in/contextlake/code-graph-model">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Index the code graph · contextlake docs">
-<meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
+<meta name="twitter:title" content="The code graph model · contextlake docs">
+<meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-20"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=af8f8c0">
-<link rel="stylesheet" href="tokens.css?v=af8f8c0">
-<link rel="stylesheet" href="docs.css?v=af8f8c0">
-<link rel="stylesheet" href="cmdk.css?v=af8f8c0">
+<link rel="stylesheet" href="fonts.css?v=1fd75106">
+<link rel="stylesheet" href="tokens.css?v=1fd75106">
+<link rel="stylesheet" href="docs.css?v=1fd75106">
+<link rel="stylesheet" href="cmdk.css?v=1fd75106">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,150 +43,19 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph" class="active">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="generate-docs">Generate documentation</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="contributing-languages">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model" class="active">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Index the code graph</span></nav>
-    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Index the code graph</h1><p class="doc-sub">Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">The code graph model</span></nav>
+    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>The code graph model</h1><p class="doc-sub">Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<p>Indexing turns your mirrored repos into a queryable knowledge graph. <code>contextlake kb index --workspace
-~/work</code> walks every git repo under a folder and builds the graph. Runs are incremental by default;
-<code>--force</code> rebuilds from scratch.</p>
-<p align="center">
-  <img src="img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
-</p>
-
-<pre class="mermaid">flowchart TD
-  D(["a directory you point kb index at"]) --> B{"--bundle passed?"}
-  B -->|yes| ONE["indexed as one repository"]
-  B -->|no| G{"is it itself a git repo?"}
-  G -->|yes| ONE
-  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
-  S -->|no| ONE
-  S -->|yes| R(["refused, naming the command that fits"])
-  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
-  ONE --> GR[("the graph")]
-  EACH --> GR</pre>
-<div class="dg-key">
-  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
-  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
-  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
-  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
-</div>
-
-<p>The shape of the directory is measured before any of it is indexed, and the next section walks each
-outcome.</p>
-<h2 id="which-command-for-which-directory">Which command for which directory<a class="anchor" href="#which-command-for-which-directory" title="Link to this section">#</a></h2>
-<p><code>kb index &lt;dir&gt;</code> indexes that directory as <strong>one</strong> repository. <code>kb index --workspace &lt;dir&gt;</code> walks it
-and indexes <strong>each</strong> git repository under it separately, under its own identity. Getting those two
-the wrong way round is the most expensive mistake available here, so a directory that is not itself a
-git repository but holds some is <strong>refused</strong>, with the command that fits what was found:</p>
-<div class="highlight"><pre><span></span><code>$ contextlake kb index ~/work
-✗ /home/you/work isn&#39;t itself a git repo, but contains 20 git working tree(s) at depths 1-2
-  (alpha, beta, billing-core, frontend, gateway, …); no indexable file lies outside them.
-  That is a workspace mirroring several repositories. Indexing it this way files all of them
-  under ONE id, so every symbol they hold is in the graph twice and the copies cannot be told apart.
-  → Run this instead, which indexes each repository separately under its own identity:
-        contextlake kb index --workspace ~/work
-  → Or pass --bundle to index this directory as one repository anyway. …
-</code></pre></div>
-<p>It refuses rather than quietly switching to <code>--workspace</code> for you, because switching can lose data:
-<code>--workspace</code> indexes the nested repositories and nothing outside them, so on a tree of your own
-loose sources that happens to carry a dependency with its own <code>.git</code> it would index the dependency
-and drop your files. So the shape is measured first, from how much indexable content lies outside
-the nested repositories, and only then does it decide:</p>
-<table>
-<thead>
-<tr>
-<th>What the directory looks like</th>
-<th>What happens</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Several repositories, effectively nothing of your own outside them</td>
-<td>refused; run <code>--workspace &lt;dir&gt;</code></td>
-</tr>
-<tr>
-<td>One repository, nothing at all outside it</td>
-<td>refused; the directory is one level too high, and the command names the repository</td>
-</tr>
-<tr>
-<td>Real content of yours outside the repositories (your sources plus a vendored dependency)</td>
-<td>indexed as one repository, with a line saying so</td>
-</tr>
-<tr>
-<td>A git repository (<code>.git</code> present), whatever it contains</td>
-<td>indexed, no diagnosis at all</td>
-</tr>
-</tbody>
-</table>
-<p><strong><code>--bundle</code> opts back in.</strong> It indexes the directory as one repository regardless of shape, and it
-is read before anything is measured, so it always works. Reach for it when you genuinely want one
-bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
-under the directory's name, so if you later index them properly they are in the graph twice. <code>kb
-forget &lt;repo-id&gt;</code> removes a bundle you did not mean to create.</p>
-<h2 id="incremental-and-time-travel">Incremental and time-travel<a class="anchor" href="#incremental-and-time-travel" title="Link to this section">#</a></h2>
-<p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD moved since their last
-index, so a scheduled (cron) run stays cheap; pass <code>--force</code> to rebuild everything, or <code>--watch [--interval
-N]</code> to keep re-indexing in a loop (the same <code>--watch</code> / <code>--interval</code> flags also drive <code>connect</code> and
-<code>embed</code>). Every indexed snapshot is kept, so <code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> does
-<strong>time-travel</strong>, it searches repo <code>R</code> as it was at a previously-indexed commit.</p>
-<h2 id="re-indexing-one-repository-by-its-id">Re-indexing one repository by its id<a class="anchor" href="#re-indexing-one-repository-by-its-id" title="Link to this section">#</a></h2>
-<p>A repository's <strong>id</strong> is derived from its <code>origin</code> remote (so it survives being moved or re-cloned) and has
-no relation to where the clone sits on disk. That is the id <code>kb lint</code> and the dashboard report, so
-<code>--source</code> accepts it directly:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--source<span class="w"> </span>example.com/team/widgets<span class="w">   </span><span class="c1"># the id, exactly as reported</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--source<span class="w"> </span>widgets<span class="w">                    </span><span class="c1"># the tail, when only one repo ends that way</span>
-</code></pre></div>
-<p>The repository is re-indexed under the id it was already filed as, never a second time under its directory
-name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
-checkout is gone, the error names the path it was indexed from.</p>
-<p>For a checkout that has no usable <code>origin</code>, or one you want filed under a different name, <code>--repo</code> sets
-the id explicitly: <code>contextlake kb index --source ./widgets --repo team/widgets</code>. Without it the id
-falls back to the directory name, which is exactly the fragile, path-dependent id this section exists to
-avoid, so name it once rather than living with a repo filed as <code>widgets</code> because that is what the folder
-happened to be called.</p>
-<h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
-<p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
-serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
-Linux, macOS, and Windows, with an automatic serial fallback if a worker pool can't start. It defaults to
-<code>cpu_count - 1</code> workers (capped at 8); set <code>[kb] index_workers</code> to tune it (<code>1</code> forces serial).</p>
-<p>The parser also <strong>skips machine-generated and derived files</strong>: names like <code>*.designer.cs</code>, <code>*.min.js</code>
-and <code>AssemblyInfo.cs</code>, and any of four case-insensitive header markers in the first 2048 bytes,
-<code>&lt;auto-generated</code>, <code>@generated</code>, <code>do not edit</code> and <code>code generated by</code>. That last pair catches more than
-it looks: a file whose banner just says "DO NOT EDIT" is skipped too. Also skipped are code files larger than <code>[kb]
-max_file_bytes</code> (5 MB). That's derived noise, not real source, and every skip is reported (no silent gaps).
-Set <code>[kb] skip_generated = false</code> or raise <code>max_file_bytes</code> to index them anyway. Discovery also skips
-<strong>vendored nested repos</strong>: an upstream clone carried inside the mirror with its own <code>.git</code> under a
-<code>module-federation</code> path segment, which is not your source and would flood the global graph with
-upstream-demo nodes. Each such skip is logged. (<code>node_modules</code> trees are already pruned before discovery
-descends into them.)</p>
-<p>To exclude your own paths, drop a <strong><code>.contextlakeignore</code></strong> at a repo's root: one glob per line (<code>#</code>
-comments and blank lines ignored), matched against each file's path relative to the repo and its name, so
-<code>*.lock</code> ignores by name anywhere and <code>vendor/</code> ignores a directory and everything under it. It's a small,
-dependency-free subset of gitignore syntax (no negation, <code>**</code>, or anchoring), enough to drop vendored trees
-and lockfiles from the graph.</p>
-<h2 id="health-and-maintenance">Health and maintenance<a class="anchor" href="#health-and-maintenance" title="Link to this section">#</a></h2>
-<p><code>contextlake doctor</code> checks the environment (FTS5, <code>git</code> / <code>glab</code> on PATH, the store, the embedder, and the
-ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any shard indexed with an older parser version than the one currently
-installed -- <code>contextlake kb index</code> rebuilds those on its next run, so they pick up parser-correctness fixes.
-<code>contextlake kb lint</code> audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were
-indexed), <strong>dangling edges</strong> (an edge whose endpoint node is missing), and the same <strong>older-parser</strong> repos
-doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
-but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
-gate red on its own.</p>
-<p>Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
-either of them:</p>
-<ul>
-<li><strong>empty</strong> -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
-  and not counted against the exit code: there is nothing for a reader to do about it.</li>
-<li><strong>shard-imported</strong> -- indexed from a graph-shard JSON rather than a checkout, so it has no history to
-  be behind. Also advisory, for the same reason.</li>
-<li><strong>unreadable</strong> -- the recorded path no longer exists, or git will not answer for a repository there.
-  Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.</li>
-</ul>
+<p>Every node kind and edge kind <code>contextlake kb index</code> emits, and what each one is derived from.
+This is the vocabulary the graph is queried in, so read it when a query returns nothing and you
+need to know whether the thing you asked about is modelled at all.</p>
+<p>After the general code model and its language table, eleven sections cover the sources the
+indexer reads beyond ordinary program text: Terraform, SQL DDL, XML Schema, XSLT, embedded SQL,
+decision records, entity state machines, intra-repo dataflow, constants, web topology and
+manifests. Each names what it extracts and, where the extraction is inferred rather than
+declared, says so.</p>
 <h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
 <p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
@@ -247,7 +116,7 @@ not extracted, and neither are variables.</p>
 other: in <code>FROM builder AS test</code> the base is a stage declared earlier in the same file, not an
 image anybody pulls. The <code>COPY --from=</code> reference back to a stage is <strong>not</strong> extracted, because a
 stage name is file-local and resolving it across files would link two unrelated <code>builder</code> stages
-to each other. Dockerfile's grammar is an <a href="install">optional extra</a>, <code>[kb-dockerfile]</code>; without
+to each other. Dockerfile's grammar is an <a href="installing">optional extra</a>, <code>[kb-dockerfile]</code>; without
 it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
 unsupported.</p>
 <p>On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
@@ -288,23 +157,23 @@ yet emitted as anything.</p>
 <p>Frameworks are indexed through their base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X),
 <strong>Angular</strong> is TS (its templates are HTML), and <strong>.NET</strong> is C#.</p>
 <p>Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
-entries. <a href="contributing-languages">Adding a language</a> is the ordered recipe, with the verification
+entries. <a href="adding-a-language">Adding a language</a> is the ordered recipe, with the verification
 commands that prove a new grammar works.</p>
 <h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
 <p>A method defined outside its class (<code>ReturnType Class::method(...) { ... }</code>, at any <code>::</code> qualification
-depth) resolves to a <code>method</code> contained by its class, repo-wide -- not just the file it's declared in --
+depth) resolves to a <code>method</code> contained by its class, repo-wide, and not only the file it is declared in,
 so an out-of-line definition in one file still shows up under its class even when the class itself is
 declared in a different header. A <code>namespace { ... }</code> block is its own containing node, the same way a
 class or file is. Header files (<code>.h</code>) are parsed as C++, so a class declared in a header and defined in a
 matching <code>.cpp</code> is visible as one unit rather than the class half going missing. This parsing choice is
 kept transparent to <code>languages</code> filtering: <code>.h</code> files are indexed whenever either <code>"c"</code> or <code>"cpp"</code> is
-enabled, since C and C++ headers are shared infrastructure -- restricting <code>kb.toml</code>'s <code>languages</code> to just
+enabled, since C and C++ headers are shared infrastructure -- restricting <code>kb.toml</code>'s <code>languages</code> to
 <code>["c"]</code> still indexes <code>.h</code> files, no need to list both. An <code>#ifdef</code>/<code>#else</code> (or <code>#ifndef</code>/<code>#else</code>)
 pair -- two definitions of the same method in different branches of the <em>same</em> conditional -- collapses
 into one node instead of appearing as duplicate, ambiguous call targets. A bare <code>#ifndef</code> header guard with
 no <code>#else</code> does <strong>not</strong> trigger this: both copies would sit in the same (only) branch, so nothing collapses,
 and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
-<a href="#health-and-maintenance">Health and maintenance</a> above: <code>doctor</code> flags any C/C++ shard indexed before
+<a href="indexing-the-code-graph#health-and-maintenance">Health and maintenance</a> above: <code>doctor</code> flags any C/C++ shard indexed before
 these fixes landed, as a signal to re-index.</p>
 <h3 id="infrastructure-terraform-hcl">Infrastructure: Terraform / HCL<a class="anchor" href="#infrastructure-terraform-hcl" title="Link to this section">#</a></h3>
 <p><code>.tf</code> files build an infrastructure dependency graph: <code>resource</code> / <code>data</code> / <code>variable</code> / <code>output</code> /
@@ -315,15 +184,15 @@ example <code>environments/prod</code> and <code>environments/staging</code>) su
 resolution is a future refinement. Render it with <code>contextlake kb graph --repo &lt;repo&gt; --format
 deploymentdiagram</code> (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/other/module, where <code>other</code> catches any resource type none of the keyword lists
-claims), see <a href="visualize">Visualize</a>.</p>
+claims), see <a href="visualizing-the-graph">Visualize</a>.</p>
 <h3 id="databases-sql-ddl">Databases: SQL DDL<a class="anchor" href="#databases-sql-ddl" title="Link to this section">#</a></h3>
 <p><code>.sql</code> files build a referential graph: <code>table</code> / <code>view</code> / <code>procedure</code> definitions with <code>references</code> edges
 from foreign-key <code>REFERENCES</code> clauses, resolved across files in a repo. <code>table</code> and <code>view</code> nodes are
 semantically searchable.</p>
 <p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a <strong>deliberate undercount</strong>. Render it with
-<code>contextlake kb graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualize">Visualize</a>.</p>
-<p><strong>Measured, not just asserted:</strong> <code>tests/kb/fixtures/sql/</code> is a small, synthetic, hand-labelled
+<code>contextlake kb graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualizing-the-graph">Visualize</a>.</p>
+<p><strong>Measured, not asserted:</strong> <code>tests/kb/fixtures/sql/</code> is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (<code>expected_edges.json</code>, 13 edges); <code>tests/kb/test_sql_fixture_corpus.py</code> scores the parser's
 emitted <code>references</code> edges against it on every CI run, and asserts this page still quotes what it
@@ -413,7 +282,7 @@ qualify, one file per decision. Each node takes its
 title from the file's first <code>#</code> heading (or the filename otherwise). Unlike connector-sourced
 content (<code>enrich</code>/<code>connect</code>, external systems reached over the network), an ADR is authored, checked
 into the repo's own git history: a recorded fact, not something to attribute or hedge on. <code>adr</code> nodes
-are semantically searchable, and their content feeds into <a href="generate-wiki">wiki generation</a> as a
+are semantically searchable, and their content feeds into <a href="generating-the-wiki">wiki generation</a> as a
 grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
 data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
 way an import or call site is, so nothing is inferred from that mention.</p>
@@ -423,7 +292,7 @@ become <code>transitions_to</code> edges between <code>state</code> nodes, label
 Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
 and C# (regex, every edge <code>INFERRED</code>). Render with <code>contextlake kb graph --repo &lt;repo&gt; --format statediagram</code>
-(a Mermaid entity state machine), see <a href="visualize">Visualize</a>.</p>
+(a Mermaid entity state machine), see <a href="visualizing-the-graph">Visualize</a>.</p>
 <p><code>transitions_to</code> is deliberately <strong>not</strong> in <code>impact</code>'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
 enum member is a language-level rename, not a graph-discoverable break); pass <code>--relation transitions_to</code>
@@ -517,8 +386,8 @@ which repos actually touch it is a question the cross-repo edges answer, not the
 <p>Indexing also reads manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a
 <strong>cross-repo dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change this"); see
-<a href="serve">the full tool list under Serve</a>.</p>
-<p>Each <code>depends_on</code> edge records what the manifest actually says, not just the package name:</p>
+<a href="serving-over-mcp">the full tool list under Serve</a>.</p>
+<p>Each <code>depends_on</code> edge records what the manifest actually says, not only the package name:</p>
 <table>
 <thead>
 <tr>
@@ -555,19 +424,15 @@ getting a silent best-guess.</p>
 
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
-<li><a href="connect-enrich">Connect and enrich</a></li>
-<li><a href="semantic-search">Semantic search</a></li>
-<li><a href="serve">Serve it to your editor</a></li>
+<li><a href="indexing-the-code-graph">Indexing the code graph</a></li>
+<li><a href="asking-the-graph">Asking the graph</a></li>
+<li><a href="adding-a-language">Adding a language</a></li>
+<li><a href="internals">Architecture and internals</a></li>
 </ul>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="connect-enrich"><span>Connect and enrich</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="semantic-search"><span>Semantic search</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="indexing-the-code-graph"><span>Indexing the code graph</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="asking-the-graph"><span>Asking the graph</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#which-command-for-which-directory">Which command for which directory</a></li>
-<li><a href="#incremental-and-time-travel">Incremental and time-travel</a></li>
-<li><a href="#re-indexing-one-repository-by-its-id">Re-indexing one repository by its id</a></li>
-<li><a href="#parallelism-and-noise-pruning">Parallelism and noise-pruning</a></li>
-<li><a href="#health-and-maintenance">Health and maintenance</a></li>
 <li><a href="#what-the-graph-captures">What the graph captures</a><ul>
 <li><a href="#languages">Languages</a></li>
 <li><a href="#infrastructure-terraform-hcl">Infrastructure: Terraform / HCL</a></li>
@@ -601,49 +466,7 @@ var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
-<script src="mermaid.min.js"></script>
-<script>(function(){
-  if(!window.mermaid) return;
-  // Read the real tokens from tokens.css and docs.css so a diagram follows the
-  // theme toggle and a palette change for free. Every name below is one that
-  // actually exists: an absent custom property returns "" and would silently
-  // fall back, which is how a diagram ends up off-brand and nobody notices.
-  var read = function(){
-    var cs = getComputedStyle(document.documentElement);
-    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
-    return {
-      background:         v("--surface", "#ffffff"),
-      primaryColor:       v("--dg-step", "#dceaef"),
-      primaryBorderColor: v("--dg-step-line", "#137A8B"),
-      primaryTextColor:   v("--ink", "#0E2A33"),
-      secondaryColor:     v("--dg-store", "#f3ead5"),
-      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
-      lineColor:          v("--muted", "#41606a"),
-      textColor:          v("--ink", "#0E2A33"),
-      fontFamily:         v("--ff", "system-ui, sans-serif"),
-      fontSize:           "14px"
-    };
-  };
-  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
-                       maxEdges: 2000, theme: "base", themeVariables: read() });
-  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
-  // so the source has to be kept to redraw from; without this the diagrams stay
-  // in the old palette until a reload.
-  document.querySelectorAll("pre.mermaid").forEach(function(el){
-    el.dataset.src = el.textContent;
-  });
-  var redraw = function(){
-    document.querySelectorAll("pre.mermaid").forEach(function(el){
-      el.removeAttribute("data-processed");
-      el.textContent = el.dataset.src || el.textContent;
-    });
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
-                         maxEdges: 2000, theme: "base", themeVariables: read() });
-    mermaid.run({ querySelector: "pre.mermaid" });
-  };
-  new MutationObserver(redraw).observe(document.documentElement,
-    { attributes: true, attributeFilter: ["data-theme"] });
-})();</script>
+
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -655,6 +478,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=af8f8c0"></script>
+<script defer src="cmdk.js?v=1fd75106"></script>
 </body>
 </html>

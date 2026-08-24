@@ -12,31 +12,36 @@
 
 ## Get started
 
-- [Install and upgrade](https://sayak.in/contextlake/install): Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.
+- [Installing and upgrading](https://sayak.in/contextlake/installing): Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.
 - [Quickstart](https://sayak.in/contextlake/quickstart): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
 - [Configuration](https://sayak.in/contextlake/configuration): Config-file precedence and the full settings reference for the mirror layer.
 
 ## Build your knowledge base
 
-- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer): Turn the mirror into a queryable graph with search, a wiki, and connectors.
-- [Mirror repositories](https://sayak.in/contextlake/usage): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.
-- [Index the code graph](https://sayak.in/contextlake/index-code-graph): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.
-- [Connect and enrich](https://sayak.in/contextlake/connect-enrich): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
-- [Semantic search](https://sayak.in/contextlake/semantic-search): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
-- [Generate the wiki](https://sayak.in/contextlake/generate-wiki): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
-- [Generate documentation](https://sayak.in/contextlake/generate-docs): An API reference straight from the graph, with every symbol's real call sites and no model involved.
+- [The knowledge layer](https://sayak.in/contextlake/knowledge-layer): Turn the mirror into a queryable graph with search, a wiki, and connectors.
+- [Mirroring repositories](https://sayak.in/contextlake/mirroring-repositories): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.
+- [Indexing the code graph](https://sayak.in/contextlake/indexing-the-code-graph): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.
+- [The code graph model](https://sayak.in/contextlake/code-graph-model): Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.
+- [Connecting and enriching](https://sayak.in/contextlake/connecting-and-enriching): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
+- [Document sources and RAG](https://sayak.in/contextlake/document-sources): Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.
+- [Searching semantically](https://sayak.in/contextlake/searching-semantically): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
+- [Embeddings and models](https://sayak.in/contextlake/embedding-reference): What gets embedded, how a chunk is built, and which embedding model to pick for your hardware.
+- [Generating the wiki](https://sayak.in/contextlake/generating-the-wiki): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
+- [Generating documentation](https://sayak.in/contextlake/generating-documentation): An API reference straight from the graph, with every symbol's real call sites and no model involved.
+- [What the generator produces](https://sayak.in/contextlake/generated-docs-reference): Section by section, what lands in the API reference, the design notes and the fleet page.
 
 ## Use it
 
-- [Ask the graph](https://sayak.in/contextlake/ask-the-graph): Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.
-- [Serve (MCP)](https://sayak.in/contextlake/serve): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
-- [Dashboard](https://sayak.in/contextlake/dashboard): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
-- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.
+- [Asking the graph](https://sayak.in/contextlake/asking-the-graph): Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.
+- [Serving over MCP](https://sayak.in/contextlake/serving-over-mcp): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
+- [MCP transports and limits](https://sayak.in/contextlake/mcp-transports): stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.
+- [Using the dashboard](https://sayak.in/contextlake/using-the-dashboard): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
+- [Visualizing the graph](https://sayak.in/contextlake/visualizing-the-graph): Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.
 
 ## Operate it
 
-- [Bootstrap and keep it fresh](https://sayak.in/contextlake/keep-fresh): Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.
-- [Reading the console output](https://sayak.in/contextlake/console-output): Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.
+- [Keeping it fresh](https://sayak.in/contextlake/keeping-it-fresh): Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.
+- [Console output](https://sayak.in/contextlake/console-output): Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.
 - [Troubleshooting](https://sayak.in/contextlake/troubleshooting): Install and mirror problems that have actually been hit, each with the fix and the reason behind it.
 
 ## Reference
@@ -54,7 +59,7 @@
 - [Formatting](https://sayak.in/contextlake/style-guide-formatting): Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.
 - [Word reference](https://sayak.in/contextlake/style-guide-reference): The house-style decision cache, before and after rewrites, and the A-to-Z term reference.
 - [Brand overview](https://sayak.in/contextlake/brand): contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, the palette, and the mark, with the full spec linked.
-- [Adding a language](https://sayak.in/contextlake/contributing-languages): The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.
+- [Adding a language](https://sayak.in/contextlake/adding-a-language): The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.
 
 ## Source
 

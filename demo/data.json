@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-08-20",
+  "snapshot_date": "2026-08-24",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -1488,6 +1488,12 @@
       "acme/web-ui",
       "demo/app"
     ],
+    "unresolved": {
+      "supported": true,
+      "sites": 0,
+      "edges": 0,
+      "names": []
+    },
     "dangling_sample": []
   },
   "symbols": [
