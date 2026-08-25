@@ -305,7 +305,13 @@ def test_a_plain_single_repo_directory_is_never_refused(tmp_path, logs):
     cfg, store_dir = _kb(tmp_path)
 
     assert cmd_index(_args(cfg, repo)) == 0
-    assert _repos(store_dir) == ["widgets"]
+    # `widgets@<root-commit>`, not bare `widgets`: this repo has no origin remote, and
+    # since 2026-08-25 `--source` files repos under `resolve_repo_id` exactly as
+    # `--workspace` always has. The two paths used to disagree, which left every
+    # `--source`-indexed repo invisible to the connectors. What this test is about --
+    # that pointing at a plain repo is never refused -- is unchanged.
+    ids = _repos(store_dir)
+    assert len(ids) == 1 and ids[0].startswith("widgets@"), ids
     assert not [m for m in logs if "isn't itself a git repo" in m]
 
 

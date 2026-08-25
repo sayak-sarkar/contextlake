@@ -572,6 +572,7 @@ def _cmd_index_once(args) -> int:
 
         if src.is_dir():
             from ..parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
+            from ..repo_identity import resolve_repo_id
 
             # A directory that is not itself a repository but holds some: bundling
             # it is occasionally what the user wants and usually a mistake, so
@@ -603,8 +604,18 @@ def _cmd_index_once(args) -> int:
             # directory name, so falling back would write a second, duplicate row).
             # An explicit --repo still outranks both: it is the flag whose only job
             # is to say what to file this under.
+            # ...and failing both, the id the REMOTE gives, not the directory name.
+            # `--workspace` has always filed repos under their canonical id; this path
+            # used `src.resolve().name`, so a clone of `gitlab.com/ns/proj` sitting in a
+            # directory called `target` was stored as `target`. Every connector matches
+            # on that id, so the whole enrichment tier silently found nothing for any
+            # repo indexed this way -- including the zero-config `cd my-repo && kb index`
+            # the tool advertises. Measured: 0 links via --source, 285 via --workspace,
+            # same clone, same store. `resolve_repo_id` falls back to name@root-commit
+            # for a repo with no origin, and to the directory name for a non-repo.
             repo_id = (getattr(args, "repo", None) or id_repo_id
-                       or src.resolve().name)  # "." -> cwd name
+                       or (resolve_repo_id(str(src)) if (src / ".git").exists()
+                           else src.resolve().name))
             head = _git_head(src)
             # Same incremental gate --workspace applies, for the same reasons and
             # in the same order: HEAD unmoved AND the graph built by this parser
