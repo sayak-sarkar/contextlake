@@ -7,11 +7,14 @@ For what the CLI says back when a name or a flag is wrong, see
 
 ## Shell completion
 
-`argcomplete` is a core dependency, so `pip install contextlake` alone is enough. A plain pip
-install has no post-install hook to run anything at, which is a Python packaging limitation rather
-than a gap here, so completion is registered instead the **first time any command runs in a real
-interactive terminal**: once, idempotently, and it says so in the log. Non-interactive contexts (CI,
-Docker, a piped command) are skipped entirely, since there is no shell to configure.
+`argcomplete` is a core dependency, so `pip install contextlake` alone is enough.
+
+A plain pip install has no post-install hook to run anything at. That is a Python packaging
+limitation, not a gap here. So completion is registered instead the **first time any command runs
+in a real interactive terminal**: once, idempotently, and it says so in the log.
+
+Non-interactive contexts are skipped entirely, since there is no shell to configure. That covers
+CI, Docker and a piped command.
 
 ```bash
 contextlake completion          # auto-detect $SHELL and register now
@@ -59,26 +62,38 @@ These work on every command, before or after it:
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
 | `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
 
-`--log-file`, `--log-format`, `--metrics-file`, `--redact` / `--no-redact` and `--access-log` exist
-for unattended operation, the systemd service + timer in `examples/`, a cron wrapper, CI, where
-nobody watches the run and what it leaves behind is all there is. The last two are not:
-`--plain` is a piping and TTY switch, and `--offline` is a locality guarantee you can turn on for a
-single run to prove one, or leave on permanently (its env-var form, `CONTEXTLAKE_OFFLINE=1`, is
-there for exactly that).
-[Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
-the metric names.
+Five flags exist for unattended operation: `--log-file`, `--log-format`, `--metrics-file`,
+`--redact` / `--no-redact`, and `--access-log`. They are for the systemd service and timer in
+`examples/`, a cron wrapper, or CI: places where nobody watches the run, and what it leaves
+behind is all there is.
+
+Two more look similar and are not:
+
+- **`--plain`** is a piping and TTY switch.
+- **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
+  on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
+
+[Console output](console-output.md) has the JSON shape, the redaction placeholders and the metric
+names.
 
 ## Advanced/resilience flags
 
 The 8 `mirror`-tier commands each take a further set of retry, backoff, worker-pool and
-safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--adaptive-workers`,
+safety-check flags:
+
+`--max-retries`, `--backoff-initial`, `--backoff-max`, `--adaptive-workers`,
 `--protect-working-branches`, `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and
-their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
-`--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
-[Branch safety](mirroring-repositories.md#branch-safety)), so they are kept out of the default listing. Run
-`contextlake mirror <command> --help-advanced` to see them. The flag exists on those 8 commands and
-on `bootstrap`, which takes the same flag group, and nowhere else: nothing under `kb` has a hidden
-tier to reveal, and there is no top-level `contextlake --help-advanced` either.
+their `--no-` counterparts.
+
+They are kept out of the default listing for two reasons. They are automation levers rather than
+things to guess at from a bare `--help`, and every one has a `.contextlake.ini` equivalent as its
+primary home. See [Branch safety](mirroring-repositories.md#branch-safety).
+
+Run `contextlake mirror <command> --help-advanced` to see them.
+
+That flag exists on those 8 commands and on `bootstrap`, which takes the same group. Nowhere
+else. Nothing under `kb` has a hidden tier, and there is no top-level
+`contextlake --help-advanced`.
 
 ## The command surface
 

@@ -236,17 +236,21 @@ docker run -v "$PWD/repositories:/work/repositories" \
   ghcr.io/sayak-sarkar/contextlake:slim doctor     # slim
 ```
 
-Tags published: the release version and `latest` for the full image (e.g. `7.3.0`,
-`latest`), and the release version + `-slim`, plus rolling `slim`/`latest-slim`
-aliases, for the slim image (e.g. `7.3.0-slim`, `slim`, `latest-slim`). PyPI remains
-the **primary** distribution; GitHub Packages does not
-host PyPI-style Python packages, so these images are the only relevant GitHub
-Packages artifacts. The full image is still large (it bundles the OpenVINO runtime
-and a ~349 MB model) and its build downloads the models from HuggingFace, fine on
-GitHub's runners. To **build locally behind a TLS-inspecting proxy**, the in-build Hugging Face
-download has to trust your OS CA bundle. The `Dockerfile` declares no build argument for this, so
-add one to your local copy, above the `python docker/prefetch_models.py` line in the `build-full`
-stage:
+**Tags published:**
+
+- Full image: the release version and `latest`, for example `7.3.0` and `latest`.
+- Slim image: the release version with `-slim`, plus rolling `slim` and `latest-slim` aliases.
+  For example `7.3.0-slim`, `slim`, `latest-slim`.
+
+PyPI stays the **primary** distribution. GitHub Packages does not host PyPI-style Python
+packages, so these images are the only relevant GitHub Packages artifacts.
+
+The full image is large. It bundles the OpenVINO runtime and a model of about 349 MB, and its
+build downloads the models from HuggingFace. That is fine on GitHub's runners.
+
+**To build locally behind a TLS-inspecting proxy**, the in-build HuggingFace download has to
+trust your OS CA bundle. The `Dockerfile` declares no build argument for this, so add one to your
+local copy, above the `python docker/prefetch_models.py` line in the `build-full` stage:
 
 ```dockerfile
 ARG REQUESTS_CA_BUNDLE
@@ -269,17 +273,24 @@ visibility under the repo's *Packages* once published.
 
 ## Single-binary releases (PyApp)
 
-The same tag push also triggers [`.github/workflows/binaries.yml`](../.github/workflows/binaries.yml),
-a **separate** workflow from `release.yml` so a binary-build failure there can never
-block the PyPI publish. It builds one launcher per platform (Linux x86_64, macOS
-arm64, Windows x86_64) via [PyApp](https://ofek.dev/pyapp/), a small Rust binary
-that embeds `contextlake`'s project metadata (`PYAPP_PROJECT_NAME`,
-`PYAPP_PROJECT_VERSION` from the tag, `PYAPP_PROJECT_FEATURES=kb-full,llm-local`,
-`PYAPP_EXEC_SPEC=contextlake.cli:main`) and bootstraps a private Python + the
-package into its own cache the first time it runs, nothing needs to be
-preinstalled, not even Python. Binaries are uploaded as assets on the same
-GitHub Release `release.yml` creates (whichever workflow finishes first creates
-the release; the other edits/uploads onto it).
+The same tag push also triggers
+[`.github/workflows/binaries.yml`](../.github/workflows/binaries.yml). It is a **separate**
+workflow from `release.yml`, so a binary-build failure can never block the PyPI publish.
+
+It builds one launcher per platform: Linux x86_64, macOS arm64, Windows x86_64. Each is built
+with [PyApp](https://ofek.dev/pyapp/), a small Rust binary that embeds contextlake's project
+metadata:
+
+- `PYAPP_PROJECT_NAME`
+- `PYAPP_PROJECT_VERSION`, from the tag
+- `PYAPP_PROJECT_FEATURES=kb-full,llm-local`
+- `PYAPP_EXEC_SPEC=contextlake.cli:main`
+
+On first run, the launcher bootstraps a private Python and the package into its own cache.
+Nothing needs to be preinstalled, not even Python.
+
+Binaries are uploaded as assets on the same GitHub Release that `release.yml` creates. Whichever
+workflow finishes first creates the release; the other uploads onto it.
 
 `llm-local` rides along and needs no special pip flags: `openvino-genai` is an
 ordinary manylinux wheel, so the first run installs it on a machine chosen for

@@ -55,12 +55,14 @@ description of the two mechanisms, not a measurement of either:
 | **Who owns / knows repo X?** | Ranked from git history in one call | `git log`, which is cheap and already local |
 | **Explain / brief a repo** | One brief assembled from the graph and the wiki | The README plus however many files it takes |
 
-Rows 3 and 4 are capability differences rather than savings: **transitive reach** and **concept
-matching** are not things a grep-and-read loop does more expensively, they are things it does not do
-at all, at any budget. The definition and caller rows are where a token saving is plausible, and its
-size depends entirely on how common the name is and how disciplined the agent's search would
-otherwise have been. The ownership row is where contextlake saves least, because `git log` was
-already cheap.
+Rows 3 and 4 are capability differences, not savings. **Transitive reach** and **concept
+matching** are not things a grep-and-read loop does more expensively. They are things it does not
+do at all, at any budget.
+
+The definition and caller rows are where a token saving is plausible. How big depends on two
+things: how common the name is, and how disciplined the agent's search would otherwise have been.
+
+The ownership row is where contextlake saves least, because `git log` was already cheap.
 
 The other structural difference is that brute-force search costs *time* as well as tokens on a large
 fleet: a fleet-wide grep for a common term returns more hits than an agent can read, before it opens

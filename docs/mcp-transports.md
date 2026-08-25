@@ -41,12 +41,16 @@ failure, so `kb serve` does not use the `130` an interrupted command usually exi
 | `Ctrl-C` (SIGINT) | `0` | `0` |
 | `SIGTERM` (`systemctl stop`, `docker stop`, a supervisor) | `0` | `143` |
 
-`stdio` installs its own handler for both signals through asyncio's wakeup fd, which is what makes
-an **idle** server stoppable at all. Python only runs a signal handler at a bytecode boundary in
-the main thread, and that thread is parked in the selector with no traffic coming, so without the
-wakeup fd an interrupt sits unhandled until a request happens to arrive (`_run_stdio` in
-`src/contextlake/kb/server.py`). Both signals then unwind through one path, which closes the store
-and the vector store on the way out.
+`stdio` installs its own handler for both signals, through asyncio's wakeup fd. That is what
+makes an **idle** server stoppable at all.
+
+Here is why it is needed. Python only runs a signal handler at a bytecode boundary in the main
+thread, and that thread is parked in the selector with no traffic coming. Without the wakeup fd,
+an interrupt sits unhandled until a request happens to arrive. See `_run_stdio` in
+`src/contextlake/kb/server.py`.
+
+Both signals then unwind through one path, which closes the store and the vector store on the way
+out.
 
 `143` on the network transports is `128 + 15`, the conventional "terminated by SIGTERM" code, and
 it is what a supervisor reads as a clean stop rather than a crash. uvicorn owns those transports:
@@ -106,12 +110,16 @@ whose console is already a command's output, so they stay quiet, but a server ho
 code graph should be able to answer "what did it serve, and to whom". `--access-log` turns on one
 line per request (client address, request line, status).
 
-For contextlake's own servers, `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
---serve`, those lines go through the same logger as everything else, so they land in `--log-file`
-and follow `--log-format json`, and the client-supplied request line is stripped of control
-characters first. `kb serve`'s `http`/`sse` transports are served by uvicorn rather than by
-contextlake's handler, so there the flag enables *uvicorn's* access log instead: its own format,
-on stderr, alongside its startup banner.
+Behaviour differs by server.
+
+**contextlake's own servers**: `kb dashboard --serve`, `kb graph --serve` and
+`kb graph --site --serve`. Their access lines go through the same logger as everything else, so
+they land in `--log-file` and follow `--log-format json`. The client-supplied request line is
+stripped of control characters first.
+
+**`kb serve`'s `http` and `sse` transports** are served by uvicorn, not by contextlake's handler.
+There the flag enables *uvicorn's* access log instead: its own format, on stderr, next to its
+startup banner.
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
