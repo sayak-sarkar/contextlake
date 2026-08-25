@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=eac87977">
-<link rel="stylesheet" href="tokens.css?v=eac87977">
-<link rel="stylesheet" href="docs.css?v=eac87977">
-<link rel="stylesheet" href="cmdk.css?v=eac87977">
+<link rel="stylesheet" href="fonts.css?v=18683647">
+<link rel="stylesheet" href="tokens.css?v=18683647">
+<link rel="stylesheet" href="docs.css?v=18683647">
+<link rel="stylesheet" href="cmdk.css?v=18683647">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -192,9 +192,9 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for cytoscape / custom tooling (Gephi/yEd users want
   <code>--format graphml</code> instead, real typed attributes, not a bespoke shape to parse).</li>
 </ul>
-<p>To explore a large graph interactively, run <code>contextlake kb graph --serve</code>. It starts a local web
-UI. Clicking a node <strong>expands</strong> it, fetching its neighbours on demand, so you can walk the graph
-without rendering all of it first.</p>
+<p>To explore a large graph interactively, run <code>contextlake kb graph --overview --serve</code>. It starts
+a local web UI. Clicking a node <strong>expands</strong> it, fetching its neighbours on demand, so you can
+walk the graph without rendering all of it first.</p>
 <p>With <code>--overview</code> it serves the whole cross-linked site: an overview plus a page per repo, each
 rendered on demand rather than pre-built. That is the live counterpart of <code>--site</code>.</p>
 <p>It binds <code>--host</code> (default <code>127.0.0.1</code>) and <code>--port</code> (default <code>8765</code>), so with no flags it is at
@@ -382,6 +382,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=eac87977"></script>
+<script defer src="cmdk.js?v=18683647"></script>
 </body>
 </html>

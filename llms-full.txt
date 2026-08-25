@@ -6233,9 +6233,9 @@ Output is chosen with `--format`:
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
-To explore a large graph interactively, run `contextlake kb graph --serve`. It starts a local web
-UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can walk the graph
-without rendering all of it first.
+To explore a large graph interactively, run `contextlake kb graph --overview --serve`. It starts
+a local web UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can
+walk the graph without rendering all of it first.
 
 With `--overview` it serves the whole cross-linked site: an overview plus a page per repo, each
 rendered on demand rather than pre-built. That is the live counterpart of `--site`.
@@ -7710,6 +7710,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [8.7.0] - 2026-08-25
+
+Four defects, none of which the unit suite could see. Three were found by running the CLI
+against itself and against a live GitLab group. The fourth was found by reading a CI line
+that had been red for eight runs while every local suite passed, because the MCP SDK is
+floored without a cap and a new release changed how tool errors surface.
+
+Two of the four are commands that reported success while doing nothing. One withheld the
+reason for a refusal it was right to make. One is a documentation example that does not run.
+
+`PARSER_VERSION`, `SCHEMA_VERSION` and `EMBED_CONTENT_VERSION` are untouched, so nothing
+re-parses and nothing re-embeds. **One stored value does change:** see Migration.
+
+### Fixed
+
+- **`kb index --source` filed repositories under their directory name instead of their
+  remote id.** `--workspace` has always used the canonical id from the `origin` remote;
+  the single-source path used the directory name. Every connector matches on the repo id,
+  so `kb connect` silently found nothing for anything indexed the zero-config way, which
+  is the way the tool advertises: `cd my-repo && contextlake kb index`. Measured on one
+  repository with 100 open merge requests, same clone and same store both times: **0
+  external links via `--source`, 285 via `--workspace`.** A repository with no `origin`
+  now gets the documented `name@root-commit` fallback instead of a bare directory name,
+  so two clones of one history collide correctly and two unrelated `api` directories
+  do not.
+
+- **MCP clients stopped being told *why* a call was refused.** `mcp` 2.1.0 changed its tool
+  runner to preserve the message of a deliberately-raised `ToolError` and collapse every other
+  exception to a bare `Error executing tool <name>`, keeping the text server-side. contextlake
+  raised `ValueError` for argument validation, so `blast_radius` with `hops: -1` answered
+  `Error executing tool blast_radius` instead of `hops must be 0 or greater, not -1`. The
+  refusal itself was never in doubt (`is_error` stayed true); the reason was lost. Validation
+  now raises `ToolError`, which restores the message on 2.1.0 and is unchanged on 2.0.0.
+
+- **`kb index --watch` did nothing unless `--workspace` was given.** The flag was read
+  only inside the workspace branch. With `--source PATH`, or the zero-config current
+  directory, it parsed, ran one pass and exited 0 without watching and without saying so,
+  while its own help promises "keep re-running ... on an interval (Ctrl-C to stop)".
+
+- **The CLI advertised an example that does not run.** `contextlake kb graph --serve`
+  appeared in `kb graph`'s help epilog and exits 2: the command requires one of
+  `--node / --name / --search / --repo / --overview`. That requirement is deliberate and
+  stays; the example is now `kb graph --overview --serve`. All 63 runnable examples across
+  every command's epilog were executed to find it, and one was broken.
+
+### Migration
+
+**Automatic. No action required.** A store written by an earlier version holds
+directory-name ids for anything indexed with `--source`. Re-indexing the same checkout
+re-files that row under its canonical id and clears the stale one, the same migration
+`--workspace` has always run, scoped to the single path being indexed. The rename is
+logged, for example `oldname -> gitlab.example.com/acme/widgets`.
+
+The consequence worth knowing: a repository indexed before this release is invisible to
+`kb connect`. Re-index it once and the connectors will see it.
+
+### Added
+
+- `tests/test_cli_examples_parse.py` runs every `--help` epilog example on every release,
+  so the CLI cannot advertise a command that does not parse.
 
 ## [8.6.1] - 2026-08-24
 
