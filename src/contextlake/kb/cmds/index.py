@@ -501,6 +501,22 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
 
 
 def cmd_index(args) -> int:
+    """`--watch` was honoured only on the `--workspace` path. On the single-source path the
+    flag parsed, ran one pass and exited 0, without watching and without saying it would not:
+    the flag's own help promises "keep re-running ... on an interval" with no such condition.
+    The workspace branch keeps its own loop (it re-scans for repositories each pass), so only
+    the single-source case is wrapped here.
+    """
+    if getattr(args, "watch", False) and not getattr(args, "workspace", None):
+        interval = _or_default(getattr(args, "interval", None), 60)
+        src = getattr(args, "source", None) or getattr(args, "path", None) or "."
+        log(f"{style.cyan('watch')}: re-indexing {src} every {interval}s (Ctrl-C to stop)")
+        _watch_loop(lambda: _cmd_index_once(args), interval=interval)
+        return 0
+    return _cmd_index_once(args)
+
+
+def _cmd_index_once(args) -> int:
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "index"):
         store.close()

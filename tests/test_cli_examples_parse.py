@@ -32,7 +32,13 @@ _USAGE = re.compile(r"^(?:\[[^\]]*\]\s*)?usage:", re.M)
 
 
 def _commands() -> list[list[str]]:
-    """Every leaf command, from the top-level and namespace helps."""
+    """Every leaf command that actually exists, from the top-level and namespace helps.
+
+    The top-level help lists namespaced commands by their bare names (`fetch`, `index`), and
+    those flat spellings stopped parsing at v3.0.0. Scraped without a check they became phantom
+    entries that contributed zero examples and quietly shrank the surface this gate covers, so
+    each candidate has to prove itself by answering `--help` with exit 0.
+    """
     out: list[list[str]] = []
     for ns in ([], ["mirror"], ["kb"]):
         h = subprocess.run([sys.executable, "-m", "contextlake", *ns, "--help"],
@@ -42,7 +48,13 @@ def _commands() -> list[list[str]]:
             name = m.group(1)
             if name in {"completion", "init"}:      # write real user config
                 continue
-            out.append([*ns, name])
+            cmd = [*ns, name]
+            if cmd in out:
+                continue
+            probe = subprocess.run([sys.executable, "-m", "contextlake", *cmd, "--help"],
+                                   capture_output=True, text=True, timeout=120, cwd=REPO)
+            if probe.returncode == 0:
+                out.append(cmd)
     return out
 
 
@@ -81,5 +93,11 @@ def test_every_help_example_runs(tmp_path: Path) -> None:
             blob = proc.communicate(timeout=10)[0] or ""
             if proc.returncode == 2 and _USAGE.search(blob):
                 bad.append(f"{ex}\n      {blob.strip().splitlines()[0][:150]}")
-    assert seen > 20, f"only found {seen} examples; the epilog scraper is broken"
+    # Pinned to the measured surface, not a soft floor. 63 runnable examples across 33
+    # commands, 2026-08-25 at 8.6.1, identical in a full dev venv and in a `.[dev]`-only
+    # venv matching ci.yml's core job. A `> 20` assert would have shrugged at losing an
+    # entire namespace; adding an example is welcome and raises this number.
+    assert seen >= 63, (
+        f"only {seen} examples found, expected at least 63: the epilog scraper has lost "
+        "part of the CLI surface")
     assert not bad, "the CLI advertises examples that do not run:\n  " + "\n  ".join(bad)
