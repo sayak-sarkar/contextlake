@@ -7713,9 +7713,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.7.0] - 2026-08-25
 
-Three defects found by running the CLI against itself and against a live GitLab group,
-rather than by the unit suite. The first is cosmetic; the other two are commands that
-reported success while doing nothing.
+Four defects, none of which the unit suite could see. Three were found by running the CLI
+against itself and against a live GitLab group. The fourth was found by reading a CI line
+that had been red for eight runs while every local suite passed, because the MCP SDK is
+floored without a cap and a new release changed how tool errors surface.
+
+Two of the four are commands that reported success while doing nothing. One withheld the
+reason for a refusal it was right to make. One is a documentation example that does not run.
 
 `PARSER_VERSION`, `SCHEMA_VERSION` and `EMBED_CONTENT_VERSION` are untouched, so nothing
 re-parses and nothing re-embeds. **One stored value does change:** see Migration.
