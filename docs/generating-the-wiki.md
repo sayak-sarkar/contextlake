@@ -81,23 +81,35 @@ which is what makes publishing from a cheap local generator safe.
 
 ## Running it
 
-Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
-machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli` | `auto`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables
-the tier inline and scopes generation to the named repo(s). `auto` picks for you: a reachable local
-Ollama that already has the model pulled, else the built-in CPU model, else it skips the tier (see
-[Model providers](model-providers.md)).
+Two ways to turn the tier on.
+
+- **In the config**, by enabling `[llm]`. Generation runs on a local Ollama model by default, so
+  prompts never leave the machine.
+- **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
+  `ollama`, `openai`, `anthropic`, `cli`, `auto`.
+
+For example, `contextlake kb wiki acme/catalog-api --llm builtin` enables the tier and scopes
+generation to that repo.
+
+`auto` picks for you, in order: a reachable local Ollama that already has the model pulled, else
+the built-in CPU model, else it skips the tier. See [Model providers](model-providers.md).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
 (see [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
-Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
-and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
-with a provenance footer citing the commit and sources, then puts the draft through a **verification
-council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
-above a configurable threshold. Nothing that fails review is written.
+Run `contextlake kb wiki`. For each repo it writes a Markdown page grounded strictly in graph
+facts: top symbols, dependencies and files.
+
+When the repo's own checkout is available, it also uses an excerpt of the README and which
+conventional entry-point or config files exist, such as `package.json`, `Dockerfile` or
+`manage.py`.
+
+Every page carries a provenance footer citing the commit and the sources.
+
+The draft then goes through a **verification council**. Reviewers score it for accuracy,
+completeness and clarity, and a chairman publishes only pages above a configurable threshold.
+**Nothing that fails review is written.**
 
 By default the council reviews with the **same model that wrote the page**, so a small local model both
 drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
@@ -164,9 +176,10 @@ What each one needs:
 reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
 are not in the indexed language set and never reach the graph, so the count comes from a
 bounded scan of the live checkout. That is the same way `setup_signals` already finds
-`package.json` and `Dockerfile`. "External context"
-(below) is a separate, always-conditional block on top of that list, not
-one of the named sections.
+`package.json` and `Dockerfile`.
+
+"External context", covered below, is a separate block layered on top of that list. It is
+always conditional, and it is not one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
@@ -273,11 +286,14 @@ pages still generate. So an existing store gets the naming after its next commit
 
 ## Searchable prose
 
-Accepted pages also become **searchable prose**: each page's sections are stored in an isolated
-`@wiki:<repo>` partition and, when the semantic tier is enabled, embedded alongside the code vectors, so a
-natural-language question can land on the wiki's explanation of a subsystem, cited back to the page file
-and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
-existed are backfilled on the next `wiki` run without any LLM calls.
+Accepted pages also become **searchable prose**. Each page's sections are stored in an isolated
+`@wiki:<repo>` partition, and embedded alongside the code vectors when the semantic tier is on.
+
+So a natural-language question can land on the wiki's explanation of a subsystem. The answer is
+cited back to the page file and labelled advisory, with kind `wiki`, so it never outranks
+extracted code facts.
+
+Pages written before this existed are backfilled on the next `wiki` run, with no LLM calls.
 
 Each section is also **linked to the symbols it names**, with a `documented_by` edge. So
 "where is this function explained?" is one graph hop from the symbol, not a text search.

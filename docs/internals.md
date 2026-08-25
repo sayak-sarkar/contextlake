@@ -16,10 +16,13 @@ files.
 | Knowledge layer | `contextlake.kb`, the `[kb]` extra | The mirror core, tree-sitter grammars, pydantic, the `mcp` SDK |
 | Serving | `kb/server.py`, `kb/dashboard/`, `kb graph` | The knowledge layer, read-only |
 
-The mirror core declares exactly one pip dependency (`pyproject.toml`), which is the constraint that
-keeps `pip install contextlake` viable on a locked-down machine. The knowledge layer is imported
-lazily from the CLI, so the core runs with the extra absent and says so if you reach for a `kb`
-verb without it. `[kb]` needs Python 3.10 or newer because the `mcp` SDK does; the core declares
+The mirror core declares exactly **one** pip dependency in `pyproject.toml`. That constraint is
+what keeps `pip install contextlake` viable on a locked-down machine.
+
+The knowledge layer is imported lazily from the CLI, so the core runs with the extra absent, and
+says so if you reach for a `kb` verb without it.
+
+`[kb]` needs Python 3.10 or newer because the `mcp` SDK does. The core declares
 `requires-python = ">=3.10"`, one floor shared by both tiers.
 
 ## Configuration
@@ -70,11 +73,14 @@ a per-workspace subdirectory keyed on the workspace path, platform and group, cr
 you configure yourself is used verbatim, without a subdirectory, and is created but never
 re-permissioned.
 
-That file lists every repository your account can enumerate along with its clone URLs, which is why
-its location is treated as a privacy decision. `/tmp` was the old default and was rejected on three
-recorded grounds: it is outside your home, so no HOME-based isolation reaches it; it is
-world-readable on a shared host; and its path is predictable enough for another user to pre-create
-a file or a symlink there.
+That file lists every repository your account can enumerate, along with its clone URLs. That is
+why its location is a privacy decision.
+
+`/tmp` was the old default. It was rejected on three recorded grounds:
+
+- it sits outside your home, so no HOME-based isolation reaches it
+- it is world-readable on a shared host
+- its path is predictable enough for another user to pre-create a file or symlink there
 
 ### Local paths mirror the namespace tree
 
@@ -166,12 +172,15 @@ Without a token, cloning falls back to `glab repo clone` when `glab` is installe
 ### Shards are the source of truth, SQLite is the index
 
 Each repository's parse result is written as a self-contained JSON shard at
-`<store_dir>/graph/<repo_id>.json`, the repo namespace nesting as directories. `index.sqlite` is a
-denormalized cross-repo index built from those shards, and it can be dropped and rebuilt at any
-time (`src/contextlake/kb/store/sqlite_store.py`). The reason for the split is recorded in
-`src/contextlake/kb/store/shards.py`: a shard is self-contained, so one repository can be
-re-indexed in isolation, and shards stay small rather than hitting the size ceiling a single global
-graph would.
+`<store_dir>/graph/<repo_id>.json`, with the repo namespace nesting as directories.
+
+`index.sqlite` is a denormalised cross-repo index built from those shards. It can be dropped and
+rebuilt at any time. See `src/contextlake/kb/store/sqlite_store.py`.
+
+The reason for the split is recorded in `src/contextlake/kb/store/shards.py`:
+
+- a shard is self-contained, so one repository can be re-indexed in isolation
+- shards stay small, rather than hitting the size ceiling a single global graph would
 
 Shard files also exist for synthetic partitions, which is how non-code content stays separable from
 code: `@ingest:<name>`, `@enrich:<repo>`, `@connect:<repo>` and `@wiki`. A re-run of one of those
@@ -273,11 +282,14 @@ the same signal, so they cannot disagree about one store.
 
 ### Parallel parsing, serial writes
 
-`kb index` parses repositories across a **process** pool (the work is CPU-bound) and persists from
-the parent process serially, because SQLite must be written from one place. The `spawn` start method
-is used on every platform so behaviour is identical on Linux, macOS and Windows, with an automatic
-serial fallback if the pool cannot start. Workers default to `min(8, cpu_count - 1)`; set
-`[kb] index_workers` to tune it, or `1` to force serial.
+`kb index` parses repositories across a **process** pool, because the work is CPU-bound. It
+persists from the parent process serially, because SQLite must be written from one place.
+
+The `spawn` start method is used on every platform, so behaviour is identical on Linux, macOS and
+Windows. If the pool cannot start, it falls back to serial automatically.
+
+Workers default to `min(8, cpu_count - 1)`. Set `[kb] index_workers` to tune it, or `1` to force
+serial.
 
 ### Locking and connections
 

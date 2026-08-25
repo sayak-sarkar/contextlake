@@ -150,13 +150,17 @@ This command:
 - Clones up to 8 repositories concurrently
 - Handles timeouts gracefully (300s per repository)
 
-How each repo is cloned (`clone_method = auto`, the default): with the platform's token env var set
-(`GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN` or `GITEA_TOKEN`, or whatever `token_env` names),
-contextlake clones with plain `git`, passing the token as an auth header
-through the child environment, never on the command line and never in the URL, so
-it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
-clone` (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
-`git clone` over HTTPS. Set `clone_method = git` or `glab` to force one path.
+How each repo is cloned, with `clone_method = auto` (the default):
+
+1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
+   `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
+   the token as an auth header through the child environment. Never on the command line, never
+   in the URL, so it cannot leak into `ps` output or `.git/config`.
+2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
+   is a GitLab-only path.
+3. **Otherwise**: plain `git clone` over HTTPS.
+
+Set `clone_method = git` or `clone_method = glab` to force one path.
 
 ### `mirror update`: update existing repositories
 
@@ -262,13 +266,20 @@ contextlake mirror audit --report ./audit.json # choose where the per-repo JSON 
 contextlake mirror sync --no-audit             # run sync without the audit step
 ```
 
-It classifies each repo as **empty** (no commits/files), **readme-only** (just a template
-README), **boilerplate** (only meta files), or **content**, and reports each repo's
-**creation date** (GitLab `created_at`, captured during fetch; falls back to the first git
-commit) and **last commit date** (from the local clone), with an aggregate summary
-(counts, oldest/newest, how many stale over 1–2 years, repos with no commits). The full
-per-repo table is written as JSON **and** CSV. The scan is parallel, read-only, and works
-offline from the fetch cache.
+It sorts each repo into one of four classes:
+
+- **empty**, no commits or files
+- **readme-only**, just a template README
+- **boilerplate**, only meta files
+- **content**, everything else
+
+For each repo it reports the **creation date** (GitLab `created_at`, captured during fetch,
+falling back to the first git commit) and the **last commit date** (from the local clone).
+
+The summary aggregates all of that: counts, oldest and newest, how many are stale over one and
+two years, and repos with no commits. The full per-repo table is written as both JSON and CSV.
+
+The scan is parallel, read-only, and works offline from the fetch cache.
 
 ## Configuration
 
@@ -280,12 +291,17 @@ The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
 The only *setting* that blocks an `update` is the one that catches a *dirty working tree*.
 
-Two states stop an `update` on a clean tree as well, and neither is configurable, because both are
-about there being no fast-forward to perform rather than about protecting your work: a repo on a
-**detached HEAD** (no branch to update) and a branch that has **diverged from its upstream** (a
-mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
-reason, so a green run is not a promise that every clean repo moved. See
-[Reading the console output](console-output.md).
+Two more states stop an `update`, even on a clean tree:
+
+- **A detached HEAD.** There is no branch to update.
+- **A branch that has diverged from its upstream.** A mirror fast-forwards. It never merges or
+  rebases.
+
+Neither is configurable, because neither is about protecting your work. In both cases there is
+simply no fast-forward to perform.
+
+Both are reported per repo as skips, with the reason. So a green run is not a promise that every
+clean repo moved. See [Console output](console-output.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">

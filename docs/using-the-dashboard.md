@@ -150,11 +150,14 @@ A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
 **Call sequence** card instead (§7).
 
-No new extraction: each tab renders data `index` already collected. A format is only
-enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
-disabled for a repo with no classes), this is read from the same anatomy census the
-repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
-below the rendered diagram with a one-click copy, for pasting into a PR or design doc.
+No new extraction happens. Each tab renders data `index` already collected.
+
+A format is enabled only when the repo actually has the relevant node kind. **Classes** stays
+disabled for a repo with no classes, for instance. That comes from the same anatomy census the
+repo page's Kinds card shows, not a separate check.
+
+The raw Mermaid source sits below the rendered diagram with a one-click copy, ready to paste
+into a PR or a design doc.
 
 **A repo too large to draw in one slice** auto-narrows to its largest module instead of
 showing a truncated whole-repo tangle, and if that module is *itself* still too large,
@@ -172,12 +175,15 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
-A repo page's tables add a fourth tab, **Data flow**: which files read or write which
-SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
-edge, dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
-an endpoint, a topic), but a table/view definition is only ever known within the repo
-that defines it, so a file's read/write only ever resolves inside its own repo. Data
-flow is therefore always scoped to the repo you're looking at, never cross-repo.
+A repo page's tables add a fourth tab, **Data flow**: which files read or write which SQL tables
+and views inside that one repo.
+
+It differs from the other three. Those are repo-to-repo edges, joining on a node shared across
+repos: a package, an endpoint, a topic.
+
+A table or view definition is only ever known inside the repo that defines it. So a file's read
+or write can only resolve within its own repo, and **Data flow is always scoped to the repo you
+are looking at**. Never cross-repo.
 
 Data flow is also **live-only**. It is a separate fetch with its own row shape, and a `--site` export
 has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
@@ -209,12 +215,17 @@ a branch-derived key is. Clicking it opens the real tracker URL, not another das
 
 ## 8. Path
 
-Sometimes the question isn't "what does this touch" (§7) but "how does A reach B", a
-single route, not a diagram. The **Path** tab takes two symbol names (or node ids) and
-shows the shortest one, as numbered steps. If a name is ambiguous across repos, it lists
-the candidates and asks you to narrow (a node id, or a name unique to one repo, resolves
-straight through); if there's no route within the hop limit, it says so plainly rather
-than showing an empty diagram.
+Sometimes the question is not "what does this touch" (§7) but "how does A reach B". That wants a
+single route, not a diagram.
+
+The **Path** tab takes two symbol names, or node ids, and shows the shortest route as numbered
+steps.
+
+Two cases it handles rather than guessing:
+
+- **An ambiguous name across repos.** It lists the candidates and asks you to narrow. A node id,
+  or a name unique to one repo, resolves straight through.
+- **No route within the hop limit.** It says so plainly, instead of showing an empty diagram.
 
 ## 8b. Search
 

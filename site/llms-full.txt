@@ -1603,13 +1603,17 @@ This command:
 - Clones up to 8 repositories concurrently
 - Handles timeouts gracefully (300s per repository)
 
-How each repo is cloned (`clone_method = auto`, the default): with the platform's token env var set
-(`GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN` or `GITEA_TOKEN`, or whatever `token_env` names),
-contextlake clones with plain `git`, passing the token as an auth header
-through the child environment, never on the command line and never in the URL, so
-it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
-clone` (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
-`git clone` over HTTPS. Set `clone_method = git` or `glab` to force one path.
+How each repo is cloned, with `clone_method = auto` (the default):
+
+1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
+   `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
+   the token as an auth header through the child environment. Never on the command line, never
+   in the URL, so it cannot leak into `ps` output or `.git/config`.
+2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
+   is a GitLab-only path.
+3. **Otherwise**: plain `git clone` over HTTPS.
+
+Set `clone_method = git` or `clone_method = glab` to force one path.
 
 ### `mirror update`: update existing repositories
 
@@ -1715,13 +1719,20 @@ contextlake mirror audit --report ./audit.json # choose where the per-repo JSON 
 contextlake mirror sync --no-audit             # run sync without the audit step
 ```
 
-It classifies each repo as **empty** (no commits/files), **readme-only** (just a template
-README), **boilerplate** (only meta files), or **content**, and reports each repo's
-**creation date** (GitLab `created_at`, captured during fetch; falls back to the first git
-commit) and **last commit date** (from the local clone), with an aggregate summary
-(counts, oldest/newest, how many stale over 1–2 years, repos with no commits). The full
-per-repo table is written as JSON **and** CSV. The scan is parallel, read-only, and works
-offline from the fetch cache.
+It sorts each repo into one of four classes:
+
+- **empty**, no commits or files
+- **readme-only**, just a template README
+- **boilerplate**, only meta files
+- **content**, everything else
+
+For each repo it reports the **creation date** (GitLab `created_at`, captured during fetch,
+falling back to the first git commit) and the **last commit date** (from the local clone).
+
+The summary aggregates all of that: counts, oldest and newest, how many are stale over one and
+two years, and repos with no commits. The full per-repo table is written as both JSON and CSV.
+
+The scan is parallel, read-only, and works offline from the fetch cache.
 
 ## Configuration
 
@@ -1733,12 +1744,17 @@ The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
 The only *setting* that blocks an `update` is the one that catches a *dirty working tree*.
 
-Two states stop an `update` on a clean tree as well, and neither is configurable, because both are
-about there being no fast-forward to perform rather than about protecting your work: a repo on a
-**detached HEAD** (no branch to update) and a branch that has **diverged from its upstream** (a
-mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
-reason, so a green run is not a promise that every clean repo moved. See
-[Reading the console output](console-output.md).
+Two more states stop an `update`, even on a clean tree:
+
+- **A detached HEAD.** There is no branch to update.
+- **A branch that has diverged from its upstream.** A mirror fast-forwards. It never merges or
+  rebases.
+
+Neither is configurable, because neither is about protecting your work. In both cases there is
+simply no fast-forward to perform.
+
+Both are reported per repo as skips, with the reason. So a green run is not a promise that every
+clean repo moved. See [Console output](console-output.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
@@ -3515,23 +3531,35 @@ which is what makes publishing from a cheap local generator safe.
 
 ## Running it
 
-Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
-machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli` | `auto`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables
-the tier inline and scopes generation to the named repo(s). `auto` picks for you: a reachable local
-Ollama that already has the model pulled, else the built-in CPU model, else it skips the tier (see
-[Model providers](model-providers.md)).
+Two ways to turn the tier on.
+
+- **In the config**, by enabling `[llm]`. Generation runs on a local Ollama model by default, so
+  prompts never leave the machine.
+- **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
+  `ollama`, `openai`, `anthropic`, `cli`, `auto`.
+
+For example, `contextlake kb wiki acme/catalog-api --llm builtin` enables the tier and scopes
+generation to that repo.
+
+`auto` picks for you, in order: a reachable local Ollama that already has the model pulled, else
+the built-in CPU model, else it skips the tier. See [Model providers](model-providers.md).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
 (see [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
-Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
-and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
-with a provenance footer citing the commit and sources, then puts the draft through a **verification
-council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
-above a configurable threshold. Nothing that fails review is written.
+Run `contextlake kb wiki`. For each repo it writes a Markdown page grounded strictly in graph
+facts: top symbols, dependencies and files.
+
+When the repo's own checkout is available, it also uses an excerpt of the README and which
+conventional entry-point or config files exist, such as `package.json`, `Dockerfile` or
+`manage.py`.
+
+Every page carries a provenance footer citing the commit and the sources.
+
+The draft then goes through a **verification council**. Reviewers score it for accuracy,
+completeness and clarity, and a chairman publishes only pages above a configurable threshold.
+**Nothing that fails review is written.**
 
 By default the council reviews with the **same model that wrote the page**, so a small local model both
 drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
@@ -3598,9 +3626,10 @@ What each one needs:
 reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
 are not in the indexed language set and never reach the graph, so the count comes from a
 bounded scan of the live checkout. That is the same way `setup_signals` already finds
-`package.json` and `Dockerfile`. "External context"
-(below) is a separate, always-conditional block on top of that list, not
-one of the named sections.
+`package.json` and `Dockerfile`.
+
+"External context", covered below, is a separate block layered on top of that list. It is
+always conditional, and it is not one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
@@ -3707,11 +3736,14 @@ pages still generate. So an existing store gets the naming after its next commit
 
 ## Searchable prose
 
-Accepted pages also become **searchable prose**: each page's sections are stored in an isolated
-`@wiki:<repo>` partition and, when the semantic tier is enabled, embedded alongside the code vectors, so a
-natural-language question can land on the wiki's explanation of a subsystem, cited back to the page file
-and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
-existed are backfilled on the next `wiki` run without any LLM calls.
+Accepted pages also become **searchable prose**. Each page's sections are stored in an isolated
+`@wiki:<repo>` partition, and embedded alongside the code vectors when the semantic tier is on.
+
+So a natural-language question can land on the wiki's explanation of a subsystem. The answer is
+cited back to the page file and labelled advisory, with kind `wiki`, so it never outranks
+extracted code facts.
+
+Pages written before this existed are backfilled on the next `wiki` run, with no LLM calls.
 
 Each section is also **linked to the symbols it names**, with a `documented_by` edge. So
 "where is this function explained?" is one graph hop from the symbol, not a text search.
@@ -5220,11 +5252,14 @@ A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
 **Call sequence** card instead (§7).
 
-No new extraction: each tab renders data `index` already collected. A format is only
-enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
-disabled for a repo with no classes), this is read from the same anatomy census the
-repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
-below the rendered diagram with a one-click copy, for pasting into a PR or design doc.
+No new extraction happens. Each tab renders data `index` already collected.
+
+A format is enabled only when the repo actually has the relevant node kind. **Classes** stays
+disabled for a repo with no classes, for instance. That comes from the same anatomy census the
+repo page's Kinds card shows, not a separate check.
+
+The raw Mermaid source sits below the rendered diagram with a one-click copy, ready to paste
+into a PR or a design doc.
 
 **A repo too large to draw in one slice** auto-narrows to its largest module instead of
 showing a truncated whole-repo tangle, and if that module is *itself* still too large,
@@ -5242,12 +5277,15 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
-A repo page's tables add a fourth tab, **Data flow**: which files read or write which
-SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
-edge, dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
-an endpoint, a topic), but a table/view definition is only ever known within the repo
-that defines it, so a file's read/write only ever resolves inside its own repo. Data
-flow is therefore always scoped to the repo you're looking at, never cross-repo.
+A repo page's tables add a fourth tab, **Data flow**: which files read or write which SQL tables
+and views inside that one repo.
+
+It differs from the other three. Those are repo-to-repo edges, joining on a node shared across
+repos: a package, an endpoint, a topic.
+
+A table or view definition is only ever known inside the repo that defines it. So a file's read
+or write can only resolve within its own repo, and **Data flow is always scoped to the repo you
+are looking at**. Never cross-repo.
 
 Data flow is also **live-only**. It is a separate fetch with its own row shape, and a `--site` export
 has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
@@ -5279,12 +5317,17 @@ a branch-derived key is. Clicking it opens the real tracker URL, not another das
 
 ## 8. Path
 
-Sometimes the question isn't "what does this touch" (§7) but "how does A reach B", a
-single route, not a diagram. The **Path** tab takes two symbol names (or node ids) and
-shows the shortest one, as numbered steps. If a name is ambiguous across repos, it lists
-the candidates and asks you to narrow (a node id, or a name unique to one repo, resolves
-straight through); if there's no route within the hop limit, it says so plainly rather
-than showing an empty diagram.
+Sometimes the question is not "what does this touch" (§7) but "how does A reach B". That wants a
+single route, not a diagram.
+
+The **Path** tab takes two symbol names, or node ids, and shows the shortest route as numbered
+steps.
+
+Two cases it handles rather than guessing:
+
+- **An ambiguous name across repos.** It lists the candidates and asks you to narrow. A node id,
+  or a name unique to one repo, resolves straight through.
+- **No route within the hop limit.** It says so plainly, instead of showing an empty diagram.
 
 ## 8b. Search
 
@@ -6534,10 +6577,13 @@ files.
 | Knowledge layer | `contextlake.kb`, the `[kb]` extra | The mirror core, tree-sitter grammars, pydantic, the `mcp` SDK |
 | Serving | `kb/server.py`, `kb/dashboard/`, `kb graph` | The knowledge layer, read-only |
 
-The mirror core declares exactly one pip dependency (`pyproject.toml`), which is the constraint that
-keeps `pip install contextlake` viable on a locked-down machine. The knowledge layer is imported
-lazily from the CLI, so the core runs with the extra absent and says so if you reach for a `kb`
-verb without it. `[kb]` needs Python 3.10 or newer because the `mcp` SDK does; the core declares
+The mirror core declares exactly **one** pip dependency in `pyproject.toml`. That constraint is
+what keeps `pip install contextlake` viable on a locked-down machine.
+
+The knowledge layer is imported lazily from the CLI, so the core runs with the extra absent, and
+says so if you reach for a `kb` verb without it.
+
+`[kb]` needs Python 3.10 or newer because the `mcp` SDK does. The core declares
 `requires-python = ">=3.10"`, one floor shared by both tiers.
 
 ## Configuration
@@ -6588,11 +6634,14 @@ a per-workspace subdirectory keyed on the workspace path, platform and group, cr
 you configure yourself is used verbatim, without a subdirectory, and is created but never
 re-permissioned.
 
-That file lists every repository your account can enumerate along with its clone URLs, which is why
-its location is treated as a privacy decision. `/tmp` was the old default and was rejected on three
-recorded grounds: it is outside your home, so no HOME-based isolation reaches it; it is
-world-readable on a shared host; and its path is predictable enough for another user to pre-create
-a file or a symlink there.
+That file lists every repository your account can enumerate, along with its clone URLs. That is
+why its location is a privacy decision.
+
+`/tmp` was the old default. It was rejected on three recorded grounds:
+
+- it sits outside your home, so no HOME-based isolation reaches it
+- it is world-readable on a shared host
+- its path is predictable enough for another user to pre-create a file or symlink there
 
 ### Local paths mirror the namespace tree
 
@@ -6684,12 +6733,15 @@ Without a token, cloning falls back to `glab repo clone` when `glab` is installe
 ### Shards are the source of truth, SQLite is the index
 
 Each repository's parse result is written as a self-contained JSON shard at
-`<store_dir>/graph/<repo_id>.json`, the repo namespace nesting as directories. `index.sqlite` is a
-denormalized cross-repo index built from those shards, and it can be dropped and rebuilt at any
-time (`src/contextlake/kb/store/sqlite_store.py`). The reason for the split is recorded in
-`src/contextlake/kb/store/shards.py`: a shard is self-contained, so one repository can be
-re-indexed in isolation, and shards stay small rather than hitting the size ceiling a single global
-graph would.
+`<store_dir>/graph/<repo_id>.json`, with the repo namespace nesting as directories.
+
+`index.sqlite` is a denormalised cross-repo index built from those shards. It can be dropped and
+rebuilt at any time. See `src/contextlake/kb/store/sqlite_store.py`.
+
+The reason for the split is recorded in `src/contextlake/kb/store/shards.py`:
+
+- a shard is self-contained, so one repository can be re-indexed in isolation
+- shards stay small, rather than hitting the size ceiling a single global graph would
 
 Shard files also exist for synthetic partitions, which is how non-code content stays separable from
 code: `@ingest:<name>`, `@enrich:<repo>`, `@connect:<repo>` and `@wiki`. A re-run of one of those
@@ -6791,11 +6843,14 @@ the same signal, so they cannot disagree about one store.
 
 ### Parallel parsing, serial writes
 
-`kb index` parses repositories across a **process** pool (the work is CPU-bound) and persists from
-the parent process serially, because SQLite must be written from one place. The `spawn` start method
-is used on every platform so behaviour is identical on Linux, macOS and Windows, with an automatic
-serial fallback if the pool cannot start. Workers default to `min(8, cpu_count - 1)`; set
-`[kb] index_workers` to tune it, or `1` to force serial.
+`kb index` parses repositories across a **process** pool, because the work is CPU-bound. It
+persists from the parent process serially, because SQLite must be written from one place.
+
+The `spawn` start method is used on every platform, so behaviour is identical on Linux, macOS and
+Windows. If the pool cannot start, it falls back to serial automatically.
+
+Workers default to `min(8, cpu_count - 1)`. Set `[kb] index_workers` to tune it, or `1` to force
+serial.
 
 ### Locking and connections
 
@@ -7111,12 +7166,16 @@ the outcome without reading the rest of the line:
 | `↝` | switched | cyan |
 | `~` | dry-run | yellow |
 
-An eighth glyph, **`•` note**, is currently only emitted by `update` and `branches`: it means something
-different from `⊘` skip. Skip means something that would normally happen didn't (an unsafe working tree,
-a diverged branch, an archived project) -- there was a reason to hold back. Note is not that: it
-describes what the repo *is*, not something that was withheld. The one case today is a freshly-created
-repo with no commits yet (`update`/`branches` can't resolve `HEAD` there because there is no history to
-read) -- nothing failed and nothing was skipped, there's simply nothing to sync yet.
+An eighth glyph, **`•` note**, is emitted only by `update` and `branches`. It means something
+different from `⊘` skip.
+
+- **Skip** means something that would normally happen did not. An unsafe working tree, a diverged
+  branch, an archived project. There was a reason to hold back.
+- **Note** describes what the repo *is*, rather than something withheld.
+
+There is one note case today: a freshly created repo with no commits. `update` and `branches`
+cannot resolve `HEAD` there, because there is no history to read. Nothing failed and nothing was
+skipped. There is simply nothing to sync yet.
 
 Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section headers (e.g. `▶ Mirror
 repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long run reads as sections rather
@@ -7248,12 +7307,18 @@ contextlake_graph_edges 214005
 contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
 ```
 
-Two behaviours worth knowing. `contextlake_last_success_timestamp_seconds` is **carried forward** by a
-failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
-a value that could not be measured is **omitted, never written as 0**: a `mirror sync` does not touch the
-knowledge graph, so it publishes no `contextlake_graph_nodes` at all rather than a zero that reads as
-"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
-the exit code), so the metrics can never disagree with the summary line.
+Two behaviours worth knowing.
+
+**A failing run carries `contextlake_last_success_timestamp_seconds` forward** rather than
+erasing it. That timestamp is the whole basis of a "stale for six hours" alert, so wiping it
+would break the alert instead of firing it.
+
+**A value that could not be measured is omitted, never written as 0.** A `mirror sync` does not
+touch the knowledge graph, so it publishes no `contextlake_graph_nodes` at all. A zero there
+would read as "the graph was wiped".
+
+The counts come from what the run already tallied, the same numbers that decide the exit code. So
+the metrics can never disagree with the summary line.
 
 ## The stdout / stderr split
 
@@ -7349,12 +7414,15 @@ that was interrupted mid-job.
 | `0` | `Ctrl-C`, on any transport; `SIGTERM` on `stdio` | The requested stop, completed |
 | `143` | `SIGTERM` on `--transport http` / `sse` | `128 + 15`, "terminated by SIGTERM" |
 
-`143` is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
-connections and shuts down first, then re-raises the signal it captured so the exit status
-reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
-handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
-a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](mcp-transports.md#stopping-it).
+`143` is what a supervisor expects from a process it asked to stop. It is not a fault. uvicorn
+drains connections and shuts down first, then re-raises the signal it captured, so the exit
+status reports the termination honestly.
+
+`stdio` reaches `0` on `SIGTERM` because it installs its own handler and routes both signals into
+the same shutdown that `Ctrl-C` uses.
+
+Before that it had no handler at all, so a supervisor's `SIGTERM` killed it outright and its
+cleanup never ran. See [Stopping it](mcp-transports.md#stopping-it).
 
 Three things worth knowing about `1`:
 

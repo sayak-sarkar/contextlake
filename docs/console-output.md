@@ -44,12 +44,16 @@ the outcome without reading the rest of the line:
 | `↝` | switched | cyan |
 | `~` | dry-run | yellow |
 
-An eighth glyph, **`•` note**, is currently only emitted by `update` and `branches`: it means something
-different from `⊘` skip. Skip means something that would normally happen didn't (an unsafe working tree,
-a diverged branch, an archived project) -- there was a reason to hold back. Note is not that: it
-describes what the repo *is*, not something that was withheld. The one case today is a freshly-created
-repo with no commits yet (`update`/`branches` can't resolve `HEAD` there because there is no history to
-read) -- nothing failed and nothing was skipped, there's simply nothing to sync yet.
+An eighth glyph, **`•` note**, is emitted only by `update` and `branches`. It means something
+different from `⊘` skip.
+
+- **Skip** means something that would normally happen did not. An unsafe working tree, a diverged
+  branch, an archived project. There was a reason to hold back.
+- **Note** describes what the repo *is*, rather than something withheld.
+
+There is one note case today: a freshly created repo with no commits. `update` and `branches`
+cannot resolve `HEAD` there, because there is no history to read. Nothing failed and nothing was
+skipped. There is simply nothing to sync yet.
 
 Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section headers (e.g. `▶ Mirror
 repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long run reads as sections rather
@@ -181,12 +185,18 @@ contextlake_graph_edges 214005
 contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
 ```
 
-Two behaviours worth knowing. `contextlake_last_success_timestamp_seconds` is **carried forward** by a
-failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
-a value that could not be measured is **omitted, never written as 0**: a `mirror sync` does not touch the
-knowledge graph, so it publishes no `contextlake_graph_nodes` at all rather than a zero that reads as
-"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
-the exit code), so the metrics can never disagree with the summary line.
+Two behaviours worth knowing.
+
+**A failing run carries `contextlake_last_success_timestamp_seconds` forward** rather than
+erasing it. That timestamp is the whole basis of a "stale for six hours" alert, so wiping it
+would break the alert instead of firing it.
+
+**A value that could not be measured is omitted, never written as 0.** A `mirror sync` does not
+touch the knowledge graph, so it publishes no `contextlake_graph_nodes` at all. A zero there
+would read as "the graph was wiped".
+
+The counts come from what the run already tallied, the same numbers that decide the exit code. So
+the metrics can never disagree with the summary line.
 
 ## The stdout / stderr split
 
@@ -282,12 +292,15 @@ that was interrupted mid-job.
 | `0` | `Ctrl-C`, on any transport; `SIGTERM` on `stdio` | The requested stop, completed |
 | `143` | `SIGTERM` on `--transport http` / `sse` | `128 + 15`, "terminated by SIGTERM" |
 
-`143` is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
-connections and shuts down first, then re-raises the signal it captured so the exit status
-reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
-handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
-a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
-[Serve it to your editor](mcp-transports.md#stopping-it).
+`143` is what a supervisor expects from a process it asked to stop. It is not a fault. uvicorn
+drains connections and shuts down first, then re-raises the signal it captured, so the exit
+status reports the termination honestly.
+
+`stdio` reaches `0` on `SIGTERM` because it installs its own handler and routes both signals into
+the same shutdown that `Ctrl-C` uses.
+
+Before that it had no handler at all, so a supervisor's `SIGTERM` killed it outright and its
+cleanup never ran. See [Stopping it](mcp-transports.md#stopping-it).
 
 Three things worth knowing about `1`:
 
