@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.7.0] - 2026-08-25
+
+Three defects found by running the CLI against itself and against a live GitLab group,
+rather than by the unit suite. The first is cosmetic; the other two are commands that
+reported success while doing nothing.
+
+`PARSER_VERSION`, `SCHEMA_VERSION` and `EMBED_CONTENT_VERSION` are untouched, so nothing
+re-parses and nothing re-embeds. **One stored value does change:** see Migration.
+
+### Fixed
+
+- **`kb index --source` filed repositories under their directory name instead of their
+  remote id.** `--workspace` has always used the canonical id from the `origin` remote;
+  the single-source path used the directory name. Every connector matches on the repo id,
+  so `kb connect` silently found nothing for anything indexed the zero-config way, which
+  is the way the tool advertises: `cd my-repo && contextlake kb index`. Measured on one
+  repository with 100 open merge requests, same clone and same store both times: **0
+  external links via `--source`, 285 via `--workspace`.** A repository with no `origin`
+  now gets the documented `name@root-commit` fallback instead of a bare directory name,
+  so two clones of one history collide correctly and two unrelated `api` directories
+  do not.
+
+- **`kb index --watch` did nothing unless `--workspace` was given.** The flag was read
+  only inside the workspace branch. With `--source PATH`, or the zero-config current
+  directory, it parsed, ran one pass and exited 0 without watching and without saying so,
+  while its own help promises "keep re-running ... on an interval (Ctrl-C to stop)".
+
+- **The CLI advertised an example that does not run.** `contextlake kb graph --serve`
+  appeared in `kb graph`'s help epilog and exits 2: the command requires one of
+  `--node / --name / --search / --repo / --overview`. That requirement is deliberate and
+  stays; the example is now `kb graph --overview --serve`. All 63 runnable examples across
+  every command's epilog were executed to find it, and one was broken.
+
+### Migration
+
+**Automatic. No action required.** A store written by an earlier version holds
+directory-name ids for anything indexed with `--source`. Re-indexing the same checkout
+re-files that row under its canonical id and clears the stale one, the same migration
+`--workspace` has always run, scoped to the single path being indexed. The rename is
+logged, for example `oldname -> gitlab.example.com/acme/widgets`.
+
+The consequence worth knowing: a repository indexed before this release is invisible to
+`kb connect`. Re-index it once and the connectors will see it.
+
+### Added
+
+- `tests/test_cli_examples_parse.py` runs every `--help` epilog example on every release,
+  so the CLI cannot advertise a command that does not parse.
+
 ## [8.6.1] - 2026-08-24
 
 A documentation-structure release. No behaviour changed, no schema moved,

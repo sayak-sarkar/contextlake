@@ -31,15 +31,20 @@ _EXAMPLE = re.compile(r"^\s+(contextlake [a-z].*?)(?:\s{2,}.*)?$", re.M)
 _USAGE = re.compile(r"^(?:\[[^\]]*\]\s*)?usage:", re.M)
 
 
-def _commands() -> list[list[str]]:
-    """Every leaf command that actually exists, from the top-level and namespace helps.
+def _commands() -> list[tuple[list[str], str]]:
+    """Every leaf command that actually exists, paired with its `--help` text.
 
     The top-level help lists namespaced commands by their bare names (`fetch`, `index`), and
     those flat spellings stopped parsing at v3.0.0. Scraped without a check they became phantom
     entries that contributed zero examples and quietly shrank the surface this gate covers, so
     each candidate has to prove itself by answering `--help` with exit 0.
+
+    The help text is returned with the command rather than fetched again by `_examples`: at
+    ~55 candidates that second spawn was half the runtime of this test, and the test has to
+    stay well inside the suite's 300s timeout on a cold runner.
     """
-    out: list[list[str]] = []
+    out: list[tuple[list[str], str]] = []
+    seen: set[tuple[str, ...]] = set()
     for ns in ([], ["mirror"], ["kb"]):
         h = subprocess.run([sys.executable, "-m", "contextlake", *ns, "--help"],
                            capture_output=True, text=True, timeout=120, cwd=REPO).stdout
@@ -49,22 +54,21 @@ def _commands() -> list[list[str]]:
             if name in {"completion", "init"}:      # write real user config
                 continue
             cmd = [*ns, name]
-            if cmd in out:
+            if tuple(cmd) in seen:
                 continue
+            seen.add(tuple(cmd))
             probe = subprocess.run([sys.executable, "-m", "contextlake", *cmd, "--help"],
                                    capture_output=True, text=True, timeout=120, cwd=REPO)
             if probe.returncode == 0:
-                out.append(cmd)
+                out.append((cmd, probe.stdout))
     return out
 
 
-def _examples(cmd: list[str]) -> list[str]:
-    h = subprocess.run([sys.executable, "-m", "contextlake", *cmd, "--help"],
-                       capture_output=True, text=True, timeout=120, cwd=REPO).stdout
-    if "Examples:" not in h:
+def _examples(help_text: str) -> list[str]:
+    if "Examples:" not in help_text:
         return []
     return [m.group(1).strip()
-            for m in _EXAMPLE.finditer(h[h.index("Examples:"):])
+            for m in _EXAMPLE.finditer(help_text[help_text.index("Examples:"):])
             if "|" not in m.group(1) and "<" not in m.group(1)]
 
 
@@ -73,8 +77,8 @@ def test_every_help_example_runs(tmp_path: Path) -> None:
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "store"}"\n')
     seen, bad = 0, []
-    for cmd in _commands():
-        for ex in _examples(cmd):
+    for _cmd, help_text in _commands():
+        for ex in _examples(help_text):
             seen += 1
             proc = subprocess.Popen(
                 [sys.executable, "-m", "contextlake", *ex.split()[1:], "--config", str(cfg)],
@@ -83,7 +87,7 @@ def test_every_help_example_runs(tmp_path: Path) -> None:
             # A usage error is printed immediately. An example that is still alive after the
             # grace period started a server, which is a pass -- running it to completion would
             # make this test take minutes and would test the timeout, not the example.
-            deadline = time.monotonic() + 6
+            deadline = time.monotonic() + 3
             while proc.poll() is None and time.monotonic() < deadline:
                 time.sleep(0.1)
             if proc.poll() is None:

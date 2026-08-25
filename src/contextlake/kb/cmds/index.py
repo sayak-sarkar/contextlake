@@ -616,6 +616,16 @@ def _cmd_index_once(args) -> int:
             repo_id = (getattr(args, "repo", None) or id_repo_id
                        or (resolve_repo_id(str(src)) if (src / ".git").exists()
                            else src.resolve().name))
+            # Giving this path the canonical id without the migration would have
+            # ORPHANED the row a previous run stored under the directory name: two
+            # rows for one checkout, a stale shard, and `kb forget <dirname>`
+            # addressing a ghost. `--workspace` has always run this first for exactly
+            # that reason. `in_scope` is the one path this run is about to index, which
+            # is the promise the migration's safety rests on -- it clears a stale row
+            # only because the caller re-indexes it immediately, and only for paths the
+            # caller will actually touch.
+            from ..repo_migrate import migrate_stale_repo_ids
+            migrate_stale_repo_ids(store, store_dir, in_scope=[str(src)])
             head = _git_head(src)
             # Same incremental gate --workspace applies, for the same reasons and
             # in the same order: HEAD unmoved AND the graph built by this parser

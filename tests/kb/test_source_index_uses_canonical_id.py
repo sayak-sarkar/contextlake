@@ -94,3 +94,25 @@ def test_explicit_repo_flag_still_wins(tmp_path):
     store = tmp_path / "s3" / "store"
     _index(src, store, "--repo", "chosen/by-hand")
     assert _repo_ids(store) == ["chosen/by-hand"]
+
+
+@pytest.mark.slow
+def test_an_old_directory_name_row_is_re_filed_not_orphaned(tmp_path):
+    """Upgrading must not leave two rows for one checkout.
+
+    Giving this path the canonical id without also running `migrate_stale_repo_ids`
+    would orphan whatever a pre-fix run stored under the directory name: two rows for
+    one checkout, a stale shard, and `kb forget <dirname>` addressing a ghost.
+    `--workspace` has always run the migration first. Measured with the call removed:
+    ['gitlab.example.com/acme/widgets', 'oldname'].
+    """
+    src = _make_repo(tmp_path / "oldname", remote=REMOTE)
+    store = tmp_path / "s4" / "store"
+    # a store as a pre-fix version would have left it: filed under the directory name
+    _index(src, store, "--repo", "oldname")
+    assert _repo_ids(store) == ["oldname"]
+    # the upgrade path: same checkout, no --repo
+    _index(src, store)
+    assert _repo_ids(store) == ["gitlab.example.com/acme/widgets"], (
+        "the stale directory-name row must be cleared, not left beside the new one")
+
