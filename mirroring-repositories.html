@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18683647">
-<link rel="stylesheet" href="tokens.css?v=18683647">
-<link rel="stylesheet" href="docs.css?v=18683647">
-<link rel="stylesheet" href="cmdk.css?v=18683647">
+<link rel="stylesheet" href="fonts.css?v=a06a793b">
+<link rel="stylesheet" href="tokens.css?v=a06a793b">
+<link rel="stylesheet" href="docs.css?v=a06a793b">
+<link rel="stylesheet" href="cmdk.css?v=a06a793b">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -219,6 +219,32 @@ though they had done what was asked.</p>
   396 repo(s) have no branch &#39;release/24.1&#39;; each stayed on its most active branch
 </code></pre></div>
 <p>The name is matched exactly. <code>--branch release/24</code> does not select <code>release/24.1</code>.</p>
+<p>Set it once in the config instead of passing it every run:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">release/24.1</span>
+</code></pre></div>
+<p><strong>Different branches for different repositories:</strong> one branch rarely fits a whole fleet.
+<code>branch_map</code> takes comma-separated <code>pattern=branch</code> pairs, using the same globs as
+<code>repo_filter</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">branch_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/api=develop, legacy-*=maintenance, acme/one-off=spike</span>
+</code></pre></div>
+<ul>
+<li><strong>First match wins,</strong> so list the specific entry before the glob that would also catch it.</li>
+<li>It <strong>beats</strong> <code>branch</code>. Anything the map does not match falls back to <code>branch</code>, and then to
+  the most-active selection.</li>
+<li>A repository whose mapped branch does not exist is reported as <code>unpinned</code>, exactly as
+  <code>branch</code> does. It is never switched to something else instead.</li>
+<li>A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
+  pinning none.</li>
+</ul>
+<p>So a fleet can track three different things at once:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">main</span><span class="w">                              </span><span class="c1"># the default for everything</span>
+<span class="na">branch_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/api=develop, legacy-*=maintenance</span>
+</code></pre></div>
+<p><code>team/api</code> goes to <code>develop</code>, anything starting <code>legacy-</code> goes to <code>maintenance</code>, and every
+other repository goes to <code>main</code>.</p>
 <h3 id="mirror-verify-verify-repository-structure"><code>mirror verify</code>: verify repository structure<a class="anchor" href="#mirror-verify-verify-repository-structure" title="Link to this section">#</a></h3>
 <p>Checks that the local workspace structure matches the remote exactly.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>verify
@@ -266,6 +292,45 @@ two years, and repos with no commits. The full per-repo table is written as both
 <p>The scan is parallel, read-only, and works offline from the fetch cache.</p>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
 <p>contextlake's config-file precedence and the full settings reference now have their own page: <strong><a href="configuration">Configuration</a></strong>.</p>
+<h3 id="making-a-scope-permanent">Making a scope permanent<a class="anchor" href="#making-a-scope-permanent" title="Link to this section">#</a></h3>
+<p>Three settings decide <em>which</em> repositories you mirror and <em>which branch</em> each one sits on.
+Put them in <code>.contextlake.ini</code> and every command follows them, with no flags to remember:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
+<span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-group</span>
+
+<span class="na">repo_filter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/*,shared-libs</span><span class="w">                     </span><span class="c1"># only these repositories</span>
+<span class="na">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">main</span><span class="w">                                        </span><span class="c1"># the default branch for all of them</span>
+<span class="na">branch_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/api=develop, legacy-*=maintenance</span><span class="w">  </span><span class="c1"># exceptions to that default</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Want to</th>
+<th>Setting</th>
+<th>Flag for one run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mirror only some repositories</td>
+<td><code>repo_filter</code></td>
+<td><code>--repos</code></td>
+</tr>
+<tr>
+<td>Put the whole fleet on one branch</td>
+<td><code>branch</code></td>
+<td><code>--branch</code></td>
+</tr>
+<tr>
+<td>Give some repositories a different branch</td>
+<td><code>branch_map</code></td>
+<td><em>(config only)</em></td>
+</tr>
+</tbody>
+</table>
+<p>Omit <code>repo_filter</code> to take the whole group. Omit both branch settings to let each repository
+track its own most active branch.</p>
 <h2 id="branch-safety">Branch safety<a class="anchor" href="#branch-safety" title="Link to this section">#</a></h2>
 <p>The tool protects your local work without getting in your way. The guiding rule:
 <strong>a clean repo is always safe to act on, the branch name alone never causes a skip.</strong>
@@ -408,7 +473,10 @@ looks in one place rather than guessing which page owns their symptom.</p>
 <li><a href="#mirror-audit-repo-health-age-report">mirror audit: repo health &amp; age report</a></li>
 </ul>
 </li>
-<li><a href="#configuration">Configuration</a></li>
+<li><a href="#configuration">Configuration</a><ul>
+<li><a href="#making-a-scope-permanent">Making a scope permanent</a></li>
+</ul>
+</li>
 <li><a href="#branch-safety">Branch safety</a><ul>
 <li><a href="#the-three-checks">The three checks</a></li>
 <li><a href="#which-setting-affects-which-command">Which setting affects which command</a></li>
@@ -448,6 +516,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18683647"></script>
+<script defer src="cmdk.js?v=a06a793b"></script>
 </body>
 </html>

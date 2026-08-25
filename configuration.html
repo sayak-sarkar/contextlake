@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18683647">
-<link rel="stylesheet" href="tokens.css?v=18683647">
-<link rel="stylesheet" href="docs.css?v=18683647">
-<link rel="stylesheet" href="cmdk.css?v=18683647">
+<link rel="stylesheet" href="fonts.css?v=a06a793b">
+<link rel="stylesheet" href="tokens.css?v=a06a793b">
+<link rel="stylesheet" href="docs.css?v=a06a793b">
+<link rel="stylesheet" href="cmdk.css?v=a06a793b">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -84,6 +84,14 @@ of the global one, see <a href="#directory-scoped-config">Directory-scoped confi
 <div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
+
+<span class="c1"># Which repositories to mirror. Omit to take the whole group.</span>
+<span class="na">repo_filter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/*,shared-libs</span>
+
+<span class="c1"># Which branch to put them on. Omit both to track each repo&#39;s most active branch.</span>
+<span class="na">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">release/24.1</span>
+<span class="na">branch_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">team/api=develop,legacy-*=maintenance</span>
+
 <span class="na">clone_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">300</span>
 <span class="na">fetch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
 <span class="na">branch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">30</span>
@@ -354,6 +362,12 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 <td><em>(empty)</em></td>
 <td><code>release/24.1</code></td>
 </tr>
+<tr>
+<td><code>branch_map</code></td>
+<td>Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated <code>pattern=branch</code> pairs using the same globs as <code>repo_filter</code>. First match wins, so list the specific before the general. Beats <code>branch</code>; falls back to it, then to the selection above</td>
+<td><em>(empty)</em></td>
+<td><code>team/api=develop,legacy-*=maintenance</code></td>
+</tr>
 </tbody>
 </table>
 <p>The branch-safety settings (<code>require_clean_workspace</code>, <code>protect_working_branches</code>, <code>safe_branches</code>,
@@ -445,6 +459,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18683647"></script>
+<script defer src="cmdk.js?v=a06a793b"></script>
 </body>
 </html>

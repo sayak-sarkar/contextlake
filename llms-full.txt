@@ -1689,6 +1689,41 @@ though they had done what was asked.
 
 The name is matched exactly. `--branch release/24` does not select `release/24.1`.
 
+Set it once in the config instead of passing it every run:
+
+```ini
+[contextlake]
+branch = release/24.1
+```
+
+**Different branches for different repositories:** one branch rarely fits a whole fleet.
+`branch_map` takes comma-separated `pattern=branch` pairs, using the same globs as
+`repo_filter`:
+
+```ini
+[contextlake]
+branch_map = team/api=develop, legacy-*=maintenance, acme/one-off=spike
+```
+
+- **First match wins,** so list the specific entry before the glob that would also catch it.
+- It **beats** `branch`. Anything the map does not match falls back to `branch`, and then to
+  the most-active selection.
+- A repository whose mapped branch does not exist is reported as `unpinned`, exactly as
+  `branch` does. It is never switched to something else instead.
+- A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
+  pinning none.
+
+So a fleet can track three different things at once:
+
+```ini
+[contextlake]
+branch = main                              # the default for everything
+branch_map = team/api=develop, legacy-*=maintenance
+```
+
+`team/api` goes to `develop`, anything starting `legacy-` goes to `maintenance`, and every
+other repository goes to `main`.
+
 ### `mirror verify`: verify repository structure
 
 Checks that the local workspace structure matches the remote exactly.
@@ -1752,6 +1787,30 @@ The scan is parallel, read-only, and works offline from the fetch cache.
 ## Configuration
 
 contextlake's config-file precedence and the full settings reference now have their own page: **[Configuration](configuration.md)**.
+
+### Making a scope permanent
+
+Three settings decide *which* repositories you mirror and *which branch* each one sits on.
+Put them in `.contextlake.ini` and every command follows them, with no flags to remember:
+
+```ini
+[contextlake]
+work_dir = ~/work
+gitlab_group = your-group
+
+repo_filter = team/*,shared-libs                     # only these repositories
+branch = main                                        # the default branch for all of them
+branch_map = team/api=develop, legacy-*=maintenance  # exceptions to that default
+```
+
+| Want to | Setting | Flag for one run |
+| --- | --- | --- |
+| Mirror only some repositories | `repo_filter` | `--repos` |
+| Put the whole fleet on one branch | `branch` | `--branch` |
+| Give some repositories a different branch | `branch_map` | *(config only)* |
+
+Omit `repo_filter` to take the whole group. Omit both branch settings to let each repository
+track its own most active branch.
 
 ## Branch safety
 
@@ -1930,6 +1989,14 @@ An example `.contextlake.ini`:
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
+
+# Which repositories to mirror. Omit to take the whole group.
+repo_filter = team/*,shared-libs
+
+# Which branch to put them on. Omit both to track each repo's most active branch.
+branch = release/24.1
+branch_map = team/api=develop,legacy-*=maintenance
+
 clone_timeout = 300
 fetch_timeout = 60
 branch_timeout = 30
@@ -2046,6 +2113,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
+| `branch_map` | Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated `pattern=branch` pairs using the same globs as `repo_filter`. First match wins, so list the specific before the general. Beats `branch`; falls back to it, then to the selection above | *(empty)* | `team/api=develop,legacy-*=maintenance` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
@@ -7710,6 +7778,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`branch_map`: per-repository branch pins.** `branch` puts the whole fleet on one branch,
+  which is the common case and not the only one. `branch_map` takes comma-separated
+  `pattern=branch` pairs using the same globs as `repo_filter`, so one team can track
+  `develop` while a legacy tree sits on `maintenance` and everything else follows the
+  most-active selection. First match wins, so a specific entry can precede the glob that
+  would otherwise catch it. It beats `branch`, falls back to it, then to the selection.
+  A repository whose mapped branch does not exist is reported as `unpinned`, exactly as
+  `branch` already does, rather than being switched to something else.
+
+  ```ini
+  branch_map = team/api=develop, legacy-*=maintenance
+  ```
+
+### Changed
+
+- **`configuration.md`'s example config now shows the scoping keys.** `repo_filter`, `branch`
+  and `branch_map` were documented in the settings table but absent from the example anyone
+  copies, so the two that already existed were easy to miss.
 
 ## [8.7.0] - 2026-08-25
 
