@@ -221,6 +221,41 @@ though they had done what was asked.
 
 The name is matched exactly. `--branch release/24` does not select `release/24.1`.
 
+Set it once in the config instead of passing it every run:
+
+```ini
+[contextlake]
+branch = release/24.1
+```
+
+**Different branches for different repositories:** one branch rarely fits a whole fleet.
+`branch_map` takes comma-separated `pattern=branch` pairs, using the same globs as
+`repo_filter`:
+
+```ini
+[contextlake]
+branch_map = team/api=develop, legacy-*=maintenance, acme/one-off=spike
+```
+
+- **First match wins,** so list the specific entry before the glob that would also catch it.
+- It **beats** `branch`. Anything the map does not match falls back to `branch`, and then to
+  the most-active selection.
+- A repository whose mapped branch does not exist is reported as `unpinned`, exactly as
+  `branch` does. It is never switched to something else instead.
+- A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
+  pinning none.
+
+So a fleet can track three different things at once:
+
+```ini
+[contextlake]
+branch = main                              # the default for everything
+branch_map = team/api=develop, legacy-*=maintenance
+```
+
+`team/api` goes to `develop`, anything starting `legacy-` goes to `maintenance`, and every
+other repository goes to `main`.
+
 ### `mirror verify`: verify repository structure
 
 Checks that the local workspace structure matches the remote exactly.
@@ -284,6 +319,30 @@ The scan is parallel, read-only, and works offline from the fetch cache.
 ## Configuration
 
 contextlake's config-file precedence and the full settings reference now have their own page: **[Configuration](configuration.md)**.
+
+### Making a scope permanent
+
+Three settings decide *which* repositories you mirror and *which branch* each one sits on.
+Put them in `.contextlake.ini` and every command follows them, with no flags to remember:
+
+```ini
+[contextlake]
+work_dir = ~/work
+gitlab_group = your-group
+
+repo_filter = team/*,shared-libs                     # only these repositories
+branch = main                                        # the default branch for all of them
+branch_map = team/api=develop, legacy-*=maintenance  # exceptions to that default
+```
+
+| Want to | Setting | Flag for one run |
+| --- | --- | --- |
+| Mirror only some repositories | `repo_filter` | `--repos` |
+| Put the whole fleet on one branch | `branch` | `--branch` |
+| Give some repositories a different branch | `branch_map` | *(config only)* |
+
+Omit `repo_filter` to take the whole group. Omit both branch settings to let each repository
+track its own most active branch.
 
 ## Branch safety
 
