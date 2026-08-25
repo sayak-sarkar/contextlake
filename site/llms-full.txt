@@ -6233,9 +6233,9 @@ Output is chosen with `--format`:
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
-To explore a large graph interactively, run `contextlake kb graph --serve`. It starts a local web
-UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can walk the graph
-without rendering all of it first.
+To explore a large graph interactively, run `contextlake kb graph --overview --serve`. It starts
+a local web UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can
+walk the graph without rendering all of it first.
 
 With `--overview` it serves the whole cross-linked site: an overview plus a page per repo, each
 rendered on demand rather than pre-built. That is the live counterpart of `--site`.

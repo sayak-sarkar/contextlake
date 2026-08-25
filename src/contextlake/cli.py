@@ -1292,7 +1292,7 @@ Examples:
   contextlake kb graph --repo acme/app --format statediagram       entity state machine (Mermaid)
   contextlake kb graph --repo acme/app --format erdiagram          table/view ER diagram (Mermaid)
   contextlake kb graph --repo acme/app --format deploymentdiagram  Terraform diagram (Mermaid)
-  contextlake kb graph --serve                                     live click-to-expand UI
+  contextlake kb graph --overview --serve                          live click-to-expand UI
   contextlake kb graph --site                                      offline cross-linked site
   contextlake kb graph --c4 --group-depth 2                        composed namespace (C4) diagram
   contextlake kb graph --c4 --c1                                   + external-system boxes (C1)

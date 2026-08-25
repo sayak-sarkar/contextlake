@@ -1,0 +1,85 @@
+"""Every example the CLI advertises in a `--help` epilog must actually run.
+
+Found by the stability campaign, 2026-08-25: `contextlake kb graph --serve` was listed as an
+example and exited 2 with a usage banner, because `kb graph` requires one of
+`--node/--name/--search/--repo/--overview` and `--serve` is not one of them. That check is
+correct and deliberate ("asking for nothing is a usage error"); the *example* was wrong.
+
+Only the usage-error class counts as a failure. An example carrying a placeholder
+(`acme/app`, `CatalogService`) legitimately exits 1 "not found" against an empty store -- a
+well-formed command with an empty answer is not a broken example.
+
+The seed check lives in the command body, not in argparse, so a parse-only test would not
+have caught this. The examples have to be executed.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+# a runnable example: no shell placeholders, no alternation
+_EXAMPLE = re.compile(r"^\s+(contextlake [a-z].*?)(?:\s{2,}.*)?$", re.M)
+# Every log line carries a `[YYYY-MM-DD HH:MM:SS] ` prefix, so a bare `^usage:` never
+# matches and this gate goes silently blind. Caught by break-testing it.
+_USAGE = re.compile(r"^(?:\[[^\]]*\]\s*)?usage:", re.M)
+
+
+def _commands() -> list[list[str]]:
+    """Every leaf command, from the top-level and namespace helps."""
+    out: list[list[str]] = []
+    for ns in ([], ["mirror"], ["kb"]):
+        h = subprocess.run([sys.executable, "-m", "contextlake", *ns, "--help"],
+                           capture_output=True, text=True, timeout=120, cwd=REPO).stdout
+        block = h.split("commands:")[-1] if "commands:" in h else h
+        for m in re.finditer(r"^\s{2,4}([a-z][a-z-]+)\s{2,}", block, re.M):
+            name = m.group(1)
+            if name in {"completion", "init"}:      # write real user config
+                continue
+            out.append([*ns, name])
+    return out
+
+
+def _examples(cmd: list[str]) -> list[str]:
+    h = subprocess.run([sys.executable, "-m", "contextlake", *cmd, "--help"],
+                       capture_output=True, text=True, timeout=120, cwd=REPO).stdout
+    if "Examples:" not in h:
+        return []
+    return [m.group(1).strip()
+            for m in _EXAMPLE.finditer(h[h.index("Examples:"):])
+            if "|" not in m.group(1) and "<" not in m.group(1)]
+
+
+@pytest.mark.slow
+def test_every_help_example_runs(tmp_path: Path) -> None:
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "store"}"\n')
+    seen, bad = 0, []
+    for cmd in _commands():
+        for ex in _examples(cmd):
+            seen += 1
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "contextlake", *ex.split()[1:], "--config", str(cfg)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                stdin=subprocess.DEVNULL, cwd=tmp_path)
+            # A usage error is printed immediately. An example that is still alive after the
+            # grace period started a server, which is a pass -- running it to completion would
+            # make this test take minutes and would test the timeout, not the example.
+            deadline = time.monotonic() + 6
+            while proc.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.1)
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate(timeout=10)
+                continue
+            blob = proc.communicate(timeout=10)[0] or ""
+            if proc.returncode == 2 and _USAGE.search(blob):
+                bad.append(f"{ex}\n      {blob.strip().splitlines()[0][:150]}")
+    assert seen > 20, f"only found {seen} examples; the epilog scraper is broken"
+    assert not bad, "the CLI advertises examples that do not run:\n  " + "\n  ".join(bad)
