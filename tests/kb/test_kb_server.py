@@ -5,6 +5,7 @@ from datetime import date
 
 import pytest
 from mcp import Client
+from mcp.server.mcpserver.exceptions import ToolError
 
 from contextlake.kb import server as server_mod
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
@@ -1295,7 +1296,9 @@ def test_repo_side_refuses_an_out_of_vocabulary_direction_directly():
     where the store's own `neighbors` would have raised."""
     rows = [{"src": "a", "dst": "b"}]
     assert server_mod._repo_side(rows, "a", "out") == rows
-    with pytest.raises(ValueError, match="invalid direction: 'sideways'"):
+    # ToolError, not ValueError: mcp 2.1.0's tool runner keeps a deliberately-raised
+    # ToolError's message and drops every other exception's. The refusal is unchanged.
+    with pytest.raises(ToolError, match="invalid direction: 'sideways'"):
         server_mod._repo_side(rows, "a", "sideways")
 
 

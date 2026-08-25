@@ -29,6 +29,14 @@ re-parses and nothing re-embeds. **One stored value does change:** see Migration
   so two clones of one history collide correctly and two unrelated `api` directories
   do not.
 
+- **MCP clients stopped being told *why* a call was refused.** `mcp` 2.1.0 changed its tool
+  runner to preserve the message of a deliberately-raised `ToolError` and collapse every other
+  exception to a bare `Error executing tool <name>`, keeping the text server-side. contextlake
+  raised `ValueError` for argument validation, so `blast_radius` with `hops: -1` answered
+  `Error executing tool blast_radius` instead of `hops must be 0 or greater, not -1`. The
+  refusal itself was never in doubt (`is_error` stayed true); the reason was lost. Validation
+  now raises `ToolError`, which restores the message on 2.1.0 and is unchanged on 2.0.0.
+
 - **`kb index --watch` did nothing unless `--workspace` was given.** The flag was read
   only inside the workspace branch. With `--source PATH`, or the zero-config current
   directory, it parsed, ran one pass and exited 0 without watching and without saying so,

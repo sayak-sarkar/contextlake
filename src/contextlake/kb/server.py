@@ -30,6 +30,14 @@ from pathlib import Path
 from typing import Literal
 
 from mcp.server.mcpserver import MCPServer
+
+# `ToolError` is how this SDK distinguishes a DELIBERATE refusal from a crash, and the
+# distinction is load-bearing from 2.1.0 on: the tool runner re-raises a ToolError as
+# `Error executing tool <name>: <your message>`, and collapses every other exception to a
+# bare `Error executing tool <name>` with the text kept server-side. Raising ValueError for
+# a validation failure therefore stopped telling the caller WHAT was wrong -- silently, on
+# an `mcp>=2.0` floor that let 2.1.0 in.
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
@@ -578,7 +586,7 @@ def _repo_side(rows: list[dict], repo: str, direction: str) -> list[dict]:
     legal values, so the same refusal.
     """
     if direction not in _DIRECTIONS:
-        raise ValueError(f"invalid direction: {direction!r}")
+        raise ToolError(f"invalid direction: {direction!r}")
     return [e for e in rows
             if (direction in ("out", "both") and e["src"] == repo)
             or (direction in ("in", "both") and e["dst"] == repo)]
@@ -1203,7 +1211,7 @@ def build_server(
             # the walk stops immediately and the empty result reads as "nothing is
             # affected". Zero is a real request (look zero hops out) and keeps
             # answering emptily; below zero is refused.
-            raise ValueError(f"hops must be 0 or greater, not {hops}")
+            raise ToolError(f"hops must be 0 or greater, not {hops}")
         resolved, why = _as_node_id(node_id)
         if resolved is None:
             # The unresolved string used to be used as the seed anyway, so an

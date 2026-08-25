@@ -39,6 +39,7 @@ from datetime import date
 
 import pytest
 from mcp import Client
+from mcp.server.mcpserver.exceptions import ToolError
 
 from contextlake.kb import server as server_mod
 from contextlake.kb.embeddings.store import VectorStore
@@ -473,7 +474,11 @@ def test_a_nonsense_argument_still_errors(tmp_path):
         # 3. And in-process, the shared filter really does `raise` -- so a caller that
         #    bypasses the schema cannot get a silent empty list where the store's own
         #    `neighbors` would have refused.
-        with pytest.raises(ValueError, match="invalid direction: 'sideways'"):
+        # ToolError, not ValueError: from mcp 2.1.0 the tool runner preserves the message of a
+        # deliberately-raised ToolError ("Error executing tool X: <msg>") and discards the
+        # text of everything else ("Error executing tool X"). The refusal itself -- which is
+        # what this assertion is about -- is unchanged.
+        with pytest.raises(ToolError, match="invalid direction: 'sideways'"):
             server_mod._repo_side([{"src": "a", "dst": "b"}], "a", "sideways")
 
         # The recoverable calls in the very same session still answer, which is the
