@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generating the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -81,23 +81,24 @@ absence never reads as an oversight:</p>
 <ol>
 <li><strong>Entry points and how to run it</strong> -- <code>main</code> and its equivalents, HTTP routes, Make targets,
    Dockerfile stages.</li>
-<li><strong>Getting started</strong> -- the ordered path a newcomer takes: install what the repository declares,
-   run its entry point, read the symbol everything routes through, run the tests, and who to ask.
-   Every step restates a fact from another section and points at it, rather than copying detail
-   that could then drift. A step with no evidence behind it is dropped rather than written as
-   "none found", and the section opens by saying it was assembled from the graph -- nobody wrote
-   this procedure, and a reader who thinks otherwise will trust it further than it can bear.</li>
-<li><strong>Architecture</strong> -- the repository's modules and their sizes.</li>
-<li><strong>Ownership and activity</strong> -- who has been working here lately, as a share rather than a commit
-   scoreboard. Pseudonymised when <code>[kb] anonymize = "always"</code>.</li>
-<li><strong>The public surface</strong> -- the named symbols, most-called first, with caller counts where the graph
-   records any.</li>
-<li><strong>Installation and usage</strong> -- the build and packaging files the repository actually has.</li>
-<li><strong>What this repository contains</strong> -- languages, node kinds, and <strong>the repositories it depends on and
+<li><strong>Getting started</strong>, the ordered path a newcomer takes: install what the repo declares, run
+   its entry point, read the symbol everything routes through, run the tests, and find who to
+   ask.</li>
+</ol>
+<p>Three rules keep it honest. Every step restates a fact from another section and links to it,
+   instead of copying detail that could drift. A step with no evidence is dropped, not written
+   as "none found". The section says up front that it was assembled from the graph, because
+   nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
+3. <strong>Architecture</strong> -- the repository's modules and their sizes.
+4. <strong>Ownership and activity</strong> -- who has been working here lately, as a share rather than a commit
+   scoreboard. Pseudonymised when <code>[kb] anonymize = "always"</code>.
+5. <strong>The public surface</strong> -- the named symbols, most-called first, with caller counts where the graph
+   records any.
+6. <strong>Installation and usage</strong> -- the build and packaging files the repository actually has.
+7. <strong>What this repository contains</strong> -- languages, node kinds, and <strong>the repositories it depends on and
    that depend on it</strong>. That last pair is a cross-repository answer no single-repo tool can give, and it
    is always labelled as describing the whole repository even on a module page, because it cannot be
-   scoped to one.</li>
-</ol>
+   scoped to one.</p>
 <p>Large repositories also get one structural page per module, under <code>wiki/_modules/</code>.</p>
 <h2 id="when-prose-may-replace-it">When prose may replace it<a class="anchor" href="#when-prose-may-replace-it" title="Link to this section">#</a></h2>
 <p>Passing the council is not enough, and cannot be: a council judges a page on its own terms and has
@@ -115,21 +116,29 @@ is printed either way.</p>
 <p>The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
 which is what makes publishing from a cheap local generator safe.</p>
 <h2 id="running-it">Running it<a class="anchor" href="#running-it" title="Link to this section">#</a></h2>
-<p>Enable <code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts never leave the
-machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code> (<code>builtin</code> | <code>ollama</code> | <code>openai</code> |
-<code>anthropic</code> | <code>cli</code> | <code>auto</code>), for example <code>contextlake kb wiki acme/catalog-api --llm builtin</code>, which enables
-the tier inline and scopes generation to the named repo(s). <code>auto</code> picks for you: a reachable local
-Ollama that already has the model pulled, else the built-in CPU model, else it skips the tier (see
-<a href="model-providers">Model providers</a>).</p>
+<p>Two ways to turn the tier on.</p>
+<ul>
+<li><strong>In the config</strong>, by enabling <code>[llm]</code>. Generation runs on a local Ollama model by default, so
+  prompts never leave the machine.</li>
+<li><strong>Inline</strong>, with <code>--llm &lt;provider&gt;</code>, skipping the toml entirely. Providers: <code>builtin</code>,
+  <code>ollama</code>, <code>openai</code>, <code>anthropic</code>, <code>cli</code>, <code>auto</code>.</li>
+</ul>
+<p>For example, <code>contextlake kb wiki acme/catalog-api --llm builtin</code> enables the tier and scopes
+generation to that repo.</p>
+<p><code>auto</code> picks for you, in order: a reachable local Ollama that already has the model pulled, else
+the built-in CPU model, else it skips the tier. See <a href="model-providers">Model providers</a>.</p>
 <p>On a <code>pip</code> install, <code>--llm builtin</code> needs one extra step first, <code>contextlake doctor --fix llm-local</code>
 (see <a href="installing#the-built-in-wiki-llm-is-one-extra">Install and upgrade</a>); <code>--llm ollama</code>
 needs no compiler at all.</p>
-<p>Run <code>contextlake kb wiki</code>: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
-and which conventional entry-point/config files it has, e.g. <code>package.json</code>, <code>Dockerfile</code>, <code>manage.py</code>)
-with a provenance footer citing the commit and sources, then puts the draft through a <strong>verification
-council</strong>, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
-above a configurable threshold. Nothing that fails review is written.</p>
+<p>Run <code>contextlake kb wiki</code>. For each repo it writes a Markdown page grounded strictly in graph
+facts: top symbols, dependencies and files.</p>
+<p>When the repo's own checkout is available, it also uses an excerpt of the README and which
+conventional entry-point or config files exist, such as <code>package.json</code>, <code>Dockerfile</code> or
+<code>manage.py</code>.</p>
+<p>Every page carries a provenance footer citing the commit and the sources.</p>
+<p>The draft then goes through a <strong>verification council</strong>. Reviewers score it for accuracy,
+completeness and clarity, and a chairman publishes only pages above a configurable threshold.
+<strong>Nothing that fails review is written.</strong></p>
 <p>By default the council reviews with the <strong>same model that wrote the page</strong>, so a small local model both
 drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
 everything. To gate a cheap local generator with a stronger judge, point the council at its own provider:</p>
@@ -138,45 +147,58 @@ everything. To gate a cheap local generator with a stronger judge, point the cou
 <span class="n">review_provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;anthropic&quot;</span><span class="w">  </span><span class="c1"># …but have a real model decide what gets published</span>
 <span class="n">review_model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;claude-haiku-4-5&quot;</span><span class="w">   </span><span class="c1"># optional; defaults to the provider&#39;s own default</span>
 </code></pre></div>
-<p><code>review_provider</code> accepts the same values as <code>provider</code> and wins unconditionally, so the inverse split
-(generate with a strong model, review with a cheap one) works too. It is strictly opt-in and never
-inferred from a stray API key in your environment, because it is not free: a run makes
-<strong>pages × <code>council_size</code></strong> review calls against that provider (3 lenses per page by default, lower
-<code>council_size</code> to 1 to cut it threefold). Note that <code>contextlake doctor</code> checks the <em>generation</em> provider
-only, so a missing key for the review provider shows up as a run where every page is rejected with
-<code>N reviewer(s) returned nothing parseable</code> rather than as a doctor warning.</p>
-<p>How many symbols get sampled into that grounding set scales with the repo's own size:
-<code>max(15, min(80, node_count // 1500))</code>, instead of a flat count of 15. Up to 22,500 graph
-nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
-reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
-dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.
-Within that sample, <code>top_symbols</code> reserves at least one slot per distinct symbol kind (e.g. a SQL
-table node, which has no call edges) so a structurally low-degree kind is never squeezed out
-entirely by pure degree-ranking; <code>hubs</code>/<code>dispatchers</code> never do this backfill with a fabricated
-zero-count row, since those two carry a real caller/callee count claim. One kind is excluded from
-that reservation: a file-less <code>module</code> node is an import/<code>#include</code> <strong>target</strong>, not a symbol the
-repo defines, so it is not handed a guaranteed slot (it still ranks in on its own degree, as a
-heavily-included header legitimately does). The provenance footer also states the resulting
-coverage as a fact, "Grounded in N/M file-backed symbols (X%)", the count of distinct symbols the
-sample actually touched versus the repo's file-backed symbol count. Both sides count file-backed
-nodes only, so the ratio means the same thing on a whole-repo page and on one of its per-subsystem
-pages, which can structurally contain nothing else.</p>
-<p>The page has a fixed section order, Overview, Setup &amp; Run, Architecture, Dependencies, Gotchas,
-Decisions, but a section is only ever written when the graph actually has something to ground it:
-"Setup &amp; Run" needs a README excerpt or a detected config file, and separately flags when an indexed
-file lives under a directory literally named <code>generated/</code> (e.g. <code>src/generated/widgets.py</code>), so the
-model is warned off presenting that file's contents as hand-authored design. (<code>setup_signals</code> also
-counts legacy C/C++ project/workspace files such as <code>.vcxproj</code>/<code>.dsp</code> by category, e.g. "3 legacy
-MSVC6 project (.dsp) file(s) detected" -- since those extensions aren't part of the indexed
-language set and never reach the graph, the count comes from a recursive, bounded scan of the
-repo's live checkout, the same way <code>setup_signals</code> already detects <code>package.json</code>/<code>Dockerfile</code>.)
-"Gotchas" needs at least one symbol with
-real callers in the graph, and states only the caller-count fact ("N caller(s) in the graph, worth
-extra care/tests when changed"), the model is explicitly told not to characterize <em>why</em> a symbol
-has many callers, so it never invents a label like "foundational" or "critical infrastructure". A
-repo with no such signal simply gets fewer sections, never an empty heading. "External context"
-(below) is a separate, always-conditional block on top of that list, not
-one of the named sections.</p>
+<p><code>review_provider</code> takes the same values as <code>provider</code>, and always wins. So the reverse split
+also works: generate with a strong model, review with a cheap one.</p>
+<p>It is strictly opt-in, and never inferred from a stray API key in your environment, because it
+is not free. A run makes <strong>pages x <code>council_size</code></strong> review calls against that provider. The
+default is 3 lenses per page. Set <code>council_size = 1</code> to cut that threefold.</p>
+<p>One thing to watch: <code>contextlake doctor</code> checks the <em>generation</em> provider only. A missing key for
+the review provider shows up as a run where every page is rejected with
+<code>N reviewer(s) returned nothing parseable</code>, not as a doctor warning.</p>
+<p>The number of symbols sampled into that grounding set scales with the repo's size, rather than
+being a flat 15:</p>
+<div class="codehilite"><pre><span></span><code>max(15, min(80, node_count // 1500))
+</code></pre></div>
+
+<ul>
+<li>Up to 22,500 nodes the floor keeps it at 15, so nothing changes for small repos.</li>
+<li>Past that it grows with the repo, reaching its cap of 80 at around 120,000 nodes.</li>
+<li>A large repo therefore gets proportionally more grounding depth, and the prompt still costs a
+  fixed amount.</li>
+</ul>
+<p>Inside that sample:</p>
+<ul>
+<li><strong><code>top_symbols</code> reserves at least one slot per symbol kind.</strong> A SQL table node has no call
+  edges, so pure degree ranking would squeeze it out entirely.</li>
+<li><strong><code>hubs</code> and <code>dispatchers</code> do not backfill.</strong> Both carry a real caller or callee count, and
+  padding them with a fabricated zero-count row would make that claim false.</li>
+<li><strong>A file-less <code>module</code> node gets no reserved slot.</strong> It is an import target, not a symbol the
+  repo defines. It can still rank in on its own degree, as a heavily-included header does.</li>
+</ul>
+<p>The provenance footer states the result as a fact: "Grounded in N/M file-backed symbols (X%)".
+That is how many distinct symbols the sample touched, against the repo's file-backed symbol
+count. Both sides count file-backed nodes only, so the ratio means the same thing on a
+whole-repo page and on a per-subsystem page.</p>
+<p>The page has a fixed section order: Overview, Setup &amp; Run, Architecture, Dependencies,
+Gotchas, Decisions.</p>
+<p><strong>A section is written only when the graph has something to ground it.</strong> A repo with no signal
+for a section gets fewer sections, never an empty heading.</p>
+<p>What each one needs:</p>
+<ul>
+<li><strong>Setup &amp; Run</strong> needs a README excerpt or a detected config file. It also flags any indexed
+  file under a directory named <code>generated/</code>, so the model is warned off presenting generated
+  code as hand-written design.</li>
+<li><strong>Gotchas</strong> needs at least one symbol with real callers. It states only the count, for
+  example "N caller(s) in the graph, worth extra care when changed". The model is told not to
+  explain <em>why</em> a symbol has many callers, so it cannot invent a label like "foundational".</li>
+</ul>
+<p><code>setup_signals</code> also counts legacy C and C++ project files such as <code>.vcxproj</code> and <code>.dsp</code>, and
+reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
+are not in the indexed language set and never reach the graph, so the count comes from a
+bounded scan of the live checkout. That is the same way <code>setup_signals</code> already finds
+<code>package.json</code> and <code>Dockerfile</code>.</p>
+<p>"External context", covered below, is a separate block layered on top of that list. It is
+always conditional, and it is not one of the named sections.</p>
 <p>For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see <a href="model-providers">Model providers</a>.</p>
 <h2 id="why-a-page-was-rejected">Why a page was rejected<a class="anchor" href="#why-a-page-was-rejected" title="Link to this section">#</a></h2>
@@ -237,63 +259,88 @@ that would execute something are refused from files found this way (<code>kb/tru
 repository's own prose is the same trust level as the README excerpt the page has always
 carried.</p>
 <h2 id="per-subsystem-pages-for-large-federated-repos">Per-subsystem pages for large, federated repos<a class="anchor" href="#per-subsystem-pages-for-large-federated-repos" title="Link to this section">#</a></h2>
-<p>A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
-them, is treated as genuinely federated, one big source directory doesn't count, but a repo split
-into several comparable subsystems does. <code>contextlake kb wiki</code> generates one additional page per
-qualifying subsystem automatically, no new flag needed, in addition to (never instead of) the
-whole-repo page. Each subsystem page is grounded only in that module's own symbols, files, and
-dependencies (a segment-boundary-correct scope, so a module named <code>api</code> never also pulls in a
-sibling like <code>apiv2/</code>), and its title, framing, and provenance footer all say plainly that it
-covers only that module, not the repository as a whole. Subsystem pages live under
-<code>wiki/_modules/</code> and get their own <code>@wiki:&lt;repo&gt;::&lt;module&gt;</code> partition, so a natural-language
-question can land on a subsystem's own explanation, cited back to its own page file.</p>
-<p>Generation is capped at 20 subsystem pages per run, so one <code>wiki</code> invocation on a very large repo
-stays bounded. Which 20 depends on what is already on disk: subsystems with no page yet are taken
-first, in largest-first node-count order, and only then the already-paged ones. A repo's first run
-has no pages at all, so it degrades to exactly "the 20 largest"; every run after that works through
-the never-paged tail, which is how repeated <code>wiki</code> runs cover the whole repo instead of re-picking
-the same top 20 forever. The run logs how many are still waiting
-(<code>N qualifying modules, generating 20 this run (M deferred to a later run)</code>), rather than going
-silent about it. When subsystem pages exist,
-the whole-repo overview page's Architecture section names and briefly describes each one instead
-of trying to summarize their internals inline, and points the reader to its dedicated page. The
-overview page only picks this up the next time it's actually regenerated, though, a repo already
-wiki'd at its current commit has its overview skipped as unchanged (subsystem pages still generate
-fresh), so an existing store only gets the naming after its next commit change, or a <code>--force</code> run
+<p>A repo qualifies as <strong>genuinely federated</strong> when it has at least 5,000 graph nodes and no
+single top-level module owns more than 60% of them. One big source directory does not qualify.
+A repo split into several comparable subsystems does.</p>
+<p>For those, <code>contextlake kb wiki</code> writes one extra page per subsystem automatically. No new flag.
+These are added to the whole-repo page, never used instead of it.</p>
+<p>Each subsystem page:</p>
+<ul>
+<li>is grounded only in that module's own symbols, files and dependencies</li>
+<li>respects segment boundaries, so a module named <code>api</code> never pulls in a sibling <code>apiv2/</code></li>
+<li>says plainly in its title, framing and provenance footer that it covers one module</li>
+</ul>
+<p>They live under <code>wiki/_modules/</code> with their own <code>@wiki:&lt;repo&gt;::&lt;module&gt;</code> partition. A
+natural-language question can therefore land on a subsystem's own explanation, cited back to
+that page.</p>
+<p>Generation is capped at <strong>20 subsystem pages per run</strong>, so one <code>wiki</code> call on a very large repo
+stays bounded.</p>
+<p>Which 20 depends on what is already on disk:</p>
+<ol>
+<li>Subsystems with no page yet, largest first by node count.</li>
+<li>Then subsystems that already have a page.</li>
+</ol>
+<p>A first run has no pages, so it becomes exactly "the 20 largest". Every run after that works
+through the never-paged tail. This is how repeated runs cover the whole repo, instead of
+re-picking the same top 20 forever.</p>
+<p>The run says how many are still waiting, rather than going quiet about it:</p>
+<div class="codehilite"><pre><span></span><code>N qualifying modules, generating 20 this run (M deferred to a later run)
+</code></pre></div>
+
+<p><strong>Once subsystem pages exist</strong>, the whole-repo overview names and briefly describes each one and
+links to it, instead of summarising their internals inline.</p>
+<p>One catch: the overview only picks that up the next time it is actually regenerated. A repo
+already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
+pages still generate. So an existing store gets the naming after its next commit, or on a
+<code>--force</code> run
 (the dashboard's Regenerate button has a force option too).</p>
 <h2 id="searchable-prose">Searchable prose<a class="anchor" href="#searchable-prose" title="Link to this section">#</a></h2>
-<p>Accepted pages also become <strong>searchable prose</strong>: each page's sections are stored in an isolated
-<code>@wiki:&lt;repo&gt;</code> partition and, when the semantic tier is enabled, embedded alongside the code vectors, so a
-natural-language question can land on the wiki's explanation of a subsystem, cited back to the page file
-and labeled advisory (kind <code>wiki</code>), never outranking extracted code facts. Pages written before this
-existed are backfilled on the next <code>wiki</code> run without any LLM calls.</p>
-<p>Each section is also <strong>linked to the symbols it names</strong> (<code>documented_by</code>), so "where is this function
-explained?" is one graph hop from the symbol rather than a text search. Module pages link through the repo
-they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none. Only the
-symbols get these edges, never the repo as a whole -- a repo's <strong>Links</strong> panel is for external knowledge
-(Jira, Confluence, Figma, GitLab), and a wiki page is contextlake's own output, not a cross-link.</p>
+<p>Accepted pages also become <strong>searchable prose</strong>. Each page's sections are stored in an isolated
+<code>@wiki:&lt;repo&gt;</code> partition, and embedded alongside the code vectors when the semantic tier is on.</p>
+<p>So a natural-language question can land on the wiki's explanation of a subsystem. The answer is
+cited back to the page file and labelled advisory, with kind <code>wiki</code>, so it never outranks
+extracted code facts.</p>
+<p>Pages written before this existed are backfilled on the next <code>wiki</code> run, with no LLM calls.</p>
+<p>Each section is also <strong>linked to the symbols it names</strong>, with a <code>documented_by</code> edge. So
+"where is this function explained?" is one graph hop from the symbol, not a text search.</p>
+<ul>
+<li>Module pages link through the repo they belong to, so subsystem pages link too.</li>
+<li>A cluster page spans many repos, so it links to none.</li>
+<li>Only symbols get these edges, never the repo itself. A repo's <strong>Links</strong> panel is for external
+  knowledge such as Jira, Confluence, Figma and GitLab. A wiki page is contextlake's own output,
+  so it does not belong there.</li>
+</ul>
 <h2 id="cluster-namespace-wiki">Cluster (namespace) wiki<a class="anchor" href="#cluster-namespace-wiki" title="Link to this section">#</a></h2>
-<p>Beyond per-repo pages, <code>contextlake kb wiki --namespace acme/payments</code> writes one <strong>cluster page</strong> for a
-whole group of repos (everything under that repo-id prefix), narrating how they fit together: which
-services call which over HTTP, publish/consume which events, and share which packages, split into coupling
-<em>within</em> the namespace and coupling to repos <em>outside</em> it. Use <code>--namespaces --depth N</code> to generate one
-page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
-resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
-so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
-Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
-"Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
-(busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
-(the ones whose changes are most likely to ripple outside the namespace), both read directly off data the
-cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
-<code>get_wiki</code>, and shown per group in the dashboard's fleet overview.</p>
+<p><code>contextlake kb wiki --namespace acme/payments</code> writes one <strong>cluster page</strong> for a whole group of
+repos, meaning everything under that repo-id prefix. Use <code>--namespaces --depth N</code> to generate one
+page per namespace at that depth.</p>
+<p>A cluster page narrates how the repos fit together:</p>
+<ul>
+<li>which services call which over HTTP</li>
+<li>which events they publish and consume</li>
+<li>which packages they share</li>
+</ul>
+<p>It splits coupling <em>inside</em> the namespace from coupling to repos <em>outside</em> it.</p>
+<p>It grounds strictly in cross-repo edges the graph already resolved. No new extraction happens.
+It reuses the same review council and provenance footer as a per-repo page, so it stays advisory
+and cited. When the graph shows no coupling, it says so instead of inventing a link.</p>
+<p>Cluster pages get the same fixed sections and the same nothing-invented rule. That includes a
+"Gotchas" section when there is a real coupling risk to ground it:</p>
+<ul>
+<li>the highest-weight internal edges, meaning the busiest coupling in the namespace</li>
+<li>the member repos with the most boundary edges, whose changes are most likely to ripple outside</li>
+</ul>
+<p>Both come straight off data the cluster brief already computes. No new metric.</p>
+<p>You can reach cluster pages over MCP by passing a namespace to <code>get_wiki</code>, and they appear per
+group in the dashboard's fleet overview.</p>
 <h2 id="incorporating-connector-enrichment">Incorporating connector enrichment<a class="anchor" href="#incorporating-connector-enrichment" title="Link to this section">#</a></h2>
-<p>When <code>contextlake kb enrich</code> has populated a repo's <code>@enrich:&lt;repo&gt;</code> enrichment documents (via Atlassian or
-MCP search sources), the wiki synthesizer draws on them and incorporates an "External context" section
-into each repo's curated page. Each external fact is directly quoted from its source (Confluence page,
-Jira issue, or MCP search result) and attributed by source URL or name, never presented as a free
-assertion or as an undisclosed code fact. The council still gates the enriched page before it is written,
-ensuring external context supplements rather than displaces code-backed facts and that attribution is
-clear and verifiable.</p>
+<p>Once <code>contextlake kb enrich</code> has populated a repo's <code>@enrich:&lt;repo&gt;</code> documents, from Atlassian
+or MCP search sources, the wiki adds an <strong>External context</strong> section to that repo's page.</p>
+<p>Every external fact is quoted directly from its source, a Confluence page, a Jira issue or an
+MCP search result, and attributed by URL or name. None of it is presented as a free assertion or
+passed off as a code fact.</p>
+<p>The council still gates the enriched page before it is written. External context supplements
+code-backed facts, and never displaces them.</p>
 <p>The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
 strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
 from, and a <strong>STALE</strong> badge if the indexed commit has since moved.</p>
@@ -398,6 +445,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

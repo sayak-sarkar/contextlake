@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,18 +51,24 @@
 <p>A <code>bootstrap</code> (or a standalone <code>index</code> / <code>embed</code> / <code>wiki</code>, and the mirror-tier <code>clone</code> / <code>update</code> /
 <code>branches</code>) prints progress as it goes. Most lines are self-explanatory; a few are worth decoding.</p>
 <h2 id="the-live-progress-bar">The live progress bar<a class="anchor" href="#the-live-progress-bar" title="Link to this section">#</a></h2>
-<p>One shared renderer is used by every long-running command, so it looks the same everywhere:
-<code>[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min</code> (bar, done/total, percent,
-elapsed time, estimated time remaining, and rate in items/min). The ETA is the <strong>cumulative mean</strong> so far, elapsed time divided
-by items done, projected over what's left (that's what the <code>~</code> marks), and it's count-based, each item
-counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
-worker pool the gaps between completions are spiky enough that a short window swung the estimate between
-seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
-When a run's total isn't known up front, the bar drops the percent/ETA and shows <code>done · elapsed · rate</code>
-instead, rather than guessing. Across every long-running command (including <code>connect</code>, <code>ingest</code>, and
-<code>enrich</code>, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
-and on section/summary lines; the per-item detail lines scrolling beneath don't repeat it, so they don't
-flicker as the timestamp ticks over.</p>
+<p>Every long-running command uses one shared renderer, so the bar looks the same everywhere:</p>
+<div class="codehilite"><pre><span></span><code>[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min
+</code></pre></div>
+
+<p>That is the bar, done out of total, percent, elapsed time, estimated time left, and rate per
+minute.</p>
+<p><strong>How the ETA works.</strong> It is the cumulative mean: elapsed time divided by items done, projected
+over what is left. The <code>~</code> marks it as an estimate. It is count-based, so each item counts
+equally regardless of size.</p>
+<p>A trailing window was tried and rejected. With a worker pool, gaps between completions are spiky
+enough that a short window swung the estimate between seconds and half an hour. The cumulative
+figure smooths itself and settles as the run goes on.</p>
+<p><strong>When the total is not known up front</strong>, the bar drops the percent and ETA, and shows
+<code>done · elapsed · rate</code> instead of guessing.</p>
+<p><strong>Where the clock appears.</strong> Only on the bar itself and on section or summary lines. The
+per-item detail lines below do not repeat it, so they do not flicker as the timestamp ticks.
+This holds for every long-running command, including <code>connect</code>, <code>ingest</code> and <code>enrich</code>, which do
+not use the shared bar.</p>
 <h2 id="one-status-vocabulary-everywhere">One status vocabulary, everywhere<a class="anchor" href="#one-status-vocabulary-everywhere" title="Link to this section">#</a></h2>
 <p>Every command (mirror-tier <code>clone</code>/<code>update</code>/<code>branches</code>, <code>index</code>, <code>embed</code>, <code>wiki</code>, <code>enrich</code>, <code>ingest</code>,
 <code>connect</code>, <code>lint</code>, <code>sync</code>) marks each line with the same seven glyphs, so once you know the glyph you know
@@ -113,12 +119,16 @@ the outcome without reading the rest of the line:</p>
 </tr>
 </tbody>
 </table>
-<p>An eighth glyph, <strong><code>•</code> note</strong>, is currently only emitted by <code>update</code> and <code>branches</code>: it means something
-different from <code>⊘</code> skip. Skip means something that would normally happen didn't (an unsafe working tree,
-a diverged branch, an archived project) -- there was a reason to hold back. Note is not that: it
-describes what the repo <em>is</em>, not something that was withheld. The one case today is a freshly-created
-repo with no commits yet (<code>update</code>/<code>branches</code> can't resolve <code>HEAD</code> there because there is no history to
-read) -- nothing failed and nothing was skipped, there's simply nothing to sync yet.</p>
+<p>An eighth glyph, <strong><code>•</code> note</strong>, is emitted only by <code>update</code> and <code>branches</code>. It means something
+different from <code>⊘</code> skip.</p>
+<ul>
+<li><strong>Skip</strong> means something that would normally happen did not. An unsafe working tree, a diverged
+  branch, an archived project. There was a reason to hold back.</li>
+<li><strong>Note</strong> describes what the repo <em>is</em>, rather than something withheld.</li>
+</ul>
+<p>There is one note case today: a freshly created repo with no commits. <code>update</code> and <code>branches</code>
+cannot resolve <code>HEAD</code> there, because there is no history to read. Nothing failed and nothing was
+skipped. There is simply nothing to sync yet.</p>
 <p>Multi-stage commands (<code>bootstrap</code> and <code>sync</code>) also print <code>▶ &lt;Phase&gt;</code> section headers (e.g. <code>▶ Mirror
 repositories from GitLab</code>, <code>▶ Audit repositories (health &amp; age)</code>) so a long run reads as sections rather
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
@@ -217,20 +227,28 @@ contextlake_graph_nodes 128394
 contextlake_graph_edges 214005
 contextlake_last_success_timestamp_seconds{command=&quot;mirror sync&quot;} 1785802519
 </code></pre></div>
-<p>Two behaviours worth knowing. <code>contextlake_last_success_timestamp_seconds</code> is <strong>carried forward</strong> by a
-failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
-a value that could not be measured is <strong>omitted, never written as 0</strong>: a <code>mirror sync</code> does not touch the
-knowledge graph, so it publishes no <code>contextlake_graph_nodes</code> at all rather than a zero that reads as
-"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
-the exit code), so the metrics can never disagree with the summary line.</p>
+<p>Two behaviours worth knowing.</p>
+<p><strong>A failing run carries <code>contextlake_last_success_timestamp_seconds</code> forward</strong> rather than
+erasing it. That timestamp is the whole basis of a "stale for six hours" alert, so wiping it
+would break the alert instead of firing it.</p>
+<p><strong>A value that could not be measured is omitted, never written as 0.</strong> A <code>mirror sync</code> does not
+touch the knowledge graph, so it publishes no <code>contextlake_graph_nodes</code> at all. A zero there
+would read as "the graph was wiped".</p>
+<p>The counts come from what the run already tallied, the same numbers that decide the exit code. So
+the metrics can never disagree with the summary line.</p>
 <h2 id="the-stdout-stderr-split">The stdout / stderr split<a class="anchor" href="#the-stdout-stderr-split" title="Link to this section">#</a></h2>
-<p>The bar renders on stderr; the per-item result lines below it (<code>✓</code>/<code>⚠</code> and the like) stay on stdout. That
-split means <code>contextlake kb wiki &gt;&gt; run.log</code> (or any stdout redirect) captures clean detail lines with no bar
-artifacts or <code>\r</code> clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
-redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
-place. When both streams share one terminal (the default interactive case), the bar and the detail lines
-interleave as the run scrolls (the bar reprints below each new detail line rather than repainting perfectly
-in place); redirect stdout to a file to keep the bar as a single live line with the detail captured
+<p><strong>The bar renders on stderr. The per-item result lines stay on stdout.</strong></p>
+<p>That split matters when you redirect. <code>contextlake kb wiki &gt;&gt; run.log</code> captures clean detail
+lines, with no bar artefacts and no <code>\r</code> clutter, because the bar never touches stdout.</p>
+<p>Two behaviours follow:</p>
+<ul>
+<li><strong>Not a TTY</strong> (piped, cron, redirected stderr): the bar downgrades to periodic plain summary
+  lines instead of repainting in place.</li>
+<li><strong>Both streams on one terminal</strong>, the default interactive case: the bar and detail lines
+  interleave as the run scrolls, so the bar reprints below each new detail line rather than
+  repainting perfectly in place.</li>
+</ul>
+<p>Redirect stdout to a file if you want the bar as a single live line with the detail captured
 separately.</p>
 <h2 id="decoding-specific-lines">Decoding specific lines<a class="anchor" href="#decoding-specific-lines" title="Link to this section">#</a></h2>
 <ul>
@@ -343,12 +361,13 @@ that was interrupted mid-job.</p>
 </tr>
 </tbody>
 </table>
-<p><code>143</code> is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
-connections and shuts down first, then re-raises the signal it captured so the exit status
-reports the termination honestly. <code>stdio</code> reaches <code>0</code> on <code>SIGTERM</code> because it installs its own
-handler and routes both signals into the same shutdown <code>Ctrl-C</code> takes; before that it had none, so
-a supervisor's <code>SIGTERM</code> killed it outright and its cleanup never ran. See
-<a href="mcp-transports#stopping-it">Serve it to your editor</a>.</p>
+<p><code>143</code> is what a supervisor expects from a process it asked to stop. It is not a fault. uvicorn
+drains connections and shuts down first, then re-raises the signal it captured, so the exit
+status reports the termination honestly.</p>
+<p><code>stdio</code> reaches <code>0</code> on <code>SIGTERM</code> because it installs its own handler and routes both signals into
+the same shutdown that <code>Ctrl-C</code> uses.</p>
+<p>Before that it had no handler at all, so a supervisor's <code>SIGTERM</code> killed it outright and its
+cleanup never ran. See <a href="mcp-transports#stopping-it">Stopping it</a>.</p>
 <p>Three things worth knowing about <code>1</code>:</p>
 <ul>
 <li><strong>A partial run counts as a failure.</strong> Some repositories synced and others did not is still <code>1</code>,
@@ -416,6 +435,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

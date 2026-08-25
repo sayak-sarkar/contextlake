@@ -46,9 +46,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 <style>
   /* Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
      load from tokens.css -- these :root blocks add only the tokens specific to this
@@ -779,9 +779,20 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=3b8411b7"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=eac87977"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
+
+    <div id="tryit" class="tryit">
+      <label class="tryit-label" for="tryit-q">Try a lookup against the sample fleet</label>
+      <input id="tryit-q" type="search" autocomplete="off" spellcheck="false"
+             placeholder="AuthService, auth-service, .py &hellip;">
+      <div class="tryit-out" aria-live="polite"></div>
+      <p class="tryit-foot">Runs in your browser against the demo fleet, no server and no network
+        call beyond this page. This is a name lookup, not semantic search &mdash; that needs an
+        embedding model. What it shows is the <em>shape</em> of an answer: every hit cites the repo
+        and file it came from.</p>
+    </div>
   </div>
 </section>
 
@@ -967,11 +978,13 @@
     <div class="wn-grid">
       <div class="wn">
         <h3>vs. grep across repos</h3>
-        <p>grep finds strings, one repo at a time. It cannot tell a definition from a call, cannot cross repo boundaries, and buries the answer in matches. contextlake parses code into a <b>typed graph</b>, so you ask for callers, dependents, or owners and get <b>cited file:line answers across the whole fleet</b>.</p>
+        <p>grep finds strings, one repo at a time. It cannot tell a definition from a call, it cannot cross repo boundaries, and it buries the answer in matches.</p>
+        <p>contextlake parses code into a <b>typed graph</b>. Ask for callers, dependents or owners, and get <b>cited file:line answers across the whole fleet</b>.</p>
       </div>
       <div class="wn">
         <h3>vs. a hosted vector DB</h3>
-        <p>A hosted vector database means standing up infra and usually shipping your code to a third party. contextlake is <b>offline and graph-first</b>: exact edges instead of fuzzy nearness, token-cheap for agents, and semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
+        <p>A hosted vector database means standing up infrastructure, and usually shipping your code to a third party.</p>
+        <p>contextlake is <b>offline and graph-first</b>. You get exact edges instead of fuzzy nearness, which is cheaper in tokens for an agent. Semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
       </div>
       <div class="wn">
         <h3>vs. other local code-graph tools</h3>
@@ -979,7 +992,8 @@
       </div>
       <div class="wn">
         <h3>vs. AI wiki generators (DeepWiki)</h3>
-        <p>DeepWiki turns a single <b>public</b> repo into an AI-written wiki, on demand, in the cloud, one at a time, and your own code needs a paid account to go through it privately. contextlake mirrors <b>your whole fleet</b> locally and keeps a graph, search, and wiki <b>offline and current</b> across every repo you have, nothing leaves your disk to get there.</p>
+        <p>DeepWiki writes an AI wiki for one <b>public</b> repo at a time, in the cloud. Running your own code through it privately needs a paid account.</p>
+        <p>contextlake mirrors <b>your whole fleet</b> locally. Graph, search and wiki stay <b>offline and current</b> across every repo you have. Nothing leaves your disk.</p>
       </div>
     </div>
   </div>
@@ -1240,6 +1254,7 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
+<script src="tryit.js" defer></script>
 </body>
 </html>

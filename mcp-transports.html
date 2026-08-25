@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="MCP transports and limits · contextlake docs">
 <meta name="twitter:description" content="stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -125,12 +125,14 @@ failure, so <code>kb serve</code> does not use the <code>130</code> an interrupt
 </tr>
 </tbody>
 </table>
-<p><code>stdio</code> installs its own handler for both signals through asyncio's wakeup fd, which is what makes
-an <strong>idle</strong> server stoppable at all. Python only runs a signal handler at a bytecode boundary in
-the main thread, and that thread is parked in the selector with no traffic coming, so without the
-wakeup fd an interrupt sits unhandled until a request happens to arrive (<code>_run_stdio</code> in
-<code>src/contextlake/kb/server.py</code>). Both signals then unwind through one path, which closes the store
-and the vector store on the way out.</p>
+<p><code>stdio</code> installs its own handler for both signals, through asyncio's wakeup fd. That is what
+makes an <strong>idle</strong> server stoppable at all.</p>
+<p>Here is why it is needed. Python only runs a signal handler at a bytecode boundary in the main
+thread, and that thread is parked in the selector with no traffic coming. Without the wakeup fd,
+an interrupt sits unhandled until a request happens to arrive. See <code>_run_stdio</code> in
+<code>src/contextlake/kb/server.py</code>.</p>
+<p>Both signals then unwind through one path, which closes the store and the vector store on the way
+out.</p>
 <p><code>143</code> on the network transports is <code>128 + 15</code>, the conventional "terminated by SIGTERM" code, and
 it is what a supervisor reads as a clean stop rather than a crash. uvicorn owns those transports:
 it handles the signal itself, drains connections and shuts the session manager down, then restores
@@ -173,12 +175,14 @@ address you meant, bind the address clients will actually name (<code>--host 192
 whose console is already a command's output, so they stay quiet, but a server holding the whole
 code graph should be able to answer "what did it serve, and to whom". <code>--access-log</code> turns on one
 line per request (client address, request line, status).</p>
-<p>For contextlake's own servers, <code>kb dashboard --serve</code>, <code>kb graph --serve</code>, <code>kb graph --site
---serve</code>, those lines go through the same logger as everything else, so they land in <code>--log-file</code>
-and follow <code>--log-format json</code>, and the client-supplied request line is stripped of control
-characters first. <code>kb serve</code>'s <code>http</code>/<code>sse</code> transports are served by uvicorn rather than by
-contextlake's handler, so there the flag enables <em>uvicorn's</em> access log instead: its own format,
-on stderr, alongside its startup banner.</p>
+<p>Behaviour differs by server.</p>
+<p><strong>contextlake's own servers</strong>: <code>kb dashboard --serve</code>, <code>kb graph --serve</code> and
+<code>kb graph --site --serve</code>. Their access lines go through the same logger as everything else, so
+they land in <code>--log-file</code> and follow <code>--log-format json</code>. The client-supplied request line is
+stripped of control characters first.</p>
+<p><strong><code>kb serve</code>'s <code>http</code> and <code>sse</code> transports</strong> are served by uvicorn, not by contextlake's handler.
+There the flag enables <em>uvicorn's</em> access log instead: its own format, on stderr, next to its
+startup banner.</p>
 <p><strong>Devin is different: there's no repo file to wire.</strong> Devin's MCP connections are configured at
 the account/org level (<code>mcp.devin.ai</code>, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
@@ -194,18 +198,23 @@ doesn't.</p>
 concurrency knob usually does, so it is worth writing down why. The bound applies to every
 transport, not only the network ones.</p>
 <p>The MCP SDK runs every synchronous tool body through <code>anyio.to_thread.run_sync</code> with no limiter,
-so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
-over SQLite, and a traversal is not one query, it is thousands of small round trips through the
-store. Forty threads interleaving those on one connection pool spend their time contending rather
-than working, and what they are contending for is the store round-trips, not the Python: the same
-traversal run over in-memory dictionaries does not degrade the same way. The default therefore has
-to sit near the low end rather than merely below anyio's 40.</p>
-<p>The bound is applied to the <strong>tool bodies themselves</strong>, not by shrinking that worker pool. The pool
-is sized separately, to the bound plus a reserve for transport I/O, because the SDK's stdio
-transport borrows worker threads for its own <code>readline</code> and <code>flush</code>: with the pool set to the bound
-outright, <code>--tool-concurrency 1</code> left stdin holding the only token and the server answered nothing
-at all. <code>tests/kb/test_serve_concurrency.py</code> pins both halves, that the bound still bounds
-concurrent tool bodies and that stdio still answers at a limit of one.</p>
+so it uses anyio's default of 40 worker threads.</p>
+<p>That is far too many here, for a specific reason. contextlake's tool bodies are graph traversals
+over SQLite, and a traversal is not one query. It is thousands of small round trips through the
+store.</p>
+<p>Forty threads interleaving those on one connection pool spend their time contending rather than
+working. What they contend for is the store round trips, not the Python: the same traversal run
+over in-memory dictionaries does not degrade this way.</p>
+<p>So the default has to sit near the low end, not merely below anyio's 40.</p>
+<p>The bound applies to the <strong>tool bodies themselves</strong>. It does not work by shrinking the worker
+pool.</p>
+<p>The pool is sized separately: the bound, plus a reserve for transport I/O. That reserve is
+needed because the SDK's stdio transport borrows worker threads for its own <code>readline</code> and
+<code>flush</code>.</p>
+<p>Without it, the failure was total. With the pool set to the bound outright,
+<code>--tool-concurrency 1</code> left stdin holding the only token and the server answered nothing at all.</p>
+<p><code>tests/kb/test_serve_concurrency.py</code> pins both halves: that the bound still bounds concurrent
+tool bodies, and that stdio still answers at a limit of one.</p>
 <p><strong>The cheap tools come out faster too</strong>, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. <code>search_code</code> and the other short lookups pay
 store round-trips as well, fewer of them but the same kind, so in an unbounded burst they sit in the
@@ -221,12 +230,13 @@ is not a positive integer is ignored rather than fatal, whichever of the two it 
 (<code>resolve_tool_concurrency</code>): this is a performance knob on a server your editor launches, and
 refusing to start over a typo in a shell profile is worse than serving at the default.</p>
 <h2 id="every-cited-node-says-whether-the-file-moved-under-it">Every cited node says whether the file moved under it<a class="anchor" href="#every-cited-node-says-whether-the-file-moved-under-it" title="Link to this section">#</a></h2>
-<p>The staleness contextlake tracked until now is per <strong>repo</strong>: has the head commit or the parser
-version moved since this graph was built (<a href="keeping-it-fresh">Keep it fresh</a>). That is the right
-question for the graph as a whole and it is blind to the one that bites hardest in practice, an
-agent editing files <em>between</em> index runs, inside the same commit. The graph says
-<code>src/billing/refund.py:88</code>, twenty lines get inserted above it, and the answer still says 88. A
-confidently wrong citation is worse than a miss, because the agent goes and reads it.</p>
+<p>Until now, contextlake tracked staleness per <strong>repo</strong>: has the head commit or the parser version
+moved since this graph was built? See <a href="keeping-it-fresh">Keeping it fresh</a>.</p>
+<p>That is the right question for the graph as a whole. It is also blind to the case that bites
+hardest in practice: an agent editing files <em>between</em> index runs, inside the same commit.</p>
+<p>Here is what that looks like. The graph says <code>src/billing/refund.py:88</code>. Twenty lines get
+inserted above it. The answer still says 88.</p>
+<p>A confidently wrong citation is worse than a miss, because the agent goes and reads it.</p>
 <p>Every node a tool returns therefore carries <strong><code>citation_status</code></strong>, decided against the file on disk
 as the answer is built:</p>
 <table>
@@ -321,6 +331,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

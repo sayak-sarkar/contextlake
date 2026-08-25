@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serving over MCP · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -88,25 +88,30 @@ truth is the second. <code>get_neighbors</code> names an id that is not in the g
 it as a node without edges; <code>find_definition</code> says whether a name is absent entirely or merely
 excluded by a <code>kind</code>/<code>repo</code> filter; <code>search_code</code> says whether the query's terms are indexed at
 all, and carries <code>total</code>/<code>truncated</code> like its siblings.</p>
-<p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote: <code>kind="api"</code> for the reference with
-its real call sites, <code>kind="design"</code> for the design notes. Neither involves a model, so
-neither carries the wiki's advisory caveat. Both carry <code>stale</code>, which is true when the
-page was generated from a different commit than the repo's current indexed head <strong>or
-when either is unknown</strong> -- a page written before generated documents recorded their
-commit has no stamp, and not knowing is the same risk to a caller as being out of date.</p>
+<p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote:</p>
+<ul>
+<li><code>kind="api"</code> for the reference, with its real call sites</li>
+<li><code>kind="design"</code> for the design notes</li>
+</ul>
+<p>Neither involves a model, so neither carries the wiki's advisory caveat.</p>
+<p>Both carry <code>stale</code>. That is true when the page was generated from a different commit than the
+repo's current indexed head, <strong>and also when either is unknown</strong>. A page written before generated
+documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
+being out of date.</p>
 <p><code>get_fleet_doc</code> returns the one page that describes the <strong>whole store</strong>: which packages
 more than one repository requires, which of those are pinned differently across them, and
 which repositories declare no runtime dependency at all. It takes <strong>no <code>repo</code> argument</strong>,
 because there is one such page per store rather than one per repository -- which is also
 why it is a separate tool instead of a third <code>kind</code> on <code>get_generated_doc</code>.</p>
-<p>Its staleness means something different, and the difference matters. A per-repo page
-carries the commit it was generated from; this one spans many, so it carries a
-<strong>fingerprint of every member's commit and parser version</strong>. It is stale when that no
-longer matches the store -- which catches a case a single commit cannot express at all: a
-new repository joining makes the page wrong without any existing member moving, because
-its populations count a fleet that grew. A page carrying no fingerprint reports
-<code>stale=true</code> with <code>doc_fingerprint</code> absent, meaning <strong>nothing is known</strong> rather than
-known to be out of date, and the <code>note</code> says so.</p>
+<p>Its staleness means something different, and the difference matters.</p>
+<p>A per-repo page carries the commit it was generated from. This one spans many repos, so it
+carries a <strong>fingerprint of every member's commit and parser version</strong>. It is stale when that
+fingerprint no longer matches the store.</p>
+<p>That catches a case a single commit cannot express: <strong>a new repository joining makes the page
+wrong without any existing member moving</strong>, because the page's populations count a fleet that
+grew.</p>
+<p>A page carrying no fingerprint reports <code>stale=true</code> with <code>doc_fingerprint</code> absent. That means
+<strong>nothing is known</strong>, not known to be out of date, and the <code>note</code> says so.</p>
 <p>It is written only by an <strong>unscoped</strong> <code>kb docs</code> run. A fleet view of part of the store
 would report shares and disagreements that are not true of the whole, and a reader could
 not tell the page had been scoped, so a run naming particular repos skips it and says it
@@ -149,14 +154,17 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 this is the store you meant -- the output path and the store are chosen
 separately.
 </code></pre></div>
-<p>That line exists because those two things really are chosen by different inputs: <code>--out</code> (or
-<code>--workspace</code>, or the current directory) decides where the files land, while the config chain
-decides which store the symbol counts and repository list are read from. Running <code>steer</code> from the
-wrong directory therefore rewrote a correct 5,500-symbol <code>AGENTS.md</code> down to a two-symbol one,
-exit <code>0</code>, no warning, and every number in the replacement was accurate for the store that happened
-to resolve. Confident, tiny and wrong is the worst shape a steering file can take, because an
-agent reading it has no way to tell it from a workspace that genuinely holds two symbols. Naming
-the store puts the swap in the diff.</p>
+<p>That line exists because two different inputs decide two different things:</p>
+<ul>
+<li><strong>Where the files land</strong> comes from <code>--out</code>, or <code>--workspace</code>, or the current directory.</li>
+<li><strong>Which store the symbol counts and repo list come from</strong> comes from the config chain.</li>
+</ul>
+<p>Running <code>steer</code> from the wrong directory therefore rewrote a correct 5,500-symbol <code>AGENTS.md</code>
+down to a two-symbol one. Exit <code>0</code>, no warning, and every number in the replacement was accurate
+for the store that happened to resolve.</p>
+<p>Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
+way to tell it apart from a workspace that genuinely holds two symbols.</p>
+<p>Naming the store puts the swap in the diff.</p>
 <h3 id="what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not">What the generated <code>.mcp.json</code> pins, and what it deliberately does not<a class="anchor" href="#what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not" title="Link to this section">#</a></h3>
 <p>An MCP client execs <code>contextlake kb serve</code> with the <em>workspace</em> as its working directory, not the
 directory you ran <code>steer</code> in. With no <code>--config</code> on that command line the server re-resolves the
@@ -328,6 +336,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

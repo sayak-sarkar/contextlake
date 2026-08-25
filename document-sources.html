@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Document sources and RAG · contextlake docs">
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -106,21 +106,30 @@ via <code>pypdf</code>, which rides in its own extra so the core stays a single 
 <p><code>[kb-pdf]</code> is deliberately not part of <code>[kb-full]</code>; see <a href="installing#the-extras-and-which-one-you-want">the extras
 table</a>. If you set <code>include</code> yourself, list <code>"*.pdf"</code>
 in it, a custom <code>include</code> replaces the defaults rather than adding to them.</p>
-<p>What the PDF path does <strong>not</strong> do is the load-bearing half. It runs no OCR and no vision model
-over a PDF's pages, and makes no network call. (Images ingested as their own files <em>are</em> OCR'd --
-see below -- but a PDF's pages are not rasterised to reach that path.) A scanned or image-only PDF
-has no text layer, and contextlake says so and stores nothing,
-rather than aggregating an empty document that would look like knowledge in search results and in
-the wiki:</p>
+<p>What the PDF path does <strong>not</strong> do is the load-bearing half:</p>
+<ul>
+<li>no OCR</li>
+<li>no vision model over the pages</li>
+<li>no network call</li>
+</ul>
+<p>Images ingested as their own files <em>are</em> OCR'd, covered below, but a PDF's pages are never
+rasterised to reach that path.</p>
+<p>So a scanned or image-only PDF has no text layer, and contextlake says so and stores nothing. The
+alternative would be aggregating an empty document that looks like knowledge in search results
+and in the wiki:</p>
 <div class="highlight"><pre><span></span><code>files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
   a PDF&#39;s text layer only; a scanned or image-only PDF has none and is not OCR&#39;d.
 </code></pre></div>
-<p>Three other outcomes are equally loud, because a skipped PDF and a directory with no PDFs must
-never look the same: the extra not being installed (one line per run, naming the count and the
-install command), a PDF that cannot be parsed at all (encrypted files are not decrypted), and a
-file over <code>max_bytes</code>. That last one is the source's existing 1 MB cap, the same knob text files
-use, and it does double duty here: it gates the file on disk, and it bounds the text pulled out of
-it. Reading stops at the first page boundary past the cap and the document is kept and marked
+<p>Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
+never look the same:</p>
+<ul>
+<li><strong>The extra is not installed.</strong> One line per run, naming the count and the install command.</li>
+<li><strong>A PDF cannot be parsed at all.</strong> Encrypted files are not decrypted.</li>
+<li><strong>A file is over <code>max_bytes</code>.</strong></li>
+</ul>
+<p>That last one is the source's existing 1 MB cap, the same knob text files use. It does two jobs
+here: it gates the file on disk, and it bounds the text pulled out of it.</p>
+<p>Reading stops at the first page boundary past the cap. The document is kept and marked
 <code>truncated</code>, so a 900-page PDF costs the pages that fit rather than the whole file. Raise
 <code>max_bytes</code> on the source to take more.</p>
 <h3 id="images-read-locally-or-not-at-all">Images: read locally, or not at all<a class="anchor" href="#images-read-locally-or-not-at-all" title="Link to this section">#</a></h3>
@@ -129,11 +138,12 @@ to search. <code>*.png</code>, <code>*.jpg</code>, <code>*.jpeg</code>, <code>*.
 from a <strong>local</strong> OCR engine in its own extra:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-ocr]&quot;</span>
 </code></pre></div>
-<p>The choice of engine is the whole point of this feature. The obvious way to read an image is to
-send it to a vision-capable model, and that would have made this the first ingest path to leave
-local-first: an image would go over the network, per file, to a third party. <code>[kb-ocr]</code> ships its
-models inside the wheel instead, so a first run downloads nothing and no image leaves the machine.
-The offline boundary holds for images exactly as it does for code.</p>
+<p>The choice of engine is the whole point of this feature.</p>
+<p>The obvious way to read an image is to send it to a vision model. That would have made this the
+first ingest path to leave local-first: every image would go over the network, one file at a
+time, to a third party.</p>
+<p><code>[kb-ocr]</code> ships its models inside the wheel instead. A first run downloads nothing, and no image
+leaves the machine. The offline boundary holds for images exactly as it does for code.</p>
 <p>It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from <code>[kb]</code> and from <code>[kb-full]</code>, the same call <code>[kb-fastembed]</code> makes.</p>
 <p>An OCR'd document is marked. Its node carries <code>ocr = true</code> in <code>attrs</code>, because OCR misreads and a
@@ -162,12 +172,14 @@ once on first use and cached under <code>~/.contextlake/models</code>, the same 
 embedder is -- a weaker offline promise than frame OCR's, which is exactly why it is a
 separate extra rather than folded into the first. <code>CONTEXTLAKE_WHISPER_MODEL</code> picks the size;
 the default is the smallest useful one, because a first run downloads it.</p>
-<p>The work is bounded rather than the file. <code>max_bytes</code> gates every other type because file
-size predicts how much text a document contributes; for a video it predicts resolution and
-length instead, so a 1 MB cap would reject every real recording. What is capped is the
-sampling: one frame every 5 seconds, at most 60 frames, so a two-hour recording costs the
-same as a ten-minute one. Repeated on-screen lines are said once -- a slide holds still across
-many samples, and keeping every hit would drown the transcript in its own echo.</p>
+<p><strong>The work is bounded, not the file.</strong></p>
+<p><code>max_bytes</code> gates every other type because file size predicts how much text a document
+contributes. For a video it predicts resolution and length instead, so a 1 MB cap would reject
+every real recording.</p>
+<p>What is capped is the sampling: one frame every 5 seconds, at most 60 frames. A two-hour
+recording therefore costs the same as a ten-minute one.</p>
+<p>Repeated on-screen lines are said once. A slide holds still across many samples, and keeping
+every hit would drown the transcript in its own echo.</p>
 <p>Three outcomes are stated rather than implied:</p>
 <ul>
 <li><strong>No transcriber installed.</strong> The video is still ingested from its frames, the document
@@ -305,6 +317,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

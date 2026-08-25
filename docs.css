@@ -343,3 +343,19 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .prose .dg-key b.dg-sh-dec{
   border-radius:2px; transform:rotate(45deg); width:9px; height:9px;
 }
+
+/* Try-it lookup box on the landing page. Tokens only, so it follows the theme like everything
+   else; no fixed colours that would break in the other mode. */
+.tryit{margin:1.6rem auto 0;max-width:44em;padding:1.1rem 1.2rem;border:1px solid var(--line);
+  border-radius:12px;background:var(--bg-2)}
+.tryit-label{display:block;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;
+  opacity:.75;margin-bottom:.5rem}
+.tryit input{width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:inherit;font:inherit;font-family:var(--ff-m,monospace)}
+.tryit input:focus{outline:2px solid var(--accent,currentColor);outline-offset:2px}
+.tryit-out{margin-top:.8rem;min-height:2.5em}
+.tryit-hits{margin:0;padding-left:1.3em;display:grid;gap:.55rem}
+.tryit-hits code{font-family:var(--ff-m,monospace)}
+.tryit-kind{font-size:.78rem;opacity:.7;margin-left:.4em}
+.tryit-cite{font-size:.8rem;opacity:.72;font-family:var(--ff-m,monospace)}
+.tryit-note,.tryit-foot{font-size:.84rem;opacity:.75;margin:.6rem 0 0}

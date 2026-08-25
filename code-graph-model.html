@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="The code graph model · contextlake docs">
 <meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -57,16 +57,23 @@ decision records, entity state machines, intra-repo dataflow, constants, web top
 manifests. Each names what it extracts and, where the extraction is inferred rather than
 declared, says so.</p>
 <h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
-<p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
-interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
-<code>extends</code> / <code>implements</code> / base classes), so "what extends <code>BaseController</code>?" is one hop, and changing a
-base class shows its subclasses in <code>blast_radius</code>. The diagram below imports its colors from the same
-module <code>contextlake kb graph</code> and the dashboard render with, so node kinds match everywhere. Edge
-relations mostly do: 10 of them carry a dedicated hue (<code>calls</code>, <code>imports</code>, <code>contains</code>, <code>depends_on</code>,
-<code>publishes</code>, <code>tracked_by</code>, <code>documented_by</code>, <code>flow</code>, <code>exposes</code>, <code>calls_http</code>), while <code>inherits</code> and
-<code>references</code> ride the neutral default edge color, and <code>reads</code>, <code>writes</code>, <code>uses</code> and
-<code>transitions_to</code>, which this page documents further down, are real edges the diagram does not
-show at all:</p>
+<p>Indexing builds a typed graph of your source. tree-sitter reads each file and pulls out:</p>
+<ul>
+<li>files, classes, functions and methods, interfaces, and imports</li>
+<li>an <strong>intra-repo call graph</strong>, so you can ask who calls what</li>
+<li>an <strong>inheritance graph</strong> (<code>inherits</code> edges for <code>extends</code>, <code>implements</code>, and base classes)</li>
+</ul>
+<p>That last one means "what extends <code>BaseController</code>?" is a single hop, and changing a base class
+shows its subclasses in <code>blast_radius</code>.</p>
+<p>The diagram below takes its colours from the same module <code>contextlake kb graph</code> and the
+dashboard use, so node kinds look the same everywhere. Edge relations mostly match too:</p>
+<ul>
+<li><strong>10 have their own colour</strong>: <code>calls</code>, <code>imports</code>, <code>contains</code>, <code>depends_on</code>, <code>publishes</code>,
+  <code>tracked_by</code>, <code>documented_by</code>, <code>flow</code>, <code>exposes</code>, <code>calls_http</code></li>
+<li><strong>2 use the default grey</strong>: <code>inherits</code> and <code>references</code></li>
+<li><strong>4 are real but not drawn</strong>: <code>reads</code>, <code>writes</code>, <code>uses</code> and <code>transitions_to</code>. This page covers
+  them further down.</li>
+</ul>
 <p align="center">
   <img src="img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: all 52 node kinds in 10 bands (symbols, containers, service surfaces, data model, infrastructure, presentation, configuration, documents, cross-source, boundary) each with their color, and 12 edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, and inherits and references on the neutral default) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
@@ -106,24 +113,29 @@ parser registry is pluggable.</p>
 </tr>
 </tbody>
 </table>
-<p>Most files reach a grammar by extension. A build file has none, so <code>Makefile</code>, <code>GNUmakefile</code>,
-<code>Dockerfile</code> and <code>Containerfile</code> are routed by name instead, matched on the stem before the first
-dot: <code>Makefile.am</code> and <code>Dockerfile.prod</code> both hit, and <code>MyMakefile</code> does not. Make targets are the
-names a person types at a shell and a CI job invokes, which makes them the shortest answer to
-"what does this project expect of itself". Make's own special targets (<code>.PHONY</code>, <code>.SUFFIXES</code>) are
-not extracted, and neither are variables.</p>
-<p>A Dockerfile yields its build stages and the external images it builds on, told apart from each
-other: in <code>FROM builder AS test</code> the base is a stage declared earlier in the same file, not an
-image anybody pulls. The <code>COPY --from=</code> reference back to a stage is <strong>not</strong> extracted, because a
-stage name is file-local and resolving it across files would link two unrelated <code>builder</code> stages
-to each other. Dockerfile's grammar is an <a href="installing">optional extra</a>, <code>[kb-dockerfile]</code>; without
-it, Dockerfiles are skipped and the run names the extra rather than reporting the file as
-unsupported.</p>
-<p>On one public JavaScript tree the full tier's extra kinds were 463 of its 783 nodes. Two partial cases
-are worth naming rather than leaving to be discovered: Zig declares a struct as
-<code>const Engine = struct {...}</code>, a variable declaration rather than a definition node, so Zig types are
-not extracted; and an HTML <code>class=</code> attribute is a <em>use</em> of a name a stylesheet defines, so it is not
-yet emitted as anything.</p>
+<p>Most files reach a grammar by their extension. Build files have none, so they are matched by
+name instead: <code>Makefile</code>, <code>GNUmakefile</code>, <code>Dockerfile</code> and <code>Containerfile</code>.</p>
+<p>The match runs on the stem before the first dot. <code>Makefile.am</code> and <code>Dockerfile.prod</code> both hit.
+<code>MyMakefile</code> does not.</p>
+<p>Make targets are worth extracting because they are the names a person types at a shell and a CI
+job runs. That makes them the shortest answer to "what does this project expect of itself".</p>
+<p>Not extracted: Make's own special targets (<code>.PHONY</code>, <code>.SUFFIXES</code>), and variables.</p>
+<p>A Dockerfile gives you its build stages and the external images it builds on, kept apart. In
+<code>FROM builder AS test</code>, <code>builder</code> is a stage declared earlier in the same file, not an image
+anyone pulls.</p>
+<p><code>COPY --from=</code> references are <strong>not</strong> extracted. A stage name is local to its file, so resolving
+those across files would wrongly link two unrelated <code>builder</code> stages.</p>
+<p>The Dockerfile grammar is an <a href="installing">optional extra</a>, <code>[kb-dockerfile]</code>. Without it,
+Dockerfiles are skipped and the run tells you which extra to install, rather than calling the
+file unsupported.</p>
+<p>On one public JavaScript tree, the full tier's extra kinds were 463 of its 783 nodes.</p>
+<p>Two gaps, named here so you do not have to find them yourself:</p>
+<ul>
+<li><strong>Zig types are not extracted.</strong> Zig declares a struct as <code>const Engine = struct {...}</code>, which
+  is a variable declaration, not a definition node.</li>
+<li><strong>HTML <code>class=</code> attributes produce nothing yet.</strong> A <code>class=</code> is a <em>use</em> of a name some
+  stylesheet defines, and that link is not emitted.</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -160,21 +172,28 @@ yet emitted as anything.</p>
 entries. <a href="adding-a-language">Adding a language</a> is the ordered recipe, with the verification
 commands that prove a new grammar works.</p>
 <h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
-<p>A method defined outside its class (<code>ReturnType Class::method(...) { ... }</code>, at any <code>::</code> qualification
-depth) resolves to a <code>method</code> contained by its class, repo-wide, and not only the file it is declared in,
-so an out-of-line definition in one file still shows up under its class even when the class itself is
-declared in a different header. A <code>namespace { ... }</code> block is its own containing node, the same way a
-class or file is. Header files (<code>.h</code>) are parsed as C++, so a class declared in a header and defined in a
-matching <code>.cpp</code> is visible as one unit rather than the class half going missing. This parsing choice is
-kept transparent to <code>languages</code> filtering: <code>.h</code> files are indexed whenever either <code>"c"</code> or <code>"cpp"</code> is
-enabled, since C and C++ headers are shared infrastructure -- restricting <code>kb.toml</code>'s <code>languages</code> to
-<code>["c"]</code> still indexes <code>.h</code> files, no need to list both. An <code>#ifdef</code>/<code>#else</code> (or <code>#ifndef</code>/<code>#else</code>)
-pair -- two definitions of the same method in different branches of the <em>same</em> conditional -- collapses
-into one node instead of appearing as duplicate, ambiguous call targets. A bare <code>#ifndef</code> header guard with
-no <code>#else</code> does <strong>not</strong> trigger this: both copies would sit in the same (only) branch, so nothing collapses,
-and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
-<a href="indexing-the-code-graph#health-and-maintenance">Health and maintenance</a> above: <code>doctor</code> flags any C/C++ shard indexed before
-these fixes landed, as a signal to re-index.</p>
+<p>C and C++ get extra handling, because both languages spread one thing across several files.</p>
+<ul>
+<li><strong>A method defined outside its class</strong> (<code>ReturnType Class::method(...) { ... }</code>, at any <code>::</code>
+  depth) is attached to its class across the whole repo, not just the file it sits in. So an
+  out-of-line definition still appears under its class, even when the class is declared in a
+  different header.</li>
+<li><strong>A <code>namespace { ... }</code> block is its own container</strong>, the same as a class or a file.</li>
+<li><strong>Headers (<code>.h</code>) are parsed as C++.</strong> A class declared in a header and defined in a matching
+  <code>.cpp</code> shows up as one unit, instead of the class half going missing.</li>
+<li><strong><code>.h</code> files are indexed if either <code>"c"</code> or <code>"cpp"</code> is enabled.</strong> C and C++ headers are shared,
+  so setting <code>languages = ["c"]</code> in <code>kb.toml</code> still picks them up. You do not need to list both.</li>
+<li><strong>Two definitions in opposite branches of one <code>#ifdef</code>/<code>#else</code> collapse into one node.</strong>
+  Without that, they would look like duplicate call targets.</li>
+</ul>
+<p>Two things that deliberately do <strong>not</strong> collapse:</p>
+<ul>
+<li>A bare <code>#ifndef</code> header guard with no <code>#else</code>. Both copies sit in the same branch, so there is
+  nothing to merge.</li>
+<li>Genuine overloads, anywhere. They stay separate definitions.</li>
+</ul>
+<p>If a C or C++ shard was indexed before these fixes landed, <code>doctor</code> flags it so you know to
+re-index. See <a href="indexing-the-code-graph#health-and-maintenance">Health and maintenance</a>.</p>
 <h3 id="infrastructure-terraform-hcl">Infrastructure: Terraform / HCL<a class="anchor" href="#infrastructure-terraform-hcl" title="Link to this section">#</a></h3>
 <p><code>.tf</code> files build an infrastructure dependency graph: <code>resource</code> / <code>data</code> / <code>variable</code> / <code>output</code> /
 <code>module</code> / <code>local</code> definitions with <code>depends_on</code> edges resolving <code>var.</code> / <code>module.</code> / <code>data.</code> / resource
@@ -210,12 +229,17 @@ test. These are the numbers to distrust a graph <code>INFERRED</code> SQL edge b
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.</p>
 <h3 id="data-contracts-xml-schema">Data contracts: XML Schema<a class="anchor" href="#data-contracts-xml-schema" title="Link to this section">#</a></h3>
-<p><code>.xsd</code> files build a schema graph: every <strong>global</strong> component becomes a node, and every name one
-component gives another becomes a <code>references</code> edge, resolved across files in a repo. A global
-<code>xs:element</code> is a <code>schema_element</code>, because it is the name a message, a document root or a SOAP body
-actually carries and therefore the name a person searches for. A global <code>complexType</code>, <code>simpleType</code>,
-<code>group</code>, <code>attributeGroup</code> or <code>attribute</code> is a <code>schema_type</code>, with which one it is recorded as the
-<code>schema_construct</code> attribute rather than as five kinds. Both are semantically searchable.</p>
+<p><code>.xsd</code> files build a schema graph. Every <strong>global</strong> component becomes a node. Every name one
+component gives another becomes a <code>references</code> edge, resolved across files in the repo.</p>
+<p>Two node kinds:</p>
+<ul>
+<li><strong><code>schema_element</code></strong> for a global <code>xs:element</code>. This is the name a message, a document root or
+  a SOAP body actually carries, so it is the name people search for.</li>
+<li><strong><code>schema_type</code></strong> for a global <code>complexType</code>, <code>simpleType</code>, <code>group</code>, <code>attributeGroup</code> or
+  <code>attribute</code>. Which one it was is kept in the <code>schema_construct</code> attribute, rather than
+  splitting these into five separate kinds.</li>
+</ul>
+<p>Both are semantically searchable.</p>
 <p>References come from <code>type=</code>, <code>base=</code>, <code>ref=</code>, <code>itemType=</code> and <code>memberTypes=</code>. The namespace prefix is
 stripped first, since it is a per-file alias for a namespace URI: <code>tns:PartyType</code> in one file and the
 <code>&lt;xs:complexType name="PartyType"&gt;</code> that defines it in another land on one node. The built-in
@@ -246,11 +270,15 @@ surface. <code>$name</code> reads become <code>uses</code> edges, attributed to 
 <p>A match template has no name to be called by, so its match pattern is its node name, with the
 pattern and any <code>mode</code> recorded as attributes. It is not an identifier; it is the only handle
 such a template has, and one with no handle cannot be pointed at from anywhere.</p>
-<p>Unlike XML Schema, this mints no new node kinds, and the reason is worth stating because the two
-decisions look inconsistent. Schema references resolve on name alone across the whole repo, so a
-schema type sharing <code>struct</code> with C++ would collide. Calls and variable reads are filtered by
-<strong>language family</strong> first, and <code>xsl</code> is its own family, so an <code>xsl:template</code> named <code>format</code>
-cannot resolve onto a Python <code>format</code>. The isolation is already there.</p>
+<p>This adds no new node kinds, unlike XML Schema. The two choices look inconsistent, so here is
+why they differ.</p>
+<ul>
+<li>Schema references resolve on <strong>name alone</strong>, across the whole repo. A schema type called
+  <code>struct</code> would collide with C++.</li>
+<li>Calls and variable reads are filtered by <strong>language family</strong> first. <code>xsl</code> is its own family,
+  so an <code>xsl:template</code> named <code>format</code> cannot resolve onto a Python <code>format</code>.</li>
+</ul>
+<p>The isolation is already there, so no new kinds are needed.</p>
 <p>Two limits, stated rather than left to be discovered. <code>&lt;xsl:import&gt;</code> and <code>&lt;xsl:include&gt;</code> are not
 edges: the target is a relative href, and the only honest edge would point at a file node that
 may not exist in the repository. XPath calls to an <code>xsl:function</code> are not edges either: the
@@ -260,51 +288,69 @@ XPath parser.</p>
 <p><code>.pc</code> files are C with <code>EXEC SQL</code> statements written into the source. They are read twice, and
 the split is the whole design: the <strong>C parse</strong> sees the file with every <code>EXEC SQL</code> statement
 blanked out, and the <strong>dataflow pass</strong> sees it intact.</p>
-<p>The mask exists because of a measurement. Handed straight to the C grammar, <code>EXEC SQL INCLUDE
-SQLCA;</code> and <code>EXEC SQL BEGIN DECLARE SECTION;</code> parse as declarations, producing <code>global_variable</code>
-nodes named <code>SQLCA</code>, <code>SQL</code> and <code>SECTION</code> -- names of things that do not exist, in a kind that
-bare identifiers elsewhere in the repo resolve <code>uses</code> edges onto. Blanking is
-length-and-newline-preserving, so every line number the C parse cites is still the real one, and
-only the statements are blanked: the host variables declared between the declare-section markers
-are ordinary C and stay in the graph.</p>
-<p>The dataflow pass needs the SQL, because the SQL is the point: which tables the file reads and
-writes is what an <code>EXEC SQL</code> statement is there to say. It already normalises table names through
-the same recipe <code>.sql</code> gives its <code>table</code> nodes, so an <code>EXEC SQL SELECT ... FROM CUSTOMERS</code> and a
-<code>CREATE TABLE dbo.[Customers]</code> in another file land on one node without a second copy of that
-rule existing anywhere.</p>
+<p>The mask exists because of a measurement.</p>
+<p>Fed straight to the C grammar, <code>EXEC SQL INCLUDE SQLCA;</code> and <code>EXEC SQL BEGIN DECLARE SECTION;</code>
+parse as declarations. That produces <code>global_variable</code> nodes called <code>SQLCA</code>, <code>SQL</code> and
+<code>SECTION</code>. None of those things exist, and bare identifiers elsewhere in the repo would resolve
+<code>uses</code> edges onto them.</p>
+<p>Two properties keep the masking safe:</p>
+<ul>
+<li>It preserves length and newlines, so every line number the C parse reports is still real.</li>
+<li>It blanks only the statements. Host variables declared between the declare-section markers are
+  ordinary C and stay in the graph.</li>
+</ul>
+<p>The dataflow pass still reads the SQL, because the SQL is the whole point. What an <code>EXEC SQL</code>
+statement exists to say is which tables the file reads and writes.</p>
+<p>It normalises table names with the same rule <code>.sql</code> files use for their <code>table</code> nodes. So an
+<code>EXEC SQL SELECT ... FROM CUSTOMERS</code> and a <code>CREATE TABLE dbo.[Customers]</code> in another file land on
+one node, and that rule lives in exactly one place.</p>
 <p><code>.pc</code> follows C for language filtering rather than having a flag of its own: <code>--languages c</code>
 selects it, <code>--languages python</code> does not.</p>
 <h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
-<p>A repo's own decision records become first-class <code>adr</code> nodes in that repo's shard. The match is any
-<code>.md</code> file with a directory segment named <code>adr</code>, <code>adrs</code> or <code>decisions</code> anywhere in its path, case
-insensitively, so <code>docs/adr/</code>, <code>docs/decisions/</code>, <code>decisions/</code>, <code>adrs/</code> and <code>architecture/adr/</code> all
-qualify, one file per decision. Each node takes its
-title from the file's first <code>#</code> heading (or the filename otherwise). Unlike connector-sourced
-content (<code>enrich</code>/<code>connect</code>, external systems reached over the network), an ADR is authored, checked
-into the repo's own git history: a recorded fact, not something to attribute or hedge on. <code>adr</code> nodes
-are semantically searchable, and their content feeds into <a href="generating-the-wiki">wiki generation</a> as a
-grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
-data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
-way an import or call site is, so nothing is inferred from that mention.</p>
+<p>A repo's own decision records become <code>adr</code> nodes in that repo's shard, one node per file.</p>
+<p><strong>What counts as an ADR file:</strong> any <code>.md</code> file with a directory named <code>adr</code>, <code>adrs</code> or
+<code>decisions</code> anywhere in its path, matched case-insensitively. So <code>docs/adr/</code>,
+<code>docs/decisions/</code>, <code>decisions/</code>, <code>adrs/</code> and <code>architecture/adr/</code> all qualify.</p>
+<p>Each node takes its title from the file's first <code>#</code> heading, or from the filename if there is
+none.</p>
+<p><strong>Why ADRs are treated differently from connector content.</strong> An ADR is written by hand and
+checked into git. It is a recorded fact, so it needs no attribution or hedging. Content pulled
+from Jira or Figma comes over the network from a system this repo does not own, so it does.</p>
+<p>What you get:</p>
+<ul>
+<li><code>adr</code> nodes are semantically searchable.</li>
+<li>Their content feeds <a href="generating-the-wiki">wiki generation</a> as a grounded "Recorded
+  decisions" section, cited next to the repo's other facts.</li>
+</ul>
+<p>What you do not get: edges to other nodes. An ADR that mentions a class by name is not a
+verified reference the way an import or a call site is, so nothing is inferred from it.</p>
 <h3 id="entity-state-machines">Entity state machines<a class="anchor" href="#entity-state-machines" title="Link to this section">#</a></h3>
-<p>Guarded assignments to a status/state/stage field (<code>if order.status == Created: order.status = Paid</code>)
-become <code>transitions_to</code> edges between <code>state</code> nodes, labeled with the method that makes the transition.
-Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding comparison on
-the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
-and C# (regex, every edge <code>INFERRED</code>). Render with <code>contextlake kb graph --repo &lt;repo&gt; --format statediagram</code>
-(a Mermaid entity state machine), see <a href="visualizing-the-graph">Visualize</a>.</p>
+<p>A guarded assignment to a status, state or stage field becomes a <code>transitions_to</code> edge between
+<code>state</code> nodes, labelled with the method that makes the change. For example:</p>
+<div class="codehilite"><pre><span></span><code>if order.status == Created: order.status = Paid
+</code></pre></div>
+
+<p><strong>Only guarded transitions are emitted.</strong> The source state has to be established by a comparison
+on the same field just before. That way a diagram never claims a transition the code does not
+actually make.</p>
+<p>Supported in Python, JS/TS and C#. Detection is regex-based, so every edge is marked <code>INFERRED</code>.</p>
+<p>Render it with <code>contextlake kb graph --repo &lt;repo&gt; --format statediagram</code>, which produces a
+Mermaid state diagram. See <a href="visualizing-the-graph">Visualizing the graph</a>.</p>
 <p><code>transitions_to</code> is deliberately <strong>not</strong> in <code>impact</code>'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
 enum member is a language-level rename, not a graph-discoverable break); pass <code>--relation transitions_to</code>
 explicitly if you do want that walk.</p>
 <h3 id="intra-repo-dataflow-reads-and-writes">Intra-repo dataflow: reads and writes<a class="anchor" href="#intra-repo-dataflow-reads-and-writes" title="Link to this section">#</a></h3>
-<p>Application code querying a table or view it never explicitly imports still shows up in the graph: a
-literal <code>SELECT ... FROM</code> / <code>INSERT INTO</code> / <code>UPDATE ... SET</code> / <code>DELETE FROM</code> in a string (any language,
-SQL text looks the same embedded anywhere) becomes a <code>reads</code> or <code>writes</code> edge from the file to the
-<code>table</code>/<code>view</code> node the SQL DDL extractor already found, resolved by name across the whole repo the same
-way an FK <code>references</code> edge is. A query against a table this repo never defines is an honest miss, not a
-guessed link. <code>reads</code>/<code>writes</code> are in <code>impact</code>'s default relation set, so <code>contextlake kb impact &lt;table&gt;</code>
-answers "what code touches this table" out of the box.</p>
+<p>Application code that queries a table it never imports still shows up in the graph.</p>
+<p>A literal <code>SELECT ... FROM</code>, <code>INSERT INTO</code>, <code>UPDATE ... SET</code> or <code>DELETE FROM</code> inside a string
+becomes a <code>reads</code> or <code>writes</code> edge, from the file to the <code>table</code> or <code>view</code> node the SQL DDL
+extractor already found. This works in any language, because embedded SQL text looks the same
+wherever it sits. Names resolve across the whole repo, the same way a foreign-key <code>references</code>
+edge does.</p>
+<p>A query against a table this repo never defines is left unlinked. That is an honest miss, not a
+guessed link.</p>
+<p><code>reads</code> and <code>writes</code> are in the default relation set for <code>impact</code>, so
+<code>contextlake kb impact &lt;table&gt;</code> answers "what code touches this table" with no extra flags.</p>
 <h3 id="constants-their-value-and-every-place-it-is-read">Constants: their value, and every place it is read<a class="anchor" href="#constants-their-value-and-every-place-it-is-read" title="Link to this section">#</a></h3>
 <p>A constant node records the declaration it was written with, so the graph answers what a value
 actually is and not only that a name exists: <code>MAX_RETRY = 3</code>, <code>PAGE_SIZE = 50</code>,
@@ -313,11 +359,16 @@ a declaration rather than a value because nothing has been parsed out of it.</p>
 <p>Each place a constant's value is read becomes a <code>uses</code> edge from the file to the constant,
 citing its own line. Like <code>calls</code>, this is stored <strong>once per occurrence</strong>, so "where is this read"
 is answerable exhaustively rather than as one edge with an arbitrary line attached.</p>
-<p>What is deliberately not a use: the declaration itself, a write (<code>TOTAL += 1</code>, <code>global TOTAL</code>),
-an import, and an attribute (<code>cfg.MAX_RETRY</code> reads an attribute of <code>cfg</code>). A bare name is also
-never matched against a class field, because a data member is reached as <code>self.x</code> or <code>this-&gt;x</code> and
-a bare <code>x</code> is a local: on one public C++ tree, allowing it attributed 588 reads of a loop counter
-to a class member of the same name.</p>
+<p>These are deliberately <strong>not</strong> counted as a use:</p>
+<ul>
+<li>the declaration itself</li>
+<li>a write, such as <code>TOTAL += 1</code> or <code>global TOTAL</code></li>
+<li>an import</li>
+<li>an attribute, since <code>cfg.MAX_RETRY</code> reads an attribute of <code>cfg</code></li>
+</ul>
+<p>A bare name is also never matched against a class field. A data member is reached as <code>self.x</code> or
+<code>this-&gt;x</code>, so a bare <code>x</code> is a local variable. On one public C++ tree, allowing that match
+attributed 588 reads of a loop counter to a class member with the same name.</p>
 <p>Where a name has several definitions, the edge is marked ambiguous rather than pointed at a guess,
 and anything reporting a constant's use count should filter on confidence. <code>uses</code> is in <code>impact</code>'s
 default relation set, so <code>contextlake kb impact MAX_RETRY</code> answers "what depends on this value".</p>
@@ -478,6 +529,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

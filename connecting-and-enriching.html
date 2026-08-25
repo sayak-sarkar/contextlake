@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connecting and enriching · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -155,16 +155,22 @@ across the whole fleet or a single repo:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>acme/catalog-api<span class="w">         </span><span class="c1"># one repo</span>
 </code></pre></div>
-<p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake kb index</code>), and at least one
-term-searchable source must be configured: either an <code>mcp</code> source with <code>tool</code> and <code>arg_template</code> keys, or
-an <code>atlassian</code> source. Sources without these capabilities (e.g. a plain <code>files</code> or <code>web</code> source) are
-skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
-re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as <code>document</code> nodes tagged with their source (<code>attrs.source</code>). A result
-that names one of the repo's symbols is also linked straight to it (<code>documented_by</code>), so the enrichment
-lands on the graph rather than beside it. After
-<code>contextlake kb wiki</code> runs, enrichment docs are incorporated into the curated wiki as an attributed "External
-context" section, grounded to the code graph's terms.</p>
+<p><strong>Prerequisites.</strong> Two things must be true:</p>
+<ol>
+<li>The code graph is indexed, via <code>contextlake kb index</code>.</li>
+<li>At least one term-searchable source is configured. That means either an <code>mcp</code> source with
+   <code>tool</code> and <code>arg_template</code> keys, or an <code>atlassian</code> source.</li>
+</ol>
+<p>Sources without those capabilities, such as a plain <code>files</code> or <code>web</code> source, are skipped
+gracefully.</p>
+<p><strong>What you get.</strong> Each repo's enrichment documents live in their own partition, so they can be
+re-fetched without clobbering earlier results.</p>
+<p>With the semantic tier enabled they are embedded too, so they appear in semantic search as
+<code>document</code> nodes tagged with their source in <code>attrs.source</code>.</p>
+<p>A result that names one of the repo's symbols is linked straight to it with a <code>documented_by</code>
+edge, so the enrichment lands <strong>on</strong> the graph rather than beside it.</p>
+<p>After <code>contextlake kb wiki</code> runs, these documents become an attributed "External context"
+section in the curated wiki, grounded to the code graph's terms.</p>
 <p>Configuring document sources, including the built-in <code>files</code> source, plugin packages and MCP endpoints, is in <a href="document-sources">Document sources and RAG</a>.</p>
 <h2 id="when-a-source-stops-answering">When a source stops answering<a class="anchor" href="#when-a-source-stops-answering" title="Link to this section">#</a></h2>
 <p><code>connect</code> and <code>enrich</code> are the only stages that leave the machine, and a fleet run asks each source once
@@ -282,6 +288,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

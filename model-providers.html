@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -271,15 +271,21 @@ curl<span class="w"> </span>http://172.24.224.1:11434/api/tags<span class="w">  
 <p>The wiki's quality is bounded by the model behind it. The graph facts fed in are identical; the difference
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
 a smaller model mostly means <em>more rejections</em> and blander accepted pages).</p>
-<p>The constraint that decides this for most people is <strong>hardware, not model quality</strong>. Generating one wiki
-page is not one model call: it is the page, plus one review from each council lens. A rejected page is
-reported and skipped, not rewritten, so a rejection costs you the page rather than another round of calls.
-So the question is not whether a 1.5B-3B model writes better prose than the built-in
-0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
-the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
-<code>timeout</code> below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
-generic prose the council often rejects. The same 1.5B-3B models answer in seconds once Ollama has a
-<strong>GPU</strong> (including Ollama on a Windows host with a discrete GPU, reached from WSL). So:</p>
+<p>For most people the deciding factor is <strong>hardware, not model quality</strong>.</p>
+<p>Generating one wiki page is not one model call. It is the page, plus one review from each
+council lens. A rejected page is reported and skipped, not rewritten, so a rejection costs you
+the page rather than another round of calls.</p>
+<p>So the real question is not whether a 1.5B to 3B model writes better prose than the built-in
+0.5B. It does. The question is whether your machine can finish that many calls.</p>
+<ul>
+<li><strong>On a CPU with no GPU</strong>, a single call from a 1.5B to 3B model usually takes minutes. The run
+  hits the default 300-second <code>timeout</code> below before a page is finished.</li>
+<li><strong>The built-in 0.5B stays under that timeout.</strong> It pays for that with thin, generic prose the
+  council often rejects.</li>
+<li><strong>With a GPU, the same 1.5B to 3B models answer in seconds.</strong> That includes Ollama on a
+  Windows host with a discrete GPU, reached from WSL.</li>
+</ul>
+<p>So:</p>
 <ul>
 <li><strong>CPU-only, offline, quick:</strong> the <strong>built-in 0.5B</strong>, fast to set up, basic prose. Or a <strong>hosted API</strong> if
   quality matters and you accept per-token cost.</li>
@@ -395,6 +401,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

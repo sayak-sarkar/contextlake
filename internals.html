@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Architecture and internals · contextlake docs">
 <meta name="twitter:description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -81,10 +81,11 @@ files.</p>
 </tr>
 </tbody>
 </table>
-<p>The mirror core declares exactly one pip dependency (<code>pyproject.toml</code>), which is the constraint that
-keeps <code>pip install contextlake</code> viable on a locked-down machine. The knowledge layer is imported
-lazily from the CLI, so the core runs with the extra absent and says so if you reach for a <code>kb</code>
-verb without it. <code>[kb]</code> needs Python 3.10 or newer because the <code>mcp</code> SDK does; the core declares
+<p>The mirror core declares exactly <strong>one</strong> pip dependency in <code>pyproject.toml</code>. That constraint is
+what keeps <code>pip install contextlake</code> viable on a locked-down machine.</p>
+<p>The knowledge layer is imported lazily from the CLI, so the core runs with the extra absent, and
+says so if you reach for a <code>kb</code> verb without it.</p>
+<p><code>[kb]</code> needs Python 3.10 or newer because the <code>mcp</code> SDK does. The core declares
 <code>requires-python = "&gt;=3.10"</code>, one floor shared by both tiers.</p>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
 <p>Two config systems, one per tier, both merging the same way: built-in defaults, then a global file,
@@ -118,12 +119,17 @@ then the nearest ancestor directory's local file, then an explicit <code>--confi
   <img src="img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
-<p>One carve-out matters for safety. Settings that would cause contextlake to <em>run a program</em> are
-honoured only from a file you named explicitly or from your own home config, never from a file found
-by the directory walk, because such a file can arrive inside a repository you cloned. The gate is on
-provenance rather than content, so a project-local <code>store_dir</code>, <code>languages</code> or <code>[[rules]]</code> keeps
-working (<code>src/contextlake/kb/trust.py</code>). The full settings tables are on
-<a href="configuration">Configuration</a>.</p>
+<p>One carve-out matters for safety.</p>
+<p>Settings that would make contextlake <strong>run a program</strong> are honoured only from:</p>
+<ul>
+<li>a file you named explicitly, or</li>
+<li>your own home config</li>
+</ul>
+<p>They are never honoured from a file found by the directory walk, because such a file can arrive
+inside a repository you cloned.</p>
+<p>The gate is on where the file came from, not on what it says. So a project-local <code>store_dir</code>,
+<code>languages</code> or <code>[[rules]]</code> keeps working. See <code>src/contextlake/kb/trust.py</code>, and the full
+settings tables on <a href="configuration">Configuration</a>.</p>
 <h2 id="the-mirror-layer">The mirror layer<a class="anchor" href="#the-mirror-layer" title="Link to this section">#</a></h2>
 <h3 id="discovering-repositories">Discovering repositories<a class="anchor" href="#discovering-repositories" title="Link to this section">#</a></h3>
 <p><code>mirror fetch</code> enumerates every project the account can see on the configured group, drops archived
@@ -154,11 +160,14 @@ a per-workspace subdirectory keyed on the workspace path, platform and group, cr
 (<code>src/contextlake/config.py</code>). Two workspaces therefore never share one cache file. A <code>cache_dir</code>
 you configure yourself is used verbatim, without a subdirectory, and is created but never
 re-permissioned.</p>
-<p>That file lists every repository your account can enumerate along with its clone URLs, which is why
-its location is treated as a privacy decision. <code>/tmp</code> was the old default and was rejected on three
-recorded grounds: it is outside your home, so no HOME-based isolation reaches it; it is
-world-readable on a shared host; and its path is predictable enough for another user to pre-create
-a file or a symlink there.</p>
+<p>That file lists every repository your account can enumerate, along with its clone URLs. That is
+why its location is a privacy decision.</p>
+<p><code>/tmp</code> was the old default. It was rejected on three recorded grounds:</p>
+<ul>
+<li>it sits outside your home, so no HOME-based isolation reaches it</li>
+<li>it is world-readable on a shared host</li>
+<li>its path is predictable enough for another user to pre-create a file or symlink there</li>
+</ul>
 <h3 id="local-paths-mirror-the-namespace-tree">Local paths mirror the namespace tree<a class="anchor" href="#local-paths-mirror-the-namespace-tree" title="Link to this section">#</a></h3>
 <p><code>to_local_path</code> in <code>src/contextlake/core.py</code> strips the configured group prefix, so the local tree
 reproduces everything below the group:</p>
@@ -169,11 +178,15 @@ Local path:  backend/services/api-gateway
 <h3 id="concurrency">Concurrency<a class="anchor" href="#concurrency" title="Link to this section">#</a></h3>
 <p>Everything in the mirror layer is <code>ThreadPoolExecutor</code>, because the work is subprocess-bound rather
 than CPU-bound. <code>max_workers</code> defaults to <code>8</code> for cloning, updating and branch switching.</p>
-<p>Cloning is the one stage with an adaptive pool. It processes in waves and resizes between them,
-stepping the worker count down by one toward <code>min_workers</code> (default <code>2</code>) when the observed error
-rate exceeds <code>error_threshold</code> (default <code>0.5</code>), and back up when it falls below half of it. The
-window is 10 results, so it does nothing at all until 10 clones have been recorded
-(<code>AdaptiveWorkerPool</code> in <code>src/contextlake/core.py</code>). Set <code>adaptive_workers = false</code> for a flat pool.</p>
+<p>Cloning is the only stage with an adaptive pool. It works in waves and resizes between them:</p>
+<ul>
+<li><strong>Steps down</strong> by one worker toward <code>min_workers</code> (default <code>2</code>) when the error rate goes above
+  <code>error_threshold</code> (default <code>0.5</code>).</li>
+<li><strong>Steps back up</strong> when the error rate falls below half of that.</li>
+</ul>
+<p>The window is 10 results, so nothing happens at all until 10 clones have been recorded. See
+<code>AdaptiveWorkerPool</code> in <code>src/contextlake/core.py</code>.</p>
+<p>Set <code>adaptive_workers = false</code> for a flat pool.</p>
 <p>Every subprocess call carries an explicit timeout: <code>clone_timeout</code> 300s, <code>fetch_timeout</code> 60s,
 <code>pull_timeout</code> 60s, <code>branch_timeout</code> 30s (<code>DEFAULT_CONFIG</code> in <code>src/contextlake/config.py</code>). A repo
 that fails does not stop the run; it is counted, reported, and reflected in the exit code.</p>
@@ -248,23 +261,29 @@ environment when a token is available. The token is read from the environment va
 </tr>
 </tbody>
 </table>
-<p>The token value itself is only ever read from the environment; the config file names the variable,
-never the secret. It reaches git as an <code>http.extraHeader</code> passed through <code>GIT_CONFIG_KEY_*</code> /
+<p>The token value is only ever read from the environment. The config file names the variable, never
+the secret.</p>
+<p>It reaches git as an <code>http.extraHeader</code>, passed through <code>GIT_CONFIG_KEY_*</code> and
 <code>GIT_CONFIG_VALUE_*</code> in the child environment, offset past any <code>GIT_CONFIG_*</code> entries you already
-set. That is deliberate on two counts, both recorded in <code>src/contextlake/core.py</code>: it never appears
-on the command line, where <code>ps</code> would show it, and it never appears in the clone URL, where git
-would persist it into <code>.git/config</code>.</p>
+set.</p>
+<p>That is deliberate on two counts, both recorded in <code>src/contextlake/core.py</code>:</p>
+<ul>
+<li>It never appears on the command line, where <code>ps</code> would show it.</li>
+<li>It never appears in the clone URL, where git would persist it into <code>.git/config</code>.</li>
+</ul>
 <p>Without a token, cloning falls back to <code>glab repo clone</code> when <code>glab</code> is installed, else plain
 <code>git clone</code> over HTTPS. Force one path with <code>clone_method = git</code> or <code>glab</code>.</p>
 <h2 id="the-knowledge-layer">The knowledge layer<a class="anchor" href="#the-knowledge-layer" title="Link to this section">#</a></h2>
 <h3 id="shards-are-the-source-of-truth-sqlite-is-the-index">Shards are the source of truth, SQLite is the index<a class="anchor" href="#shards-are-the-source-of-truth-sqlite-is-the-index" title="Link to this section">#</a></h3>
 <p>Each repository's parse result is written as a self-contained JSON shard at
-<code>&lt;store_dir&gt;/graph/&lt;repo_id&gt;.json</code>, the repo namespace nesting as directories. <code>index.sqlite</code> is a
-denormalized cross-repo index built from those shards, and it can be dropped and rebuilt at any
-time (<code>src/contextlake/kb/store/sqlite_store.py</code>). The reason for the split is recorded in
-<code>src/contextlake/kb/store/shards.py</code>: a shard is self-contained, so one repository can be
-re-indexed in isolation, and shards stay small rather than hitting the size ceiling a single global
-graph would.</p>
+<code>&lt;store_dir&gt;/graph/&lt;repo_id&gt;.json</code>, with the repo namespace nesting as directories.</p>
+<p><code>index.sqlite</code> is a denormalised cross-repo index built from those shards. It can be dropped and
+rebuilt at any time. See <code>src/contextlake/kb/store/sqlite_store.py</code>.</p>
+<p>The reason for the split is recorded in <code>src/contextlake/kb/store/shards.py</code>:</p>
+<ul>
+<li>a shard is self-contained, so one repository can be re-indexed in isolation</li>
+<li>shards stay small, rather than hitting the size ceiling a single global graph would</li>
+</ul>
 <p>Shard files also exist for synthetic partitions, which is how non-code content stays separable from
 code: <code>@ingest:&lt;name&gt;</code>, <code>@enrich:&lt;repo&gt;</code>, <code>@connect:&lt;repo&gt;</code> and <code>@wiki</code>. A re-run of one of those
 stages cleanly replaces its own partition without touching the code shard. Keep these distinct from
@@ -378,22 +397,27 @@ be reported.</p>
   column, then a cheap peek at the head of the shard file, then a full shard read. An unknown answer
   counts as stale.</li>
 </ul>
-<p><code>kb index</code> uses both, short-circuited: a repository whose HEAD moved is queued without consulting
-the parser version at all, and only the otherwise-unchanged repositories are checked for a parser
-mismatch. Those are re-indexed rather than merely reported, and the run announces how many and from
-which version. The comment in <code>src/contextlake/kb/cmds/index.py</code> gives the reasoning: a repo at the
-same commit indexed by an older parser holds a graph this build would not produce, and the
-alternative is "a green 'unchanged' over a stale graph, and no amount of wording makes that safe".</p>
+<p><code>kb index</code> uses both checks, short-circuited:</p>
+<ol>
+<li>A repository whose HEAD moved is queued straight away. The parser version is never consulted.</li>
+<li>Only the otherwise-unchanged repositories are checked for a parser mismatch.</li>
+</ol>
+<p>Those mismatches are <strong>re-indexed</strong>, not merely reported, and the run says how many and from
+which version.</p>
+<p>The reasoning is in <code>src/contextlake/kb/cmds/index.py</code>. A repo at the same commit indexed by an
+older parser holds a graph this build would not produce. The alternative is "a green 'unchanged'
+over a stale graph, and no amount of wording makes that safe".</p>
 <p><code>kb lint</code> reports the same repositories but deliberately keeps them out of its exit code, on the
 grounds that such a graph is out of date rather than broken, and a version bump should not turn
 every CI gate red on its own. <code>doctor</code> reports it as advisory for the same reason. All three read
 the same signal, so they cannot disagree about one store.</p>
 <h3 id="parallel-parsing-serial-writes">Parallel parsing, serial writes<a class="anchor" href="#parallel-parsing-serial-writes" title="Link to this section">#</a></h3>
-<p><code>kb index</code> parses repositories across a <strong>process</strong> pool (the work is CPU-bound) and persists from
-the parent process serially, because SQLite must be written from one place. The <code>spawn</code> start method
-is used on every platform so behaviour is identical on Linux, macOS and Windows, with an automatic
-serial fallback if the pool cannot start. Workers default to <code>min(8, cpu_count - 1)</code>; set
-<code>[kb] index_workers</code> to tune it, or <code>1</code> to force serial.</p>
+<p><code>kb index</code> parses repositories across a <strong>process</strong> pool, because the work is CPU-bound. It
+persists from the parent process serially, because SQLite must be written from one place.</p>
+<p>The <code>spawn</code> start method is used on every platform, so behaviour is identical on Linux, macOS and
+Windows. If the pool cannot start, it falls back to serial automatically.</p>
+<p>Workers default to <code>min(8, cpu_count - 1)</code>. Set <code>[kb] index_workers</code> to tune it, or <code>1</code> to force
+serial.</p>
 <h3 id="locking-and-connections">Locking and connections<a class="anchor" href="#locking-and-connections" title="Link to this section">#</a></h3>
 <p>An advisory single-writer lock lives at <code>&lt;store_dir&gt;/.contextlake.lock</code> and carries the holder's
 pid, command, host and start time. A second process on the same host is refused by name rather than
@@ -612,6 +636,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

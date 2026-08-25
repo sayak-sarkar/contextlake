@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Keeping it fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -82,14 +82,18 @@ editing current, and the lock is what stops the two of them from writing at once
 
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
-<p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this single command builds the
-whole knowledge layer (graph, vectors, and wiki) for every repo. On a <code>pip</code> install, <code>builtin</code> needs
-one extra step first, <code>contextlake doctor --fix llm-local</code> (see <a href="installing#the-built-in-wiki-llm-is-one-extra">Install and
-upgrade</a>); skip that step entirely with
-<code>--llm ollama</code>, which needs no compiler at all. Use <code>--llm ollama</code>, <code>openai</code>,
-<code>anthropic</code>, <code>cli</code> or <code>auto</code> for better prose; the pre-command form
-<code>contextlake --llm builtin bootstrap</code> also works. Without any <code>--llm</code>, and with <code>[llm]</code> disabled in
-<code>kb.toml</code>, the wiki stage no-ops and everything else still runs.</p>
+<p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this one command builds the
+whole knowledge layer: graph, vectors and wiki, for every repo.</p>
+<p>On a <code>pip</code> install, <code>builtin</code> needs one extra step first:</p>
+<div class="codehilite"><pre><span></span><code>contextlake doctor --fix llm-local
+</code></pre></div>
+
+<p>See <a href="installing#the-built-in-wiki-llm-is-one-extra">The built-in wiki LLM is one extra</a>. Skip
+that step entirely with <code>--llm ollama</code>, which needs no compiler.</p>
+<p>Other options for better prose: <code>--llm ollama</code>, <code>openai</code>, <code>anthropic</code>, <code>cli</code> or <code>auto</code>. The
+pre-command form <code>contextlake --llm builtin bootstrap</code> works too.</p>
+<p>With no <code>--llm</code>, and <code>[llm]</code> disabled in <code>kb.toml</code>, the wiki stage does nothing and everything
+else still runs.</p>
 <p>The stages run in this order, and each can be skipped except the two marked otherwise:</p>
 <table>
 <thead>
@@ -158,15 +162,19 @@ unreachable remote in stage 1 is also recorded and continued past, so the knowle
 built from the clones already on disk.</p>
 <p>Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
 there, which in practice means failing to write the report file, ends the run before indexing starts.</p>
-<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
-<code>~/.contextlake/kb.toml</code>, or the nearest ancestor directory's <code>.contextlake.ini</code> /
-<code>.contextlake.kb.toml</code> if one exists, see
-<a href="configuration#directory-scoped-config">Directory-scoped config</a>); pass <code>--config</code> to point
-elsewhere. An unrecognized <code>[kb]</code> key or table is warned about and ignored, so a typo like <code>store</code>
-for <code>store_dir</code> is surfaced rather than silently dropping the run into the wrong store. An explicit
-<code>--config</code> path that does not exist is a hard error rather than a silent fall-through to the next
-file in the precedence chain, which could point at a completely different store than the one you
-meant.</p>
+<p>Both config files are read from their default locations: <code>~/.contextlake.ini</code> and
+<code>~/.contextlake/kb.toml</code>. If a nearer ancestor directory has a <code>.contextlake.ini</code> or
+<code>.contextlake.kb.toml</code>, that wins instead. See
+<a href="configuration#directory-scoped-config">Directory-scoped config</a>. Pass <code>--config</code> to point
+somewhere else.</p>
+<p>Two guards worth knowing:</p>
+<ul>
+<li><strong>An unrecognised <code>[kb]</code> key or table is warned about, not ignored silently.</strong> So a typo like
+  <code>store</code> for <code>store_dir</code> is surfaced, rather than quietly dropping the run into the wrong store.</li>
+<li><strong>An explicit <code>--config</code> path that does not exist is a hard error.</strong> It does not fall through
+  to the next file in the precedence chain, which could point at a completely different
+  store.</li>
+</ul>
 <h3 id="composing-the-stages-yourself">Composing the stages yourself<a class="anchor" href="#composing-the-stages-yourself" title="Link to this section">#</a></h3>
 <p>Every stage is standalone, idempotent, and composable:</p>
 <table>
@@ -469,6 +477,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

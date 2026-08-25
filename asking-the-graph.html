@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Asking the graph · contextlake docs">
 <meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -228,12 +228,13 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span c
 </tr>
 </tbody>
 </table>
-<p><code>impact</code> walks the graph <strong>backwards</strong>: it follows edges <em>into</em> the node you named, so it answers
-"what depends on this", not "what does this depend on". Six relations are traversed,
-<code>calls</code>, <code>depends_on</code>, <code>inherits</code>, <code>references</code>, <code>reads</code>, <code>writes</code> and <code>uses</code>
-(<code>DEFAULT_RELATIONS</code> in <code>src/contextlake/kb/impact.py</code>). There is no flag to change that set from the
-CLI; the MCP <code>blast_radius</code> tool takes a <code>relations</code> argument if you need a different walk.
-<code>transitions_to</code> is deliberately outside the default set, see
+<p><code>impact</code> walks the graph <strong>backwards</strong>. It follows edges <em>into</em> the node you named, so it answers
+"what depends on this", not "what does this depend on".</p>
+<p><strong>Seven relations</strong> are traversed by default: <code>calls</code>, <code>depends_on</code>, <code>inherits</code>, <code>references</code>,
+<code>reads</code>, <code>writes</code> and <code>uses</code>. See <code>DEFAULT_RELATIONS</code> in <code>src/contextlake/kb/impact.py</code>.</p>
+<p>There is no CLI flag to change that set. The MCP <code>blast_radius</code> tool takes a <code>relations</code> argument
+if you need a different walk.</p>
+<p><code>transitions_to</code> is deliberately left out of the default set. See
 <a href="code-graph-model#entity-state-machines">Entity state machines</a>.</p>
 <p>Each affected node is reported once, at the first hop that reached it, with the relation it came
 through and that edge's confidence. Incoming edges are visited <strong>highest-confidence first</strong>
@@ -491,6 +492,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

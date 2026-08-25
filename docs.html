@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -64,24 +64,37 @@ each layer above it is optional.</p>
 </p>
 
 <ol>
-<li><strong>Mirror</strong>: clone every repo you can reach in a <strong>GitLab group, GitHub org, Bitbucket
-   workspace, or Gitea/Codeberg/Forgejo owner</strong> into a faithful copy of its namespace tree,
-   each on its most active branch, kept fresh with one command.</li>
-<li><strong>Knowledge layer</strong> <em>(optional)</em>: parse the mirror into a code + dependency <strong>graph</strong> across
-   <strong>27 languages</strong> plus <strong>Terraform</strong> infrastructure, <strong>SQL</strong> and <strong>PL/SQL</strong> schema,
-   <strong>XML Schema</strong> data contracts, <strong>XSLT</strong> stylesheets, <strong>Pro*C</strong> embedded SQL, and package
-   manifests (npm / PyPI / NuGet / Maven), add <strong>semantic search</strong>, a council-verified <strong>wiki</strong> (each page
-   reviewed and scored before publishing, low-confidence pages dropped), and <strong>connectors</strong> to
-   Atlassian / Figma / GitLab / Slack / Zendesk. Non-code content comes in too: Markdown and
-   text, a <strong>PDF's text layer</strong>, text read out of <strong>images</strong> by a local OCR engine, and a
-   <strong>video's</strong> slides and spoken track. All of it local, all of it optional extras.</li>
-<li><strong>Serve</strong>: expose it all over <strong>MCP</strong> and an offline interactive <strong>graph visualizer</strong>, so
-   agents can answer <em>"where is <code>X</code> defined?"</em> or <em>"who calls <code>Y</code>?"</em> instead of grepping.</li>
+<li>
+<p><strong>Mirror.</strong> Clone every repo you can reach into a local copy of its namespace tree. Works
+   with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
+   owner. Each repo lands on its most active branch. One command keeps them fresh.</p>
+</li>
+<li>
+<p><strong>Knowledge layer</strong> <em>(optional)</em>. Turn the mirror into a graph you can query.</p>
+</li>
 </ol>
-<p>Each layer has its own guide: the mirror in <strong><a href="mirroring-repositories">Mirror repositories</a></strong>,
-settings in <strong><a href="configuration">Configuration</a></strong>, the knowledge
-layer and serving in <strong><a href="knowledge-layer">Knowledge layer</a></strong>, and the whole flow start to
-finish in <strong><a href="quickstart">QUICKSTART</a></strong>.</p>
+<ul>
+<li><strong>Code and dependencies</strong> across <strong>27 languages</strong>, plus Terraform, SQL and PL/SQL schema,
+     XML Schema, XSLT, Pro*C embedded SQL, and package manifests (npm, PyPI, NuGet, Maven).</li>
+<li><strong>Semantic search</strong>, so you can find code by what it does, not just by its name.</li>
+<li><strong>A wiki</strong>, reviewed and scored page by page. Pages that score low are dropped.</li>
+<li><strong>Connectors</strong> to Atlassian, Figma, GitLab, Slack and Zendesk.</li>
+<li><strong>Non-code content</strong>: Markdown and text, a PDF's text layer, text read out of images by a
+     local OCR engine, and a video's slides and spoken track.</li>
+</ul>
+<p>All of it runs locally. All of it is optional.</p>
+<ol start="3">
+<li><strong>Serve.</strong> Expose the result over MCP (the protocol AI tools use to call external tools),
+   plus an offline interactive graph viewer. Your agent can answer <em>"where is <code>X</code> defined?"</em> or
+   <em>"who calls <code>Y</code>?"</em> instead of grepping.</li>
+</ol>
+<p>Each layer has its own guide:</p>
+<ul>
+<li><a href="mirroring-repositories">Mirror repositories</a></li>
+<li><a href="configuration">Configuration</a></li>
+<li><a href="knowledge-layer">Knowledge layer</a></li>
+<li><a href="quickstart">QUICKSTART</a>, the whole flow start to finish</li>
+</ul>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">       </span><span class="c1"># the full tool: mirror + graph, search, wiki, MCP server</span>
 pip<span class="w"> </span>install<span class="w"> </span>contextlake<span class="w">             </span><span class="c1"># mirror-only core (one dependency: argcomplete)</span>
@@ -145,165 +158,86 @@ owner. Copy the example config and set your platform, group and workspace:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>status<span class="w">      </span><span class="c1"># see where you stand (read-only)</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w">        </span><span class="c1"># fetch → clone → update → branches → verify → audit</span>
 </code></pre></div>
-<p>Auth is one env var: the platform's token (<code>GITLAB_TOKEN</code> / <code>GITHUB_TOKEN</code> /
-<code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>), carried in headers and the child environment, never in
-URLs or argv, so <code>.contextlake.ini</code> holds only non-secret settings and is gitignored by
-default. (On GitLab, an authenticated <code>glab</code> works too; public orgs on other platforms need
-no token at all.) It runs across hundreds of repos <strong>concurrently</strong>, with an adaptive worker
-pool, retries with backoff, and <strong>never stomps on the feature branch you're in the middle
-of</strong>.</p>
+<p><strong>Auth is one environment variable.</strong> Set the token for your platform: <code>GITLAB_TOKEN</code>,
+<code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code> or <code>GITEA_TOKEN</code>.</p>
+<ul>
+<li>The token travels in request headers and the child environment. Never in a URL, never in
+  argv, so it cannot leak into your shell history or a process list.</li>
+<li><code>.contextlake.ini</code> holds only non-secret settings, and is gitignored by default.</li>
+<li>On GitLab an authenticated <code>glab</code> works instead. Public orgs on other platforms need no
+  token at all.</li>
+</ul>
+<p>It mirrors hundreds of repos at once, with an adaptive worker pool and retries that back off.
+<strong>It will not touch the feature branch you are working on.</strong></p>
 <blockquote>
 <p><strong>Behind a slow / TLS-inspecting corporate proxy</strong> (e.g. Zscaler) where <code>glab</code>'s API calls
 time out? Set <code>GITLAB_TOKEN</code> (a <code>read_api</code> token) and contextlake enumerates projects via
 its own HTTP client, which tolerates the slow DNS where <code>glab</code>'s short dial timeout fails.</p>
 </blockquote>
 <h2 id="commands-at-a-glance">Commands at a glance<a class="anchor" href="#commands-at-a-glance" title="Link to this section">#</a></h2>
-<p>Run any command as <code>contextlake &lt;command&gt;</code>; each has scoped help via
-<code>contextlake &lt;command&gt; --help</code>. Each verb lives under the noun it belongs to, <code>mirror</code> for
-mirroring git repositories, <code>kb</code> for the knowledge layer, except <code>init</code>, <code>bootstrap</code>,
-<code>version</code>, <code>completion</code>, and <code>doctor</code>, which span both tiers or neither. Per-command docs live
-with their layer: the <strong>mirror</strong> commands in <strong><a href="mirroring-repositories">usage.md</a></strong>;
-the <strong>knowledge-layer</strong> build commands one page each, <code>kb index</code> in
-<strong><a href="indexing-the-code-graph">index-code-graph.md</a></strong>,
-<code>kb connect</code>/<code>kb ingest</code>/<code>kb enrich</code> in
-<strong><a href="connecting-and-enriching">connect-enrich.md</a></strong>,
-<code>kb embed</code>/<code>kb eval</code> in
-<strong><a href="searching-semantically">semantic-search.md</a></strong>
-and <code>kb wiki</code> in
-<strong><a href="generating-the-wiki">generate-wiki.md</a></strong>
-(with <strong><a href="knowledge-layer">knowledge-layer.md</a></strong>
-as the map over all four); the query commands
-(<code>kb query</code>, <code>kb impact</code>, <code>kb owners</code>) in <strong><a href="asking-the-graph">ask-the-graph.md</a></strong>;
-and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serving-over-mcp">serve.md</a></strong>.
-The full flag-by-flag list is <strong><a href="cli-reference">cli-reference.md</a></strong>.</p>
-<table>
-<thead>
-<tr>
-<th>Command</th>
-<th>What it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>init</code></td>
-<td><strong>Guided setup</strong>: write your mirror + knowledge-layer config (<code>--skip-interactive</code> for non-interactive)</td>
-</tr>
-<tr>
-<td><code>mirror status</code></td>
-<td>Show the workspace sync state vs GitLab (read-only)</td>
-</tr>
-<tr>
-<td><code>mirror sync</code></td>
-<td>The full pipeline: fetch → clone → update → branches → verify → audit</td>
-</tr>
-<tr>
-<td><code>mirror fetch</code> · <code>mirror clone</code> · <code>mirror update</code></td>
-<td>The sync steps, individually</td>
-</tr>
-<tr>
-<td><code>mirror branches</code></td>
-<td>Switch each repo to its most active branch</td>
-</tr>
-<tr>
-<td><code>mirror verify</code> · <code>mirror audit</code></td>
-<td>Check the mirror vs GitLab; report repo health, age &amp; drift (JSON + CSV)</td>
-</tr>
-<tr>
-<td><code>bootstrap</code></td>
-<td><strong>Turnkey</strong>: sync + index + connect + embed + enrich + wiki + diagram + steer (<code>--no-enrich</code> to skip a stage)</td>
-</tr>
-<tr>
-<td><code>kb index</code></td>
-<td>Build the code/dependency graph (<code>--workspace</code>, incremental, <code>--watch</code>; a directory holding git repos is refused with the right command, <code>--bundle</code> to index it as one repo anyway)</td>
-</tr>
-<tr>
-<td><code>kb source</code></td>
-<td><strong>Manage connectors</strong>: <code>add</code>/<code>list</code>/<code>remove</code>/<code>test</code>/<code>enable</code>/<code>disable</code> knowledge sources; edits <code>kb.toml</code> for you, comments preserved</td>
-</tr>
-<tr>
-<td><code>kb connect</code></td>
-<td>Link repos to Atlassian / Figma / GitLab / Zendesk items (<code>--watch</code> to keep refreshing)</td>
-</tr>
-<tr>
-<td><code>kb embed</code></td>
-<td>Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, <code>--watch</code>)</td>
-</tr>
-<tr>
-<td><code>kb enrich</code></td>
-<td>Query connected sources with codebase-derived terms and store the results in a searchable <code>@enrich</code> partition that feeds the wiki</td>
-</tr>
-<tr>
-<td><code>kb ingest</code></td>
-<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>graphql</code>/<code>mcp</code> sources, or plugins). <code>files</code> reads text, Markdown, a PDF's text layer, images via local OCR (<code>[kb-ocr]</code>), and video frames plus speech (<code>[kb-video]</code>, <code>[kb-transcribe]</code>)</td>
-</tr>
-<tr>
-<td><code>kb wiki [&lt;repo&gt;…]</code></td>
-<td>LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); <code>--llm builtin\|ollama\|openai\|anthropic\|cli\|auto</code> enables the LLM tier inline (<code>builtin</code> needs <code>doctor --fix llm-local</code> first on a <code>pip</code> install). A repo can steer its own page with <code>.contextlake/wiki.toml</code></td>
-</tr>
-<tr>
-<td><code>kb query</code></td>
-<td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>)</td>
-</tr>
-<tr>
-<td><code>kb owners</code> (alias <code>kb who-knows</code>)</td>
-<td>Likely owners / SMEs for a repo (or <code>--path</code>), ranked from git history</td>
-</tr>
-<tr>
-<td><code>kb impact</code> (alias <code>kb blast-radius</code>)</td>
-<td>Change-impact / blast radius: what depends on a symbol (<code>--hops</code>, <code>--repo</code> to disambiguate)</td>
-</tr>
-<tr>
-<td><code>kb graph</code></td>
-<td>Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON</td>
-</tr>
-<tr>
-<td><code>kb dashboard</code></td>
-<td>Local knowledge-system dashboard UI (<code>--serve</code>; <code>--sample</code> for the bundled demo fleet; <code>--site DIR</code> for a static offline export)</td>
-</tr>
-<tr>
-<td><code>kb serve</code></td>
-<td>Expose the graph over MCP (<code>--transport stdio</code>/<code>http</code>/<code>sse</code>; <code>--tool-concurrency N</code> bounds concurrent tool calls, default <code>2</code>, raising it makes the server slower)</td>
-</tr>
-<tr>
-<td><code>kb steer</code></td>
-<td>Write editor steering, <code>AGENTS.md</code>, <code>.mcp.json</code>, <code>.vscode/mcp.json</code>, <code>.windsurfrules</code>, skills</td>
-</tr>
-<tr>
-<td><code>kb lint</code> · <code>doctor</code> · <code>kb eval</code></td>
-<td>Graph health · environment check · retrieval-quality scoring</td>
-</tr>
-</tbody>
-</table>
-<p>Global options apply to any command: <code>-v</code>/<code>-q</code> (verbosity), <code>--log-file PATH</code>, <code>--config PATH</code>.
-Two more read like globals and are not. <code>--dry-run</code> (preview without changing anything) belongs to
-the 8 <code>mirror</code> commands plus <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>; <code>--version</code> belongs to the bare
-<code>contextlake</code> only, and <code>contextlake version</code> is the form that works everywhere. Pass either
-somewhere it does not exist and the command exits <code>2</code> and names the commands that do take it.
-Output is colorized on a TTY and plain when piped; set <code>NO_COLOR</code> to force-disable.</p>
+<p>Run any command as <code>contextlake &lt;command&gt;</code>. Each one has its own help:
+<code>contextlake &lt;command&gt; --help</code>.</p>
+<p>Verbs sit under the noun they belong to:</p>
+<ul>
+<li><code>mirror</code> for mirroring git repositories</li>
+<li><code>kb</code> for the knowledge layer</li>
+<li><code>init</code>, <code>bootstrap</code>, <code>version</code>, <code>completion</code> and <code>doctor</code> sit at the top, because they span
+  both tiers or neither</li>
+</ul>
+<p>Per-command docs live with their layer. The mirror commands are in
+<a href="mirroring-repositories">Mirroring repositories</a>.
+The knowledge-layer build commands get a page each:
+<a href="indexing-the-code-graph">Indexing the code graph</a>,
+<a href="connecting-and-enriching">Connecting and enriching</a>,
+<a href="searching-semantically">Searching semantically</a>,
+<a href="generating-the-wiki">Generating the wiki</a>.</p>
+<p><strong>Global options</strong> work on any command: <code>-v</code> / <code>-q</code> for verbosity, <code>--log-file PATH</code>, and
+<code>--config PATH</code>.</p>
+<p><strong>Two more look global and are not:</strong></p>
+<ul>
+<li><code>--dry-run</code>, which previews without changing anything, belongs to the 8 <code>mirror</code> commands plus
+  <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>.</li>
+<li><code>--version</code> belongs to the bare <code>contextlake</code> only. <code>contextlake version</code> is the form that
+  works everywhere.</li>
+</ul>
+<p>Pass either somewhere it does not exist, and the command exits <code>2</code> and names the commands that do
+take it.</p>
+<p>Output is colourised on a TTY and plain when piped. Set <code>NO_COLOR</code> to force it off.</p>
 <p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/tree/main/examples" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
 second set: <code>--log-format json</code> (one JSON object per line, every line stamped with a run id),
 <code>--metrics-file PATH</code> (Prometheus textfile-collector output), <code>--redact</code> (the <code>--log-file</code> copy
 is already scrubbed of workspace paths, group and repo names), and <code>--access-log</code>. See
 <a href="console-output">Reading the console output</a>.</p>
 <h2 id="knowledge-layer">Knowledge layer<a class="anchor" href="#knowledge-layer" title="Link to this section">#</a></h2>
-<p>Beyond mirroring, the optional <code>contextlake.kb</code> layer turns your repos into a <strong>knowledge
-graph</strong> and serves it to AI tools over <strong>MCP</strong>. It can link repos directly to the Atlassian /
-Figma / GitLab / Slack / Zendesk items and code symbols that reference them, add <strong>semantic
-search</strong>,
-write a curated <strong>wiki</strong>, <strong>visualize</strong> the graph
-(offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
-generate per-tool <strong>steering files</strong> + a skills library. Most of it needs no model; the rest
-works with a local Ollama or any OpenAI-compatible endpoint.</p>
+<p>Beyond mirroring, the optional <code>contextlake.kb</code> layer turns your repos into a <strong>knowledge graph</strong>
+and serves it to AI tools over <strong>MCP</strong>. It can:</p>
+<ul>
+<li>link repos to the Atlassian, Figma, GitLab, Slack and Zendesk items, and the code symbols, that
+  reference them</li>
+<li>add <strong>semantic search</strong></li>
+<li>write a curated <strong>wiki</strong></li>
+<li><strong>visualise</strong> the graph as offline interactive HTML: a fleet overview, a symbol's
+  neighbourhood, or a single repo</li>
+<li>generate per-tool <strong>steering files</strong> and a skills library</li>
+</ul>
+<p>Most of it needs no model. The rest works with a local Ollama, or any OpenAI-compatible
+endpoint.</p>
 <p>One command sets it all up (configs are read from their default locations):</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
 </code></pre></div>
 <p>Full guide: <strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>.</p>
 <h3 id="the-dashboard">The dashboard<a class="anchor" href="#the-dashboard" title="Link to this section">#</a></h3>
-<p><code>contextlake kb dashboard --serve</code> opens a local, offline-first window into everything the
-knowledge layer builds: a fleet overview, per-repo anatomy, the cross-repo architecture
-graph, change-impact (blast radius), health, search, and a <strong>Chat</strong> tab to ask questions
-about the fleet in plain language (free graph router always on, LLM-synthesized prose
-opt-in via <code>--llm-chat</code>). Try it with zero setup via <code>contextlake kb dashboard --serve --sample</code>.</p>
+<p><code>contextlake kb dashboard --serve</code> opens a local window into everything the knowledge layer
+builds. It works offline. Tabs cover:</p>
+<ul>
+<li>a fleet overview, and per-repo anatomy</li>
+<li>the cross-repo architecture graph</li>
+<li>change impact, so you can see what a change would touch</li>
+<li>health and search</li>
+<li><strong>Chat</strong>, to ask about the fleet in plain language</li>
+</ul>
+<p>Chat answers from the graph for free. Prose written by a model is opt-in, with <code>--llm-chat</code>.</p>
+<p>Want to look first? <code>contextlake kb dashboard --serve --sample</code> needs no setup at all.</p>
 <p align="center">
   <img class="ss ss-light" src="img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820"><img class="ss ss-dark" src="img/dashboard/fleet-cards-dark.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
@@ -457,6 +391,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

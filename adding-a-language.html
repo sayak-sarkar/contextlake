@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Adding a language · contextlake docs">
 <meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -174,26 +174,32 @@ your language up for free.</p>
 definitions. Name resolution is repo-wide and name-based, so without the grouping a Python
 <code>conn.close()</code> matched a JavaScript <code>close()</code>; the comment above the table records the measurement
 that forced it, 282 false positives on one real repo, precision 1 in 282.</p>
-<p>Add your language to a group <strong>only if it genuinely interoperates</strong> with the languages already in it.
-The existing groups are <code>js</code> (JavaScript, TypeScript, TSX), <code>c</code> (C and C++), and <code>jvm</code> (Java, Kotlin,
-Scala). A language absent from the table is its own group, which is exactly what you want for a
-language that does not share a runtime with anything else, and is why Python, Go, Rust, C#, Ruby and
-PHP are all absent.</p>
+<p>Add your language to a group <strong>only if it genuinely interoperates</strong> with the ones already in it.</p>
+<p>The existing groups are:</p>
+<ul>
+<li><code>js</code>: JavaScript, TypeScript, TSX</li>
+<li><code>c</code>: C and C++</li>
+<li><code>jvm</code>: Java, Kotlin, Scala</li>
+</ul>
+<p>A language absent from the table is its own group. That is exactly what you want for a language
+that shares a runtime with nothing else, and it is why Python, Go, Rust, C#, Ruby and PHP are all
+absent.</p>
 <p>Getting this wrong in the permissive direction is the expensive error. The false edges it creates are
 stamped <code>INFERRED</code>, so they read as fact. When in doubt, leave it out.</p>
 <h3 id="7-add-the-parse-tests">7. Add the parse tests<a class="anchor" href="#7-add-the-parse-tests" title="Link to this section">#</a></h3>
 <p>Two edits in <code>tests/kb/test_kb_parse.py</code>, both required:</p>
 <ol>
-<li><strong>A <code>test_parse_&lt;lang&gt;()</code></strong> that calls <code>parse_source(repo, path, src, lang)</code> directly on a source
-   string and asserts what came back. <code>test_parse_kotlin</code> is the template worth imitating: it asserts
-   every stream the parser produces (nodes by kind, module nodes from imports, callee names, base
-   names) and, more importantly, it asserts the <strong>negatives</strong>. <code>"Order" not in by_kind["function"]</code>
-   and <code>"Order" not in base_names</code> are what catch a query that captures one node too many. Write one
-   negative per normalisation your language relies on.</li>
-<li><strong>The extension assertion.</strong> Add your extensions to the tuple in
-   <code>test_lang_by_ext_covers_target_languages</code>, and add an explicit mapping assertion for a secondary
-   extension if you have one, the way <code>assert LANG_BY_EXT[".kts"] == "kotlin"</code> does.</li>
+<li><strong>A <code>test_parse_&lt;lang&gt;()</code></strong> that calls <code>parse_source(repo, path, src, lang)</code> on a source string
+   and asserts what came back.</li>
 </ol>
+<p><code>test_parse_kotlin</code> is the template worth copying. It asserts every stream the parser
+   produces: nodes by kind, module nodes from imports, callee names, base names.</p>
+<p>More importantly, it asserts the <strong>negatives</strong>. <code>"Order" not in by_kind["function"]</code> and
+   <code>"Order" not in base_names</code> are what catch a query that captures one node too many. Write one
+   negative per normalisation your language relies on.
+2. <strong>The extension assertion.</strong> Add your extensions to the tuple in
+   <code>test_lang_by_ext_covers_target_languages</code>, and add an explicit mapping assertion for a secondary
+   extension if you have one, the way <code>assert LANG_BY_EXT[".kts"] == "kotlin"</code> does.</p>
 <p>The kind-registry parity test needs no edit. It introspects <code>_DEF_TYPES</code> directly, so it starts
 covering your language the moment the row exists, and fails immediately if you mapped a node type to a
 kind nobody registered.</p>
@@ -299,11 +305,16 @@ topics work for your language the moment its files are indexed.</p>
 and <code>module</code> of its own. (The five member-symbol kinds, <code>field</code>, <code>macro</code>, <code>typedef</code>, <code>enum_constant</code>
 and <code>global_variable</code>, come from a separate C and C++ pass, not from <code>_DEF_TYPES</code>.) Mapping into that
 first set is the cheap path and the normal one.</p>
-<p>If you genuinely need a new kind, add a row to <code>KIND_REGISTRY</code> in <code>src/contextlake/kb/kinds.py</code>.
-<code>KindSpec</code> is a frozen dataclass in which <strong>no field has a default</strong>, deliberately: a new kind cannot
-be added without answering every question a consumer asks about it, and a reviewer sees all of those
-answers in one hunk. Python refuses to construct a partial row, and a test asserts that no field ever
-gains a default.</p>
+<p>If you genuinely need a new kind, add a row to <code>KIND_REGISTRY</code> in
+<code>src/contextlake/kb/kinds.py</code>.</p>
+<p><code>KindSpec</code> is a frozen dataclass where <strong>no field has a default</strong>. That is deliberate, and it
+buys two things:</p>
+<ul>
+<li>A new kind cannot be added without answering every question a consumer asks about it.</li>
+<li>A reviewer sees all of those answers in one hunk.</li>
+</ul>
+<p>Python refuses to construct a partial row, and a test asserts that no field ever gains a
+default.</p>
 <p>Four constraints on the values, each pinned by its own test:</p>
 <ul>
 <li><code>color</code> must be lowercase <code>#rrggbb</code>. A kind without a colour gets no filter button on the graph
@@ -640,6 +651,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

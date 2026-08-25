@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Benchmarks · contextlake docs">
 <meta name="twitter:description" content="Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Benchmarks", "description": "Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.", "url": "https://sayak.in/contextlake/benchmarks", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Benchmarks", "item": "https://sayak.in/contextlake/benchmarks"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Benchmarks", "description": "Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.", "url": "https://sayak.in/contextlake/benchmarks", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Benchmarks", "item": "https://sayak.in/contextlake/benchmarks"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -131,30 +131,40 @@ description of the two mechanisms, not a measurement of either:</p>
 </tr>
 </tbody>
 </table>
-<p>Rows 3 and 4 are capability differences rather than savings: <strong>transitive reach</strong> and <strong>concept
-matching</strong> are not things a grep-and-read loop does more expensively, they are things it does not do
-at all, at any budget. The definition and caller rows are where a token saving is plausible, and its
-size depends entirely on how common the name is and how disciplined the agent's search would
-otherwise have been. The ownership row is where contextlake saves least, because <code>git log</code> was
-already cheap.</p>
+<p>Rows 3 and 4 are capability differences, not savings. <strong>Transitive reach</strong> and <strong>concept
+matching</strong> are not things a grep-and-read loop does more expensively. They are things it does not
+do at all, at any budget.</p>
+<p>The definition and caller rows are where a token saving is plausible. How big depends on two
+things: how common the name is, and how disciplined the agent's search would otherwise have been.</p>
+<p>The ownership row is where contextlake saves least, because <code>git log</code> was already cheap.</p>
 <p>The other structural difference is that brute-force search costs <em>time</em> as well as tokens on a large
 fleet: a fleet-wide grep for a common term returns more hits than an agent can read, before it opens
 a single file. contextlake answers the same question from its index in one bounded, cited call.</p>
 <h2 id="the-one-fixed-cost">The one fixed cost<a class="anchor" href="#the-one-fixed-cost" title="Link to this section">#</a></h2>
-<p>Any session pays for the tool schemas once, whether or not it calls a tool: <strong>23 of them on a
-graph-only store</strong> (22 graph tools plus the <code>ask</code> router) and <strong>25 once embeddings exist</strong>, all
-listed in <a href="serving-over-mcp">Serve</a>. That cost is real, and it can leave you net-negative if the agent
-reaches for the server on questions it does not help with. There is no published token figure for it
-here for the reason at the top of the page; the recipe in
-<a href="#measure-it-on-your-own-repositories">Measure it on your own repositories</a> counts it in the same
-pass as everything else.</p>
+<p>Any session pays for the tool schemas once, whether or not it calls a tool:</p>
+<ul>
+<li><strong>23 on a graph-only store</strong>, which is 22 graph tools plus the <code>ask</code> router</li>
+<li><strong>25 once embeddings exist</strong></li>
+</ul>
+<p>All of them are listed in <a href="serving-over-mcp">Serving over MCP</a>.</p>
+<p>That cost is real. It can leave you net-negative if the agent reaches for the server on
+questions it does not help with.</p>
+<p>There is no published token figure for it here, for the reason at the top of the page. The
+recipe in <a href="#measure-it-on-your-own-repositories">Measure it on your own repositories</a> counts it
+in the same pass as everything else.</p>
 <h2 id="by-use-case-honestly">By use case, honestly<a class="anchor" href="#by-use-case-honestly" title="Link to this section">#</a></h2>
 <h3 id="new-code-development-the-most-important-case">New code development: the most important case<a class="anchor" href="#new-code-development-the-most-important-case" title="Link to this section">#</a></h3>
-<p>In a real company you rarely write code into a vacuum; you add a feature, endpoint, or service to an
-estate that already has hundreds of repositories. Most of that work is <strong>grounding the new code in
-existing reality</strong>: which service to call and its real signature, the established pattern to model
-on, whether a utility for this already exists, and where the new code plugs in. That is retrieval,
-and it is exactly where an ungrounded model hallucinates an integration or reinvents a helper.</p>
+<p>In a real company you rarely write code into a vacuum. You add a feature, an endpoint or a
+service to an estate that already has hundreds of repositories.</p>
+<p>Most of that work is <strong>grounding the new code in what already exists</strong>:</p>
+<ul>
+<li>which service to call, and its real signature</li>
+<li>the established pattern to model on</li>
+<li>whether a utility for this already exists</li>
+<li>where the new code plugs in</li>
+</ul>
+<p>All of that is retrieval. It is exactly where an ungrounded model hallucinates an integration or
+reinvents a helper.</p>
 <p>A realistic new-code task, <em>"add a feature that integrates with an existing service, following
 existing conventions"</em>, decomposes into a sequence of grounding questions the agent asks before it
 writes anything:</p>
@@ -179,19 +189,20 @@ ground against.</p>
 generation is irreducible. What contextlake reduces is the <em>number</em> of generations and the <em>amount of
 new code</em> generated, ranked by impact:</p>
 <ol>
-<li><strong>It cuts the hallucinate → fail → regenerate loop (biggest lever).</strong> The expensive thing isn't
-   the first draft; it's the second, third, and fourth. An ungrounded model invents an import, calls
-   the wrong service, or guesses a signature; the build fails; the agent regenerates. Every retry is
-   generation tokens spent again. Grounding in the <em>real</em> API/signature/pattern collapses N attempts
-   toward 1, the failure mode that dominates new-code work in a large estate.</li>
-<li><strong>Reuse instead of reinvent.</strong> When semantic search surfaces an existing client/util/validator,
-   the agent emits a <em>call</em> (a few tokens) instead of a reimplementation (tens to hundreds), and
-   doesn't add a duplicate to the codebase.</li>
-<li><strong>Surgical edits instead of full rewrites.</strong> With a precise definition + blast radius, the agent
-   emits a small diff rather than regenerating a whole file "to be safe."</li>
-<li><strong>Less defensive/exploratory/hedged output.</strong> Precise context yields one confident implementation
-   instead of multiple candidate approaches and just-in-case scaffolding.</li>
+<li><strong>It cuts the hallucinate, fail, regenerate loop.</strong> This is the biggest lever.</li>
 </ol>
+<p>The expensive draft is not the first one. It is the second, third and fourth. An ungrounded
+   model invents an import, calls the wrong service, or guesses a signature. The build fails.
+   The agent regenerates. Every retry spends generation tokens again.</p>
+<p>Grounding in the real API, signature and pattern collapses N attempts toward 1. That failure
+   mode dominates new-code work in a large estate.
+2. <strong>Reuse instead of reinvent.</strong> When semantic search surfaces an existing client/util/validator,
+   the agent emits a <em>call</em> (a few tokens) instead of a reimplementation (tens to hundreds), and
+   doesn't add a duplicate to the codebase.
+3. <strong>Surgical edits instead of full rewrites.</strong> With a precise definition + blast radius, the agent
+   emits a small diff rather than regenerating a whole file "to be safe."
+4. <strong>Less defensive/exploratory/hedged output.</strong> Precise context yields one confident implementation
+   instead of multiple candidate approaches and just-in-case scaffolding.</p>
 <p><strong>The honest boundary:</strong> the irreducible core (typing out the correct code) can't shrink; if the
 first generation would already be correct without contextlake, the saving is ~0; and it can't rescue
 a model that ignores the context it was handed.</p>
@@ -258,13 +269,21 @@ round-trips.</p>
 <li>Index your repos (<code>contextlake bootstrap</code> or <code>contextlake kb index --workspace …</code>).</li>
 <li>Pick a handful of representative questions your team actually asks, and write them down before
    you look at any output. Post-hoc question selection is how benchmarks flatter themselves.</li>
-<li>For each question, capture <strong>both</strong> sides: the contextlake MCP response (the JSON the agent
-   receives, which you can get from <code>contextlake kb query --json</code>, <code>kb impact --json</code>, and the other
-   <code>--json</code> commands) and the baseline your agent would otherwise gather (the <code>grep</code> output plus the
-   files it would then read).</li>
-<li>Tokenize both with the <strong>same</strong> tokenizer, the one your model actually uses, and record the
-   tokenizer and the contextlake version alongside the numbers. Both change; a figure without them
-   ages into fiction, which is what happened to the numbers this page used to carry.</li>
+<li>For each question, capture <strong>both</strong> sides.</li>
+</ol>
+<ul>
+<li>The contextlake MCP response, meaning the JSON the agent receives. Get it from
+     <code>contextlake kb query --json</code>, <code>kb impact --json</code> and the other <code>--json</code> commands.</li>
+<li>The baseline your agent would otherwise gather: the <code>grep</code> output, plus the files it would
+     then read.</li>
+</ul>
+<ol start="4">
+<li>Tokenize both with the <strong>same</strong> tokenizer, the one your model actually uses.</li>
+</ol>
+<p>Record the tokenizer and the contextlake version next to the numbers. Both change. A figure
+   without them ages into fiction, which is what happened to the numbers this page used to
+   carry.</p>
+<ol start="5">
 <li>Add the one-off schema cost once per session, not once per query.</li>
 </ol>
 <p>The point is not a single magic number, it is to see, on <em>your</em> codebase and <em>your</em> question mix,
@@ -323,6 +342,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

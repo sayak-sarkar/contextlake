@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -165,13 +165,17 @@ locally.</p>
 <li>Clones up to 8 repositories concurrently</li>
 <li>Handles timeouts gracefully (300s per repository)</li>
 </ul>
-<p>How each repo is cloned (<code>clone_method = auto</code>, the default): with the platform's token env var set
-(<code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code> or <code>GITEA_TOKEN</code>, or whatever <code>token_env</code> names),
-contextlake clones with plain <code>git</code>, passing the token as an auth header
-through the child environment, never on the command line and never in the URL, so
-it can't leak into <code>ps</code> output or <code>.git/config</code>. Without a token it uses <code>glab repo
-clone</code> (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
-<code>git clone</code> over HTTPS. Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
+<p>How each repo is cloned, with <code>clone_method = auto</code> (the default):</p>
+<ol>
+<li><strong>With a platform token set</strong>, meaning <code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code>,
+   <code>GITEA_TOKEN</code>, or whatever <code>token_env</code> names: contextlake clones with plain <code>git</code> and passes
+   the token as an auth header through the child environment. Never on the command line, never
+   in the URL, so it cannot leak into <code>ps</code> output or <code>.git/config</code>.</li>
+<li><strong>Without a token, and with glab installed</strong>: <code>glab repo clone</code>, using glab's own auth. This
+   is a GitLab-only path.</li>
+<li><strong>Otherwise</strong>: plain <code>git clone</code> over HTTPS.</li>
+</ol>
+<p>Set <code>clone_method = git</code> or <code>clone_method = glab</code> to force one path.</p>
 <h3 id="mirror-update-update-existing-repositories"><code>mirror update</code>: update existing repositories<a class="anchor" href="#mirror-update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>update
@@ -248,25 +252,34 @@ step (stage 2 of 8, before the knowledge layer is built), or on demand:</p>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w"> </span>--report<span class="w"> </span>./audit.json<span class="w"> </span><span class="c1"># choose where the per-repo JSON + .csv are written</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--no-audit<span class="w">             </span><span class="c1"># run sync without the audit step</span>
 </code></pre></div>
-<p>It classifies each repo as <strong>empty</strong> (no commits/files), <strong>readme-only</strong> (just a template
-README), <strong>boilerplate</strong> (only meta files), or <strong>content</strong>, and reports each repo's
-<strong>creation date</strong> (GitLab <code>created_at</code>, captured during fetch; falls back to the first git
-commit) and <strong>last commit date</strong> (from the local clone), with an aggregate summary
-(counts, oldest/newest, how many stale over 1–2 years, repos with no commits). The full
-per-repo table is written as JSON <strong>and</strong> CSV. The scan is parallel, read-only, and works
-offline from the fetch cache.</p>
+<p>It sorts each repo into one of four classes:</p>
+<ul>
+<li><strong>empty</strong>, no commits or files</li>
+<li><strong>readme-only</strong>, just a template README</li>
+<li><strong>boilerplate</strong>, only meta files</li>
+<li><strong>content</strong>, everything else</li>
+</ul>
+<p>For each repo it reports the <strong>creation date</strong> (GitLab <code>created_at</code>, captured during fetch,
+falling back to the first git commit) and the <strong>last commit date</strong> (from the local clone).</p>
+<p>The summary aggregates all of that: counts, oldest and newest, how many are stale over one and
+two years, and repos with no commits. The full per-repo table is written as both JSON and CSV.</p>
+<p>The scan is parallel, read-only, and works offline from the fetch cache.</p>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
 <p>contextlake's config-file precedence and the full settings reference now have their own page: <strong><a href="configuration">Configuration</a></strong>.</p>
 <h2 id="branch-safety">Branch safety<a class="anchor" href="#branch-safety" title="Link to this section">#</a></h2>
 <p>The tool protects your local work without getting in your way. The guiding rule:
 <strong>a clean repo is always safe to act on, the branch name alone never causes a skip.</strong>
 The only <em>setting</em> that blocks an <code>update</code> is the one that catches a <em>dirty working tree</em>.</p>
-<p>Two states stop an <code>update</code> on a clean tree as well, and neither is configurable, because both are
-about there being no fast-forward to perform rather than about protecting your work: a repo on a
-<strong>detached HEAD</strong> (no branch to update) and a branch that has <strong>diverged from its upstream</strong> (a
-mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
-reason, so a green run is not a promise that every clean repo moved. See
-<a href="console-output">Reading the console output</a>.</p>
+<p>Two more states stop an <code>update</code>, even on a clean tree:</p>
+<ul>
+<li><strong>A detached HEAD.</strong> There is no branch to update.</li>
+<li><strong>A branch that has diverged from its upstream.</strong> A mirror fast-forwards. It never merges or
+  rebases.</li>
+</ul>
+<p>Neither is configurable, because neither is about protecting your work. In both cases there is
+simply no fast-forward to perform.</p>
+<p>Both are reported per repo as skips, with the reason. So a green run is not a promise that every
+clean repo moved. See <a href="console-output">Console output</a>.</p>
 <p align="center">
   <img src="img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
 </p>
@@ -435,6 +448,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

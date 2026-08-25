@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Indexing the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -89,11 +89,12 @@ git repository but holds some is <strong>refused</strong>, with the command that
         contextlake kb index --workspace ~/work
   → Or pass --bundle to index this directory as one repository anyway. …
 </code></pre></div>
-<p>It refuses rather than quietly switching to <code>--workspace</code> for you, because switching can lose data:
-<code>--workspace</code> indexes the nested repositories and nothing outside them, so on a tree of your own
-loose sources that happens to carry a dependency with its own <code>.git</code> it would index the dependency
-and drop your files. So the shape is measured first, from how much indexable content lies outside
-the nested repositories, and only then does it decide:</p>
+<p>It refuses rather than switching to <code>--workspace</code> for you, because switching can lose data.</p>
+<p><code>--workspace</code> indexes the nested repositories and nothing outside them. So on a tree of your own
+loose sources that happens to carry a dependency with its own <code>.git</code>, it would index the
+dependency and drop your files.</p>
+<p>The shape is measured first: how much indexable content lies outside the nested repositories.
+Only then does it decide:</p>
 <table>
 <thead>
 <tr>
@@ -126,11 +127,16 @@ bundled repository -- and note the cost you are accepting: the nested repositori
 under the directory's name, so if you later index them properly they are in the graph twice. <code>kb
 forget &lt;repo-id&gt;</code> removes a bundle you did not mean to create.</p>
 <h2 id="incremental-and-time-travel">Incremental and time-travel<a class="anchor" href="#incremental-and-time-travel" title="Link to this section">#</a></h2>
-<p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD moved since their last
-index, so a scheduled (cron) run stays cheap; pass <code>--force</code> to rebuild everything, or <code>--watch [--interval
-N]</code> to keep re-indexing in a loop (the same <code>--watch</code> / <code>--interval</code> flags also drive <code>connect</code> and
-<code>embed</code>). Every indexed snapshot is kept, so <code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> does
-<strong>time-travel</strong>, it searches repo <code>R</code> as it was at a previously-indexed commit.</p>
+<p><code>index --workspace</code> is <strong>incremental</strong>. It re-indexes only repos whose git HEAD moved since their
+last index, so a scheduled run stays cheap.</p>
+<ul>
+<li><code>--force</code> rebuilds everything.</li>
+<li><code>--watch [--interval N]</code> keeps re-indexing in a loop. The same two flags also drive <code>connect</code>
+  and <code>embed</code>.</li>
+</ul>
+<p>Every indexed snapshot is kept, which gives you <strong>time travel</strong>:
+<code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> searches repo <code>R</code> as it was at a previously indexed
+commit.</p>
 <h2 id="re-indexing-one-repository-by-its-id">Re-indexing one repository by its id<a class="anchor" href="#re-indexing-one-repository-by-its-id" title="Link to this section">#</a></h2>
 <p>A repository's <strong>id</strong> is derived from its <code>origin</code> remote (so it survives being moved or re-cloned) and has
 no relation to where the clone sits on disk. That is the id <code>kb lint</code> and the dashboard report, so
@@ -141,42 +147,62 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w
 <p>The repository is re-indexed under the id it was already filed as, never a second time under its directory
 name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
 checkout is gone, the error names the path it was indexed from.</p>
-<p>For a checkout that has no usable <code>origin</code>, or one you want filed under a different name, <code>--repo</code> sets
-the id explicitly: <code>contextlake kb index --source ./widgets --repo team/widgets</code>. Without it the id
-falls back to the directory name, which is exactly the fragile, path-dependent id this section exists to
-avoid, so name it once rather than living with a repo filed as <code>widgets</code> because that is what the folder
-happened to be called.</p>
+<p>Use <code>--repo</code> to set the id explicitly, for a checkout with no usable <code>origin</code> or one you want
+filed under a different name:</p>
+<div class="codehilite"><pre><span></span><code>contextlake kb index --source ./widgets --repo team/widgets
+</code></pre></div>
+
+<p>Without it, the id falls back to the directory name. That is exactly the fragile, path-dependent
+id this section exists to avoid. Name it once, rather than living with a repo filed as <code>widgets</code>
+because that is what the folder happened to be called.</p>
 <h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
 <p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
 serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
 Linux, macOS, and Windows, with an automatic serial fallback if a worker pool can't start. It defaults to
 <code>cpu_count - 1</code> workers (capped at 8); set <code>[kb] index_workers</code> to tune it (<code>1</code> forces serial).</p>
-<p>The parser also <strong>skips machine-generated and derived files</strong>: names like <code>*.designer.cs</code>, <code>*.min.js</code>
-and <code>AssemblyInfo.cs</code>, and any of four case-insensitive header markers in the first 2048 bytes,
-<code>&lt;auto-generated</code>, <code>@generated</code>, <code>do not edit</code> and <code>code generated by</code>. That last pair catches more than
-it looks: a file whose banner just says "DO NOT EDIT" is skipped too. Also skipped are code files larger than <code>[kb]
-max_file_bytes</code> (5 MB). That's derived noise, not real source, and every skip is reported (no silent gaps).
-Set <code>[kb] skip_generated = false</code> or raise <code>max_file_bytes</code> to index them anyway. Discovery also skips
-<strong>vendored nested repos</strong>: an upstream clone carried inside the mirror with its own <code>.git</code> under a
-<code>module-federation</code> path segment, which is not your source and would flood the global graph with
-upstream-demo nodes. Each such skip is logged. (<code>node_modules</code> trees are already pruned before discovery
-descends into them.)</p>
-<p>To exclude your own paths, drop a <strong><code>.contextlakeignore</code></strong> at a repo's root: one glob per line (<code>#</code>
-comments and blank lines ignored), matched against each file's path relative to the repo and its name, so
-<code>*.lock</code> ignores by name anywhere and <code>vendor/</code> ignores a directory and everything under it. It's a small,
-dependency-free subset of gitignore syntax (no negation, <code>**</code>, or anchoring), enough to drop vendored trees
-and lockfiles from the graph.</p>
+<p>The parser <strong>skips machine-generated and derived files</strong>. It skips a file when any of these
+match:</p>
+<ul>
+<li>a name like <code>*.designer.cs</code>, <code>*.min.js</code> or <code>AssemblyInfo.cs</code></li>
+<li>one of four header markers in the first 2048 bytes, matched case-insensitively:
+  <code>&lt;auto-generated</code>, <code>@generated</code>, <code>do not edit</code>, <code>code generated by</code></li>
+<li>a size over <code>[kb] max_file_bytes</code>, which defaults to 5 MB</li>
+</ul>
+<p>The marker list catches more than it looks. A file whose banner only says "DO NOT EDIT" is
+skipped too.</p>
+<p>All of that is derived noise rather than real source, and <strong>every skip is reported</strong>, so there
+are no silent gaps. To index them anyway, set <code>[kb] skip_generated = false</code> or raise
+<code>max_file_bytes</code>.</p>
+<p>Discovery also skips <strong>vendored nested repos</strong>: an upstream clone carried inside the mirror,
+with its own <code>.git</code>, under a <code>module-federation</code> path segment. That is not your source, and
+indexing it would flood the global graph with upstream demo nodes. Each skip is logged.</p>
+<p><code>node_modules</code> trees are pruned before discovery even descends into them.</p>
+<p>To exclude your own paths, drop a <strong><code>.contextlakeignore</code></strong> at a repo's root. One glob per line;
+<code>#</code> comments and blank lines are ignored.</p>
+<p>Each glob is matched against the file's path relative to the repo, and against its name. So:</p>
+<ul>
+<li><code>*.lock</code> ignores by name, anywhere in the repo</li>
+<li><code>vendor/</code> ignores that directory and everything under it</li>
+</ul>
+<p>It is a small, dependency-free subset of gitignore syntax. No negation, no <code>**</code>, no anchoring.
+Enough to drop vendored trees and lockfiles from the graph.</p>
 <h2 id="health-and-maintenance">Health and maintenance<a class="anchor" href="#health-and-maintenance" title="Link to this section">#</a></h2>
-<p><code>contextlake doctor</code> checks the environment (FTS5, <code>git</code> / <code>glab</code> on PATH, the store, the embedder, and the
-ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any shard indexed with an older parser version than the one currently
-installed -- <code>contextlake kb index</code> rebuilds those on its next run, so they pick up parser-correctness fixes.
-<code>contextlake kb lint</code> audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were
-indexed), <strong>dangling edges</strong> (an edge whose endpoint node is missing), and the same <strong>older-parser</strong> repos
-doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
-but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
-gate red on its own.</p>
+<p><strong><code>contextlake doctor</code></strong> checks the environment: FTS5, <code>git</code> and <code>glab</code> on PATH, the store, the
+embedder and the ANN index. It exits non-zero if anything is wrong, so it works as a CI health
+gate.</p>
+<p>It also flags any shard indexed with an older parser version than the one installed. That flag
+is advisory and does not affect the exit code. <code>contextlake kb index</code> rebuilds those on its next
+run, so they pick up parser fixes.</p>
+<p><strong><code>contextlake kb lint</code></strong> audits the graph itself. It reports:</p>
+<ul>
+<li><strong>stale repos</strong>, where HEAD moved since they were indexed</li>
+<li><strong>dangling edges</strong>, where an edge's endpoint node is missing</li>
+<li>the same <strong>older-parser</strong> repos doctor reports, so the two commands never disagree</li>
+</ul>
+<p>Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
+it cannot read.</p>
+<p>The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
+upgrading to a build with a new parser could turn a green CI gate red on its own.</p>
 <p>Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
 either of them:</p>
 <ul>
@@ -275,6 +301,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

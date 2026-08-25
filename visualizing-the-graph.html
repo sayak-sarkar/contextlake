@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Visualizing the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -83,40 +83,53 @@ search, and a minimap; it opens straight from <code>file://</code>:</p>
   <img src="img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
-<p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> / <code>--overview</code>. <code>--limit</code> (default
-<code>20</code>) caps how many seed nodes a <code>--name</code> or <code>--search</code> match contributes, before the walk starts, and
-the run logs how many matched when it trims. It is the knob for "this name matches 300 symbols and I
-only want a view of the first few". Bound the result
-with <code>--max-nodes</code> (500, or 5000 on <code>--overview</code>, which is a fleet inventory and defaults to loading
-every repo so any of them is findable; it is a bound on the <strong>whole file</strong>: one-hop external
-nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), <code>--max-edges</code> (<strong><code>--repo</code> views only</strong>, see the mode list below; no cap by default,
-which is what the <code>html</code> and <code>dot</code> renderers want,
-and 400 for the Mermaid-rendered formats <code>mermaid</code> / <code>classdiagram</code> / <code>statediagram</code> / <code>erdiagram</code> /
-<code>deploymentdiagram</code> -- a dense repo can
-pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges there means a <code>--repo</code> view always renders, possibly truncated, never errors. A <strong>seeded</strong>
-Mermaid view gets no edge cap, so it can still exceed that limit and fail; narrow it with <code>--hops</code> or
-<code>--max-nodes</code> instead), and <code>--max-fanout</code> (a per-node cap that
-stops hub nodes from exploding: 50 on a seeded view, uncapped on a <code>--repo</code> view unless you
-pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
-is dropped is <strong>logged</strong>, never silently truncated.</p>
+<p><strong>Pick a seed</strong> with one of <code>--node</code>, <code>--name</code> (plus <code>--kind</code>), <code>--search</code>, <code>--repo</code> or
+<code>--overview</code>.</p>
+<p><code>--limit</code> (default <code>20</code>) caps how many seed nodes a <code>--name</code> or <code>--search</code> match contributes,
+before the walk starts. The run logs how many matched when it trims. Use it when a name matches
+300 symbols and you want a view of the first few.</p>
+<p><strong>Then bound the result</strong> with three flags.</p>
+<p><code>--max-nodes</code> (default 500, or 5000 on <code>--overview</code>)</p>
+<ul>
+<li><code>--overview</code> is a fleet inventory, so it loads every repo by default and any of them is
+  findable.</li>
+<li>This bounds the <strong>whole file</strong>. One-hop external nodes count against it too, and links take a
+  bounded share of whatever the repo's own nodes leave unused.</li>
+</ul>
+<p><code>--max-edges</code> (<code>--repo</code> views only)</p>
+<ul>
+<li>No cap by default, which is what the <code>html</code> and <code>dot</code> renderers want.</li>
+<li>400 for the Mermaid formats: <code>mermaid</code>, <code>classdiagram</code>, <code>statediagram</code>, <code>erdiagram</code>,
+  <code>deploymentdiagram</code>. A dense repo can pack well over 500 edges into 500 nodes, which used to
+  exceed Mermaid's own render limit and fail outright. Capping edges means a <code>--repo</code> view
+  always renders. It may be truncated, but it never errors.</li>
+<li>A <strong>seeded</strong> Mermaid view gets no edge cap, so it can still exceed that limit and fail. Narrow
+  it with <code>--hops</code> or <code>--max-nodes</code> instead.</li>
+</ul>
+<p><code>--max-fanout</code> (per-node cap, stops hub nodes exploding)</p>
+<ul>
+<li>50 on a seeded view.</li>
+<li>Uncapped on a <code>--repo</code> view unless you pass it, because capping containment fan-out by default
+  would hide a file's own symbols.</li>
+</ul>
+<p>Whatever gets dropped is <strong>logged</strong>. Nothing is silently truncated.</p>
 <p><code>--hops</code> (default 2), <code>--relation</code> and <code>--direction {in,out,both}</code> shape the <strong>walk</strong>, so they apply
 to the seeded modes (<code>--node</code> / <code>--name</code> / <code>--search</code>) only. <code>--overview</code> and <code>--repo</code> do not walk
 outward from a seed, so passing those three with either of them has no effect. What each mode does
 take: a seeded view, all of them except <code>--max-edges</code>, which the seeded path never receives, so it is
 accepted and then ignored; <code>--repo</code>, <code>--max-nodes</code> / <code>--max-edges</code> / <code>--max-fanout</code>;
 <code>--overview</code>, <code>--max-nodes</code> alone.</p>
-<p>For a <code>--repo</code> view over <code>--max-nodes</code>, which nodes
-survive the cut is ranked by degree (highest-connected nodes kept first, ties broken by node id)
-rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
-instead of whatever happened to sort first. Degree alone is not the whole rule: every kind present in
-the view is guaranteed a small floor of slots first, because pure degree ranking starved the rare kinds
-completely (on one measured repo it kept 0 of 412 <code>table</code> and 0 of 402 <code>resource</code> nodes), which made
-<code>erdiagram</code> and <code>deploymentdiagram</code> render empty for a repo that plainly had the data. On the
-dashboard, a repo too large to show in one diagram is auto-narrowed to its largest module, recursively
-and to any depth, with a clickable breadcrumb back out and a "Narrow further..." picker, instead of an
-arbitrary slice (see <a href="using-the-dashboard">The dashboard</a>).</p>
+<p>When a <code>--repo</code> view goes over <code>--max-nodes</code>, nodes are kept by <strong>degree</strong>: the
+highest-connected first, ties broken by node id. So a truncated diagram keeps the most connected
+part of the repo, not whatever sorted first.</p>
+<p>Degree alone is not the whole rule. Every kind present in the view gets a small floor of slots
+first. Pure degree ranking starved the rare kinds completely: on one measured repo it kept 0 of
+412 <code>table</code> nodes and 0 of 402 <code>resource</code> nodes, which made <code>erdiagram</code> and <code>deploymentdiagram</code>
+render empty for a repo that plainly had the data.</p>
+<p>On the dashboard, a repo too large for one diagram is narrowed to its largest module
+automatically. That works recursively, to any depth, with a clickable breadcrumb back out and a
+"Narrow further..." picker, instead of an arbitrary slice. See
+<a href="using-the-dashboard">Using the dashboard</a>.</p>
 <h2 id="output-formats">Output formats<a class="anchor" href="#output-formats" title="Link to this section">#</a></h2>
 <p>Output is chosen with <code>--format</code>:</p>
 <ul>
@@ -179,16 +192,18 @@ arbitrary slice (see <a href="using-the-dashboard">The dashboard</a>).</p>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for cytoscape / custom tooling (Gephi/yEd users want
   <code>--format graphml</code> instead, real typed attributes, not a bespoke shape to parse).</li>
 </ul>
-<p>For interactive exploration of a large graph, <code>contextlake kb graph --serve</code> runs a local web UI where
-clicking a node <strong>expands</strong> it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it. With <code>--overview</code> it serves something larger: the whole cross-linked site,
-overview plus a page per repo, each repo page rendered on demand rather than pre-built, which is the
-live counterpart of <code>--site</code>. It binds <code>--host</code> (default <code>127.0.0.1</code>) and <code>--port</code> (default <code>8765</code>), so
-with no flags it is at <code>http://127.0.0.1:8765</code>. Like the dashboard, it answers a request only when the
-<code>Host</code> header names the
-address it was bound to (<code>--host</code>) or <code>localhost</code>, port included, that pinning is what stops a page on
-an attacker domain that re-resolves to <code>127.0.0.1</code> from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see <a href="using-the-dashboard#11-mutating-routes">dashboard.md</a>).</p>
+<p>To explore a large graph interactively, run <code>contextlake kb graph --serve</code>. It starts a local web
+UI. Clicking a node <strong>expands</strong> it, fetching its neighbours on demand, so you can walk the graph
+without rendering all of it first.</p>
+<p>With <code>--overview</code> it serves the whole cross-linked site: an overview plus a page per repo, each
+rendered on demand rather than pre-built. That is the live counterpart of <code>--site</code>.</p>
+<p>It binds <code>--host</code> (default <code>127.0.0.1</code>) and <code>--port</code> (default <code>8765</code>), so with no flags it is at
+<code>http://127.0.0.1:8765</code>.</p>
+<p>Like the dashboard, it answers a request only when the <code>Host</code> header names the address it was
+bound to, or <code>localhost</code>, port included. That pinning stops a page on an attacker's domain from
+re-resolving to <code>127.0.0.1</code> and reading your graph cross-origin. Bind the address you intend to
+browse rather than a wildcard. See
+<a href="using-the-dashboard#11-mutating-routes">Mutating routes</a>.</p>
 <h2 id="working-the-served-graph">Working the served graph<a class="anchor" href="#working-the-served-graph" title="Link to this section">#</a></h2>
 <p>The page <code>--serve</code> gives you is a surface you drive, not a picture you look at. Four controls
 carry most of the work.</p>
@@ -227,25 +242,40 @@ them adds a dot and a label that answer nothing the container doesn't already an
 node, as <code>folded  19 (config_key 14, macro 5)</code>. The full graph is still in the store; use
 <code>contextlake kb graph --kind config_key</code> or the MCP tools to reach it.</p>
 <h2 id="composed-namespace-c4-diagram">Composed namespace C4 diagram<a class="anchor" href="#composed-namespace-c4-diagram" title="Link to this section">#</a></h2>
-<p><code>contextlake kb graph --c4</code> renders a different kind of view: a composed <strong>C4-Context/Container</strong> diagram over
-the whole fleet, namespaces are the boundaries, repos are the containers inside them, and the aggregated
-<code>depends_on</code>, HTTP <code>flow</code>, and event <code>flow</code> edges become the labeled inter-service connections (grouped by
-flavor and weight, e.g. <code>http x3</code>). It renders graph data that <code>index</code>/<code>connect</code> already extracted, so it
-runs fully offline and adds no new extraction pass. <code>--group-depth N</code> (default <code>1</code>) controls how deep into
-the namespace path the boundaries are drawn, and <code>--repos &lt;glob&gt;</code> scopes the diagram to matching repos.
-Because it only draws coupling the graph already resolved (weight-ranked), it doesn't invent links, and
-folding event-flow in alongside HTTP keeps it from telling an HTTP-only half story:</p>
+<p><code>contextlake kb graph --c4</code> renders a composed <strong>C4 Context and Container</strong> diagram over the whole
+fleet:</p>
+<ul>
+<li>namespaces are the boundaries</li>
+<li>repos are the containers inside them</li>
+<li>aggregated <code>depends_on</code>, HTTP <code>flow</code> and event <code>flow</code> edges become the labelled connections
+  between services, grouped by flavour and weight, for example <code>http x3</code></li>
+</ul>
+<p>It draws graph data that <code>index</code> and <code>connect</code> already extracted, so it runs fully offline and
+adds no new extraction pass.</p>
+<p>Two flags shape it:</p>
+<ul>
+<li><code>--group-depth N</code> (default <code>1</code>) sets how deep into the namespace path the boundaries are drawn.</li>
+<li><code>--repos &lt;glob&gt;</code> scopes the diagram to matching repos.</li>
+</ul>
+<p>It only draws coupling the graph already resolved, ranked by weight, so it invents no links.
+Folding event flow in beside HTTP stops it telling an HTTP-only half story:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--group-depth<span class="w"> </span><span class="m">2</span><span class="w"> </span>--open<span class="w">       </span><span class="c1"># HTML, open in the browser</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--format<span class="w"> </span>dot<span class="w"> </span>&gt;<span class="w"> </span>c4.dot<span class="w">        </span><span class="c1"># clustered DOT, copy-pasteable</span>
 </code></pre></div>
-<p>Output is chosen with <code>--format</code>: <code>html</code> (default, an interactive page with namespace boundaries as
-compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot</code> (Graphviz clustered DOT with <code>subgraph
-cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
-<code>statediagram</code>, <code>erdiagram</code>, and <code>deploymentdiagram</code> aren't supported with <code>--c4</code> (the command exits
-with an error), and <code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.
-<code>--format graphml</code> and <code>--format cypher</code> are neither rejected nor honoured: <code>--c4</code> falls through to the
-HTML renderer and, because the output path is only defaulted for <code>--format html</code>, prints that HTML to
-stdout. Pass <code>--output &lt;path&gt;</code> if you hit it, and use <code>dot</code> or <code>json</code> for a real C4 export.</p>
+<p>With <code>--c4</code>, three formats work:</p>
+<ul>
+<li><strong><code>html</code></strong> (default), an interactive page with namespace boundaries as compound nodes, written
+  to <code>&lt;store&gt;/graphs/c4.html</code></li>
+<li><strong><code>dot</code></strong>, Graphviz clustered DOT with <code>subgraph cluster_*</code> boundaries</li>
+<li><strong><code>json</code></strong>, the raw payload</li>
+</ul>
+<p><strong>Not supported with <code>--c4</code>:</strong> <code>mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>, <code>statediagram</code>,
+<code>erdiagram</code> and <code>deploymentdiagram</code>. The command exits with an error. <code>--serve</code> does not apply
+either, since the C4 view is a generated file, not a live server.</p>
+<p><strong>One rough edge.</strong> <code>--format graphml</code> and <code>--format cypher</code> are neither rejected nor honoured.
+<code>--c4</code> falls through to the HTML renderer, and because the output path is only defaulted for
+<code>--format html</code>, it prints that HTML to stdout. If you hit this, pass <code>--output &lt;path&gt;</code>, and use
+<code>dot</code> or <code>json</code> for a real C4 export.</p>
 <h3 id="c1-external-systems">C1: external systems<a class="anchor" href="#c1-external-systems" title="Link to this section">#</a></h3>
 <p><code>--c4 --c1</code> adds a layer on top of the same view: one dashed box per distinct host an indexed repo
 calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
@@ -352,6 +382,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

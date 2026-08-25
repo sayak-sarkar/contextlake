@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="contextlake, explained · contextlake docs">
 <meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -146,11 +146,13 @@ connectors, and a model provider if you choose one that is not local.</p>
 follows is the project's own reasoning rather than a reconstruction of it. Where the codebase does
 <em>not</em> record a reason, this page says so instead of inventing one.</p>
 <h3 id="the-store-is-a-file-not-a-service">The store is a file, not a service<a class="anchor" href="#the-store-is-a-file-not-a-service" title="Link to this section">#</a></h3>
-<p>Everything persists in two SQLite databases plus a tree of JSON files, under one store directory
-(<code>~/.contextlake/kb</code> by default, <code>DEFAULT_STORE_DIR</code> in <code>src/contextlake/kb/config.py</code>). There is
-no daemon to start, no port to bind and no credential to manage, and SQLite ships inside Python, so
-the graph tier adds no install surface beyond the parsers. Keyword search is the <code>node_fts</code> FTS5
-virtual table in that same schema, rather than a separate search engine.</p>
+<p>Everything persists in two SQLite databases plus a tree of JSON files, under one store
+directory. That defaults to <code>~/.contextlake/kb</code>, set as <code>DEFAULT_STORE_DIR</code> in
+<code>src/contextlake/kb/config.py</code>.</p>
+<p>What that buys you: no daemon to start, no port to bind, no credential to manage. SQLite ships
+inside Python, so the graph tier adds no install surface beyond the parsers.</p>
+<p>Keyword search is the <code>node_fts</code> FTS5 virtual table in that same schema, not a separate search
+engine.</p>
 <p>The honest caveat: the codebase does not record a comparison against a graph database. What it does
 record is the shape of the trade it <em>is</em> making, which is a single-machine tool with one writer.
 Two contextlake processes aimed at one store are refused by an advisory lock naming the process
@@ -193,20 +195,25 @@ migration. <code>table</code>, <code>route</code>, <code>endpoint</code>, <code>
 <p>The trade is real. Nothing stops a typo becoming a new kind, and the containment is convention
 rather than a constraint.</p>
 <h3 id="caching-bounded-by-memory-not-by-entry-count">Caching bounded by memory, not by entry count<a class="anchor" href="#caching-bounded-by-memory-not-by-entry-count" title="Link to this section">#</a></h3>
-<p>A small decision with a measurement attached, and a good example of the house style. The shard
-cache is capped by estimated resident bytes rather than by number of entries, because parsed
-objects cost far more memory than their JSON: measured at roughly 13 times on a real
-20,000-node, 97,000-edge shard, 27.6 MB on disk against about 363 MB resident
-(<code>src/contextlake/kb/store/shards.py</code>). An entry-count cap of, say, 256 would pin dozens of large
-shards in memory before it ever fired, which on the multi-hundred-repo fleets this is for trades a
-latency bug for an out-of-memory one.</p>
+<p>A small decision with a measurement attached, and a good example of the house style.</p>
+<p>The shard cache is capped by <strong>estimated resident bytes</strong>, not by number of entries. Parsed
+objects cost far more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
+shard: 27.6 MB on disk, about 363 MB resident. Roughly 13 times
+(<code>src/contextlake/kb/store/shards.py</code>).</p>
+<p>An entry-count cap of, say, 256 would pin dozens of large shards in memory before it ever fired.
+On the multi-hundred-repo fleets this is built for, that trades a latency bug for an
+out-of-memory one.</p>
 <h3 id="the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons">The repository-list cache moved out of <code>/tmp</code>, for three stated reasons<a class="anchor" href="#the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons" title="Link to this section">#</a></h3>
-<p>The mirror's cache names every repository your account can enumerate, together with its clone URLs,
-which makes its location a privacy decision rather than a scratch-file one. It used to default to
-<code>/tmp</code>, and <code>src/contextlake/config.py</code> records why that was wrong on three counts: <code>/tmp</code> sits
-outside the user's home, so no HOME-based isolation reaches it; it is world-readable on a shared
-host; and its path is predictable, so another user can pre-create a file or symlink there first.
-It now defaults under <code>~/.cache/contextlake</code>, in a per-workspace subdirectory created <code>0700</code>.</p>
+<p>The mirror's cache names every repository your account can see, along with its clone URLs. That
+makes where it lives a privacy decision, not a scratch-file one.</p>
+<p>It used to default to <code>/tmp</code>. <code>src/contextlake/config.py</code> records why that was wrong, on three
+counts:</p>
+<ul>
+<li><code>/tmp</code> sits outside your home directory, so no HOME-based isolation protects it.</li>
+<li>It is world-readable on a shared host.</li>
+<li>Its path is predictable, so another user can pre-create a file or symlink there first.</li>
+</ul>
+<p>It now defaults to <code>~/.cache/contextlake</code>, in a per-workspace subdirectory created <code>0700</code>.</p>
 <p>A directory <em>you</em> configure explicitly is created but never re-permissioned, on the grounds that
 silently changing the mode of a path you pointed the tool at is a side effect nobody asked for.</p>
 <h3 id="config-that-can-run-a-program-is-trusted-by-provenance-not-by-content">Config that can run a program is trusted by provenance, not by content<a class="anchor" href="#config-that-can-run-a-program-is-trusted-by-provenance-not-by-content" title="Link to this section">#</a></h3>
@@ -220,12 +227,15 @@ project-local <code>store_dir</code> or <code>languages</code> should keep worki
 (<code>contextlake trust &lt;path&gt;</code> plus a trusted-paths file) was rejected as a new top-level CLI surface
 belonging to neither namespace, when <code>--config PATH</code> already means "I meant this file".</p>
 <h3 id="parser-staleness-is-repaired-not-only-reported">Parser staleness is repaired, not only reported<a class="anchor" href="#parser-staleness-is-repaired-not-only-reported" title="Link to this section">#</a></h3>
-<p>The clearest recorded reasoning in the project, because it documents a failure it shipped. When
-<code>PARSER_VERSION</code> moved to <code>2</code>, the staleness check only examined C and C++ repositories and the
-re-index decision compared the repository HEAD alone. A Python or TypeScript repository indexed by
-the previous major therefore stayed stale indefinitely: <code>index</code> reported it unchanged, <code>doctor</code>
-reported OK, and every answer came from a graph built by the old parser while every surface said
-healthy.</p>
+<p>The clearest recorded reasoning in the project, because it documents a failure that shipped.</p>
+<p>When <code>PARSER_VERSION</code> moved to <code>2</code>, two things were wrong at once:</p>
+<ul>
+<li>the staleness check only examined C and C++ repositories</li>
+<li>the re-index decision compared the repository HEAD alone</li>
+</ul>
+<p>So a Python or TypeScript repository indexed by the previous major stayed stale indefinitely.
+<code>index</code> reported it unchanged. <code>doctor</code> reported OK. Every answer came from a graph built by the
+old parser, and every surface called it healthy.</p>
 <p><code>kb index</code> now re-indexes a repository whose recorded parser version differs from the running one
 even though its HEAD has not moved, and says so. The comment in
 <code>src/contextlake/kb/cmds/index.py</code> states the reasoning: the alternative is "a green 'unchanged'
@@ -243,11 +253,15 @@ not argue the case against an API of its own.)</p>
 (<code>build_server</code> in <code>src/contextlake/kb/server.py</code>). A server started without embeddings says so
 and serves the other 23 rather than failing.</p>
 <h3 id="why-the-network-transports-are-authenticated-and-stdio-is-not">Why the network transports are authenticated and stdio is not<a class="anchor" href="#why-the-network-transports-are-authenticated-and-stdio-is-not" title="Link to this section">#</a></h3>
-<p><code>stdio</code> is the default: your editor spawns the server as a child process and talks over a pipe it
-owns, so there is nothing to authenticate against. The HTTP transports are different, because a
-socket that answers with real file paths, symbol names and owner identities is worth protecting.
-They require a bearer token on every request, validate <code>Origin</code> and <code>Host</code> against the bound
-address, and refuse a non-loopback bind unless you pass <code>--allow-remote</code>.</p>
+<p><code>stdio</code> is the default. Your editor spawns the server as a child process and talks over a pipe it
+owns, so there is nothing to authenticate against.</p>
+<p>The HTTP transports are different. A socket that answers with real file paths, symbol names and
+owner identities is worth protecting, so they:</p>
+<ul>
+<li>require a bearer token on every request</li>
+<li>validate <code>Origin</code> and <code>Host</code> against the bound address</li>
+<li>refuse a non-loopback bind unless you pass <code>--allow-remote</code></li>
+</ul>
 <p>The token gate is ASGI middleware wrapping the whole application
 (<code>BearerAuthMiddleware</code> in <code>src/contextlake/kb/server.py</code>), which has a consequence worth knowing
 before you debug it: an unauthenticated request to <em>any</em> path, the root included, gets <code>401</code>, not
@@ -303,11 +317,16 @@ worth:</p>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
-<p>The alternative is a graph that records only the relationship. It is smaller, faster to build, and
-it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
-With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
-call, and say it does not know when the graph does not know. Without it, the assistant is back to
-sounding confident about everything.</p>
+<p>The alternative is a graph that records only the relationship. It is smaller and faster to
+build. It also makes every fact sound equally certain, which is the exact failure this tool
+exists to fix.</p>
+<p>With confidence recorded, an assistant can:</p>
+<ul>
+<li>state a containment as fact</li>
+<li>hedge on a name-matched call</li>
+<li>say it does not know, when the graph does not know</li>
+</ul>
+<p>Without it, the assistant is back to sounding confident about everything.</p>
 <p><code>kb impact</code> is where you see it pay off: incoming edges are walked highest-confidence first, so
 when a result is truncated at <code>--limit</code>, what you kept is the trustworthy part rather than an
 arbitrary slice.</p>
@@ -333,15 +352,17 @@ the second.</p>
    references already attached, and asked to organise evidence rather than recall it.</li>
 <li><strong>A review council.</strong> A second pass scores the draft against the graph. Pages below the accept
    threshold are reported as rejected rather than published, with per-lens reasons.</li>
-<li><strong>A deterministic gate that runs before the council.</strong> Added because the council was measurably
-   not enough: in a controlled run the shipped default provider scored a page that was one
-   sentence repeated 32 times at 0.967, the highest of that run, and accepted another whose
-   "Gotchas" section was the prompt's own guardrail reproduced word for word. Self-review is not
-   independent, so a model's failure modes are invisible to it, and a stronger judge moved those
-   verdicts without making them reliable.</li>
-<li><strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and very large
-   repositories get a page per subsystem rather than one page claiming to cover everything.</li>
+<li><strong>A deterministic gate that runs before the council.</strong> The council alone was measurably not
+   enough. In one controlled run, the shipped default provider:</li>
 </ol>
+<ul>
+<li>scored a page that was one sentence repeated 32 times at <strong>0.967</strong>, the highest of that run</li>
+<li>accepted another whose "Gotchas" section was the prompt's own guardrail, copied word for word</li>
+</ul>
+<p>Self-review is not independent. A model cannot see its own failure modes. A stronger judge
+   moved those verdicts without making them reliable.
+4. <strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and very large
+   repositories get a page per subsystem rather than one page claiming to cover everything.</p>
 <p>In run order rather than in the order above, because the deterministic gate is deliberately in
 front of the council:</p>
 <pre class="mermaid">flowchart LR
@@ -357,12 +378,15 @@ front of the council:</p>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
-<p>The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
-six normalized words with the instruction text, while the leaking page shared a run of 61, so the
-instruction-leak rule fires at 12. The highest legitimate sentence repeat across the same corpus is
-4 and the degenerate pages hit 31 and 32, so the repetition rule fires above 8
-(<code>_LEAK_RUN_WORDS</code> and <code>_MAX_REPEATS</code> in <code>src/contextlake/kb/wiki/validate.py</code>, each with the
-measurement in a comment beside it).</p>
+<p>The gate's thresholds are measured, not picked.</p>
+<ul>
+<li><strong>Instruction leak fires at 12 words.</strong> Pages a human judged sound share no run of even six
+  normalised words with the instruction text. The leaking page shared a run of 61.</li>
+<li><strong>Repetition fires above 8.</strong> The highest legitimate sentence repeat across the same corpus is
+  4. The degenerate pages hit 31 and 32.</li>
+</ul>
+<p>Both live in <code>src/contextlake/kb/wiki/validate.py</code>, as <code>_LEAK_RUN_WORDS</code> and <code>_MAX_REPEATS</code>, each
+with its measurement in a comment beside it.</p>
 <p>That module is also candid about its ceiling, which is the honest version of this section: it
 checks structure, not truth. One page passes the gate while claiming its module is the only module
 in the repository. A well-formed page is not a correct one.</p>
@@ -412,12 +436,13 @@ caveat. These four do not. They are properties of the design, each one a line yo
 repositories and commits the harness, the tree list and the raw output. <strong>contextlake leads on both
 measures on one tree of four, on one of the two measures on two more, and on neither on the
 JavaScript tree.</strong></p>
-<p>That benchmark has already paid for itself once. Its first run showed contextlake at 320 nodes to
-1,084 on a JavaScript tree where both tools read the same 141 files, and the cause turned out to be
-that one whole category of symbol, module-level bindings, was extracted for C and C++ only.
-Extending it took that tree from 320 nodes to 783 and flipped the Python tree into the lead on
-relationships. The remaining gap is now two named things rather than one unexplained number. Read
-<code>benchmarks/head-to-head/RESULTS.md</code>, and re-run it if you doubt it.</p>
+<p>That benchmark has already paid for itself once.</p>
+<p>Its first run showed contextlake at 320 nodes against 1,084, on a JavaScript tree where both
+tools read the same 141 files. The cause was specific: one whole category of symbol,
+module-level bindings, was extracted for C and C++ only.</p>
+<p>Extending it took that tree from 320 nodes to 783, and flipped the Python tree into the lead on
+relationships. What remains is two named gaps, not one unexplained number.</p>
+<p>Read <code>benchmarks/head-to-head/RESULTS.md</code>. Re-run it if you doubt it.</p>
 <h2 id="what-it-is-not-good-at">What it is not good at<a class="anchor" href="#what-it-is-not-good-at" title="Link to this section">#</a></h2>
 <p>The honest list, because a tool that only publishes its wins is being sold to you rather than
 described.</p>
@@ -554,6 +579,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>

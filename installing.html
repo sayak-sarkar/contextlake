@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Installing and upgrading · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3b8411b7">
-<link rel="stylesheet" href="tokens.css?v=3b8411b7">
-<link rel="stylesheet" href="docs.css?v=3b8411b7">
-<link rel="stylesheet" href="cmdk.css?v=3b8411b7">
+<link rel="stylesheet" href="fonts.css?v=eac87977">
+<link rel="stylesheet" href="tokens.css?v=eac87977">
+<link rel="stylesheet" href="docs.css?v=eac87977">
+<link rel="stylesheet" href="cmdk.css?v=eac87977">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -352,12 +352,12 @@ docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/c
 </code></pre></div>
 <p>Your store and config carry forward. Confirm with <code>contextlake --version</code>, then run
 <code>contextlake doctor</code>.</p>
-<p><code>doctor</code> is load-bearing after an upgrade, not a formality. A release that changes how code
-is parsed leaves every existing graph shard describing the old parse, and no repository's
-HEAD commit moved, so nothing about the repositories themselves signals it. <code>doctor</code> compares
-the parser version recorded in each shard against the running one and names the repos that
-are out of date (<code>src/contextlake/kb/cmds/doctor.py</code>, the "shards up to date with the current
-parser" check).</p>
+<p><code>doctor</code> is load-bearing after an upgrade, not a formality.</p>
+<p>A release that changes how code is parsed leaves every existing graph shard describing the old
+parse. No repository's HEAD moved, so nothing about the repositories themselves signals it.</p>
+<p><code>doctor</code> compares the parser version recorded in each shard against the running one, and names
+the repos that are out of date. See <code>src/contextlake/kb/cmds/doctor.py</code>, the "shards up to date
+with the current parser" check.</p>
 <p>Re-index those with a plain index run -- whichever of the two forms you built the store with:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w">                     </span><span class="c1"># one repository</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">   </span><span class="c1"># a directory of repositories</span>
@@ -370,11 +370,12 @@ insist on it.</p>
 <p><code>contextlake kb index --force</code> still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.</p>
 <h3 id="parser-version-4-rebuilds-every-existing-store">Parser version <code>4</code> rebuilds every existing store<a class="anchor" href="#parser-version-4-rebuilds-every-existing-store" title="Link to this section">#</a></h3>
-<p><code>PARSER_VERSION</code> is now <code>4</code> (raised in 7.0.0), which means <strong>every store built before that release
-reports stale</strong>, under <code>doctor</code> and in <code>kb lint</code>'s advisory line, and the next <code>contextlake kb index</code>
-rebuilds all of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs
-what your first one did, once, rather than the near-instant no-op an unchanged workspace usually
-gets. Budget for it before you run it inside a hook or a CI job on a large mirror.</p>
+<p><code>PARSER_VERSION</code> is now <code>4</code>, raised in 7.0.0. So <strong>every store built before that release reports
+stale</strong>, both under <code>doctor</code> and in <code>kb lint</code>'s advisory line. The next <code>contextlake kb index</code>
+rebuilds all of it.</p>
+<p>Nothing is broken, and no flag is needed. It is one index run that costs what your first one did,
+once, instead of the near-instant no-op an unchanged workspace usually gets.</p>
+<p>Budget for that before you run it inside a hook or a CI job on a large mirror.</p>
 <p>The bump earns that. Version <code>4</code> is the largest output change this stamp has ever covered
 (<code>src/contextlake/kb/parse.py</code>, the comment above <code>PARSER_VERSION</code>):</p>
 <ul>
@@ -387,11 +388,12 @@ gets. Budget for it before you run it inside a hook or a CI job on a large mirro
 <li>C++ internal linkage is honoured in both identity and resolution, so two files' <code>static</code> or
   anonymous-namespace symbols stop merging into one.</li>
 </ul>
-<p>The catch is that all of it lives in the parser, so it reaches an already-built store only when the
-shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
-you to know it was needed: every change above is invisible to a commit-keyed check, so a graph
-carried forward untouched would keep answering with ids this build no longer produces, and every
-surface would keep calling it healthy.</p>
+<p>The catch: all of it lives in the parser, so it reaches an already-built store only when the
+shards are rebuilt.</p>
+<p>A version bump is what makes that happen without you having to know it was needed. Every change
+above is invisible to a commit-keyed check. A graph carried forward untouched would keep
+answering with ids this build no longer produces, and every surface would keep calling it
+healthy.</p>
 <h2 id="uninstall">Uninstall<a class="anchor" href="#uninstall" title="Link to this section">#</a></h2>
 <p>Remove the tool:</p>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
@@ -574,6 +576,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3b8411b7"></script>
+<script defer src="cmdk.js?v=eac87977"></script>
 </body>
 </html>
