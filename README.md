@@ -187,12 +187,20 @@ The knowledge-layer build commands get a page each:
 [Searching semantically](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md),
 [Generating the wiki](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md).
 
-Global options apply to any command: `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`.
-Two more read like globals and are not. `--dry-run` (preview without changing anything) belongs to
-the 8 `mirror` commands plus `bootstrap`, `doctor` and `kb forget`; `--version` belongs to the bare
-`contextlake` only, and `contextlake version` is the form that works everywhere. Pass either
-somewhere it does not exist and the command exits `2` and names the commands that do take it.
-Output is colorized on a TTY and plain when piped; set `NO_COLOR` to force-disable.
+**Global options** work on any command: `-v` / `-q` for verbosity, `--log-file PATH`, and
+`--config PATH`.
+
+**Two more look global and are not:**
+
+- `--dry-run`, which previews without changing anything, belongs to the 8 `mirror` commands plus
+  `bootstrap`, `doctor` and `kb forget`.
+- `--version` belongs to the bare `contextlake` only. `contextlake version` is the form that
+  works everywhere.
+
+Pass either somewhere it does not exist, and the command exits `2` and names the commands that do
+take it.
+
+Output is colourised on a TTY and plain when piped. Set `NO_COLOR` to force it off.
 
 For runs nobody watches, the systemd timer in [`examples/`](https://github.com/sayak-sarkar/contextlake/tree/main/examples), cron, CI, there is a
 second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
@@ -202,14 +210,19 @@ is already scrubbed of workspace paths, group and repo names), and `--access-log
 
 ## Knowledge layer
 
-Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
-graph** and serves it to AI tools over **MCP**. It can link repos directly to the Atlassian /
-Figma / GitLab / Slack / Zendesk items and code symbols that reference them, add **semantic
-search**,
-write a curated **wiki**, **visualize** the graph
-(offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
-generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
-works with a local Ollama or any OpenAI-compatible endpoint.
+Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge graph**
+and serves it to AI tools over **MCP**. It can:
+
+- link repos to the Atlassian, Figma, GitLab, Slack and Zendesk items, and the code symbols, that
+  reference them
+- add **semantic search**
+- write a curated **wiki**
+- **visualise** the graph as offline interactive HTML: a fleet overview, a symbol's
+  neighbourhood, or a single repo
+- generate per-tool **steering files** and a skills library
+
+Most of it needs no model. The rest works with a local Ollama, or any OpenAI-compatible
+endpoint.
 
 One command sets it all up (configs are read from their default locations):
 

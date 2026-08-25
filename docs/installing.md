@@ -284,12 +284,14 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # image
 Your store and config carry forward. Confirm with `contextlake --version`, then run
 `contextlake doctor`.
 
-`doctor` is load-bearing after an upgrade, not a formality. A release that changes how code
-is parsed leaves every existing graph shard describing the old parse, and no repository's
-HEAD commit moved, so nothing about the repositories themselves signals it. `doctor` compares
-the parser version recorded in each shard against the running one and names the repos that
-are out of date (`src/contextlake/kb/cmds/doctor.py`, the "shards up to date with the current
-parser" check).
+`doctor` is load-bearing after an upgrade, not a formality.
+
+A release that changes how code is parsed leaves every existing graph shard describing the old
+parse. No repository's HEAD moved, so nothing about the repositories themselves signals it.
+
+`doctor` compares the parser version recorded in each shard against the running one, and names
+the repos that are out of date. See `src/contextlake/kb/cmds/doctor.py`, the "shards up to date
+with the current parser" check.
 
 Re-index those with a plain index run -- whichever of the two forms you built the store with:
 
