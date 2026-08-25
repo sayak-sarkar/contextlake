@@ -141,11 +141,17 @@ definitions. Name resolution is repo-wide and name-based, so without the groupin
 `conn.close()` matched a JavaScript `close()`; the comment above the table records the measurement
 that forced it, 282 false positives on one real repo, precision 1 in 282.
 
-Add your language to a group **only if it genuinely interoperates** with the languages already in it.
-The existing groups are `js` (JavaScript, TypeScript, TSX), `c` (C and C++), and `jvm` (Java, Kotlin,
-Scala). A language absent from the table is its own group, which is exactly what you want for a
-language that does not share a runtime with anything else, and is why Python, Go, Rust, C#, Ruby and
-PHP are all absent.
+Add your language to a group **only if it genuinely interoperates** with the ones already in it.
+
+The existing groups are:
+
+- `js`: JavaScript, TypeScript, TSX
+- `c`: C and C++
+- `jvm`: Java, Kotlin, Scala
+
+A language absent from the table is its own group. That is exactly what you want for a language
+that shares a runtime with nothing else, and it is why Python, Go, Rust, C#, Ruby and PHP are all
+absent.
 
 Getting this wrong in the permissive direction is the expensive error. The false edges it creates are
 stamped `INFERRED`, so they read as fact. When in doubt, leave it out.
@@ -154,11 +160,14 @@ stamped `INFERRED`, so they read as fact. When in doubt, leave it out.
 
 Two edits in `tests/kb/test_kb_parse.py`, both required:
 
-1. **A `test_parse_<lang>()`** that calls `parse_source(repo, path, src, lang)` directly on a source
-   string and asserts what came back. `test_parse_kotlin` is the template worth imitating: it asserts
-   every stream the parser produces (nodes by kind, module nodes from imports, callee names, base
-   names) and, more importantly, it asserts the **negatives**. `"Order" not in by_kind["function"]`
-   and `"Order" not in base_names` are what catch a query that captures one node too many. Write one
+1. **A `test_parse_<lang>()`** that calls `parse_source(repo, path, src, lang)` on a source string
+   and asserts what came back.
+
+   `test_parse_kotlin` is the template worth copying. It asserts every stream the parser
+   produces: nodes by kind, module nodes from imports, callee names, base names.
+
+   More importantly, it asserts the **negatives**. `"Order" not in by_kind["function"]` and
+   `"Order" not in base_names` are what catch a query that captures one node too many. Write one
    negative per normalisation your language relies on.
 2. **The extension assertion.** Add your extensions to the tuple in
    `test_lang_by_ext_covers_target_languages`, and add an explicit mapping assertion for a secondary
@@ -231,11 +240,17 @@ and `module` of its own. (The five member-symbol kinds, `field`, `macro`, `typed
 and `global_variable`, come from a separate C and C++ pass, not from `_DEF_TYPES`.) Mapping into that
 first set is the cheap path and the normal one.
 
-If you genuinely need a new kind, add a row to `KIND_REGISTRY` in `src/contextlake/kb/kinds.py`.
-`KindSpec` is a frozen dataclass in which **no field has a default**, deliberately: a new kind cannot
-be added without answering every question a consumer asks about it, and a reviewer sees all of those
-answers in one hunk. Python refuses to construct a partial row, and a test asserts that no field ever
-gains a default.
+If you genuinely need a new kind, add a row to `KIND_REGISTRY` in
+`src/contextlake/kb/kinds.py`.
+
+`KindSpec` is a frozen dataclass where **no field has a default**. That is deliberate, and it
+buys two things:
+
+- A new kind cannot be added without answering every question a consumer asks about it.
+- A reviewer sees all of those answers in one hunk.
+
+Python refuses to construct a partial row, and a test asserts that no field ever gains a
+default.
 
 Four constraints on the values, each pinned by its own test:
 

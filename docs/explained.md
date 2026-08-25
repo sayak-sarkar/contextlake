@@ -105,11 +105,15 @@ follows is the project's own reasoning rather than a reconstruction of it. Where
 
 ### The store is a file, not a service
 
-Everything persists in two SQLite databases plus a tree of JSON files, under one store directory
-(`~/.contextlake/kb` by default, `DEFAULT_STORE_DIR` in `src/contextlake/kb/config.py`). There is
-no daemon to start, no port to bind and no credential to manage, and SQLite ships inside Python, so
-the graph tier adds no install surface beyond the parsers. Keyword search is the `node_fts` FTS5
-virtual table in that same schema, rather than a separate search engine.
+Everything persists in two SQLite databases plus a tree of JSON files, under one store
+directory. That defaults to `~/.contextlake/kb`, set as `DEFAULT_STORE_DIR` in
+`src/contextlake/kb/config.py`.
+
+What that buys you: no daemon to start, no port to bind, no credential to manage. SQLite ships
+inside Python, so the graph tier adds no install surface beyond the parsers.
+
+Keyword search is the `node_fts` FTS5 virtual table in that same schema, not a separate search
+engine.
 
 The honest caveat: the codebase does not record a comparison against a graph database. What it does
 record is the shape of the trade it *is* making, which is a single-machine tool with one writer.
@@ -210,12 +214,16 @@ belonging to neither namespace, when `--config PATH` already means "I meant this
 
 ### Parser staleness is repaired, not only reported
 
-The clearest recorded reasoning in the project, because it documents a failure it shipped. When
-`PARSER_VERSION` moved to `2`, the staleness check only examined C and C++ repositories and the
-re-index decision compared the repository HEAD alone. A Python or TypeScript repository indexed by
-the previous major therefore stayed stale indefinitely: `index` reported it unchanged, `doctor`
-reported OK, and every answer came from a graph built by the old parser while every surface said
-healthy.
+The clearest recorded reasoning in the project, because it documents a failure that shipped.
+
+When `PARSER_VERSION` moved to `2`, two things were wrong at once:
+
+- the staleness check only examined C and C++ repositories
+- the re-index decision compared the repository HEAD alone
+
+So a Python or TypeScript repository indexed by the previous major stayed stale indefinitely.
+`index` reported it unchanged. `doctor` reported OK. Every answer came from a graph built by the
+old parser, and every surface called it healthy.
 
 `kb index` now re-indexes a repository whose recorded parser version differs from the running one
 even though its HEAD has not moved, and says so. The comment in
@@ -240,11 +248,15 @@ and serves the other 23 rather than failing.
 
 ### Why the network transports are authenticated and stdio is not
 
-`stdio` is the default: your editor spawns the server as a child process and talks over a pipe it
-owns, so there is nothing to authenticate against. The HTTP transports are different, because a
-socket that answers with real file paths, symbol names and owner identities is worth protecting.
-They require a bearer token on every request, validate `Origin` and `Host` against the bound
-address, and refuse a non-loopback bind unless you pass `--allow-remote`.
+`stdio` is the default. Your editor spawns the server as a child process and talks over a pipe it
+owns, so there is nothing to authenticate against.
+
+The HTTP transports are different. A socket that answers with real file paths, symbol names and
+owner identities is worth protecting, so they:
+
+- require a bearer token on every request
+- validate `Origin` and `Host` against the bound address
+- refuse a non-loopback bind unless you pass `--allow-remote`
 
 The token gate is ASGI middleware wrapping the whole application
 (`BearerAuthMiddleware` in `src/contextlake/kb/server.py`), which has a consequence worth knowing
