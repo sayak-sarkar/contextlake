@@ -52,12 +52,18 @@ pip install "contextlake[kb-pdf]"
 table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
 in it, a custom `include` replaces the defaults rather than adding to them.
 
-What the PDF path does **not** do is the load-bearing half. It runs no OCR and no vision model
-over a PDF's pages, and makes no network call. (Images ingested as their own files *are* OCR'd --
-see below -- but a PDF's pages are not rasterised to reach that path.) A scanned or image-only PDF
-has no text layer, and contextlake says so and stores nothing,
-rather than aggregating an empty document that would look like knowledge in search results and in
-the wiki:
+What the PDF path does **not** do is the load-bearing half:
+
+- no OCR
+- no vision model over the pages
+- no network call
+
+Images ingested as their own files *are* OCR'd, covered below, but a PDF's pages are never
+rasterised to reach that path.
+
+So a scanned or image-only PDF has no text layer, and contextlake says so and stores nothing. The
+alternative would be aggregating an empty document that looks like knowledge in search results
+and in the wiki:
 
 ```
 files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
@@ -137,12 +143,17 @@ embedder is -- a weaker offline promise than frame OCR's, which is exactly why i
 separate extra rather than folded into the first. `CONTEXTLAKE_WHISPER_MODEL` picks the size;
 the default is the smallest useful one, because a first run downloads it.
 
-The work is bounded rather than the file. `max_bytes` gates every other type because file
-size predicts how much text a document contributes; for a video it predicts resolution and
-length instead, so a 1 MB cap would reject every real recording. What is capped is the
-sampling: one frame every 5 seconds, at most 60 frames, so a two-hour recording costs the
-same as a ten-minute one. Repeated on-screen lines are said once -- a slide holds still across
-many samples, and keeping every hit would drown the transcript in its own echo.
+**The work is bounded, not the file.**
+
+`max_bytes` gates every other type because file size predicts how much text a document
+contributes. For a video it predicts resolution and length instead, so a 1 MB cap would reject
+every real recording.
+
+What is capped is the sampling: one frame every 5 seconds, at most 60 frames. A two-hour
+recording therefore costs the same as a ten-minute one.
+
+Repeated on-screen lines are said once. A slide holds still across many samples, and keeping
+every hit would drown the transcript in its own echo.
 
 Three outcomes are stated rather than implied:
 

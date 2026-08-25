@@ -122,16 +122,26 @@ contextlake kb enrich --workspace ~/work     # all indexed repos
 contextlake kb enrich acme/catalog-api         # one repo
 ```
 
-Prerequisites: the code graph must be **indexed first** (`contextlake kb index`), and at least one
-term-searchable source must be configured: either an `mcp` source with `tool` and `arg_template` keys, or
-an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web` source) are
-skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
-re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). A result
-that names one of the repo's symbols is also linked straight to it (`documented_by`), so the enrichment
-lands on the graph rather than beside it. After
-`contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
-context" section, grounded to the code graph's terms.
+**Prerequisites.** Two things must be true:
+
+1. The code graph is indexed, via `contextlake kb index`.
+2. At least one term-searchable source is configured. That means either an `mcp` source with
+   `tool` and `arg_template` keys, or an `atlassian` source.
+
+Sources without those capabilities, such as a plain `files` or `web` source, are skipped
+gracefully.
+
+**What you get.** Each repo's enrichment documents live in their own partition, so they can be
+re-fetched without clobbering earlier results.
+
+With the semantic tier enabled they are embedded too, so they appear in semantic search as
+`document` nodes tagged with their source in `attrs.source`.
+
+A result that names one of the repo's symbols is linked straight to it with a `documented_by`
+edge, so the enrichment lands **on** the graph rather than beside it.
+
+After `contextlake kb wiki` runs, these documents become an attributed "External context"
+section in the curated wiki, grounded to the code graph's terms.
 
 Configuring document sources, including the built-in `files` source, plugin packages and MCP endpoints, is in [Document sources and RAG](document-sources.md).
 

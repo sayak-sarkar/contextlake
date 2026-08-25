@@ -77,11 +77,15 @@ contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml
 contextlake kb source add jira --type atlassian --local   # scopes a source the same way
 ```
 
-Every command run from that directory (or any subdirectory underneath it) picks up this local config
-automatically, you don't need to pass `--config` yourself, and you don't need to be in the exact
-directory the file lives in. Resolution walks up from the current directory to the filesystem root
-looking for `.contextlake.ini` / `.contextlake.kb.toml`, the same way `git` finds `.git` from anywhere
-inside a repo; the *nearest* ancestor wins if more than one project happens to be nested.
+Every command run from that directory, or any subdirectory under it, picks up the local config
+automatically. You do not need to pass `--config`, and you do not need to be in the exact
+directory the file lives in.
+
+Resolution walks up from the current directory to the filesystem root, looking for
+`.contextlake.ini` or `.contextlake.kb.toml`. That is the same way `git` finds `.git` from
+anywhere inside a repo.
+
+If more than one project is nested, the **nearest** ancestor wins.
 
 `--local` on `source add`/`remove`/`enable`/`disable` targets that same nearest-ancestor file (creating
 one in the current directory if none exists yet in the chain); once a project has a local config, those

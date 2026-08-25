@@ -1946,11 +1946,15 @@ contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml
 contextlake kb source add jira --type atlassian --local   # scopes a source the same way
 ```
 
-Every command run from that directory (or any subdirectory underneath it) picks up this local config
-automatically, you don't need to pass `--config` yourself, and you don't need to be in the exact
-directory the file lives in. Resolution walks up from the current directory to the filesystem root
-looking for `.contextlake.ini` / `.contextlake.kb.toml`, the same way `git` finds `.git` from anywhere
-inside a repo; the *nearest* ancestor wins if more than one project happens to be nested.
+Every command run from that directory, or any subdirectory under it, picks up the local config
+automatically. You do not need to pass `--config`, and you do not need to be in the exact
+directory the file lives in.
+
+Resolution walks up from the current directory to the filesystem root, looking for
+`.contextlake.ini` or `.contextlake.kb.toml`. That is the same way `git` finds `.git` from
+anywhere inside a repo.
+
+If more than one project is nested, the **nearest** ancestor wins.
 
 `--local` on `source add`/`remove`/`enable`/`disable` targets that same nearest-ancestor file (creating
 one in the current directory if none exists yet in the chain); once a project has a local config, those
@@ -2790,16 +2794,26 @@ contextlake kb enrich --workspace ~/work     # all indexed repos
 contextlake kb enrich acme/catalog-api         # one repo
 ```
 
-Prerequisites: the code graph must be **indexed first** (`contextlake kb index`), and at least one
-term-searchable source must be configured: either an `mcp` source with `tool` and `arg_template` keys, or
-an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web` source) are
-skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
-re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). A result
-that names one of the repo's symbols is also linked straight to it (`documented_by`), so the enrichment
-lands on the graph rather than beside it. After
-`contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
-context" section, grounded to the code graph's terms.
+**Prerequisites.** Two things must be true:
+
+1. The code graph is indexed, via `contextlake kb index`.
+2. At least one term-searchable source is configured. That means either an `mcp` source with
+   `tool` and `arg_template` keys, or an `atlassian` source.
+
+Sources without those capabilities, such as a plain `files` or `web` source, are skipped
+gracefully.
+
+**What you get.** Each repo's enrichment documents live in their own partition, so they can be
+re-fetched without clobbering earlier results.
+
+With the semantic tier enabled they are embedded too, so they appear in semantic search as
+`document` nodes tagged with their source in `attrs.source`.
+
+A result that names one of the repo's symbols is linked straight to it with a `documented_by`
+edge, so the enrichment lands **on** the graph rather than beside it.
+
+After `contextlake kb wiki` runs, these documents become an attributed "External context"
+section in the curated wiki, grounded to the code graph's terms.
 
 Configuring document sources, including the built-in `files` source, plugin packages and MCP endpoints, is in [Document sources and RAG](document-sources.md).
 
@@ -2909,12 +2923,18 @@ pip install "contextlake[kb-pdf]"
 table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
 in it, a custom `include` replaces the defaults rather than adding to them.
 
-What the PDF path does **not** do is the load-bearing half. It runs no OCR and no vision model
-over a PDF's pages, and makes no network call. (Images ingested as their own files *are* OCR'd --
-see below -- but a PDF's pages are not rasterised to reach that path.) A scanned or image-only PDF
-has no text layer, and contextlake says so and stores nothing,
-rather than aggregating an empty document that would look like knowledge in search results and in
-the wiki:
+What the PDF path does **not** do is the load-bearing half:
+
+- no OCR
+- no vision model over the pages
+- no network call
+
+Images ingested as their own files *are* OCR'd, covered below, but a PDF's pages are never
+rasterised to reach that path.
+
+So a scanned or image-only PDF has no text layer, and contextlake says so and stores nothing. The
+alternative would be aggregating an empty document that looks like knowledge in search results
+and in the wiki:
 
 ```
 files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
@@ -2994,12 +3014,17 @@ embedder is -- a weaker offline promise than frame OCR's, which is exactly why i
 separate extra rather than folded into the first. `CONTEXTLAKE_WHISPER_MODEL` picks the size;
 the default is the smallest useful one, because a first run downloads it.
 
-The work is bounded rather than the file. `max_bytes` gates every other type because file
-size predicts how much text a document contributes; for a video it predicts resolution and
-length instead, so a 1 MB cap would reject every real recording. What is capped is the
-sampling: one frame every 5 seconds, at most 60 frames, so a two-hour recording costs the
-same as a ten-minute one. Repeated on-screen lines are said once -- a slide holds still across
-many samples, and keeping every hit would drown the transcript in its own echo.
+**The work is bounded, not the file.**
+
+`max_bytes` gates every other type because file size predicts how much text a document
+contributes. For a video it predicts resolution and length instead, so a 1 MB cap would reject
+every real recording.
+
+What is capped is the sampling: one frame every 5 seconds, at most 60 frames. A two-hour
+recording therefore costs the same as a ten-minute one.
+
+Repeated on-screen lines are said once. A slide holds still across many samples, and keeping
+every hit would drown the transcript in its own echo.
 
 Three outcomes are stated rather than implied:
 
@@ -5596,12 +5621,17 @@ it as a node without edges; `find_definition` says whether a name is absent enti
 excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
 all, and carries `total`/`truncated` like its siblings.
 
-`get_generated_doc` returns what `kb docs` wrote: `kind="api"` for the reference with
-its real call sites, `kind="design"` for the design notes. Neither involves a model, so
-neither carries the wiki's advisory caveat. Both carry `stale`, which is true when the
-page was generated from a different commit than the repo's current indexed head **or
-when either is unknown** -- a page written before generated documents recorded their
-commit has no stamp, and not knowing is the same risk to a caller as being out of date.
+`get_generated_doc` returns what `kb docs` wrote:
+
+- `kind="api"` for the reference, with its real call sites
+- `kind="design"` for the design notes
+
+Neither involves a model, so neither carries the wiki's advisory caveat.
+
+Both carry `stale`. That is true when the page was generated from a different commit than the
+repo's current indexed head, **and also when either is unknown**. A page written before generated
+documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
+being out of date.
 
 `get_fleet_doc` returns the one page that describes the **whole store**: which packages
 more than one repository requires, which of those are pinned differently across them, and

@@ -48,12 +48,17 @@ it as a node without edges; `find_definition` says whether a name is absent enti
 excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
 all, and carries `total`/`truncated` like its siblings.
 
-`get_generated_doc` returns what `kb docs` wrote: `kind="api"` for the reference with
-its real call sites, `kind="design"` for the design notes. Neither involves a model, so
-neither carries the wiki's advisory caveat. Both carry `stale`, which is true when the
-page was generated from a different commit than the repo's current indexed head **or
-when either is unknown** -- a page written before generated documents recorded their
-commit has no stamp, and not knowing is the same risk to a caller as being out of date.
+`get_generated_doc` returns what `kb docs` wrote:
+
+- `kind="api"` for the reference, with its real call sites
+- `kind="design"` for the design notes
+
+Neither involves a model, so neither carries the wiki's advisory caveat.
+
+Both carry `stale`. That is true when the page was generated from a different commit than the
+repo's current indexed head, **and also when either is unknown**. A page written before generated
+documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
+being out of date.
 
 `get_fleet_doc` returns the one page that describes the **whole store**: which packages
 more than one repository requires, which of those are pinned differently across them, and
