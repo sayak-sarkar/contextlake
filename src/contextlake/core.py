@@ -551,6 +551,39 @@ def repo_filter_patterns(config) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
+def branch_map_pairs(config) -> list[tuple[str, str]]:
+    """``branch_map`` as ``(pattern, branch)`` pairs, in the order written.
+
+    Order is preserved deliberately: the first match wins, so a caller can put a specific
+    repository ahead of the glob that would otherwise catch it. A malformed entry (no ``=``,
+    or an empty half) is skipped rather than guessed at -- pinning the wrong branch is worse
+    than not pinning one, and the caller warns about what it dropped.
+    """
+    out: list[tuple[str, str]] = []
+    for chunk in (config.get("branch_map") or "").split(","):
+        chunk = chunk.strip()
+        if not chunk or "=" not in chunk:
+            continue
+        pattern, _, branch = chunk.partition("=")
+        pattern, branch = pattern.strip(), branch.strip()
+        if pattern and branch:
+            out.append((pattern, branch))
+    return out
+
+
+def resolve_branch_pin(full_path: str, local_path: str, config) -> str:
+    """The branch this ONE repository is pinned to, or "" for the most-active selection.
+
+    ``branch_map`` beats ``branch``: the fleet-wide pin is the default that per-repository
+    entries carve exceptions out of. Matching reuses :func:`match_repo_filter`, so the
+    patterns a user already writes for ``repo_filter`` behave identically here.
+    """
+    for pattern, branch in branch_map_pairs(config):
+        if match_repo_filter(full_path, local_path, [pattern]):
+            return branch
+    return config.get("branch", "") or ""
+
+
 def match_repo_filter(full_path: str, local_path: str, patterns: list[str]) -> bool:
     """A repo matches if any pattern is a glob hit on its group-qualified path or
     its local (group-stripped) path. Case-insensitive. ``team/*``, ``catalog-api``
@@ -1476,7 +1509,9 @@ def switch_repository_branch(local_path, projects, work_dir, config):
     pull_timeout = _int(config, "pull_timeout", "60")
     protect = _is_truthy(config, "protect_working_branches", "true")
     strategy = config.get("branch_strategy", "hybrid")
-    pin = config.get("branch", "")
+    # Per-repository `branch_map` first, then the fleet-wide `branch`, then most-active.
+    pin = resolve_branch_pin(projects[local_path].get("full_path", local_path),
+                             local_path, config)
     dry_run = _is_truthy(config, "dry_run")
 
     try:

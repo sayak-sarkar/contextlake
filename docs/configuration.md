@@ -46,6 +46,14 @@ An example `.contextlake.ini`:
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
+
+# Which repositories to mirror. Omit to take the whole group.
+repo_filter = team/*,shared-libs
+
+# Which branch to put them on. Omit both to track each repo's most active branch.
+branch = release/24.1
+branch_map = team/api=develop,legacy-*=maintenance
+
 clone_timeout = 300
 fetch_timeout = 60
 branch_timeout = 30
@@ -162,6 +170,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
+| `branch_map` | Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated `pattern=branch` pairs using the same globs as `repo_filter`. First match wins, so list the specific before the general. Beats `branch`; falls back to it, then to the selection above | *(empty)* | `team/api=develop,legacy-*=maintenance` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).

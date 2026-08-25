@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`branch_map`: per-repository branch pins.** `branch` puts the whole fleet on one branch,
+  which is the common case and not the only one. `branch_map` takes comma-separated
+  `pattern=branch` pairs using the same globs as `repo_filter`, so one team can track
+  `develop` while a legacy tree sits on `maintenance` and everything else follows the
+  most-active selection. First match wins, so a specific entry can precede the glob that
+  would otherwise catch it. It beats `branch`, falls back to it, then to the selection.
+  A repository whose mapped branch does not exist is reported as `unpinned`, exactly as
+  `branch` already does, rather than being switched to something else.
+
+  ```ini
+  branch_map = team/api=develop, legacy-*=maintenance
+  ```
+
+### Changed
+
+- **`configuration.md`'s example config now shows the scoping keys.** `repo_filter`, `branch`
+  and `branch_map` were documented in the settings table but absent from the example anyone
+  copies, so the two that already existed were easy to miss.
+
 ## [8.7.0] - 2026-08-25
 
 Four defects, none of which the unit suite could see. Three were found by running the CLI
@@ -7655,4 +7676,3 @@ critical configuration bug.
 - Concurrent processing with ThreadPoolExecutor
 - Error handling and timeout management
 - Timestamped logging
-

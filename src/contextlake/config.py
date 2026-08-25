@@ -70,6 +70,14 @@ DEFAULT_CONFIG = {
     # not having it and stays on its most active one, rather than silently reading as
     # though the request had been carried out.
     'branch': '',
+    # Per-repository branch pins, for when one branch does not fit the whole fleet.
+    # Comma-separated `pattern=branch` pairs; the pattern is the same glob `repo_filter`
+    # uses, matched against the group-qualified path and the local one. First match wins,
+    # so list the specific before the general. Falls back to `branch` above, then to the
+    # most-active selection. A repository without its mapped branch is reported as such,
+    # exactly like `branch`.
+    #   branch_map = team/api=develop, legacy-*=maintenance, acme/one-off=spike
+    'branch_map': '',
     'clean_corrupted': 'true',
     'max_retries': '3',
     'backoff_initial': '1',
