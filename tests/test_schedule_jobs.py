@@ -79,8 +79,14 @@ def test_a_success_resets_the_counter(tmp_path):
 
 
 def test_recording_an_outcome_for_an_unknown_job_is_a_no_op(tmp_path):
+    """A no-op is a claim about the FILE, so the file is what gets asserted.
+    Returning None while rewriting the document would satisfy a return-value
+    check alone."""
     path = str(tmp_path / "jobs.json")
+    jobs.write_job(path, jobs.new_job("default", ["bootstrap"], "auto", "systemd"))
+    before = open(path, "rb").read()
     assert jobs.record_outcome(path, "ghost", 0, "2026-08-26T00:00:00Z") is None
+    assert open(path, "rb").read() == before
 
 
 def test_the_default_job_runs_bootstrap_incrementally_and_forced_on_the_full_cycle():
@@ -94,6 +100,16 @@ def test_an_ad_hoc_job_with_no_full_variant_reuses_its_own_argv():
     `kb wiki`, so the full cycle runs what the incremental one does."""
     job = jobs.new_job("nightly", ["kb", "wiki"], "24h", "cron")
     assert job.full_argv == ["kb", "wiki"]
+
+
+def test_full_argv_is_keyed_on_the_command_not_the_job_name():
+    """A job that runs bootstrap gets the forced full cycle whatever it is
+    named, and a job named `default` that runs something else does not."""
+    named_other = jobs.new_job("weekly", list(jobs.DEFAULT_ARGV), "7d", "systemd")
+    assert named_other.full_argv == ["bootstrap", "--force"]
+
+    default_name_other_cmd = jobs.new_job(jobs.DEFAULT_JOB, ["kb", "wiki"], "auto", "cron")
+    assert default_name_other_cmd.full_argv == ["kb", "wiki"]
 
 
 def test_argv_is_stored_as_a_list_never_a_shell_string(tmp_path):

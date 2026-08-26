@@ -37,7 +37,17 @@ def jobs_path(config) -> str:
 
 def new_job(name, argv, interval, platform, full_argv=None, created=None) -> Job:
     """A fresh record. ``full_argv`` defaults to ``argv``: an ad-hoc job has one
-    command and there is no forced variant of it to invent."""
+    command and there is no forced variant of it to invent.
+
+    The default selection is keyed on the command (``argv == DEFAULT_ARGV``),
+    not on the job name: a job that runs ``bootstrap`` gets the forced full
+    cycle whatever it is named, and a job named ``default`` that runs
+    something else does not.
+
+    ``created`` lets a caller preserve a job's original creation time across a
+    rewrite. Task 8's ``cmd_install`` is idempotent and reuses this so
+    reinstalling an existing job does not reset when it was first created.
+    """
     from .history import utc_now_iso
 
     argv = [str(a) for a in argv]
@@ -85,6 +95,22 @@ def read_jobs(path) -> dict:
 
 
 def _write_document(path, mapping) -> None:
+    """Rewrite the whole document: read-modify-write, via a temp file and
+    ``os.replace``.
+
+    Two processes can each read the same document, each write a complete
+    rewrite to the same fixed ``path + ".tmp"``, and whichever calls
+    ``os.replace`` last wins outright, silently dropping the other's update.
+    The file is never corrupt (each writer's rewrite is a complete, valid
+    document, and ``os.replace`` is atomic), so a reader always sees one whole
+    version or the other, never a mix. The concrete risk is a lost
+    ``failures`` increment from :func:`record_outcome`: a manual `schedule
+    run` and a timer-triggered one finishing at the same moment could drop
+    one job's increment, which delays that job's backoff by one run rather
+    than corrupting anything. Task 7's single-writer run lock
+    (``schedule/runlock.py``) makes two scheduled runs on one machine
+    impossible, which closes the path that matters. Do not add locking here.
+    """
     payload = {"version": 1, "jobs": {
         name: {"argv": job.argv, "full_argv": job.full_argv,
                "interval": job.interval, "created": job.created,
