@@ -54,3 +54,13 @@ def test_the_lock_is_released_even_when_the_body_raises(tmp_path):
         with runlock.RunLock(path, "default"):
             raise ValueError("boom")
     assert not os.path.exists(path)
+
+
+def test_release_leaves_a_lock_it_cannot_prove_is_its_own(tmp_path):
+    """An unreadable holder is not proof of ownership. Deleting on a failed
+    read would let one process remove a live peer's lock."""
+    path = tmp_path / "run.lock"
+    lock = runlock.RunLock(str(path), "default")
+    path.write_text("{not json", encoding="utf-8")
+    lock.release()
+    assert path.exists(), "release removed a lock it could not prove was its own"

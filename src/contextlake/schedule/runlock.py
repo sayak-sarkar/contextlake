@@ -67,8 +67,11 @@ class RunLock:
             same_host = holder.get("host") == socket.gethostname()
             if same_host and _alive(holder.get("pid")):
                 raise RunBusy(holder)
-            # A corrupt file, a dead pid, or a lock written on another host
-            # against a shared directory. None of those is a live writer.
+            # A corrupt file, a dead pid, or a lock written on another host.
+            # The host check scopes this guarantee to one machine: on shared
+            # storage (NFS, EFS, a shared PVC) a peer on another host can be
+            # a live writer this lock cannot see. See RunBusy's own docstring
+            # ("on this machine").
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
         tmp = self.path + f".{os.getpid()}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -79,9 +82,15 @@ class RunLock:
 
     def release(self):
         holder = self._read()
-        # Only remove our own. Reclaiming a stale lock and then being outrun by
-        # a third process must not delete that process's live lock.
-        if holder is None or holder.get("pid") == os.getpid():
+        # Positive ownership only. `_read` returns None for an unreadable file,
+        # a truncated one, or valid JSON that is not an object, and none of
+        # those prove the lock is ours. Deleting on None would let a process
+        # remove a live peer's lock on a slow or flaky filesystem, which is the
+        # single failure this lock exists to prevent.
+        #
+        # Nothing leaks by leaving it: `acquire` already reclaims a lock it
+        # cannot read or whose pid is dead, so the next run clears it.
+        if holder is not None and holder.get("pid") == os.getpid():
             try:
                 os.unlink(self.path)
             except OSError:

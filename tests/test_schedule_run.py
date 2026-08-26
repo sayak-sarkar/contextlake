@@ -173,14 +173,42 @@ def test_two_overlapping_runs_skip_rather_than_both_proceed(tmp_path, monkeypatc
 def test_a_lock_skip_returns_an_int_not_the_gated_sentinel(tmp_path, monkeypatch):
     """`_one_cycle` returns either GATED or an exit code depending on a
     defaulted keyword. The non-foreground path must never leak the sentinel out
-    of `cmd_run` as a process exit status."""
+    of `cmd_run` as a process exit status, on either skip route.
+
+    Both routes are exercised for real: a gated skip (`gates.check` denies),
+    and a lock-contention skip (a real `RunBusy`, forced by having the
+    monkeypatched `_spawn` call `cmd_run` again while the outer call still
+    holds the lock). The earlier version of this test only ever mocked
+    `gates.check`, so nothing here proved `_return_gated`'s two branches
+    both return an int; the two branches share the same `return GATED if
+    _return_gated else 0` line, but the name claimed coverage the test did
+    not have.
+    """
     _install_job(tmp_path)
     config = _config(tmp_path)
+
+    # Gated route.
     monkeypatch.setattr(gates, "check",
                         lambda cfg: gates.GateResult(False, "on battery power"))
     monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
-    assert cmds.cmd_run(_args(), config) == 0
-    assert isinstance(cmds.cmd_run(_args(), config), int)
+    gated_rc = cmds.cmd_run(_args(), config)
+    assert isinstance(gated_rc, int)
+    assert gated_rc == 0
+
+    # Lock-contention route: real RunBusy, not a mock of the gate.
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    inner = {}
+
+    def _reentrant_spawn(argv, env, timeout=None):
+        inner["rc"] = cmds.cmd_run(_args(), config)
+        return 0
+
+    monkeypatch.setattr(cmds, "_spawn", _reentrant_spawn)
+    outer_rc = cmds.cmd_run(_args(), config)
+    assert isinstance(outer_rc, int)
+    assert outer_rc == 0
+    assert isinstance(inner["rc"], int), "the lock-skip branch leaked the GATED sentinel"
+    assert inner["rc"] == 0
 
 
 def test_running_an_unknown_job_is_an_error_not_a_silent_no_op(tmp_path):

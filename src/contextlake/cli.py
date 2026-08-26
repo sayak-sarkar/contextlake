@@ -1991,6 +1991,16 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             # (kb steer --force: "overwrite non-managed files"). Without this,
             # `schedule`'s periodic full cycle (`bootstrap --force`) would
             # overwrite an edited AGENTS.md every `schedule_full_every`.
+            #
+            # Guarded rather than copied per-stage: cmd_steer is appended last
+            # and unconditionally, so mutating kb_args in place is safe. If a
+            # stage is ever added after it, this raises in CI instead of
+            # silently reintroducing the overwrite this guards against.
+            if fn is not stages[-1][1]:
+                raise RuntimeError(
+                    "cmd_steer must stay the final bootstrap stage; a stage "
+                    "was added after it, which would run with force=False "
+                    "reset for it, not for the new stage")
             kb_args.force = False
         try:
             rc = fn(kb_args)
