@@ -170,18 +170,32 @@ def test_a_fixed_schedule_interval_becomes_a_pin():
     assert cmds.settings_from_config({"schedule_interval": "90m"})["fixed_s"] == 5400.0
 
 
-def test_an_unparseable_config_value_falls_back_and_warns(caplog):
+def test_an_unparseable_config_value_falls_back_and_warns(gls_logs):
     """Refusing to run because one INI key is a typo is worse than running on
-    the default and saying so."""
+    the default and saying so. Uses gls_logs, not caplog: the package logger
+    sets propagate=False, so caplog's root handler never sees the record and
+    the assertion would pass whether or not anything was logged.
+    """
     s = cmds.settings_from_config({"schedule_duty_cycle": "banana",
                                    "schedule_interval": "later"})
     assert s["duty_cycle"] == 0.10
     assert s["fixed_s"] is None
+    text = gls_logs.text
+    assert "schedule_duty_cycle" in text
+    assert "schedule_interval" in text
 
 
 def test_a_duty_cycle_outside_zero_to_one_is_refused():
     assert cmds.settings_from_config({"schedule_duty_cycle": "2.0"})["duty_cycle"] == 0.10
     assert cmds.settings_from_config({"schedule_duty_cycle": "0"})["duty_cycle"] == 0.10
+
+
+def test_a_duty_cycle_of_exactly_one_is_refused():
+    """The bound is exclusive: 1.0 means "run continuously" (floor_duty
+    equals the run duration itself, no gap at all), not merely a high but
+    legitimate duty cycle. 0.9999 is legitimate and must still pass."""
+    assert cmds.settings_from_config({"schedule_duty_cycle": "1.0"})["duty_cycle"] == 0.10
+    assert cmds.settings_from_config({"schedule_duty_cycle": "0.9999"})["duty_cycle"] == 0.9999
 
 
 def test_min_above_max_is_refused_rather_than_producing_an_empty_range():
@@ -208,6 +222,7 @@ def test_recommend_json_is_machine_readable(tmp_path):
     import json as jsonlib
 
     from contextlake.schedule import history
+    from contextlake.schedule import recommend as recommend_mod
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
     path = history.history_path(config)
@@ -225,7 +240,10 @@ def test_recommend_json_is_machine_readable(tmp_path):
     assert payload["basis"] in ("duty", "activity")
     assert payload["measured"] is True
     assert payload["samples"] == 3
-    assert payload["interval"] == payload["interval"]  # present and stable
+    # Pins the human-readable string against the seconds figure, so a
+    # mismatch between the two is caught rather than only checking the key
+    # is present.
+    assert payload["interval"] == recommend_mod.format_duration(payload["interval_seconds"])
 
 
 def test_recommend_changes_nothing_on_disk(tmp_path):

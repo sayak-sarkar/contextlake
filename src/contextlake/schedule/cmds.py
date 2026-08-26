@@ -15,11 +15,14 @@ from . import history, recommend
 ACTIONS = ("recommend", "install", "uninstall", "status", "run", "list", "reset", "interval")
 
 
-def _float_or(config, key, default, *, low=None, high=None):
+def _float_or(config, key, default, *, low=None, high=None, exclusive_high=False):
     """One config value as a float, or the default with a warning.
 
     A typo in one INI key must not stop the scheduler. Falling back and saying
-    so is strictly better than refusing to run.
+    so is strictly better than refusing to run. ``exclusive_high`` rejects a
+    value equal to ``high`` too, for a bound where the edge itself is invalid
+    (a duty cycle of 1.0 means "run continuously", not merely "on the high
+    side").
     """
     raw = str(config.get(key, "")).strip()
     if not raw:
@@ -29,7 +32,8 @@ def _float_or(config, key, default, *, low=None, high=None):
     except ValueError:
         log(f"WARNING: {key}={raw!r} is not a number; using {default}")
         return default
-    if (low is not None and value < low) or (high is not None and value > high):
+    above_high = high is not None and (value >= high if exclusive_high else value > high)
+    if (low is not None and value < low) or above_high:
         log(f"WARNING: {key}={raw!r} is outside the usable range; using {default}")
         return default
     return value
@@ -57,7 +61,7 @@ def settings_from_config(config) -> dict:
     # Exclusive at both ends: 0 is a divide-by-zero and 1.0 means "run
     # continuously", neither of which is a duty cycle anybody wants by accident.
     settings["duty_cycle"] = _float_or(config, "schedule_duty_cycle", 0.10,
-                                       low=0.0001, high=1.0)
+                                       low=0.0001, high=1.0, exclusive_high=True)
     if settings["duty_cycle"] <= 0:
         settings["duty_cycle"] = 0.10
     settings["min_s"] = _duration_or(config, "schedule_min", 3600.0)

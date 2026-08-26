@@ -2287,6 +2287,14 @@ def _run(argv, metrics):
         except KeyboardInterrupt:
             log("Operation cancelled by user")
             sys.exit(130)
+        except Exception as e:  # noqa: BLE001 - top-level guard reports and exits
+            # The same guard the mirror and kb tiers carry. Task 7 onward spawns
+            # subprocesses and writes unit files through this branch, so an
+            # unguarded path here would reach the user as a raw traceback.
+            log(f"Error: {e}", error_type=type(e).__name__, error=str(e))
+            if args.verbose:
+                raise
+            sys.exit(1)
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
