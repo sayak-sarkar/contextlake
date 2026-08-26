@@ -88,7 +88,29 @@ DEFAULT_CONFIG = {
     'protect_working_branches': 'true',
     'safe_branches': 'main,master,develop,development',
     'require_clean_workspace': 'true',
-    'auto_stash': 'false'
+    'auto_stash': 'false',
+    # --- self-scheduling -------------------------------------------------
+    # `auto` lets the tool pick from what it measured; a duration pins it and
+    # turns auto-adjust off. See docs/scheduling.md.
+    'schedule_interval': 'auto',
+    # The most wall-clock time contextlake may occupy. 0.10 means a 7-minute
+    # sync earns a 70-minute gap.
+    'schedule_duty_cycle': '0.10',
+    # Bounds auto-adjust can never leave, however the measurements move.
+    'schedule_min': '1h',
+    'schedule_max': '24h',
+    # How often a full rebuild replaces an incremental run.
+    'schedule_full_every': '7d',
+    # How far the recommendation must drift before a run rewrites its own unit.
+    'schedule_adjust_threshold': '0.5',
+    # `skip` or `run`. No effect on a machine with no battery.
+    'schedule_on_battery': 'skip',
+    # Opt-in. A no-op where user idle cannot be detected.
+    'schedule_require_idle': 'false',
+    # Skip when the 1-minute load average is above this. Empty means never.
+    'schedule_max_load': '',
+    # How soon to retry after a gated skip, rather than waiting a full interval.
+    'schedule_gate_retry': '10m',
 }
 
 

@@ -102,7 +102,8 @@ _NAMESPACES = (_MIRROR_NS, _KB_NS)
 # groups even though there are only two namespaces: the task grouping is what a
 # reader navigates by, the namespace is only how it is typed.
 _COMMAND_CATEGORIES = (
-    (None, "Get started", ("version", "init", "completion", "bootstrap", "doctor")),
+    (None, "Get started", ("version", "init", "completion", "bootstrap", "doctor",
+                           "schedule")),
     (_MIRROR_NS, "Mirror a fleet", ("fetch", "clone", "update", "branches", "verify",
                                     "status", "sync", "audit")),
     (_KB_NS, "Build the knowledge graph", ("index", "source", "connect", "embed",
@@ -113,10 +114,10 @@ _COMMAND_CATEGORIES = (
 )
 
 # canonical command name -> the namespace it is typed under. Commands absent from
-# this map (version, init, completion, bootstrap, doctor) are top-level: init and
-# bootstrap span BOTH tiers, version/completion belong to neither, and doctor is
-# the diagnostic you reach for when nothing else works -- none of them should sit
-# behind a namespace.
+# this map (version, init, completion, bootstrap, doctor, schedule) are top-level:
+# init and bootstrap span BOTH tiers, version/completion belong to neither, doctor
+# is the diagnostic you reach for when nothing else works, and schedule must work
+# on a core-only install -- none of them should sit behind a namespace.
 _NAMESPACE_OF = {name: ns for ns, _, names in _COMMAND_CATEGORIES if ns for name in names}
 
 
@@ -473,6 +474,10 @@ _DEFAULTS = {
     "serve": False, "site": None, "repos": None, "group_depth": None,
     "max_symbols": None,
     "anonymize": False, "sample": False, "c4": False,
+    # schedule
+    "job": None, "foreground": False, "platform": None, "purge": False,
+    "all": False, "yes": False, "rest": [], "json": False,
+    "allow_ephemeral": False,
     # tri-state booleans: unset on the command line -> None -> config wins
     **{name: None for name in _TRISTATE_FLAGS},
 }
@@ -758,6 +763,13 @@ def _root_hidden_flags(p):
                              "cypher", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid", "dagre"])
     add("--site", nargs="?", const="")
+
+
+def schedule_actions():
+    """The `schedule` action names, read from the schedule package so the parser
+    and the dispatcher can never disagree about which actions exist."""
+    from .schedule.cmds import ACTIONS
+    return ACTIONS
 
 
 def build_parser():
@@ -1410,6 +1422,71 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
     p.add_argument("--skip-interactive", dest="skip_interactive", action="store_true",
                    default=_S,
                    help="--fix: never prompt; privileged commands are printed, not run")
+
+    p = command("schedule", "run contextlake on a smart interval it works out itself",
+                epilog="""
+Examples:
+  contextlake schedule recommend                what interval your measurements suggest
+  contextlake schedule --json recommend         the same answer, as machine-readable JSON
+  contextlake schedule install                  measure, decide, and install the background job
+  contextlake schedule --interval 2h install    pin it, and turn auto-adjust off
+  contextlake schedule status                   what is installed, and whether it is drifting
+  contextlake schedule list                     every job this tool installed
+  contextlake schedule --foreground run         run the cycle here, in a loop, no daemon
+  contextlake schedule reset                    back to auto, and recompute now
+  contextlake schedule --history reset          throw away the measurements and re-learn
+  contextlake schedule uninstall                remove the job and its unit
+  contextlake schedule interval 6h run kb wiki --force
+
+The interval comes from two measurements: how long an incremental run
+takes here, and how often your repositories change. Whichever needs the longer
+gap wins, then it is clamped to schedule_min and schedule_max.
+
+`recommend`, `status` and `list` change nothing. Everything else writes.
+
+A flag of `schedule` itself (--job, --interval, --foreground, --history,
+--purge, --all, --yes, --json, --allow-ephemeral) is given BEFORE the action,
+never after: everything from the action onward is captured verbatim for
+`interval`'s trailing command, so a flag placed after the action is captured
+too, not parsed.
+                """)
+    # Required, and no nargs="?": on Python 3.9-3.11 argparse validates the
+    # SUPPRESS sentinel against `choices` when an optional positional is
+    # omitted (the same trap the `doctor` and `completion` registrations note).
+    p.add_argument("action", choices=list(schedule_actions()),
+                   help="recommend | install | uninstall | status | run | list | reset | interval")
+    # Everything after the action, captured verbatim. REMAINDER is what keeps a
+    # scheduled command's own flags (`--workspace`, `--force`) from being parsed
+    # as flags of `schedule`. The same REMAINDER also swallows any flag of
+    # `schedule` itself typed after the action (`schedule run --foreground` sets
+    # nothing; `rest` is `["--foreground"]`) -- so every flag below is given
+    # before the action, as the examples above show.
+    p.add_argument("rest", nargs=argparse.REMAINDER, metavar="...",
+                   help="interval: <duration|auto> run <contextlake command...>")
+    p.add_argument("--job", default=_S, metavar="NAME",
+                   help="act on this named job (default: the built-in job, 'default')")
+    p.add_argument("--interval", default=_S, metavar="DURATION",
+                   help="install: pin the interval (45s, 30m, 2h, 7d) instead of "
+                        "measuring, or 'auto' to hand it back to the recommender")
+    p.add_argument("--foreground", action="store_true", default=_S,
+                   help="run: loop here instead of installing anything. For containers, "
+                        "and for watching what it does")
+    p.add_argument("--platform", default=_S, metavar="NAME",
+                   help="force an adapter (systemd | cron) instead of detecting one")
+    p.add_argument("--history", dest="history", action="store_true", default=_S,
+                   help="reset: also discard the measured run history")
+    p.add_argument("--purge", action="store_true", default=_S,
+                   help="uninstall: also discard the measured run history")
+    p.add_argument("--all", action="store_true", default=_S,
+                   help="uninstall: remove every job, not just one")
+    p.add_argument("-y", "--yes", action="store_true", default=_S,
+                   help="do not prompt before discarding measurements")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="recommend/status/list: machine-readable output")
+    p.add_argument("--allow-ephemeral", dest="allow_ephemeral", action="store_true",
+                   default=_S,
+                   help="run: proceed even though the store will not survive this "
+                        "container. Every run then re-indexes the whole fleet")
 
     p = command("eval", "score a golden-query set against the index "
                         "(precision@k / recall@k / MRR)",
@@ -2179,6 +2256,34 @@ def _run(argv, metrics):
     if args.command == "completion":
         from .init_cmd import cmd_completion
         sys.exit(cmd_completion(args))
+
+    # Dispatched here, not below, for two reasons. `_needs_group` would refuse
+    # `schedule recommend` on any machine that has not configured a forge group,
+    # which is wrong for a knowledge-layer-only user. And the mirror preamble
+    # ("Working directory: ...", "Cache file: ...") has no business on a command
+    # that prints an interval.
+    if args.command == "schedule":
+        # `--json` makes stdout a machine-readable channel, the same convention
+        # every kb `--json` command follows (see kb/cmds/owners.py and siblings).
+        # Without this, load_config's gitlab_group warning below -- and any
+        # WARNING settings_from_config logs for a bad schedule_* value -- lands
+        # on stdout ahead of the JSON payload and breaks a naive parse of it.
+        if getattr(args, "json", False):
+            from .logging_setup import use_stderr
+            use_stderr()
+        try:
+            config = apply_cli_overrides(args, load_config(args.config))
+        except ConfigError as e:
+            log(str(e))
+            sys.exit(1)
+        if getattr(args, "work_dir", None):
+            config["work_dir"] = expand_path(args.work_dir)
+        from .schedule import cmds as schedule_cmds
+        try:
+            sys.exit(schedule_cmds.dispatch(args, config))
+        except KeyboardInterrupt:
+            log("Operation cancelled by user")
+            sys.exit(130)
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs

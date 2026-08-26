@@ -39,15 +39,19 @@ def test_init_skip_interactive_sets_the_flag():
 
 
 @pytest.mark.parametrize("flag", ["--yes", "-y"])
-def test_yes_and_short_y_are_gone_hard_cutover(flag, capsys):
-    """No compatibility alias: --yes/-y were removed outright rather than
-    deprecated (no external users yet at the time of the cutover), matching
-    how the CLI namespacing rename was handled -- see test_cli_namespaces.py."""
+def test_yes_and_short_y_are_gone_from_init_hard_cutover(flag, capsys):
+    """No compatibility alias on init: --yes/-y were removed from it outright
+    rather than deprecated (no external users yet at the time of the cutover),
+    matching how the CLI namespacing rename was handled -- see
+    test_cli_namespaces.py. `schedule` later took the same spelling for its own
+    confirmation flag, so the parser's cross-command suggester now points
+    there instead of reporting a plain unknown flag."""
     with pytest.raises(SystemExit) as exc:
         build_parser().parse_args(["init", flag])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert f"Unknown flag: {flag!r} (on 'init')" in err
+    assert f"{flag!r} isn't a flag on 'init'" in err
+    assert "It's used by: schedule." in err
 
 
 def test_kb_serve_accepts_the_sse_transport():
