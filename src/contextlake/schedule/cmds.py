@@ -212,13 +212,19 @@ def cmd_install(args, config) -> int:
     interval_s, why = resolve_interval(config, interval_setting)
     job = jobstore.new_job(name, argv, interval_setting, adapter.id, full_argv=full_argv,
                            created=existing.created if existing else None)
+    on_battery = config.get("schedule_on_battery", "skip")
     try:
         written = adapter.install(job, interval_s, exec_argv_for(name),
-                                  on_battery=config.get("schedule_on_battery", "skip"))
+                                  on_battery=on_battery)
     except OSError as e:
         # Degrade, never fail: print the unit and say how to install it.
+        # Same on_battery as the install attempt. A user who set
+        # schedule_on_battery=run must not be handed a unit with
+        # ConditionACPower=true, which on a read-only home is the only
+        # artefact they get.
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
-        for filename, text in adapter.render(job, interval_s, exec_argv_for(name)).items():
+        for filename, text in adapter.render(job, interval_s, exec_argv_for(name),
+                                             on_battery=on_battery).items():
             log(f"\n----- {filename} -----\n{text}")
         log("Install these yourself, or run `contextlake schedule run --foreground`.")
         return 0

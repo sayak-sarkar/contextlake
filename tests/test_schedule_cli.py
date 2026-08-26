@@ -253,3 +253,29 @@ def test_recommend_changes_nothing_on_disk(tmp_path):
     before = sorted(p.name for p in tmp_path.iterdir())
     cmds.cmd_recommend(argparse.Namespace(json=False), config)
     assert sorted(p.name for p in tmp_path.iterdir()) == before
+
+
+# ---- install -------------------------------------------------------------
+
+def test_the_degrade_path_prints_the_configured_battery_behaviour(tmp_path, monkeypatch, capsys):
+    """The fallback render must carry the same on_battery as the install
+    attempt. A user with schedule_on_battery=run handed a unit containing
+    ConditionACPower=true gets the opposite of their config, and on a
+    read-only home that printed unit is the only artefact they receive.
+    """
+    import argparse
+
+    from contextlake.schedule.platform import systemd
+
+    def _refuse(self, job, interval_s, exec_argv, **options):
+        raise OSError("read-only home")
+
+    monkeypatch.setattr(systemd.SystemdAdapter, "install", _refuse)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
+              "schedule_on_battery": "run"}
+    args = argparse.Namespace(job=None, interval=None, platform="systemd")
+    rc = cmds.cmd_install(args, config)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "ConditionACPower" not in out

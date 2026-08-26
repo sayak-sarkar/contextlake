@@ -78,10 +78,23 @@ def test_a_job_name_with_a_slash_or_a_space_is_refused():
             systemd.SystemdAdapter().render(_job(name=bad), 3600.0, _exec_argv())
 
 
-def test_render_writes_nothing(tmp_path, monkeypatch):
-    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
-    systemd.SystemdAdapter().render(_job(), 3600.0, _exec_argv())
-    assert list(tmp_path.iterdir()) == []
+def test_render_writes_nothing(monkeypatch):
+    """render() is pure, which is what makes the six backends of Plan 2
+    testable without being installable.
+
+    Asserts by intercepting the write primitives. An earlier version
+    monkeypatched unit_dir and checked that a tmp_path stayed empty, but
+    render() never calls unit_dir(), so tmp_path was empty either way and the
+    test passed whether or not render wrote.
+    """
+    def _refuse(*a, **k):
+        raise AssertionError(f"render() performed a filesystem write: {a[:1]}")
+
+    monkeypatch.setattr("builtins.open", _refuse)
+    monkeypatch.setattr(systemd.os, "makedirs", _refuse)
+    monkeypatch.setattr(systemd.os, "replace", _refuse)
+    files = systemd.SystemdAdapter().render(_job(), 3600.0, _exec_argv())
+    assert sorted(files) == ["contextlake-default.service", "contextlake-default.timer"]
 
 
 def test_the_rendered_unit_matches_the_golden_file():
@@ -163,9 +176,20 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
 
     monkeypatch.setenv("HOME", pwd.getpwuid(os.getuid()).pw_dir)
 
+    # The unit's ExecStart runs the real CLI (`schedule run --job selftest`),
+    # which looks the job up by name in the real job store, the same one
+    # `cmd_install` writes to. Installing the unit without a persisted job
+    # record leaves nothing for that lookup to find: the process exits 2,
+    # "No job named 'selftest'", and the timer never truly fires even though
+    # the unit itself started. Real end to end means both halves are real.
+    from contextlake.config import load_config
+
+    jobs_file = jobs.jobs_path(load_config(None))
+
     name = "selftest"
     unit = systemd.unit_name(name)  # contextlake-selftest
     job = jobs.new_job(name, ["version"], "1m", "systemd")
+    jobs.write_job(jobs_file, job)
     adapter = systemd.SystemdAdapter()
     written = adapter.install(job, 60.0, _exec_argv(name))
     try:
@@ -189,7 +213,12 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
             pytest.fail("the unit never completed within 60s")
         assert "ExecMainStatus=0" in result.stdout
     finally:
-        adapter.uninstall(job)
+        # delete_job must run even if uninstall raises, or a killed/failed
+        # run leaves `selftest` behind in the real, shared job store.
+        try:
+            adapter.uninstall(job)
+        finally:
+            jobs.delete_job(jobs_file, name)
     assert adapter.state(job)["installed"] is False
     leftovers = subprocess.run(["systemctl", "--user", "list-unit-files", f"{unit}*"],
                                capture_output=True, text=True, check=False)
