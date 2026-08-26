@@ -10,6 +10,7 @@ is not is worse than no schedule.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 
 from .base import Adapter, check_name, systemd_is_init
@@ -21,6 +22,33 @@ HEADER = ("# Managed by contextlake. Edits are overwritten by "
 def unit_dir() -> str:
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
     return os.path.join(base, "systemd", "user")
+
+
+_EXEC_PATH_RE = re.compile(r"path=(\S+)")
+
+
+def _exec_path_from_show(value) -> str | None:
+    """The interpreter path out of one ``ExecStart=`` show value.
+
+    Modern systemd reports a structured form:
+    ``{ path=/x/python ; argv[]=/x/python -m ... ; ... }``. Older systemd (or
+    any show output that is already a bare command line) reports the
+    command directly. Returns ``None`` on anything that does not parse,
+    never raises: an unusual show value means "cannot tell", the same rule
+    every sensor in this package follows, not "the interpreter is missing".
+    """
+    value = (value or "").strip()
+    if not value:
+        return None
+    match = _EXEC_PATH_RE.search(value)
+    if match:
+        return match.group(1)
+    if value.startswith("{"):
+        # A structured value with no ``path=`` inside it: unparseable, not a
+        # bare command that happens to start with a brace.
+        return None
+    parts = value.split()
+    return parts[0] if parts else None
 
 
 def unit_name(job_name) -> str:
@@ -128,8 +156,9 @@ class SystemdAdapter(Adapter):
 
     def state(self, job) -> dict:
         timer = self.timer_unit(job)
+        service = unit_name(job.name) + ".service"
         installed = os.path.exists(os.path.join(unit_dir(), timer))
-        notes, interval_s, next_run = [], None, None
+        notes, interval_s, next_run, exec_path = [], None, None, None
         if installed:
             show = _systemctl("show", timer, "-p", "NextElapseUSecRealtime")
             value = show.stdout.strip().split("=", 1)[-1].strip()
@@ -142,6 +171,12 @@ class SystemdAdapter(Adapter):
                             interval_s = float(line.split("=", 1)[1].strip().rstrip("s"))
             except (OSError, ValueError):
                 pass
+            # The interpreter the INSTALLED unit runs, not the one running
+            # this check: a venv deleted and reinstalled elsewhere leaves the
+            # unit pointing at a path this process has no other way to see.
+            exec_show = _systemctl("show", service, "-p", "ExecStart")
+            exec_value = exec_show.stdout.strip().split("=", 1)[-1]
+            exec_path = _exec_path_from_show(exec_value)
         linger = subprocess.run(
             ["loginctl", "show-user", os.environ.get("USER", ""), "-p", "Linger"],
             capture_output=True, text=True, check=False)
@@ -150,4 +185,4 @@ class SystemdAdapter(Adapter):
                 "Linger is off, so this timer does NOT fire while you are logged "
                 "out. Turn it on with: loginctl enable-linger $USER")
         return {"installed": installed, "interval_s": interval_s,
-                "next_run": next_run, "notes": notes}
+                "next_run": next_run, "exec_path": exec_path, "notes": notes}

@@ -118,6 +118,30 @@ def test_the_rendered_unit_matches_the_golden_file():
         "WantedBy=timers.target\n")
 
 
+# ---- ExecStart parsing (pure) --------------------------------------------
+
+def test_exec_path_from_show_parses_the_modern_structured_form():
+    """The format `systemctl --user show -p ExecStart` actually returns on a
+    current systemd, captured from a real installed unit."""
+    value = ("{ path=/home/x/.venv/bin/python3 ; argv[]=/home/x/.venv/bin/python3 "
+             "-m contextlake schedule run --job default ; ignore_errors=no ; "
+             "start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }")
+    assert systemd._exec_path_from_show(value) == "/home/x/.venv/bin/python3"
+
+
+def test_exec_path_from_show_parses_a_plain_command_line():
+    assert (systemd._exec_path_from_show("/usr/bin/contextlake schedule run")
+           == "/usr/bin/contextlake")
+
+
+def test_exec_path_from_show_returns_none_when_it_cannot_parse():
+    """None means cannot tell, not missing: a status check must never accuse
+    a healthy install on the strength of an unusual show value."""
+    assert systemd._exec_path_from_show("") is None
+    assert systemd._exec_path_from_show(None) is None
+    assert systemd._exec_path_from_show("{ argv[]=/x/python }") is None
+
+
 # ---- detection ----------------------------------------------------------
 
 def test_usable_is_false_without_a_user_bus(monkeypatch):
@@ -223,6 +247,28 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
     leftovers = subprocess.run(["systemctl", "--user", "list-unit-files", f"{unit}*"],
                                capture_output=True, text=True, check=False)
     assert unit not in leftovers.stdout
+
+
+@needs_systemd
+def test_state_reports_the_units_exec_path(monkeypatch):
+    """The parser above (test_exec_path_from_show_*) is proven against a
+    fixture string; this proves the wiring: a real installed unit's
+    `ExecStart` is read back and parsed to the same interpreter that was
+    installed, not invented. That is the one path `status`'s
+    missing-interpreter row depends on."""
+    import pwd
+
+    monkeypatch.setenv("HOME", pwd.getpwuid(os.getuid()).pw_dir)
+
+    name = "execpath-selftest"
+    job = jobs.new_job(name, ["version"], "1h", "systemd")
+    adapter = systemd.SystemdAdapter()
+    adapter.install(job, 3600.0, _exec_argv(name))
+    try:
+        state = adapter.state(job)
+    finally:
+        adapter.uninstall(job)
+    assert state["exec_path"] == sys.executable
 
 
 @needs_systemd

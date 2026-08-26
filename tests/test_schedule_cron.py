@@ -146,6 +146,53 @@ def test_cron_does_not_claim_to_catch_up_after_sleep():
     assert cron.CronAdapter().catches_up_after_sleep is False
 
 
+# ---- exec path parsing (pure, no real crontab) ---------------------------
+
+def test_exec_path_from_block_reads_the_first_command_token():
+    text = (
+        "# unrelated line\n"
+        + cron.BEGIN.format(name="default") + "\n"
+        + 'MAILTO=""\n'
+        + "*/30 * * * * /home/x/.venv/bin/python -m contextlake schedule run --job default\n"
+        + cron.END.format(name="default") + "\n"
+        + "# unrelated after\n")
+    assert cron._exec_path_from_block(text, "default") == "/home/x/.venv/bin/python"
+
+
+def test_exec_path_from_block_handles_a_quoted_path_with_a_space():
+    text = (
+        cron.BEGIN.format(name="default") + "\n"
+        + 'MAILTO=""\n'
+        + "0 * * * * '/home/x y/.venv/bin/python' -m contextlake schedule run --job default\n"
+        + cron.END.format(name="default") + "\n")
+    assert cron._exec_path_from_block(text, "default") == "/home/x y/.venv/bin/python"
+
+
+def test_exec_path_from_block_returns_none_when_the_block_is_absent():
+    assert cron._exec_path_from_block(EXISTING, "default") is None
+    assert cron._exec_path_from_block("", "default") is None
+
+
+def test_state_reports_the_blocks_exec_path(monkeypatch):
+    """The parser above is proven against a fixture string; this proves the
+    wiring inside `state()`, with `_read_crontab` stubbed rather than calling
+    the real `crontab` binary."""
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "0 * * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    monkeypatch.setattr(cron, "_read_crontab", lambda: text)
+    state = cron.CronAdapter().state(_job())
+    assert state["exec_path"] == "/x/python"
+
+
+def test_state_reports_no_exec_path_when_not_installed(monkeypatch):
+    monkeypatch.setattr(cron, "_read_crontab", lambda: EXISTING)
+    state = cron.CronAdapter().state(_job())
+    assert state["installed"] is False
+    assert state["exec_path"] is None
+
+
 def test_a_failed_write_raises_oserror_not_calledprocesserror(monkeypatch):
     """`cmd_install` degrades on OSError. subprocess.CalledProcessError is
     not an OSError, so a `crontab -` failure must be re-raised as one or the

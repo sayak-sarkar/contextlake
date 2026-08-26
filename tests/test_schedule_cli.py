@@ -308,3 +308,32 @@ def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
     assert rc == 0
     assert "every 1h" in out
     assert "cron cannot express 70m" in out
+
+
+def test_cmd_install_does_not_duplicate_the_cannot_catch_up_note(tmp_path, monkeypatch):
+    """cron's own `state()` already reports it cannot replay a run missed
+    while asleep; `install` printing it again unconditionally showed the
+    identical sentence twice on every cron install.
+
+    `_read_crontab` must reflect what `_write_crontab` wrote, or `state()`
+    (called after `install()` inside `cmd_install`) sees an empty crontab,
+    reports "not installed", and never contributes its own note, which would
+    make this test pass whether or not the duplicate had been fixed.
+    """
+    import argparse
+
+    from contextlake.schedule.platform import cron
+
+    written = {"text": ""}
+    monkeypatch.setattr(cron, "_read_crontab", lambda: written["text"])
+    monkeypatch.setattr(cron, "_write_crontab", lambda text: written.__setitem__("text", text))
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
+              "schedule_on_battery": "skip"}
+    args = argparse.Namespace(job=None, interval=None, platform="cron")
+    rc = cmds.cmd_install(args, config)
+    out = "\n".join(lines).lower()
+    assert rc == 0
+    assert out.count("does not replay a run missed") == 1

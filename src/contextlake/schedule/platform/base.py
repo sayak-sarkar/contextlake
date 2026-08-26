@@ -19,6 +19,13 @@ import subprocess
 # quoting in any of the three.
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
+# One phrase, shared by every adapter that cannot replay a run missed
+# while asleep or off, and by the status command that reports the same
+# fact when an adapter's own state() has not already said it. Matching
+# on the phrase rather than a whole sentence is what keeps the two from
+# printing it twice when both sides know it.
+NO_CATCH_UP_PHRASE = "does not replay a run missed"
+
 
 class NoAdapter(RuntimeError):
     """No adapter by that name, or none usable here."""
@@ -51,6 +58,18 @@ class Adapter:
         raise NotImplementedError
 
     def state(self, job) -> dict:
+        """What is really installed for ``job``, read from this platform, not
+        from the job record.
+
+        Returns a dict with five keys: ``installed`` (bool), ``interval_s``
+        (the interval the unit itself holds, or ``None`` if unreadable),
+        ``next_run`` (a platform-formatted timestamp, or ``None``),
+        ``exec_path`` (the interpreter the installed unit runs, or ``None``
+        when it cannot be read back), and ``notes`` (a list of strings, for
+        anything only this adapter can see, such as systemd's linger check).
+        ``None`` always means "cannot tell" and must never be reported as a
+        finding; only a value that is present and wrong is one.
+        """
         raise NotImplementedError
 
 

@@ -42,18 +42,38 @@ def test_a_record_with_no_unit_is_reported_as_a_disagreement(tmp_path, capsys, m
     assert "not installed" in out or "disagree" in out
 
 
-def test_a_missing_interpreter_is_reported(tmp_path, capsys, monkeypatch):
+def test_a_missing_interpreter_in_the_installed_unit_is_reported(tmp_path, capsys, monkeypatch):
+    """The unit's ExecStart holds the interpreter chosen at install time. If that
+    venv is deleted and contextlake is reinstalled elsewhere, the unit still
+    points at the old path and fails on every fire.
+
+    Asserts through the adapter's state(), not through exec_argv_for: an earlier
+    version checked sys.executable, which is the interpreter running this very
+    check and therefore can never be missing.
+    """
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    monkeypatch.setattr(cmds, "exec_argv_for",
-                        lambda name: ["/gone/venv/bin/python", "-m", "contextlake"])
+    monkeypatch.setattr(cmds, "_adapter_for",
+                        lambda *a, **k: _FakeAdapter(exec_path="/gone/venv/bin/python"))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" in capsys.readouterr().out
 
 
-def test_a_present_interpreter_is_not_reported(tmp_path, capsys, monkeypatch):
+def test_a_present_interpreter_in_the_installed_unit_is_not_reported(tmp_path, capsys, monkeypatch):
+    """Break-test the row above: a path that DOES exist must not fire the
+    missing-interpreter note. A row that always fires is as useless as one
+    that never does."""
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(cmds, "_adapter_for",
+                        lambda *a, **k: _FakeAdapter(exec_path=sys.executable))
+    cmds.cmd_status(_args(), _config(tmp_path))
+    assert "moved or been deleted" not in capsys.readouterr().out
+
+
+def test_an_unknown_interpreter_is_not_reported_as_missing(tmp_path, capsys, monkeypatch):
+    """None means cannot tell. An adapter that cannot read its unit back must
+    not make status accuse a healthy install."""
+    _install_record(tmp_path)
+    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter(exec_path=None))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" not in capsys.readouterr().out
 
@@ -194,6 +214,13 @@ def test_status_json_carries_every_field(tmp_path, monkeypatch, capsys):
     for key in ("name", "interval_setting", "effective_interval", "unit_installed",
                 "adapter", "recommendation", "last_run", "failures", "notes"):
         assert key in job, key
+    # Presence alone lets a regression that writes None into every field
+    # pass. Pin the fields whose value is knowable from the fixture.
+    assert job["name"] == "default"
+    assert job["interval_setting"] == "auto"
+    assert job["adapter"] == "fake"
+    assert job["unit_installed"] is True
+    assert job["failures"] == 0
 
 
 def test_status_writes_nothing(tmp_path, monkeypatch):
@@ -241,11 +268,15 @@ class _BrokenStateAdapter:
 
 
 class _FakeAdapter:
-    def __init__(self, installed=True, interval_s=3600.0, catches_up=True, notes=()):
+    # A present, real path by default: tests that do not care about the
+    # interpreter row must not incidentally trip the missing-interpreter
+    # note just because the fake needs some string there.
+    def __init__(self, installed=True, interval_s=3600.0, catches_up=True, notes=(),
+                exec_path=sys.executable):
         self.id = "fake"
         self.catches_up_after_sleep = catches_up
         self._state = {"installed": installed, "interval_s": interval_s,
-                       "next_run": None, "notes": list(notes)}
+                       "next_run": None, "exec_path": exec_path, "notes": list(notes)}
 
     def state(self, job):
         return dict(self._state)

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 
 from ..logging_setup import log
 from . import gates, history, recommend
+from .platform.base import NO_CATCH_UP_PHRASE
 
 ACTIONS = ("recommend", "install", "uninstall", "status", "run", "list", "reset", "interval")
 
@@ -244,10 +245,14 @@ def cmd_install(args, config) -> int:
     rounding_note = rendered.get("notes")
     if rounding_note:
         log(f"  {style.warn()} {rounding_note}")
-    for note in adapter.state(job).get("notes", []):
+    state_notes = adapter.state(job).get("notes", [])
+    for note in state_notes:
         log(f"  {style.warn()} {note}")
-    if not adapter.catches_up_after_sleep:
-        log(f"  {style.warn()} {adapter.id} does not replay a run missed while this "
+    # cron's own state() already carries this note when installed; printing
+    # it again unconditionally duplicated the sentence on every cron install.
+    if (not adapter.catches_up_after_sleep
+            and not any(NO_CATCH_UP_PHRASE in n for n in state_notes)):
+        log(f"  {style.warn()} {adapter.id} {NO_CATCH_UP_PHRASE} while this "
             f"machine was asleep or off.")
     return 0
 
@@ -348,7 +353,15 @@ def cmd_status(args, config) -> int:
         if not state.get("installed"):
             notes.append("This job is recorded but its unit is NOT installed. "
                          "Re-run `contextlake schedule install` to put it back.")
-        gone = executable_missing(exec_argv_for(name))
+        # The interpreter the INSTALLED unit references, not the one running
+        # this check: `exec_argv_for` builds the argv for a fresh install and
+        # always resolves to sys.executable, so checking it here would ask
+        # whether the interpreter running `status` right now exists, which is
+        # never missing. `exec_path` comes from the adapter reading the unit
+        # back (systemd's ExecStart, cron's crontab line), and `None` means
+        # the adapter could not tell, which must not read as "missing".
+        exec_path = state.get("exec_path")
+        gone = executable_missing([exec_path]) if exec_path else None
         if gone:
             notes.append(f"The interpreter this job runs ({gone}) has moved or been "
                          f"deleted, so every run fails silently. Re-run "
@@ -359,9 +372,8 @@ def cmd_status(args, config) -> int:
         # that reports both, regardless of which noun starts its sentence.
         # ``catches_up is False`` (not merely falsy): ``None`` means unknown,
         # which is a different fact than "known not to catch up".
-        no_replay_phrase = "does not replay a run missed"
-        if catches_up is False and not any(no_replay_phrase in n for n in notes):
-            notes.append(f"{adapter_id} {no_replay_phrase} while this machine "
+        if catches_up is False and not any(NO_CATCH_UP_PHRASE in n for n in notes):
+            notes.append(f"{adapter_id} {NO_CATCH_UP_PHRASE} while this machine "
                          f"was asleep or off.")
         if idle_inert:
             notes.append("schedule_require_idle is on, but user idleness cannot "
@@ -381,7 +393,7 @@ def cmd_status(args, config) -> int:
 
         payload["jobs"].append({
             "name": name, "interval_setting": job.interval,
-            "effective_interval": recommend.format_duration(effective_s),
+            "effective_interval": recommend.format_duration(effective_s), "why": why,
             "unit_interval": (recommend.format_duration(live_s) if live_s else None),
             "unit_installed": bool(state.get("installed")), "adapter": adapter_id,
             "next_run": state.get("next_run"), "command": job.argv,
@@ -400,6 +412,12 @@ def cmd_status(args, config) -> int:
         print(f"    interval:  {entry['effective_interval']}"
               + (f"  (set to {entry['interval_setting']})"
                  if entry["interval_setting"] != "auto" else "  (auto)"))
+        if entry["interval_setting"] != "auto":
+            # `why` is `rec.reason` for an auto job, already printed once
+            # below for the whole command; repeating it per job would be
+            # noise. A pinned job's reason ("auto-adjust is off") is not
+            # printed anywhere else, so it belongs here.
+            print(f"               {entry['why']}")
         if entry["unit_interval"] and entry["unit_interval"] != entry["effective_interval"]:
             print(f"    on disk:   {entry['unit_interval']}")
         print(f"    next run:  {entry['next_run'] or 'unknown'}")

@@ -18,7 +18,7 @@ import shlex
 import shutil
 import subprocess
 
-from .base import Adapter, check_name
+from .base import NO_CATCH_UP_PHRASE, Adapter, check_name
 
 BEGIN = "# >>> contextlake ({name}) >>>"
 END = "# <<< contextlake ({name}) <<<"
@@ -89,6 +89,37 @@ def splice(existing, name, block):
     return text + begin + "\n" + (block if block.endswith("\n") else block + "\n") + end + "\n"
 
 
+def _exec_path_from_block(text, name) -> str | None:
+    """The interpreter path out of one job's marked crontab block.
+
+    The block's cron line is ``<5 time fields> <command>``, and ``command``
+    is the shlex-quoted argv `render` wrote, so the first token after
+    splitting the time fields off, then shlex-splitting the remainder, is
+    the interpreter. Returns ``None`` when the block is absent or the line
+    does not parse: "cannot tell", never "missing".
+    """
+    begin, end = BEGIN.format(name=name), END.format(name=name)
+    inside = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == begin:
+            inside = True
+            continue
+        if inside and stripped == end:
+            return None
+        if not inside or not stripped or stripped.startswith("MAILTO="):
+            continue
+        parts = stripped.split(None, 5)
+        if len(parts) < 6:
+            continue
+        try:
+            tokens = shlex.split(parts[5])
+        except ValueError:
+            return None
+        return tokens[0] if tokens else None
+    return None
+
+
 def _read_crontab() -> str:
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True, check=False)
     # Exit 1 with "no crontab for ..." is the empty case, not a failure.
@@ -151,6 +182,8 @@ class CronAdapter(Adapter):
         name = check_name(job.name)
         text = _read_crontab()
         installed = BEGIN.format(name=name) in text
+        exec_path = _exec_path_from_block(text, name) if installed else None
+        notes = [f"cron {NO_CATCH_UP_PHRASE} while this machine was asleep "
+                "or off."] if installed else []
         return {"installed": installed, "interval_s": None, "next_run": None,
-                "notes": ["cron does not replay a run missed while this machine "
-                          "was asleep or off."] if installed else []}
+                "exec_path": exec_path, "notes": notes}
