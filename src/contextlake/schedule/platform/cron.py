@@ -40,9 +40,14 @@ def _expressible():
 def nearest_expressible(seconds):
     """``(seconds, cron_spec)`` for the nearest interval cron can run.
 
-    Rounds DOWN. Running more often costs duty cycle, which the user
-    set a bound on and can see; running less often costs freshness, which is the
-    thing they asked the scheduler to protect.
+    Rounds DOWN above one minute. Running more often costs duty cycle, which
+    the user set a bound on and can see; running less often costs freshness,
+    which is what they installed a scheduler to protect.
+
+    Below one minute it rounds UP to the one-minute floor, because cron has
+    no finer resolution and there is nothing smaller to round to. ``render``
+    reports the difference either way, so a caller who asked for 30s is told
+    the job runs every minute.
     """
     wanted = float(seconds)
     candidates = [pair for pair in _expressible() if pair[0] <= wanted]

@@ -231,7 +231,7 @@ def cmd_install(args, config) -> int:
     jobstore.write_job(jobs_file, job)
 
     # `render` is pure, so calling it again after `install` is free. It is the
-    # only way to learn the interval cron actually installed: `install` returns
+    # only way to learn the interval cron installed: `install` returns
     # a list of paths written, not the rendered facts, and cron's `render` can
     # round the requested interval down to the nearest one cron can express.
     rendered = adapter.render(job, interval_s, exec_argv_for(name), on_battery=on_battery)

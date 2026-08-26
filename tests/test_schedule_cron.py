@@ -46,6 +46,28 @@ def test_the_installer_says_when_it_had_to_round():
     assert "1h" in files["notes"]
 
 
+@pytest.mark.parametrize("seconds,expected_s", [
+    (30, 60),    # below cron's floor: rounds UP, there is nothing smaller
+    (45, 60),
+    (90, 60),    # above the floor: rounds DOWN
+    (4200, 3600),
+])
+def test_the_rounding_direction_is_documented_in_both_directions(seconds, expected_s):
+    """Rounds down above a minute, up below it. The docstring claimed "rounds
+    down" without qualification, which is false for a sub-minute request."""
+    got, _ = cron.nearest_expressible(seconds)
+    assert got == expected_s
+
+
+def test_a_sub_minute_request_is_disclosed_like_any_other_rounding():
+    """The user asked for something cron cannot do. Rounding up silently would
+    be the same failure as rounding down silently."""
+    adapter = cron.CronAdapter()
+    rendered = adapter.render(_job(), 30.0, ["/opt/py", "-m", "contextlake"])
+    assert rendered["interval_s"] == 60
+    assert rendered["notes"]
+
+
 # ---- crontab splicing ---------------------------------------------------
 
 EXISTING = (
