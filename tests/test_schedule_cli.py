@@ -55,22 +55,43 @@ def test_the_action_is_required():
         _parse(["schedule"])
 
 
-# ---- REMAINDER: prove it before Task 11 builds on it -------------------
+# ---- the trailing command: `--` separator, and flags reach their target ---
 
 @pytest.mark.parametrize("argv,expected", [
-    (["schedule", "interval", "30m", "run", "kb", "index", "--workspace", "/x"],
+    (["schedule", "interval", "30m", "run", "--", "kb", "index", "--workspace", "/x"],
      ["30m", "run", "kb", "index", "--workspace", "/x"]),
-    (["schedule", "interval", "auto", "run", "mirror", "sync", "--repos", "acme/*"],
+    (["schedule", "interval", "auto", "run", "--", "mirror", "sync", "--repos", "acme/*"],
      ["auto", "run", "mirror", "sync", "--repos", "acme/*"]),
-    (["schedule", "interval", "2h", "run", "kb", "wiki", "--force"],
+    (["schedule", "interval", "2h", "run", "--", "kb", "wiki", "--force"],
      ["2h", "run", "kb", "wiki", "--force"]),
     (["schedule", "interval", "1h", "run", "--", "kb", "index", "--force"],
-     ["1h", "run", "--", "kb", "index", "--force"]),
+     ["1h", "run", "kb", "index", "--force"]),
 ])
 def test_the_captured_command_keeps_its_own_flags(argv, expected):
     """A flag inside the captured command must NOT be parsed as a flag of
-    `schedule`. This is the entire reason for REMAINDER."""
+    `schedule`. This is why `interval`'s trailing command needs a `--`
+    separator. argparse consumes the `--` itself, so it never shows up in
+    `rest` -- unlike the old REMAINDER shape, which preserved it."""
     assert _parse(argv).rest == expected
+
+
+@pytest.mark.parametrize("argv,attr,expected", [
+    (["schedule", "recommend", "--json"], "json", True),
+    (["schedule", "install", "--interval", "2h"], "interval", "2h"),
+    (["schedule", "run", "--foreground"], "foreground", True),
+    (["schedule", "uninstall", "--job", "nightly"], "job", "nightly"),
+    (["schedule", "reset", "--history"], "history", True),
+    (["schedule", "uninstall", "--all"], "all", True),
+])
+def test_a_flag_after_the_action_reaches_its_destination(argv, attr, expected):
+    """`argparse.REMAINDER` swallowed every one of these into `rest`, so
+    `schedule uninstall --job nightly` silently removed the default job
+    instead of `nightly`. Each case asserts the flag's VALUE, not that the
+    line parses: every one of them parsed cleanly under REMAINDER while
+    doing the wrong thing."""
+    args = _parse(argv)
+    assert getattr(args, attr) == expected
+    assert args.rest == []
 
 
 def test_a_global_flag_before_the_action_still_works():
@@ -83,6 +104,14 @@ def test_schedule_flags_parse_when_they_come_before_the_remainder():
     args = _parse(["schedule", "--job", "nightly", "interval", "2h", "run", "kb", "wiki"])
     assert args.job == "nightly"
     assert args.rest == ["2h", "run", "kb", "wiki"]
+
+
+def test_the_separator_form_still_captures_flags_verbatim():
+    """Task 12's ad-hoc jobs depend on `interval ... run -- <command>`
+    capturing the trailing command's own flags untouched."""
+    args = _parse(["schedule", "interval", "1h", "run", "--",
+                   "kb", "index", "--workspace", "/x", "--force"])
+    assert args.rest == ["1h", "run", "kb", "index", "--workspace", "/x", "--force"]
 
 
 # ---- registry obligations ----------------------------------------------

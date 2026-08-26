@@ -1436,7 +1436,7 @@ Examples:
   contextlake schedule reset                    back to auto, and recompute now
   contextlake schedule --history reset          throw away the measurements and re-learn
   contextlake schedule uninstall                remove the job and its unit
-  contextlake schedule interval 6h run kb wiki --force
+  contextlake schedule interval 6h run -- kb wiki --force
 
 The interval comes from two measurements: how long an incremental run
 takes here, and how often your repositories change. Whichever needs the longer
@@ -1445,24 +1445,27 @@ gap wins, then it is clamped to schedule_min and schedule_max.
 `recommend`, `status` and `list` change nothing. Everything else writes.
 
 A flag of `schedule` itself (--job, --interval, --foreground, --history,
---purge, --all, --yes, --json, --allow-ephemeral) is given BEFORE the action,
-never after: everything from the action onward is captured verbatim for
-`interval`'s trailing command, so a flag placed after the action is captured
-too, not parsed.
+--purge, --all, --yes, --json, --allow-ephemeral) works before OR after the
+action, same as any other contextlake command. Only `interval` is different:
+give it a duration, the word `run`, a `--` separator, then the command to
+run on that schedule -- everything after `--` is captured verbatim, so a
+flag inside that trailing command is never parsed as a flag of `schedule`.
                 """)
     # Required, and no nargs="?": on Python 3.9-3.11 argparse validates the
     # SUPPRESS sentinel against `choices` when an optional positional is
     # omitted (the same trap the `doctor` and `completion` registrations note).
     p.add_argument("action", choices=list(schedule_actions()),
                    help="recommend | install | uninstall | status | run | list | reset | interval")
-    # Everything after the action, captured verbatim. REMAINDER is what keeps a
-    # scheduled command's own flags (`--workspace`, `--force`) from being parsed
-    # as flags of `schedule`. The same REMAINDER also swallows any flag of
-    # `schedule` itself typed after the action (`schedule run --foreground` sets
-    # nothing; `rest` is `["--foreground"]`) -- so every flag below is given
-    # before the action, as the examples above show.
-    p.add_argument("rest", nargs=argparse.REMAINDER, metavar="...",
-                   help="interval: <duration|auto> run <contextlake command...>")
+    # `interval`'s trailing command, captured verbatim after a `--` separator.
+    # nargs="*" (not REMAINDER) so a `schedule` flag placed AFTER the action
+    # (`schedule run --foreground`, `schedule uninstall --job nightly`) still
+    # reaches its own destination instead of being swallowed into `rest` --
+    # REMAINDER consumed every token from the action onward unconditionally,
+    # which silently broke exactly those two flags (and --interval, --history,
+    # --all) whenever they were typed after the action. argparse itself strips
+    # the `--` from the parsed value, so `rest` never contains it.
+    p.add_argument("rest", nargs="*", metavar="...",
+                   help="interval: <duration|auto> run -- <contextlake command...>")
     p.add_argument("--job", default=_S, metavar="NAME",
                    help="act on this named job (default: the built-in job, 'default')")
     p.add_argument("--interval", default=_S, metavar="DURATION",
