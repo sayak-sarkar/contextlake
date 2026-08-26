@@ -133,7 +133,8 @@ def test_schedule_is_not_a_knowledge_layer_command():
     assert "schedule" not in _KB_COMMANDS
 
 
-@pytest.mark.parametrize("flag", ["job", "foreground", "platform", "purge", "all", "yes"])
+@pytest.mark.parametrize("flag", ["job", "foreground", "platform", "purge", "all", "yes",
+                                  "history"])
 def test_every_new_flag_has_a_defaults_entry(flag):
     """A flag with default=SUPPRESS and no _DEFAULTS entry leaves
     getattr(args, flag, None) returning the SUPPRESS sentinel, which is TRUTHY.
@@ -147,7 +148,8 @@ def test_parsed_flags_are_never_the_suppress_sentinel():
     import argparse
 
     args = _parse(["schedule", "recommend"])
-    for name in ("job", "foreground", "platform", "purge", "all", "yes", "interval"):
+    for name in ("job", "foreground", "platform", "purge", "all", "yes", "interval",
+                "history"):
         assert getattr(args, name, None) is not argparse.SUPPRESS
 
 

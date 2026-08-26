@@ -477,7 +477,7 @@ _DEFAULTS = {
     # schedule
     "job": None, "foreground": False, "platform": None, "purge": False,
     "all": False, "yes": False, "rest": [], "json": False,
-    "allow_ephemeral": False,
+    "allow_ephemeral": False, "history": False,
     # tri-state booleans: unset on the command line -> None -> config wins
     **{name: None for name in _TRISTATE_FLAGS},
 }

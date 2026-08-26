@@ -465,14 +465,36 @@ def _confirm(args, prompt) -> bool:
 
 def _discard_history(args, config) -> int:
     """Throw away the measured run history. Shared by ``uninstall --purge``
-    and ``reset --history``."""
+    and ``reset --history``.
+
+    A useful median takes days of real runs to earn back, so the count and
+    the span it covers are printed before anything is deleted, whether or
+    not ``--yes`` is set. ``print`` rather than ``log``: this is the one
+    line a caller piping or scripting the destructive path must see, and
+    ``log`` output is not reliably readable back through ``capsys`` once
+    anything earlier in the same pytest session has called it (see
+    ``tests/test_schedule_run.py``'s ``_log_lines`` for the mechanism).
+
+    Declining returns 1, not 0: nothing was destroyed, but the caller asked
+    for a discard and did not get one, which a caller composing this into a
+    script needs to be able to tell apart from a real success.
+    """
     from .. import style
 
-    if not _confirm(args, "Discard the measured run history?"):
-        log("Kept the run history.")
+    path = history.history_path(config)
+    summary = history.summarize(history.read_runs(path))
+    if summary["count"] == 0:
+        print("No measured runs to discard.")
         return 0
-    count = history.clear_runs(history.history_path(config))
-    log(f"{style.ok()} Discarded {count} measured run(s).")
+    print(f"About to discard {summary['count']} measured run(s) spanning "
+          f"{summary['days']:.1f} day(s) ({summary['first_ts']} to "
+          f"{summary['last_ts']}).")
+    print("  The recommender starts cold and re-learns from the next run.")
+    if not _confirm(args, "Discard them?"):
+        print("Kept. Nothing was deleted.")
+        return 1
+    dropped = history.clear_runs(path)
+    print(f"{style.ok()} Discarded {dropped} measured run(s).")
     return 0
 
 
@@ -516,6 +538,64 @@ def cmd_uninstall(args, config) -> int:
         return _discard_history(args, config)
     log("  The measured run history was kept, so a future install starts warm. "
         "Use --purge to discard it.")
+    return 0
+
+
+def cmd_reset(args, config) -> int:
+    """Back to auto: clear a fixed pin, clear the backoff, recompute, reinstall.
+
+    ``--history`` additionally throws away the measurements, which is a
+    separate and more destructive action, so it is a separate flag rather
+    than part of the default behaviour. A discard declined by
+    ``_discard_history`` aborts the whole reset: a caller who would not
+    confirm the destructive half of the request should not have the other
+    half applied silently underneath it.
+
+    The unit is rewritten before the job record is: if the adapter cannot
+    install, this returns without touching the record, so a failed reset
+    never leaves the job claiming ``auto`` with a cleared backoff while the
+    installed unit still runs the old pinned, backed-off interval.
+    """
+    from .. import style
+    from . import jobs as jobstore
+    from .platform import base
+
+    wants_history = bool(getattr(args, "history", False))
+    jobs_file = jobstore.jobs_path(config)
+    mapping = jobstore.read_jobs(jobs_file)
+    name = getattr(args, "job", None) or jobstore.DEFAULT_JOB
+    job = mapping.get(name)
+
+    if job is None:
+        if getattr(args, "job", None):
+            log(f"No job named {name!r}. See `contextlake schedule list`.")
+            return 1
+        if wants_history:
+            # The measurements describe the machine, not a job, so this is
+            # legitimate with nothing installed.
+            return _discard_history(args, config)
+        log("No schedule installed. Nothing to reset.")
+        return 1
+
+    if wants_history:
+        code = _discard_history(args, config)
+        if code != 0:
+            return code
+
+    updated = job._replace(interval="auto", failures=0)
+    interval_s, why = resolve_interval(config, "auto")
+    try:
+        adapter = _adapter_for(args, updated)
+        adapter.install(updated, interval_s, exec_argv_for(name),
+                        on_battery=config.get("schedule_on_battery", "skip"))
+    except (base.NoAdapter, OSError) as e:
+        log(style.fail(f"Could not rewrite the {updated.platform} unit: {e}"))
+        return 1
+    jobstore.write_job(jobs_file, updated)
+
+    log(f"{style.ok()} Reset job {name!r} to auto, every "
+        f"{recommend.format_duration(interval_s)}.")
+    log(f"  {why}")
     return 0
 
 
@@ -755,5 +835,7 @@ def dispatch(args, config) -> int:
         return cmd_status(args, config)
     if action == "run":
         return cmd_run(args, config)
+    if action == "reset":
+        return cmd_reset(args, config)
     log(f"`schedule {action}` is not implemented yet.")
     return 1
