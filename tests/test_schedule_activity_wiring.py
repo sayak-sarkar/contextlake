@@ -107,12 +107,47 @@ def test_the_recorded_kind_comes_from_the_environment(tmp_path):
     assert history.read_runs(str(hist))[0]["kind"] == "full"
 
 
+def _history_files(tmp_path):
+    """Every schedule-history.jsonl the CLI could have written under this test's
+    isolated HOME and XDG_CACHE_HOME. The default path is derived from config, so
+    a broken gate writes here rather than anywhere the test names."""
+    return sorted((tmp_path / "cache").rglob("schedule-history.jsonl"))
+
+
 def test_an_unscheduled_trivial_command_records_nothing(tmp_path):
-    """Appending on every invocation, `--version` included, would flood the
-    history with sub-second records and drive the median to zero."""
-    hist = tmp_path / "h.jsonl"
-    _run_cli(tmp_path, ["version"])
-    assert history.read_runs(str(hist)) == []
+    """Recording every invocation, `version` included, would flood the history
+    with sub-second records and drive the median to zero.
+
+    Asserts on the DEFAULT history path, which is where a broken gate would
+    write. An earlier version of this test asserted on a path it never gave the
+    subprocess, so it passed unconditionally.
+    """
+    result = _run_cli(tmp_path, ["version"])
+    assert result.returncode == 0
+    assert _history_files(tmp_path) == []
+
+
+def test_a_hand_typed_sync_command_records_itself_at_the_default_path(tmp_path):
+    """The `_HISTORY_COMMANDS` branch in `_run`, not `main`'s env-var branch.
+
+    `mirror update` is the one mirror verb that works purely from what is
+    already on disk (see `_GROUP_COMMANDS` in cli.py), so it needs no GitLab
+    group and no network to reach the history-write call. No
+    `CONTEXTLAKE_SCHEDULE_HISTORY` is set here: this is what a hand-typed
+    `contextlake mirror update` actually does, unprompted.
+    """
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    result = _run_cli(tmp_path, ["mirror", "update", "--work-dir", str(workspace)])
+    assert result.returncode == 0, result.stderr
+
+    files = _history_files(tmp_path)
+    assert len(files) == 1
+    runs = history.read_runs(str(files[0]))
+    assert len(runs) == 1
+    assert runs[0]["kind"] == "incremental"
+    assert "duration_s" in runs[0]
+    assert "exit" in runs[0]
 
 
 def test_a_failing_scheduled_child_records_its_real_exit_code(tmp_path):
