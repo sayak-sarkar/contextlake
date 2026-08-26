@@ -75,11 +75,7 @@ def read_runs(path) -> list:
 
 
 def append_run(path, record) -> None:
-    """Add one record and enforce the cap. Never raises.
-
-    The cap is applied by rewriting the file when it is over, not on every
-    append: the common path is one ``open(..., "a")`` and one ``write``.
-    """
+    """Add one record and enforce the cap. Never raises."""
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "a", encoding="utf-8") as fh:
@@ -90,6 +86,24 @@ def append_run(path, record) -> None:
 
 
 def _trim(path) -> None:
+    """Rewrite the file to the newest MAX_RECORDS entries, if it is over.
+
+    Below the cap this costs nothing extra: appends stay a single
+    ``open(..., "a")`` plus one write. Once the file is at the cap, which is
+    the steady state for any long-lived install, every further append reads
+    the whole file and rewrites it. That is acceptable because MAX_RECORDS is
+    only a few tens of KB, so a full rewrite on each append is cheap.
+
+    Two processes appending near the cap can each read the same pre-trim
+    state, each write a complete rewrite to the same fixed ``path + ".tmp"``,
+    and whichever calls ``os.replace`` last wins outright, silently dropping
+    the other's record. The file itself is never corrupt (each writer's
+    rewrite is a complete, valid file, and ``os.replace`` is atomic), but a
+    record can be lost this way. That is an acceptable trade here: this
+    module's whole stance is that losing a data point beats disturbing a run,
+    and a later task adds a single-writer lock around scheduled runs. Do not
+    add locking here.
+    """
     runs = read_runs(path)
     if len(runs) <= MAX_RECORDS:
         return

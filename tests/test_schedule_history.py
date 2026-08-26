@@ -69,10 +69,26 @@ def test_the_file_is_capped_at_max_records_keeping_the_newest(tmp_path):
     assert runs[-1]["duration_s"] == float(history.MAX_RECORDS + 24)
 
 
-def test_append_never_raises_when_the_directory_cannot_be_written(tmp_path):
+def test_append_never_raises_when_the_target_cannot_be_written(tmp_path):
     """This runs inside main()'s `finally`. An exception here would REPLACE the
-    real outcome of the run with a traceback about telemetry."""
-    history.append_run(str(tmp_path / "no" / "such" / "dir" / "h.jsonl"), _rec(1))
+    real outcome of the run with a traceback about telemetry.
+
+    A plain file standing where a directory component must go makes both
+    os.makedirs and open fail with NotADirectoryError. The earlier version of
+    this test pointed at a merely non-existent nested path, which makedirs
+    creates happily, so it passed with the whole try/except deleted.
+    """
+    blocker = tmp_path / "afile"
+    blocker.write_text("not a directory", encoding="utf-8")
+    history.append_run(str(blocker / "sub" / "h.jsonl"), _rec(1))
+
+
+def test_append_never_raises_on_an_unserializable_record(tmp_path):
+    """The TypeError/ValueError half of the same guard. json.dumps cannot
+    serialize an arbitrary object, and that must lose the record, not the run."""
+    history.append_run(str(tmp_path / "h.jsonl"), {"ts": "x", "kind": "incremental",
+                                                   "duration_s": object(), "exit": 0})
+    assert history.read_runs(str(tmp_path / "h.jsonl")) == []
 
 
 def test_clear_runs_reports_how_many_it_discarded(tmp_path):
