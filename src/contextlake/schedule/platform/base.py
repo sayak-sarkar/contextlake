@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import subprocess
 
 # A job name becomes a filename, a systemd unit name, and a crontab marker. Keep
 # it to characters that cannot escape a directory, split a unit name, or need
@@ -98,5 +99,22 @@ def detect() -> str:
 
 
 def systemd_is_init() -> bool:
-    return (shutil.which("systemctl") is not None
-            and os.path.isdir("/run/systemd/system"))
+    """Whether a systemd USER manager is reachable, not merely present.
+
+    A systemctl binary and /run/systemd/system prove systemd is init. They do
+    not prove `systemctl --user` can reach a user bus, which is what every
+    call this adapter makes needs. A container, a CI runner, or an ssh session
+    without lingering has the first two and not the third, and there
+    `cmd_install` would write unit files that never fire.
+
+    `show -p Version` rather than `is-system-running`: the latter exits
+    non-zero on a merely degraded system, which is a working bus.
+    """
+    if shutil.which("systemctl") is None or not os.path.isdir("/run/systemd/system"):
+        return False
+    try:
+        return subprocess.run(
+            ["systemctl", "--user", "show", "-p", "Version"],
+            capture_output=True, timeout=5, check=False).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False

@@ -107,6 +107,31 @@ def test_the_rendered_unit_matches_the_golden_file():
 
 # ---- detection ----------------------------------------------------------
 
+def test_usable_is_false_without_a_user_bus(monkeypatch):
+    """systemctl plus /run/systemd/system prove systemd is init, not that a
+    user manager is reachable. Installing unit files that can never be enabled
+    is worse than reporting the adapter unusable."""
+    import subprocess as sp
+
+    monkeypatch.setattr(base.shutil, "which", lambda _: "/usr/bin/systemctl")
+    monkeypatch.setattr(base.os.path, "isdir", lambda _: True)
+    monkeypatch.setattr(
+        base.subprocess, "run",
+        lambda *a, **k: sp.CompletedProcess(a[0] if a else [], 1, b"", b""))
+    assert base.systemd_is_init() is False
+
+
+def test_usable_is_true_when_the_user_bus_answers(monkeypatch):
+    import subprocess as sp
+
+    monkeypatch.setattr(base.shutil, "which", lambda _: "/usr/bin/systemctl")
+    monkeypatch.setattr(base.os.path, "isdir", lambda _: True)
+    monkeypatch.setattr(
+        base.subprocess, "run",
+        lambda *a, **k: sp.CompletedProcess(a[0] if a else [], 0, b"", b""))
+    assert base.systemd_is_init() is True
+
+
 def test_detect_returns_an_id_that_get_accepts():
     assert base.get(base.detect()) is not None
 

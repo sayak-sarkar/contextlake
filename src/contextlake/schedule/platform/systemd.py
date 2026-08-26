@@ -95,7 +95,18 @@ class SystemdAdapter(Adapter):
                 fh.write(text)
             written.append(path)
         _systemctl("daemon-reload")
-        _systemctl("enable", "--now", self.timer_unit(job))
+        enabled = _systemctl("enable", "--now", self.timer_unit(job))
+        if enabled.returncode != 0:
+            # `usable()` proves a user bus answered at DETECT time; it does not
+            # prove it still answers now. Files on disk with no enabled timer
+            # is the silent-failure state this adapter exists to rule out, so
+            # a non-zero exit here is raised rather than swallowed. The caller
+            # (`cmd_install`) already degrades on `OSError`: prints the unit,
+            # says to install it by hand. The files stay on disk; they match
+            # what was printed, and enabling them later is a valid recovery.
+            raise OSError(
+                f"systemctl --user enable --now {self.timer_unit(job)} failed: "
+                f"{enabled.stderr.strip() or enabled.stdout.strip() or 'no output'}")
         return written
 
     def uninstall(self, job) -> list:
