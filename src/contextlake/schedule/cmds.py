@@ -158,6 +158,170 @@ def cmd_list(args, config) -> int:
     return 0
 
 
+def _adapter_for(args, job=None):
+    from .platform import base
+
+    name = getattr(args, "platform", None) or (job.platform if job else None) or base.detect()
+    return base.get(name)
+
+
+def exec_argv_for(name) -> list:
+    """The command line the unit runs.
+
+    ``sys.executable`` rather than a bare ``contextlake``: a unit runs with a
+    different PATH from a login shell, and a venv that moved would otherwise
+    fail silently forever. `status` resolves this back and reports it missing.
+    """
+    return [sys.executable, "-m", "contextlake", "schedule", "run", "--job", name]
+
+
+def cmd_install(args, config) -> int:
+    """Measure, decide, and install. Idempotent: run it again to change the interval."""
+    from .. import style
+    from . import jobs as jobstore
+    from .platform import base
+
+    name = getattr(args, "job", None) or jobstore.DEFAULT_JOB
+    try:
+        base.check_name(name)
+    except ValueError as e:
+        log(style.fail(str(e)))
+        return 2
+
+    pin = getattr(args, "interval", None)
+    interval_setting = "auto"
+    if pin and str(pin).strip().lower() != "auto":
+        try:
+            recommend.parse_duration(pin)
+        except ValueError as e:
+            log(style.fail(str(e)))
+            return 2
+        interval_setting = str(pin).strip()
+
+    jobs_file = jobstore.jobs_path(config)
+    existing = jobstore.read_jobs(jobs_file).get(name)
+    argv = existing.argv if existing else list(jobstore.DEFAULT_ARGV)
+    full_argv = existing.full_argv if existing else list(jobstore.DEFAULT_FULL_ARGV)
+
+    try:
+        adapter = _adapter_for(args, existing)
+    except base.NoAdapter as e:
+        log(style.fail(str(e)))
+        return 2
+
+    interval_s, why = resolve_interval(config, interval_setting)
+    job = jobstore.new_job(name, argv, interval_setting, adapter.id, full_argv=full_argv,
+                           created=existing.created if existing else None)
+    try:
+        written = adapter.install(job, interval_s, exec_argv_for(name),
+                                  on_battery=config.get("schedule_on_battery", "skip"))
+    except OSError as e:
+        # Degrade, never fail: print the unit and say how to install it.
+        log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
+        for filename, text in adapter.render(job, interval_s, exec_argv_for(name)).items():
+            log(f"\n----- {filename} -----\n{text}")
+        log("Install these yourself, or run `contextlake schedule run --foreground`.")
+        return 0
+    jobstore.write_job(jobs_file, job)
+
+    log(f"{style.ok()} Installed job {name!r} on {adapter.id}, every "
+        f"{recommend.format_duration(interval_s)}.")
+    log(f"  {why}")
+    for path in written:
+        log(f"  wrote {path}")
+    for note in adapter.state(job).get("notes", []):
+        log(f"  {style.warn()} {note}")
+    if not adapter.catches_up_after_sleep:
+        log(f"  {style.warn()} {adapter.id} does not replay a run missed while this "
+            f"machine was asleep or off.")
+    return 0
+
+
+def resolve_interval(config, interval_setting):
+    """``(seconds, one-line explanation)`` for a job's interval setting."""
+    if str(interval_setting).strip().lower() != "auto":
+        seconds = recommend.parse_duration(interval_setting)
+        return seconds, (f"Fixed at {recommend.format_duration(seconds)}; "
+                         f"auto-adjust is off for this job.")
+    rec, _ = current_recommendation(config)
+    return rec.interval_s, rec.reason
+
+
+def _confirm(args, prompt) -> bool:
+    """Whether the caller may proceed with a destructive action.
+
+    ``--yes`` (or ``-y``) skips the prompt for a script or a CI run. Without a
+    terminal to ask on, the safe default is to refuse and say why, not to
+    guess: discarding measured history is not recoverable.
+    """
+    if getattr(args, "yes", False):
+        return True
+    if not sys.stdin.isatty():
+        log(f"{prompt} Skipped: no terminal to confirm on, and --yes was not given.")
+        return False
+    try:
+        answer = input(f"{prompt} [y/N] ")
+    except EOFError:
+        answer = ""
+    return answer.strip().lower() in ("y", "yes")
+
+
+def _discard_history(args, config) -> int:
+    """Throw away the measured run history. Shared by ``uninstall --purge``
+    and ``reset --history``."""
+    from .. import style
+
+    if not _confirm(args, "Discard the measured run history?"):
+        log("Kept the run history.")
+        return 0
+    count = history.clear_runs(history.history_path(config))
+    log(f"{style.ok()} Discarded {count} measured run(s).")
+    return 0
+
+
+def cmd_uninstall(args, config) -> int:
+    from .. import style
+    from . import jobs as jobstore
+    from .platform import base
+
+    jobs_file = jobstore.jobs_path(config)
+    mapping = jobstore.read_jobs(jobs_file)
+    if getattr(args, "all", False):
+        targets = list(mapping)
+    else:
+        targets = [getattr(args, "job", None) or jobstore.DEFAULT_JOB]
+
+    if not targets:
+        log("No scheduled jobs to remove.")
+        return 0
+
+    missing = [t for t in targets if t not in mapping]
+    for name in missing:
+        log(f"No job named {name!r}. See `contextlake schedule list`.")
+    if missing and not getattr(args, "all", False):
+        return 1
+
+    for name in targets:
+        job = mapping[name]
+        try:
+            adapter = base.get(job.platform or base.detect())
+            removed = adapter.uninstall(job)
+        except (base.NoAdapter, OSError) as e:
+            log(f"{style.warn()} Could not remove the {job.platform} unit for "
+                f"{name!r}: {e}. Removing the job record anyway.")
+            removed = []
+        jobstore.delete_job(jobs_file, name)
+        log(f"{style.ok()} Removed job {name!r}.")
+        for path in removed:
+            log(f"  removed {path}")
+
+    if getattr(args, "purge", False):
+        return _discard_history(args, config)
+    log("  The measured run history was kept, so a future install starts warm. "
+        "Use --purge to discard it.")
+    return 0
+
+
 def child_env(config, kind) -> dict:
     """The environment a scheduled child runs in.
 
@@ -386,6 +550,10 @@ def dispatch(args, config) -> int:
         return cmd_recommend(args, config)
     if action == "list":
         return cmd_list(args, config)
+    if action == "install":
+        return cmd_install(args, config)
+    if action == "uninstall":
+        return cmd_uninstall(args, config)
     if action == "run":
         return cmd_run(args, config)
     log(f"`schedule {action}` is not implemented yet.")
