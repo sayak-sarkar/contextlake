@@ -115,6 +115,21 @@ def test_reset_of_an_unknown_job_is_an_error(tmp_path):
     assert cmds.cmd_reset(_args(job="ghost"), _config(tmp_path)) != 0
 
 
+def test_a_failed_install_does_not_destroy_the_measurements(tmp_path, monkeypatch):
+    """A partial failure must leave a state the user can retry. Discarding
+    first and then failing to install loses days of runs for a reset that did
+    not happen.
+    """
+    _pinned_job(tmp_path, failures=5)
+    path = _seed_history(tmp_path, n=6)
+    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RefusingAdapter())
+    assert cmds.cmd_reset(_args(history=True), _config(tmp_path)) == 1
+    assert len(history.read_runs(path)) == 6, "measurements destroyed by a failed reset"
+    job = jobs.read_jobs(jobs.jobs_path(_config(tmp_path)))[jobs.DEFAULT_JOB]
+    assert job.interval == "2h", "the pin was cleared despite the failure"
+    assert job.failures == 5
+
+
 def test_a_reset_that_cannot_rewrite_the_unit_leaves_the_record_alone(tmp_path, monkeypatch):
     """The unit must be rewritten before the record is, so a failed install
     never leaves the job claiming auto with a cleared backoff while the

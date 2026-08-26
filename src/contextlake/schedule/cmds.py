@@ -14,7 +14,7 @@ import sys
 import time
 from datetime import datetime, timezone
 
-from ..logging_setup import log
+from ..logging_setup import log, report_line
 from . import gates, history, recommend
 from .platform.base import NO_CATCH_UP_PHRASE
 
@@ -469,9 +469,12 @@ def _discard_history(args, config) -> int:
 
     A useful median takes days of real runs to earn back, so the count and
     the span it covers are printed before anything is deleted, whether or
-    not ``--yes`` is set. ``print`` rather than ``log``: this is the one
-    line a caller piping or scripting the destructive path must see, and
-    ``log`` output is not reliably readable back through ``capsys`` once
+    not ``--yes`` is set. ``report_line`` rather than ``log``: the one action
+    here that destroys user data permanently must land in ``--log-file`` too,
+    not only the console, and plain ``print`` would miss that entirely.
+    ``report_line`` keeps the console half a caller's own ``print`` would have
+    been, so ``capsys`` still sees it. It does not route through ``log``,
+    whose output is not reliably readable back through ``capsys`` once
     anything earlier in the same pytest session has called it (see
     ``tests/test_schedule_run.py``'s ``_log_lines`` for the mechanism).
 
@@ -484,17 +487,17 @@ def _discard_history(args, config) -> int:
     path = history.history_path(config)
     summary = history.summarize(history.read_runs(path))
     if summary["count"] == 0:
-        print("No measured runs to discard.")
+        report_line("No measured runs to discard.")
         return 0
-    print(f"About to discard {summary['count']} measured run(s) spanning "
-          f"{summary['days']:.1f} day(s) ({summary['first_ts']} to "
-          f"{summary['last_ts']}).")
-    print("  The recommender starts cold and re-learns from the next run.")
+    report_line(f"About to discard {summary['count']} measured run(s) spanning "
+               f"{summary['days']:.1f} day(s) ({summary['first_ts']} to "
+               f"{summary['last_ts']}).")
+    report_line("  The recommender starts cold and re-learns from the next run.")
     if not _confirm(args, "Discard them?"):
-        print("Kept. Nothing was deleted.")
+        report_line("Kept. Nothing was deleted.")
         return 1
     dropped = history.clear_runs(path)
-    print(f"{style.ok()} Discarded {dropped} measured run(s).")
+    report_line(f"{style.ok()} Discarded {dropped} measured run(s).")
     return 0
 
 
@@ -546,15 +549,22 @@ def cmd_reset(args, config) -> int:
 
     ``--history`` additionally throws away the measurements, which is a
     separate and more destructive action, so it is a separate flag rather
-    than part of the default behaviour. A discard declined by
-    ``_discard_history`` aborts the whole reset: a caller who would not
-    confirm the destructive half of the request should not have the other
-    half applied silently underneath it.
+    than part of the default behaviour.
 
-    The unit is rewritten before the job record is: if the adapter cannot
-    install, this returns without touching the record, so a failed reset
-    never leaves the job claiming ``auto`` with a cleared backoff while the
-    installed unit still runs the old pinned, backed-off interval.
+    Install before discarding. Both orders lose something on a partial
+    failure, and this one loses less: a failed install leaves the
+    measurements intact and the job record untouched, which is a clean
+    no-op the caller can retry. Discarding first and then failing to install
+    would destroy days of accumulated runs for a reset that did not happen.
+
+    The job record is written last, after both the install and the discard
+    have gone through: if the adapter cannot install, or the discard is
+    declined, this returns without touching the record, so a failed or
+    aborted reset never leaves the job claiming ``auto`` with a cleared
+    backoff while the installed unit still runs the old pinned, backed-off
+    interval. A discard decline therefore still aborts the whole reset,
+    exactly as before the reorder: ``_discard_history`` returning non-zero
+    short-circuits ahead of ``write_job``.
     """
     from .. import style
     from . import jobs as jobstore
@@ -577,11 +587,6 @@ def cmd_reset(args, config) -> int:
         log("No schedule installed. Nothing to reset.")
         return 1
 
-    if wants_history:
-        code = _discard_history(args, config)
-        if code != 0:
-            return code
-
     updated = job._replace(interval="auto", failures=0)
     interval_s, why = resolve_interval(config, "auto")
     try:
@@ -591,6 +596,12 @@ def cmd_reset(args, config) -> int:
     except (base.NoAdapter, OSError) as e:
         log(style.fail(f"Could not rewrite the {updated.platform} unit: {e}"))
         return 1
+
+    if wants_history:
+        code = _discard_history(args, config)
+        if code != 0:
+            return code
+
     jobstore.write_job(jobs_file, updated)
 
     log(f"{style.ok()} Reset job {name!r} to auto, every "
