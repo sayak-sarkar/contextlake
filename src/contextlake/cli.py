@@ -1042,6 +1042,10 @@ Examples:
                    help="skip the architecture-diagram step")
     p.add_argument("--no-docs", dest="no_docs", action="store_true", default=_S,
                    help="skip the API-reference step")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="rebuild everything instead of only what changed: re-parse "
+                        "every repository and re-embed every node. Slow, and what "
+                        "`schedule`'s periodic full cycle runs")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="power the wiki stage with this LLM provider; without it (and "
@@ -1980,6 +1984,14 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
 
     for title, fn in stages:
         _stage(title)
+        if fn is kb.cmd_steer:
+            # bootstrap --force means "rebuild the graph and vectors", not
+            # "overwrite steering files a user hand-edited" -- cmd_steer reads
+            # the same args.force for a different, more destructive meaning
+            # (kb steer --force: "overwrite non-managed files"). Without this,
+            # `schedule`'s periodic full cycle (`bootstrap --force`) would
+            # overwrite an edited AGENTS.md every `schedule_full_every`.
+            kb_args.force = False
         try:
             rc = fn(kb_args)
         except Exception as e:  # noqa: BLE001 - one stage must not abort bootstrap

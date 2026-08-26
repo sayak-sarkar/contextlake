@@ -132,3 +132,55 @@ def test_the_config_guard_runs_before_anything_else_in_bootstrap():
     assert i_guard < i_mirror, (
         "argument validation runs after the mirror, so a user pays a full mirror pass "
         "before being told their flags are wrong")
+
+
+def test_bootstrap_force_reaches_the_index_stage():
+    """copy.copy(args) is what carries it, so the flag existing on the parser
+    is the whole wiring. Asserted because a flag that parses and is then
+    ignored is indistinguishable from a working one."""
+    from contextlake.cli import build_parser
+
+    assert build_parser().parse_args(["bootstrap", "--force"]).force is True
+    assert build_parser().parse_args(["bootstrap"]).force is False
+
+
+def test_bootstrap_force_does_not_reach_the_steer_stage(monkeypatch, tmp_path):
+    """`args.force` means two different things on two different stages, both
+    read via the same `kb_args` object `_bootstrap` builds with one
+    `copy.copy(args)`: on `index`/`embed`/`wiki` it means "rebuild", on `steer`
+    it means "overwrite non-managed files" (a user's hand-edited AGENTS.md).
+
+    `schedule`'s periodic full cycle runs `bootstrap --force` on a repeating
+    interval, so without the reset in the stage loop this would overwrite an
+    edited AGENTS.md every `schedule_full_every`, which nothing about
+    `bootstrap --force`'s own help text says it does.
+    """
+    import pytest
+
+    from contextlake import cli
+
+    kb = pytest.importorskip("contextlake.kb.commands")
+
+    seen = {}
+
+    def _record(name):
+        def _fn(args):
+            seen[name] = getattr(args, "force", None)
+            return 0
+        return _fn
+
+    monkeypatch.setattr(kb, "cmd_index", _record("index"))
+    monkeypatch.setattr(kb, "cmd_steer", _record("steer"))
+
+    args = cli.build_parser().parse_args([
+        "bootstrap", "--force", "--no-sync", "--no-connect", "--no-embed",
+        "--no-enrich", "--no-wiki", "--no-diagrams", "--no-docs",
+        "--workspace", str(tmp_path)])
+
+    # Both stubbed stages return 0, so this is the plain-success path: no
+    # failures means _bootstrap logs a summary and returns, it does not exit.
+    cli._bootstrap(args, {"work_dir": str(tmp_path), "gitlab_group": "g"},
+                   str(tmp_path), "g")
+
+    assert seen["index"] is True, "index must still see --force"
+    assert seen["steer"] is False, "steer must NOT inherit index's --force"
