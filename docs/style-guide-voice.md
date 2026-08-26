@@ -78,6 +78,22 @@ These are contextlake's signature, and they are good technical writing on their 
 - **"please"** in instructions. Write "To view the graph, run `contextlake kb graph`", not "Please run".
 - **"click here" / "read this"** as link text. See the [formatting page](style-guide-formatting.md).
 - **Exclamation points** in body copy. One is allowed, rarely, in the warmest microcopy.
+- **Intensifiers.** very, really, quite, extremely, incredibly, absolutely, totally, truly,
+  genuinely, deeply, highly, thoroughly, perfectly, completely, simply, literally, actually,
+  obviously, clearly, certainly, definitely, massively, hugely, dramatically, substantially,
+  considerably, particularly, especially, crucially, fundamentally, essentially, basically,
+  effectively, indeed, pretty, far, much. Replace with the number, or delete the word.
+  "much faster" is "3x faster" or "faster"; "very large" is "5.6 GB". Deleting an
+  intensifier almost never changes the meaning, which is the test that it was one.
+- **Downtoners.** somewhat, slightly, fairly, rather, a bit, kind of, sort of, relatively,
+  marginally, largely, mostly, broadly, arguably, roughly (when the number is known). Never
+  downtone a fact the page verified: "the test seems to pass" is "12/12 pass". Real
+  uncertainty is different and must be stated outright, per *grounded* above.
+- **Scoped to sense, not banned outright.** `just` and `only` are fine meaning "only", banned
+  as minimizers ("just add a flag"). `exactly` is fine for literal identity ("exactly 200
+  records"), banned as emphasis ("exactly why", "exactly this"). `significantly` is fine for
+  statistical significance only. A bare word search will produce false positives here: a
+  `\bjust\b` rule once flagged 45 correct sentences meaning "only".
 
 ## Word choice
 
