@@ -31,8 +31,8 @@ import uuid
 
 __all__ = [
     "access_log_enabled", "add_redactions", "add_repo_names", "command", "graph_counts",
-    "new_run_id", "note_store_path", "redact", "redaction_configured",
-    "reset_redactions", "run_id", "set_access_log", "set_command", "set_run_id",
+    "new_run_id", "note_repo_activity", "note_store_path", "redact", "redaction_configured",
+    "repo_activity", "reset_redactions", "run_id", "set_access_log", "set_command", "set_run_id",
     "write_textfile",
 ]
 
@@ -294,6 +294,36 @@ def graph_counts():
         # connection, and would leave the handle open.
         if conn is not None:
             conn.close()
+
+
+_repo_activity = (None, None)
+
+
+def note_repo_activity(total, changed) -> None:
+    """Record how many repositories this run saw and how many had moved.
+
+    The incremental index gate already decides this per repo (``kb/cmds/index.py``
+    compares HEAD and the parser version), but until now the count reached a log
+    line and stopped. The scheduler needs it as a number: it is the activity
+    half of the interval formula.
+
+    Lives here rather than being returned up the call stack because the reader
+    is ``_RunMetrics.write()`` in the core tier, and the writer is inside the
+    optional knowledge layer. ``note_store_path`` solved the same problem the
+    same way.
+    """
+    global _repo_activity
+    _repo_activity = (total, changed)
+
+
+def repo_activity():
+    """``(total, changed)`` for this run, or ``(None, None)`` if nothing measured it.
+
+    ``None`` is absence, not zero. A run that never indexed anything did not
+    observe "nothing changed", and writing a 0 it did not measure is the rule
+    ``write_textfile`` already follows.
+    """
+    return _repo_activity
 
 
 def _escape(value: str) -> str:

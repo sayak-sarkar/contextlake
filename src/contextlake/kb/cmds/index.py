@@ -227,6 +227,10 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         n, e = store.repo_counts(repo_id)
         ws_nodes += n
         ws_edges += e
+    # The scheduler's activity signal. `skipped` is what the incremental gate
+    # above already decided; without this line it reaches the summary and
+    # nothing else, which is why `schedule recommend` had no data.
+    observability.note_repo_activity(len(repos), len(repos) - skipped)
     glyph = style.ok() if (failed == 0 and not unusable) else style.warn()
     log(f"{glyph} Workspace indexed: {len(repos)} repos, {ws_nodes} nodes, "
         f"{ws_edges} edges ({skipped} unchanged, {failed} failed"

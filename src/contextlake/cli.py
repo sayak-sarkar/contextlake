@@ -38,6 +38,18 @@ from .core import (
 )
 from .logging_setup import LOG_FORMATS, TEXT, log, setup_logging
 from .metrics import run_audit
+from .schedule import history as schedule_history
+
+# Set by `schedule run` on the child it spawns. Their presence is what makes an
+# arbitrary command record itself, so an ad-hoc job (`kb index`, `mirror sync`)
+# is measured even though the same command typed by hand is not.
+ENV_HISTORY = "CONTEXTLAKE_SCHEDULE_HISTORY"
+ENV_KIND = "CONTEXTLAKE_SCHEDULE_KIND"
+
+# Commands whose duration is a measurement of the work the scheduler schedules.
+# `fetch` and `status` are fast and say nothing about a sync's cost; `version`
+# would drive the median to zero.
+_HISTORY_COMMANDS = frozenset({"sync", "bootstrap", "update"})
 
 # Boolean flags backed by paired --x / --no-x switches. They must default to
 # None so we can tell "user passed a flag" from "user said nothing" -- otherwise
@@ -1959,6 +1971,8 @@ class _RunMetrics:
         self.path = None
         self.command = ""
         self.repos = None
+        self.history_path = None
+        self.kind = "incremental"
 
     def configure(self, path, command):
         self.path = path
@@ -1969,22 +1983,53 @@ class _RunMetrics:
             return
         self.repos = {"ok": result.ok, "failed": result.failed, "skipped": result.skipped}
 
+    def track_history(self, path, kind="incremental"):
+        """Record this run in the scheduler's history when it finishes.
+
+        Separate from ``configure``: that one is opt-in via ``--metrics-file``
+        and publishes a Prometheus gauge, this one is how the tool learns its
+        own cost and is on by default for the commands that measure something.
+        """
+        self.history_path = path
+        self.kind = kind if kind in ("incremental", "full") else "incremental"
+
     def write(self, exit_code):
-        if not self.path:
+        if self.path:
+            try:
+                nodes, edges = observability.graph_counts()
+                observability.write_textfile(
+                    self.path, command_name=self.command,
+                    duration_seconds=time.monotonic() - self.started,
+                    exit_code=exit_code, repos=self.repos, nodes=nodes, edges=edges)
+            except Exception as e:  # noqa: BLE001 - see below
+                # This runs in main()'s `finally`, where an exception would *replace*
+                # whatever the run was actually reporting: an unwritable metrics path
+                # would turn a clean "Error: <the real problem>" into a traceback
+                # about a gauge. Losing the metrics is the lesser failure, so say so
+                # and let the original outcome stand.
+                log(f"Could not write metrics to {self.path}: {e}")
+        # Independent of the metrics-file block above: history recording is on
+        # by default for the commands that measure something, `--metrics-file`
+        # is opt-in, and a run must not need both to get either.
+        if not self.history_path:
             return
         try:
+            total, changed = observability.repo_activity()
+            record = {"ts": schedule_history.utc_now_iso(), "kind": self.kind,
+                      "duration_s": round(time.monotonic() - self.started, 3),
+                      "exit": exit_code}
+            # Absent, never zero: a run that indexed nothing did not measure
+            # "no repositories", and a 0 here would be read as a real datum.
+            if total is not None:
+                record["repos_total"] = int(total)
+            if changed is not None:
+                record["repos_changed"] = int(changed)
             nodes, edges = observability.graph_counts()
-            observability.write_textfile(
-                self.path, command_name=self.command,
-                duration_seconds=time.monotonic() - self.started,
-                exit_code=exit_code, repos=self.repos, nodes=nodes, edges=edges)
-        except Exception as e:  # noqa: BLE001 - see below
-            # This runs in main()'s `finally`, where an exception would *replace*
-            # whatever the run was actually reporting: an unwritable metrics path
-            # would turn a clean "Error: <the real problem>" into a traceback
-            # about a gauge. Losing the metrics is the lesser failure, so say so
-            # and let the original outcome stand.
-            log(f"Could not write metrics to {self.path}: {e}")
+            if nodes is not None:
+                record["nodes"], record["edges"] = int(nodes), int(edges)
+            schedule_history.append_run(self.history_path, record)
+        except Exception as e:  # noqa: BLE001 - same reason as the block above
+            log(f"Could not record this run in the schedule history: {e}")
 
 
 def main(argv=None):
@@ -1994,6 +2039,12 @@ def main(argv=None):
     """
     observability.set_run_id(observability.new_run_id())
     metrics = _RunMetrics()
+    # A scheduled child is told where to record itself, so it needs no config
+    # of its own. This must be set before _run, because _run can sys.exit at
+    # any point and the `finally` below is what writes the record.
+    _env_history = os.environ.get(ENV_HISTORY, "").strip()
+    if _env_history:
+        metrics.track_history(_env_history, os.environ.get(ENV_KIND, "incremental"))
     exit_code = 0
     try:
         return _run(argv, metrics)
@@ -2230,6 +2281,11 @@ def _run(argv, metrics):
     except Exception:  # noqa: BLE001 - an unknown platform is reported by fetch itself
         log(f"Group: {gitlab_group}")
     cache_file, _ = get_cache_paths(config)
+    # A manual `mirror sync` is a real measurement of what a scheduled sync
+    # would cost, so it counts. Skipped if a scheduled parent already named the
+    # file, so one run can never be recorded twice.
+    if args.command in _HISTORY_COMMANDS and not metrics.history_path:
+        metrics.track_history(schedule_history.history_path(config))
     log(f"Cache file: {cache_file}")
     if config.get("dry_run", "false").lower() == "true":
         log("DRY RUN: no repositories will be cloned, updated, or switched")
