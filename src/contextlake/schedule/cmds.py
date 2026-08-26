@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timezone
 
 from ..logging_setup import log
-from . import history, recommend
+from . import gates, history, recommend
 
 ACTIONS = ("recommend", "install", "uninstall", "status", "run", "list", "reset", "interval")
 
@@ -260,6 +260,170 @@ def resolve_interval(config, interval_setting):
                          f"auto-adjust is off for this job.")
     rec, _ = current_recommendation(config)
     return rec.interval_s, rec.reason
+
+
+def executable_missing(exec_argv):
+    """The interpreter path in ``exec_argv`` if it no longer exists, else None.
+
+    A unit that references a deleted venv fails on every fire, forever, and
+    nothing surfaces it: systemd logs a start failure the user never reads.
+    Resolving the actual file is the check; the string being present is not.
+    """
+    if not exec_argv:
+        return None
+    candidate = str(exec_argv[0])
+    return None if os.path.exists(candidate) else candidate
+
+
+def cmd_status(args, config) -> int:
+    """What is installed, what it will do, and every way it might be dead.
+
+    Reads only, writes nothing: three sources (the job record, the platform
+    unit, and the measured history) are read and compared, and never
+    reconciled here. `install` is the only action that changes any of them.
+    """
+    from .. import style
+    from . import jobs as jobstore
+
+    mapping = jobstore.read_jobs(jobstore.jobs_path(config))
+    only = getattr(args, "job", None)
+    if only:
+        mapping = {k: v for k, v in mapping.items() if k == only}
+
+    rec, runs = current_recommendation(config)
+    summary = history.summarize(runs)
+    threshold = _float_or(config, "schedule_adjust_threshold", 0.5, low=0.0)
+
+    payload = {"history": summary,
+               "recommendation": {
+                   "interval": recommend.format_duration(rec.interval_s),
+                   "interval_seconds": rec.interval_s, "basis": rec.basis,
+                   "measured": rec.measured, "reason": rec.reason},
+               "jobs": []}
+
+    if not mapping and not getattr(args, "json", False):
+        print("No schedule installed.")
+        print(f"  Recommended interval: {recommend.format_duration(rec.interval_s)} "
+              f"({'measured' if rec.measured else 'a default, not a measurement'})")
+        print("  Install it:  contextlake schedule install")
+        return 0
+
+    require_idle = str(config.get("schedule_require_idle", "false")).strip().lower() \
+        in ("true", "yes", "1")
+    idle_inert = False
+    if require_idle:
+        try:
+            idle_inert = gates.user_is_idle() is None
+        except Exception:  # noqa: BLE001 - a sensor is never worth failing status over
+            idle_inert = True
+
+    for name, job in sorted(mapping.items()):
+        notes = []
+        # Constructing the adapter and reading its state are two separate
+        # failure points. A construction failure means the catch-up property
+        # is not knowable (``catches_up = None``, no claim printed either
+        # way). A `state()` failure still leaves a constructed adapter, whose
+        # `catches_up_after_sleep` is a class attribute, not a read of live
+        # state, so it is known even when `state()` itself failed. Collapsing
+        # both into one `except` and defaulting to ``False`` printed a false
+        # "does not replay a run missed" for systemd, which sets
+        # ``Persistent=true`` and does replay one.
+        adapter_id, catches_up = job.platform or "unknown", None
+        try:
+            adapter = _adapter_for(args, job)
+        except Exception as e:  # noqa: BLE001 - a broken adapter must not hide the record
+            state = {"installed": False, "interval_s": None, "next_run": None,
+                     "notes": [f"could not build the {job.platform} adapter: {e}"]}
+        else:
+            adapter_id, catches_up = adapter.id, adapter.catches_up_after_sleep
+            try:
+                state = adapter.state(job)
+            except Exception as e:  # noqa: BLE001 - ditto, for a live read
+                state = {"installed": False, "interval_s": None, "next_run": None,
+                         "notes": [f"could not read the {job.platform} state: {e}"]}
+        for note in (state.get("notes") or []):
+            if note not in notes:
+                notes.append(note)
+
+        if not state.get("installed"):
+            notes.append("This job is recorded but its unit is NOT installed. "
+                         "Re-run `contextlake schedule install` to put it back.")
+        gone = executable_missing(exec_argv_for(name))
+        if gone:
+            notes.append(f"The interpreter this job runs ({gone}) has moved or been "
+                         f"deleted, so every run fails silently. Re-run "
+                         f"`contextlake schedule install` from the current install.")
+        # The adapter's own state() may already say this (cron's does, on every
+        # installed job); matching on the phrase rather than the whole
+        # sentence keeps the line from printing twice for the one backend
+        # that reports both, regardless of which noun starts its sentence.
+        # ``catches_up is False`` (not merely falsy): ``None`` means unknown,
+        # which is a different fact than "known not to catch up".
+        no_replay_phrase = "does not replay a run missed"
+        if catches_up is False and not any(no_replay_phrase in n for n in notes):
+            notes.append(f"{adapter_id} {no_replay_phrase} while this machine "
+                         f"was asleep or off.")
+        if idle_inert:
+            notes.append("schedule_require_idle is on, but user idleness cannot "
+                         "be detected here (no login session), so the gate is "
+                         "inert: this job runs whether or not you are at the "
+                         "keyboard.")
+
+        effective_s, why = resolve_interval(config, job.interval)
+        live_s = state.get("interval_s")
+        if (job.interval.lower() == "auto" and live_s and rec.measured
+                and abs(live_s - rec.interval_s) / max(live_s, 1.0) > threshold):
+            notes.append(
+                f"Drift: this job runs every {recommend.format_duration(live_s)}, "
+                f"but the measurements now suggest "
+                f"{recommend.format_duration(rec.interval_s)}. The next run "
+                f"rewrites the unit.")
+
+        payload["jobs"].append({
+            "name": name, "interval_setting": job.interval,
+            "effective_interval": recommend.format_duration(effective_s),
+            "unit_interval": (recommend.format_duration(live_s) if live_s else None),
+            "unit_installed": bool(state.get("installed")), "adapter": adapter_id,
+            "next_run": state.get("next_run"), "command": job.argv,
+            "recommendation": recommend.format_duration(rec.interval_s),
+            "last_run": job.last_run, "last_exit": job.last_exit,
+            "failures": job.failures, "notes": notes})
+
+    if getattr(args, "json", False):
+        print(jsonlib.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
+    for entry in payload["jobs"]:
+        glyph = style.ok() if (entry["unit_installed"] and not entry["notes"]) else style.warn()
+        print(f"{glyph} {entry['name']}  ({entry['adapter']})")
+        print(f"    runs:      contextlake {' '.join(entry['command'])}")
+        print(f"    interval:  {entry['effective_interval']}"
+              + (f"  (set to {entry['interval_setting']})"
+                 if entry["interval_setting"] != "auto" else "  (auto)"))
+        if entry["unit_interval"] and entry["unit_interval"] != entry["effective_interval"]:
+            print(f"    on disk:   {entry['unit_interval']}")
+        print(f"    next run:  {entry['next_run'] or 'unknown'}")
+        print(f"    last run:  {entry['last_run'] or 'never'}"
+              + (f"  (exit {entry['last_exit']})"
+                 if entry["last_exit"] not in (0, None) else ""))
+        if entry["failures"]:
+            print(f"    {style.warn()} {entry['failures']} consecutive failure(s); "
+                  f"the interval is backing off.")
+        for note in entry["notes"]:
+            print(f"    {style.warn()} {note}")
+
+    # Built as a plain string first. A nested same-quote f-string is PEP 701,
+    # which is Python 3.12; on the 3.10 and 3.11 matrix cells it is a
+    # SyntaxError that takes the whole CLI down at import.
+    if rec.measured:
+        provenance = (f"from {rec.samples} measured run(s) over "
+                      f"{summary['days']:.1f} day(s)")
+    else:
+        provenance = "a built-in default, not a measurement"
+    print(f"\n  Recommended interval: "
+          f"{recommend.format_duration(rec.interval_s)} ({provenance})")
+    print(f"    {rec.reason}")
+    return 0
 
 
 def _confirm(args, prompt) -> bool:
@@ -569,6 +733,8 @@ def dispatch(args, config) -> int:
         return cmd_install(args, config)
     if action == "uninstall":
         return cmd_uninstall(args, config)
+    if action == "status":
+        return cmd_status(args, config)
     if action == "run":
         return cmd_run(args, config)
     log(f"`schedule {action}` is not implemented yet.")
