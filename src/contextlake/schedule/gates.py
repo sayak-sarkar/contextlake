@@ -18,6 +18,8 @@ import glob
 import os
 from collections import namedtuple
 
+from ..logging_setup import log
+
 GateResult = namedtuple("GateResult", "allowed reason")
 
 _POWER_SUPPLY = "/sys/class/power_supply"
@@ -99,9 +101,18 @@ def check(config) -> GateResult:
             return GateResult(False, "on battery power (schedule_on_battery=skip)")
 
     if str(config.get("schedule_require_idle", "false")).strip().lower() in ("true", "yes", "1"):
-        if _safe(user_is_idle) is False:
+        idle = _safe(user_is_idle)
+        if idle is False:
             return GateResult(False, "someone is using this machine "
                                      "(schedule_require_idle=true)")
+        if idle is None:
+            # Passing is correct: an unreadable sensor must never block a run.
+            # Saying so is also correct: XDG_SESSION_ID is unset under systemd
+            # timers and cron, which are how this runs, so the setting is
+            # inert in the deployment that would set it.
+            log("WARNING: schedule_require_idle is on, but user idleness "
+                "cannot be detected here (no login session), so the gate "
+                "is inert.")
 
     raw = str(config.get("schedule_max_load", "")).strip()
     if raw:

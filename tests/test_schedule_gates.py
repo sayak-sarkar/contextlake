@@ -20,9 +20,27 @@ def test_the_default_config_gates_nothing_on_a_machine_with_no_battery(monkeypat
 
 @pytest.mark.parametrize("detector", ["on_battery", "user_is_idle", "load_average"])
 def test_an_undetectable_signal_always_passes(monkeypatch, detector):
-    """THE property. Break this and a container never runs again."""
-    for name in ("on_battery", "user_is_idle", "load_average"):
-        monkeypatch.setattr(gates, name, lambda: None)
+    """THE property. Break this and a container never runs again.
+
+    Each case makes ONE detector undetectable and leaves the other two
+    answering safely, so a case fails only for the sensor it names. An
+    earlier version patched all three to None in every case, so the three
+    cases ran identical code.
+    """
+    safe = {"on_battery": lambda: False, "user_is_idle": lambda: True,
+            "load_average": lambda: 0.0}
+    for name, fn in safe.items():
+        monkeypatch.setattr(gates, name, (lambda: None) if name == detector else fn)
+    config = {"schedule_on_battery": "skip", "schedule_require_idle": "true",
+              "schedule_max_load": "2.0"}
+    assert gates.check(config).allowed is True
+
+
+def test_all_three_signals_undetectable_at_once_still_passes(monkeypatch):
+    """The real container scenario: no battery, no session, no getloadavg."""
+    monkeypatch.setattr(gates, "on_battery", lambda: None)
+    monkeypatch.setattr(gates, "user_is_idle", lambda: None)
+    monkeypatch.setattr(gates, "load_average", lambda: None)
     config = {"schedule_on_battery": "skip", "schedule_require_idle": "true",
               "schedule_max_load": "2.0"}
     assert gates.check(config).allowed is True
@@ -56,7 +74,9 @@ def test_idle_gating_is_off_unless_asked_for(monkeypatch):
     monkeypatch.setattr(gates, "user_is_idle", lambda: False)
     monkeypatch.setattr(gates, "load_average", lambda: None)
     assert gates.check({}).allowed is True
-    assert gates.check({"schedule_require_idle": "true"}).allowed is False
+    result = gates.check({"schedule_require_idle": "true"})
+    assert result.allowed is False
+    assert "idle" in result.reason.lower()
 
 
 def test_load_gating_is_off_unless_a_threshold_is_set(monkeypatch):
@@ -116,3 +136,25 @@ def test_on_battery_is_none_when_sysfs_has_no_mains_supply(monkeypatch, tmp_path
     bat.write_text("Battery\n", encoding="utf-8")
     monkeypatch.setattr(gates, "_POWER_SUPPLY", str(tmp_path))
     assert gates.on_battery() is None
+
+
+def test_an_inert_idle_gate_says_so(monkeypatch, gls_logs):
+    """A setting that cannot take effect must not be silently ignored.
+    XDG_SESSION_ID is unset under systemd timers and cron, so user_is_idle
+    returns None there and this gate never fires."""
+    monkeypatch.setattr(gates, "on_battery", lambda: None)
+    monkeypatch.setattr(gates, "user_is_idle", lambda: None)
+    monkeypatch.setattr(gates, "load_average", lambda: None)
+    result = gates.check({"schedule_require_idle": "true"})
+    assert result.allowed is True
+    assert "inert" in gls_logs.text.lower()
+
+
+def test_a_working_idle_gate_says_nothing(monkeypatch, gls_logs):
+    """No warning when the sensor works. Otherwise the message is noise on
+    every run of a machine where the gate is doing its job."""
+    monkeypatch.setattr(gates, "on_battery", lambda: None)
+    monkeypatch.setattr(gates, "user_is_idle", lambda: True)
+    monkeypatch.setattr(gates, "load_average", lambda: None)
+    assert gates.check({"schedule_require_idle": "true"}).allowed is True
+    assert "inert" not in gls_logs.text.lower()
