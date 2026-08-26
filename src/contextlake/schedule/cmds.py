@@ -130,10 +130,35 @@ def cmd_recommend(args, config) -> int:
     return 0
 
 
+def cmd_list(args, config) -> int:
+    """Every job this tool installed. Reads only."""
+    from . import jobs as jobstore
+
+    path = jobstore.jobs_path(config)
+    mapping = jobstore.read_jobs(path)
+    if getattr(args, "json", False):
+        print(jsonlib.dumps({name: job._asdict() for name, job in sorted(mapping.items())},
+                            indent=2, sort_keys=True))
+        return 0
+    if not mapping:
+        print("No scheduled jobs. Create one with `contextlake schedule install`.")
+        return 0
+    width = max(3, max(len(name) for name in mapping))
+    print(f"{'JOB'.ljust(width)}  INTERVAL  ADAPTER   LAST RUN              COMMAND")
+    for name, job in sorted(mapping.items()):
+        last = job.last_run or "never"
+        mark = "" if job.last_exit in (0, None) else f" (exit {job.last_exit})"
+        print(f"{name.ljust(width)}  {job.interval:<8}  {job.platform:<8}  "
+              f"{last:<20}  contextlake {' '.join(job.argv)}{mark}")
+    return 0
+
+
 def dispatch(args, config) -> int:
     """Route one `schedule` invocation. Actions land here in Tasks 5 to 12."""
     action = args.action
     if action == "recommend":
         return cmd_recommend(args, config)
+    if action == "list":
+        return cmd_list(args, config)
     log(f"`schedule {action}` is not implemented yet.")
     return 1
