@@ -184,6 +184,79 @@ feat(branches): add recency-aware branch strategy
 test(clone): cover corrupted-directory cleanup
 ```
 
+A scope is **required**. `docs:` is not a valid subject; `docs(readme):` is.
+
+### The subject is a heading, not a sentence
+
+The subject answers one question: **what does this changeset do?** Write it in the
+imperative, lowercase after the colon, 72 characters or fewer, no trailing full stop.
+Everything else (why, what was wrong before, what you measured, what you rejected) goes
+in the body.
+
+A subject that reads like a line lifted out of a paragraph is the failure to avoid:
+
+```
+docs: the 8.7.0 preamble said three defects, and there are four
+```
+
+That says what was wrong with the old text, not what the commit did about it. It also
+drops the scope. The fix:
+
+```
+docs(changelog): correct the 8.7.0 defect count and characterisation
+```
+
+The recurring failure modes, with the shape to use instead:
+
+| Instead of | Write |
+|---|---|
+| stating the bug: `fix(kb): index --watch did nothing without --workspace` | `fix(kb): honour --watch when --workspace is absent` |
+| narrating: `docs(releasing): re-derive step 1 from the workflows, again` | `docs(releasing): re-derive step 1 from the CI workflows` |
+| being clever: `docs: make the style guide obey itself` | `docs(style-guide): apply the em-dash rule to the guide itself` |
+| a bare noun phrase: `feat(schedule): pure interval recommender` | `feat(schedule): add the interval recommender` |
+| being vague: `chore: cleanup` | `chore(tests): remove the unused fixture helpers` |
+
+Stating the bug is the worst of these, because in a blame view it reads as though the
+commit introduced the problem rather than fixed it.
+
+A useful check: if you cannot write the subject without a comma joining two ideas, you
+probably have two commits.
+
+Read the subject aloud before committing. If it sounds like the title of a sitcom episode,
+something chosen to be enjoyable rather than to inform, rewrite it as a statement of the
+change.
+
+### Do not round the prose
+
+A commit message records what changed. It is not an essay. Do not shape it for rhythm,
+build to a point, or end a paragraph with a judgement. One fact per sentence, and name the
+function, file, flag or number.
+
+| Rounded | Factual |
+|---|---|
+| `Two properties shape the module. append_run never raises, because...` | `append_run() catches OSError, TypeError and ValueError and returns.` |
+| `...and throwing away every good measurement to punish one bad one is the wrong trade.` | `read_runs() skips lines that fail to parse and returns the rest.` |
+| `The module is pure, which is what makes every branch testable.` | `The module has no I/O. Every value is passed in.` |
+
+Delete essay scaffolding (`Two properties shape...`, `Three things follow from this...`),
+closing verdicts (`...which is the whole point`), and the `not X, but Y` contrast. A body
+that reads slightly flat is correct.
+
+### The body is a record, not a conversation
+
+A commit body has no reader to reply to, so do not write it as though continuing a
+discussion. Do not open a sentence with `Exactly`, `Precisely`, `Right`, `Turns out`,
+`Which is why`, `That said`, `Of course`, `Note that`, or `Indeed`. State the fact.
+
+| Conversational | Written |
+|---|---|
+| `Exactly the class 8.6.1 existed to fix: shipped text that does not match what shipped.` | `8.6.1 fixed the same class of defect: shipped text that does not match what shipped.` |
+| `Turns out the gate never ran.` | `The gate never ran.` |
+| `Note that this file is generated.` | `This file is generated.` |
+
+`exactly` is worth a second look wherever it appears, including as an intensifier
+(`exactly what`, `exactly this`, `exactly why`). It can usually be deleted without loss.
+
 Keep commits **atomic**, one logical change each. A commit that "fixes the bug
 and also reformats four files" is two commits wearing a trenchcoat.
 
