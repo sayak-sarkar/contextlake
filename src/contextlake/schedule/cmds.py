@@ -230,11 +230,20 @@ def cmd_install(args, config) -> int:
         return 0
     jobstore.write_job(jobs_file, job)
 
+    # `render` is pure, so calling it again after `install` is free. It is the
+    # only way to learn the interval cron actually installed: `install` returns
+    # a list of paths written, not the rendered facts, and cron's `render` can
+    # round the requested interval down to the nearest one cron can express.
+    rendered = adapter.render(job, interval_s, exec_argv_for(name), on_battery=on_battery)
+    actual_interval_s = rendered.get("interval_s", interval_s)
     log(f"{style.ok()} Installed job {name!r} on {adapter.id}, every "
-        f"{recommend.format_duration(interval_s)}.")
+        f"{recommend.format_duration(actual_interval_s)}.")
     log(f"  {why}")
     for path in written:
         log(f"  wrote {path}")
+    rounding_note = rendered.get("notes")
+    if rounding_note:
+        log(f"  {style.warn()} {rounding_note}")
     for note in adapter.state(job).get("notes", []):
         log(f"  {style.warn()} {note}")
     if not adapter.catches_up_after_sleep:

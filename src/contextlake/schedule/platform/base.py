@@ -55,12 +55,9 @@ class Adapter:
 
 
 def _registry():
-    # Only systemd is registered in this task. Task 9 adds a `cron` line
-    # here; `platform/cron.py` does not exist yet, so importing it
-    # unconditionally would turn every call below into an ImportError.
-    from . import systemd
+    from . import cron, systemd
 
-    return {"systemd": systemd.SystemdAdapter}
+    return {"systemd": systemd.SystemdAdapter, "cron": cron.CronAdapter}
 
 
 def get(name) -> Adapter:

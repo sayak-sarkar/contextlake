@@ -279,3 +279,32 @@ def test_the_degrade_path_prints_the_configured_battery_behaviour(tmp_path, monk
     out = capsys.readouterr().out
     assert rc == 0
     assert "ConditionACPower" not in out
+
+
+def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
+    """`render` computes the rounding disclosure, but `install` returns only a
+    list of paths written. Without this, the disclosure the plan requires
+    ("says which") is computed and thrown away, and a user who asked for 70m
+    is told "every 70m" while the crontab holds an hourly line.
+
+    ``cmds.log`` is patched directly rather than read through capsys: see
+    ``_log_lines`` in ``tests/test_schedule_run.py`` for why capsys reads back
+    empty here once any earlier test in the session has called ``log()``.
+    """
+    import argparse
+
+    from contextlake.schedule.platform import cron
+
+    monkeypatch.setattr(cron, "_read_crontab", lambda: "")
+    monkeypatch.setattr(cron, "_write_crontab", lambda text: None)
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
+              "schedule_on_battery": "skip"}
+    args = argparse.Namespace(job=None, interval="70m", platform="cron")
+    rc = cmds.cmd_install(args, config)
+    out = "\n".join(lines)
+    assert rc == 0
+    assert "every 1h" in out
+    assert "cron cannot express 70m" in out
