@@ -226,7 +226,17 @@ def test_bootstrap_workers_reaches_the_index_stage(tmp_path, gls_logs):
     that is the whole reason this gap existed. Assert on the worker count
     _index_workspace actually logs when driven through a real _bootstrap run,
     not on the parsed namespace."""
+    import pytest
+
     from contextlake import cli
+
+    # This test imports nothing from contextlake.kb, so the static tier check in
+    # test_core_tier_has_no_kb_imports cannot see it, but it depends on the
+    # knowledge layer at RUNTIME: it drives a real bootstrap and asserts on a
+    # line only the index stage logs. Without the [kb] extra that stage never
+    # runs, the line never appears, and the assertion fails on all four core
+    # cells. A static import check catches imports, not runtime dependence.
+    pytest.importorskip("contextlake.kb.cmds.index")
 
     ws = tmp_path / "ws"
     _git_repo(ws / "one")

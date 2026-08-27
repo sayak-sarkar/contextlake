@@ -42,6 +42,29 @@ pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the k
 You'll also want `git` and an authenticated [`glab`](https://gitlab.com/gitlab-org/cli)
 on your PATH to exercise the tool for real (`glab auth login`).
 
+### Check the core-only config before you push
+
+CI runs eight cells. Four of them (`core`) install `.[dev]` WITHOUT the `kb` extra and run
+`pytest --ignore=tests/kb`. A development venv normally has the extra, so a full green run
+locally says nothing about those four cells.
+
+```bash
+uv venv --python 3.10 /tmp/corevenv
+uv pip install --python /tmp/corevenv/bin/python -e ".[dev]"
+/tmp/corevenv/bin/pytest --ignore=tests/kb
+```
+
+Two ways a test breaks there. It imports `contextlake.kb`, which
+`tests/test_core_tier_has_no_kb_imports.py` catches by reading the file. Or it depends on the
+knowledge layer at RUNTIME without importing it, by driving a command whose index stage only
+runs with the extra and asserting on what that stage logs. The static check cannot see the
+second kind, and both have taken the core cells red.
+
+Guard either kind with `pytest.importorskip("contextlake.kb...")`, then confirm the test still
+RUNS in a venv that has the extra. A guard that skips everywhere passes both configs and tests
+nothing.
+
+
 Install the hooks once per clone (see [Pre-commit hooks](#pre-commit-hooks) for what they
 do and deliberately don't do):
 
