@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`contextlake schedule`: a self-scheduler.** Measures how long a run takes and how often your
+  repositories change, works out an interval from the two, and installs a systemd user timer or
+  a crontab entry that keeps the mirror and the knowledge layer current on its own, with no unit
+  file or cron line to write by hand. Core tier: works without the `[kb]` extra.
+  `recommend`, `status` and `list` read only; `install`, `interval`, `reset` and `uninstall`
+  write. Ad-hoc jobs run any contextlake command on their own interval:
+
+  ```bash
+  contextlake schedule interval 6h run -- kb wiki --force
+  ```
+
+  Ten `schedule_*` config keys, an honest split between what systemd and cron can each do, and a
+  container refusal for state that will not survive a restart. Discarding measured history
+  (`--purge`, `reset --history`) renames the history file to a `.discarded` sidecar instead of
+  deleting it, so a mistaken discard is recoverable. See [Scheduling runs](docs/scheduling.md).
+
 - **`branch_map`: per-repository branch pins.** `branch` puts the whole fleet on one branch,
   which is the common case and not the only one. `branch_map` takes comma-separated
   `pattern=branch` pairs using the same globs as `repo_filter`, so one team can track
@@ -23,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```
 
 ### Changed
+
+- **`bootstrap` gained `--force`.** Rebuilds everything instead of only what changed: every
+  repository re-parsed, every node re-embedded. It did not exist as a flag before; it is what
+  `schedule`'s periodic full cycle runs.
 
 - **`configuration.md`'s example config now shows the scoping keys.** `repo_filter`, `branch`
   and `branch_map` were documented in the settings table but absent from the example anyone

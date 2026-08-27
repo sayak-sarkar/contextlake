@@ -449,7 +449,9 @@ def _confirm(args, prompt) -> bool:
 
     ``--yes`` (or ``-y``) skips the prompt for a script or a CI run. Without a
     terminal to ask on, the safe default is to refuse and say why, not to
-    guess: discarding measured history is not recoverable.
+    guess: an unattended `--yes` is the only way this runs with nobody
+    watching, so refusing to guess is what keeps a typo from discarding
+    history nobody meant to touch.
     """
     if getattr(args, "yes", False):
         return True
@@ -469,9 +471,9 @@ def _discard_history(args, config) -> int:
 
     A useful median takes days of real runs to earn back, so the count and
     the span it covers are printed before anything is deleted, whether or
-    not ``--yes`` is set. ``report_line`` rather than ``log``: the one action
-    here that destroys user data permanently must land in ``--log-file`` too,
-    not only the console, and plain ``print`` would miss that entirely.
+    not ``--yes`` is set. ``report_line`` rather than ``log``: this action
+    must land in ``--log-file`` too, not only the console, and plain
+    ``print`` would miss that entirely.
     ``report_line`` keeps the console half a caller's own ``print`` would have
     been, so ``capsys`` still sees it. It does not route through ``log``,
     whose output is not reliably readable back through ``capsys`` once
@@ -498,6 +500,7 @@ def _discard_history(args, config) -> int:
         return 1
     dropped = history.clear_runs(path)
     report_line(f"{style.ok()} Discarded {dropped} measured run(s).")
+    report_line(f"  Saved to {path}{history.DISCARDED_SUFFIX} in case you want it back.")
     return 0
 
 

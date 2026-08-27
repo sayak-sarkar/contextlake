@@ -97,7 +97,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-32 commands: 5 top-level, 8 under `mirror`, 19 under `kb`. `contextlake --help` groups them by
+34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -113,6 +113,7 @@ These span both tiers, or neither, so they are not namespaced.
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
+| `schedule` | Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own (`recommend`, `install`, `status`, `list`, `run`, `reset`, `uninstall`, `interval`). Core tier: works without the `[kb]` extra. See [Scheduling runs](scheduling.md) |
 
 ### Mirror commands
 
@@ -167,6 +168,7 @@ uvicorn's graceful shutdown. The conditions behind each are on
 
 ## See also
 
+- [Scheduling runs](scheduling.md), the `schedule` command in depth
 - [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
 - [Index the code graph](indexing-the-code-graph.md)
 - [Serve it to your editor](serving-over-mcp.md)

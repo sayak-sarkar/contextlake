@@ -164,7 +164,13 @@ PAGES = [
      "Operate it", "Run the whole pipeline in one command, schedule it, re-index on commit with "
      "a git hook, and watch an unattended run.",
      "pebble-doc.png",
-     [("console-output.html", "Console output"), ("troubleshooting.html", "Troubleshooting")]),
+     [("scheduling.html", "Scheduling runs"), ("console-output.html", "Console output")]),
+    ("scheduling.html", "docs/scheduling.md", "Scheduling runs", "Scheduling runs",
+     "Operate it", "Measure a run, work out an interval, and install a systemd timer or crontab "
+     "entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval "
+     "formula.",
+     "pebble-doc.png",
+     [("keeping-it-fresh.html", "Bootstrap and keep it fresh"), ("configuration.html", "Configuration")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "The knowledge layer", "The knowledge layer",
      "Build your knowledge base", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
@@ -298,7 +304,8 @@ NAV_GROUPS = [
                                    "generated-docs-reference.html"]),
     ("Use it", ["asking-the-graph.html", "serving-over-mcp.html", "mcp-transports.html",
                 "using-the-dashboard.html", "visualizing-the-graph.html"]),
-    ("Operate it", ["keeping-it-fresh.html", "console-output.html", "troubleshooting.html"]),
+    ("Operate it", ["keeping-it-fresh.html", "scheduling.html", "console-output.html",
+                    "troubleshooting.html"]),
     ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
                    "changelog.html"]),
     ("Project", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",

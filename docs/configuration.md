@@ -171,6 +171,35 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 | `branch_map` | Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated `pattern=branch` pairs using the same globs as `repo_filter`. First match wins, so list the specific before the general. Beats `branch`; falls back to it, then to the selection above | *(empty)* | `team/api=develop,legacy-*=maintenance` |
+| `schedule_interval` | `auto` measures and adjusts; a duration (`45s`, `30m`, `2h`, `7d`) pins it and turns auto-adjust off | `auto` | `2h` |
+| `schedule_min` | Lower bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `1h` | `30m` |
+| `schedule_max` | Upper bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `24h` | `12h` |
+| `schedule_duty_cycle` | Share of wall-clock time a run may occupy, as a fraction above 0 and below 1 | `0.10` | `0.05` |
+| `schedule_full_every` | How long since the last successful full rebuild before the next cycle forces one (`bootstrap --force`) | `7d` | `3d` |
+| `schedule_adjust_threshold` | How far the installed interval must drift from the current recommendation before `status` flags it | `0.5` | `0.25` |
+| `schedule_gate_retry` | How long a gated (skipped) cycle waits before trying again | `10m` | `5m` |
+| `schedule_on_battery` | `skip` refuses a run on battery power; `run` ignores battery state | `skip` | `run` |
+| `schedule_require_idle` | Refuse a run unless the user is idle. Cannot be detected under a systemd timer or cron: see [Scheduling runs](scheduling.md#platform-differences) | `false` | `true` |
+| `schedule_max_load` | Refuse a run when the 1-minute load average exceeds this. Empty turns the check off | *(empty)* | `4.0` |
+
+Full detail, the interval formula, and what each command writes are on [Scheduling
+runs](scheduling.md).
+
+A worked block with all ten together:
+
+```ini
+[contextlake]
+schedule_interval = auto
+schedule_min = 1h
+schedule_max = 24h
+schedule_duty_cycle = 0.10
+schedule_full_every = 7d
+schedule_adjust_threshold = 0.5
+schedule_gate_retry = 10m
+schedule_on_battery = skip
+schedule_require_idle = false
+schedule_max_load =
+```
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
@@ -180,3 +209,4 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 - [Quickstart](../QUICKSTART.md)
 - [Mirror repositories](mirroring-repositories.md)
 - [Knowledge layer](knowledge-layer.md)
+- [Scheduling runs](scheduling.md), the `schedule_*` keys in depth

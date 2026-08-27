@@ -7,6 +7,7 @@ keep working after a half-written line (a power cut mid-append, a full disk).
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
@@ -98,6 +99,41 @@ def test_clear_runs_reports_how_many_it_discarded(tmp_path):
     assert history.clear_runs(path) == 3
     assert history.read_runs(path) == []
     assert history.clear_runs(path) == 0
+
+
+def test_clear_runs_renames_to_a_discarded_sidecar_instead_of_deleting(tmp_path):
+    """The fix for a real incident: a subagent's `schedule uninstall --purge
+    --yes` destroyed the owner's measurement history with no way back. A
+    rename leaves the records recoverable; a bare unlink does not."""
+    path = str(tmp_path / "h.jsonl")
+    for i in range(3):
+        history.append_run(path, _rec(i))
+    assert history.clear_runs(path) == 3
+    sidecar = path + history.DISCARDED_SUFFIX
+    assert os.path.exists(sidecar)
+    assert not os.path.exists(path)
+    assert [r["duration_s"] for r in history.read_runs(sidecar)] == [100.0, 101.0, 102.0]
+
+
+def test_a_second_discard_replaces_the_sidecar_rather_than_accumulating(tmp_path):
+    path = str(tmp_path / "h.jsonl")
+    history.append_run(path, _rec(1))
+    history.clear_runs(path)
+    sidecar = path + history.DISCARDED_SUFFIX
+    assert [r["duration_s"] for r in history.read_runs(sidecar)] == [101.0]
+
+    history.append_run(path, _rec(9))
+    history.append_run(path, _rec(10))
+    count = history.clear_runs(path)
+    assert count == 2
+    assert [r["duration_s"] for r in history.read_runs(sidecar)] == [109.0, 110.0]
+
+
+def test_read_runs_on_the_live_path_is_empty_after_a_discard(tmp_path):
+    path = str(tmp_path / "h.jsonl")
+    history.append_run(path, _rec(1))
+    history.clear_runs(path)
+    assert history.read_runs(path) == []
 
 
 def test_summarize_counts_runs_and_spans_days():

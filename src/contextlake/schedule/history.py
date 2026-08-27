@@ -121,14 +121,32 @@ def _trim(path) -> None:
             pass
 
 
+DISCARDED_SUFFIX = ".discarded"
+
+
 def clear_runs(path) -> int:
-    """Delete the history. Returns how many records were discarded, so the
-    caller can say what it is about to destroy before it does."""
+    """Retire the history. Returns how many records were discarded, so the
+    caller can say what it is about to destroy before it does.
+
+    Renames rather than unlinks. This module's own documentation says a useful
+    median takes days of real runs to earn, so destroying it with no way back is
+    the wrong default. The sidecar costs one inode and turns an irreversible
+    action into a recoverable one.
+
+    One sidecar is kept, not a series: the point is undoing the discard you just
+    did, not an archive. A second discard replaces the first, which os.replace
+    does atomically.
+    """
     count = len(read_runs(path))
     try:
-        os.unlink(path)
+        os.replace(path, path + DISCARDED_SUFFIX)
     except OSError:
-        pass
+        # Nothing to retire, or the rename failed. Fall back to removing it, so
+        # a discard the user asked for still happens.
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
     return count
 
 

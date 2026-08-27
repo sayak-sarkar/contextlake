@@ -52,7 +52,9 @@ each layer above it is optional.
 
 1. **Mirror.** Clone every repo you can reach into a local copy of its namespace tree. Works
    with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
-   owner. Each repo lands on its most active branch. One command keeps them fresh.
+   owner. Each repo lands on its most active branch. One command keeps them fresh, and
+   `contextlake schedule install` measures a run and installs a systemd timer or crontab
+   entry that does it on its own.
 
 2. **Knowledge layer** *(optional)*. Turn the mirror into a graph you can query.
 
@@ -188,8 +190,8 @@ Verbs sit under the noun they belong to:
 
 - `mirror` for mirroring git repositories
 - `kb` for the knowledge layer
-- `init`, `bootstrap`, `version`, `completion` and `doctor` sit at the top, because they span
-  both tiers or neither
+- `init`, `bootstrap`, `version`, `completion`, `doctor` and `schedule` sit at the top, because
+  they span both tiers or neither
 
 Per-command docs live with their layer. The mirror commands are in
 [Mirroring repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md).
@@ -348,6 +350,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
 - **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
 - **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
+- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed systemd timer or crontab entry
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
 - **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
@@ -1471,7 +1474,8 @@ Source: https://sayak.in/contextlake/mirroring-repositories
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for scheduling a
-sync see [Bootstrap and keep it fresh](keeping-it-fresh.md); for the knowledge layer see the
+sync see [Bootstrap and keep it fresh](keeping-it-fresh.md) or, to have contextlake install and
+manage the schedule itself, [Scheduling runs](scheduling.md); for the knowledge layer see the
 [Knowledge layer](knowledge-layer.md) overview.
 
 > [!NOTE]
@@ -1931,6 +1935,7 @@ looks in one place rather than guessing which page owns their symptom.
 ## See also
 
 - [Bootstrap and keep it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
+- [Scheduling runs](scheduling.md), a self-installed systemd timer or crontab entry
 - [Configuration](configuration.md), the full settings reference
 - [Reading the console output](console-output.md), the status glyphs and the exit codes
 - [Knowledge layer](knowledge-layer.md), what to build on top of the mirror
@@ -2114,6 +2119,35 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 | `branch_map` | Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated `pattern=branch` pairs using the same globs as `repo_filter`. First match wins, so list the specific before the general. Beats `branch`; falls back to it, then to the selection above | *(empty)* | `team/api=develop,legacy-*=maintenance` |
+| `schedule_interval` | `auto` measures and adjusts; a duration (`45s`, `30m`, `2h`, `7d`) pins it and turns auto-adjust off | `auto` | `2h` |
+| `schedule_min` | Lower bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `1h` | `30m` |
+| `schedule_max` | Upper bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `24h` | `12h` |
+| `schedule_duty_cycle` | Share of wall-clock time a run may occupy, as a fraction above 0 and below 1 | `0.10` | `0.05` |
+| `schedule_full_every` | How long since the last successful full rebuild before the next cycle forces one (`bootstrap --force`) | `7d` | `3d` |
+| `schedule_adjust_threshold` | How far the installed interval must drift from the current recommendation before `status` flags it | `0.5` | `0.25` |
+| `schedule_gate_retry` | How long a gated (skipped) cycle waits before trying again | `10m` | `5m` |
+| `schedule_on_battery` | `skip` refuses a run on battery power; `run` ignores battery state | `skip` | `run` |
+| `schedule_require_idle` | Refuse a run unless the user is idle. Cannot be detected under a systemd timer or cron: see [Scheduling runs](scheduling.md#platform-differences) | `false` | `true` |
+| `schedule_max_load` | Refuse a run when the 1-minute load average exceeds this. Empty turns the check off | *(empty)* | `4.0` |
+
+Full detail, the interval formula, and what each command writes are on [Scheduling
+runs](scheduling.md).
+
+A worked block with all ten together:
+
+```ini
+[contextlake]
+schedule_interval = auto
+schedule_min = 1h
+schedule_max = 24h
+schedule_duty_cycle = 0.10
+schedule_full_every = 7d
+schedule_adjust_threshold = 0.5
+schedule_gate_retry = 10m
+schedule_on_battery = skip
+schedule_require_idle = false
+schedule_max_load =
+```
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
@@ -2123,6 +2157,7 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 - [Quickstart](../QUICKSTART.md)
 - [Mirror repositories](mirroring-repositories.md)
 - [Knowledge layer](knowledge-layer.md)
+- [Scheduling runs](scheduling.md), the `schedule_*` keys in depth
 
 ---
 
@@ -4610,10 +4645,12 @@ moved (or whose shard was built by an older parser), refreshes the knowledge lay
 steering, without touching an in-progress working tree.
 
 > [!NOTE]
-> contextlake installs no scheduler of its own. There is no built-in cron entry and no systemd unit
-> written for you; the one thing it does install is the git hook in the next section. Everything
-> below is you wiring it to your own scheduler, which is why the exit codes and the metrics file
-> matter.
+> `contextlake schedule install` does the rest of this section for you: it measures how long a
+> run takes, works out an interval, and installs the systemd timer or crontab entry itself. See
+> [Scheduling runs](scheduling.md). The rest of this section covers wiring `bootstrap` to a
+> scheduler by hand, which is still the right choice for more than one workspace, or a cron entry
+> your own tooling already manages. Both paths write the same exit codes and metrics file, so
+> everything below still applies once a schedule is installed.
 
 ### Before your first cron entry
 
@@ -4815,10 +4852,277 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 
 ## See also
 
+- [Scheduling runs](scheduling.md), `contextlake schedule` measuring and installing this for you
 - [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
 - [Generate the wiki](generating-the-wiki.md), the stage that needs a model
 - [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
 - [Troubleshooting](troubleshooting.md), when a scheduled run stops working
+
+---
+
+# Scheduling runs
+Source: https://sayak.in/contextlake/scheduling
+
+# Scheduling runs
+
+`contextlake schedule` measures how long a run takes and how often your repositories change,
+works out an interval from those two numbers, and installs a background job that keeps the
+mirror and the knowledge layer current on its own. It runs on the core tier, so it works even
+without the `[kb]` extra. This page covers reading its recommendation, installing it, the
+set/reset/unset model, ad-hoc jobs, the interval formula, its config keys, platform differences,
+and containers.
+
+## Prerequisites
+
+- A configured workspace: `contextlake init`, or `.contextlake.ini` in place. See
+  [Configuration](configuration.md).
+- Linux, with either a systemd user session or `crontab` available. Nothing else is supported
+  yet; see [Platform differences](#platform-differences).
+
+## `schedule recommend`: what interval your measurements suggest
+
+```console
+$ contextlake schedule recommend
+⚠ Recommended interval: 6h
+  Because: no measured runs yet, so this is the built-in default of 6h, not a measurement. The first completed run replaces it.
+  Nothing has been measured yet. Run `contextlake mirror sync` or `contextlake bootstrap` once, or install the schedule and let the first run replace this default.
+
+  Install it:  contextlake schedule install
+```
+
+That is the cold-start default: nothing has run yet, so there is nothing to measure. Once a few
+runs have completed, the same command reads real numbers:
+
+```console
+$ contextlake schedule recommend
+✓ Recommended interval: 70m
+  Because: duty cycle: the median incremental run takes 7m, and at 10% of wall-clock time that needs 70m between runs
+  From 3 measured run(s) over 0.1 day(s)
+    duty-cycle floor: 70m
+    activity floor:   20m
+
+  Install it:  contextlake schedule install
+```
+
+The glyph names the answer: `⚠` for a default nobody has measured yet, `✓` for one built from
+real runs. `recommend` changes nothing. Add `--json` for the same answer as a
+machine-readable payload (`interval`, `basis`, `reason`, `floor_duty_seconds`,
+`floor_activity_seconds`, `history`, and so on).
+
+## `schedule install`: measure, decide, and install
+
+```bash
+contextlake schedule install
+```
+
+This is idempotent: run it again after a config change or after more runs have accumulated, and
+it recomputes and rewrites the job in place. It writes to three places:
+
+| What | Where |
+| --- | --- |
+| The job record (name, command, interval setting, failure count, last run) | `schedule-jobs.json`, beside the project cache |
+| The measured run history, appended to by every run | `schedule-history.jsonl`, beside the project cache |
+| The platform unit that fires | a systemd user timer (`~/.config/systemd/user/contextlake-<name>.timer` + `.service`), or a marked block in your crontab |
+
+"Beside the project cache" is the same directory `cache_dir` in [Configuration](configuration.md)
+resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
+
+`install` picks systemd if a systemd user session answers, cron otherwise, and prints the
+platform's own unit file (or crontab line) when it cannot write one, so you can install it by
+hand. Force a specific platform with `--platform systemd` or `--platform cron`.
+
+The default job runs `contextlake bootstrap` on most cycles, and switches to
+`contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
+re-embedded) once `schedule_full_every` has passed since the last successful full run.
+
+## Set, reset, and unset
+
+Three layers decide what interval a job runs on, and only one of them is read back as the truth:
+
+| Layer | Role | Changed by |
+| --- | --- | --- |
+| The INI (`schedule_interval`, or `--interval` on `install`) | Supplies the starting value **when the job is created**. Ignored after that. | Editing `.contextlake.ini` before the first `install` |
+| The job record (`schedule-jobs.json`) | **Authoritative.** Holds `auto` or a pinned duration, plus the failure count that drives backoff. | `install`, `interval`, `reset`, `uninstall` |
+| The platform unit (the systemd timer or the crontab line) | Rendered *from* the job record's resolved interval. Never read back as truth; `status` reads it only to report drift or cron's rounding. | Rewritten every `install` / `reset` / `interval` |
+
+Three commands change the job record:
+
+- **Set** an interval with `contextlake schedule --interval 2h install` (or pin an ad-hoc job the
+  same way with `schedule interval 2h run -- ...`). Auto-adjust turns off for that job: the
+  number you gave is used as-is, never clamped to `schedule_min` / `schedule_max`.
+- **Reset** with `contextlake schedule reset`. Clears a pin back to `auto`, clears the failure
+  count (so a backed-off interval snaps back to the recommendation), recomputes, and reinstalls
+  immediately. Add `--history` to also discard the measurements (see below); `reset` installs
+  first and discards second, so a failed install never destroys history for a reset that did not
+  happen.
+- **Unset** with `contextlake schedule uninstall`. Removes the job record and the installed unit.
+  Add `--purge` to also discard the measurements. Without `--purge`, the history is kept, so
+  installing again later starts warm instead of cold.
+
+### Discarding history is recoverable
+
+`--purge` and `reset --history` both ask first, printing the count of runs and the span of days
+they cover, because a useful median takes days to earn back:
+
+```console
+$ contextlake schedule --history --yes reset
+About to discard 3 measured run(s) spanning 0.1 day(s) (2026-08-24T01:00:00Z to 2026-08-24T03:00:00Z).
+  The recommender starts cold and re-learns from the next run.
+✓ Discarded 3 measured run(s).
+  Saved to /home/you/.cache/contextlake/work-ab12/schedule-history.jsonl.discarded in case you want it back.
+```
+
+The discard renames the history file to a `.discarded` sidecar instead of deleting it. To get it
+back, move the sidecar over the live file yourself:
+
+```bash
+mv schedule-history.jsonl.discarded schedule-history.jsonl
+```
+
+Only one sidecar is kept. A second discard replaces it, so this is undo for the discard you just
+did, not an archive of every one you have ever run.
+
+## Ad-hoc jobs
+
+`schedule interval` creates or replaces a named job that runs any contextlake command on its own
+interval, separate from the default `bootstrap` cycle. Give it a duration (or `auto`), the word
+`run`, a `--` separator, then the command:
+
+```bash
+contextlake schedule interval 6h run -- kb wiki --force
+contextlake schedule --job wiki-refresh interval 2h run -- kb wiki --namespace acme/widgets
+```
+
+**The `--` separator is not optional the moment your command has its own flags.** `schedule`
+parses everything before `--` as its own flags and action; without it, a flag meant for the
+trailing command is read as a flag of `schedule` itself and the whole thing fails:
+
+```console
+$ contextlake schedule interval 6h run kb wiki --force
+✗ '--force' isn't a flag on 'schedule'
+
+It's used by: bootstrap, kb embed, kb index, init, kb steer, kb wiki.
+
+Run 'contextlake schedule --help' to see schedule's own flags.
+```
+
+A flag that no other contextlake command uses fails the same way, with `Unknown flag: '<flag>'
+(on 'schedule')` instead. Either way, the fix is the same: add `--`.
+
+The command is validated before the job is written: it must parse, and if it needs the `[kb]`
+extra and that extra is not installed here, `interval` warns rather than installing a job that
+fails on every run. A job named `schedule` itself is refused outright, because that would recurse.
+
+## The interval formula
+
+```
+floor_duty     = median(incremental run duration) / duty_cycle
+floor_activity = k / change_rate
+interval       = clamp(max(floor_duty, floor_activity), schedule_min, schedule_max)
+```
+
+`floor_duty` is a cost bound: never occupy more than `duty_cycle` of wall-clock time.
+`floor_activity` is a freshness bound: there is no point running more often than the fleet
+produces roughly `k` changed repositories. Whichever bound needs the longer gap wins.
+
+Three worked examples, all at the default `duty_cycle = 0.10` and `k = 1.0`:
+
+| Median incremental run | Change rate | `floor_duty` | `floor_activity` | Interval | Why |
+| --- | --- | --- | --- | --- | --- |
+| 7 min | ~3 repos/hour | 70m | 20m | **70m** | Duty wins: a busy fleet, so the cost bound is what limits how often you can afford to run |
+| 7 min | ~0.1 repos/hour | 70m | 10h | **10h** | Activity wins: a quiet fleet, so there is nothing to gain from running every 70 minutes |
+| 40 min | ~3 repos/hour | 6.7h | 20m | **6.7h** | Duty wins again: a bigger, slower fleet costs more per run, which raises the cost bound past the freshness one |
+
+## Configuration
+
+Ten `schedule_*` keys, read from the same `.contextlake.ini` `[contextlake]` section as
+`work_dir` and the rest of the mirror settings. Full descriptions and defaults are in
+[Configuration](configuration.md#settings-reference); the worked block below shows all ten
+together:
+
+```ini
+[contextlake]
+schedule_interval = auto
+schedule_min = 1h
+schedule_max = 24h
+schedule_duty_cycle = 0.10
+schedule_full_every = 7d
+schedule_adjust_threshold = 0.5
+schedule_gate_retry = 10m
+schedule_on_battery = skip
+schedule_require_idle = false
+schedule_max_load =
+```
+
+A typo or an out-of-range value logs a warning and falls back to the built-in default, rather
+than stopping a run at 3am when nobody is there to fix it.
+
+## Platform differences
+
+Two adapters exist today: systemd and cron. Both are Linux-only. macOS (`launchd`), Windows
+(Task Scheduler), Kubernetes, OpenShift, AWS and Azure are not covered yet.
+
+| | systemd (user timer) | cron |
+| --- | --- | --- |
+| Interval | Exact, any duration | Rounded. Cron's minute field only divides the hour, so `*/70` does not mean "every 70 minutes". The adapter picks the nearest interval it can express, rounding down above one minute and up below it, and tells you the difference |
+| Missed a run while asleep or off | Replays it (`Persistent=true`) | Lost. cron has no equivalent |
+| Runs while logged out | Only if linger is on: `loginctl enable-linger $USER`. `schedule status` reports when it is off | Yes, cron runs independent of any login session |
+| Skips on battery | `ConditionACPower=true` in the unit itself | The `schedule_on_battery` gate at run time |
+| `schedule_require_idle` | Same limitation as cron: see below | Inert. Neither cron nor a systemd timer sets `XDG_SESSION_ID`, which idleness detection needs, so the gate cannot tell and passes every time. `status` and the run itself both warn when this is on |
+
+## Containers
+
+A container's writable layer is thrown away on every restart. Running the scheduler there without
+persistent storage would mean every cycle re-indexes the whole fleet from scratch, so `schedule
+run` refuses:
+
+```console
+$ contextlake schedule run
+Refusing to run: this container's state does not survive a restart, so every run would re-index the whole fleet from scratch.
+  Mount a volume at the cache directory (a PVC on Kubernetes, EFS on AWS, Azure Files on Azure), or pass --allow-ephemeral if that is what you want.
+```
+
+The check is whether the cache directory sits on its own mount point, not what filesystem type it
+reports: a container's own writable layer is part of the root mount, while any volume you attach
+(a PVC, an `emptyDir`, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
+underlying filesystem. Fix it by pointing `cache_dir` at a mounted volume, or pass
+`--allow-ephemeral` if a from-scratch run every cycle is what you want. There is no daemon to
+install inside a container; run the cycle in the foreground instead:
+
+```bash
+contextlake schedule run --foreground
+```
+
+`--foreground` loops here, sleeping between cycles, and does not re-read the config file
+mid-loop; restart the container to pick up an edited `schedule_interval`.
+
+## Troubleshooting: it is installed but nothing runs
+
+Start with `contextlake schedule status`. It reads the job record, the platform unit, and the
+measured history, and reports every way they disagree:
+
+1. **Linger is off (systemd only).** A user timer does not fire while you are logged out unless
+   linger is on. `status` reports this; fix it with `loginctl enable-linger $USER`.
+2. **The interpreter has moved.** `status` resolves the path the installed unit runs and reports
+   it missing if the venv was moved or deleted. Re-run `contextlake schedule install`
+   from the current install to fix it.
+3. **The unit was removed outside contextlake.** `status` reports "recorded but NOT installed"
+   when the job record exists but the systemd timer or crontab block does not. Re-run
+   `contextlake schedule install`.
+4. **`schedule_require_idle` is on and you expected it to gate a run.** It cannot: see
+   [Platform differences](#platform-differences).
+5. **Consecutive failures are backing off the interval.** `status` reports the failure count. Fix
+   the underlying command failure (run it by hand first) and the next success resets it to zero.
+6. **Nothing has fired yet at all.** Check the platform directly: `systemctl --user list-timers`
+   for systemd, `crontab -l` for cron. A gap between what `status` reports and what the platform
+   shows is the bug to chase.
+
+## See also
+
+- [Bootstrap and keep it fresh](keeping-it-fresh.md), the command the default job runs
+- [Configuration](configuration.md), the full settings reference
+- [Command reference](cli-reference.md), every `schedule` flag
+- [Reading the console output](console-output.md), exit codes and log formats
 
 ---
 
@@ -7176,7 +7480,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-32 commands: 5 top-level, 8 under `mirror`, 19 under `kb`. `contextlake --help` groups them by
+34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -7192,6 +7496,7 @@ These span both tiers, or neither, so they are not namespaced.
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
+| `schedule` | Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own (`recommend`, `install`, `status`, `list`, `run`, `reset`, `uninstall`, `interval`). Core tier: works without the `[kb]` extra. See [Scheduling runs](scheduling.md) |
 
 ### Mirror commands
 
@@ -7246,6 +7551,7 @@ uvicorn's graceful shutdown. The conditions behind each are on
 
 ## See also
 
+- [Scheduling runs](scheduling.md), the `schedule` command in depth
 - [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
 - [Index the code graph](indexing-the-code-graph.md)
 - [Serve it to your editor](serving-over-mcp.md)
@@ -7781,6 +8087,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`contextlake schedule`: a self-scheduler.** Measures how long a run takes and how often your
+  repositories change, works out an interval from the two, and installs a systemd user timer or
+  a crontab entry that keeps the mirror and the knowledge layer current on its own, with no unit
+  file or cron line to write by hand. Core tier: works without the `[kb]` extra.
+  `recommend`, `status` and `list` read only; `install`, `interval`, `reset` and `uninstall`
+  write. Ad-hoc jobs run any contextlake command on their own interval:
+
+  ```bash
+  contextlake schedule interval 6h run -- kb wiki --force
+  ```
+
+  Ten `schedule_*` config keys, an honest split between what systemd and cron can each do, and a
+  container refusal for state that will not survive a restart. Discarding measured history
+  (`--purge`, `reset --history`) renames the history file to a `.discarded` sidecar instead of
+  deleting it, so a mistaken discard is recoverable. See [Scheduling runs](docs/scheduling.md).
+
 - **`branch_map`: per-repository branch pins.** `branch` puts the whole fleet on one branch,
   which is the common case and not the only one. `branch_map` takes comma-separated
   `pattern=branch` pairs using the same globs as `repo_filter`, so one team can track
@@ -7795,6 +8117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```
 
 ### Changed
+
+- **`bootstrap` gained `--force`.** Rebuilds everything instead of only what changed: every
+  repository re-parsed, every node re-embedded. It did not exist as a flag before; it is what
+  `schedule`'s periodic full cycle runs.
 
 - **`configuration.md`'s example config now shows the scoping keys.** `repo_filter`, `branch`
   and `branch_map` were documented in the settings table but absent from the example anyone

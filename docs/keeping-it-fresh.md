@@ -120,10 +120,12 @@ moved (or whose shard was built by an older parser), refreshes the knowledge lay
 steering, without touching an in-progress working tree.
 
 > [!NOTE]
-> contextlake installs no scheduler of its own. There is no built-in cron entry and no systemd unit
-> written for you; the one thing it does install is the git hook in the next section. Everything
-> below is you wiring it to your own scheduler, which is why the exit codes and the metrics file
-> matter.
+> `contextlake schedule install` does the rest of this section for you: it measures how long a
+> run takes, works out an interval, and installs the systemd timer or crontab entry itself. See
+> [Scheduling runs](scheduling.md). The rest of this section covers wiring `bootstrap` to a
+> scheduler by hand, which is still the right choice for more than one workspace, or a cron entry
+> your own tooling already manages. Both paths write the same exit codes and metrics file, so
+> everything below still applies once a schedule is installed.
 
 ### Before your first cron entry
 
@@ -325,6 +327,7 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 
 ## See also
 
+- [Scheduling runs](scheduling.md), `contextlake schedule` measuring and installing this for you
 - [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
 - [Generate the wiki](generating-the-wiki.md), the stage that needs a model
 - [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
