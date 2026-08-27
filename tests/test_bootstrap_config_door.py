@@ -249,8 +249,16 @@ def test_bootstrap_omitting_workers_uses_the_auto_default(tmp_path, gls_logs):
     """No --workers on the command line must still resolve to the same auto
     default _index_workspace would pick on its own, not to some other value a
     wrong wiring could silently substitute."""
+    import pytest
+
     from contextlake import cli
-    from contextlake.kb.cmds.index import _default_index_workers
+
+    # Guarded like the same import at line 163 and in test_schedule_activity_wiring:
+    # this file runs in CI's core job, which installs no [kb] extra. Unguarded, the
+    # static tier check in test_core_tier_has_no_kb_imports fails in BOTH jobs,
+    # because it reads the file rather than importing it.
+    index_mod = pytest.importorskip("contextlake.kb.cmds.index")
+    _default_index_workers = index_mod._default_index_workers
 
     ws = tmp_path / "ws"
     _git_repo(ws / "one")
