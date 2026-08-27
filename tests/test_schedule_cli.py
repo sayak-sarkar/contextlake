@@ -11,6 +11,7 @@ import pytest
 
 from contextlake.cli import build_parser
 from contextlake.schedule import cmds
+from contextlake.schedule.platform import base as platform_base
 
 
 def _parse(argv):
@@ -310,6 +311,52 @@ def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
     assert rc == 0
     assert "every 1h" in out
     assert "cron cannot express 70m" in out
+
+
+@pytest.mark.parametrize("platform_name", sorted(platform_base._registry()))
+def test_the_degrade_path_prints_only_artefacts_never_metadata(
+        tmp_path, monkeypatch, platform_name):
+    """render() mixes artefact keys (files to write) with metadata keys
+    (facts about the install, like cron's `interval_s`). The degrade path
+    used to print every key as if it were a file, so a section headed
+    `----- interval_s -----` showed up under "install these yourself"
+    holding a plain int. Runs over every registered adapter, not just cron,
+    so a Plan 2 backend that mixes metadata into `render()` fails this on
+    day one rather than shipping the same defect again."""
+    import argparse
+    import re
+
+    from contextlake.schedule import jobs as jobstore
+    from contextlake.schedule.platform import base
+
+    cls = base._registry()[platform_name]
+
+    def _refuse(self, job, interval_s, exec_argv, **options):
+        raise OSError("no permission to write the unit")
+
+    monkeypatch.setattr(cls, "install", _refuse)
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
+    args = argparse.Namespace(job=None, interval=None, platform=platform_name)
+    rc = cmds.cmd_install(args, config)
+    assert rc == 0
+
+    out = "\n".join(lines)
+    headers = set(re.findall(r"----- (.+?) -----", out))
+
+    job = jobstore.new_job(jobstore.DEFAULT_JOB, list(jobstore.DEFAULT_ARGV),
+                           "auto", cls.id)
+    interval_s, _ = cmds.resolve_interval(config, "auto")
+    rendered = cls().render(job, interval_s,
+                            cmds.exec_argv_for(jobstore.DEFAULT_JOB),
+                            on_battery=config.get("schedule_on_battery", "skip"))
+    expected = set(rendered) - cls.metadata_keys
+    assert headers == expected
+    assert headers, "expected at least one artefact header"
+    for key in cls.metadata_keys & set(rendered):
+        assert key not in out or f"----- {key} -----" not in out
 
 
 def test_cmd_install_does_not_duplicate_the_cannot_catch_up_note(tmp_path, monkeypatch):

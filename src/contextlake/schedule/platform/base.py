@@ -44,11 +44,37 @@ class Adapter:
 
     id = ""
     catches_up_after_sleep = False
+    # Keys `render()` returns that are facts about the install, not files to
+    # write or show. Empty by default: every key an adapter returns is an
+    # artefact unless it lists the key here. Only `cron` needs this today
+    # (`spec`, `interval_s`, `notes`, `name`); systemd's two keys are both
+    # unit filenames. See `render` below for the full contract.
+    metadata_keys: frozenset = frozenset()
 
     def usable(self) -> bool:
         raise NotImplementedError
 
     def render(self, job, interval_s, exec_argv, **options) -> dict:
+        """The artefacts this adapter would install, plus whatever metadata
+        it needs to report back.
+
+        Pure: no filesystem or subprocess call, so a backend can be
+        golden-file tested without being installable, and so calling it
+        again after `install` (the only way to learn a fact `install` itself
+        does not return, such as the interval cron rounded to) costs
+        nothing.
+
+        Every key NOT listed in `metadata_keys` is an artefact: a filename
+        (or a platform-chosen label, for a backend with no filename until
+        installed) mapped to the exact text `install` writes, and what the
+        degrade path prints under "install these yourself" when `install`
+        cannot run. A key listed in `metadata_keys` carries a fact about the
+        install instead and must never be printed as if it were a file. A
+        `notes` key, when present, holds one string here; `state()`'s own
+        `notes` key below holds a list. They answer different questions
+        ("what did this install decide" vs "what does the live unit show
+        now") and are not interchangeable.
+        """
         raise NotImplementedError
 
     def install(self, job, interval_s, exec_argv, **options) -> list:

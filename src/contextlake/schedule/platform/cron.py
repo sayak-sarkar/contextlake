@@ -172,6 +172,9 @@ class CronAdapter(Adapter):
     # cron has no equivalent of Persistent=true. A run missed while the machine
     # was off is lost, and `status` says so.
     catches_up_after_sleep = False
+    # render()'s only artefact is "crontab". The rest are facts about the
+    # install, not files: see Adapter.metadata_keys and Adapter.render.
+    metadata_keys = frozenset({"spec", "interval_s", "notes", "name"})
 
     def usable(self) -> bool:
         return shutil.which("crontab") is not None

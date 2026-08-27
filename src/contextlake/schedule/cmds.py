@@ -224,8 +224,10 @@ def cmd_install(args, config) -> int:
         # ConditionACPower=true, which on a read-only home is the only
         # artefact they get.
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
-        for filename, text in adapter.render(job, interval_s, exec_argv_for(name),
-                                             on_battery=on_battery).items():
+        rendered = adapter.render(job, interval_s, exec_argv_for(name), on_battery=on_battery)
+        for filename, text in rendered.items():
+            if filename in adapter.metadata_keys:
+                continue
             log(f"\n----- {filename} -----\n{text}")
         log("Install these yourself, or run `contextlake schedule run --foreground`.")
         return 0
