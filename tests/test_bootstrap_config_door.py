@@ -16,6 +16,7 @@ each carried an explicit `--config`.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -184,3 +185,85 @@ def test_bootstrap_force_does_not_reach_the_steer_stage(monkeypatch, tmp_path):
 
     assert seen["index"] is True, "index must still see --force"
     assert seen["steer"] is False, "steer must NOT inherit index's --force"
+
+
+# --- bootstrap --workers: the same shape as --force above, and the same gap ---
+# `bootstrap` is jobs.DEFAULT_ARGV, the default scheduled job, so a fleet run on a
+# schedule with no --workers cap still ran the index stage at the unbounded auto
+# default. Checked whether any other stage reads args.workers for a different
+# meaning the way cmd_steer reads args.force: connect, embed, enrich, wiki, docs
+# and steer none of them reference "workers" at all, so -- unlike --force -- no
+# stage guard is needed here.
+
+_GIT_ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def _git(args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, env=_GIT_ENV, check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _git_repo(path):
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "m.py").write_text("def foo():\n    return 1\n")
+    _git(["init", "-q", "-b", "main"], path)
+    _git(["add", "-A"], path)
+    _git(["commit", "-q", "-m", "c"], path)
+
+
+def test_bootstrap_workers_flag_parses_and_reaches_args():
+    """Same precedent as --force: the parser declaration is the whole plumbing,
+    since copy.copy(args) carries every attribute into kb_args."""
+    from contextlake.cli import build_parser
+
+    assert build_parser().parse_args(["bootstrap", "--workers", "2"]).workers == 2
+    assert build_parser().parse_args(["bootstrap"]).workers is None
+
+
+def test_bootstrap_workers_reaches_the_index_stage(tmp_path, gls_logs):
+    """The parser accepting a flag proves nothing about a stage honouring it --
+    that is the whole reason this gap existed. Assert on the worker count
+    _index_workspace actually logs when driven through a real _bootstrap run,
+    not on the parsed namespace."""
+    from contextlake import cli
+
+    ws = tmp_path / "ws"
+    _git_repo(ws / "one")
+    _git_repo(ws / "two")
+    store_dir = tmp_path / "kb"
+    kb_cfg = tmp_path / "kb.toml"
+    kb_cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+
+    args = cli.build_parser().parse_args([
+        "bootstrap", "--no-sync", "--no-audit", "--no-connect", "--no-embed",
+        "--no-enrich", "--no-wiki", "--no-diagrams", "--no-docs",
+        "--workspace", str(ws), "--kb-config", str(kb_cfg), "--workers", "1"])
+
+    cli._bootstrap(args, {"work_dir": str(ws), "gitlab_group": "g"}, str(ws), "g")
+
+    assert "with 1 worker(s)" in gls_logs.text, gls_logs.text
+
+
+def test_bootstrap_omitting_workers_uses_the_auto_default(tmp_path, gls_logs):
+    """No --workers on the command line must still resolve to the same auto
+    default _index_workspace would pick on its own, not to some other value a
+    wrong wiring could silently substitute."""
+    from contextlake import cli
+    from contextlake.kb.cmds.index import _default_index_workers
+
+    ws = tmp_path / "ws"
+    _git_repo(ws / "one")
+    store_dir = tmp_path / "kb"
+    kb_cfg = tmp_path / "kb.toml"
+    kb_cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+
+    args = cli.build_parser().parse_args([
+        "bootstrap", "--no-sync", "--no-audit", "--no-connect", "--no-embed",
+        "--no-enrich", "--no-wiki", "--no-diagrams", "--no-docs",
+        "--workspace", str(ws), "--kb-config", str(kb_cfg)])
+
+    cli._bootstrap(args, {"work_dir": str(ws), "gitlab_group": "g"}, str(ws), "g")
+
+    expected = _default_index_workers()
+    assert f"with {expected} worker(s)" in gls_logs.text, gls_logs.text

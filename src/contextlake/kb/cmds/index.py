@@ -532,8 +532,6 @@ def _cmd_index_once(args) -> int:
                       languages=cfg.languages)
     # --workers overrides kb.toml's index_workers for this run; neither one set
     # falls through to _default_index_workers() inside _index_workspace.
-    # --workers overrides kb.toml's index_workers for this run; neither one set
-    # falls through to _default_index_workers() inside _index_workspace.
     workers = _or_default(getattr(args, "workers", None), cfg.index_workers)
     try:
         workspace = getattr(args, "workspace", None)

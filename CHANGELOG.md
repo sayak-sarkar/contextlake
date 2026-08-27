@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`kb index --workers N`.** Caps how many repositories `--workspace` indexes in
-  parallel. `_index_workspace` already accepted and honoured a `workers` value, but
-  nothing wired a flag to it, so the default (one fewer than the CPU count, capped at
-  8) could not be overridden. Lower it to cut peak memory on a large fleet or a small
-  machine.
+- **`--workers N` on `kb index` and `bootstrap`.** Caps how many repositories the
+  index stage parses in parallel. `_index_workspace` already accepted and honoured
+  a `workers` value, but nothing wired a flag to it, so the default (one fewer than
+  the CPU count, capped at 8) could not be overridden anywhere, including on
+  `bootstrap`, the default scheduled job. Lower it to cut peak memory on a large
+  fleet or a small machine.
 
 ## [8.8.0] - 2026-08-27
 

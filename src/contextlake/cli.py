@@ -1047,6 +1047,11 @@ Examples:
                    help="rebuild everything instead of only what changed: re-parse "
                         "every repository and re-embed every node. Slow, and what "
                         "`schedule`'s periodic full cycle runs")
+    p.add_argument("--workers", type=_COUNT, default=_S, metavar="N",
+                   help="how many repos the index stage parses in parallel (default: "
+                        "one fewer than the CPU count, capped at 8). Lower this to cut "
+                        "peak memory on a large fleet or a small machine -- this is "
+                        "what `schedule`'s periodic full run would otherwise use unbounded")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="power the wiki stage with this LLM provider; without it (and "
