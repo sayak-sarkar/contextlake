@@ -48,7 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one killed run left 8 orphaned workers holding 12.4 GB. On a schedule, every
   timed-out run leaked another pool. The child now starts in its own process group
   and, on a timeout, the whole group is signalled (SIGTERM, then SIGKILL if it does
-  not exit within a few seconds), so nothing below it survives.
+  not exit within a few seconds), so nothing below it survives. Windows has neither process
+  groups nor `SIGKILL`, so there the timeout falls back to `taskkill /F /T`, which
+  walks the child tree and reclaims the pool the same way.
+
 
 ## [8.8.0] - 2026-08-27
 

@@ -425,3 +425,70 @@ def test_a_timed_out_run_kills_the_grandchild_not_just_the_child(tmp_path, monke
                 os.kill(int(pidfile.read_text()), _signal.SIGKILL)
             except (OSError, ValueError):
                 pass
+
+
+# ---- _spawn: the timeout path must not crash on Windows -------------------
+#
+# The process-group fix replaced `subprocess.run(timeout=...)`, which worked on
+# every platform, with `os.killpg` and `signal.SIGKILL`. NEITHER exists on
+# Windows, and they fail in different places: `os.killpg` raises inside
+# `_killpg` (where `except ProcessLookupError` does not catch AttributeError),
+# while `signal.SIGKILL` is evaluated at the CALL SITE, before `_killpg` is
+# entered at all. Guarding only one of them still leaves the path broken.
+#
+# CI runs on ubuntu-latest only, so no matrix cell can see either break. These
+# tests simulate the platform instead of relying on one.
+
+def test_killpg_falls_back_to_taskkill_where_there_are_no_process_groups(monkeypatch):
+    """On Windows `_killpg` must still reclaim the child tree, not raise."""
+    import signal as _signal
+
+    calls = []
+    monkeypatch.setattr(cmds, "_HAVE_KILLPG", False)
+    monkeypatch.setattr(cmds.subprocess, "run",
+                        lambda argv, **kw: calls.append(argv) or None)
+
+    cmds._killpg(4321, _signal.SIGTERM)
+
+    assert len(calls) == 1, "the Windows branch did not run"
+    assert calls[0][0] == "taskkill", calls[0]
+    # /T is the whole point: it walks the child tree, which is the closest
+    # thing Windows has to killing a process group. Without it the worker
+    # pool survives, which is the defect the process-group fix exists to fix.
+    assert "/T" in calls[0], calls[0]
+    assert "4321" in calls[0], calls[0]
+
+
+def test_the_timeout_path_completes_where_sigkill_does_not_exist(monkeypatch):
+    """The SIGKILL pass is reached only when the child ignores the first kill.
+
+    That is the branch that evaluates `signal.SIGKILL`, so a test whose fake
+    child dies on the first pass would never touch the break it guards. This
+    one never dies, which forces both passes.
+    """
+    killed = []
+
+    class _NeverDies:
+        pid = 999
+        def wait(self, timeout=None):
+            raise cmds.subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+
+    # Simulating Windows via _HAVE_KILLPG alone is NOT enough to test the
+    # call site: `signal.SIGKILL` exists on Linux, so reading it here would
+    # succeed and the assertion below would pass whether or not the call site
+    # was fixed. The signal module has to actually lack SIGKILL.
+    class _WindowsSignal:
+        SIGTERM = 15
+    monkeypatch.setattr(cmds, "signal", _WindowsSignal)
+    monkeypatch.setattr(cmds, "_HAVE_KILLPG", False)
+    monkeypatch.setattr(cmds.subprocess, "Popen", lambda *a, **k: _NeverDies())
+    monkeypatch.setattr(cmds.subprocess, "run",
+                        lambda argv, **kw: killed.append(argv) or None)
+    monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
+
+    code = cmds._spawn(["irrelevant"], {}, timeout=0.01)
+
+    assert code == 124, code
+    # Both passes ran: the SIGTERM one and the SIGKILL one. If the call site
+    # still read `signal.SIGKILL`, this raised AttributeError instead.
+    assert len(killed) == 2, killed

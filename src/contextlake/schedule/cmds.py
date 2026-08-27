@@ -21,6 +21,12 @@ from .platform.base import NO_CATCH_UP_PHRASE
 
 ACTIONS = ("recommend", "install", "uninstall", "status", "run", "list", "reset", "interval")
 
+# Windows has neither process groups nor SIGKILL. Both absences raise
+# AttributeError, and the timeout path below touches both, so each needs its
+# own fallback. Probed once here rather than per call so the tests can set it.
+_HAVE_KILLPG = hasattr(os, "killpg") and hasattr(os, "getpgid")
+_SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+
 
 def _float_or(config, key, default, *, low=None, high=None, exclusive_high=False):
     """One config value as a float, or the default with a warning.
@@ -709,7 +715,7 @@ def _spawn(argv, env, timeout=None) -> int:
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            _killpg(proc.pid, signal.SIGKILL)
+            _killpg(proc.pid, _SIGKILL)
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -721,6 +727,17 @@ def _killpg(pid, sig) -> None:
     """Send ``sig`` to ``pid``'s whole process group. Silent if the group is
     already gone: it can exit between the timeout firing and this running,
     and that is success, not a failure worth logging."""
+    if not _HAVE_KILLPG:
+        # Windows: no process groups, so `taskkill /T` walks the child tree
+        # instead and the worker pool is still reclaimed. `/T` always forces
+        # the descendants, so the SIGTERM pass cannot be graceful here; that
+        # is the platform's limit, not a choice. Before the process-group fix
+        # this path used subprocess.run(timeout=...), which worked on Windows,
+        # so leaving os.killpg unguarded would REGRESS a platform pyproject.toml
+        # claims ("Operating System :: OS Independent").
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                       capture_output=True, check=False)
+        return
     try:
         os.killpg(os.getpgid(pid), sig)
     except ProcessLookupError:
