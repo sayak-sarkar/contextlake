@@ -316,6 +316,7 @@ def cmd_status(args, config) -> int:
 
     mapping = jobstore.read_jobs(jobstore.jobs_path(config))
     only = getattr(args, "job", None)
+    all_names = sorted(mapping)
     if only:
         mapping = {k: v for k, v in mapping.items() if k == only}
 
@@ -331,6 +332,11 @@ def cmd_status(args, config) -> int:
                "jobs": []}
 
     if not mapping and not getattr(args, "json", False):
+        if only and all_names:
+            # Jobs exist, just not this one: saying "No schedule installed"
+            # here would invite a reinstall over a schedule that is working.
+            print(f"No job named {only!r}. Installed jobs: {', '.join(all_names)}.")
+            return 0
         print("No schedule installed.")
         print(f"  Recommended interval: {recommend.format_duration(rec.interval_s)} "
               f"({'measured' if rec.measured else 'a default, not a measurement'})")

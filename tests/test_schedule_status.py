@@ -34,6 +34,25 @@ def test_no_schedule_says_so_and_says_how_to_make_one(tmp_path, capsys):
     assert "schedule install" in out
 
 
+def test_filter_on_a_name_with_no_jobs_at_all_says_no_schedule(tmp_path, capsys):
+    # No jobs exist at all, filtered or not: the reinstall hint still applies.
+    assert cmds.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
+    out = capsys.readouterr().out
+    assert "no schedule" in out.lower()
+    assert "schedule install" in out
+
+
+def test_filter_on_a_name_that_does_not_match_names_the_real_jobs(tmp_path, capsys):
+    # A job named "default" is installed and working; asking for "typo" must
+    # not say "No schedule installed" and invite a reinstall over it.
+    _install_record(tmp_path)
+    assert cmds.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
+    out = capsys.readouterr().out
+    assert "no schedule" not in out.lower()
+    assert "typo" in out
+    assert "default" in out
+
+
 def test_a_record_with_no_unit_is_reported_as_a_disagreement(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=False))
