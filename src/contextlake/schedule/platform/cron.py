@@ -217,12 +217,16 @@ class CronAdapter(Adapter):
         Parses the same BEGIN marker `splice` writes, so the two cannot drift
         apart on the naming. Lines outside a marked block belong to the user
         and are never reported.
+
+        One limit, inherited from ``_read_crontab``: it maps a failed
+        ``crontab -l`` to an empty string, so an unreadable crontab is
+        indistinguishable from an empty one and both report no units here.
+        Changing that would change the contract ``install``, ``uninstall`` and
+        ``state`` already rely on, so it is stated rather than worked around.
         """
         try:
             text = _read_crontab()
         except OSError:
-            return None
-        if text is None:
             return None
         pattern = re.escape(BEGIN).replace(re.escape("{name}"), r"(?P<name>.+?)")
         return sorted(m.group("name") for m in re.finditer(pattern, text))

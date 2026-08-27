@@ -441,9 +441,13 @@ def test_the_degrade_path_prints_only_artefacts_never_metadata(
                             on_battery=config.get("schedule_on_battery", "skip"))
     expected = set(rendered) - cls.metadata_keys
     assert headers == expected
+    # Not redundant: `expected` can be empty, and `headers == expected` would
+    # then pass against an adapter that printed nothing at all.
     assert headers, "expected at least one artefact header"
-    for key in cls.metadata_keys & set(rendered):
-        assert key not in out or f"----- {key} -----" not in out
+    # A loop over `metadata_keys` asserting no metadata key is a header used to
+    # sit here. It could not fail: `expected` is `set(rendered) - metadata_keys`,
+    # so once `headers == expected` holds, no metadata key IS a header, by
+    # construction. The check above already carries the whole claim.
 
 
 def test_cmd_install_does_not_duplicate_the_cannot_catch_up_note(tmp_path, monkeypatch):

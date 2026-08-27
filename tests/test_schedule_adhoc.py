@@ -227,11 +227,30 @@ def test_cmd_interval_reports_the_cannot_catch_up_note(tmp_path, monkeypatch):
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
 
+    # A marker only state() can produce. Without it this test passed whether
+    # the catch-up phrase came from state()'s notes or from _report_installed's
+    # own fallback, so it could not tell which path was live and a regression
+    # in either one was invisible.
+    real_state = cron.CronAdapter.state
+
+    def _marked(self, job):
+        result = real_state(self, job)
+        result["notes"] = list(result.get("notes") or []) + ["marker-from-state"]
+        return result
+
+    monkeypatch.setattr(cron.CronAdapter, "state", _marked)
+
     rc = cmds.cmd_interval(_args(["30m", "run", "kb", "wiki"], platform="cron"),
                            _config(tmp_path))
     out = "\n".join(lines).lower()
     assert rc == 0
     assert "does not replay a run missed" in out
+    # state()'s notes reach the output at all.
+    assert "marker-from-state" in out
+    # And exactly one source contributed the phrase. Both contributing printed
+    # the identical sentence twice, which is the defect the install-side
+    # sibling test guards.
+    assert out.count("does not replay a run missed") == 1
 
 
 def test_the_interval_action_routes_through_dispatch(tmp_path, monkeypatch):
