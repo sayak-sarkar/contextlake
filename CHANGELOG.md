@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.8.0] - 2026-08-27
+
 ### Added
 
 - **`contextlake schedule`: a self-scheduler.** Measures how long a run takes and how often your
