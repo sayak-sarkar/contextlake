@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+import time
+
+import pytest
 
 from contextlake.schedule import cmds, gates, history, jobs, recommend
 
@@ -333,3 +338,90 @@ def test_foreground_retries_soon_after_a_gated_skip(tmp_path, monkeypatch):
     cmds.cmd_run(_args(foreground=True), _config(tmp_path, schedule_gate_retry="10m"),
                  _max_iterations=2)
     assert slept == [600.0, 600.0]
+
+
+# ---- _spawn: timeout must not orphan a worker pool -----------------------
+
+def _proc_gone(pid, deadline_s=5.0) -> bool:
+    """Whether ``/proc/<pid>`` has disappeared, waited for up to ``deadline_s``.
+
+    Bounded, not a spin-forever poll: a SIGTERM takes a moment to land and the
+    child to be reaped, but a process this test killed itself is never going
+    to sit there indefinitely either.
+    """
+    deadline = time.monotonic() + deadline_s
+    while time.monotonic() < deadline:
+        if not os.path.exists(f"/proc/{pid}"):
+            return True
+        time.sleep(0.05)
+    return not os.path.exists(f"/proc/{pid}")
+
+
+def test_a_timed_out_run_kills_the_grandchild_not_just_the_child(tmp_path, monkeypatch):
+    """The defect this guards: `_spawn`'s child is usually `bootstrap` or
+    `kb index`, which runs a ProcessPoolExecutor of up to 8 workers.
+    `subprocess.run(..., timeout=...)` on a timeout kills only the direct
+    child; the workers are reparented to init and keep running, still
+    holding memory. Measured on a real machine: one timed-out run left 8
+    orphaned workers holding 12.4 GB.
+
+    A test that only checks `_spawn`'s return value (124) proves nothing
+    about this -- it passed before the fix too. This starts a real child that
+    starts a real grandchild, lets `_spawn` time the child out, and checks
+    the GRANDCHILD is dead afterwards.
+
+    `/proc` is Linux-only; this skips cleanly where it does not exist.
+    """
+    if not os.path.isdir("/proc"):
+        pytest.skip("no /proc on this platform to check the grandchild with")
+
+    pidfile = tmp_path / "grandchild.pid"
+    fake_python = tmp_path / "fake_python.py"
+    # Stands in for `sys.executable`. `_spawn` always runs
+    # `<executable> -m contextlake <argv>`; this ignores that argv entirely
+    # and just plays the part of a child that starts a grandchild and then
+    # outlives its parent's timeout, same as a real `kb index` would.
+    fake_python.write_text(
+        "#!/usr/bin/env python3\n"
+        "import subprocess, sys, time\n"
+        f"gc = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(pidfile)!r}, 'w').write(str(gc.pid))\n"
+        "time.sleep(60)\n")
+    fake_python.chmod(0o755)
+
+    started = []
+    real_popen = cmds.subprocess.Popen
+
+    def _tracking_popen(cmd, **kw):
+        proc = real_popen(cmd, **kw)
+        started.append(proc.pid)
+        return proc
+
+    monkeypatch.setattr(sys, "executable", str(fake_python))
+    monkeypatch.setattr(cmds.subprocess, "Popen", _tracking_popen)
+
+    try:
+        code = cmds._spawn(["irrelevant"], dict(os.environ), timeout=1.0)
+        assert code == 124
+
+        assert pidfile.exists(), "the child never got to start its grandchild"
+        grandchild_pid = int(pidfile.read_text())
+        assert _proc_gone(grandchild_pid), (
+            f"grandchild {grandchild_pid} is still alive after the parent's timeout")
+    finally:
+        # Best-effort: this test must never leak a process even when an
+        # assertion above fails partway through. Uses raw os calls, not
+        # anything from `cmds`, on purpose: the whole point of this cleanup
+        # is to work even when the code under test is broken.
+        import signal as _signal
+
+        for pid in started:
+            try:
+                os.killpg(os.getpgid(pid), _signal.SIGKILL)
+            except (OSError, ProcessLookupError):
+                pass
+        if pidfile.exists():
+            try:
+                os.kill(int(pidfile.read_text()), _signal.SIGKILL)
+            except (OSError, ValueError):
+                pass

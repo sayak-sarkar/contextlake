@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json as jsonlib
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -674,18 +675,56 @@ def _spawn(argv, env, timeout=None) -> int:
     ``sys.executable -m contextlake`` rather than a bare ``contextlake``: the
     unit may run with a different PATH, and a venv that moved would otherwise
     fail silently forever.
+
+    ``start_new_session=True`` puts the child in a new session and process
+    group of its own, detached from this one. That is what makes it safe to
+    kill the child's *group* on timeout below: without it, the child shares
+    this process's group, and killing the group would kill the scheduler too.
     """
     try:
-        completed = subprocess.run(
+        proc = subprocess.Popen(
             [sys.executable, "-m", "contextlake"] + list(argv),
-            env=env, timeout=timeout, check=False)
-    except subprocess.TimeoutExpired:
-        log(f"The scheduled run exceeded its timeout of {timeout}s and was killed.")
-        return 124
+            env=env, start_new_session=True)
     except OSError as e:
         log(f"Could not start the scheduled run: {e}")
         return 127
-    return completed.returncode
+    try:
+        return proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Kill the GROUP, not the process. The child is usually `bootstrap`
+        # or `kb index`, which runs a ProcessPoolExecutor with up to 8
+        # workers; killing only the direct child leaves that whole pool
+        # alive, reparented to init and still holding memory. Measured on
+        # this machine: one timed-out run left 8 orphaned workers holding
+        # 12.4 GB, with the box down to 1.3 GB available.
+        #
+        # SIGTERM before SIGKILL: the store takes an advisory lock while it
+        # writes, and an abrupt SIGKILL mid-write leaves a stale lock for the
+        # next run to reclaim. SIGTERM gives the child, and anything it
+        # started, a chance to release that lock; SIGKILL alone never does.
+        # SIGKILL is still the fallback, so a child that ignores SIGTERM
+        # cannot hold the group open forever.
+        log(f"The scheduled run exceeded its timeout of {timeout}s and was killed.")
+        _killpg(proc.pid, signal.SIGTERM)
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            _killpg(proc.pid, signal.SIGKILL)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                log(f"  pid {proc.pid} did not die; it may still be running.")
+        return 124
+
+
+def _killpg(pid, sig) -> None:
+    """Send ``sig`` to ``pid``'s whole process group. Silent if the group is
+    already gone: it can exit between the timeout firing and this running,
+    and that is success, not a failure worth logging."""
+    try:
+        os.killpg(os.getpgid(pid), sig)
+    except ProcessLookupError:
+        pass
 
 
 def decide_kind(runs, full_every_s, now=None) -> str:

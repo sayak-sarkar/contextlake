@@ -8094,6 +8094,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bootstrap`, the default scheduled job. Lower it to cut peak memory on a large
   fleet or a small machine.
 
+### Fixed
+
+- **A timed-out scheduled run orphaned its worker pool.** `contextlake schedule run`
+  spawned its child with `subprocess.run(..., timeout=...)`, which on a timeout kills
+  only the direct child. The child is usually `bootstrap` or `kb index`, which runs a
+  `ProcessPoolExecutor` of up to 8 workers, so a timed-out run left the whole pool
+  running, reparented to init and still holding memory. Measured on a real machine:
+  one killed run left 8 orphaned workers holding 12.4 GB. On a schedule, every
+  timed-out run leaked another pool. The child now starts in its own process group
+  and, on a timeout, the whole group is signalled (SIGTERM, then SIGKILL if it does
+  not exit within a few seconds), so nothing below it survives.
+
 ## [8.8.0] - 2026-08-27
 
 ### Added
