@@ -142,6 +142,25 @@ def test_a_reset_that_cannot_rewrite_the_unit_leaves_the_record_alone(tmp_path, 
     assert stored.failures == 5
 
 
+def test_reset_survives_a_state_read_failure_after_a_successful_install(
+        tmp_path, monkeypatch):
+    """The reset itself (record write, unit install) already succeeded by the
+    time `_report_installed` reads state back. A `state()` raise there must
+    degrade to a note, the way `cmd_status` handles the same call, not
+    abort the command and read to a caller as a failed reset.
+    """
+    path = _pinned_job(tmp_path)
+    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _StateRaisingAdapter())
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+    rc = cmds.cmd_reset(_args(), _config(tmp_path))
+    out = "\n".join(lines)
+    assert rc == 0
+    assert "Reset job" in out
+    assert jobs.read_jobs(path)[jobs.DEFAULT_JOB].interval == "auto"
+    assert "could not read" in out and "state" in out
+
+
 def test_reset_reports_the_interval_actually_installed_not_the_recommendation(
         tmp_path, monkeypatch):
     """Finding 2 / the R28 defect landing on a third call site: cmd_reset
@@ -195,6 +214,26 @@ class _RefusingAdapter:
     def state(self, job):
         return {"installed": False, "interval_s": None, "next_run": None,
                 "exec_path": None, "notes": []}
+
+
+class _StateRaisingAdapter:
+    """Install succeeds; reading state back afterward does not.
+
+    Models the bus vanishing between `usable()` proving it answered at
+    detect time and `_report_installed` reading state back: the same
+    time-of-check-to-time-of-use gap `install()` already guards against.
+    """
+    id = "flaky"
+    catches_up_after_sleep = True
+
+    def install(self, job, interval_s, exec_argv, **options):
+        return ["/tmp/flaky.unit"]
+
+    def render(self, job, interval_s, exec_argv, **options):
+        return {"flaky.unit": ""}
+
+    def state(self, job):
+        raise RuntimeError("bus vanished after the write")
 
 
 class _FakeAdapter:

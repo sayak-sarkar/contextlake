@@ -206,7 +206,16 @@ def _report_installed(adapter, job, interval_s, exec_argv, on_battery, why, writ
     rounding_note = rendered.get("notes")
     if rounding_note:
         log(f"  {style.warn()} {rounding_note}")
-    state_notes = adapter.state(job).get("notes", [])
+    # The install above already succeeded and is not undone by anything
+    # below. A `state()` failure here (the bus answered at detect time and
+    # is gone by the time this reads it back) must degrade to a note, the
+    # same way `cmd_status` treats the same call, not abort a completed
+    # operation and leave the caller thinking the install failed.
+    try:
+        state_notes = adapter.state(job).get("notes", [])
+    except Exception as e:  # noqa: BLE001 - a live read must not undo a completed install
+        state_notes = []
+        log(f"  {style.warn()} could not read the {adapter.id} state: {e}")
     for note in state_notes:
         log(f"  {style.warn()} {note}")
     # cron's own state() already carries this note when installed; printing
