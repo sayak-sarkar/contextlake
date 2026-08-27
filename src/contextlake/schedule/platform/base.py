@@ -26,6 +26,14 @@ NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 # printing it twice when both sides know it.
 NO_CATCH_UP_PHRASE = "does not replay a run missed"
 
+# The five keys every adapter's state() must return. Named here, not only in
+# the docstring, so tests/test_schedule_platform_registry.py can enforce it
+# against every registered adapter instead of trusting prose: `cmds.py` reads
+# each with `.get()`, so an adapter that omits a key fails silently, not
+# loudly, and a test fixture that omits one is exercising a path no real
+# adapter takes.
+STATE_KEYS = ("installed", "interval_s", "next_run", "exec_path", "notes")
+
 
 class NoAdapter(RuntimeError):
     """No adapter by that name, or none usable here."""

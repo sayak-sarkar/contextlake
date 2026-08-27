@@ -193,7 +193,8 @@ class _RefusingAdapter:
         return {}
 
     def state(self, job):
-        return {"installed": False, "interval_s": None, "next_run": None, "notes": []}
+        return {"installed": False, "interval_s": None, "next_run": None,
+                "exec_path": None, "notes": []}
 
 
 class _FakeAdapter:
@@ -210,4 +211,5 @@ class _FakeAdapter:
         return {"fake.unit": ""}
 
     def state(self, job):
-        return {"installed": True, "interval_s": 3600.0, "next_run": None, "notes": []}
+        return {"installed": True, "interval_s": 3600.0, "next_run": None,
+                "exec_path": None, "notes": []}
