@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from contextlake.schedule import cmds, gates, history, jobs, recommend
+from contextlake.schedule import cmds, gates, history, jobs, recommend, runner
 
 
 def _config(tmp_path, **kw):
@@ -43,9 +43,17 @@ def _log_lines(monkeypatch):
     existing suites in this repository (``tests/kb/test_kb_dashboard_cmd.py``,
     ``tests/kb/test_kb_config.py``) hit and documented the identical failure
     mode and route around it the same way: patch ``log`` at its call site.
+
+    Patched in BOTH modules. ``log`` is imported by value, so each module holds
+    its own binding, and the call sites in this file's tests are split across
+    the two: ``cmd_run`` and ``_one_cycle`` log from ``runner``, while the
+    install and report paths log from ``cmds``. Patching one module only made
+    the gating tests assert against an empty list, which passes for any message
+    that is missing rather than wrong.
     """
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    monkeypatch.setattr(runner, "log", lines.append)
     return lines
 
 
@@ -54,7 +62,7 @@ def _log_lines(monkeypatch):
 def test_the_first_ever_run_is_full():
     """Nothing has been built, so an incremental pass has nothing to be
     incremental against."""
-    assert cmds.decide_kind([], 7 * 86400, now=1_000_000.0) == "full"
+    assert runner.decide_kind([], 7 * 86400, now=1_000_000.0) == "full"
 
 
 def _epoch(ts):
@@ -70,26 +78,26 @@ def _epoch(ts):
 def test_a_recent_full_run_keeps_the_cycle_incremental():
     ts = "2026-08-26T00:00:00Z"
     runs = [{"ts": ts, "kind": "full", "duration_s": 3600.0, "exit": 0}]
-    assert cmds.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 3600) == "incremental"
+    assert runner.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 3600) == "incremental"
 
 
 def test_a_full_run_exactly_at_the_boundary_triggers_the_next_full_cycle():
     ts = "2026-08-26T00:00:00Z"
     runs = [{"ts": ts, "kind": "full", "duration_s": 3600.0, "exit": 0}]
-    assert cmds.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 7 * 86400) == "full"
-    assert cmds.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 7 * 86400 - 1) == "incremental"
+    assert runner.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 7 * 86400) == "full"
+    assert runner.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 7 * 86400 - 1) == "incremental"
 
 
 def test_a_stale_full_run_triggers_the_next_full_cycle():
     ts = "2026-08-01T00:00:00Z"
     runs = [{"ts": ts, "kind": "full", "duration_s": 3600.0, "exit": 0}]
-    assert cmds.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 30 * 86400) == "full"
+    assert runner.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 30 * 86400) == "full"
 
 
 def test_a_failed_full_run_does_not_count_as_having_run():
     ts = "2026-08-26T00:00:00Z"
     runs = [{"ts": ts, "kind": "full", "duration_s": 12.0, "exit": 1}]
-    assert cmds.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 3600) == "full"
+    assert runner.decide_kind(runs, 7 * 86400, now=_epoch(ts) + 3600) == "full"
 
 
 # ---- gating -------------------------------------------------------------
@@ -99,7 +107,7 @@ def test_a_gated_run_skips_without_spawning_anything(tmp_path, monkeypatch):
     monkeypatch.setattr(gates, "check",
                         lambda cfg: gates.GateResult(False, "on battery power"))
     spawned = []
-    monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: spawned.append(a) or 0)
+    monkeypatch.setattr(runner, "_spawn", lambda *a, **k: spawned.append(a) or 0)
     lines = _log_lines(monkeypatch)
     rc = cmds.cmd_run(_args(), _config(tmp_path))
     assert rc == 0, "a gated skip is a normal outcome, not a failure"
@@ -113,7 +121,7 @@ def test_a_gated_skip_records_nothing_in_the_history(tmp_path, monkeypatch):
     _install_job(tmp_path)
     monkeypatch.setattr(gates, "check",
                         lambda cfg: gates.GateResult(False, "on battery power"))
-    monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
+    monkeypatch.setattr(runner, "_spawn", lambda *a, **k: 0)
     cmds.cmd_run(_args(), _config(tmp_path))
     assert history.read_runs(history.history_path(_config(tmp_path))) == []
 
@@ -123,7 +131,7 @@ def test_a_gated_skip_records_nothing_in_the_history(tmp_path, monkeypatch):
 def test_the_child_is_told_where_to_record_itself(tmp_path):
     from contextlake import cli
 
-    env = cmds.child_env(_config(tmp_path), "full")
+    env = runner.child_env(_config(tmp_path), "full")
     assert env[cli.ENV_HISTORY] == history.history_path(_config(tmp_path))
     assert env[cli.ENV_KIND] == "full"
 
@@ -177,7 +185,7 @@ def test_two_overlapping_runs_skip_rather_than_both_proceed(tmp_path, monkeypatc
         inner["rc"] = cmds.cmd_run(_args(), config)
         return 0
 
-    monkeypatch.setattr(cmds, "_spawn", _reentrant_spawn)
+    monkeypatch.setattr(runner, "_spawn", _reentrant_spawn)
     lines = _log_lines(monkeypatch)
     assert cmds.cmd_run(_args(), config) == 0
     assert len(spawns) == 1, "the inner call must NOT have spawned a second writer"
@@ -205,7 +213,7 @@ def test_a_lock_skip_returns_an_int_not_the_gated_sentinel(tmp_path, monkeypatch
     # Gated route.
     monkeypatch.setattr(gates, "check",
                         lambda cfg: gates.GateResult(False, "on battery power"))
-    monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
+    monkeypatch.setattr(runner, "_spawn", lambda *a, **k: 0)
     gated_rc = cmds.cmd_run(_args(), config)
     assert isinstance(gated_rc, int)
     assert gated_rc == 0
@@ -218,7 +226,7 @@ def test_a_lock_skip_returns_an_int_not_the_gated_sentinel(tmp_path, monkeypatch
         inner["rc"] = cmds.cmd_run(_args(), config)
         return 0
 
-    monkeypatch.setattr(cmds, "_spawn", _reentrant_spawn)
+    monkeypatch.setattr(runner, "_spawn", _reentrant_spawn)
     outer_rc = cmds.cmd_run(_args(), config)
     assert isinstance(outer_rc, int)
     assert outer_rc == 0
@@ -242,55 +250,131 @@ def test_an_ephemeral_store_refuses_to_run(tmp_path, monkeypatch):
     """A container with no persistent store re-indexes the whole fleet every
     run: hours and gigabytes instead of a 7-minute incremental."""
     _install_job(tmp_path)
-    monkeypatch.setattr(cmds, "store_is_ephemeral", lambda cfg: True)
+    monkeypatch.setattr(runner, "store_is_ephemeral", lambda cfg: True)
     rc = cmds.cmd_run(_args(), _config(tmp_path))
     assert rc != 0
 
 
 def test_allow_ephemeral_overrides_the_refusal(tmp_path, monkeypatch):
     _install_job(tmp_path)
-    monkeypatch.setattr(cmds, "store_is_ephemeral", lambda cfg: True)
-    monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
+    monkeypatch.setattr(runner, "store_is_ephemeral", lambda cfg: True)
+    monkeypatch.setattr(runner, "_spawn", lambda *a, **k: 0)
     assert cmds.cmd_run(_args(allow_ephemeral=True), _config(tmp_path)) == 0
 
 
 def test_a_normal_workstation_store_is_not_ephemeral(tmp_path):
-    assert cmds.store_is_ephemeral(_config(tmp_path)) is False
+    assert runner.store_is_ephemeral(_config(tmp_path)) is False
 
 
 def test_outside_a_container_nothing_is_ever_ephemeral(tmp_path, monkeypatch):
     """A workstation home is on `/` too. Refusing it would be absurd."""
-    monkeypatch.setattr(cmds, "in_container", lambda: False)
-    monkeypatch.setattr(cmds, "_mount_point_of", lambda p: "/")
-    assert cmds.store_is_ephemeral(_config(tmp_path)) is False
+    monkeypatch.setattr(runner, "in_container", lambda: False)
+    monkeypatch.setattr(runner, "_mount_point_of", lambda p: "/")
+    assert runner.store_is_ephemeral(_config(tmp_path)) is False
 
 
 def test_in_a_container_the_writable_layer_is_ephemeral(tmp_path, monkeypatch):
-    monkeypatch.setattr(cmds, "in_container", lambda: True)
-    monkeypatch.setattr(cmds, "_mount_point_of", lambda p: "/")
-    assert cmds.store_is_ephemeral(_config(tmp_path)) is True
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    monkeypatch.setattr(runner, "_mount_point_of", lambda p: "/")
+    assert runner.store_is_ephemeral(_config(tmp_path)) is True
 
 
 def test_in_a_container_a_mounted_volume_is_not_ephemeral(tmp_path, monkeypatch):
     """A PVC, an emptyDir, EFS and Azure Files all appear as their own mount
     point. The fstype test this replaced reported emptyDir as ext4 and passed
     it, which is the false negative that matters."""
-    monkeypatch.setattr(cmds, "in_container", lambda: True)
-    monkeypatch.setattr(cmds, "_mount_point_of", lambda p: "/var/lib/contextlake")
-    assert cmds.store_is_ephemeral(_config(tmp_path)) is False
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    monkeypatch.setattr(runner, "_mount_point_of", lambda p: "/var/lib/contextlake")
+    assert runner.store_is_ephemeral(_config(tmp_path)) is False
 
 
 def test_an_unreadable_proc_mounts_does_not_refuse(tmp_path, monkeypatch):
     """Same rule as the gates: never stop because a sensor could not be read."""
-    monkeypatch.setattr(cmds, "in_container", lambda: True)
-    monkeypatch.setattr(cmds, "_mount_point_of", lambda p: "")
-    assert cmds.store_is_ephemeral(_config(tmp_path)) is True
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    monkeypatch.setattr(runner, "_mount_point_of", lambda p: "")
+    assert runner.store_is_ephemeral(_config(tmp_path)) is True
 
 
-def test_in_container_detects_the_three_signals(monkeypatch, tmp_path):
-    monkeypatch.delenv("KUBERNETES_SERVICE_HOST", raising=False)
+def test_in_container_detects_each_signal_and_says_no_without_them(monkeypatch, tmp_path):
+    """Asserted both ways, and the negative case is the point.
+
+    The previous version set one env var and asserted True. An implementation
+    that returned True unconditionally passed it, which a break-test confirmed:
+    forcing `return True` failed nothing in the whole suite. A detector needs
+    the case where it must answer NO.
+
+    The name also claimed three signals while exercising one.
+    """
+    def _clear():
+        monkeypatch.delenv("KUBERNETES_SERVICE_HOST", raising=False)
+        monkeypatch.setattr(runner.os.path, "exists", lambda p: False)
+        # /proc/1/cgroup on a workstation exists and names none of the markers.
+        monkeypatch.setattr(runner, "open", _fake_open("0::/user.slice\n"), raising=False)
+
+    def _fake_open(text):
+        import io
+        return lambda *a, **k: io.StringIO(text)
+
+    # 1. No signal at all.
+    _clear()
+    assert runner.in_container() is False
+
+    # 2. The Kubernetes env var alone.
+    _clear()
     monkeypatch.setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
-    assert cmds.in_container() is True
+    assert runner.in_container() is True
+
+    # 3. The docker marker file alone.
+    _clear()
+    monkeypatch.setattr(runner.os.path, "exists", lambda p: p == "/.dockerenv")
+    assert runner.in_container() is True
+
+    # 4. The cgroup marker alone.
+    _clear()
+    monkeypatch.setattr(runner, "open", _fake_open("0::/kubepods/pod123\n"), raising=False)
+    assert runner.in_container() is True
+
+
+def test_mount_point_of_picks_the_longest_match_and_respects_the_boundary(monkeypatch):
+    """Never had a test of its own: every caller's test patches it, so breaking
+    it to `return "/"` failed nothing in the whole suite.
+
+    Three properties, and the middle one is a real bug class. A sibling
+    directory sharing a prefix (`/var/libextra` under `/var/lib`) must NOT
+    match, which is what `point.rstrip("/") + "/"` is for. An unanchored
+    `startswith` would claim it.
+    """
+    import io
+
+    mounts = (
+        "/dev/sda1 / ext4 rw 0 0\n"
+        "tmpfs /var/lib ext4 rw 0 0\n"
+        "tmpfs /var/lib/contextlake ext4 rw 0 0\n"
+        "malformed-line-with-one-field\n"
+    )
+    monkeypatch.setattr(runner, "open", lambda *a, **k: io.StringIO(mounts), raising=False)
+
+    # Longest match wins: the nested mount, not "/" and not "/var/lib".
+    monkeypatch.setattr(runner.os.path, "realpath", lambda p: "/var/lib/contextlake/kb")
+    assert runner._mount_point_of("anything") == "/var/lib/contextlake"
+
+    # Boundary: a sibling that merely shares a prefix falls back to "/".
+    monkeypatch.setattr(runner.os.path, "realpath", lambda p: "/var/libextra/kb")
+    assert runner._mount_point_of("anything") == "/"
+
+    # The mount point itself, not only paths under it.
+    monkeypatch.setattr(runner.os.path, "realpath", lambda p: "/var/lib")
+    assert runner._mount_point_of("anything") == "/var/lib"
+
+
+def test_mount_point_of_returns_empty_when_proc_mounts_cannot_be_read(monkeypatch):
+    """"" is "cannot tell", and store_is_ephemeral must not read it as a
+    measurement. Distinct from a real mount point, which is always non-empty."""
+    def _boom(*a, **k):
+        raise OSError("no /proc here")
+
+    monkeypatch.setattr(runner, "open", _boom, raising=False)
+    assert runner._mount_point_of("/anything") == ""
 
 
 # ---- foreground ---------------------------------------------------------
@@ -309,9 +393,9 @@ def test_foreground_loops_and_sleeps_the_recommended_interval(tmp_path, monkeypa
     constant, not a hardcoded number, is what catches that regression."""
     monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path)
-    monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
+    monkeypatch.setattr(runner, "_spawn", lambda *a, **k: 0)
     slept = []
-    monkeypatch.setattr(cmds.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(runner.time, "sleep", lambda s: slept.append(s))
     cmds.cmd_run(_args(foreground=True), _config(tmp_path), _max_iterations=3)
     assert slept == [recommend.COLD_START_S] * 3
 
@@ -320,9 +404,9 @@ def test_foreground_backs_off_after_consecutive_failures(tmp_path, monkeypatch):
     """Gate forced open: this test is about backoff, not the power gate."""
     monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path, argv=("kb", "query"))
-    monkeypatch.setattr(cmds.time, "sleep", lambda s: None)
+    monkeypatch.setattr(runner.time, "sleep", lambda s: None)
     slept = []
-    monkeypatch.setattr(cmds.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(runner.time, "sleep", lambda s: slept.append(s))
     cmds.cmd_run(_args(foreground=True), _config(tmp_path), _max_iterations=3)
     assert slept[1] > slept[0], "each consecutive failure must widen the gap"
 
@@ -334,7 +418,7 @@ def test_foreground_retries_soon_after_a_gated_skip(tmp_path, monkeypatch):
     monkeypatch.setattr(gates, "check",
                         lambda cfg: gates.GateResult(False, "on battery power"))
     slept = []
-    monkeypatch.setattr(cmds.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(runner.time, "sleep", lambda s: slept.append(s))
     cmds.cmd_run(_args(foreground=True), _config(tmp_path, schedule_gate_retry="10m"),
                  _max_iterations=2)
     assert slept == [600.0, 600.0]
@@ -390,7 +474,7 @@ def test_a_timed_out_run_kills_the_grandchild_not_just_the_child(tmp_path, monke
     fake_python.chmod(0o755)
 
     started = []
-    real_popen = cmds.subprocess.Popen
+    real_popen = runner.subprocess.Popen
 
     def _tracking_popen(cmd, **kw):
         proc = real_popen(cmd, **kw)
@@ -398,10 +482,10 @@ def test_a_timed_out_run_kills_the_grandchild_not_just_the_child(tmp_path, monke
         return proc
 
     monkeypatch.setattr(sys, "executable", str(fake_python))
-    monkeypatch.setattr(cmds.subprocess, "Popen", _tracking_popen)
+    monkeypatch.setattr(runner.subprocess, "Popen", _tracking_popen)
 
     try:
-        code = cmds._spawn(["irrelevant"], dict(os.environ), timeout=1.0)
+        code = runner._spawn(["irrelevant"], dict(os.environ), timeout=1.0)
         assert code == 124
 
         assert pidfile.exists(), "the child never got to start its grandchild"
@@ -444,11 +528,11 @@ def test_killpg_falls_back_to_taskkill_where_there_are_no_process_groups(monkeyp
     import signal as _signal
 
     calls = []
-    monkeypatch.setattr(cmds, "_HAVE_KILLPG", False)
-    monkeypatch.setattr(cmds.subprocess, "run",
+    monkeypatch.setattr(runner, "_HAVE_KILLPG", False)
+    monkeypatch.setattr(runner.subprocess, "run",
                         lambda argv, **kw: calls.append(argv) or None)
 
-    cmds._killpg(4321, _signal.SIGTERM)
+    runner._killpg(4321, _signal.SIGTERM)
 
     assert len(calls) == 1, "the Windows branch did not run"
     assert calls[0][0] == "taskkill", calls[0]
@@ -471,7 +555,7 @@ def test_the_timeout_path_completes_where_sigkill_does_not_exist(monkeypatch):
     class _NeverDies:
         pid = 999
         def wait(self, timeout=None):
-            raise cmds.subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+            raise runner.subprocess.TimeoutExpired(cmd="x", timeout=timeout)
 
     # Simulating Windows via _HAVE_KILLPG alone is NOT enough to test the
     # call site: `signal.SIGKILL` exists on Linux, so reading it here would
@@ -479,14 +563,14 @@ def test_the_timeout_path_completes_where_sigkill_does_not_exist(monkeypatch):
     # was fixed. The signal module has to actually lack SIGKILL.
     class _WindowsSignal:
         SIGTERM = 15
-    monkeypatch.setattr(cmds, "signal", _WindowsSignal)
-    monkeypatch.setattr(cmds, "_HAVE_KILLPG", False)
-    monkeypatch.setattr(cmds.subprocess, "Popen", lambda *a, **k: _NeverDies())
-    monkeypatch.setattr(cmds.subprocess, "run",
+    monkeypatch.setattr(runner, "signal", _WindowsSignal)
+    monkeypatch.setattr(runner, "_HAVE_KILLPG", False)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _NeverDies())
+    monkeypatch.setattr(runner.subprocess, "run",
                         lambda argv, **kw: killed.append(argv) or None)
     monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
 
-    code = cmds._spawn(["irrelevant"], {}, timeout=0.01)
+    code = runner._spawn(["irrelevant"], {}, timeout=0.01)
 
     assert code == 124, code
     # Both passes ran: the SIGTERM one and the SIGKILL one. If the call site
@@ -500,10 +584,10 @@ def test_child_env_carries_the_job_name_only_when_there_is_one(tmp_path):
     from contextlake.cli import ENV_JOB
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
-    assert cmds.child_env(config, "full", "nightly")[ENV_JOB] == "nightly"
+    assert runner.child_env(config, "full", "nightly")[ENV_JOB] == "nightly"
     # A hand-run command has no job. Absent, not empty: history.for_job reads a
     # missing key as the default job, and an empty string would match nothing.
-    assert ENV_JOB not in cmds.child_env(config, "full")
+    assert ENV_JOB not in runner.child_env(config, "full")
 
 
 def test_one_cycle_tells_the_child_which_job_it_is(tmp_path, monkeypatch):
@@ -522,7 +606,7 @@ def test_one_cycle_tells_the_child_which_job_it_is(tmp_path, monkeypatch):
         return 0
 
     monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
-    monkeypatch.setattr(cmds, "_spawn", _capture)
+    monkeypatch.setattr(runner, "_spawn", _capture)
     monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
@@ -530,7 +614,7 @@ def test_one_cycle_tells_the_child_which_job_it_is(tmp_path, monkeypatch):
     job = jobstore.new_job("nightly", ["kb", "index"], "auto", "cron")
     jobstore.write_job(jobs_file, job)
 
-    assert cmds._one_cycle(argparse.Namespace(job="nightly"), config, job, jobs_file) == 0
+    assert runner._one_cycle(argparse.Namespace(job="nightly"), config, job, jobs_file) == 0
     assert seen.get(ENV_JOB) == "nightly"
 
 
@@ -549,7 +633,7 @@ def test_one_cycle_decides_the_kind_from_this_jobs_history_alone(tmp_path, monke
 
     chosen = []
     monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
-    monkeypatch.setattr(cmds, "_spawn", lambda argv, env, timeout=None: chosen.append(argv) or 0)
+    monkeypatch.setattr(runner, "_spawn", lambda argv, env, timeout=None: chosen.append(argv) or 0)
     monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
@@ -563,7 +647,7 @@ def test_one_cycle_decides_the_kind_from_this_jobs_history_alone(tmp_path, monke
                            full_argv=["mirror", "sync", "--full"])
     jobstore.write_job(jobs_file, job)
 
-    cmds._one_cycle(argparse.Namespace(job=job.name), config, job, jobs_file)
+    runner._one_cycle(argparse.Namespace(job=job.name), config, job, jobs_file)
 
     assert chosen, "the cycle never spawned anything"
     # This job has never run a full rebuild, so it must run one now. Unscoped,

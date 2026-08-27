@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from contextlake.schedule import history
+from contextlake.schedule import history, runner
 
 
 def _rec(i, **kw):
@@ -193,7 +193,6 @@ def test_another_jobs_full_run_no_longer_suppresses_this_jobs_rebuild():
     """
     import time
 
-    from contextlake.schedule import cmds
 
     now = time.time()
     recent_full_by_another_job = [{
@@ -202,7 +201,7 @@ def test_another_jobs_full_run_no_longer_suppresses_this_jobs_rebuild():
     week = 7 * 86400.0
 
     # Unscoped, job A is told a full rebuild already happened.
-    assert cmds.decide_kind(recent_full_by_another_job, week, now=now) == "incremental"
+    assert runner.decide_kind(recent_full_by_another_job, week, now=now) == "incremental"
     # Scoped to job A, which has no full run of its own, it rebuilds.
-    assert cmds.decide_kind(
+    assert runner.decide_kind(
         history.for_job(recent_full_by_another_job, "default"), week, now=now) == "full"
