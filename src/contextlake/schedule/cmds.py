@@ -118,6 +118,14 @@ def cmd_recommend(args, config) -> int:
             "floor_duty_seconds": rec.floor_duty_s,
             "floor_activity_seconds": (None if rec.floor_activity_s in (None, float("inf"))
                                        else rec.floor_activity_s),
+            # `floor_activity_seconds` is null for two different reasons, and a
+            # consumer cannot tell them apart from the number alone: nothing ever
+            # recorded activity, or activity was recorded and nothing changed
+            # (an infinite floor). The text output has always distinguished them;
+            # JSON collapsed both to null.
+            "activity": ("not-measured" if rec.floor_activity_s is None
+                         else "no-change" if rec.floor_activity_s == float("inf")
+                         else "measured"),
             "history": summary,
         }, indent=2, sort_keys=True))
         return 0
@@ -135,6 +143,19 @@ def cmd_recommend(args, config) -> int:
                   + ("no change measured"
                      if rec.floor_activity_s == float("inf")
                      else recommend.format_duration(rec.floor_activity_s)))
+        else:
+            # Printing nothing here left the reader unable to tell an unmeasured
+            # bound from a bound that is switched off. The absence is a real
+            # answer: no run recorded how many repositories changed, so only the
+            # duty bound sets the interval. `kb index` is what records it, and a
+            # core-only install never runs it, so this is the normal state there
+            # rather than a fault.
+            print("    activity floor:   not measured. The interval uses the "
+                  "duty-cycle floor only.")
+            print("                      Repository activity is recorded by the "
+                  "index stage, which needs")
+            print("                      the kb extra (pip install "
+                  "'contextlake[kb]').")
     else:
         print("  Nothing has been measured yet. Run `contextlake mirror sync` or "
               "`contextlake bootstrap` once, or install the schedule and let the "

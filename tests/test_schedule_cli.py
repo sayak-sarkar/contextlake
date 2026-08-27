@@ -249,6 +249,93 @@ def test_recommend_json_is_machine_readable(tmp_path):
     assert payload["interval"] == recommend_mod.format_duration(payload["interval_seconds"])
 
 
+def test_recommend_says_when_the_activity_bound_was_never_measured(tmp_path, capsys):
+    """An unmeasured activity floor printed NOTHING, so the reader could not
+    tell it apart from the bound being switched off.
+
+    This is the normal state on an install without the `kb` extra: the index
+    stage is what records how many repositories changed, and nothing else does.
+    """
+    import argparse
+
+    from contextlake.schedule import history
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
+    path = history.history_path(config)
+    # Scoreable (incremental, exit 0) so the recommendation is `measured`, but
+    # carrying no `repos_changed`, which is what a mirror-only or core-only
+    # install writes. Both halves are needed: without the first the cold-start
+    # branch runs instead, and the activity line is never reached.
+    for day in (21, 22, 23):
+        history.append_run(path, {"ts": f"2026-08-{day}T00:00:00Z",
+                                  "kind": "incremental", "duration_s": 420.0, "exit": 0})
+
+    assert cmds.cmd_recommend(argparse.Namespace(json=False), config) == 0
+    out = capsys.readouterr().out
+
+    assert "activity floor:   not measured" in out
+    assert "kb extra" in out
+    # The duty floor must still be reported. The claim is that the interval
+    # rests on it, so an output that dropped both would satisfy the assertion
+    # above while saying less than before.
+    assert "duty-cycle floor" in out
+
+
+def test_recommend_json_separates_unmeasured_activity_from_no_change(tmp_path):
+    """`floor_activity_seconds` is null for two unrelated reasons: nothing ever
+    recorded activity, and activity was recorded with nothing changing (an
+    infinite floor). The text output has always distinguished them. JSON
+    collapsed both to null, so no consumer could.
+    """
+    import argparse
+    import contextlib
+    import io
+    import json as jsonlib
+
+    from contextlake.schedule import history
+
+    cases = iter(range(100))
+
+    def _activity(records):
+        # A fresh cache_dir per case: history is append-only, so reusing one
+        # would let the first case's records score the second.
+        cfg = {"cache_dir": str(tmp_path / f"case{next(cases)}"), "cache_file": "p.txt"}
+        path = history.history_path(cfg)
+        for r in records:
+            history.append_run(path, r)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            assert cmds.cmd_recommend(argparse.Namespace(json=True), cfg) == 0
+        return jsonlib.loads(buf.getvalue())
+
+    def _runs(extra=None):
+        extra = extra or {}
+        return [dict({"ts": f"2026-08-{day}T00:00:00Z", "kind": "incremental",
+                      "duration_s": 420.0, "exit": 0}, **(extra.get(day) or {}))
+                for day in (21, 22, 23)]
+
+    # No record carries repos_changed at all.
+    assert _activity(_runs())["activity"] == "not-measured"
+
+    # Recorded, and nothing moved. change_rate_per_hour excludes the FIRST
+    # record (its changes predate the window), so the zeroes that matter are
+    # the later two.
+    no_change = _runs(extra={21: {"repos_changed": 4, "repos_total": 480},
+                             22: {"repos_changed": 0, "repos_total": 480},
+                             23: {"repos_changed": 0, "repos_total": 480}})
+    assert _activity(no_change)["activity"] == "no-change"
+
+    # Recorded, and repositories moved.
+    moved = _runs(extra={21: {"repos_changed": 0, "repos_total": 480},
+                         22: {"repos_changed": 3, "repos_total": 480},
+                         23: {"repos_changed": 5, "repos_total": 480}})
+    payload = _activity(moved)
+    assert payload["activity"] == "measured"
+    # A real number, not just a label: this is the state where the floor is
+    # actually computable, and it is the one the other two must differ from.
+    assert payload["floor_activity_seconds"] > 0
+
+
 def test_recommend_changes_nothing_on_disk(tmp_path):
     import argparse
 

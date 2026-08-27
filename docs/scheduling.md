@@ -160,6 +160,13 @@ interval       = clamp(max(floor_duty, floor_activity), schedule_min, schedule_m
 `floor_activity` is a freshness bound: there is no point running more often than the fleet
 produces roughly `k` changed repositories. Whichever bound needs the longer gap wins.
 
+`floor_activity` needs a measurement that only the index stage produces: how many
+repositories changed on a run. That stage is part of the knowledge layer, so on an install
+without the `kb` extra nothing ever records it and the activity bound never engages. The
+interval then rests on `floor_duty` alone, which is correct behaviour rather than a fault.
+`contextlake schedule recommend` says so on the `activity floor` line, and its `--json`
+output carries an `activity` field reading `not-measured`, `no-change` or `measured`.
+
 Three worked examples, all at the default `duty_cycle = 0.10` and `k = 1.0`:
 
 | Median incremental run | Change rate | `floor_duty` | `floor_activity` | Interval | Why |

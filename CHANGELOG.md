@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`schedule recommend` says when the activity bound was never measured.** The
+  freshness half of the interval formula needs a count of how many repositories
+  changed, which only the index stage records. On an install without the `kb`
+  extra nothing records it, so the bound never engages and the interval rests on
+  the duty-cycle floor alone. The `activity floor` line was omitted entirely in
+  that case, which read the same as the bound being switched off. It now states
+  that it was not measured and what records it. `--json` gains an `activity`
+  field reading `not-measured`, `no-change` or `measured`: `floor_activity_seconds`
+  is null for the first two of those, so the number alone could not tell them
+  apart.
+
 - **A memory-budget guard on `kb index`.** One repository in a real fleet
   needed more than 9.3 GB in a single worker and never finished; no worker
   count survives a repository that size. A repository whose parsed shard
