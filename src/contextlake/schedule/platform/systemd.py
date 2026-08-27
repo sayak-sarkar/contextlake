@@ -64,7 +64,20 @@ def unit_name(job_name) -> str:
 
 def _systemctl(*argv, check=False):
     return subprocess.run(["systemctl", "--user", *argv],
-                          capture_output=True, text=True, check=check)
+                          capture_output=True, text=True, errors="replace", check=check)
+
+
+def _linger_status() -> str:
+    """Raw ``loginctl show-user ... -p Linger`` stdout, e.g. ``Linger=no\\n``.
+
+    Its own function so a test can control the answer without depending on
+    the machine it runs on: linger is a login-manager setting, not something
+    a test should read off whatever box happens to run it.
+    """
+    result = subprocess.run(
+        ["loginctl", "show-user", os.environ.get("USER", ""), "-p", "Linger"],
+        capture_output=True, text=True, errors="replace", check=False)
+    return result.stdout
 
 
 class SystemdAdapter(Adapter):
@@ -177,10 +190,7 @@ class SystemdAdapter(Adapter):
             exec_show = _systemctl("show", service, "-p", "ExecStart")
             exec_value = exec_show.stdout.strip().split("=", 1)[-1]
             exec_path = _exec_path_from_show(exec_value)
-        linger = subprocess.run(
-            ["loginctl", "show-user", os.environ.get("USER", ""), "-p", "Linger"],
-            capture_output=True, text=True, check=False)
-        if "Linger=yes" not in linger.stdout:
+        if "Linger=yes" not in _linger_status():
             notes.append(
                 "Linger is off, so this timer does NOT fire while you are logged "
                 "out. Turn it on with: loginctl enable-linger $USER")

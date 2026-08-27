@@ -309,9 +309,22 @@ def test_render_install_uninstall_and_state_agree_on_the_filename(monkeypatch, t
 
 
 @needs_systemd
-def test_state_reports_whether_linger_is_enabled():
-    """A user timer does NOT fire while logged out unless linger is on. This
-    machine has Linger=no, so the adapter must SAY so rather than let the user
-    believe a schedule is running."""
+def test_state_reports_linger_when_it_is_off(monkeypatch):
+    """A user timer does not fire while logged out unless linger is on, so the
+    adapter must say so rather than let a user believe a schedule is running.
+
+    Controls loginctl's output. An earlier version asserted the note is always
+    present, which is only true on a machine with linger off: it passed here
+    and failed on CI, where the runner has linger enabled.
+    """
+    monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=no\n")
     notes = systemd.SystemdAdapter().state(_job())["notes"]
     assert any("linger" in note.lower() for note in notes)
+
+
+def test_state_stays_quiet_when_linger_is_on(monkeypatch):
+    """No note when the timer will fire regardless. A warning that is always
+    printed is one users learn to ignore."""
+    monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=yes\n")
+    notes = systemd.SystemdAdapter().state(_job())["notes"]
+    assert not any("linger" in note.lower() for note in notes)

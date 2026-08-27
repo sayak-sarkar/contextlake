@@ -72,7 +72,7 @@ def user_is_idle():
     try:
         out = subprocess.run(
             ["loginctl", "show-session", session, "-p", "IdleHint"],
-            capture_output=True, text=True, timeout=5, check=False)
+            capture_output=True, text=True, errors="replace", timeout=5, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     if out.returncode != 0:

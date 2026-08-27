@@ -121,7 +121,8 @@ def _exec_path_from_block(text, name) -> str | None:
 
 
 def _read_crontab() -> str:
-    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True, check=False)
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True,
+                            errors="replace", check=False)
     # Exit 1 with "no crontab for ..." is the empty case, not a failure.
     return result.stdout if result.returncode == 0 else ""
 
@@ -132,7 +133,7 @@ def _write_crontab(text) -> None:
     # and a failed write would crash the command instead of falling back to
     # printing the rendered crontab line.
     result = subprocess.run(["crontab", "-"], input=text, text=True,
-                            capture_output=True, check=False)
+                            errors="replace", capture_output=True, check=False)
     if result.returncode != 0:
         raise OSError(
             f"crontab - failed: {result.stderr.strip() or result.stdout.strip() or 'no output'}")

@@ -123,9 +123,14 @@ def test_the_child_is_told_where_to_record_itself(tmp_path):
     assert env[cli.ENV_KIND] == "full"
 
 
-def test_a_real_run_spawns_the_cli_and_records_the_result(tmp_path):
+def test_a_real_run_spawns_the_cli_and_records_the_result(tmp_path, monkeypatch):
     """END TO END. No mock on _spawn: this proves the whole chain, from the job
-    record through the subprocess to a history line the recommender can read."""
+    record through the subprocess to a history line the recommender can read.
+
+    Gate forced open: this test is about run mechanics, not gating, so it must
+    not depend on the machine's power state.
+    """
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path, argv=("version",))
     config = _config(tmp_path)
     assert cmds.cmd_run(_args(), config) == 0
@@ -138,7 +143,9 @@ def test_a_real_run_spawns_the_cli_and_records_the_result(tmp_path):
     assert job.last_run is not None
 
 
-def test_a_failing_job_increments_the_failure_counter(tmp_path):
+def test_a_failing_job_increments_the_failure_counter(tmp_path, monkeypatch):
+    """Gate forced open: this test is about the failure counter, not gating."""
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path, argv=("kb", "query"))
     config = _config(tmp_path)
     assert cmds.cmd_run(_args(), config) != 0
@@ -152,7 +159,10 @@ def test_two_overlapping_runs_skip_rather_than_both_proceed(tmp_path, monkeypatc
     Asserted on the OBSERVABLE difference: exactly one spawn, and a skip named
     in the output. Asserting only that both calls returned 0 could not tell a
     lock-skip from a second run that proceeded, which is the whole question.
+
+    Gate forced open: this test is about the lock, not the power gate.
     """
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path)
     config = _config(tmp_path)
     spawns, inner = [], {}
@@ -281,6 +291,11 @@ def test_in_container_detects_the_three_signals(monkeypatch, tmp_path):
 # ---- foreground ---------------------------------------------------------
 
 def test_foreground_loops_and_sleeps_the_recommended_interval(tmp_path, monkeypatch):
+    """Gate forced open: found during defect-3 verification passing vacuously
+    on battery, sleeping on the gate-retry path instead of the recommended
+    interval this test names. Same class as the four tests named in the task,
+    fixed the same way."""
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path)
     monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
     slept = []
@@ -291,6 +306,8 @@ def test_foreground_loops_and_sleeps_the_recommended_interval(tmp_path, monkeypa
 
 
 def test_foreground_backs_off_after_consecutive_failures(tmp_path, monkeypatch):
+    """Gate forced open: this test is about backoff, not the power gate."""
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path, argv=("kb", "query"))
     monkeypatch.setattr(cmds.time, "sleep", lambda s: None)
     slept = []
