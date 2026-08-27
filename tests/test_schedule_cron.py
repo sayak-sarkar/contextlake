@@ -193,6 +193,55 @@ def test_state_reports_no_exec_path_when_not_installed(monkeypatch):
     assert state["exec_path"] is None
 
 
+# ---- interval read-back (finding 1: interval_s was hardcoded None) -------
+
+def test_interval_s_from_block_reads_an_hourly_spec():
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "0 * * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    assert cron._interval_s_from_block(text, "default") == 3600
+
+
+def test_interval_s_from_block_reads_a_minute_step_spec():
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "*/15 * * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    assert cron._interval_s_from_block(text, "default") == 900
+
+
+def test_interval_s_from_block_returns_none_for_an_unrecognised_spec():
+    """A spec this adapter never writes (hand-edited, or from another
+    version) is "cannot tell", not a guess."""
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "17 3 * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    assert cron._interval_s_from_block(text, "default") is None
+
+
+def test_interval_s_from_block_returns_none_when_the_block_is_absent():
+    assert cron._interval_s_from_block(EXISTING, "default") is None
+    assert cron._interval_s_from_block("", "default") is None
+
+
+def test_state_reports_the_installed_interval(monkeypatch):
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "0 */2 * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    monkeypatch.setattr(cron, "_read_crontab", lambda: text)
+    state = cron.CronAdapter().state(_job())
+    assert state["interval_s"] == 7200
+
+
+def test_state_reports_no_interval_when_not_installed(monkeypatch):
+    monkeypatch.setattr(cron, "_read_crontab", lambda: EXISTING)
+    state = cron.CronAdapter().state(_job())
+    assert state["interval_s"] is None
+
+
 def test_a_failed_write_raises_oserror_not_calledprocesserror(monkeypatch):
     """`cmd_install` degrades on OSError. subprocess.CalledProcessError is
     not an OSError, so a `crontab -` failure must be re-raised as one or the

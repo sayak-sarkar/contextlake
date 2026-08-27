@@ -58,7 +58,7 @@ class Adapter:
         raise NotImplementedError
 
     def state(self, job) -> dict:
-        """What is really installed for ``job``, read from this platform, not
+        """What is installed for ``job``, read from this platform, not
         from the job record.
 
         Returns a dict with five keys: ``installed`` (bool), ``interval_s``

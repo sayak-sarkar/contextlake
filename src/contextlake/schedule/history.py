@@ -1,4 +1,4 @@
-"""Append-only record of what past runs actually cost.
+"""Append-only record of what past runs cost.
 
 Written from ``_RunMetrics.write()``, which lives in ``main()``'s ``finally``.
 Two consequences shape every function here:

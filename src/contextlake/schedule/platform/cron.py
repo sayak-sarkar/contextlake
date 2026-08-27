@@ -120,6 +120,34 @@ def _exec_path_from_block(text, name) -> str | None:
     return None
 
 
+def _interval_s_from_block(text, name) -> float | None:
+    """The interval, in seconds, that the installed cron spec runs.
+
+    Matches the block's first five fields against `_expressible()` rather
+    than interpreting cron syntax in general: those are the only specs this
+    adapter ever writes. A spec that does not match one of them (hand-edited,
+    or written by some other version) returns ``None``: "cannot tell", never
+    a wrong number.
+    """
+    begin, end = BEGIN.format(name=name), END.format(name=name)
+    inside = False
+    specs = {spec: seconds for seconds, spec in _expressible()}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == begin:
+            inside = True
+            continue
+        if inside and stripped == end:
+            return None
+        if not inside or not stripped or stripped.startswith("MAILTO="):
+            continue
+        parts = stripped.split(None, 5)
+        if len(parts) < 6:
+            continue
+        return specs.get(" ".join(parts[:5]))
+    return None
+
+
 def _read_crontab() -> str:
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True,
                             errors="replace", check=False)
@@ -184,7 +212,8 @@ class CronAdapter(Adapter):
         text = _read_crontab()
         installed = BEGIN.format(name=name) in text
         exec_path = _exec_path_from_block(text, name) if installed else None
+        interval_s = _interval_s_from_block(text, name) if installed else None
         notes = [f"cron {NO_CATCH_UP_PHRASE} while this machine was asleep "
                 "or off."] if installed else []
-        return {"installed": installed, "interval_s": None, "next_run": None,
+        return {"installed": installed, "interval_s": interval_s, "next_run": None,
                 "exec_path": exec_path, "notes": notes}

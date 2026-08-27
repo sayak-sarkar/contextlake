@@ -40,7 +40,7 @@ def test_a_double_dash_separator_is_accepted_and_dropped():
     assert argv == ["kb", "index", "--force"]
 
 
-def test_the_words_argparse_actually_delivers_parse():
+def test_the_words_argparse_delivers_parse():
     """What the CLI hands over for `schedule interval 6h run -- kb wiki --force`:
     no separator, because argparse consumed it."""
     setting, argv = cmds.parse_interval_spec(["6h", "run", "kb", "wiki", "--force"])

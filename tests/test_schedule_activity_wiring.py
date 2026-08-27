@@ -134,7 +134,7 @@ def test_a_hand_typed_sync_command_records_itself_at_the_default_path(tmp_path):
     already on disk (see `_GROUP_COMMANDS` in cli.py), so it needs no GitLab
     group and no network to reach the history-write call. No
     `CONTEXTLAKE_SCHEDULE_HISTORY` is set here: this is what a hand-typed
-    `contextlake mirror update` actually does, unprompted.
+    `contextlake mirror update` does, unprompted.
     """
     workspace = tmp_path / "ws"
     workspace.mkdir()

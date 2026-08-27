@@ -134,6 +134,47 @@ def test_no_drift_is_not_reported_as_drift(tmp_path, capsys, monkeypatch):
     assert "drift" not in capsys.readouterr().out.lower()
 
 
+def test_cron_state_makes_the_on_disk_line_live(tmp_path, capsys, monkeypatch):
+    """Finding 1: `cron.state()` hardcoded ``interval_s`` to ``None``, so the
+    "on disk" line never appeared for cron even though cron installs a
+    rounded spec that can differ from the pinned setting. Uses the real
+    `CronAdapter`, not `_FakeAdapter`, to prove the wiring end to end."""
+    from contextlake.schedule.platform import cron
+
+    _install_record(tmp_path, interval="70m", platform="cron")
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "0 * * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    monkeypatch.setattr(cron, "_read_crontab", lambda: text)
+    cmds.cmd_status(_args(), _config(tmp_path))
+    out = capsys.readouterr().out
+    assert "70m" in out
+    assert "on disk:   1h" in out
+
+
+def test_cron_state_makes_drift_live_for_auto_jobs(tmp_path, capsys, monkeypatch):
+    """Same defect as above, checked through the drift note instead of the
+    "on disk" line: with `interval_s` always `None`, an auto job on cron
+    could drift forever with no signal."""
+    from contextlake.schedule.platform import cron
+
+    _install_record(tmp_path, interval="auto", platform="cron")
+    path = history.history_path(_config(tmp_path))
+    for i in range(5):
+        history.append_run(path, {"ts": f"2026-08-2{i+1}T00:00:00Z", "kind": "incremental",
+                                  "duration_s": 3000.0, "exit": 0,
+                                  "repos_total": 480, "repos_changed": 3})
+    text = (cron.BEGIN.format(name="default") + "\n"
+           + 'MAILTO=""\n'
+           + "0 * * * * /x/python -m contextlake schedule run --job default\n"
+           + cron.END.format(name="default") + "\n")
+    monkeypatch.setattr(cron, "_read_crontab", lambda: text)
+    cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
+    out = capsys.readouterr().out.lower()
+    assert "drift" in out or "ideal" in out
+
+
 def test_a_cold_start_interval_is_labelled_as_a_default(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())

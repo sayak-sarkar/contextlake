@@ -1,4 +1,4 @@
-"""The systemd adapter: what it renders, and that it really installs.
+"""The systemd adapter: what it renders, and that it installs.
 
 Golden-file assertions on `render` (pure, so no root, no systemd), plus a real
 install/fire/uninstall cycle, because systemd IS init on this machine and a
@@ -121,7 +121,7 @@ def test_the_rendered_unit_matches_the_golden_file():
 # ---- ExecStart parsing (pure) --------------------------------------------
 
 def test_exec_path_from_show_parses_the_modern_structured_form():
-    """The format `systemctl --user show -p ExecStart` actually returns on a
+    """The format `systemctl --user show -p ExecStart` returns on a
     current systemd, captured from a real installed unit."""
     value = ("{ path=/home/x/.venv/bin/python3 ; argv[]=/home/x/.venv/bin/python3 "
              "-m contextlake schedule run --job default ; ignore_errors=no ; "
@@ -204,7 +204,7 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
     # which looks the job up by name in the real job store, the same one
     # `cmd_install` writes to. Installing the unit without a persisted job
     # record leaves nothing for that lookup to find: the process exits 2,
-    # "No job named 'selftest'", and the timer never truly fires even though
+    # "No job named 'selftest'", and the timer never fires even though
     # the unit itself started. Real end to end means both halves are real.
     from contextlake.config import load_config
 
@@ -286,7 +286,7 @@ def test_the_unit_name_is_always_prefixed_exactly_once():
 
 def test_render_install_uninstall_and_state_agree_on_the_filename(monkeypatch, tmp_path):
     """The four methods must derive the same names, or uninstall leaves files
-    behind and state reports a unit that is really there as missing."""
+    behind and state reports a unit that is there as missing."""
     monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
     # `state()` reads `.stdout` off whatever `_systemctl` returns, the same
     # as the real `subprocess.run` result it stands in for here. A stub
