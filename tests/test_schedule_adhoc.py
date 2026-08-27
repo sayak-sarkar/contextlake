@@ -195,6 +195,45 @@ def test_a_failing_install_leaves_no_job_record(tmp_path, monkeypatch):
     assert jobs.read_jobs(jobs.jobs_path(_config(tmp_path))) == {}
 
 
+def test_cmd_interval_reports_the_interval_cron_installed_not_requested(tmp_path, monkeypatch):
+    """Finding 2 / the R28 defect landing on a second call site: cmd_interval
+    printed `format_duration(interval_s)`, the interval REQUESTED, while
+    cron's crontab held whatever it rounded down to. Uses the real cron
+    adapter, stubbed at the crontab boundary, to prove the wiring."""
+    from contextlake.schedule.platform import cron
+
+    monkeypatch.setattr(cron, "_read_crontab", lambda: "")
+    monkeypatch.setattr(cron, "_write_crontab", lambda text: None)
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+
+    rc = cmds.cmd_interval(_args(["70m", "run", "kb", "wiki"], platform="cron"),
+                           _config(tmp_path))
+    out = "\n".join(lines)
+    assert rc == 0
+    assert "every 1h on cron" in out
+    assert "every 70m" not in out
+
+
+def test_cmd_interval_reports_the_cannot_catch_up_note(tmp_path, monkeypatch):
+    """cmd_interval used to drop the state() notes and the no-catch-up
+    warning that cmd_install already printed for the same install."""
+    from contextlake.schedule.platform import cron
+
+    written = {"text": ""}
+    monkeypatch.setattr(cron, "_read_crontab", lambda: written["text"])
+    monkeypatch.setattr(cron, "_write_crontab",
+                        lambda text: written.__setitem__("text", text))
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+
+    rc = cmds.cmd_interval(_args(["30m", "run", "kb", "wiki"], platform="cron"),
+                           _config(tmp_path))
+    out = "\n".join(lines).lower()
+    assert rc == 0
+    assert "does not replay a run missed" in out
+
+
 def test_the_interval_action_routes_through_dispatch(tmp_path, monkeypatch):
     """cmd_interval unreachable from `dispatch` would leave the CLI printing
     'not implemented yet' for every `schedule interval` invocation."""

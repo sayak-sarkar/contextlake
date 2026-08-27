@@ -142,6 +142,46 @@ def test_a_reset_that_cannot_rewrite_the_unit_leaves_the_record_alone(tmp_path, 
     assert stored.failures == 5
 
 
+def test_reset_reports_the_interval_actually_installed_not_the_recommendation(
+        tmp_path, monkeypatch):
+    """Finding 2 / the R28 defect landing on a third call site: cmd_reset
+    printed the auto recommendation it computed and asked for, never what
+    the adapter's render() says it actually installed. With no history
+    seeded, the recommendation is the 6h cold-start default; the fake
+    adapter here installs 1h, so the two are never accidentally equal.
+
+    ``cmds.log`` is patched directly rather than read through capsys: see
+    ``_log_lines`` in ``tests/test_schedule_run.py`` for why capsys reads
+    back empty here once any earlier test in the session has called
+    ``log()``.
+    """
+    _pinned_job(tmp_path)
+    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RoundingFakeAdapter())
+    lines = []
+    monkeypatch.setattr(cmds, "log", lines.append)
+    cmds.cmd_reset(_args(), _config(tmp_path))
+    out = "\n".join(lines)
+    assert "every 1h" in out
+    assert "every 6h" not in out
+
+
+class _RoundingFakeAdapter:
+    """An adapter that installs a different interval than the one asked for,
+    the way cron rounds down to the nearest expressible spec."""
+    id = "fake"
+    catches_up_after_sleep = True
+
+    def install(self, job, interval_s, exec_argv, **options):
+        return ["/tmp/fake.unit"]
+
+    def render(self, job, interval_s, exec_argv, **options):
+        return {"fake.unit": "", "interval_s": 3600.0}
+
+    def state(self, job):
+        return {"installed": True, "interval_s": 3600.0, "next_run": None,
+                "exec_path": None, "notes": []}
+
+
 class _RefusingAdapter:
     id = "refusing"
     catches_up_after_sleep = True

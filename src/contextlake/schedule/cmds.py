@@ -176,6 +176,47 @@ def exec_argv_for(name) -> list:
     return [sys.executable, "-m", "contextlake", "schedule", "run", "--job", name]
 
 
+def _report_installed(adapter, job, interval_s, exec_argv, on_battery, why, written,
+                      headline) -> None:
+    """Log the outcome of a successful install.
+
+    Calls `render` again, which is free (`render` is pure) and is the only
+    way to learn a fact `install` itself does not return: `install` returns
+    the paths it wrote, not the rendered facts, and cron's `render` can
+    round the interval requested down to the nearest one it can express.
+    Reporting the interval requested instead of the interval installed is
+    the R28 defect; this is the one place it can happen now.
+
+    `headline` takes the interval INSTALLED, already formatted, and returns
+    the caller's opening line: the job name, the command, and the adapter
+    differ per call site, but everything below the headline (the reason,
+    the paths written, the rounding note, the adapter's own state() notes,
+    and the no-catch-up warning when state() has not already said it) is
+    identical. Shared by `cmd_install`, `cmd_interval` and `cmd_reset`,
+    because three separate copies is what let two of them drift.
+    """
+    from .. import style
+
+    rendered = adapter.render(job, interval_s, exec_argv, on_battery=on_battery)
+    actual_interval_s = rendered.get("interval_s", interval_s)
+    log(headline(recommend.format_duration(actual_interval_s)))
+    log(f"  {why}")
+    for path in written:
+        log(f"  wrote {path}")
+    rounding_note = rendered.get("notes")
+    if rounding_note:
+        log(f"  {style.warn()} {rounding_note}")
+    state_notes = adapter.state(job).get("notes", [])
+    for note in state_notes:
+        log(f"  {style.warn()} {note}")
+    # cron's own state() already carries this note when installed; printing
+    # it again unconditionally duplicated the sentence on every cron install.
+    if (not adapter.catches_up_after_sleep
+            and not any(NO_CATCH_UP_PHRASE in n for n in state_notes)):
+        log(f"  {style.warn()} {adapter.id} {NO_CATCH_UP_PHRASE} while this "
+            f"machine was asleep or off.")
+
+
 def cmd_install(args, config) -> int:
     """Measure, decide, and install. Idempotent: run it again to change the interval."""
     from .. import style
@@ -233,29 +274,10 @@ def cmd_install(args, config) -> int:
         return 0
     jobstore.write_job(jobs_file, job)
 
-    # `render` is pure, so calling it again after `install` is free. It is the
-    # only way to learn the interval cron installed: `install` returns
-    # a list of paths written, not the rendered facts, and cron's `render` can
-    # round the requested interval down to the nearest one cron can express.
-    rendered = adapter.render(job, interval_s, exec_argv_for(name), on_battery=on_battery)
-    actual_interval_s = rendered.get("interval_s", interval_s)
-    log(f"{style.ok()} Installed job {name!r} on {adapter.id}, every "
-        f"{recommend.format_duration(actual_interval_s)}.")
-    log(f"  {why}")
-    for path in written:
-        log(f"  wrote {path}")
-    rounding_note = rendered.get("notes")
-    if rounding_note:
-        log(f"  {style.warn()} {rounding_note}")
-    state_notes = adapter.state(job).get("notes", [])
-    for note in state_notes:
-        log(f"  {style.warn()} {note}")
-    # cron's own state() already carries this note when installed; printing
-    # it again unconditionally duplicated the sentence on every cron install.
-    if (not adapter.catches_up_after_sleep
-            and not any(NO_CATCH_UP_PHRASE in n for n in state_notes)):
-        log(f"  {style.warn()} {adapter.id} {NO_CATCH_UP_PHRASE} while this "
-            f"machine was asleep or off.")
+    _report_installed(
+        adapter, job, interval_s, exec_argv_for(name), on_battery, why, written,
+        lambda interval_str: (f"{style.ok()} Installed job {name!r} on "
+                              f"{adapter.id}, every {interval_str}."))
     return 0
 
 
@@ -594,10 +616,11 @@ def cmd_reset(args, config) -> int:
 
     updated = job._replace(interval="auto", failures=0)
     interval_s, why = resolve_interval(config, "auto")
+    on_battery = config.get("schedule_on_battery", "skip")
     try:
         adapter = _adapter_for(args, updated)
-        adapter.install(updated, interval_s, exec_argv_for(name),
-                        on_battery=config.get("schedule_on_battery", "skip"))
+        written = adapter.install(updated, interval_s, exec_argv_for(name),
+                                  on_battery=on_battery)
     except (base.NoAdapter, OSError) as e:
         log(style.fail(f"Could not rewrite the {updated.platform} unit: {e}"))
         return 1
@@ -609,9 +632,9 @@ def cmd_reset(args, config) -> int:
 
     jobstore.write_job(jobs_file, updated)
 
-    log(f"{style.ok()} Reset job {name!r} to auto, every "
-        f"{recommend.format_duration(interval_s)}.")
-    log(f"  {why}")
+    _report_installed(
+        adapter, updated, interval_s, exec_argv_for(name), on_battery, why, written,
+        lambda interval_str: f"{style.ok()} Reset job {name!r} to auto, every {interval_str}.")
     return 0
 
 
@@ -968,9 +991,10 @@ def cmd_interval(args, config) -> int:
 
     job = jobstore.new_job(name, argv, setting, adapter.id,
                            created=existing.created if existing else None)
+    on_battery = config.get("schedule_on_battery", "skip")
     try:
         written = adapter.install(job, interval_s, exec_argv_for(name),
-                                  on_battery=config.get("schedule_on_battery", "skip"))
+                                  on_battery=on_battery)
     except OSError as e:
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
         return 1
@@ -978,11 +1002,11 @@ def cmd_interval(args, config) -> int:
     # a record claiming a schedule that does not exist.
     jobstore.write_job(jobs_file, job)
 
-    log(f"{style.ok()} Job {name!r}: contextlake {' '.join(argv)}, every "
-        f"{recommend.format_duration(interval_s)} on {adapter.id}.")
-    log(f"  {why}")
-    for path in written:
-        log(f"  wrote {path}")
+    _report_installed(
+        adapter, job, interval_s, exec_argv_for(name), on_battery, why, written,
+        lambda interval_str: (f"{style.ok()} Job {name!r}: contextlake "
+                              f"{' '.join(argv)}, every {interval_str} on "
+                              f"{adapter.id}."))
     for warning in warnings:
         log(f"  {style.warn()} {warning}")
     return 0
