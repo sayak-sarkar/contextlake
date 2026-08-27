@@ -530,7 +530,11 @@ def _cmd_index_once(args) -> int:
     # dashboard, documented as a filter -- and then never reached the parser.
     parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes,
                       languages=cfg.languages)
-    workers = cfg.index_workers
+    # --workers overrides kb.toml's index_workers for this run; neither one set
+    # falls through to _default_index_workers() inside _index_workspace.
+    # --workers overrides kb.toml's index_workers for this run; neither one set
+    # falls through to _default_index_workers() inside _index_workspace.
+    workers = _or_default(getattr(args, "workers", None), cfg.index_workers)
     try:
         workspace = getattr(args, "workspace", None)
         if workspace:

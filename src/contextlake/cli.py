@@ -463,7 +463,7 @@ _DEFAULTS = {
     "no_docs": False,
     # knowledge layer
     "source": None, "workspace": None, "force": False, "out": None,
-    "llm": None, "llm_model": None, "watch": False, "interval": None,
+    "llm": None, "llm_model": None, "watch": False, "interval": None, "workers": None,
     "transport": None, "host": None, "port": None,
     "kind": None, "repo": None, "limit": None, "path": None, "source_type": None,
     "action": None,
@@ -751,7 +751,8 @@ def _root_hidden_flags(p):
     # only on the leaf would leave it wide open.
     for flag, kind in (("--interval", _SECONDS), ("--limit", _COUNT), ("--hops", _HOPS),
                        ("--max-nodes", _COUNT), ("--max-edges", _MAX_EDGES),
-                       ("--max-fanout", _COUNT), ("--group-depth", _DEPTH)):
+                       ("--max-fanout", _COUNT), ("--group-depth", _DEPTH),
+                       ("--workers", _COUNT)):
         add(flag, type=kind)
     add("--port", type=_PORT)
     add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
@@ -1073,6 +1074,10 @@ Examples:
     p.add_argument("--repos", default=_S, metavar="PATTERN",
                    help="--workspace: index only repos matching this comma-separated "
                         "glob/substring filter (e.g. 'team/api,billing,frontend/*')")
+    p.add_argument("--workers", type=_COUNT, default=_S, metavar="N",
+                   help="--workspace: how many repos to index in parallel (default: "
+                        "one fewer than the CPU count, capped at 8). Lower this to cut "
+                        "peak memory on a large fleet or a small machine")
     p.add_argument("--repo", default=_S,
                    help="repo id to index --source under (default: the directory name)")
     p.add_argument("--force", action="store_true", default=_S,
