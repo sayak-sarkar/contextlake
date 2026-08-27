@@ -5,7 +5,7 @@ import argparse
 import json as jsonlib
 import sys
 
-from contextlake.schedule import cmds, history, jobs
+from contextlake.schedule import adapters, cmds, history, jobs
 
 
 def _config(tmp_path, **kw):
@@ -55,7 +55,7 @@ def test_filter_on_a_name_that_does_not_match_names_the_real_jobs(tmp_path, caps
 
 def test_a_record_with_no_unit_is_reported_as_a_disagreement(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=False))
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=False))
     cmds.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out.lower()
     assert "not installed" in out or "disagree" in out
@@ -71,7 +71,7 @@ def test_a_missing_interpreter_in_the_installed_unit_is_reported(tmp_path, capsy
     check and therefore can never be missing.
     """
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(exec_path="/gone/venv/bin/python"))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" in capsys.readouterr().out
@@ -82,7 +82,7 @@ def test_a_present_interpreter_in_the_installed_unit_is_not_reported(tmp_path, c
     missing-interpreter note. A row that always fires is as useless as one
     that never does."""
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(exec_path=sys.executable))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" not in capsys.readouterr().out
@@ -92,14 +92,15 @@ def test_an_unknown_interpreter_is_not_reported_as_missing(tmp_path, capsys, mon
     """None means cannot tell. An adapter that cannot read its unit back must
     not make status accuse a healthy install."""
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter(exec_path=None))
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(exec_path=None))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" not in capsys.readouterr().out
 
 
 def test_executable_missing_checks_the_file_not_just_the_string():
-    assert cmds.executable_missing([sys.executable, "-m", "contextlake"]) is None
-    assert cmds.executable_missing(["/definitely/not/here", "-m", "x"]) == "/definitely/not/here"
+    assert adapters.executable_missing([sys.executable, "-m", "contextlake"]) is None
+    assert (adapters.executable_missing(["/definitely/not/here", "-m", "x"])
+            == "/definitely/not/here")
 
 
 def test_drift_beyond_the_threshold_is_reported(tmp_path, capsys, monkeypatch):
@@ -109,7 +110,7 @@ def test_drift_beyond_the_threshold_is_reported(tmp_path, capsys, monkeypatch):
         history.append_run(path, {"ts": f"2026-08-2{i+1}T00:00:00Z", "kind": "incremental",
                                   "duration_s": 3000.0, "exit": 0,
                                   "repos_total": 480, "repos_changed": 3})
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
     cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
     out = capsys.readouterr().out.lower()
@@ -128,7 +129,7 @@ def test_drift_within_a_wider_threshold_is_not_reported(tmp_path, capsys, monkey
         history.append_run(path, {"ts": f"2026-08-2{i+1}T00:00:00Z", "kind": "incremental",
                                   "duration_s": 3000.0, "exit": 0,
                                   "repos_total": 480, "repos_changed": 3})
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
     cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="10"))
     assert "drift" not in capsys.readouterr().out.lower()
@@ -147,7 +148,7 @@ def test_no_drift_is_not_reported_as_drift(tmp_path, capsys, monkeypatch):
     for i in range(5):
         history.append_run(path, {"ts": f"2026-08-2{i+1}T00:00:00Z", "kind": "incremental",
                                   "duration_s": 360.0, "exit": 0})
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "drift" not in capsys.readouterr().out.lower()
@@ -196,14 +197,14 @@ def test_cron_state_makes_drift_live_for_auto_jobs(tmp_path, capsys, monkeypatch
 
 def test_a_cold_start_interval_is_labelled_as_a_default(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "default" in capsys.readouterr().out.lower()
 
 
 def test_an_adapter_that_cannot_catch_up_says_so(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path, platform="cron")
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(catches_up=False))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "asleep" in capsys.readouterr().out.lower()
@@ -215,7 +216,7 @@ def test_a_cannot_catch_up_note_from_the_adapter_is_not_duplicated(tmp_path, cap
     # both without deduplication prints the identical sentence twice.
     _install_record(tmp_path, platform="cron")
     monkeypatch.setattr(
-        cmds, "_adapter_for",
+        adapters, "_adapter_for",
         lambda *a, **k: _FakeAdapter(
             catches_up=False,
             notes=["cron does not replay a run missed while this machine "
@@ -232,7 +233,7 @@ def test_a_broken_adapter_read_reports_the_record_without_a_false_catch_up_claim
     # was built, so its class-level `catches_up_after_sleep` is still known
     # even though the live read failed.
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _BrokenStateAdapter())
     cmds.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
@@ -249,7 +250,7 @@ def test_a_broken_adapter_build_reports_the_record_without_a_false_catch_up_clai
         raise RuntimeError("no scheduler found on this machine")
 
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", _boom)
+    monkeypatch.setattr(adapters, "_adapter_for", _boom)
     cmds.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
     assert "default" in out
@@ -259,7 +260,7 @@ def test_a_broken_adapter_build_reports_the_record_without_a_false_catch_up_clai
 
 def test_adapter_notes_are_surfaced(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for",
+    monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(notes=["Linger is off, so ..."]))
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "linger" in capsys.readouterr().out.lower()
@@ -267,7 +268,7 @@ def test_adapter_notes_are_surfaced(tmp_path, capsys, monkeypatch):
 
 def test_status_json_carries_every_field(tmp_path, monkeypatch, capsys):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     assert cmds.cmd_status(_args(json=True), _config(tmp_path)) == 0
     payload = jsonlib.loads(capsys.readouterr().out)
     job = payload["jobs"][0]
@@ -285,7 +286,7 @@ def test_status_json_carries_every_field(tmp_path, monkeypatch, capsys):
 
 def test_status_writes_nothing(tmp_path, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     before = {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()}
     cmds.cmd_status(_args(), _config(tmp_path))
     after = {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()}
@@ -295,7 +296,7 @@ def test_status_writes_nothing(tmp_path, monkeypatch):
 def test_require_idle_on_but_undetectable_says_the_gate_is_inert(
         tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: None)
     cmds.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
     out = capsys.readouterr().out.lower()
@@ -304,7 +305,7 @@ def test_require_idle_on_but_undetectable_says_the_gate_is_inert(
 
 def test_require_idle_off_says_nothing_about_it(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: None)
     cmds.cmd_status(_args(), _config(tmp_path))
     assert "inert" not in capsys.readouterr().out.lower()
@@ -313,7 +314,7 @@ def test_require_idle_off_says_nothing_about_it(tmp_path, capsys, monkeypatch):
 def test_require_idle_on_and_detectable_says_nothing_about_being_inert(
         tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: True)
     cmds.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
     assert "inert" not in capsys.readouterr().out.lower()

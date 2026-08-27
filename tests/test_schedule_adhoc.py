@@ -5,7 +5,7 @@ import argparse
 
 import pytest
 
-from contextlake.schedule import cmds, jobs
+from contextlake.schedule import adapters, cmds, jobs
 
 
 def _config(tmp_path):
@@ -141,7 +141,7 @@ def test_a_mirror_job_never_warns_about_the_kb_extra():
 # ---- the command --------------------------------------------------------
 
 def test_creating_an_ad_hoc_job_records_it(tmp_path, monkeypatch):
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     rc = cmds.cmd_interval(_args(["6h", "run", "kb", "wiki", "--force"], job="nightly"),
                            _config(tmp_path))
     assert rc == 0
@@ -153,13 +153,13 @@ def test_creating_an_ad_hoc_job_records_it(tmp_path, monkeypatch):
 
 
 def test_an_unnamed_ad_hoc_job_gets_a_name_from_its_command(tmp_path, monkeypatch):
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     cmds.cmd_interval(_args(["6h", "run", "kb", "wiki"]), _config(tmp_path))
     assert "kb-wiki" in jobs.read_jobs(jobs.jobs_path(_config(tmp_path)))
 
 
 def test_an_ad_hoc_job_does_not_replace_the_default_one(tmp_path, monkeypatch):
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     path = jobs.jobs_path(_config(tmp_path))
     jobs.write_job(path, jobs.new_job(jobs.DEFAULT_JOB, ["bootstrap"], "auto", "fake"))
     cmds.cmd_interval(_args(["6h", "run", "kb", "wiki"]), _config(tmp_path))
@@ -167,21 +167,21 @@ def test_an_ad_hoc_job_does_not_replace_the_default_one(tmp_path, monkeypatch):
 
 
 def test_a_bad_command_creates_nothing(tmp_path, monkeypatch):
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     assert cmds.cmd_interval(_args(["6h", "run", "kb", "wikki"]), _config(tmp_path)) != 0
     assert jobs.read_jobs(jobs.jobs_path(_config(tmp_path))) == {}
 
 
 def test_a_bad_command_installs_no_unit(tmp_path, monkeypatch):
     adapter = _FakeAdapter()
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: adapter)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: adapter)
     cmds.cmd_interval(_args(["6h", "run", "kb", "wikki"]), _config(tmp_path))
     assert adapter.installed_with is None, "validate BEFORE installing, not after"
 
 
 def test_the_ad_hoc_job_is_installed_at_its_own_interval(tmp_path, monkeypatch):
     adapter = _FakeAdapter()
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: adapter)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: adapter)
     cmds.cmd_interval(_args(["6h", "run", "kb", "wiki"]), _config(tmp_path))
     assert adapter.installed_with[1] == 6 * 3600.0
 
@@ -189,7 +189,7 @@ def test_the_ad_hoc_job_is_installed_at_its_own_interval(tmp_path, monkeypatch):
 def test_a_failing_install_leaves_no_job_record(tmp_path, monkeypatch):
     """Write the job record only after the unit installs. A failed install
     must not leave a record claiming a schedule that does not exist."""
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RefusingAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _RefusingAdapter())
     rc = cmds.cmd_interval(_args(["6h", "run", "kb", "wiki"]), _config(tmp_path))
     assert rc != 0
     assert jobs.read_jobs(jobs.jobs_path(_config(tmp_path))) == {}
@@ -256,7 +256,7 @@ def test_cmd_interval_reports_the_cannot_catch_up_note(tmp_path, monkeypatch):
 def test_the_interval_action_routes_through_dispatch(tmp_path, monkeypatch):
     """cmd_interval unreachable from `dispatch` would leave the CLI printing
     'not implemented yet' for every `schedule interval` invocation."""
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     rc = cmds.dispatch(_args(["6h", "run", "kb", "wiki"]), _config(tmp_path))
     assert rc == 0
     assert "kb-wiki" in jobs.read_jobs(jobs.jobs_path(_config(tmp_path)))

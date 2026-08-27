@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from contextlake.cli import build_parser
-from contextlake.schedule import cmds
+from contextlake.schedule import adapters, cmds
 from contextlake.schedule.platform import base as platform_base
 
 
@@ -437,7 +437,7 @@ def test_the_degrade_path_prints_only_artefacts_never_metadata(
                            "auto", cls.id)
     interval_s, _ = cmds.resolve_interval(config, "auto")
     rendered = cls().render(job, interval_s,
-                            cmds.exec_argv_for(jobstore.DEFAULT_JOB),
+                            adapters.exec_argv_for(jobstore.DEFAULT_JOB),
                             on_battery=config.get("schedule_on_battery", "skip"))
     expected = set(rendered) - cls.metadata_keys
     assert headers == expected

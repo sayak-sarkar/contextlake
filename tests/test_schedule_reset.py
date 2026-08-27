@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from contextlake.schedule import cmds, history, jobs
+from contextlake.schedule import adapters, cmds, history, jobs
 
 
 def _config(tmp_path):
@@ -35,14 +35,14 @@ def _seed_history(tmp_path, n=4):
 
 def test_reset_clears_a_fixed_pin(tmp_path, monkeypatch):
     path = _pinned_job(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     assert cmds.cmd_reset(_args(), _config(tmp_path)) == 0
     assert jobs.read_jobs(path)[jobs.DEFAULT_JOB].interval == "auto"
 
 
 def test_reset_clears_the_failure_backoff(tmp_path, monkeypatch):
     path = _pinned_job(tmp_path, failures=5)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     cmds.cmd_reset(_args(), _config(tmp_path))
     assert jobs.read_jobs(path)[jobs.DEFAULT_JOB].failures == 0
 
@@ -50,7 +50,7 @@ def test_reset_clears_the_failure_backoff(tmp_path, monkeypatch):
 def test_reset_reinstalls_the_unit_at_the_recomputed_interval(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
     adapter = _FakeAdapter()
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: adapter)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: adapter)
     cmds.cmd_reset(_args(), _config(tmp_path))
     assert adapter.installed_with, "reset must rewrite the unit, not only the record"
 
@@ -58,7 +58,7 @@ def test_reset_reinstalls_the_unit_at_the_recomputed_interval(tmp_path, monkeypa
 def test_reset_keeps_the_history_by_default(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
     path = _seed_history(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     cmds.cmd_reset(_args(), _config(tmp_path))
     assert len(history.read_runs(path)) == 4
 
@@ -66,7 +66,7 @@ def test_reset_keeps_the_history_by_default(tmp_path, monkeypatch):
 def test_reset_history_discards_the_measurements(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
     path = _seed_history(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     assert cmds.cmd_reset(_args(history=True), _config(tmp_path)) == 0
     assert history.read_runs(path) == []
 
@@ -76,7 +76,7 @@ def test_reset_history_says_what_it_is_about_to_destroy(tmp_path, monkeypatch, c
     go on screen before anything is deleted."""
     _pinned_job(tmp_path)
     _seed_history(tmp_path, n=6)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     cmds.cmd_reset(_args(history=True), _config(tmp_path))
     out = capsys.readouterr().out
     assert "6" in out
@@ -86,7 +86,7 @@ def test_reset_history_says_what_it_is_about_to_destroy(tmp_path, monkeypatch, c
 def test_reset_history_needs_confirmation_when_not_told_yes(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
     path = _seed_history(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     # Task 8's real `_confirm` takes `(args, prompt)`, not the single-argument
     # `(prompt)` this plan drafted before that signature existed. A one-arg
     # stub here raises a TypeError inside `_discard_history` instead of
@@ -99,7 +99,7 @@ def test_reset_history_needs_confirmation_when_not_told_yes(tmp_path, monkeypatc
 
 def test_reset_history_with_no_history_is_not_an_error(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _FakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     assert cmds.cmd_reset(_args(history=True), _config(tmp_path)) == 0
 
 
@@ -122,7 +122,7 @@ def test_a_failed_install_does_not_destroy_the_measurements(tmp_path, monkeypatc
     """
     _pinned_job(tmp_path, failures=5)
     path = _seed_history(tmp_path, n=6)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RefusingAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _RefusingAdapter())
     assert cmds.cmd_reset(_args(history=True), _config(tmp_path)) == 1
     assert len(history.read_runs(path)) == 6, "measurements destroyed by a failed reset"
     job = jobs.read_jobs(jobs.jobs_path(_config(tmp_path)))[jobs.DEFAULT_JOB]
@@ -135,7 +135,7 @@ def test_a_reset_that_cannot_rewrite_the_unit_leaves_the_record_alone(tmp_path, 
     never leaves the job claiming auto with a cleared backoff while the
     installed unit still runs the old pinned, backed-off interval."""
     path = _pinned_job(tmp_path, failures=5)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RefusingAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _RefusingAdapter())
     assert cmds.cmd_reset(_args(), _config(tmp_path)) == 1
     stored = jobs.read_jobs(path)[jobs.DEFAULT_JOB]
     assert stored.interval == "2h"
@@ -150,7 +150,7 @@ def test_reset_survives_a_state_read_failure_after_a_successful_install(
     abort the command and read to a caller as a failed reset.
     """
     path = _pinned_job(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _StateRaisingAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _StateRaisingAdapter())
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
     rc = cmds.cmd_reset(_args(), _config(tmp_path))
@@ -175,7 +175,7 @@ def test_reset_reports_the_interval_actually_installed_not_the_recommendation(
     ``log()``.
     """
     _pinned_job(tmp_path)
-    monkeypatch.setattr(cmds, "_adapter_for", lambda *a, **k: _RoundingFakeAdapter())
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _RoundingFakeAdapter())
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
     cmds.cmd_reset(_args(), _config(tmp_path))

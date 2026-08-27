@@ -8,17 +8,24 @@ install without the ``[kb]`` extra.
 from __future__ import annotations
 
 import json as jsonlib
-import os
 import sys
 
 from ..logging_setup import log, report_line
-from . import gates, history, recommend
-from .platform.base import NO_CATCH_UP_PHRASE
 
 # Re-exported, not re-implemented: `dispatch` and several commands in this
 # module call these by their bare names, and the existing tests reach them as
 # `cmds.settings_from_config` and friends. Moving them without the re-export
 # would be a rename, not a split.
+# Imported as a MODULE and called module-qualified, deliberately. These three
+# are patched more than anything else in the package, and `from .adapters
+# import _adapter_for` would bind a copy here: a test patching
+# `adapters._adapter_for` would then miss this module's callers, and one
+# patching `cmds._adapter_for` would miss every caller after they move to
+# report.py and actions.py. Going through the module gives ONE patch point that
+# survives the move.
+from . import adapters, gates, history, recommend
+from .platform.base import NO_CATCH_UP_PHRASE
+
 # Re-exported so `dispatch` still resolves cmd_run. NOTE for anyone patching in
 # tests: the CALLERS of _spawn, in_container, _mount_point_of and
 # store_is_ephemeral now live in runner.py and read runner's own globals, so
@@ -197,23 +204,6 @@ def _print_orphans(orphans, unchecked) -> None:
           "the unit on the platform.")
 
 
-def _adapter_for(args, job=None):
-    from .platform import base
-
-    name = getattr(args, "platform", None) or (job.platform if job else None) or base.detect()
-    return base.get(name)
-
-
-def exec_argv_for(name) -> list:
-    """The command line the unit runs.
-
-    ``sys.executable`` rather than a bare ``contextlake``: a unit runs with a
-    different PATH from a login shell, and a venv that moved would otherwise
-    fail silently forever. `status` resolves this back and reports it missing.
-    """
-    return [sys.executable, "-m", "contextlake", "schedule", "run", "--job", name]
-
-
 def _report_installed(adapter, job, interval_s, exec_argv, on_battery, why, written,
                       headline) -> None:
     """Log the outcome of a successful install.
@@ -293,7 +283,7 @@ def cmd_install(args, config) -> int:
     full_argv = existing.full_argv if existing else list(jobstore.DEFAULT_FULL_ARGV)
 
     try:
-        adapter = _adapter_for(args, existing)
+        adapter = adapters._adapter_for(args, existing)
     except base.NoAdapter as e:
         log(style.fail(str(e)))
         return 2
@@ -303,7 +293,7 @@ def cmd_install(args, config) -> int:
                            created=existing.created if existing else None)
     on_battery = config.get("schedule_on_battery", "skip")
     try:
-        written = adapter.install(job, interval_s, exec_argv_for(name),
+        written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
                                   on_battery=on_battery)
     except OSError as e:
         # Degrade, never fail: print the unit and say how to install it.
@@ -312,7 +302,8 @@ def cmd_install(args, config) -> int:
         # ConditionACPower=true, which on a read-only home is the only
         # artefact they get.
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
-        rendered = adapter.render(job, interval_s, exec_argv_for(name), on_battery=on_battery)
+        rendered = adapter.render(job, interval_s, adapters.exec_argv_for(name),
+                                  on_battery=on_battery)
         for filename, text in rendered.items():
             if filename in adapter.metadata_keys:
                 continue
@@ -322,23 +313,10 @@ def cmd_install(args, config) -> int:
     jobstore.write_job(jobs_file, job)
 
     _report_installed(
-        adapter, job, interval_s, exec_argv_for(name), on_battery, why, written,
+        adapter, job, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
         lambda interval_str: (f"{style.ok()} Installed job {name!r} on "
                               f"{adapter.id}, every {interval_str}."))
     return 0
-
-
-def executable_missing(exec_argv):
-    """The interpreter path in ``exec_argv`` if it no longer exists, else None.
-
-    A unit that references a deleted venv fails on every fire, forever, and
-    nothing surfaces it: systemd logs a start failure the user never reads.
-    Resolving the actual file is the check; the string being present is not.
-    """
-    if not exec_argv:
-        return None
-    candidate = str(exec_argv[0])
-    return None if os.path.exists(candidate) else candidate
 
 
 def cmd_status(args, config) -> int:
@@ -402,7 +380,7 @@ def cmd_status(args, config) -> int:
         # ``Persistent=true`` and does replay one.
         adapter_id, catches_up = job.platform or "unknown", None
         try:
-            adapter = _adapter_for(args, job)
+            adapter = adapters._adapter_for(args, job)
         except Exception as e:  # noqa: BLE001 - a broken adapter must not hide the record
             state = {"installed": False, "interval_s": None, "next_run": None,
                      "notes": [f"could not build the {job.platform} adapter: {e}"]}
@@ -428,7 +406,7 @@ def cmd_status(args, config) -> int:
         # back (systemd's ExecStart, cron's crontab line), and `None` means
         # the adapter could not tell, which must not read as "missing".
         exec_path = state.get("exec_path")
-        gone = executable_missing([exec_path]) if exec_path else None
+        gone = adapters.executable_missing([exec_path]) if exec_path else None
         if gone:
             notes.append(f"The interpreter this job runs ({gone}) has moved or been "
                          f"deleted, so every run fails silently. Re-run "
@@ -661,8 +639,8 @@ def cmd_reset(args, config) -> int:
     interval_s, why = resolve_interval(config, "auto")
     on_battery = config.get("schedule_on_battery", "skip")
     try:
-        adapter = _adapter_for(args, updated)
-        written = adapter.install(updated, interval_s, exec_argv_for(name),
+        adapter = adapters._adapter_for(args, updated)
+        written = adapter.install(updated, interval_s, adapters.exec_argv_for(name),
                                   on_battery=on_battery)
     except (base.NoAdapter, OSError) as e:
         log(style.fail(f"Could not rewrite the {updated.platform} unit: {e}"))
@@ -676,7 +654,7 @@ def cmd_reset(args, config) -> int:
     jobstore.write_job(jobs_file, updated)
 
     _report_installed(
-        adapter, updated, interval_s, exec_argv_for(name), on_battery, why, written,
+        adapter, updated, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
         lambda interval_str: f"{style.ok()} Reset job {name!r} to auto, every {interval_str}.")
     return 0
 
@@ -805,7 +783,7 @@ def cmd_interval(args, config) -> int:
     jobs_file = jobstore.jobs_path(config)
     existing = jobstore.read_jobs(jobs_file).get(name)
     try:
-        adapter = _adapter_for(args, existing)
+        adapter = adapters._adapter_for(args, existing)
         interval_s, why = resolve_interval(config, setting)
     except (base.NoAdapter, ValueError) as e:
         log(style.fail(str(e)))
@@ -815,7 +793,7 @@ def cmd_interval(args, config) -> int:
                            created=existing.created if existing else None)
     on_battery = config.get("schedule_on_battery", "skip")
     try:
-        written = adapter.install(job, interval_s, exec_argv_for(name),
+        written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
                                   on_battery=on_battery)
     except OSError as e:
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
@@ -825,7 +803,7 @@ def cmd_interval(args, config) -> int:
     jobstore.write_job(jobs_file, job)
 
     _report_installed(
-        adapter, job, interval_s, exec_argv_for(name), on_battery, why, written,
+        adapter, job, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
         lambda interval_str: (f"{style.ok()} Job {name!r}: contextlake "
                               f"{' '.join(argv)}, every {interval_str} on "
                               f"{adapter.id}."))
