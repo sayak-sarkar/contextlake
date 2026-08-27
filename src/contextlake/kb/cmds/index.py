@@ -28,6 +28,23 @@ def _default_index_workers() -> int:
     return min(8, max(1, (os.cpu_count() or 2) - 1))
 
 
+# A per-repository memory-budget guard, cheap because it reads counts the shard
+# already carries -- no serialisation, no profiling. A separate investigation
+# (.superpowers/sdd/kb-index-memory-investigation.md) found one repository in a
+# real fleet that needed over 9.3 GB in a single worker and never finished; the
+# largest repository that DID finish held 156,105 nodes and 199,891 edges
+# (about 356,000 combined) for 769 MB of worker memory. This threshold sits
+# well above that known-good repository so ordinary large repos are never
+# skipped, and exists only to stop one pathological repository from taking the
+# whole run down -- it is a guard, not a fix, and does not make that
+# repository indexable.
+_SHARD_ITEM_BUDGET = 2_000_000
+
+
+def _over_budget(shard) -> bool:
+    return len(shard.nodes) + len(shard.edges) > _SHARD_ITEM_BUDGET
+
+
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
                      workers: int | None = None, repo_filter: str | None = None,
@@ -90,6 +107,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         return 1
     mode = "full" if force else "incremental"
     failed = skipped = 0
+    oversized: list[str] = []
     # Registered from the WALK, not from the store. _open_store registers whatever
     # the store already knows, which is empty on a first index -- exactly the run
     # that prints every repo id for the first time, and so exactly the run whose
@@ -145,6 +163,15 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, "
             f"{len(shard.edges)} edges", inline=True)
 
+    def _skip_oversized(repo_id, shard):
+        oversized.append(repo_id)
+        progress.advance(repo_id)
+        log(f"  {style.skip(repo_id)}: shard has {len(shard.nodes)} nodes, "
+            f"{len(shard.edges)} edges, over the {_SHARD_ITEM_BUDGET:,}-item "
+            "guard; skipped so this one repository cannot take the whole run "
+            "down. This is a guard, not a fix -- it does not make the "
+            "repository indexable.", inline=True)
+
     def _run_serial(items):
         nonlocal failed
         for repo_id, path, head in items:
@@ -154,6 +181,9 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                 failed += 1
                 log(f"  {style.fail(repo_id)}: {e}", inline=True)
+                continue
+            if _over_budget(shard):
+                _skip_oversized(repo_id, shard)
                 continue
             try:
                 _persist(repo_id, path, head, shard)
@@ -189,12 +219,26 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                     for repo_id, path, head in todo
                 }
                 for fut in as_completed(futs):
+                    # Release this entry as soon as we have recovered what it
+                    # mapped to. `as_completed` takes `fs = set(fs)` on entry
+                    # (concurrent.futures._base), so it already holds its own
+                    # snapshot of `futs`'s keys before this loop runs at all --
+                    # deleting from `futs` here cannot disturb its iteration.
+                    # Without this, `fut` (and the GraphShard `fut.result()`
+                    # returns) stays reachable through `futs` for the rest of
+                    # the run, which is the parent-side leak measured at 2,130
+                    # MB retained vs 95 MB released over the same 45-repo run
+                    # (.superpowers/sdd/kb-index-memory-investigation.md).
                     repo_id, path, head = futs[fut]
+                    del futs[fut]
                     try:
                         shard = fut.result()
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                         failed += 1
                         log(f"  {style.fail(repo_id)}: {e}", inline=True)
+                        continue
+                    if _over_budget(shard):
+                        _skip_oversized(repo_id, shard)
                         continue
                     try:
                         _persist(repo_id, path, head, shard)
@@ -231,10 +275,11 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     # above already decided; without this line it reaches the summary and
     # nothing else, which is why `schedule recommend` had no data.
     observability.note_repo_activity(len(repos), len(repos) - skipped)
-    glyph = style.ok() if (failed == 0 and not unusable) else style.warn()
+    glyph = style.ok() if (failed == 0 and not unusable and not oversized) else style.warn()
     log(f"{glyph} Workspace indexed: {len(repos)} repos, {ws_nodes} nodes, "
         f"{ws_edges} edges ({skipped} unchanged, {failed} failed"
-        + (f", {len(unusable)} unreadable" if unusable else "") + ")")
+        + (f", {len(unusable)} unreadable" if unusable else "")
+        + (f", {len(oversized)} over budget" if oversized else "") + ")")
     if failed:
         log("  See the log above for which repos failed. Re-run to retry -- "
             "indexing is incremental, so only the unindexed/changed repos run again.")
@@ -245,9 +290,18 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             f"NOT indexed: {', '.join(sorted(unusable)[:8])}"
             + (" ..." if len(unusable) > 8 else "")
             + ". Re-clone or remove them; re-running the index cannot help.")
+    if oversized:
+        # Named separately from "failed", the same way "unreadable" is: this repair is
+        # neither a retry (the guard will trip again on the same shard) nor a re-clone
+        # (the repository is readable, its graph is just too large to persist safely).
+        log(f"  {len(oversized)} repo(s) exceeded the memory-budget guard and were NOT "
+            f"indexed: {', '.join(sorted(oversized)[:8])}"
+            + (" ..." if len(oversized) > 8 else "")
+            + ". Re-running the index will hit the same guard; this is a size limit, "
+            "not a transient failure.")
     # A repo the graph is missing is a graph an agent will cite from that is not the one you
     # asked for, which is the same verdict `kb connect` gives for a skipped source.
-    return 0 if (failed == 0 and not unusable) else 1
+    return 0 if (failed == 0 and not unusable and not oversized) else 1
 
 
 def _nested_repo_dirs(src: Path) -> list[Path]:

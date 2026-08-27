@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A memory-budget guard on `kb index`.** One repository in a real fleet
+  needed more than 9.3 GB in a single worker and never finished; no worker
+  count survives a repository that size. A repository whose parsed shard
+  exceeds 2,000,000 combined nodes and edges (well above the largest
+  repository known to index successfully, at roughly 356,000) is now skipped
+  with a named, explicit log line instead of being persisted, and the run
+  continues with the rest. This is a guard, not a fix: it stops one
+  pathological repository from taking a whole run down, it does not make that
+  repository indexable, and the exit code reflects that the run was not fully
+  clean.
+
 - **`--workers N` on `kb index` and `bootstrap`.** Caps how many repositories the
   index stage parses in parallel. `_index_workspace` already accepted and honoured
   a `workers` value, but nothing wired a flag to it, so the default (one fewer than
@@ -17,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fleet or a small machine.
 
 ### Fixed
+
+- **`kb index`'s parallel path leaked every completed repository's parsed graph
+  for the whole run.** The worker pool's `futs` dict was keyed by `Future`, and
+  `fut.result()` does not clear a future's cached result, so a completed
+  repository's `GraphShard` stayed reachable through `futs` until the pool's
+  `with` block exited. Measured by A/B on the same 45 repositories at the same
+  worker count: 2,130 MB retained versus 95 MB released, 22x apart on
+  identical work, growing with repos indexed rather than with worker count.
+  Each future's dict entry is now dropped once its `(repo_id, path, head)` is
+  read off it, both on the fast path and the serial fallback after a broken
+  pool.
 
 - **A timed-out scheduled run orphaned its worker pool.** `contextlake schedule run`
   spawned its child with `subprocess.run(..., timeout=...)`, which on a timeout kills
