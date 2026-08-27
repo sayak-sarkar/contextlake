@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from contextlake.schedule import cmds, gates, history, jobs
+from contextlake.schedule import cmds, gates, history, jobs, recommend
 
 
 def _config(tmp_path, **kw):
@@ -294,15 +294,21 @@ def test_foreground_loops_and_sleeps_the_recommended_interval(tmp_path, monkeypa
     """Gate forced open: found during defect-3 verification passing vacuously
     on battery, sleeping on the gate-retry path instead of the recommended
     interval this test names. Same class as the four tests named in the task,
-    fixed the same way."""
+    fixed the same way.
+
+    Asserts the exact sleep values, not just their count and sign: both the
+    cold-start interval (recommend.COLD_START_S) and the gate-retry path
+    (schedule_gate_retry, 600.0 by default) satisfy "3 positive sleeps", so
+    a regression that routes this test back onto gate-retry would still
+    pass a count-and-sign check. Pinning the value to the recommender's own
+    constant, not a hardcoded number, is what catches that regression."""
     monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
     _install_job(tmp_path)
     monkeypatch.setattr(cmds, "_spawn", lambda *a, **k: 0)
     slept = []
     monkeypatch.setattr(cmds.time, "sleep", lambda s: slept.append(s))
     cmds.cmd_run(_args(foreground=True), _config(tmp_path), _max_iterations=3)
-    assert len(slept) == 3
-    assert all(s > 0 for s in slept)
+    assert slept == [recommend.COLD_START_S] * 3
 
 
 def test_foreground_backs_off_after_consecutive_failures(tmp_path, monkeypatch):
