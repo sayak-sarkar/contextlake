@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`schedule list --json` output is now an object, not a bare mapping of jobs.**
+  Jobs move under a `jobs` key, alongside `orphaned_units` and
+  `unchecked_platforms`. The previous shape had no room for the new fields
+  without a job named `orphaned_units` colliding with them. A script reading the
+  old output needs `.jobs`.
+
 ### Added
+
+- **`schedule list` reports units whose job record is gone.** `state()` can only
+  answer "is job X installed?", which can only be asked about a job that still
+  has a record. The reverse had no reader: delete a record and its unit keeps
+  firing on schedule, is absent from `list`, and `uninstall` cannot reach it,
+  because it resolves a job name through the record that is gone. Adapters gain
+  `installed_names()`, implemented by reading the unit directory for systemd and
+  the marked crontab blocks for cron. `list` names each orphan and its platform,
+  and says how to remove it. It also names any platform it could not enumerate:
+  skipping a platform and finding nothing on it both produce an empty result, so
+  reporting only the empty one would let "never looked" read as "checked, clean".
+
 
 - **`schedule recommend` says when the activity bound was never measured.** The
   freshness half of the interval formula needs a count of how many repositories

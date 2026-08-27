@@ -167,6 +167,26 @@ class SystemdAdapter(Adapter):
             _systemctl("reset-failed")
         return removed
 
+    def installed_names(self):
+        """Read from the unit directory, not from systemctl.
+
+        A timer file is what survives a deleted job record, and it is there
+        whether or not the unit is currently loaded or the user has a session.
+        Returns ``None`` when the directory cannot be read at all, which is
+        "cannot tell" rather than "nothing installed"; a directory that does
+        not exist yet IS a measurement, and its answer is none.
+        """
+        directory = unit_dir()
+        if not os.path.isdir(directory):
+            return []
+        try:
+            entries = os.listdir(directory)
+        except OSError:
+            return None
+        prefix, suffix = "contextlake-", ".timer"
+        return sorted(e[len(prefix):-len(suffix)] for e in entries
+                      if e.startswith(prefix) and e.endswith(suffix))
+
     def state(self, job) -> dict:
         timer = self.timer_unit(job)
         service = unit_name(job.name) + ".service"

@@ -14,6 +14,7 @@ lines and ordering.
 """
 from __future__ import annotations
 
+import re
 import shlex
 import shutil
 import subprocess
@@ -209,6 +210,22 @@ class CronAdapter(Adapter):
             return []
         _write_crontab(after)
         return ["crontab"]
+
+    def installed_names(self):
+        """Every marked block in the crontab, by job name.
+
+        Parses the same BEGIN marker `splice` writes, so the two cannot drift
+        apart on the naming. Lines outside a marked block belong to the user
+        and are never reported.
+        """
+        try:
+            text = _read_crontab()
+        except OSError:
+            return None
+        if text is None:
+            return None
+        pattern = re.escape(BEGIN).replace(re.escape("{name}"), r"(?P<name>.+?)")
+        return sorted(m.group("name") for m in re.finditer(pattern, text))
 
     def state(self, job) -> dict:
         name = check_name(job.name)

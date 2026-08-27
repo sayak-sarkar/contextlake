@@ -174,27 +174,100 @@ def cmd_recommend(args, config) -> int:
     return 0
 
 
+def orphaned_units(known_names):
+    """``([(platform, job_name), ...], [unchecked_platform, ...])``.
+
+    ``state()`` can only answer "is job X installed?", so it can only be asked
+    about jobs that still HAVE a record. The reverse has no reader: delete a
+    record and its unit keeps firing on schedule, invisible to `list` and
+    unreachable by `uninstall`, which resolves a name through the record.
+
+    Adapters that return ``None`` cannot enumerate and are skipped, rather
+    than being read as "no orphans here". Every usable adapter is asked, not
+    just the detected one: a unit installed under systemd stays a unit after
+    the machine stops offering systemd, and that is when it is most likely to
+    be forgotten.
+    """
+    from .platform import base
+
+    found, unchecked = [], []
+    for name in base.available():
+        try:
+            installed = base.get(name).installed_names()
+        except Exception as e:  # noqa: BLE001 - a broken probe must not break `list`
+            # Said out loud rather than swallowed: a probe that raises means
+            # orphans on this platform were NOT checked, and silence there
+            # reads as "none found".
+            log(f"  Could not check {name} for orphaned units: {e}")
+            unchecked.append(name)
+            continue
+        if installed is None:
+            # Returned separately, not folded into an empty result. Skipping a
+            # platform and finding nothing on it produce the same empty list,
+            # so a caller given only the list cannot tell "checked, clean" from
+            # "never looked" -- which is the exact defect this feature exists
+            # to remove, one level up.
+            unchecked.append(name)
+            continue
+        found.extend((name, unit) for unit in installed if unit not in known_names)
+    return sorted(found), sorted(unchecked)
+
+
 def cmd_list(args, config) -> int:
     """Every job this tool installed. Reads only."""
     from . import jobs as jobstore
 
     path = jobstore.jobs_path(config)
     mapping = jobstore.read_jobs(path)
+    orphans, unchecked = orphaned_units(set(mapping))
     if getattr(args, "json", False):
-        print(jsonlib.dumps({name: job._asdict() for name, job in sorted(mapping.items())},
-                            indent=2, sort_keys=True))
+        print(jsonlib.dumps({
+            "jobs": {name: job._asdict() for name, job in sorted(mapping.items())},
+            "orphaned_units": [{"platform": p, "name": n} for p, n in orphans],
+            # Named, so a consumer can tell an empty orphan list that was
+            # measured from one that nothing could measure.
+            "unchecked_platforms": unchecked,
+        }, indent=2, sort_keys=True))
         return 0
-    if not mapping:
+    if not mapping and not orphans and not unchecked:
         print("No scheduled jobs. Create one with `contextlake schedule install`.")
         return 0
-    width = max(3, max(len(name) for name in mapping))
-    print(f"{'JOB'.ljust(width)}  INTERVAL  ADAPTER   LAST RUN              COMMAND")
-    for name, job in sorted(mapping.items()):
-        last = job.last_run or "never"
-        mark = "" if job.last_exit in (0, None) else f" (exit {job.last_exit})"
-        print(f"{name.ljust(width)}  {job.interval:<8}  {job.platform:<8}  "
-              f"{last:<20}  contextlake {' '.join(job.argv)}{mark}")
+    # Guarded: the early return above now also requires no orphans, so this
+    # is reachable with an empty mapping, and `max()` over one raises.
+    if mapping:
+        width = max(3, max(len(name) for name in mapping))
+        print(f"{'JOB'.ljust(width)}  INTERVAL  ADAPTER   LAST RUN              COMMAND")
+        for name, job in sorted(mapping.items()):
+            last = job.last_run or "never"
+            mark = "" if job.last_exit in (0, None) else f" (exit {job.last_exit})"
+            print(f"{name.ljust(width)}  {job.interval:<8}  {job.platform:<8}  "
+                  f"{last:<20}  contextlake {' '.join(job.argv)}{mark}")
+    else:
+        print("No scheduled jobs.")
+    _print_orphans(orphans, unchecked)
     return 0
+
+
+def _print_orphans(orphans, unchecked) -> None:
+    """Name each unit and say how to remove it. A count alone would tell the
+    reader something is wrong without telling them which thing."""
+    if unchecked:
+        print(f"\n  Not checked for orphaned units: {', '.join(unchecked)}. "
+              "This platform cannot list what")
+        print("  it has installed, so a unit there with no job record would "
+              "not be reported here.")
+    if not orphans:
+        return
+    print("\n  Installed units with no job record. These still run on schedule "
+          "and `uninstall` cannot")
+    print("  reach them, because it resolves a job name through the record "
+          "that is gone:")
+    for platform_name, unit in orphans:
+        print(f"    {platform_name}: {unit}")
+    print("  Remove one by recreating its record and uninstalling "
+          "(`contextlake schedule --job NAME install`,")
+    print("  then `contextlake schedule --job NAME uninstall`), or delete "
+          "the unit on the platform.")
 
 
 def _adapter_for(args, job=None):

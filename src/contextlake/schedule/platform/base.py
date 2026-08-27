@@ -106,6 +106,23 @@ class Adapter:
         """
         raise NotImplementedError
 
+    def installed_names(self):
+        """Job names this platform currently has units for, or ``None``.
+
+        ``state()`` answers "is job X installed?", which can only be asked
+        about a job that still has a record. The reverse case has no reader:
+        a unit whose record was deleted keeps firing on schedule, is absent
+        from ``schedule list``, and cannot be removed by name because
+        ``uninstall`` looks the name up in the record it no longer has.
+
+        ``None`` means this adapter cannot enumerate, which is not the same
+        as an empty list. An empty list is a measurement saying nothing is
+        installed; ``None`` is the absence of one, and reporting "no orphans"
+        from it would be a claim nothing checked. Adapters that cannot
+        enumerate inherit this default.
+        """
+        return None
+
 
 def _registry():
     from . import cron, systemd
