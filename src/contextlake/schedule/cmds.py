@@ -97,11 +97,21 @@ def settings_from_config(config) -> dict:
     return settings
 
 
-def current_recommendation(config):
+def current_recommendation(config, job=None):
     """``(Recommendation, runs)`` for this workspace. The one place that pairs
     the stored history with the configured settings, so `recommend`, `status`,
-    `install` and `run` can never disagree about the number."""
+    `install` and `run` can never disagree about the number.
+
+    ``job`` scopes the history to one job's records. Pass it wherever a job is
+    in hand: durations differ per job, so an unscoped median mixes a two-minute
+    `kb index` with a forty-minute `bootstrap` and recommends an interval that
+    fits neither. Left as ``None`` the reading covers every job, which is what
+    `recommend` and `status` report, because they describe the schedule rather
+    than one job in it.
+    """
     runs = history.read_runs(history.history_path(config))
+    if job is not None:
+        runs = history.for_job(runs, job)
     return recommend.recommend(runs, settings_from_config(config)), runs
 
 
@@ -681,18 +691,21 @@ def cmd_reset(args, config) -> int:
     return 0
 
 
-def child_env(config, kind) -> dict:
+def child_env(config, kind, job_name=None) -> dict:
     """The environment a scheduled child runs in.
 
-    Two variables carry everything the child needs to record itself, so it does
-    not have to re-derive the history location from a config it may never load
-    (a `kb index` job never reads the mirror INI).
+    Three variables carry everything the child needs to record itself, so it
+    does not have to re-derive the history location from a config it may never
+    load (a `kb index` job never reads the mirror INI). The job name is what
+    lets one shared history file be read back per job.
     """
-    from ..cli import ENV_HISTORY, ENV_KIND
+    from ..cli import ENV_HISTORY, ENV_JOB, ENV_KIND
 
     env = dict(os.environ)
     env[ENV_HISTORY] = history.history_path(config)
     env[ENV_KIND] = kind
+    if job_name:
+        env[ENV_JOB] = job_name
     return env
 
 
@@ -904,7 +917,7 @@ def cmd_run(args, config, _max_iterations=None) -> int:
         if gated is GATED:
             delay = _duration_or(config, "schedule_gate_retry", 600.0)
         else:
-            rec, _ = current_recommendation(config)
+            rec, _ = current_recommendation(config, job.name)
             delay = recommend.backoff_interval(
                 rec.interval_s, job.failures, settings_from_config(config)["max_s"])
         log(f"Next run in {recommend.format_duration(delay)}.")
@@ -932,14 +945,17 @@ def _one_cycle(args, config, job, jobs_file, _return_gated=False):
         # would drag the median toward zero.
         return GATED if _return_gated else 0
 
-    runs = history.read_runs(history.history_path(config))
+    # Scoped to THIS job. Every job appends to one file, so unscoped reads let
+    # another job's full rebuild satisfy this job's schedule_full_every and
+    # postpone a rebuild this job never had.
+    runs = history.for_job(history.read_runs(history.history_path(config)), job.name)
     kind = decide_kind(runs, _duration_or(config, "schedule_full_every", 7 * 86400.0))
     argv = job.full_argv if kind == "full" else job.argv
 
     try:
         with runlock.RunLock(runlock.runlock_path(config), job.name):
             log(f"Running {kind} cycle: contextlake {' '.join(argv)}")
-            code = _spawn(argv, child_env(config, kind))
+            code = _spawn(argv, child_env(config, kind, job.name))
     except runlock.RunBusy as e:
         # Skip, never queue. A second writer is the corruption this prevents.
         log(f"Skipping this run: {e}")

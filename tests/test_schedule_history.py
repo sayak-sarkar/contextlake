@@ -153,3 +153,56 @@ def test_summarize_of_nothing_is_zero_not_a_crash():
 def test_history_path_lands_beside_the_project_cache(tmp_path):
     config = {"cache_dir": str(tmp_path), "cache_file": "projects.txt"}
     assert history.history_path(config) == str(tmp_path / "schedule-history.jsonl")
+
+
+# ---- per-job scoping -----------------------------------------------------
+#
+# Every job appends to ONE history file. Nothing in a record said which job
+# wrote it, so a second job's full rebuild satisfied the first job's
+# `schedule_full_every`, and every job's durations fed one median.
+
+def test_for_job_selects_only_that_jobs_records():
+    runs = [_rec(1, job="default"), _rec(2, job="nightly"), _rec(3, job="default")]
+    assert [r["ts"] for r in history.for_job(runs, "default")] == [
+        "2026-08-26T01:00:00Z", "2026-08-26T03:00:00Z"]
+    assert [r["ts"] for r in history.for_job(runs, "nightly")] == [
+        "2026-08-26T02:00:00Z"]
+
+
+def test_for_job_gives_untagged_records_to_the_default_job():
+    """Records written before the field existed carry no `job`. Dropping them
+    would discard every measurement an existing install has earned, which takes
+    days of real runs to replace. Only the default job could have written them.
+    """
+    runs = [_rec(1), _rec(2, job="nightly")]
+
+    from contextlake.schedule.jobs import DEFAULT_JOB
+
+    assert len(history.for_job(runs, DEFAULT_JOB)) == 1
+    assert history.for_job(runs, DEFAULT_JOB)[0]["ts"] == "2026-08-26T01:00:00Z"
+    # ...and they must NOT also be handed to a named job, or the untagged
+    # records would satisfy every job at once, which is the defect inverted.
+    assert [r["ts"] for r in history.for_job(runs, "nightly")] == ["2026-08-26T02:00:00Z"]
+
+
+def test_another_jobs_full_run_no_longer_suppresses_this_jobs_rebuild():
+    """The defect, stated as behaviour: `decide_kind` asks whether a successful
+    FULL run is older than `schedule_full_every`. Reading the shared file
+    unscoped, a rebuild that job B ran an hour ago answered that question for
+    job A, which had never run a full rebuild at all.
+    """
+    import time
+
+    from contextlake.schedule import cmds
+
+    now = time.time()
+    recent_full_by_another_job = [{
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600)),
+        "kind": "full", "duration_s": 300.0, "exit": 0, "job": "nightly"}]
+    week = 7 * 86400.0
+
+    # Unscoped, job A is told a full rebuild already happened.
+    assert cmds.decide_kind(recent_full_by_another_job, week, now=now) == "incremental"
+    # Scoped to job A, which has no full run of its own, it rebuilds.
+    assert cmds.decide_kind(
+        history.for_job(recent_full_by_another_job, "default"), week, now=now) == "full"

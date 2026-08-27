@@ -492,3 +492,80 @@ def test_the_timeout_path_completes_where_sigkill_does_not_exist(monkeypatch):
     # Both passes ran: the SIGTERM one and the SIGKILL one. If the call site
     # still read `signal.SIGKILL`, this raised AttributeError instead.
     assert len(killed) == 2, killed
+
+
+# ---- the job name has to reach the child ---------------------------------
+
+def test_child_env_carries_the_job_name_only_when_there_is_one(tmp_path):
+    from contextlake.cli import ENV_JOB
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
+    assert cmds.child_env(config, "full", "nightly")[ENV_JOB] == "nightly"
+    # A hand-run command has no job. Absent, not empty: history.for_job reads a
+    # missing key as the default job, and an empty string would match nothing.
+    assert ENV_JOB not in cmds.child_env(config, "full")
+
+
+def test_one_cycle_tells_the_child_which_job_it_is(tmp_path, monkeypatch):
+    """Without this the child writes an untagged record, every untagged record
+    is read back as the default job's, and a named job's history stays empty
+    forever while polluting the default job's median.
+    """
+    from contextlake.cli import ENV_JOB
+    from contextlake.schedule import gates
+    from contextlake.schedule import jobs as jobstore
+
+    seen = {}
+
+    def _capture(argv, env, timeout=None):
+        seen.update(env)
+        return 0
+
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    monkeypatch.setattr(cmds, "_spawn", _capture)
+    monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
+    jobs_file = jobstore.jobs_path(config)
+    job = jobstore.new_job("nightly", ["kb", "index"], "auto", "cron")
+    jobstore.write_job(jobs_file, job)
+
+    assert cmds._one_cycle(argparse.Namespace(job="nightly"), config, job, jobs_file) == 0
+    assert seen.get(ENV_JOB) == "nightly"
+
+
+def test_one_cycle_decides_the_kind_from_this_jobs_history_alone(tmp_path, monkeypatch):
+    """Tests the FILTER AT ITS CALL SITE, not just the helper.
+
+    Asserting on `for_job` composed with `decide_kind` by hand passes whether or
+    not `_one_cycle` actually uses the pair, which is where the defect lived.
+    This drives `_one_cycle` and reads which argv it chose: the full command or
+    the incremental one.
+    """
+    import time
+
+    from contextlake.schedule import gates
+    from contextlake.schedule import jobs as jobstore
+
+    chosen = []
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    monkeypatch.setattr(cmds, "_spawn", lambda argv, env, timeout=None: chosen.append(argv) or 0)
+    monkeypatch.setattr(cmds, "log", lambda *a, **k: None)
+
+    config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
+    # A successful FULL run an hour ago, belonging to a DIFFERENT job.
+    history.append_run(history.history_path(config), {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 3600)),
+        "kind": "full", "duration_s": 300.0, "exit": 0, "job": "nightly"})
+
+    jobs_file = jobstore.jobs_path(config)
+    job = jobstore.new_job(jobstore.DEFAULT_JOB, ["mirror", "sync"], "auto", "cron",
+                           full_argv=["mirror", "sync", "--full"])
+    jobstore.write_job(jobs_file, job)
+
+    cmds._one_cycle(argparse.Namespace(job=job.name), config, job, jobs_file)
+
+    assert chosen, "the cycle never spawned anything"
+    # This job has never run a full rebuild, so it must run one now. Unscoped,
+    # the other job's rebuild answered for it and this was the incremental argv.
+    assert chosen[0] == ["mirror", "sync", "--full"], chosen[0]

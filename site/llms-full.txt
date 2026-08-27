@@ -5013,6 +5013,12 @@ The command is validated before the job is written: it must parse, and if it nee
 extra and that extra is not installed here, `interval` warns rather than installing a job that
 fails on every run. A job named `schedule` itself is refused outright, because that would recurse.
 
+Every job appends to the same history file, and each record carries the job that wrote it.
+Reads are scoped to one job: a job's full-rebuild schedule and its measured duration come from
+its own runs only. Without that, a rebuild by one job satisfied `schedule_full_every` for all
+of them, and a two-minute `kb index` and a forty-minute `bootstrap` shared one median. Records
+written before the job name was recorded carry no job and count as the default job's.
+
 ## The interval formula
 
 ```
@@ -8124,6 +8130,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fleet or a small machine.
 
 ### Fixed
+
+- **Every scheduled job read every other job's run history.** All jobs append to
+  one history file and nothing in a record said which job wrote it. Two things
+  followed. `decide_kind` asks whether a successful full rebuild is older than
+  `schedule_full_every`, so a rebuild run by one job answered that question for
+  a job that had never run one and postponed its rebuild by a whole cycle. The
+  recommender's median run duration mixed every job's durations, so a
+  two-minute `kb index` and a forty-minute `bootstrap` produced one interval
+  that fitted neither. Records now carry the job name, passed to the child in
+  `CONTEXTLAKE_SCHEDULE_JOB`, and reads are scoped to one job. Records written
+  before this count as the default job's, which is the only job that could have
+  written them, so no existing install loses the measurements it has earned.
 
 - **`kb index`'s parallel path leaked every completed repository's parsed graph
   for the whole run.** The worker pool's `futs` dict was keyed by `Future`, and

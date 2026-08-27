@@ -74,6 +74,30 @@ def read_runs(path) -> list:
     return runs
 
 
+def for_job(runs, name):
+    """The records belonging to job ``name``.
+
+    Every job wrote into one shared file with nothing saying which job a record
+    came from, so a second job's full rebuild satisfied the first job's
+    ``schedule_full_every`` and both jobs' durations fed one median.
+
+    A record with no ``job`` key predates the field. Those are attributed to the
+    default job, which is the only job that could have written them: named jobs
+    arrived with `schedule interval`, and an install that has one has been
+    writing the key since. Attributing them to nothing instead would throw away
+    every measurement an existing install has earned, which takes days of real
+    runs to replace.
+    """
+    from .jobs import DEFAULT_JOB
+
+    out = []
+    for record in runs:
+        tag = record.get("job")
+        if tag == name or (tag is None and name == DEFAULT_JOB):
+            out.append(record)
+    return out
+
+
 def append_run(path, record) -> None:
     """Add one record and enforce the cap. Never raises."""
     try:

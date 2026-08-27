@@ -45,6 +45,7 @@ from .schedule import history as schedule_history
 # is measured even though the same command typed by hand is not.
 ENV_HISTORY = "CONTEXTLAKE_SCHEDULE_HISTORY"
 ENV_KIND = "CONTEXTLAKE_SCHEDULE_KIND"
+ENV_JOB = "CONTEXTLAKE_SCHEDULE_JOB"
 
 # Commands whose duration is a measurement of the work the scheduler schedules.
 # `fetch` and `status` are fast and say nothing about a sync's cost; `version`
@@ -2084,6 +2085,7 @@ class _RunMetrics:
         self.command = ""
         self.repos = None
         self.history_path = None
+        self.job = None
         self.kind = "incremental"
 
     def configure(self, path, command):
@@ -2095,7 +2097,7 @@ class _RunMetrics:
             return
         self.repos = {"ok": result.ok, "failed": result.failed, "skipped": result.skipped}
 
-    def track_history(self, path, kind="incremental"):
+    def track_history(self, path, kind="incremental", job=None):
         """Record this run in the scheduler's history when it finishes.
 
         Separate from ``configure``: that one is opt-in via ``--metrics-file``
@@ -2104,6 +2106,7 @@ class _RunMetrics:
         """
         self.history_path = path
         self.kind = kind if kind in ("incremental", "full") else "incremental"
+        self.job = job or None
 
     def write(self, exit_code):
         if self.path:
@@ -2130,6 +2133,10 @@ class _RunMetrics:
             record = {"ts": schedule_history.utc_now_iso(), "kind": self.kind,
                       "duration_s": round(time.monotonic() - self.started, 3),
                       "exit": exit_code}
+            # Which job produced this run. Absent for a hand-run command, which
+            # is what `history.for_job` reads as the default job.
+            if self.job:
+                record["job"] = self.job
             # Absent, never zero: a run that indexed nothing did not measure
             # "no repositories", and a 0 here would be read as a real datum.
             if total is not None:
@@ -2156,7 +2163,8 @@ def main(argv=None):
     # any point and the `finally` below is what writes the record.
     _env_history = os.environ.get(ENV_HISTORY, "").strip()
     if _env_history:
-        metrics.track_history(_env_history, os.environ.get(ENV_KIND, "incremental"))
+        metrics.track_history(_env_history, os.environ.get(ENV_KIND, "incremental"),
+                              os.environ.get(ENV_JOB, "").strip() or None)
     exit_code = 0
     try:
         return _run(argv, metrics)

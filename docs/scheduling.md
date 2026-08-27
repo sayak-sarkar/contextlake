@@ -148,6 +148,12 @@ The command is validated before the job is written: it must parse, and if it nee
 extra and that extra is not installed here, `interval` warns rather than installing a job that
 fails on every run. A job named `schedule` itself is refused outright, because that would recurse.
 
+Every job appends to the same history file, and each record carries the job that wrote it.
+Reads are scoped to one job: a job's full-rebuild schedule and its measured duration come from
+its own runs only. Without that, a rebuild by one job satisfied `schedule_full_every` for all
+of them, and a two-minute `kb index` and a forty-minute `bootstrap` shared one median. Records
+written before the job name was recorded carry no job and count as the default job's.
+
 ## The interval formula
 
 ```

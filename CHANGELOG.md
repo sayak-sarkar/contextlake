@@ -40,6 +40,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Every scheduled job read every other job's run history.** All jobs append to
+  one history file and nothing in a record said which job wrote it. Two things
+  followed. `decide_kind` asks whether a successful full rebuild is older than
+  `schedule_full_every`, so a rebuild run by one job answered that question for
+  a job that had never run one and postponed its rebuild by a whole cycle. The
+  recommender's median run duration mixed every job's durations, so a
+  two-minute `kb index` and a forty-minute `bootstrap` produced one interval
+  that fitted neither. Records now carry the job name, passed to the child in
+  `CONTEXTLAKE_SCHEDULE_JOB`, and reads are scoped to one job. Records written
+  before this count as the default job's, which is the only job that could have
+  written them, so no existing install loses the measurements it has earned.
+
 - **`kb index`'s parallel path leaked every completed repository's parsed graph
   for the whole run.** The worker pool's `futs` dict was keyed by `Future`, and
   `fut.result()` does not clear a future's cached result, so a completed
