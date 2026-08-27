@@ -389,6 +389,9 @@ def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
     monkeypatch.setattr(cron, "_write_crontab", lambda text: None)
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
               "schedule_on_battery": "skip"}
@@ -424,6 +427,9 @@ def test_the_degrade_path_prints_only_artefacts_never_metadata(
     monkeypatch.setattr(cls, "install", _refuse)
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
     args = argparse.Namespace(job=None, interval=None, platform=platform_name)
@@ -469,6 +475,9 @@ def test_cmd_install_does_not_duplicate_the_cannot_catch_up_note(tmp_path, monke
     monkeypatch.setattr(cron, "_write_crontab", lambda text: written.__setitem__("text", text))
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
               "schedule_on_battery": "skip"}

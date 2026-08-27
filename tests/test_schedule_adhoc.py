@@ -206,6 +206,9 @@ def test_cmd_interval_reports_the_interval_cron_installed_not_requested(tmp_path
     monkeypatch.setattr(cron, "_write_crontab", lambda text: None)
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
 
     rc = cmds.cmd_interval(_args(["70m", "run", "kb", "wiki"], platform="cron"),
                            _config(tmp_path))
@@ -226,6 +229,9 @@ def test_cmd_interval_reports_the_cannot_catch_up_note(tmp_path, monkeypatch):
                         lambda text: written.__setitem__("text", text))
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
 
     # A marker only state() can produce. Without it this test passed whether
     # the catch-up phrase came from state()'s notes or from _report_installed's

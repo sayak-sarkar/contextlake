@@ -153,6 +153,9 @@ def test_reset_survives_a_state_read_failure_after_a_successful_install(
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _StateRaisingAdapter())
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
     rc = cmds.cmd_reset(_args(), _config(tmp_path))
     out = "\n".join(lines)
     assert rc == 0
@@ -178,6 +181,9 @@ def test_reset_reports_the_interval_actually_installed_not_the_recommendation(
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _RoundingFakeAdapter())
     lines = []
     monkeypatch.setattr(cmds, "log", lines.append)
+    # adapters._report_installed logs from its OWN binding:
+    # `log` is imported by value, so one patch is not enough.
+    monkeypatch.setattr(adapters, "log", lines.append)
     cmds.cmd_reset(_args(), _config(tmp_path))
     out = "\n".join(lines)
     assert "every 1h" in out
