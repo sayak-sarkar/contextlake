@@ -145,6 +145,18 @@ def available() -> list:
     return [name for name, cls in sorted(_registry().items()) if cls().usable()]
 
 
+def registered() -> list:
+    """Every adapter name, usable here or not.
+
+    ``available()`` answers "what can this machine schedule with?" and is right
+    for install. This answers "what could have installed something?", which is
+    what orphan enumeration needs: a unit installed under systemd stays a unit
+    after the machine stops offering systemd, and ``available()`` would filter
+    out exactly that case.
+    """
+    return sorted(_registry())
+
+
 def detect() -> str:
     """The best adapter for this machine.
 

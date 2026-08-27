@@ -81,12 +81,17 @@ def for_job(runs, name):
     came from, so a second job's full rebuild satisfied the first job's
     ``schedule_full_every`` and both jobs' durations fed one median.
 
-    A record with no ``job`` key predates the field. Those are attributed to the
-    default job, which is the only job that could have written them: named jobs
-    arrived with `schedule interval`, and an install that has one has been
-    writing the key since. Attributing them to nothing instead would throw away
-    every measurement an existing install has earned, which takes days of real
-    runs to replace.
+    A record with no ``job`` key predates the field, and is attributed to the
+    default job.
+
+    That is a choice, not a deduction. `schedule interval` shipped in 8.8.0 and
+    every scheduled child records itself, so a NAMED job created on 8.8.0 has
+    been writing untagged records too, and this hands them to ``default``. The
+    consequence is bounded and self-healing: such a job starts with an empty
+    history, so it runs one extra full rebuild on its next cycle and tags every
+    record after that. The alternative, attributing untagged records to nothing,
+    would discard every measurement an existing install has earned, which takes
+    days of real runs to replace.
     """
     from .jobs import DEFAULT_JOB
 

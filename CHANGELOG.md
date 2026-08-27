@@ -69,8 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two-minute `kb index` and a forty-minute `bootstrap` produced one interval
   that fitted neither. Records now carry the job name, passed to the child in
   `CONTEXTLAKE_SCHEDULE_JOB`, and reads are scoped to one job. Records written
-  before this count as the default job's, which is the only job that could have
-  written them, so no existing install loses the measurements it has earned.
+  before this carry no job name and count as the default job's, so no existing
+  install loses the measurements it has earned. If you created a named job with
+  `schedule interval` on 8.8.0, its earlier records are reattributed to
+  `default`, so that job starts from an empty history and runs one extra full
+  rebuild on its next cycle. Every record it writes after that is tagged.
 
 - **`kb index`'s parallel path leaked every completed repository's parsed graph
   for the whole run.** The worker pool's `futs` dict was keyed by `Future`, and

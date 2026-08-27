@@ -70,7 +70,9 @@ def test_the_base_adapter_cannot_enumerate_and_says_so():
 # ---- the diff ------------------------------------------------------------
 
 def _only(monkeypatch, name, installed):
-    monkeypatch.setattr(base, "available", lambda: [name])
+    # Patches the REGISTRY, not available(): orphan enumeration deliberately
+    # asks every registered adapter, including ones this machine cannot use.
+    monkeypatch.setattr(base, "registered", lambda: [name])
     adapter = base.Adapter()
     adapter.installed_names = lambda: installed
     monkeypatch.setattr(base, "get", lambda _n: adapter)
@@ -109,7 +111,7 @@ def test_a_probe_that_raises_is_announced_rather_than_swallowed(monkeypatch):
     def _boom():
         raise OSError("crontab unreadable")
 
-    monkeypatch.setattr(base, "available", lambda: ["cron"])
+    monkeypatch.setattr(base, "registered", lambda: ["cron"])
     adapter = base.Adapter()
     adapter.installed_names = _boom
     monkeypatch.setattr(base, "get", lambda _n: adapter)
@@ -180,3 +182,17 @@ def test_schedule_list_says_which_platform_it_could_not_check(tmp_path, monkeypa
 
     assert "Not checked for orphaned units" in out
     assert "cron" in out
+
+
+def test_an_unusable_platform_is_still_checked_for_orphans(monkeypatch):
+    """The case filtering on usable() would have missed, and the one most worth
+    reporting: a unit installed under systemd stays a unit after the machine
+    stops offering systemd, and nothing would ever mention it again.
+    """
+    adapter = base.Adapter()
+    adapter.usable = lambda: False
+    adapter.installed_names = lambda: ["ghost"]
+    monkeypatch.setattr(base, "registered", lambda: ["systemd"])
+    monkeypatch.setattr(base, "get", lambda _n: adapter)
+
+    assert cmds.orphaned_units(set()) == ([("systemd", "ghost")], [])

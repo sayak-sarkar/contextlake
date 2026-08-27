@@ -183,15 +183,19 @@ def orphaned_units(known_names):
     unreachable by `uninstall`, which resolves a name through the record.
 
     Adapters that return ``None`` cannot enumerate and are skipped, rather
-    than being read as "no orphans here". Every usable adapter is asked, not
-    just the detected one: a unit installed under systemd stays a unit after
-    the machine stops offering systemd, and that is when it is most likely to
-    be forgotten.
+    than being read as "no orphans here".
+
+    Every REGISTERED adapter is asked, not only the usable ones. A unit
+    installed under systemd stays a unit after the machine stops offering
+    systemd, and that is when it is most likely to be forgotten, so filtering
+    on ``usable()`` would skip exactly the case worth reporting. Enumeration is
+    a read-only scan and does not need the platform to be working; an adapter
+    whose tool is missing raises, and lands in ``unchecked``.
     """
     from .platform import base
 
     found, unchecked = [], []
-    for name in base.available():
+    for name in base.registered():
         try:
             installed = base.get(name).installed_names()
         except Exception as e:  # noqa: BLE001 - a broken probe must not break `list`
