@@ -59,12 +59,38 @@ def _client() -> str | None:
     return None
 
 
-def _run(*argv):
+def _run(*argv, input=None):  # noqa: A002 - matches subprocess.run's own name
+    """Run the cluster client, optionally feeding it a manifest on stdin.
+
+    ``input`` is not decoration. ``apply -f -`` means READ FROM STDIN, so
+    without it kubectl is handed an empty stream and applies nothing while
+    still exiting 0 on some paths. An install that renders a correct manifest
+    and sends none of it is the silent-success case this package refuses to
+    ship.
+    """
     client = _client()
     if client is None:
         raise OSError("neither kubectl nor oc is on PATH")
     return subprocess.run([client, *argv], capture_output=True, text=True,
-                          errors="replace", check=False)
+                          errors="replace", check=False, input=input)
+
+
+def _container_args(exec_argv) -> list:
+    """The arguments the image should run, from the unit's exec argv.
+
+    ``exec_argv_for`` builds ``[<interpreter>, "-m", "contextlake", ...]``. The
+    interpreter is a path on the machine that ran install and means nothing
+    inside the image, so the container takes everything AFTER the package name.
+
+    Split on the literal ``contextlake`` rather than sniffing the first element
+    for "python": an interpreter can be named anything (``python3.12``, ``uv``,
+    a wrapper script, a bare venv path), and a heuristic that guesses wrong
+    silently produces a CronJob that cannot start.
+    """
+    args = [str(a) for a in exec_argv]
+    if "contextlake" in args:
+        return args[args.index("contextlake") + 1:]
+    return args
 
 
 def _yaml_list(items) -> str:
@@ -94,15 +120,7 @@ class K8sAdapter(Adapter):
                 f"a CronJob schedule is a cron expression, so this job runs every "
                 f"{format_duration(actual_s)} instead of "
                 f"{format_duration(interval_s)}.")
-        # The container runs the contextlake command directly. exec_argv's
-        # first element is the caller's interpreter path, which is meaningless
-        # inside the image, so only the arguments after it are carried over.
-        args = [str(a) for a in exec_argv]
-        if args and args[0] not in ("contextlake",):
-            args = [a for a in args if a != "-m"]
-            args = args[1:] if args and args[0].endswith(("python", "python3")) else args
-            if args and args[0] == "contextlake":
-                args = args[1:]
+        args = _container_args(exec_argv)
         manifest = f"""apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -165,7 +183,8 @@ spec:
 
     def install(self, job, interval_s, exec_argv, **options) -> list:
         rendered = self.render(job, interval_s, exec_argv, **options)
-        result = _run("apply", "-n", rendered["namespace"], "-f", "-")
+        result = _run("apply", "-n", rendered["namespace"], "-f", "-",
+                      input=rendered["cronjob.yaml"])
         if result.returncode != 0:
             raise OSError(
                 f"kubectl apply for {resource_name(rendered['name'])} failed: "
@@ -173,8 +192,16 @@ spec:
         return [f"cronjob/{resource_name(rendered['name'])}"]
 
     def uninstall(self, job) -> list:
+        """``[]`` when there was nothing to remove, matching every other adapter.
+
+        NOT ``--ignore-not-found``: that exits 0 whether or not anything
+        matched, so uninstall would report removing a CronJob that never
+        existed. systemd returns [] when no file was unlinked and cron returns
+        [] when the crontab text did not change; a non-zero exit here means
+        already gone, which is not an error and is not a removal either.
+        """
         name = resource_name(job.name)
-        result = _run("delete", "cronjob", name, "--ignore-not-found")
+        result = _run("delete", "cronjob", name)
         return [f"cronjob/{name}"] if result.returncode == 0 else []
 
     def installed_names(self):

@@ -92,6 +92,34 @@ def test_the_container_args_drop_the_callers_interpreter():
     assert not any("/venv" in a for a in args)
 
 
+def test_the_container_args_come_from_the_real_producer_not_one_fixture():
+    """Driven by `adapters.exec_argv_for`, the function that actually builds
+    the unit's argv, rather than only by this file's synthetic one. A helper
+    tested against a single hand-written shape passes while disagreeing with
+    the shape the product really produces.
+    """
+    from contextlake.schedule import adapters
+
+    real = adapters.exec_argv_for("nightly")
+    rendered = k8s.K8sAdapter().render(_job("nightly"), 3600, real)
+    doc = yaml.safe_load(rendered["cronjob.yaml"])
+    args = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]["args"]
+
+    assert args == ["schedule", "run", "--job", "nightly"], args
+    # No interpreter path and no -m survive into the image.
+    assert "-m" not in args
+    assert not any(a.endswith(("python", "python3")) or "/" in a for a in args)
+
+
+def test_the_container_args_do_not_sniff_the_interpreter_name():
+    """An interpreter can be named anything: python3.12, uv, a wrapper script,
+    a bare venv path. Splitting on the literal package name is what makes this
+    independent of that."""
+    for interpreter in ("/opt/uv", "/usr/bin/python3.12", "/x/my-wrapper"):
+        args = k8s._container_args([interpreter, "-m", "contextlake", "bootstrap"])
+        assert args == ["bootstrap"], (interpreter, args)
+
+
 def test_a_namespace_and_image_can_be_overridden():
     doc = _doc(namespace="contextlake-system", image="example.test/contextlake:1.2.3")
     assert doc["metadata"]["namespace"] == "contextlake-system"
@@ -128,23 +156,38 @@ def test_the_schedule_is_a_cron_expression_and_rounds_like_cron():
 
 # ---- apply and delete: assert the argv ----------------------------------
 
-def test_install_applies_the_manifest_to_the_named_namespace(monkeypatch):
+def test_install_sends_the_manifest_on_stdin_not_just_the_right_argv(monkeypatch):
+    """`apply -f -` means READ FROM STDIN. Without input= the client gets an
+    empty stream and applies nothing while the argv still looks correct, which
+    is why asserting the argv alone is not enough: that assertion passes on a
+    call that applies an empty document.
+    """
     calls = []
-    monkeypatch.setattr(k8s, "_run", lambda *a: calls.append(a) or _ok())
+    monkeypatch.setattr(k8s, "_run",
+                        lambda *a, **kw: calls.append((a, kw)) or _ok())
 
     written = k8s.K8sAdapter().install(_job(), 3600, _argv(), namespace="ns1")
 
     assert written == ["cronjob/contextlake-default"]
-    argv = list(calls[0])
+    argv, kwargs = calls[0]
     assert argv[0] == "apply"
-    assert argv[argv.index("-n") + 1] == "ns1"
+    assert list(argv)[list(argv).index("-n") + 1] == "ns1"
+    assert "-f" in argv and "-" in argv
+
+    # The manifest itself reaches the client, and it is the SAME document
+    # render produced rather than something rebuilt on the way.
+    sent = kwargs.get("input")
+    assert sent, "the manifest was never sent to the cluster client"
+    assert yaml.safe_load(sent)["kind"] == "CronJob"
+    assert sent == k8s.K8sAdapter().render(
+        _job(), 3600, _argv(), namespace="ns1")["cronjob.yaml"]
 
 
 def test_install_raises_when_the_cluster_refuses(monkeypatch):
     """A refused apply must not read as an installed schedule. cmd_install
     degrades on OSError by printing the manifest to apply by hand."""
     monkeypatch.setattr(k8s, "_run",
-                        lambda *a: _ok(returncode=1, stderr="forbidden"))
+                        lambda *a, **kw: _ok(returncode=1, stderr="forbidden"))
     with pytest.raises(OSError, match="forbidden"):
         k8s.K8sAdapter().install(_job(), 3600, _argv())
 
@@ -161,11 +204,22 @@ def test_install_degrades_when_no_client_is_on_path(monkeypatch):
     assert k8s.K8sAdapter().render(_job(), 3600, _argv())["cronjob.yaml"]
 
 
-def test_uninstall_deletes_the_cronjob_and_tolerates_a_missing_one(monkeypatch):
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok())
+def test_uninstall_reports_a_removal_only_when_something_was_removed(monkeypatch):
+    """Every other adapter returns [] when there was nothing to remove:
+    systemd when no file was unlinked, cron when the crontab text did not
+    change, Windows on a non-zero exit. k8s must match, which rules out
+    `--ignore-not-found`: that exits 0 whether or not anything matched, so
+    uninstall would claim to have removed a CronJob that never existed.
+    """
+    calls = []
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: calls.append(a) or _ok())
     assert k8s.K8sAdapter().uninstall(_job()) == ["cronjob/contextlake-default"]
+    assert "--ignore-not-found" not in calls[0], (
+        "--ignore-not-found makes a missing resource indistinguishable from a "
+        "removed one")
 
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok(returncode=1))
+    # Already gone: not an error, and not a removal either.
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(returncode=1))
     assert k8s.K8sAdapter().uninstall(_job()) == []
 
 
@@ -188,7 +242,7 @@ def test_installed_names_selects_by_label_not_by_name_prefix(monkeypatch):
     claim a CronJob somebody else happened to call contextlake-something."""
     seen = {}
 
-    def _query(*argv):
+    def _query(*argv, **kw):
         seen["argv"] = argv
         return _ok(stdout="default nightly\n")
 
@@ -203,16 +257,16 @@ def test_installed_names_is_none_when_there_is_no_client_or_the_query_fails(monk
     """None is "cannot tell", and cmd_list reports it as an unchecked platform
     rather than as a clean result. An empty cluster answer IS a measurement and
     stays an empty list."""
-    def _boom(*a):
+    def _boom(*a, **kw):
         raise OSError("neither kubectl nor oc is on PATH")
 
     monkeypatch.setattr(k8s, "_run", _boom)
     assert k8s.K8sAdapter().installed_names() is None
 
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok(returncode=1))
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(returncode=1))
     assert k8s.K8sAdapter().installed_names() is None
 
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok(stdout="  \n"))
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(stdout="  \n"))
     assert k8s.K8sAdapter().installed_names() == []
 
 
@@ -221,7 +275,7 @@ def test_state_does_not_report_the_last_run_as_the_next_one(monkeypatch):
     last one in next_run would be actively wrong, so next_run stays None and
     the fact goes in a note."""
     monkeypatch.setattr(k8s, "_run",
-                        lambda *a: _ok(stdout="0 * * * *|2026-08-28T00:00:00Z"))
+                        lambda *a, **kw: _ok(stdout="0 * * * *|2026-08-28T00:00:00Z"))
 
     state = k8s.K8sAdapter().state(_job())
 
@@ -236,14 +290,14 @@ def test_state_says_nothing_is_patched_in_the_cluster_on_its_own(monkeypatch):
     background would need cluster-write RBAC for the life of the schedule,
     which is more authority than the benefit is worth, so status says how an
     interval actually changes."""
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok(stdout="0 * * * *|"))
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(stdout="0 * * * *|"))
     notes = " ".join(k8s.K8sAdapter().state(_job())["notes"])
     assert "schedule install" in notes
     assert "nothing is patched" in notes
 
 
 def test_state_reports_not_installed_without_inventing_the_rest(monkeypatch):
-    monkeypatch.setattr(k8s, "_run", lambda *a: _ok(returncode=1))
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(returncode=1))
     state = k8s.K8sAdapter().state(_job())
     assert state["installed"] is False
     assert state["next_run"] is None
