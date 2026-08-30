@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Kubernetes adapter, covering OpenShift as well.** Renders a `CronJob` and
+  applies it with `kubectl`, falling back to `oc`. One adapter serves both,
+  because OpenShift is Kubernetes with a stricter default security context and
+  the manifest satisfies the stricter one: no `runAsUser`, since the restricted
+  SCC assigns an arbitrary UID and rejects a pinned one, plus `runAsNonRoot`,
+  a dropped capability set and an `fsGroup` so the mounted state directory stays
+  writable. `concurrencyPolicy: Forbid` gives single-writer semantics from the
+  cluster, so the second of two overlapping runs never starts. State mounts a
+  `PersistentVolumeClaim` rather than an `emptyDir`, because an ephemeral store
+  re-indexes the whole fleet every run. The schedule is a cron expression and
+  rounds through the same function the cron adapter uses. Nothing is patched in
+  the cluster on its own: changing an interval means re-running
+  `schedule install`, since a background rewrite would need cluster-write rights
+  for the life of the schedule. Reachable with `--platform k8s` and never
+  auto-detected: `kubectl` on a PATH does not mean a schedule belongs in that
+  cluster.
+
+
 - **A Windows adapter, so `contextlake schedule` works through Task Scheduler.**
   Creates a task with `schtasks /SC MINUTE /MO n` under a `\contextlake` folder.
   Two limits are reported rather than hidden. `/MO` counts whole minutes, so an

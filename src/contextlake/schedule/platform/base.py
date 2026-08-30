@@ -125,11 +125,12 @@ class Adapter:
 
 
 def _registry():
-    from . import cron, launchd, systemd, windows
+    from . import cron, k8s, launchd, systemd, windows
 
     return {"systemd": systemd.SystemdAdapter,
             "launchd": launchd.LaunchdAdapter,
             "windows": windows.WindowsAdapter,
+            "k8s": k8s.K8sAdapter,
             "cron": cron.CronAdapter}
 
 
@@ -173,6 +174,14 @@ def detect() -> str:
     ``usable()``, so launchd has to be asked first or every Mac would silently
     get the fallback. It also means this list is not the registry's order and
     must not be replaced by one.
+
+    **Cluster and cloud adapters are never auto-detected.** ``k8s`` answers
+    ``usable()`` whenever ``kubectl`` is on PATH, which is true on plenty of
+    workstations that are not themselves running in a cluster. Scheduling
+    someone's laptop job into whatever cluster their kubeconfig points at is
+    not a guess this is allowed to make. They are reachable through
+    ``--platform k8s`` and are registered, so `list` still reports orphans
+    there, but they are deliberately absent from this loop.
     """
     for name in ("systemd", "launchd", "windows", "cron"):
         try:

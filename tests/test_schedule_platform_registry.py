@@ -18,7 +18,7 @@ import subprocess
 import pytest
 
 from contextlake.schedule import jobs
-from contextlake.schedule.platform import base, cron, launchd, systemd, windows
+from contextlake.schedule.platform import base, cron, k8s, launchd, systemd, windows
 
 
 def _stub_cron_not_installed(monkeypatch, tmp_path):
@@ -96,11 +96,23 @@ def _stub_windows_installed(monkeypatch, tmp_path):
         stderr=""))
 
 
+def _stub_k8s_not_installed(monkeypatch, tmp_path):
+    """`kubectl get cronjob` exits non-zero when the resource is absent."""
+    monkeypatch.setattr(k8s, "_run",
+                        lambda *a: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+
+
+def _stub_k8s_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(k8s, "_run", lambda *a: subprocess.CompletedProcess(
+        a, 0, stdout="0 * * * *|2026-08-28T00:00:00Z", stderr=""))
+
+
 # One (not-installed, installed) stub pair per known adapter id. An adapter
 # name in `base._registry()` with no entry here fails the test below by
 # design: better a loud test failure than `state()` shelling out for real.
 _STUBS = {
     "cron": (_stub_cron_not_installed, _stub_cron_installed),
+    "k8s": (_stub_k8s_not_installed, _stub_k8s_installed),
     "launchd": (_stub_launchd_not_installed, _stub_launchd_installed),
     "systemd": (_stub_systemd_not_installed, _stub_systemd_installed),
     "windows": (_stub_windows_not_installed, _stub_windows_installed),
@@ -132,3 +144,25 @@ def test_state_returns_every_contract_key(name, installed, monkeypatch, tmp_path
     missing = [key for key in base.STATE_KEYS if key not in state]
     assert not missing, f"{name} state() (installed={installed}) is missing keys: {missing}"
     assert state["installed"] is installed
+
+
+def test_detect_never_picks_a_cluster_adapter_implicitly(monkeypatch):
+    """k8s answers usable() whenever kubectl is on PATH, which is true on
+    plenty of workstations that are not running in a cluster. Scheduling a
+    laptop job into whatever cluster the kubeconfig points at is not a guess
+    detect() is allowed to make.
+
+    Forces every machine-local adapter to refuse, so k8s is the ONLY usable
+    one. If detect() consulted the registry rather than its own list, it would
+    return "k8s" here instead of raising.
+    """
+    import pytest as _pytest
+
+    for mod in (systemd, cron, launchd, windows):
+        monkeypatch.setattr(mod, "shutil", type("S", (), {"which": staticmethod(lambda _c: None)}),
+                            raising=False)
+    monkeypatch.setattr(base, "get", lambda name: type(
+        "A", (), {"usable": staticmethod(lambda: name == "k8s")})())
+
+    with _pytest.raises(base.NoAdapter):
+        base.detect()
