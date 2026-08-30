@@ -5,7 +5,7 @@ import argparse
 
 import pytest
 
-from contextlake.schedule import adapters, cmds, jobs
+from contextlake.schedule import actions, adapters, adhoc, cmds, jobs
 
 
 def _config(tmp_path):
@@ -22,13 +22,13 @@ def _args(rest, **kw):
 # ---- parsing the spec ---------------------------------------------------
 
 def test_a_duration_and_a_command_are_split_at_run():
-    setting, argv = cmds.parse_interval_spec(["6h", "run", "kb", "wiki", "--force"])
+    setting, argv = adhoc.parse_interval_spec(["6h", "run", "kb", "wiki", "--force"])
     assert setting == "6h"
     assert argv == ["kb", "wiki", "--force"]
 
 
 def test_auto_is_a_valid_interval_and_opts_back_into_adjusting():
-    setting, argv = cmds.parse_interval_spec(["auto", "run", "mirror", "sync"])
+    setting, argv = adhoc.parse_interval_spec(["auto", "run", "mirror", "sync"])
     assert setting == "auto"
     assert argv == ["mirror", "sync"]
 
@@ -36,20 +36,20 @@ def test_auto_is_a_valid_interval_and_opts_back_into_adjusting():
 def test_a_double_dash_separator_is_accepted_and_dropped():
     """Defensive only. argparse strips the separator before parse_interval_spec
     sees the words, so this never fires through the CLI."""
-    _, argv = cmds.parse_interval_spec(["1h", "run", "--", "kb", "index", "--force"])
+    _, argv = adhoc.parse_interval_spec(["1h", "run", "--", "kb", "index", "--force"])
     assert argv == ["kb", "index", "--force"]
 
 
 def test_the_words_argparse_delivers_parse():
     """What the CLI hands over for `schedule interval 6h run -- kb wiki --force`:
     no separator, because argparse consumed it."""
-    setting, argv = cmds.parse_interval_spec(["6h", "run", "kb", "wiki", "--force"])
+    setting, argv = adhoc.parse_interval_spec(["6h", "run", "kb", "wiki", "--force"])
     assert setting == "6h"
     assert argv == ["kb", "wiki", "--force"]
 
 
 def test_the_captured_command_keeps_a_quoted_glob():
-    _, argv = cmds.parse_interval_spec(["2h", "run", "mirror", "sync", "--repos", "acme/*"])
+    _, argv = adhoc.parse_interval_spec(["2h", "run", "mirror", "sync", "--repos", "acme/*"])
     assert argv == ["mirror", "sync", "--repos", "acme/*"]
 
 
@@ -63,7 +63,7 @@ def test_the_captured_command_keeps_a_quoted_glob():
 ])
 def test_a_malformed_spec_fails_with_a_message_naming_the_problem(rest, fragment):
     with pytest.raises(ValueError) as excinfo:
-        cmds.parse_interval_spec(rest)
+        adhoc.parse_interval_spec(rest)
     assert fragment in str(excinfo.value).lower()
 
 
@@ -71,7 +71,7 @@ def test_a_shell_string_is_refused_rather_than_split():
     """A single argument containing a shell metacharacter is not a command
     line, it is somebody expecting a shell. These land in unit files."""
     with pytest.raises(ValueError) as excinfo:
-        cmds.parse_interval_spec(["1h", "run", "kb wiki && rm -rf /"])
+        adhoc.parse_interval_spec(["1h", "run", "kb wiki && rm -rf /"])
     assert "shell" in str(excinfo.value).lower()
 
 
@@ -79,41 +79,41 @@ def test_a_shell_string_is_refused_rather_than_split():
                                  "kb wiki > /etc/passwd", "kb\nwiki"])
 def test_every_shell_metacharacter_is_refused(bad):
     with pytest.raises(ValueError):
-        cmds.parse_interval_spec(["1h", "run", bad])
+        adhoc.parse_interval_spec(["1h", "run", bad])
 
 
 # ---- validation ---------------------------------------------------------
 
 def test_a_real_command_validates():
-    assert isinstance(cmds.validate_job_argv(["mirror", "sync"]), list)
+    assert isinstance(adhoc.validate_job_argv(["mirror", "sync"]), list)
 
 
 def test_a_real_command_with_its_own_flags_validates():
-    cmds.validate_job_argv(["kb", "index", "--workspace", "/tmp/x"])
+    adhoc.validate_job_argv(["kb", "index", "--workspace", "/tmp/x"])
 
 
 def test_a_typo_fails_when_it_is_typed_not_at_3am():
     """The `kb graph --serve` lesson: an example advertised for months that had
     never once been run."""
     with pytest.raises(ValueError):
-        cmds.validate_job_argv(["kb", "wikki"])
+        adhoc.validate_job_argv(["kb", "wikki"])
 
 
 def test_an_unknown_flag_fails_too():
     with pytest.raises(ValueError):
-        cmds.validate_job_argv(["mirror", "sync", "--no-such-flag"])
+        adhoc.validate_job_argv(["mirror", "sync", "--no-such-flag"])
 
 
 def test_a_flat_verb_that_needs_its_namespace_fails():
     """`sync` alone has not parsed at the root since the namespacing cutover."""
     with pytest.raises(ValueError):
-        cmds.validate_job_argv(["sync"])
+        adhoc.validate_job_argv(["sync"])
 
 
 def test_scheduling_schedule_itself_is_refused():
     """A job that runs `schedule run` would recurse forever."""
     with pytest.raises(ValueError) as excinfo:
-        cmds.validate_job_argv(["schedule", "run"])
+        adhoc.validate_job_argv(["schedule", "run"])
     assert "itself" in str(excinfo.value).lower()
 
 
@@ -130,12 +130,12 @@ def test_a_kb_job_on_a_core_only_install_warns_rather_than_passing_silently(monk
         return real_import(name, *a, **k)
 
     monkeypatch.setattr(builtins, "__import__", _no_kb)
-    warnings = cmds.validate_job_argv(["kb", "wiki"])
+    warnings = adhoc.validate_job_argv(["kb", "wiki"])
     assert any("extra" in w.lower() or "kb" in w.lower() for w in warnings)
 
 
 def test_a_mirror_job_never_warns_about_the_kb_extra():
-    assert cmds.validate_job_argv(["mirror", "sync"]) == []
+    assert adhoc.validate_job_argv(["mirror", "sync"]) == []
 
 
 # ---- the command --------------------------------------------------------
@@ -209,6 +209,7 @@ def test_cmd_interval_reports_the_interval_cron_installed_not_requested(tmp_path
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
 
     rc = cmds.cmd_interval(_args(["70m", "run", "kb", "wiki"], platform="cron"),
                            _config(tmp_path))
@@ -232,6 +233,7 @@ def test_cmd_interval_reports_the_cannot_catch_up_note(tmp_path, monkeypatch):
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
 
     # A marker only state() can produce. Without it this test passed whether
     # the catch-up phrase came from state()'s notes or from _report_installed's

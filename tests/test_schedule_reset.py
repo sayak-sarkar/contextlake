@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from contextlake.schedule import adapters, cmds, history, jobs
+from contextlake.schedule import actions, adapters, cmds, history, jobs
 
 
 def _config(tmp_path):
@@ -83,6 +83,57 @@ def test_reset_history_says_what_it_is_about_to_destroy(tmp_path, monkeypatch, c
     assert "day" in out.lower()
 
 
+def test_confirm_refuses_without_a_terminal_and_says_why(monkeypatch, capsys):
+    """The real `_confirm`, not a stub.
+
+    Every other test in this file patches _confirm away, so forcing it to
+    return True unconditionally failed NOTHING in the whole suite. That is the
+    guard on `--purge`, the flag that destroyed the real measurement store on
+    2026-08-27, so it needs a test that exercises it rather than replacing it.
+
+    Four behaviours, all asserted: --yes proceeds, a non-TTY refuses and says
+    why, a terminal answering yes proceeds, and a terminal answering anything
+    else refuses. The non-TTY case is the safety net: an unattended run has
+    nobody to ask, and guessing "proceed" there is how history nobody meant to
+    touch gets discarded.
+    """
+    import argparse
+
+    from contextlake.schedule import actions
+
+    # 1. --yes proceeds without consulting the terminal at all.
+    monkeypatch.setattr(actions.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda _p: (_ for _ in ()).throw(
+        AssertionError("--yes must not prompt")))
+    assert actions._confirm(argparse.Namespace(yes=True), "Discard?") is True
+
+    # 2. No terminal and no --yes: refuse, and say which it was.
+    monkeypatch.setattr(actions.sys.stdin, "isatty", lambda: False)
+    lines = []
+    monkeypatch.setattr(actions, "log", lines.append)
+    assert actions._confirm(argparse.Namespace(yes=False), "Discard?") is False
+    assert any("no terminal" in line for line in lines), lines
+    assert any("--yes" in line for line in lines), lines
+
+    # 3. A terminal answering yes proceeds.
+    monkeypatch.setattr(actions.sys.stdin, "isatty", lambda: True)
+    for answer in ("y", "Y", "yes", " YES "):
+        monkeypatch.setattr("builtins.input", lambda _p, a=answer: a)
+        assert actions._confirm(argparse.Namespace(yes=False), "Discard?") is True, answer
+
+    # 4. A terminal answering anything else refuses. Empty, "n", and a stray
+    #    word all mean no, and so does EOF: a closed stdin is not consent.
+    for answer in ("", "n", "no", "maybe"):
+        monkeypatch.setattr("builtins.input", lambda _p, a=answer: a)
+        assert actions._confirm(argparse.Namespace(yes=False), "Discard?") is False, answer
+
+    def _eof(_p):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", _eof)
+    assert actions._confirm(argparse.Namespace(yes=False), "Discard?") is False
+
+
 def test_reset_history_needs_confirmation_when_not_told_yes(tmp_path, monkeypatch):
     _pinned_job(tmp_path)
     path = _seed_history(tmp_path)
@@ -92,7 +143,7 @@ def test_reset_history_needs_confirmation_when_not_told_yes(tmp_path, monkeypatc
     # stub here raises a TypeError inside `_discard_history` instead of
     # standing in for a declined prompt, which would make this assertion
     # pass or fail for the wrong reason.
-    monkeypatch.setattr(cmds, "_confirm", lambda args, prompt: False)
+    monkeypatch.setattr(actions, "_confirm", lambda args, prompt: False)
     assert cmds.cmd_reset(_args(history=True, yes=False), _config(tmp_path)) == 1
     assert len(history.read_runs(path)) == 4
 
@@ -156,6 +207,7 @@ def test_reset_survives_a_state_read_failure_after_a_successful_install(
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
     rc = cmds.cmd_reset(_args(), _config(tmp_path))
     out = "\n".join(lines)
     assert rc == 0
@@ -184,6 +236,7 @@ def test_reset_reports_the_interval_actually_installed_not_the_recommendation(
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
     cmds.cmd_reset(_args(), _config(tmp_path))
     out = "\n".join(lines)
     assert "every 1h" in out

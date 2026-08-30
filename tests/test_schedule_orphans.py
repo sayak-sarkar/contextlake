@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import argparse
 
-from contextlake.schedule import cmds
 from contextlake.schedule import jobs as jobstore
+from contextlake.schedule import report
 from contextlake.schedule.platform import base, cron, systemd
 
 
@@ -80,12 +80,12 @@ def _only(monkeypatch, name, installed):
 
 def test_a_unit_with_no_job_record_is_reported(monkeypatch):
     _only(monkeypatch, "cron", ["default", "ghost"])
-    assert cmds.orphaned_units({"default"}) == ([("cron", "ghost")], [])
+    assert report.orphaned_units({"default"}) == ([("cron", "ghost")], [])
 
 
 def test_a_job_with_a_record_is_not_an_orphan(monkeypatch):
     _only(monkeypatch, "cron", ["default"])
-    assert cmds.orphaned_units({"default"}) == ([], [])
+    assert report.orphaned_units({"default"}) == ([], [])
 
 
 def test_an_adapter_that_cannot_enumerate_is_named_not_read_as_clean(monkeypatch):
@@ -98,11 +98,11 @@ def test_an_adapter_that_cannot_enumerate_is_named_not_read_as_clean(monkeypatch
     fail. The unchecked half is what makes the two distinguishable.
     """
     _only(monkeypatch, "cron", None)
-    assert cmds.orphaned_units(set()) == ([], ["cron"])
+    assert report.orphaned_units(set()) == ([], ["cron"])
     # The same adapter, having actually measured, reports and is not listed
     # as unchecked.
     _only(monkeypatch, "cron", ["ghost"])
-    assert cmds.orphaned_units(set()) == ([("cron", "ghost")], [])
+    assert report.orphaned_units(set()) == ([("cron", "ghost")], [])
 
 
 def test_a_probe_that_raises_is_announced_rather_than_swallowed(monkeypatch):
@@ -116,9 +116,9 @@ def test_a_probe_that_raises_is_announced_rather_than_swallowed(monkeypatch):
     adapter.installed_names = _boom
     monkeypatch.setattr(base, "get", lambda _n: adapter)
     lines = []
-    monkeypatch.setattr(cmds, "log", lines.append)
+    monkeypatch.setattr(report, "log", lines.append)
 
-    assert cmds.orphaned_units(set()) == ([], ["cron"])
+    assert report.orphaned_units(set()) == ([], ["cron"])
     assert any("orphaned units" in line for line in lines), lines
     assert any("crontab unreadable" in line for line in lines), lines
 
@@ -131,7 +131,7 @@ def test_schedule_list_names_the_orphan_and_how_to_remove_it(tmp_path, monkeypat
     jobstore.write_job(jobstore.jobs_path(config),
                        jobstore.new_job("default", ["bootstrap"], "auto", "cron"))
 
-    assert cmds.cmd_list(argparse.Namespace(json=False), config) == 0
+    assert report.cmd_list(argparse.Namespace(json=False), config) == 0
     out = capsys.readouterr().out
 
     assert "ghost" in out
@@ -146,7 +146,7 @@ def test_schedule_list_reports_an_orphan_even_with_no_jobs_left(tmp_path, monkey
     the "No scheduled jobs" early return and never looked at the platform."""
     _only(monkeypatch, "cron", ["ghost"])
 
-    assert cmds.cmd_list(argparse.Namespace(json=False), _config(tmp_path)) == 0
+    assert report.cmd_list(argparse.Namespace(json=False), _config(tmp_path)) == 0
     out = capsys.readouterr().out
 
     assert "ghost" in out
@@ -164,7 +164,7 @@ def test_schedule_list_json_carries_jobs_and_orphans(tmp_path, monkeypatch, caps
     jobstore.write_job(jobstore.jobs_path(config),
                        jobstore.new_job("default", ["bootstrap"], "auto", "cron"))
 
-    assert cmds.cmd_list(argparse.Namespace(json=True), config) == 0
+    assert report.cmd_list(argparse.Namespace(json=True), config) == 0
     payload = jsonlib.loads(capsys.readouterr().out)
 
     assert sorted(payload["jobs"]) == ["default"]
@@ -177,7 +177,7 @@ def test_schedule_list_says_which_platform_it_could_not_check(tmp_path, monkeypa
     clean-looking report stand for a platform that was never looked at."""
     _only(monkeypatch, "cron", None)
 
-    assert cmds.cmd_list(argparse.Namespace(json=False), _config(tmp_path)) == 0
+    assert report.cmd_list(argparse.Namespace(json=False), _config(tmp_path)) == 0
     out = capsys.readouterr().out
 
     assert "Not checked for orphaned units" in out
@@ -195,4 +195,4 @@ def test_an_unusable_platform_is_still_checked_for_orphans(monkeypatch):
     monkeypatch.setattr(base, "registered", lambda: ["systemd"])
     monkeypatch.setattr(base, "get", lambda _n: adapter)
 
-    assert cmds.orphaned_units(set()) == ([("systemd", "ghost")], [])
+    assert report.orphaned_units(set()) == ([("systemd", "ghost")], [])

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from contextlake.cli import build_parser
-from contextlake.schedule import adapters, cmds
+from contextlake.schedule import actions, adapters, cmds
 from contextlake.schedule.platform import base as platform_base
 
 
@@ -392,6 +392,7 @@ def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
               "schedule_on_battery": "skip"}
@@ -430,6 +431,7 @@ def test_the_degrade_path_prints_only_artefacts_never_metadata(
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
     args = argparse.Namespace(job=None, interval=None, platform=platform_name)
@@ -478,6 +480,7 @@ def test_cmd_install_does_not_duplicate_the_cannot_catch_up_note(tmp_path, monke
     # adapters._report_installed logs from its OWN binding:
     # `log` is imported by value, so one patch is not enough.
     monkeypatch.setattr(adapters, "log", lines.append)
+    monkeypatch.setattr(actions, "log", lines.append)
 
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt",
               "schedule_on_battery": "skip"}

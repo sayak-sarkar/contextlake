@@ -5,7 +5,7 @@ import argparse
 import json as jsonlib
 import sys
 
-from contextlake.schedule import adapters, cmds, history, jobs
+from contextlake.schedule import adapters, history, jobs, report
 
 
 def _config(tmp_path, **kw):
@@ -28,7 +28,7 @@ def _install_record(tmp_path, interval="auto", platform="systemd"):
 
 
 def test_no_schedule_says_so_and_says_how_to_make_one(tmp_path, capsys):
-    assert cmds.cmd_status(_args(), _config(tmp_path)) == 0
+    assert report.cmd_status(_args(), _config(tmp_path)) == 0
     out = capsys.readouterr().out
     assert "no schedule" in out.lower()
     assert "schedule install" in out
@@ -36,7 +36,7 @@ def test_no_schedule_says_so_and_says_how_to_make_one(tmp_path, capsys):
 
 def test_filter_on_a_name_with_no_jobs_at_all_says_no_schedule(tmp_path, capsys):
     # No jobs exist at all, filtered or not: the reinstall hint still applies.
-    assert cmds.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
+    assert report.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
     out = capsys.readouterr().out
     assert "no schedule" in out.lower()
     assert "schedule install" in out
@@ -46,7 +46,7 @@ def test_filter_on_a_name_that_does_not_match_names_the_real_jobs(tmp_path, caps
     # A job named "default" is installed and working; asking for "typo" must
     # not say "No schedule installed" and invite a reinstall over it.
     _install_record(tmp_path)
-    assert cmds.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
+    assert report.cmd_status(_args(job="typo"), _config(tmp_path)) == 0
     out = capsys.readouterr().out
     assert "no schedule" not in out.lower()
     assert "typo" in out
@@ -56,7 +56,7 @@ def test_filter_on_a_name_that_does_not_match_names_the_real_jobs(tmp_path, caps
 def test_a_record_with_no_unit_is_reported_as_a_disagreement(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=False))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out.lower()
     assert "not installed" in out or "disagree" in out
 
@@ -73,7 +73,7 @@ def test_a_missing_interpreter_in_the_installed_unit_is_reported(tmp_path, capsy
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(exec_path="/gone/venv/bin/python"))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" in capsys.readouterr().out
 
 
@@ -84,7 +84,7 @@ def test_a_present_interpreter_in_the_installed_unit_is_not_reported(tmp_path, c
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(exec_path=sys.executable))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" not in capsys.readouterr().out
 
 
@@ -93,7 +93,7 @@ def test_an_unknown_interpreter_is_not_reported_as_missing(tmp_path, capsys, mon
     not make status accuse a healthy install."""
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(exec_path=None))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "moved or been deleted" not in capsys.readouterr().out
 
 
@@ -112,7 +112,7 @@ def test_drift_beyond_the_threshold_is_reported(tmp_path, capsys, monkeypatch):
                                   "repos_total": 480, "repos_changed": 3})
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
-    cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
+    report.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
     out = capsys.readouterr().out.lower()
     assert "drift" in out or "ideal" in out
 
@@ -131,7 +131,7 @@ def test_drift_within_a_wider_threshold_is_not_reported(tmp_path, capsys, monkey
                                   "repos_total": 480, "repos_changed": 3})
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
-    cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="10"))
+    report.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="10"))
     assert "drift" not in capsys.readouterr().out.lower()
 
 
@@ -150,7 +150,7 @@ def test_no_drift_is_not_reported_as_drift(tmp_path, capsys, monkeypatch):
                                   "duration_s": 360.0, "exit": 0})
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(interval_s=3600.0))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "drift" not in capsys.readouterr().out.lower()
 
 
@@ -167,7 +167,7 @@ def test_cron_state_makes_the_on_disk_line_live(tmp_path, capsys, monkeypatch):
            + "0 * * * * /x/python -m contextlake schedule run --job default\n"
            + cron.END.format(name="default") + "\n")
     monkeypatch.setattr(cron, "_read_crontab", lambda: text)
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
     assert "70m" in out
     assert "on disk:   1h" in out
@@ -190,7 +190,7 @@ def test_cron_state_makes_drift_live_for_auto_jobs(tmp_path, capsys, monkeypatch
            + "0 * * * * /x/python -m contextlake schedule run --job default\n"
            + cron.END.format(name="default") + "\n")
     monkeypatch.setattr(cron, "_read_crontab", lambda: text)
-    cmds.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
+    report.cmd_status(_args(), _config(tmp_path, schedule_adjust_threshold="0.5"))
     out = capsys.readouterr().out.lower()
     assert "drift" in out or "ideal" in out
 
@@ -198,7 +198,7 @@ def test_cron_state_makes_drift_live_for_auto_jobs(tmp_path, capsys, monkeypatch
 def test_a_cold_start_interval_is_labelled_as_a_default(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "default" in capsys.readouterr().out.lower()
 
 
@@ -206,7 +206,7 @@ def test_an_adapter_that_cannot_catch_up_says_so(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path, platform="cron")
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(catches_up=False))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "asleep" in capsys.readouterr().out.lower()
 
 
@@ -221,7 +221,7 @@ def test_a_cannot_catch_up_note_from_the_adapter_is_not_duplicated(tmp_path, cap
             catches_up=False,
             notes=["cron does not replay a run missed while this machine "
                    "was asleep or off."]))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out.lower()
     assert out.count("does not replay a run missed") == 1
 
@@ -235,7 +235,7 @@ def test_a_broken_adapter_read_reports_the_record_without_a_false_catch_up_claim
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _BrokenStateAdapter())
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
     assert "default" in out
     assert "systemctl timed out" in out
@@ -251,7 +251,7 @@ def test_a_broken_adapter_build_reports_the_record_without_a_false_catch_up_clai
 
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", _boom)
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
     assert "default" in out
     assert "no scheduler found on this machine" in out
@@ -262,14 +262,14 @@ def test_adapter_notes_are_surfaced(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for",
                         lambda *a, **k: _FakeAdapter(notes=["Linger is off, so ..."]))
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     assert "linger" in capsys.readouterr().out.lower()
 
 
 def test_status_json_carries_every_field(tmp_path, monkeypatch, capsys):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    assert cmds.cmd_status(_args(json=True), _config(tmp_path)) == 0
+    assert report.cmd_status(_args(json=True), _config(tmp_path)) == 0
     payload = jsonlib.loads(capsys.readouterr().out)
     job = payload["jobs"][0]
     for key in ("name", "interval_setting", "effective_interval", "unit_installed",
@@ -288,7 +288,7 @@ def test_status_writes_nothing(tmp_path, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
     before = {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()}
-    cmds.cmd_status(_args(), _config(tmp_path))
+    report.cmd_status(_args(), _config(tmp_path))
     after = {p.name: p.stat().st_mtime_ns for p in tmp_path.iterdir()}
     assert before == after
 
@@ -297,8 +297,8 @@ def test_require_idle_on_but_undetectable_says_the_gate_is_inert(
         tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: None)
-    cmds.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
+    monkeypatch.setattr(report.gates, "user_is_idle", lambda: None)
+    report.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
     out = capsys.readouterr().out.lower()
     assert "inert" in out
 
@@ -306,8 +306,8 @@ def test_require_idle_on_but_undetectable_says_the_gate_is_inert(
 def test_require_idle_off_says_nothing_about_it(tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: None)
-    cmds.cmd_status(_args(), _config(tmp_path))
+    monkeypatch.setattr(report.gates, "user_is_idle", lambda: None)
+    report.cmd_status(_args(), _config(tmp_path))
     assert "inert" not in capsys.readouterr().out.lower()
 
 
@@ -315,8 +315,8 @@ def test_require_idle_on_and_detectable_says_nothing_about_being_inert(
         tmp_path, capsys, monkeypatch):
     _install_record(tmp_path)
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter())
-    monkeypatch.setattr(cmds.gates, "user_is_idle", lambda: True)
-    cmds.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
+    monkeypatch.setattr(report.gates, "user_is_idle", lambda: True)
+    report.cmd_status(_args(), _config(tmp_path, schedule_require_idle="true"))
     assert "inert" not in capsys.readouterr().out.lower()
 
 
