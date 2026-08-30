@@ -131,6 +131,43 @@ All of that is derived noise rather than real source, and **every skip is report
 are no silent gaps. To index them anyway, set `[kb] skip_generated = false` or raise
 `max_file_bytes`.
 
+### The per-repository memory budget
+
+`max_file_bytes` bounds one FILE. It cannot bound a repository that is wide rather than deep,
+and that distinction is not theoretical: one repository in a 660-repo fleet took a 15.4 GB
+machine down while its largest single file was 3.57 MB, comfortably under the 5 MB cap. The
+cap never fired once. What broke it was 1,432 XML files averaging 0.42 MB, adding up to
+671 MB.
+
+`[kb] max_repo_memory` bounds the whole repository, and is checked **before any file is
+read** rather than after a shard exists. It defaults to 3 GB. A repository whose estimate
+exceeds it is skipped with its name, its estimated cost, and the file kinds that dominate,
+and the rest of the run continues.
+
+The estimate weights each file kind by measured cost per byte, because they differ by a lot:
+
+| Kind | Peak memory per byte of source |
+| --- | --- |
+| code | 19.6x |
+| SQL | 5.0x |
+| XSD / XSL | 4.3x |
+| XML | 3.5x |
+
+Code is six times worse than markup, and the reason is edge count rather than node count: a
+sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is far
+more expensive than 400 MB of XML, and a budget in raw bytes would refuse the wrong ones.
+
+Two caveats worth knowing before you tune it:
+
+- **The estimate is linear and the real cost is not.** Cross-file reference resolution grows
+  with the number of symbols, so the estimate runs low on the largest repositories, which is
+  where it matters most. Treat it as a coarse guard, not a prediction. The shard-item guard
+  that runs after a shard is built is the second layer.
+- **This bounds one repository; a run's peak is this times the worker count.** On a smaller
+  machine, lower `max_repo_memory`, `index_workers`, or both.
+
+Set `max_repo_memory = 0` to disable the check.
+
 Discovery also skips **vendored nested repos**: an upstream clone carried inside the mirror,
 with its own `.git`, under a `module-federation` path segment. That is not your source, and
 indexing it would flood the global graph with upstream demo nodes. Each skip is logged.

@@ -14,8 +14,6 @@ preference.
 
 from __future__ import annotations
 
-import logging
-
 import pytest
 
 from contextlake.kb.config import load_kb_config
@@ -60,18 +58,17 @@ def test_the_setting_is_read(tmp_path, monkeypatch, written, expected):
     assert _cfg(tmp_path, monkeypatch, written).anonymize == expected
 
 
-def test_an_unreadable_value_fails_SAFE(tmp_path, monkeypatch, caplog):
+def test_an_unreadable_value_fails_SAFE(tmp_path, monkeypatch, gls_logs):
     """A typo resolves to "always", NOT to the "never" default.
 
     The inverse of how every other unknown value in this file is treated, and deliberate:
     this one guards identities, so a misspelling that quietly showed them would be found
     by the person whose name was on the screen rather than by a test.
     """
-    with caplog.at_level(logging.WARNING, logger="contextlake"):
-        cfg = _cfg(tmp_path, monkeypatch, '[kb]\nanonymize = "alway"\n')
+    cfg = _cfg(tmp_path, monkeypatch, '[kb]\nanonymize = "alway"\n')
     assert cfg.anonymize == "always"
-    assert caplog.text.strip(), "the capture saw nothing, so the assertion below is vacuous"
-    assert "alway" in caplog.text, (
+    assert gls_logs.text.strip(), "the capture saw nothing, so the assertion below is vacuous"
+    assert "alway" in gls_logs.text, (
         "the warning must quote the value's own spelling, or the reader cannot see the typo")
 
 
@@ -81,7 +78,7 @@ def test_a_directory_discovered_config_may_turn_it_ON(tmp_path, monkeypatch):
     assert cfg.anonymize == "always"
 
 
-def test_a_directory_discovered_config_may_NOT_turn_it_OFF(tmp_path, monkeypatch, caplog):
+def test_a_directory_discovered_config_may_NOT_turn_it_OFF(tmp_path, monkeypatch, gls_logs):
     """The trust boundary. Same bytes as a named config, different provenance.
 
     `load_kb_config` finds `.contextlake.kb.toml` by walking cwd upward, and contextlake
@@ -93,13 +90,12 @@ def test_a_directory_discovered_config_may_NOT_turn_it_OFF(tmp_path, monkeypatch
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     _write(tmp_path / "home" / ".contextlake" / "kb.toml",
            '[kb]\nanonymize = "always"\n')
-    with caplog.at_level(logging.WARNING, logger="contextlake"):
-        cfg = _cfg(tmp_path, monkeypatch, '[kb]\nanonymize = "never"\n', named=False)
+    cfg = _cfg(tmp_path, monkeypatch, '[kb]\nanonymize = "never"\n', named=False)
     assert cfg.anonymize == "always", (
         "a discovered config overrode the operator's own setting and turned "
         "anonymising off")
-    assert "anonymize" in caplog.text, "the refusal must be reported, never silent"
-    assert "never, but" not in caplog.text.lower()
+    assert "anonymize" in gls_logs.text, "the refusal must be reported, never silent"
+    assert "never, but" not in gls_logs.text.lower()
 
 
 def test_the_same_bytes_are_honoured_from_a_named_config(tmp_path, monkeypatch):

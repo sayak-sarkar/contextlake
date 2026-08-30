@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`[kb] max_repo_memory`, a per-repository memory budget checked before any file
+  is parsed.** `max_file_bytes` bounds one file and cannot bound a repository that
+  is wide rather than deep. The repository that took a 15.4 GB machine down had a
+  largest file of 3.57 MB against a 5 MB cap, so that cap never fired once, while
+  1,432 XML files averaging 0.42 MB added up to 671 MB. The new budget estimates a
+  repository's cost from a stat-only pass, weighting each file kind by measured
+  peak memory per byte (code 19.6x, SQL 5.0x, XSD 4.3x, XML 3.5x), and skips the
+  repository with its name and the dominant kinds if it would exceed the budget.
+  It defaults to 3 GB, taken from the fleet rather than chosen: across 660 real
+  repositories the median estimate is near zero and p99 is 1.69 GB, with three
+  outliers at 6.09, 6.76 and 7.35 GB. Set it to 0 to disable. The estimate is
+  linear while the real cost is not, so it runs low on the largest repositories;
+  it is a coarse guard, and the existing shard-item check remains the second layer.
+
+
 ## [8.9.0] - 2026-08-30
 
 ### Added

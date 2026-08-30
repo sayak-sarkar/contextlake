@@ -1368,6 +1368,63 @@ _PROC = "proc"
 _XML = "xml"
 
 
+#: Estimated peak RSS per byte of source, by extraction kind, MEASURED rather
+#: than guessed. Each figure comes from indexing a bounded sample of one kind in
+#: an isolated, RSS-monitored child on 2026-08-31
+#: (`.superpowers/sdd/kb-index-memory-investigation.md`):
+#:
+#:     code  19.6x   95.0 MB of C# -> 1,865 MB peak, 82k nodes / 467k edges
+#:     sql    5.0x   12.5 MB       ->    62 MB peak
+#:     xsd    4.3x   60.2 MB       ->   258 MB peak
+#:     xml    3.5x  201.1 MB       ->   704 MB peak
+#:
+#: Rounded UP, because a budget that under-estimates does not bound anything.
+#: Code is six times worse per byte than XML and the reason is edge count, not
+#: node count: a 5.7:1 edge-to-node ratio on a codebase with heavy name
+#: collision. Unmeasured kinds take the SQL figure rather than the code one, so
+#: an unmeasured kind cannot silently inherit the worst case and refuse a repo
+#: on a number nobody measured.
+KIND_COST = {
+    _CODE: 20.0,
+    _SQL: 5.0,
+    _PROC: 5.0,
+    _XSD: 5.0,
+    _XSL: 5.0,
+    _XML: 4.0,
+    _HCL: 5.0,
+    _ADR: 4.0,
+    _MANIFEST: 4.0,
+}
+
+#: The cost charged for a kind with no measured weight.
+DEFAULT_KIND_COST = 5.0
+
+
+class RepoTooLarge(Exception):
+    """A repository whose estimated peak memory exceeds the caller's budget.
+
+    Raised BEFORE any file is parsed. That timing is the whole point: the
+    existing guards cannot help here. ``max_file_bytes`` is per-FILE and never
+    fires on a repository that is wide rather than deep, and the shard-size
+    guard in ``kb/cmds/index.py`` checks node and edge counts AFTER the shard
+    is built, which is after the memory has already been spent.
+    """
+
+    def __init__(self, repo_id, estimate_bytes, budget_bytes, breakdown):
+        self.repo_id = repo_id
+        self.estimate_bytes = estimate_bytes
+        self.budget_bytes = budget_bytes
+        self.breakdown = breakdown
+        top = ", ".join(
+            f"{k} {v / 1048576:.0f} MB" for k, v in
+            sorted(breakdown.items(), key=lambda kv: -kv[1])[:3])
+        super().__init__(
+            f"{repo_id}: estimated {estimate_bytes / 1073741824:.1f} GB peak "
+            f"exceeds the {budget_bytes / 1073741824:.1f} GB per-repository "
+            f"budget ({top}). Raise kb.max_repo_memory to index it anyway, or "
+            f"narrow it with --languages.")
+
+
 @dataclass
 class WalkCounts:
     """Per-repo tallies reported in the one summary line ``index_repo_dir`` logs.
@@ -2927,18 +2984,87 @@ def _source_filter(languages: list[str] | None) -> tuple[set[str], set[str], boo
             not languages or "sql" in languages)
 
 
+def estimate_repo_cost(
+    root, *, allowed_exts: set[str], allowed_names: set[str], index_hcl: bool,
+    index_sql: bool, max_file_bytes: int,
+) -> tuple[float, dict]:
+    """``(estimated_peak_bytes, bytes_by_kind)`` for a repository, from stat alone.
+
+    A separate pass over the tree, deliberately. Accumulating the estimate
+    during the real walk would only notice the problem once part of the memory
+    was already committed, and the entire reason this exists is to answer
+    "can I afford this?" BEFORE the first file is parsed. The pass costs
+    ``os.stat`` per candidate and nothing else: 660 repositories measured in
+    about two minutes, against hours to parse them.
+
+    **The skip predicates are the walker's own**, reached through the same
+    ``_SKIP_DIRS``, ``_ignored`` and ``_file_kind`` that ``_walk_source_files``
+    uses, rather than reimplemented. Two paths that decide "is this file
+    indexed?" separately drift, and a divergence here would either refuse a
+    repository over files that are never read or wave through one that is.
+    ``tests/kb/test_repo_cost_estimate.py`` asserts the two agree on a tree
+    built to exercise every skip.
+
+    ``skip_generated`` is deliberately NOT applied: deciding it needs the file's
+    first bytes, which would turn a stat pass into a read pass. The estimate is
+    therefore an over-estimate on a generated-heavy tree, which is the safe
+    direction for a budget.
+    """
+    root = Path(root)
+    ignore = load_ignore_patterns(root)
+    by_kind: dict = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        relbase = os.path.relpath(dirpath, root)
+        relbase = "" if relbase == "." else relbase.replace(os.sep, "/")
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS
+                       and not _ignored(f"{relbase}/{d}".lstrip("/"), ignore)]
+        for fn in filenames:
+            fpath = Path(dirpath) / fn
+            rel = str(fpath.relative_to(root))
+            if _ignored(rel.replace(os.sep, "/"), ignore):
+                continue
+            ext = fpath.suffix.lower()
+            kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
+                              allowed_names=allowed_names,
+                              index_hcl=index_hcl, index_sql=index_sql)
+            if kind is None:
+                continue
+            try:
+                size = fpath.stat().st_size
+            except OSError:
+                continue
+            if kind == _CODE and size > max_file_bytes:
+                continue        # the real walk drops it, so it costs nothing
+            by_kind[kind] = by_kind.get(kind, 0) + size
+    estimate = sum(size * KIND_COST.get(kind, DEFAULT_KIND_COST)
+                   for kind, size in by_kind.items())
+    return estimate, by_kind
+
+
 def index_repo_dir(
     repo_path: str, repo_id: str, head_commit: str | None = None,
     languages: list[str] | None = None, *,
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES, skip_generated: bool = True,
+    max_repo_memory: int | None = None,
 ) -> GraphShard:
     """Walk a repository directory and parse every supported file into a shard.
 
     Generated/derived files (see ``_is_generated_name``/``_has_generated_header``)
     and code files larger than ``max_file_bytes`` are skipped — both reported, never
     silent — to keep legacy monorepos from exploding the graph and the index time.
+
+    ``max_repo_memory`` bounds the whole repository rather than any one file. When
+    the estimate exceeds it, ``RepoTooLarge`` is raised before the first file is
+    read. ``None`` disables the check, which is what every existing caller that
+    has not been taught about it gets.
     """
     allowed_exts, allowed_names, index_hcl, index_sql = _source_filter(languages)
+    if max_repo_memory is not None:
+        estimate, breakdown = estimate_repo_cost(
+            repo_path, allowed_exts=allowed_exts, allowed_names=allowed_names,
+            index_hcl=index_hcl, index_sql=index_sql, max_file_bytes=max_file_bytes)
+        if estimate > max_repo_memory:
+            raise RepoTooLarge(repo_id, estimate, max_repo_memory, breakdown)
     shard = GraphShard(repo=repo_id, head_commit=head_commit, parser_version=PARSER_VERSION)
     by_id: dict[str, Node] = {}
     refs = RefCollector()

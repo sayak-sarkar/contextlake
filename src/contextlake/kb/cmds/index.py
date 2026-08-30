@@ -48,10 +48,12 @@ def _over_budget(shard) -> bool:
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
                      workers: int | None = None, repo_filter: str | None = None,
-                     languages: list[str] | None = None) -> int:
+                     languages: list[str] | None = None,
+                     max_repo_memory: int | None = None) -> int:
     from ..parse import (  # lazy: tree-sitter
         DEFAULT_MAX_FILE_BYTES,
         PARSER_VERSION,
+        RepoTooLarge,
         discover_repos,
         index_repo_dir,
     )
@@ -172,12 +174,24 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             "down. This is a guard, not a fix -- it does not make the "
             "repository indexable.", inline=True)
 
+    def _skip_too_large(repo_id, exc):
+        """A refusal, NOT a failure. The blanket `except Exception` at each call
+        site would otherwise count this as one, and a deliberate skip reported
+        as a failure teaches the reader to ignore the failure count."""
+        oversized.append(repo_id)
+        progress.advance(repo_id)
+        log(f"  {style.skip(repo_id)}: {exc}", inline=True)
+
     def _run_serial(items):
         nonlocal failed
         for repo_id, path, head in items:
             try:
                 shard = index_repo_dir(path, repo_id, head_commit=head, languages=languages,
-                                       skip_generated=skip_generated, max_file_bytes=max_file_bytes)
+                                       skip_generated=skip_generated, max_file_bytes=max_file_bytes,
+                                       max_repo_memory=max_repo_memory)
+            except RepoTooLarge as e:
+                _skip_too_large(repo_id, e)
+                continue
             except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                 failed += 1
                 log(f"  {style.fail(repo_id)}: {e}", inline=True)
@@ -214,7 +228,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                     # 4th positional IS `languages`; it was hardcoded None here, which
                     # is half of why the config key did nothing.
                     ex.submit(index_repo_dir, path, repo_id, head, languages,
-                              max_file_bytes=max_file_bytes, skip_generated=skip_generated):
+                              max_file_bytes=max_file_bytes, skip_generated=skip_generated,
+                              max_repo_memory=max_repo_memory):
                         (repo_id, path, head)
                     for repo_id, path, head in todo
                 }
@@ -233,6 +248,9 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                     del futs[fut]
                     try:
                         shard = fut.result()
+                    except RepoTooLarge as e:
+                        _skip_too_large(repo_id, e)
+                        continue
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                         failed += 1
                         log(f"  {style.fail(repo_id)}: {e}", inline=True)
@@ -583,7 +601,9 @@ def _cmd_index_once(args) -> int:
     # `languages` was absent here, so `kb.toml`'s setting was validated, displayed in the
     # dashboard, documented as a filter -- and then never reached the parser.
     parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes,
-                      languages=cfg.languages)
+                      languages=cfg.languages,
+                      # 0 disables the check; anything else is a byte budget.
+                      max_repo_memory=cfg.max_repo_memory or None)
     # --workers overrides kb.toml's index_workers for this run; neither one set
     # falls through to _default_index_workers() inside _index_workspace.
     workers = _or_default(getattr(args, "workers", None), cfg.index_workers)

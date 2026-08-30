@@ -61,6 +61,21 @@ LOCAL_CONFIG = ".contextlake.kb.toml"
 # came through.
 DEFAULT_MAX_FILE_BYTES = 5_000_000
 
+#: Per-REPOSITORY estimated-memory budget, the companion to the per-FILE cap
+#: above. A per-file cap cannot bound a repository that is wide rather than
+#: deep: the tree that took a 15.4 GB machine down held 1,432 XML files whose
+#: LARGEST was 3.57 MB, so `max_file_bytes` never fired once while the aggregate
+#: reached 671 MB.
+#:
+#: 3 GB is taken from the fleet, not chosen: across 660 real repositories the
+#: median estimate is ~0, p95 is 0.35 GB and p99 is 1.69 GB, then three
+#: outliers sit at 6.09, 6.76 and 7.35 GB with a clear gap beneath them. 3 GB
+#: refuses exactly those three.
+#:
+#: This bounds ONE repository. Peak for a run is this times the worker count,
+#: so a smaller machine lowers this, `index_workers`, or both.
+DEFAULT_MAX_REPO_MEMORY = 3 * 1024 ** 3
+
 
 def default_store_dir() -> str:
     """The default knowledge-store location."""
@@ -187,6 +202,9 @@ class KbConfig(BaseModel):
     # logged, never silent. Set skip_generated=false / raise max_file_bytes to index them.
     skip_generated: bool = True
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
+    # Estimated peak memory one repository may cost before it is refused,
+    # checked BEFORE any file is parsed. 0 disables the check.
+    max_repo_memory: int = DEFAULT_MAX_REPO_MEMORY
     # Parallel workers for the per-repo parse (CPU-bound). None -> auto (cpu-1,
     # capped at 8). Set 1 to force serial.
     index_workers: int | None = None
@@ -325,6 +343,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         languages=kb.get("languages") or None,
         skip_generated=kb.get("skip_generated", True),
         max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
+        max_repo_memory=kb.get("max_repo_memory", DEFAULT_MAX_REPO_MEMORY),
         index_workers=kb.get("index_workers", None),
         anonymize=_anonymize_value(kb.get("anonymize")),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
