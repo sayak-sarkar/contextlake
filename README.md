@@ -41,7 +41,7 @@ each layer above it is optional.
 1. **Mirror.** Clone every repo you can reach into a local copy of its namespace tree. Works
    with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
    owner. Each repo lands on its most active branch. One command keeps them fresh, and
-   `contextlake schedule install` measures a run and installs a systemd timer or crontab
+   `contextlake schedule install` measures a run and installs a background job
    entry that does it on its own.
 
 2. **Knowledge layer** *(optional)*. Turn the mirror into a graph you can query.
@@ -338,7 +338,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
 - **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
 - **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
-- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed systemd timer or crontab entry
+- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
 - **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types

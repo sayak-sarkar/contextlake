@@ -266,12 +266,15 @@ does not mean a schedule belongs in whatever cluster your kubeconfig points at o
 account your credentials reach, so reach them with `--platform k8s|aws|azure`. They are still
 registered, so `schedule list` reports an orphan there like anywhere else.
 
-Only systemd and cron are verified by running them. The development machine is Linux, so the
-launchd and Windows adapters are verified by asserting what they render and the exact
-`launchctl`, `schtasks`, `kubectl`, `aws` and `az` arguments they would run, which is a real
-check and a weaker one than execution. The Kubernetes manifest is additionally parsed with a YAML loader,
-so a document that merely contains the right words but is malformed fails here rather than in
-a cluster.
+Two of the seven are verified by running them: systemd and cron. The development machine is
+Linux with no cluster and no cloud account, so the other five (launchd, Task Scheduler,
+Kubernetes, AWS, Azure) are verified by asserting what they render and the exact `launchctl`,
+`schtasks`, `kubectl`, `aws` and `az` arguments they would run. That is a real check and a
+weaker one than execution, and the difference is worth knowing before you rely on one.
+
+The rendered documents are parsed rather than string-matched: the Kubernetes manifest through
+a YAML loader, the AWS schedule through a JSON one. A document that contains the right words
+but is malformed fails here instead of in your cluster or account.
 
 | | systemd (user timer) | launchd (LaunchAgent) | Task Scheduler | cron |
 | --- | --- | --- | --- | --- |

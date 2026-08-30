@@ -53,7 +53,7 @@ each layer above it is optional.
 1. **Mirror.** Clone every repo you can reach into a local copy of its namespace tree. Works
    with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
    owner. Each repo lands on its most active branch. One command keeps them fresh, and
-   `contextlake schedule install` measures a run and installs a systemd timer or crontab
+   `contextlake schedule install` measures a run and installs a background job
    entry that does it on its own.
 
 2. **Knowledge layer** *(optional)*. Turn the mirror into a graph you can query.
@@ -350,7 +350,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
 - **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
 - **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
-- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed systemd timer or crontab entry
+- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
 - **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
@@ -5131,12 +5131,15 @@ does not mean a schedule belongs in whatever cluster your kubeconfig points at o
 account your credentials reach, so reach them with `--platform k8s|aws|azure`. They are still
 registered, so `schedule list` reports an orphan there like anywhere else.
 
-Only systemd and cron are verified by running them. The development machine is Linux, so the
-launchd and Windows adapters are verified by asserting what they render and the exact
-`launchctl`, `schtasks`, `kubectl`, `aws` and `az` arguments they would run, which is a real
-check and a weaker one than execution. The Kubernetes manifest is additionally parsed with a YAML loader,
-so a document that merely contains the right words but is malformed fails here rather than in
-a cluster.
+Two of the seven are verified by running them: systemd and cron. The development machine is
+Linux with no cluster and no cloud account, so the other five (launchd, Task Scheduler,
+Kubernetes, AWS, Azure) are verified by asserting what they render and the exact `launchctl`,
+`schtasks`, `kubectl`, `aws` and `az` arguments they would run. That is a real check and a
+weaker one than execution, and the difference is worth knowing before you rely on one.
+
+The rendered documents are parsed rather than string-matched: the Kubernetes manifest through
+a YAML loader, the AWS schedule through a JSON one. A document that contains the right words
+but is malformed fails here instead of in your cluster or account.
 
 | | systemd (user timer) | launchd (LaunchAgent) | Task Scheduler | cron |
 | --- | --- | --- | --- | --- |
