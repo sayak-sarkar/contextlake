@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Windows adapter, so `contextlake schedule` works through Task Scheduler.**
+  Creates a task with `schtasks /SC MINUTE /MO n` under a `\contextlake` folder.
+  Two limits are reported rather than hidden. `/MO` counts whole minutes, so an
+  interval is rounded the way cron's is, down above a minute and up below it, and
+  `install` says when it rounded. `schtasks` cannot set *StartWhenAvailable*, so a
+  run missed while the machine was off is lost; the adapter reports that with the
+  same phrase cron uses, which is what stops `status` printing the fact twice. The
+  command is quoted with Windows rules rather than POSIX ones, because a venv path
+  containing a space is the ordinary case there. Verified by asserting the exact
+  `schtasks` arguments: the development machine is Linux, so this backend is not
+  verified by execution.
+
+
 - **A launchd adapter, so `contextlake schedule` works on macOS.** Renders a
   LaunchAgent plist with `StartInterval` in seconds, installs it with
   `launchctl bootstrap gui/$UID` (not the deprecated `load`, which can return 0

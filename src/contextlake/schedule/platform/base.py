@@ -125,10 +125,11 @@ class Adapter:
 
 
 def _registry():
-    from . import cron, launchd, systemd
+    from . import cron, launchd, systemd, windows
 
     return {"systemd": systemd.SystemdAdapter,
             "launchd": launchd.LaunchdAdapter,
+            "windows": windows.WindowsAdapter,
             "cron": cron.CronAdapter}
 
 
@@ -163,16 +164,17 @@ def detect() -> str:
     """The best adapter for this machine.
 
     systemd first where it is init (a systemctl binary on a
-    non-systemd box is not enough), then launchd on macOS, then cron, which is
-    the thin-client fallback. Never guesses: a machine with none of them gets
-    ``NoAdapter`` and a printed unit to install by hand.
+    non-systemd box is not enough), then launchd on macOS, then Task Scheduler
+    on Windows, then cron, which is the thin-client fallback. Never guesses: a
+    machine with none of them gets ``NoAdapter`` and a printed unit to install
+    by hand.
 
     Order matters on a Mac: cron still exists there and would answer
     ``usable()``, so launchd has to be asked first or every Mac would silently
     get the fallback. It also means this list is not the registry's order and
     must not be replaced by one.
     """
-    for name in ("systemd", "launchd", "cron"):
+    for name in ("systemd", "launchd", "windows", "cron"):
         try:
             if get(name).usable():
                 return name

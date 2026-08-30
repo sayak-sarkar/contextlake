@@ -18,7 +18,7 @@ import subprocess
 import pytest
 
 from contextlake.schedule import jobs
-from contextlake.schedule.platform import base, cron, launchd, systemd
+from contextlake.schedule.platform import base, cron, launchd, systemd, windows
 
 
 def _stub_cron_not_installed(monkeypatch, tmp_path):
@@ -81,6 +81,21 @@ def _stub_launchd_installed(monkeypatch, tmp_path):
     }))
 
 
+def _stub_windows_not_installed(monkeypatch, tmp_path):
+    """schtasks /Query exits non-zero when the task is absent."""
+    monkeypatch.setattr(windows, "_schtasks",
+                        lambda *a: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+
+
+def _stub_windows_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(windows, "_schtasks", lambda *a: subprocess.CompletedProcess(
+        a, 0,
+        stdout=("TaskName:      \\contextlake\\default\n"
+                "Next Run Time: 31/08/2026 00:00:00\n"
+                "Task To Run:   C:\\venv\\python.exe -m contextlake bootstrap\n"),
+        stderr=""))
+
+
 # One (not-installed, installed) stub pair per known adapter id. An adapter
 # name in `base._registry()` with no entry here fails the test below by
 # design: better a loud test failure than `state()` shelling out for real.
@@ -88,6 +103,7 @@ _STUBS = {
     "cron": (_stub_cron_not_installed, _stub_cron_installed),
     "launchd": (_stub_launchd_not_installed, _stub_launchd_installed),
     "systemd": (_stub_systemd_not_installed, _stub_systemd_installed),
+    "windows": (_stub_windows_not_installed, _stub_windows_installed),
 }
 
 
