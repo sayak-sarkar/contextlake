@@ -365,7 +365,16 @@ def _has_generated_header(source: bytes) -> bool:
 # names they reference are extracted now. One bump covers the whole language batch rather
 # than one per language, because the cost of this constant is a re-index and there is no
 # reason to charge it three times for work that lands in one release.
-PARSER_VERSION = "10"
+# "11" is that same shape a third time, for XML CONFIGURATION rather than schemas.
+# `.config` was routed nowhere, and it is the canonical .NET settings file: measured
+# across 660 real repositories, 1,023 of them carried no nodes at all while being
+# exactly the files "where is this setting defined" is asked about. `.props`,
+# `.targets`, `.settings` and `.plist` join it. A repository holding any of those
+# carries strictly more than it did, and NO COMMIT MOVED, so without this bump every
+# already-indexed repository reports "unchanged" and never gains a single setting.
+# That is the whole reason this constant exists, and it was nearly missed: the
+# extraction change and the bump are one piece of work, not two.
+PARSER_VERSION = "11"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {

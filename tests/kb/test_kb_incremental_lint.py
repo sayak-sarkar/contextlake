@@ -132,6 +132,64 @@ def test_incremental_reindexes_a_repo_whose_parser_moved_on(tmp_path, logs):
         store.close()
 
 
+def test_a_stale_repo_gains_settings_the_new_extensions_reach(tmp_path, logs):
+    """The CONSUMER of a PARSER_VERSION bump, and the half-fix it prevents.
+
+    Routing `.config` to the XML config extractor is correct code that reaches
+    nobody on its own: `kb index` gates re-indexing on the parser stamp, so a
+    repository already in the store reports "unchanged" and never gains a single
+    setting. The extraction change and the bump are one piece of work.
+
+    This asserts the outcome rather than the mechanism. A test that only checked
+    the stamp moved would pass while the settings stayed missing.
+    """
+    from contextlake.kb.parse import PARSER_VERSION
+    from contextlake.kb.store.shards import read_shard, write_shard
+
+    ws = tmp_path / "ws"
+    app = ws / "app"
+    app.mkdir(parents=True)
+    (app / "web.config").write_text(
+        '<configuration><appSettings>\n'
+        '<add key="Timeout" value="30"/>\n'
+        '</appSettings></configuration>\n')
+    _git(["init", "-q", "-b", "main"], app)
+    _git(["add", "-A"], app)
+    _git(["commit", "-q", "-m", "c"], app)
+
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    try:
+        _index_workspace(store, store_dir, ws)
+        [repo] = store.list_repos()
+
+        # Rewind to what a previous release left: the settings absent, stamped by
+        # the parser that could not see `.config`.
+        shard = read_shard(store_dir, repo.id)
+        shard.nodes = [n for n in shard.nodes if n.kind != "config_key"]
+        shard.parser_version = "10"
+        write_shard(store_dir, shard)
+        store.conn.execute("UPDATE repos SET parser_version='10'")
+        store.conn.commit()
+        assert not [n for n in read_shard(store_dir, repo.id).nodes
+                    if n.kind == "config_key"], "the fixture must start without them"
+
+        logs.clear()
+        _index_workspace(store, store_dir, ws)
+
+        assert any(f"older parser (10 -> {PARSER_VERSION})" in m for m in logs)
+        settings = [n for n in read_shard(store_dir, repo.id).nodes
+                    if n.kind == "config_key"]
+        assert [n.name for n in settings] == ["Timeout"], (
+            "the stale repository never gained the setting, so the extraction "
+            "change reaches nobody who already has a store")
+        assert settings[0].attrs["value"] == "30"
+    finally:
+        store.close()
+
+
 # --- lint (Phase 2.5 graph health) ----------------------------------------
 
 def _seed(store_dir, repo_path, head, edges, parser_version=None, repo_id="app"):

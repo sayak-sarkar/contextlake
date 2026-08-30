@@ -10,8 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`.config`, `.props`, `.targets`, `.settings` and `.plist` now reach the XML
-  config extractor.** Only `.xml` did, so the canonical .NET settings file was
-  contributing nothing: measured across 660 repositories, 1,023 `.config` files
+  config extractor, and `PARSER_VERSION` moves to 11 so existing stores get them.**
+  Without the bump the extraction reaches nobody who already has a store: `kb index`
+  gates re-indexing on the parser stamp, so an already-indexed repository reports
+  "unchanged" and never gains a setting. Re-indexing happens automatically on the
+  next `kb index`. Only `.xml` reached the extractor before, so the canonical .NET
+  settings file was contributing nothing: measured across 660 repositories, 1,023 `.config` files
   produced zero nodes while being exactly the files "where is this setting
   defined" is asked about. `.resx` is deliberately still excluded, being
   localisation rather than settings and worth roughly 91,000 nodes fleet-wide;
