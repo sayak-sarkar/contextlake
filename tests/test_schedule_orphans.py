@@ -167,9 +167,12 @@ def test_schedule_list_json_carries_jobs_and_orphans(tmp_path, monkeypatch, caps
     assert report.cmd_list(argparse.Namespace(json=True), config) == 0
     payload = jsonlib.loads(capsys.readouterr().out)
 
-    assert sorted(payload["jobs"]) == ["default"]
-    assert payload["orphaned_units"] == [{"platform": "cron", "name": "ghost"}]
-    assert payload["unchecked_platforms"] == []
+    # Jobs stay at the top level, where 8.8.0 put them: a script reading
+    # payload["default"] keeps working, which is what makes this additive
+    # rather than the breaking reshape a major bump would have required.
+    assert payload["default"]["name"] == "default"
+    assert payload["_orphaned_units"] == [{"platform": "cron", "name": "ghost"}]
+    assert payload["_unchecked_platforms"] == []
 
 
 def test_schedule_list_says_which_platform_it_could_not_check(tmp_path, monkeypatch, capsys):
@@ -196,3 +199,21 @@ def test_an_unusable_platform_is_still_checked_for_orphans(monkeypatch):
     monkeypatch.setattr(base, "get", lambda _n: adapter)
 
     assert report.orphaned_units(set()) == ([("systemd", "ghost")], [])
+
+
+def test_the_new_json_keys_cannot_collide_with_a_job_name():
+    """`_orphaned_units` leads with an underscore for a reason: check_name
+    requires a job name to start with an alphanumeric, so the key can never be
+    a job. Without the underscore it could be, which is what made a flat
+    namespace look unusable and nearly cost a major version bump.
+    """
+    import pytest
+
+    from contextlake.schedule.platform.base import check_name
+
+    for key in ("_orphaned_units", "_unchecked_platforms"):
+        with pytest.raises(ValueError):
+            check_name(key)
+
+    # ...and the unprefixed forms ARE legal job names, which is the whole point.
+    assert check_name("orphaned_units") == "orphaned_units"

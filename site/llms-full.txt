@@ -8170,14 +8170,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **`schedule list --json` output is now an object, not a bare mapping of jobs.**
-  Jobs move under a `jobs` key, alongside `orphaned_units` and
-  `unchecked_platforms`. The previous shape had no room for the new fields
-  without a job named `orphaned_units` colliding with them. A script reading the
-  old output needs `.jobs`.
-
 ### Added
 
 - **AWS and Azure adapters.** `--platform aws` creates an EventBridge Scheduler
@@ -8248,7 +8240,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the marked crontab blocks for cron. `list` names each orphan and its platform,
   and says how to remove it. It also names any platform it could not enumerate:
   skipping a platform and finding nothing on it both produce an empty result, so
-  reporting only the empty one would let "never looked" read as "checked, clean".
+  reporting only the empty one would let "never looked" read as "checked, clean". With
+  `--json` the two arrive as `_orphaned_units` and `_unchecked_platforms`, added
+  alongside the jobs rather than nesting them: a script reading this output keeps
+  working. The leading underscore is what makes that safe, since a job name must
+  start with an alphanumeric and so can never collide.
 
 
 - **`schedule recommend` says when the activity bound was never measured.** The

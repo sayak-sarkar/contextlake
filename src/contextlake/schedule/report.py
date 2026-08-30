@@ -128,13 +128,23 @@ def cmd_list(args, config) -> int:
     mapping = jobstore.read_jobs(path)
     orphans, unchecked = orphaned_units(set(mapping))
     if getattr(args, "json", False):
-        print(jsonlib.dumps({
-            "jobs": {name: job._asdict() for name, job in sorted(mapping.items())},
-            "orphaned_units": [{"platform": p, "name": n} for p, n in orphans],
-            # Named, so a consumer can tell an empty orphan list that was
-            # measured from one that nothing could measure.
-            "unchecked_platforms": unchecked,
-        }, indent=2, sort_keys=True))
+        # Jobs stay at the TOP LEVEL, where 8.8.0 put them. Nesting them under a
+        # "jobs" key to make room for the new fields would break every script
+        # that reads this, and the versioning promise in README's "Versioning and
+        # compatibility" says a break needs a major bump. This is additive
+        # instead, so it ships in a minor.
+        #
+        # The new keys lead with an underscore because `check_name` requires a
+        # job name to START with an alphanumeric: `_orphaned_units` can never be
+        # a job, so it cannot collide with one. `orphaned_units` without the
+        # underscore IS a legal job name, which is what made a flat namespace
+        # look unusable in the first place.
+        payload = {name: job._asdict() for name, job in sorted(mapping.items())}
+        payload["_orphaned_units"] = [{"platform": p, "name": n} for p, n in orphans]
+        # Separate from the orphan list, so a consumer can tell an empty result
+        # that was measured from one that nothing could measure.
+        payload["_unchecked_platforms"] = unchecked
+        print(jsonlib.dumps(payload, indent=2, sort_keys=True))
         return 0
     if not mapping and not orphans and not unchecked:
         print("No scheduled jobs. Create one with `contextlake schedule install`.")
