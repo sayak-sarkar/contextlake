@@ -1021,13 +1021,15 @@ def build_server(
         which is what you quote as evidence — while `file`/`line_start` on the same
         object stay the caller's own definition, usually a different line entirely.
 
-        **One entry per recorded call EDGE.** Read that precisely: the parser keeps
-        only the FIRST call per (caller, callee) pair and drops the rest
-        (`parse.py:1488`), so on today's graphs one edge *is* one caller and
-        `call_line` is that caller's earliest call. This verb no longer de-duplicates
-        by caller, so the day the parser retains every site, every site surfaces here
-        unchanged. `note` reports the distinct-caller count whenever it differs from
-        the entry count, so "42 calls from 6 callers" can never read as "42 callers".
+        **One entry per call SITE.** The parser builds the calls stream with
+        ``per_site=True``, so a caller invoking the target from three lines yields
+        three edges, each citing its own line, and this verb does not de-duplicate
+        them. Verified by running it rather than by reading either side's comment.
+
+        `note` reports the distinct-caller count whenever it differs from the entry
+        count, so "42 calls from 6 callers" can never read as "42 callers". That
+        distinction now carries real weight: before the parser retained every site
+        the two numbers were always equal.
         """
         node_id = _one_of(node_id, name)
         if node_id is None:
@@ -1042,15 +1044,13 @@ def build_server(
                             note=f"No indexed symbol named {node_id!r}.")
         edges = sorted(store.neighbors(nid, relation="calls", direction="in"),
                        key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
-        # No dedupe on e.src. It kept the first edge per caller and dropped the rest,
-        # which on a graph that recorded every call site would silently discard the
-        # second and third call from the same function -- the ones a reader most wants.
-        # Measured 2026-08-10: today it discards nothing, because the PARSER already
-        # collapses calls to one edge per (caller, callee) pair (`parse.py:1488`, refs
-        # sorted by line so the survivor is the earliest site). So this is a no-op on
-        # current data and the honest fix for the missing sites lives in the parser.
-        # Removing it here anyway, because a dedupe that duplicates a guarantee made
-        # upstream reads as if the response layer were the one enforcing it.
+        # No dedupe on e.src, and it is no longer a no-op. The 2026-08-10 note here
+        # said the parser collapsed calls to one edge per (caller, callee) pair, so
+        # dropping duplicates changed nothing. The parser now builds that stream with
+        # `per_site=True` and emits one edge per call SITE, measured 2026-08-31:
+        # three invocations from one caller produce three edges. De-duplicating on
+        # e.src would therefore discard the second and third call from the same
+        # function, which are the ones a reader most wants.
         out = [_node_out(n, edge=e) for e in edges if (n := store.get_node(e.src))]
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated,
