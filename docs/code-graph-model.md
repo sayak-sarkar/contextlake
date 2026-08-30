@@ -193,6 +193,17 @@ Three deliberate limits:
   reporting the guess, onto an unrelated `struct Address`.
 - **`.xsd` never reaches the XML config scanner.** `name` is one of that scanner's key attributes, so
   a schema sent there files every component as a `config_key` setting.
+- **Six extensions reach the config scanner**, not just `.xml`: `.config`, `.props`, `.targets`,
+  `.settings` and `.plist` carry settings too, and `.config` is the canonical .NET one. Measured
+  across 660 repositories, 1,023 `.config` files were contributing nothing while being exactly the
+  files "where is this setting defined" is asked about.
+- **`.resx`, project files and `.svg` are excluded on purpose.** `.resx` is localisation, and at
+  roughly 22.9 settings per file across 3,963 files it would add about 91,000 nodes fleet-wide for
+  translated labels nobody asks that question about. `.csproj`, `.vbproj` and `.nuspec` are build
+  definitions, which the manifest extractor already owns along with the `depends_on` relation that
+  belongs between a build file and a package. `.svg` is XML-shaped and is graphics.
+- **A settings extension whose file is not XML costs nothing.** The scanner is a regex over markup,
+  so an INI-style `.config` yields no settings rather than raising.
 
 Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
 entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and

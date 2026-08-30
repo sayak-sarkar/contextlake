@@ -232,7 +232,27 @@ SQL_EXTS = {".sql", ".pks", ".pkb", ".plb", ".prc", ".fnc", ".trg", ".pls"}
 # LANG_BY_EXT. NOT gated by `languages`, for the reason `_file_kind` gives about
 # manifests and ADRs: a setting is not written in a language anyone filters on, so
 # `--languages python` must not hide a repo's configuration.
-XML_EXTS = {".xml"}
+# `.config` is the canonical .NET settings file (`web.config`, `app.config`) and was
+# routed to nothing: measured across 660 real repositories, 1,023 such files
+# contributed ZERO nodes while answering "where is this setting defined" is the
+# question this extractor exists for. `.props`, `.targets` and `.settings` are the
+# MSBuild and Visual Studio equivalents; `.plist` is Apple's.
+#
+# THREE FAMILIES ARE DELIBERATELY OUT, each for a measured reason rather than an
+# oversight:
+#
+# * `.resx` -- 3,963 files yielding ~22.9 nodes each, about 91,000 fleet-wide. They
+#   are localisation resource strings, not settings: "where is this setting
+#   defined" is not a question anyone asks of a translated label, and the roadmap's
+#   XML decision warns specifically against a scope that "could add more nodes than
+#   all five C++ kinds combined and would dominate the per-kind diagram budgets".
+# * `.csproj` / `.vbproj` / `.nuspec` -- build definitions, which is manifest
+#   territory and already has its own extractor and its own `depends_on` relation.
+# * `.svg` -- 4,140 files and 284 MB of it in this fleet. XML-shaped, and graphics.
+#
+# A file with one of these extensions that is not actually XML costs nothing: the
+# scanner is a regex over markup and simply finds no settings.
+XML_EXTS = {".xml", ".config", ".props", ".targets", ".settings", ".plist"}
 
 # XML Schema uses its own scanner (kb/xsd.py), NOT the config scanner: `name` is one of
 # `xml_cfg._KEY_ATTRS`, so a schema sent there files every `<xs:element name="Order">` as

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`.config`, `.props`, `.targets`, `.settings` and `.plist` now reach the XML
+  config extractor.** Only `.xml` did, so the canonical .NET settings file was
+  contributing nothing: measured across 660 repositories, 1,023 `.config` files
+  produced zero nodes while being exactly the files "where is this setting
+  defined" is asked about. `.resx` is deliberately still excluded, being
+  localisation rather than settings and worth roughly 91,000 nodes fleet-wide;
+  so are project files, which the manifest extractor owns, and `.svg`, which is
+  XML-shaped graphics.
+
 - **`[kb] max_repo_memory`, a per-repository memory budget checked before any file
   is parsed.** `max_file_bytes` bounds one file and cannot bound a repository that
   is wide rather than deep. The repository that took a 15.4 GB machine down had a
