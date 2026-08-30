@@ -18,7 +18,7 @@ import subprocess
 import pytest
 
 from contextlake.schedule import jobs
-from contextlake.schedule.platform import base, cron, systemd
+from contextlake.schedule.platform import base, cron, launchd, systemd
 
 
 def _stub_cron_not_installed(monkeypatch, tmp_path):
@@ -63,11 +63,30 @@ def _stub_systemd_installed(monkeypatch, tmp_path):
     monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=yes\n")
 
 
+def _stub_launchd_not_installed(monkeypatch, tmp_path):
+    """launchd's state() reads the plist off disk and shells out to nothing,
+    so pointing the agent directory at an empty tmp_path is the whole stub."""
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+
+
+def _stub_launchd_installed(monkeypatch, tmp_path):
+    import plistlib
+
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+    (tmp_path / launchd.plist_name("default")).write_bytes(plistlib.dumps({
+        "Label": launchd.label("default"),
+        "ProgramArguments": ["/usr/bin/python3", "-m", "contextlake",
+                             "schedule", "run", "--job", "default"],
+        "StartInterval": 3600,
+    }))
+
+
 # One (not-installed, installed) stub pair per known adapter id. An adapter
 # name in `base._registry()` with no entry here fails the test below by
 # design: better a loud test failure than `state()` shelling out for real.
 _STUBS = {
     "cron": (_stub_cron_not_installed, _stub_cron_installed),
+    "launchd": (_stub_launchd_not_installed, _stub_launchd_installed),
     "systemd": (_stub_systemd_not_installed, _stub_systemd_installed),
 }
 

@@ -207,16 +207,20 @@ than stopping a run at 3am when nobody is there to fix it.
 
 ## Platform differences
 
-Two adapters exist today: systemd and cron. Both are Linux-only. macOS (`launchd`), Windows
-(Task Scheduler), Kubernetes, OpenShift, AWS and Azure are not covered yet.
+Three adapters exist today: systemd and cron on Linux, and launchd on macOS. Windows (Task
+Scheduler), Kubernetes, OpenShift, AWS and Azure are not covered yet.
 
-| | systemd (user timer) | cron |
-| --- | --- | --- |
-| Interval | Exact, any duration | Rounded. Cron's minute field only divides the hour, so `*/70` does not mean "every 70 minutes". The adapter picks the nearest interval it can express, rounding down above one minute and up below it, and tells you the difference |
-| Missed a run while asleep or off | Replays it (`Persistent=true`) | Lost. cron has no equivalent |
-| Runs while logged out | Only if linger is on: `loginctl enable-linger $USER`. `schedule status` reports when it is off | Yes, cron runs independent of any login session |
-| Skips on battery | `ConditionACPower=true` in the unit itself | The `schedule_on_battery` gate at run time |
-| `schedule_require_idle` | Same limitation as cron: see below | Inert. Neither cron nor a systemd timer sets `XDG_SESSION_ID`, which idleness detection needs, so the gate cannot tell and passes every time. `status` and the run itself both warn when this is on |
+Only systemd and cron are verified by running them. The development machine is Linux, so the
+launchd adapter is verified by asserting the plist it renders and the exact `launchctl`
+arguments it would run, which is a real check and a weaker one than execution.
+
+| | systemd (user timer) | launchd (LaunchAgent) | cron |
+| --- | --- | --- | --- |
+| Interval | Exact, any duration | Exact, any whole number of seconds (`StartInterval`) | Rounded. Cron's minute field only divides the hour, so `*/70` does not mean "every 70 minutes". The adapter picks the nearest interval it can express, rounding down above one minute and up below it, and tells you the difference |
+| Missed a run while asleep or off | Replays it (`Persistent=true`) | Replays it on wake | Lost. cron has no equivalent |
+| Runs while logged out | Only if linger is on: `loginctl enable-linger $USER`. `schedule status` reports when it is off | No. A LaunchAgent runs in the user's GUI session | Yes, cron runs independent of any login session |
+| Skips on battery | `ConditionACPower=true` in the unit itself | The `schedule_on_battery` gate at run time. launchd has no equivalent condition | The `schedule_on_battery` gate at run time |
+| `schedule_require_idle` | Same limitation as cron: see below | Same limitation: a LaunchAgent sets no `XDG_SESSION_ID` either | Inert. Neither cron nor a systemd timer sets `XDG_SESSION_ID`, which idleness detection needs, so the gate cannot tell and passes every time. `status` and the run itself both warn when this is on |
 
 ## Containers
 

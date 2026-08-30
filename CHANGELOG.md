@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A launchd adapter, so `contextlake schedule` works on macOS.** Renders a
+  LaunchAgent plist with `StartInterval` in seconds, installs it with
+  `launchctl bootstrap gui/$UID` (not the deprecated `load`, which can return 0
+  while doing nothing), and reads the interval back off the installed plist
+  rather than reporting what was requested. launchd replays a run missed while
+  the machine was asleep, like systemd and unlike cron. `schedule status` reports
+  no next-fire time for it, because launchd exposes none for an interval agent
+  and a computed guess would drift from what it actually does. Verified by
+  asserting the rendered plist and the exact `launchctl` arguments: the
+  development machine is Linux, so this backend is not verified by execution.
+
+
 - **`schedule list` reports units whose job record is gone.** `state()` can only
   answer "is job X installed?", which can only be asked about a job that still
   has a record. The reverse had no reader: delete a record and its unit keeps
