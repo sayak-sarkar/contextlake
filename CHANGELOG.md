@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.9.0] - 2026-08-30
+
 ### Added
 
 - **AWS and Azure adapters.** `--platform aws` creates an EventBridge Scheduler
@@ -152,7 +154,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not exit within a few seconds), so nothing below it survives. Windows has neither process
   groups nor `SIGKILL`, so there the timeout falls back to `taskkill /F /T`, which
   walks the child tree and reclaims the pool the same way.
-
 
 ## [8.8.0] - 2026-08-27
 
