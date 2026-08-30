@@ -1489,8 +1489,18 @@ flag inside that trailing command is never parsed as a flag of `schedule`.
     p.add_argument("--foreground", action="store_true", default=_S,
                    help="run: loop here instead of installing anything. For containers, "
                         "and for watching what it does")
+    # Derived from the registry, not typed out. This help said
+    # "(systemd | cron)" while five more adapters existed, which is the kind of
+    # staleness a hand-written list guarantees.
+    # tests/test_schedule_cli_platform_help.py asserts every registered name
+    # appears here, so adding an adapter and forgetting this fails loudly.
+    from .schedule.platform.base import registered
+
     p.add_argument("--platform", default=_S, metavar="NAME",
-                   help="force an adapter (systemd | cron) instead of detecting one")
+                   help="force an adapter (" + " | ".join(registered())
+                        + ") instead of detecting one. Cluster and cloud "
+                          "adapters are never auto-detected, so naming one "
+                          "here is the only way to reach it")
     p.add_argument("--history", dest="history", action="store_true", default=_S,
                    help="reset: also discard the measured run history")
     p.add_argument("--purge", action="store_true", default=_S,
