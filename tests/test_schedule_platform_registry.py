@@ -18,7 +18,15 @@ import subprocess
 import pytest
 
 from contextlake.schedule import jobs
-from contextlake.schedule.platform import base, cron, k8s, launchd, systemd, windows
+from contextlake.schedule.platform import (
+    base,
+    cloud,
+    cron,
+    k8s,
+    launchd,
+    systemd,
+    windows,
+)
 
 
 def _stub_cron_not_installed(monkeypatch, tmp_path):
@@ -107,11 +115,33 @@ def _stub_k8s_installed(monkeypatch, tmp_path):
         a, 0, stdout="0 * * * *|2026-08-28T00:00:00Z", stderr=""))
 
 
+def _stub_aws_not_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(cloud, "_cli",
+                        lambda *a, **kw: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+
+
+def _stub_aws_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 0, stdout="rate(60 minutes)\n", stderr=""))
+
+
+def _stub_azure_not_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(cloud, "_cli",
+                        lambda *a, **kw: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+
+
+def _stub_azure_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 0, stdout="0 * * * *\n", stderr=""))
+
+
 # One (not-installed, installed) stub pair per known adapter id. An adapter
 # name in `base._registry()` with no entry here fails the test below by
 # design: better a loud test failure than `state()` shelling out for real.
 _STUBS = {
     "cron": (_stub_cron_not_installed, _stub_cron_installed),
+    "aws": (_stub_aws_not_installed, _stub_aws_installed),
+    "azure": (_stub_azure_not_installed, _stub_azure_installed),
     "k8s": (_stub_k8s_not_installed, _stub_k8s_installed),
     "launchd": (_stub_launchd_not_installed, _stub_launchd_installed),
     "systemd": (_stub_systemd_not_installed, _stub_systemd_installed),
@@ -162,7 +192,8 @@ def test_detect_never_picks_a_cluster_adapter_implicitly(monkeypatch):
         monkeypatch.setattr(mod, "shutil", type("S", (), {"which": staticmethod(lambda _c: None)}),
                             raising=False)
     monkeypatch.setattr(base, "get", lambda name: type(
-        "A", (), {"usable": staticmethod(lambda: name == "k8s")})())
+        "A", (), {"usable": staticmethod(
+            lambda: name in ("k8s", "aws", "azure"))})())
 
     with _pytest.raises(base.NoAdapter):
         base.detect()

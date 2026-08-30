@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AWS and Azure adapters.** `--platform aws` creates an EventBridge Scheduler
+  schedule firing an ECS task; `--platform azure` creates a Container Apps Job on
+  a cron trigger. Both shell out to an already-authenticated `aws` or `az`, so
+  contextlake still ships no cloud SDK. On EKS and AKS use `--platform k8s`
+  instead: both are Kubernetes, so the `CronJob` adapter serves them and brings
+  `concurrencyPolicy: Forbid` with it. Neither cloud service has an equivalent of
+  `Forbid`, so two runs there can overlap and the second skips on the store's
+  advisory lock rather than never starting, which both adapters report. They round
+  differently by design: EventBridge takes `rate(N minutes)` and rounds to whole
+  minutes, while a Container Apps Job trigger is a cron expression and rounds the
+  way cron does. Registered but never auto-detected, for the same reason as the
+  Kubernetes adapter. Verified by asserting the rendered request documents and the
+  exact CLI arguments: there is no account here, so neither is verified by
+  execution.
+
+
 - **A Kubernetes adapter, covering OpenShift as well.** Renders a `CronJob` and
   applies it with `kubectl`, falling back to `oc`. One adapter serves both,
   because OpenShift is Kubernetes with a stricter default security context and

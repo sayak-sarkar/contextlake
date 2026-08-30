@@ -5071,6 +5071,31 @@ Nothing is patched in the cluster on its own: changing an interval means re-runn
 cluster-write rights for the life of the schedule, which is more authority than the benefit is
 worth.
 
+### AWS and Azure
+
+```bash
+contextlake schedule --platform aws install       # EventBridge Scheduler firing an ECS task
+contextlake schedule --platform azure install     # a Container Apps Job on a cron trigger
+```
+
+**On EKS and AKS, use `--platform k8s` instead.** Both are Kubernetes, so the `CronJob` adapter
+serves them and brings `concurrencyPolicy: Forbid` with it.
+
+Neither cloud service has an equivalent of `Forbid`. Both will start a second execution while
+the first is still running, so single-writer protection there rests on the store's advisory
+lock: the second run takes it, fails, and skips with a logged reason. That is the same
+protection a bare `schedule run` has, and weaker than what a cluster gives.
+
+Both need persistent storage for the same reason a container does anywhere: EFS on AWS, Azure
+Files on Azure. An ephemeral store re-indexes the whole fleet every run instead of doing an
+incremental pass, which `schedule run` refuses without `--allow-ephemeral`.
+
+The two round differently, and that is not an inconsistency. EventBridge takes
+`rate(N minutes)`, so AWS rounds to whole minutes. A Container Apps Job schedule trigger is a
+cron expression, so Azure rounds the way cron does and cannot express 70 minutes at all.
+
+Neither adapter ships an SDK. Both shell out to an already-authenticated `aws` or `az`.
+
 ## Configuration
 
 Ten `schedule_*` keys, read from the same `.contextlake.ini` `[contextlake]` section as
@@ -5097,17 +5122,19 @@ than stopping a run at 3am when nobody is there to fix it.
 
 ## Platform differences
 
-Five adapters exist today: systemd and cron on Linux, launchd on macOS, Task Scheduler on
-Windows, and a `CronJob` for Kubernetes and OpenShift. AWS and Azure are not covered yet.
+Seven adapters exist today: systemd and cron on Linux, launchd on macOS, Task Scheduler on
+Windows, a `CronJob` for Kubernetes and OpenShift, EventBridge Scheduler with ECS on AWS, and a
+Container Apps Job on Azure.
 
-The cluster adapter is never auto-detected. `kubectl` on your PATH does not mean a schedule
-belongs in whatever cluster your kubeconfig points at, so reach it with `--platform k8s`. It is
-still registered, so `schedule list` reports an orphaned `CronJob` there like anywhere else.
+Cluster and cloud adapters are never auto-detected. `kubectl`, `aws` or `az` being on your PATH
+does not mean a schedule belongs in whatever cluster your kubeconfig points at or whatever
+account your credentials reach, so reach them with `--platform k8s|aws|azure`. They are still
+registered, so `schedule list` reports an orphan there like anywhere else.
 
 Only systemd and cron are verified by running them. The development machine is Linux, so the
 launchd and Windows adapters are verified by asserting what they render and the exact
-`launchctl`, `schtasks` and `kubectl` arguments they would run, which is a real check and a
-weaker one than execution. The Kubernetes manifest is additionally parsed with a YAML loader,
+`launchctl`, `schtasks`, `kubectl`, `aws` and `az` arguments they would run, which is a real
+check and a weaker one than execution. The Kubernetes manifest is additionally parsed with a YAML loader,
 so a document that merely contains the right words but is malformed fails here rather than in
 a cluster.
 
@@ -8149,6 +8176,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old output needs `.jobs`.
 
 ### Added
+
+- **AWS and Azure adapters.** `--platform aws` creates an EventBridge Scheduler
+  schedule firing an ECS task; `--platform azure` creates a Container Apps Job on
+  a cron trigger. Both shell out to an already-authenticated `aws` or `az`, so
+  contextlake still ships no cloud SDK. On EKS and AKS use `--platform k8s`
+  instead: both are Kubernetes, so the `CronJob` adapter serves them and brings
+  `concurrencyPolicy: Forbid` with it. Neither cloud service has an equivalent of
+  `Forbid`, so two runs there can overlap and the second skips on the store's
+  advisory lock rather than never starting, which both adapters report. They round
+  differently by design: EventBridge takes `rate(N minutes)` and rounds to whole
+  minutes, while a Container Apps Job trigger is a cron expression and rounds the
+  way cron does. Registered but never auto-detected, for the same reason as the
+  Kubernetes adapter. Verified by asserting the rendered request documents and the
+  exact CLI arguments: there is no account here, so neither is verified by
+  execution.
+
 
 - **A Kubernetes adapter, covering OpenShift as well.** Renders a `CronJob` and
   applies it with `kubectl`, falling back to `oc`. One adapter serves both,

@@ -125,12 +125,14 @@ class Adapter:
 
 
 def _registry():
-    from . import cron, k8s, launchd, systemd, windows
+    from . import cloud, cron, k8s, launchd, systemd, windows
 
     return {"systemd": systemd.SystemdAdapter,
             "launchd": launchd.LaunchdAdapter,
             "windows": windows.WindowsAdapter,
             "k8s": k8s.K8sAdapter,
+            "aws": cloud.AwsAdapter,
+            "azure": cloud.AzureAdapter,
             "cron": cron.CronAdapter}
 
 
@@ -176,12 +178,14 @@ def detect() -> str:
     must not be replaced by one.
 
     **Cluster and cloud adapters are never auto-detected.** ``k8s`` answers
-    ``usable()`` whenever ``kubectl`` is on PATH, which is true on plenty of
-    workstations that are not themselves running in a cluster. Scheduling
-    someone's laptop job into whatever cluster their kubeconfig points at is
-    not a guess this is allowed to make. They are reachable through
-    ``--platform k8s`` and are registered, so `list` still reports orphans
-    there, but they are deliberately absent from this loop.
+    ``usable()`` whenever ``kubectl`` is on PATH, and ``aws`` and ``azure``
+    whenever their CLI is installed, all of which are true on plenty of
+    workstations that are not themselves running in a cluster or deploying to
+    that account. Scheduling someone's laptop job into whatever cluster their
+    kubeconfig points at, or whatever account their credentials reach, is not
+    a guess this is allowed to make. They are reachable through
+    ``--platform k8s|aws|azure`` and are registered, so `list` still reports
+    orphans there, but they are deliberately absent from this loop.
     """
     for name in ("systemd", "launchd", "windows", "cron"):
         try:
