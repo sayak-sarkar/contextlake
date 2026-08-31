@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **The `--repos` pattern syntax is documented in full**, in
+  [Mirroring repositories](docs/mirroring-repositories.md). The page said patterns are
+  globs and are anchored; it did not say which wildcards are available. It now lists all
+  four (`*`, `?`, `[abc]`, `[!abc]`) with an example each, and states the four rules that
+  govern every pattern: comma-separated, anchored, case-insensitive, and matched against
+  both the group-qualified and the local path.
+
+  It also covers the one case the anchoring does not reach. There is no escape character,
+  so `odd*name` matches a repo literally named `odd*name` and matches `oddXname` as well,
+  and cannot select the first on its own. A one-character set does:
+  `--repos "odd[*]name"`. `*` and `?` are legal in a path on Linux and macOS, not on
+  Windows.
+
+  Every claim on that page is now pinned by `tests/test_repos_pattern_syntax.py`.
+
 ## [8.10.1] - 2026-08-31
 
 ### Fixed

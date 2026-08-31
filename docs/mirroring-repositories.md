@@ -52,6 +52,43 @@ the expensive mistake: you discover it after a fleet-wide run you did not want. 
 versions defaulted to substring matching with an opt-in `--repos-exact`; that flag is
 gone, and so is the surprise.
 
+### Pattern syntax
+
+A pattern is a shell-style glob, matched against the whole path. Four wildcards are
+available:
+
+| Syntax | Matches | Example |
+| --- | --- | --- |
+| `*` | any run of characters, including none | `team/*` selects everything under `team/` |
+| `?` | exactly one character | `api-v?` selects `api-v1` and `api-v2` |
+| `[abc]` | one character from the set | `api-v[12]` selects `api-v1` and `api-v2`, not `api-v3` |
+| `[!abc]` | one character NOT in the set | `api-v[!0]` skips `api-v0` |
+
+Four rules govern every pattern:
+
+- **Comma-separated.** `--repos "team/*,billing/core"` is two patterns, and a repo
+  matching either one is selected.
+- **Anchored.** The pattern must describe the whole path, not a piece of it. This is
+  why `api` does not select `payments-api`.
+- **Case-insensitive.** `--repos "TEAM/*"` and `--repos "team/*"` select the same repos.
+- **Matched twice.** Each pattern is tried against the group-qualified path
+  (`acme/team/api`) and against the local path (`team/api`), so either form works.
+
+### Matching a repo whose name contains `*` or `?`
+
+There is no escape character. A pattern like `odd*name` matches a repo literally called
+`odd*name`, but it also matches `oddXname`, so it cannot pick out the first one on its
+own.
+
+Use a single-character set instead, which treats the wildcard as an ordinary character:
+
+```bash
+contextlake mirror sync --repos "odd[*]name"   # only the repo literally named odd*name
+contextlake mirror sync --repos "a[?]b"        # only the repo literally named a?b
+```
+
+This is rare: `*` and `?` are legal in a path on Linux and macOS, and not on Windows.
+
 The filter scopes the whole pipeline: `fetch` narrows the cached project list, and
 `clone` / `update` / `branches` / `verify` / `status` / `bootstrap` all follow from that.
 
