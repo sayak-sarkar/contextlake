@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.10.1] - 2026-08-31
+
+### Fixed
+
+- **`kb index --workspace` no longer breaks its worker pool.** The cause was
+  `RepoTooLarge`, the exception 8.10.0 added for the memory budget: it could not be
+  unpickled. A worker that refuses a repository sends the exception back to the parent,
+  and Python rebuilds an exception as `cls(*args)`, where `args` held only the formatted
+  message this class passes to `Exception.__init__`. The rebuild was three arguments
+  short and raised `TypeError` inside `ProcessPoolExecutor`'s manager thread, which has
+  no future to attribute a failure to, so it broke the whole executor: every healthy
+  worker was sent SIGTERM and every pending repository failed with `A process in the
+  process pool was terminated abruptly`. One refused repository ended a 656-repository
+  run in about a minute.
+
+  `pickle.dumps` succeeded on the exception throughout. Only the parent's unpickle
+  failed, which is why nothing caught it. The same 17-repository cluster that broke the
+  pool twice now completes at `--workers 4` with 0 failures, the over-budget repository
+  reported as a skip, and all four workers exiting 0.
+
+- **Five more exceptions had the same defect and are fixed with it.**
+  `GrammarNotInstalled` is raised on the same indexing path and would break a pool the
+  same way when an optional grammar is absent. `McpToolError`, `CircuitOpenError`,
+  `StoreBusy` and `RunBusy` are off that path today. Every exception in the package that
+  defines its own `__init__` now defines `__reduce__`, and a test walks the package to
+  assert each one survives a round trip, so the next one cannot ship without a sample.
+
+- **A broken worker pool now falls back to serial indexing.** That fallback was written
+  for this failure and was unreachable: `BrokenProcessPool` subclasses `RuntimeError`, so
+  the per-repository `except Exception` caught it, counted one failure against whichever
+  repository raised it, and continued, and the handler that re-runs the work-list serially
+  never ran once. The failure counters are reset before the serial pass, so a repository
+  that genuinely failed before the break is not counted again by it.
+
+- **The reason a pool broke is now reported.** `str(BrokenProcessPool)` is a fixed
+  sentence naming no cause, and the real reason is attached as `__cause__`, which was
+  discarded. Reporting only the fixed sentence is why three candidate causes stayed
+  unseparated across several investigations.
+
 ## [8.10.0] - 2026-08-31
 
 ### Upgrading
@@ -29,25 +68,14 @@ What that costs, measured on a 660-repository fleet:
 
 ### Known issues
 
-**`kb index --workspace` can break its worker pool at `--workers` above 1.** Reproduced twice
-on a 17-repository cluster: a worker dies immediately after a large shard completes, and every
-still-pending repository fails with `A process in the process pool was terminated abruptly`. On
-a 656-repository run this failed 640 of them in about a minute.
+**`kb index --workspace` can break its worker pool at `--workers` above 1**, failing every
+still-pending repository with `A process in the process pool was terminated abruptly`. On a
+656-repository run this failed 640 of them in about a minute. `--workers 1` is unaffected.
 
-- **`--workers 1` is verified working** on the same cluster, including every repository that
-  breaks the pool.
-- **2 through 8 are untested.** The default is `min(8, cpu_count - 1)`, so a plain
-  `kb index --workspace` is affected.
-- It is not a simple out-of-memory: one reproduction broke with 8.9 GB free, another with
-  4.3 GB, and system memory *dropped* at the instant of the break, which is one worker dying
-  rather than the machine starving.
-- The root cause is not established. The candidates not yet separated are a transient
-  out-of-memory kill of a single worker, a failure transferring a very large shard back to the
-  parent, and a grammar crash.
-
-The `max_repo_memory` budget added in this release does not prevent it, and the reason is the
-limit that budget documents: it is linear in input bytes, while the cost here tracks edge
-count. One of the repositories involved estimates 0.86 GB and produces 166,000 edges.
+**Fixed in 8.10.1**, which describes the cause. It is `RepoTooLarge`, the exception this
+release added, failing to unpickle in the pool's manager thread. No worker runs out of memory
+and the `max_repo_memory` estimate is not involved. The wording in this section before 8.10.1
+attributed the break to that estimate and to a dying worker, and both were wrong.
 
 
 ### Added
