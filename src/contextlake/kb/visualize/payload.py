@@ -611,6 +611,40 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         if node_truncated:  # cheap exact total only when we actually capped on nodes
             meta["total"] = store.conn.execute(
                 f"SELECT COUNT(*) FROM nodes WHERE {where}", tuple(params)).fetchone()[0]  # noqa: S608 - placeholders only; values bound
+            # WHICH kinds lost nodes, not just that something was dropped. "500 of
+            # 3,200" tells a reader the view is partial; it does not tell them the
+            # part they came for is the part that is missing. A repo with 412
+            # `table` nodes that renders none of them has an empty ER diagram, and
+            # the old message could not distinguish that from a view that dropped
+            # 412 low-value nodes.
+            #
+            # Exact on both sides, so no figure here is inferred: `available` is a
+            # GROUP BY over the same predicate the view uses, and `kept` counts the
+            # rows actually selected. This is the ranked path, where the totals are
+            # known; the BFS in `extract_subgraph` early-stops and cannot say how
+            # much it did not reach, which is why it reports no total at all.
+            #
+            # One extra GROUP BY, and only on a view that actually capped.
+            kept_by_kind: dict[str, int] = {}
+            for _nid, kind, _d in selected:
+                kept_by_kind[kind] = kept_by_kind.get(kind, 0) + 1
+            available_by_kind = dict(store.conn.execute(
+                f"SELECT kind, COUNT(*) FROM nodes n WHERE {where} GROUP BY kind",  # noqa: S608 - placeholders only; values bound
+                tuple(params)).fetchall())
+            dropped_by_kind = {
+                kind: have - kept_by_kind.get(kind, 0)
+                for kind, have in available_by_kind.items()
+                if have > kept_by_kind.get(kind, 0)
+            }
+            if dropped_by_kind:
+                # Sorted by loss, then by name, so the line is stable run to run.
+                meta["dropped_by_kind"] = dict(
+                    sorted(dropped_by_kind.items(), key=lambda kv: (-kv[1], kv[0])))
+                worst = list(meta["dropped_by_kind"].items())[:4]
+                tail = "" if len(dropped_by_kind) <= 4 else \
+                    f" (+{len(dropped_by_kind) - 4} more kind(s))"
+                log("  dropped by kind: "
+                    + ", ".join(f"{k} {n}/{available_by_kind[k]}" for k, n in worst) + tail)
     return nodes, edges
 
 

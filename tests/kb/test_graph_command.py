@@ -2309,3 +2309,44 @@ def test_a_panel_row_previews_a_node_without_moving_the_camera(tmp_path):
     # and a keyboard user gets the same affordance, not a mouse-only one
     assert _grab(dom, "peek-on-focus") == "1"
     assert _grab(dom, "peek-off-blur") == "0"
+
+
+def test_a_truncated_repo_view_reports_which_kinds_lost_nodes(store, gls_logs):
+    """"500 of 3,200" says the view is partial. It does not say the part the
+    reader came for is the part that is missing.
+
+    A repo with 412 `table` nodes that renders none of them has an empty ER
+    diagram, and the old message could not tell that apart from a view that
+    dropped 412 low-value nodes. Both sides are exact here: `available` is a
+    GROUP BY over the same predicate the view uses, and the kept counts come
+    from the rows actually selected.
+    """
+    _kind_biased_repo(store)          # 40 `function` + 12 `table`
+    meta: dict = {}
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=20, meta=meta)
+
+    assert meta["truncated"] is True
+    assert meta["total"] == 52                       # 40 + 12, counted not guessed
+    kept = {}
+    for n in nodes:
+        kept[n.kind] = kept.get(n.kind, 0) + 1
+
+    dropped = meta["dropped_by_kind"]
+    # Every reported loss is exactly what the view did not keep.
+    for kind, n in dropped.items():
+        available = 40 if kind == "function" else 12
+        assert n == available - kept.get(kind, 0), (kind, n, kept)
+    assert sum(dropped.values()) == 52 - len(nodes)
+
+    # And it reaches the operator, not only the meta dict.
+    assert "dropped by kind:" in gls_logs.text, gls_logs.text
+
+
+def test_an_untruncated_view_reports_no_dropped_kinds(store):
+    """The key must be absent rather than an empty dict, so a caller cannot
+    render "0 dropped" on a view that is complete."""
+    _kind_biased_repo(store)
+    meta: dict = {}
+    viz.repo_subgraph(store, "r", max_nodes=500, meta=meta)
+    assert meta["truncated"] is False
+    assert "dropped_by_kind" not in meta
