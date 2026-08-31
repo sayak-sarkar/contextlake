@@ -26,6 +26,15 @@ class RunBusy(RuntimeError):
             f"another scheduled run is in progress: pid {holder.get('pid')} "
             f"running job {holder.get('job')!r}")
 
+    def __reduce__(self):
+        """Rebuild from the holder dict, not from ``args``.
+
+        The default ``cls(*self.args)`` passes the formatted message where a
+        dict is expected, so unpickling raises ``AttributeError: 'str' object
+        has no attribute 'get'``. See ``kb.parse.RepoTooLarge.__reduce__``.
+        """
+        return (self.__class__, (self.holder,))
+
 
 def _alive(pid) -> bool:
     try:

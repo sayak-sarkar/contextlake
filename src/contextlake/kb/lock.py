@@ -32,6 +32,16 @@ class StoreBusy(RuntimeError):
             f"({holder.get('command')})"
         )
 
+    def __reduce__(self):
+        """Rebuild from the holder dict, not from ``args``.
+
+        The default ``cls(*self.args)`` passes the formatted message where a
+        dict is expected, so unpickling raises ``AttributeError: 'str' object
+        has no attribute 'get'``. See ``kb.parse.RepoTooLarge.__reduce__`` for
+        what that costs when it happens inside a worker pool.
+        """
+        return (self.__class__, (self.holder,))
+
 
 def _alive(pid: int) -> bool:
     if not pid or pid <= 0:

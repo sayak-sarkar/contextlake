@@ -35,6 +35,14 @@ class McpToolError(RuntimeError):
         self.detail = detail
         super().__init__(f"MCP tool {tool!r} failed: {detail or 'no detail given'}")
 
+    def __reduce__(self):
+        """Rebuild from the two values ``__init__`` needs.
+
+        The default ``cls(*self.args)`` is one argument short and raises
+        TypeError. See ``kb.parse.RepoTooLarge.__reduce__``.
+        """
+        return (self.__class__, (self.tool, self.detail))
+
 
 def _result_text(res: Any) -> str:
     return "".join(getattr(c, "text", "") for c in (getattr(res, "content", None) or []))

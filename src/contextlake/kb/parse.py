@@ -216,7 +216,20 @@ class GrammarNotInstalled(ImportError):
             f"the {lang} grammar needs {module}, which is an optional dependency. "
             f"Install it with: pip install 'contextlake[{extra}]'")
         self.lang = lang
+        self.module = module
         self.extra = extra
+
+    def __reduce__(self):
+        """Rebuild from the three values ``__init__`` needs.
+
+        Raised on the ``index_repo_dir`` path the worker pool runs, so the
+        default ``cls(*self.args)`` rebuild breaks the whole executor rather
+        than failing one repository. See ``RepoTooLarge.__reduce__``.
+
+        ``module`` is stored for this: it was formatted into the message and
+        then discarded, so there was nothing to rebuild it from.
+        """
+        return (self.__class__, (self.lang, self.module, self.extra))
 
 # HCL/Terraform files use a bespoke extraction path (kb/hcl.py), not the OO
 # capture model, so they are matched separately from LANG_BY_EXT.
@@ -1452,6 +1465,24 @@ class RepoTooLarge(Exception):
             f"exceeds the {budget_bytes / 1073741824:.1f} GB per-repository "
             f"budget ({top}). Raise kb.max_repo_memory to index it anyway, or "
             f"narrow it with --languages.")
+
+    def __reduce__(self):
+        """Rebuild from the four values ``__init__`` needs, not from ``args``.
+
+        Python reconstructs an exception as ``cls(*self.args)``, and ``args``
+        holds only the formatted message passed to ``Exception.__init__``, so
+        the default rebuild is three arguments short and raises TypeError.
+
+        That TypeError lands in ``ProcessPoolExecutor``'s manager thread, inside
+        ``result_reader.recv()``, where there is no future to attribute it to.
+        The pool is declared broken, every healthy worker is sent SIGTERM, and
+        every pending future raises ``BrokenProcessPool``. One repository
+        refused by the memory budget ended a whole workspace run that way.
+
+        ``pickle.dumps`` succeeds without this, so a test must round-trip.
+        """
+        return (self.__class__,
+                (self.repo_id, self.estimate_bytes, self.budget_bytes, self.breakdown))
 
 
 @dataclass

@@ -141,6 +141,14 @@ class CircuitOpenError(RuntimeError):
             "repeated failures (results from this source will be incomplete)"
         )
 
+    def __reduce__(self):
+        """Rebuild from the two values ``__init__`` needs.
+
+        The default ``cls(*self.args)`` is one argument short and raises
+        TypeError. See ``kb.parse.RepoTooLarge.__reduce__``.
+        """
+        return (self.__class__, (self.key, self.retry_in))
+
 
 def _timed_out(exc: BaseException) -> bool:
     """Whether ``exc`` is (or wraps) a timeout rather than a fast failure."""
