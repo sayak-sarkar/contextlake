@@ -251,6 +251,16 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                     except RepoTooLarge as e:
                         _skip_too_large(repo_id, e)
                         continue
+                    except BrokenProcessPool:
+                        # A dead pool is not this repo's failure: every pending
+                        # future raises it, so the blanket handler below counted
+                        # one failure per repo and the run reported 640 of 656
+                        # "failed" with no cause. BrokenProcessPool subclasses
+                        # RuntimeError, so `except Exception` swallowed it here
+                        # and the serial fallback below never ran once. Re-raise
+                        # so it reaches that fallback. Order matters: this must
+                        # precede `except Exception`.
+                        raise
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                         failed += 1
                         log(f"  {style.fail(repo_id)}: {e}", inline=True)
@@ -266,15 +276,29 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                         continue
                     _report(repo_id, shard)
         except (BrokenProcessPool, OSError) as e:
-            # The worker pool could not run here (sandboxed env, no fork/spawn, …).
-            # Re-run the full work-list serially — persist is upsert-based and
-            # idempotent, so repos already written simply update in place.
-            log(f"{style.warn()} Parallel indexing unavailable ({e}); "
+            # The worker pool could not run here (sandboxed env, no fork/spawn, …),
+            # or it broke mid-run. Re-run the full work-list serially — persist is
+            # upsert-based and idempotent, so repos already written simply update
+            # in place.
+            #
+            # CPython attaches the real reason as __cause__ and str(e) is a fixed
+            # sentence that names none of it. Reporting only str(e) is what left
+            # three candidate causes unseparated across several investigations.
+            cause = e.__cause__ or e.__context__
+            detail = f"{e}" + (f" caused by: {cause}" if cause is not None else "")
+            log(f"{style.warn()} Parallel indexing unavailable ({detail}); "
                 f"falling back to serial.")
             # Fresh Progress: some repos may already have advanced the old one
             # via _report before the pool broke, so re-running the full work-list
             # serially (see comment above) must not double-advance those counts.
             progress = style.Progress(total=total, label="index")
+            # Same reason, for the two counters the summary line reads. A mid-run
+            # break leaves `failed` and `oversized` holding the real failures and
+            # skips from before the break, and the serial pass re-runs the full
+            # work-list including those repos, so keeping the totals counts each
+            # of them twice.
+            failed = 0
+            oversized.clear()
             _run_serial(todo)
     progress.done()
     # Scoped to *this* workspace's own repo list (the same `repos` the "Found N
