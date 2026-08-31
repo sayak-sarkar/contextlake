@@ -1,5 +1,6 @@
 """Tests for wiki generation, the verification council, and the wiki command."""
 
+import re
 from argparse import Namespace
 from datetime import date
 
@@ -1987,7 +1988,11 @@ def test_cmd_wiki_skips_module_pages_when_the_whole_repo_page_failed(
     whole = store_dir / "wiki" / "fed.md"
     assert whole.exists() and is_structural_page(whole.read_text(encoding="utf-8"))
     assert not _generated_module_prefixes(store_dir / "wiki" / "_modules")
-    assert "not attempting its subsystem pages this run" in gls_logs.text
+    # The count is part of the message now: a run that skips six subsystem
+    # pages has to say six, or the summary's "N not attempted" has nothing
+    # in the log above it to explain where N came from.
+    assert re.search(r"not attempting its \d+ subsystem page\(s\) this run", gls_logs.text), \
+        gls_logs.text
 
 
 @pytest.mark.slow
@@ -2480,3 +2485,75 @@ def test_every_capped_list_reports_its_total(tmp_path):
     assert len(brief["requires"]) == 20 and brief["requires_total"] == 25
     assert len(brief["packages"]) == 20 and brief["packages_total"] == 25
     assert brief["publishes_total"] == 0
+
+
+class _FailsOnTheWholeRepoPage(_FakeLlm):
+    """Raises on the whole-repo page and would succeed on every module page.
+
+    That split is the point. The fail-fast skips the module pages rather than
+    trying them, so they must be reported as *not attempted*, which is a
+    different fact from *failed*. An LLM that raised on everything could not
+    tell the two apart.
+    """
+
+    def __init__(self, score=0.95):
+        super().__init__(score=score)
+        self.page_calls = 0
+
+    def generate(self, prompt, *, system=None):
+        if "Review lens" in prompt:
+            return super().generate(prompt, system=system)
+        self.page_calls += 1
+        if "module/subsystem of" not in prompt:
+            raise RuntimeError("backend unreachable")
+        return super().generate(prompt, system=system)
+
+
+def test_module_pages_the_failfast_skips_are_reported_as_not_attempted(
+        tmp_path, monkeypatch, gls_logs):
+    """`written + rejected + skipped + failed` used to be less than the run planned.
+
+    When a repo's whole-repo page fails, `cmd_wiki` stops and never attempts
+    that repo's module pages. Those pages landed in no counter at all, so the
+    summary under-reported how much of the run did not happen. Six missing
+    subsystem pages looked identical to a repo that had none.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_federated_repo(tmp_path)
+    llm = _FailsOnTheWholeRepoPage()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: llm)
+
+    rc = cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+    out = gls_logs.text
+    # The package logger sets propagate=False, so plain caplog sees nothing and
+    # every "not in out" assertion would pass for the wrong reason. gls_logs
+    # attaches the handler directly; this proves it captured the run.
+    assert "Wiki:" in out, "no summary line captured; the assertions below would be vacuous"
+
+    # The whole-repo page was attempted and broke; the module pages were not.
+    assert "6 subsystem page(s) this run" in out, out
+    assert "6 not attempted" in out, out
+    assert rc == 1
+
+    # Proof the module pages really were never tried, rather than tried and
+    # failed: exactly one page prompt reached the model.
+    assert llm.page_calls == 1, f"expected 1 page attempt, got {llm.page_calls}"
+
+
+def test_the_all_failed_message_counts_pages_not_repos(tmp_path, monkeypatch, gls_logs):
+    """`failed` is incremented once per whole-repo page AND once per module page.
+
+    The summary beside it says so. This line called the same number "repo(s)",
+    so a run that lost three module pages of one repository announced that it
+    had "failed for all 3 repo(s)".
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FailsOnTheWholeRepoPage())
+
+    cmd_wiki(Namespace(config=str(tmp_path / "kb.toml")))
+    out = gls_logs.text
+    assert "none written" in out, "nothing captured; the check below would be vacuous"
+
+    assert "page(s) — none written" in out, out
+    assert "repo(s) — none written" not in out, out

@@ -823,6 +823,12 @@ def cmd_wiki(args) -> int:
             return 0
 
         written = rejected = skipped = failed = 0
+        # Module pages the fail-fast below never attempted. Counted separately
+        # because they belong in none of the four above: they were not written,
+        # not rejected, not unchanged, and not tried. Without this the four
+        # numbers silently add up to less than the run planned, and the operator
+        # cannot tell a quiet run from a truncated one.
+        suppressed = 0
         progress = style.Progress(len(targets), label="wiki")
 
         def _run_page(*, shard, repo_id, wiki_key, path_prefix, wiki_file, label,
@@ -1092,8 +1098,9 @@ def cmd_wiki(args) -> int:
                 # will almost certainly break each of up to
                 # _MAX_MODULE_PAGES_PER_REPO module pages too. Reporting the
                 # failure now costs 1 round trip instead of 21.
+                suppressed += len(selected)
                 log(f"  {repo_id}: whole-repo page failed — not attempting its "
-                    "subsystem pages this run", inline=True)
+                    f"{len(selected)} subsystem page(s) this run", inline=True)
                 progress.advance(repo_id)
                 continue
             # "absent": no shard / no brief -- matches the prior silent skip.
@@ -1138,16 +1145,25 @@ def cmd_wiki(args) -> int:
             progress.advance(repo_id)
         progress.done()
         fail_tail = f", {failed} failed" if failed else ""
-        glyph = style.warn() if failed else style.ok()
+        # Reported, not folded into `failed`. A page nobody tried is a different
+        # fact from a page that was tried and broke, and merging them hides how
+        # much of the run did not happen.
+        supp_tail = f", {suppressed} not attempted" if suppressed else ""
+        glyph = style.warn() if (failed or suppressed) else style.ok()
         log(f"{glyph} Wiki: {written} written, {rejected} rejected, "
-            f"{skipped} unchanged (skipped){fail_tail} → {wiki_dir}  (--force to regenerate)")
+            f"{skipped} unchanged (skipped){fail_tail}{supp_tail} → {wiki_dir}"
+            "  (--force to regenerate)")
         # Honest exit: failures with nothing written and nothing council-rejected
         # means the LLM was effectively unreachable for the whole run -> not success.
         if failed and not written and not rejected:
-            log(style.warn(f"Wiki generation failed for all {failed} repo(s) — none written"))
+            # "page(s)", because `failed` counts PAGES. It is incremented once
+            # per whole-repo page and once per module page, and this line used to
+            # call that total "repo(s)", so a run that lost three module pages of
+            # one repository reported "failed for all 3 repo(s)".
+            log(style.warn(f"Wiki generation failed for all {failed} page(s) — none written"))
             return 1
         if failed:
-            log("  See the log above for which repos failed. Re-run to retry.")
+            log("  See the log above for which pages failed. Re-run to retry.")
         return 0
     finally:
         if vs is not None:
