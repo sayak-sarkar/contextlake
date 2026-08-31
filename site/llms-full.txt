@@ -8218,6 +8218,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.10.0] - 2026-08-31
+
+### Upgrading
+
+**This release re-indexes every repository on your next `kb index`.** `PARSER_VERSION` moves
+from 10 to 11 because `.config` and four sibling extensions now carry settings into the graph,
+and no commit moves when an extractor starts reading a file type it previously ignored. Without
+the bump an existing store would report every repository "unchanged" and never gain a single
+setting.
+
+What that costs, measured on a 660-repository fleet:
+
+- The rebuild is automatic. `kb index` reports `older parser (10 -> 11)` and re-indexes rather
+  than skipping; the pass after that is quiet again.
+- The new extensions add roughly **61,000 `config_key` nodes** fleet-wide, dominated by 1,023
+  `.config` files at about 57 settings each.
+- The store-size change was **not measured** and no figure is given for it here. A full
+  re-index of that fleet has not been completed on this machine, and a number nobody measured
+  is worse than an absent one.
+
+### Known issues
+
+**`kb index --workspace` can break its worker pool at `--workers` above 1.** Reproduced twice
+on a 17-repository cluster: a worker dies immediately after a large shard completes, and every
+still-pending repository fails with `A process in the process pool was terminated abruptly`. On
+a 656-repository run this failed 640 of them in about a minute.
+
+- **`--workers 1` is verified working** on the same cluster, including every repository that
+  breaks the pool.
+- **2 through 8 are untested.** The default is `min(8, cpu_count - 1)`, so a plain
+  `kb index --workspace` is affected.
+- It is not a simple out-of-memory: one reproduction broke with 8.9 GB free, another with
+  4.3 GB, and system memory *dropped* at the instant of the break, which is one worker dying
+  rather than the machine starving.
+- The root cause is not established. The candidates not yet separated are a transient
+  out-of-memory kill of a single worker, a failure transferring a very large shard back to the
+  parent, and a grammar crash.
+
+The `max_repo_memory` budget added in this release does not prevent it, and the reason is the
+limit that budget documents: it is linear in input bytes, while the cost here tracks edge
+count. One of the repositories involved estimates 0.86 GB and produces 166,000 edges.
+
+
 ### Added
 
 - **`.config`, `.props`, `.targets`, `.settings` and `.plist` now reach the XML
@@ -8246,7 +8289,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outliers at 6.09, 6.76 and 7.35 GB. Set it to 0 to disable. The estimate is
   linear while the real cost is not, so it runs low on the largest repositories;
   it is a coarse guard, and the existing shard-item check remains the second layer.
-
 
 ## [8.9.0] - 2026-08-30
 
