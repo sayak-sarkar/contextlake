@@ -217,10 +217,27 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 /* ---- Shell + rail ------------------------------------------------------- */
 .cl-shell { display: grid; grid-template-columns: var(--cl-rail-w) 1fr;
   min-height: calc(100vh - 56px); }
-[data-rail="collapsed"] .cl-shell { grid-template-columns: var(--cl-rail-w-collapsed) 1fr; }
-.cl-shell:has(.cl-drawer:not([hidden])) { grid-template-columns: var(--cl-rail-w) 1fr 380px; }
-[data-rail="collapsed"] .cl-shell:has(.cl-drawer:not([hidden])) {
-  grid-template-columns: var(--cl-rail-w-collapsed) 1fr 380px; }
+
+/* A track is only correct while the thing that fills it is IN FLOW. The rail
+   goes `position: fixed` below 768px and the drawer does below 1280px, so an
+   override that reserves a column for either one must be scoped to the widths
+   where it is actually there.
+   These are scoped by width because they HAVE to be, not for tidiness. Every
+   selector below outranks the plain `.cl-shell` rules in the responsive block
+   at the end of this file, and specificity is resolved before any media query
+   is considered, so unscoped they won at every width. That is what put `#app`
+   in a 64px track on a phone: the rail had left the grid, its column had not.
+   Measured at a 700px viewport before this was scoped: three of the four
+   rail/drawer combinations gave `#app` 64px or 224px instead of the full
+   685px. */
+@media (min-width: 768px) {
+  [data-rail="collapsed"] .cl-shell { grid-template-columns: var(--cl-rail-w-collapsed) 1fr; }
+}
+@media (min-width: 1280px) {
+  .cl-shell:has(.cl-drawer:not([hidden])) { grid-template-columns: var(--cl-rail-w) 1fr 380px; }
+  [data-rail="collapsed"] .cl-shell:has(.cl-drawer:not([hidden])) {
+    grid-template-columns: var(--cl-rail-w-collapsed) 1fr 380px; }
+}
 
 .cl-rail { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) var(--sp-2);
   border-right: 1px solid var(--cl-line); background: var(--cl-surface);
@@ -653,7 +670,10 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 
 /* ---- Responsive --------------------------------------------------------- */
 @media (max-width: 1279px) {
-  .cl-shell:has(.cl-drawer:not([hidden])) { grid-template-columns: var(--cl-rail-w) 1fr; }
+  /* No drawer-column rule is needed here any more. The 380px track now only
+     exists above 1280px, so below it the shell simply keeps its two columns.
+     The rule this replaced set the FULL rail width while the rail is collapsed
+     at this size, which was a second, quieter version of the same mistake. */
   .cl-drawer { position: fixed; top: 56px; right: 0; width: min(380px, 92vw); z-index: 40;
     box-shadow: var(--cl-shadow); }
   .cl-rail__label { display: none; }
@@ -674,4 +694,26 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important;
     animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+/* ---- Forced colours (Windows High Contrast and similar) ------------------ */
+@media (forced-colors: active) {
+  /* A forced palette replaces every colour this file picks, so anything that
+     separated two things ONLY by colour stops separating them. Most of the
+     dashboard already pairs colour with something else and needs nothing here:
+     the health chips carry the words "Fresh" and "Stale", the confidence chips
+     carry a border-style and a clipped glyph shape, and cards, the rail and the
+     drawer all have a 1px border that maps to CanvasText.
+
+     The trust bar is the exception. Its segments are sized by flex and told
+     apart by background-color alone, so under a forced palette they merge into
+     one undifferentiated bar and the proportions disappear. Each segment keeps
+     an aria-label with its count and percentage, so a screen reader still gets
+     the numbers; this is the sighted half of that same information. */
+  .cl-trustbar__seg { border-inline-end: 1px solid CanvasText; }
+  .cl-trustbar__seg:last-child { border-inline-end: 0; }
+
+  /* Focus must stay visible against a palette this file does not choose, so it
+     uses the system Highlight rather than the brand focus token. */
+  :focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
 }
