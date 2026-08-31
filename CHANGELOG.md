@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.11.0] - 2026-08-31
+
+### Fixed
+
+- **The dashboard rendered twice on every load, and fetched `/api/overview` twice with it.**
+  `boot()` attaches a `hashchange` listener and then gives the page a default hash when it
+  opens without one. Assigning `location.hash` fires `hashchange`, and the listener is
+  already attached, so the page rendered once from the explicit call and once from the
+  event. The two requests overlap, so neither can serve the other from cache. Measured
+  against a 961,633-node store: 2,769 ms and 4,005 ms, 35 ms apart, while the page shell was
+  ready in 114 ms. `history.replaceState` writes the same URL and dispatches nothing. It
+  also keeps the default hash out of the history stack, so Back no longer returns to the
+  hash-less URL and straight back again.
+
+- **The dashboard reserved layout columns for a sidebar and drawer that were not there.**
+  The rail becomes `position: fixed` below 768px and the drawer below 1280px, so both leave
+  the grid, but the rules naming their columns applied at every width. Specificity is
+  resolved before any media query is considered, so those rules won regardless of source
+  order. On a 700px viewport the main content measured 64px wide with the rail collapsed.
+  Three of the four rail and drawer combinations were wrong, not the one that was reported.
+  All four now use the full width, and 1000px and 1400px were re-checked.
+
+- **`kb wiki` under-reported how much of a run did not happen.** When a repository's
+  whole-repo page fails, the run skips that repository's module pages rather than trying
+  each one. Those pages were counted nowhere, so the four totals added up to less than the
+  run planned and six missing subsystem pages read the same as a repository that had none.
+  They are now reported as "N not attempted", kept separate from failures because a page
+  nobody tried is a different fact from a page that broke. The all-failed line also called a
+  page count "repo(s)", so a run that lost three module pages of one repository announced it
+  had failed for three repositories.
+
+### Added
+
+- **A truncated graph view now names the node kinds it dropped.** "500 of 3,200" says a view
+  is partial without saying that the part you came for is the part that is missing: a
+  repository with 412 `table` nodes that renders none of them has an empty ER diagram, and
+  the old message could not tell that apart from dropping 412 low-value nodes. The four
+  worst losses are logged with the count each kind had, and the full breakdown reaches
+  callers as `dropped_by_kind`. Both sides are counted rather than estimated. The key is
+  absent on a complete view, so nothing can render "0 dropped" over a view that dropped
+  nothing.
+
+- **A `forced-colors` block for the dashboard**, where there were none. Most of it needed
+  nothing: the health chips carry the words Fresh and Stale, the confidence chips carry a
+  border style and a clipped glyph, and cards, the rail and the drawer have borders that
+  survive a forced palette. The trust bar does not. Its segments are sized by flex and told
+  apart by background colour alone, so a forced palette merged them into one bar; they now
+  carry a divider, and focus uses the system highlight colour.
+
 ### Documentation
 
 - **The `--repos` pattern syntax is documented in full**, in
