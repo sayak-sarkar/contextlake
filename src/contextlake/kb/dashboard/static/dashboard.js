@@ -2380,7 +2380,22 @@
   function boot() {
     initChrome();
     window.addEventListener("hashchange", function () { CL.router.render(); });
-    if (!location.hash) location.hash = "#/fleet";
+    // replaceState, not `location.hash =`, and the difference is a whole extra
+    // page load. Assigning location.hash fires `hashchange`, and the listener
+    // above is already attached by then, so boot rendered TWICE: once from the
+    // explicit render below and once from the event. Both renders call
+    // /api/overview, and they overlap, so neither can serve the other from
+    // cache. Measured on a 961,633-node store: two requests 35 ms apart taking
+    // 2,769 ms and 4,005 ms, against a page shell ready in 114 ms.
+    // replaceState writes the same URL and fires nothing.
+    // It also stops the default hash becoming a history entry, so Back from the
+    // fleet view no longer returns to the hash-less URL and straight back here.
+    // `parseHash` already reads an absent hash as `/fleet`, so this line is only
+    // making the default visible in the address bar; the router never needed it.
+    if (!location.hash) {
+      if (window.history && history.replaceState) history.replaceState(null, "", "#/fleet");
+      else location.hash = "#/fleet";  // no replaceState: one extra render, still correct
+    }
     CL.router.render();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
