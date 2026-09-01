@@ -26,24 +26,24 @@ from __future__ import annotations
 
 import pathlib
 import re
-import sys
-
-import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 DOCS = REPO / "docs"
 SITE = REPO / "site"
+BUILDER = SITE / "build_docs.py"
 
 EMBED_PAGES = ["asking-the-graph", "code-graph-model",
                "indexing-the-code-graph", "visualizing-the-graph"]
 IMG = re.compile(r'<img[^>]*\bdata-embed="([^"]+)"[^>]*>')
 
 
-def _build_docs():
-    pytest.importorskip("markdown", reason="site builder dependency, not a runtime one")
-    if str(SITE) not in sys.path:
-        sys.path.insert(0, str(SITE))
-    return pytest.importorskip("build_docs", reason="site/build_docs.py not importable")
+# The builder is READ, not imported. Importing it needs `markdown`, which is a site
+# dependency and not installed in CI's jobs -- the first version of these two tests used
+# `importorskip` and SKIPPED on CI while passing here, which is the same
+# only-runs-on-my-machine hole the rest of this file was rewritten to close. Both
+# questions below are answerable from the source text.
+def _builder_source() -> str:
+    return BUILDER.read_text(encoding="utf-8")
 
 
 def test_each_graph_page_source_carries_the_embed():
@@ -86,8 +86,9 @@ def test_both_referenced_files_reach_the_built_site():
     """
     assert (SITE / "graph-embed.html").exists()          # tracked, .gitignore exempts it
     assert (DOCS / "img" / "graph.jpg").exists()         # tracked source of site/graph.jpg
-    bd = _build_docs()
-    assert "graph.jpg" in bd.SHARED_IMG, \
+    shared = re.search(r"SHARED_IMG\s*=\s*\[(.*?)\]", _builder_source(), re.S)
+    assert shared, "build_docs no longer has a SHARED_IMG list"
+    assert '"graph.jpg"' in shared.group(1), \
         "graph.jpg is not synced into site/, so every embed placeholder would 404"
 
 
@@ -95,9 +96,7 @@ def test_the_builder_ships_the_swap_script_only_with_the_markup():
     """The gate is a marker in the rendered body. Exercised through the builder's real
     condition rather than described, and in both directions: the attribute name alone
     (which is prose in the changelog, inside a `<code>` tag) must not be enough."""
-    bd = _build_docs()
-    src = pathlib.Path(bd.__file__).read_text(encoding="utf-8")
-    cond = re.search(r"EMBED = EMBED_JS if (.+?) else \"\"", src)
+    cond = re.search(r"EMBED = EMBED_JS if (.+?) else \"\"", _builder_source())
     assert cond, "build_docs no longer gates EMBED_JS on a body marker"
     expr = cond.group(1)
 
