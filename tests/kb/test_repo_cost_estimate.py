@@ -132,7 +132,10 @@ def test_a_repo_over_budget_is_refused_before_anything_is_parsed(tmp_path, monke
     text = str(exc)
     assert "code" in text
     assert "max_repo_memory" in text
-    assert "--languages" in text
+    # `kb.languages`, the config key, not `--languages`: there has never been such a
+    # flag, and this assertion is why the wrong advice survived. It pinned the message
+    # to a control the CLI does not have.
+    assert "kb.languages" in text
 
 
 def test_a_repo_within_budget_indexes_normally(tmp_path):

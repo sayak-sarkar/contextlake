@@ -81,18 +81,3 @@ def test_no_error_message_names_a_flag_that_does_not_exist():
     assert not offenders, (
         "these messages tell the user to pass a flag that is not registered:\n  "
         + "\n  ".join(offenders))
-
-
-def test_the_repo_too_large_message_names_the_setting_that_exists():
-    """The specific case above, pinned separately.
-
-    The general guard passes if the advice is deleted outright, and advice that is
-    merely absent is a different, quieter defect: the error still tells the reader
-    their repository is too big and nothing about what to do.
-    """
-    from contextlake.kb.parse import RepoTooLarge
-
-    msg = str(RepoTooLarge("some/repo", 9 * 1073741824, 4 * 1073741824, {"c": 5}))
-    assert "kb.languages" in msg
-    assert "--languages" not in msg
-    assert "kb.max_repo_memory" in msg
