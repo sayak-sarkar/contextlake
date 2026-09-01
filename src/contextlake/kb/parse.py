@@ -387,7 +387,7 @@ def _has_generated_header(source: bytes) -> bool:
 # already-indexed repository reports "unchanged" and never gains a single setting.
 # That is the whole reason this constant exists, and it was nearly missed: the
 # extraction change and the bump are one piece of work, not two.
-PARSER_VERSION = "11"
+PARSER_VERSION = "12"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -3401,7 +3401,10 @@ _STYLE_KINDS = {k for k, s in KIND_REGISTRY.items() if s.style_ref_target}
 # A name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to each
 # candidate (so blast-radius doesn't miss hot symbols); a name matching more than
 # this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
-_MAX_AMBIG_FANOUT = 6
+# Raised from 6 to 10 on 2026-09-02, from the measurement recorded below. A reference
+# naming a symbol defined in more than this many places produces NO edge, so the cap is
+# the line between a caller that is reported and one that silently is not.
+_MAX_AMBIG_FANOUT = 10
 
 # Languages that can call into each other's definitions, keyed by the language a
 # candidate's file is written in. Name resolution is repo-wide and name-based, so
@@ -3632,18 +3635,17 @@ def _resolve_name_refs(
         #
         # Re-measured 2026-09-01 with the cap removed, on the two largest ambiguity
         # contributors in a 717,381-node store. Both figures this comment used to carry
-        # were wrong. The loss is 29.6% and 37.0% of resolvable call references, not
-        # 21.6%. And there IS a knee: cap 10 reaches 76.2% and 80.6% of references for
-        # 1.22x and 1.52x the ambiguous edges. The old "3.6x for 21.6%" was the cost of
-        # admitting EVERYTHING, which is a different question from where to put the cap.
+        # were wrong. At 6 the loss was 29.6% and 37.0% of resolvable call references,
+        # not 21.6%. And there IS a knee, which is why the cap moved to 10: it reaches
+        # 76.2% and 80.6% of references for 1.22x and 1.52x the ambiguous edges. The old
+        # "3.6x for 21.6%" was the cost of admitting EVERYTHING, a different question
+        # from where to put the cap.
         #
-        # The cap stays at 6 for now because two repositories of one fleet is thin
-        # evidence for a constant that sets every user's store size, not because 6 was
-        # shown to be right. Raising it to 10 is the recommendation on the table.
         # Admitting everything stays wrong, for a sharper reason than "no knee": the
         # uncapped cost is one or two pathological names per repo -- 2,864 sites naming
         # a symbol with 1,432 definitions produced 4.1M edges by themselves, 92% of that
-        # repository's uncapped total.
+        # repository's uncapped total. A cap is the right shape of control; only its
+        # value was in question. Full write-up: planning/private/, 2026-09-01.
         stats["ambiguity_dropped"] = stats.get("ambiguity_dropped", 0) + dropped
     if edges or dropped:
         unit = "call site(s)" if per_site else "edge(s)"
