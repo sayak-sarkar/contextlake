@@ -8301,6 +8301,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.13.0] - 2026-09-02
+
+### Changed
+
+- **The ambiguity fanout cap is 10, not 6, and stores re-index to pick it up.** A call
+  reference naming a symbol defined in more than the cap's many places produces no edge at
+  all, so the caller is simply absent from "who calls X". Measured with the cap removed on
+  the two largest ambiguity contributors in a 717,381-node store, the old cap was dropping
+  **29.6% and 37.0%** of resolvable call references. The comment beside it claimed 21.6%
+  and "no knee in the distribution"; both were wrong. There is a knee, and 10 sits on it:
+  76.2% and 80.6% of references for 1.22x and 1.52x the ambiguous edges.
+
+  Admitting everything is still wrong, for a sharper reason than the old note gave. The
+  uncapped cost is one or two pathological names per repository: 2,864 sites naming a
+  symbol with 1,432 definitions produced 4.1M edges by themselves, 92% of that
+  repository's uncapped total.
+
+  `PARSER_VERSION` moves to `12`, so existing stores re-index rather than keeping edges
+  built under the old cap.
+
+### Added
+
+- **Zoom in and zoom out buttons on the graph toolbar.** Zoom level could only be chosen
+  by wheel or pinch. Pinch is a multipoint gesture, and WCAG 2.5.1 (Level A) wants a
+  single-pointer alternative; "Fit to view" sets a zoom level but does not let you pick
+  one. Each press steps by a fixed ratio about the viewport centre.
+
+  Wheel zoom got more responsive alongside them: `wheelSensitivity` was `0.2`, so reaching
+  a readable scale took a dozen notches and the canvas read as stuck. It is now `1`.
+
+### Fixed
+
+- **Every graph and dashboard page requested a favicon that did not exist**, producing a
+  404 in the console on each load. Both now carry an inline SVG icon, which costs no
+  request and survives an offline export.
+
+- **`kb dashboard --site <dir>` overwrote files it did not write.** The export writes
+  `index.html` unconditionally, so pointing it at a directory holding anything else --
+  a docs site, a hand-maintained landing page -- replaced that content silently, with the
+  command reporting success. It now refuses any directory containing files the export does
+  not itself produce, naming what it found. Re-running into a previous export stays
+  idempotent and needs no flag.
+
 ## [8.12.0] - 2026-09-02
 
 ### Added
