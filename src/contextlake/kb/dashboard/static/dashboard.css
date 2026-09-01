@@ -583,7 +583,13 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   box-shadow: var(--cl-shadow); overflow: hidden; }
 .cl-palette__input { width: 100%; border: 0; border-bottom: 1px solid var(--cl-line);
   padding: var(--sp-4); font: inherit; font-size: var(--fs-500); background: none; color: var(--cl-ink); }
-.cl-palette__input:focus { outline: none; }
+/* :focus-visible, not :focus. This was the one rule in the dashboard that removed an
+   outline on plain :focus, and it is safe only for as long as the palette holds exactly
+   one focusable control -- focus lands there when the palette opens, the field keeps a
+   contrasting bottom border, and the active option is tracked with aria-activedescendant.
+   Add a second control and focus would move invisibly inside the dialog, which is a
+   2.4.7 failure. Narrowing it now costs nothing and removes the trap. */
+.cl-palette__input:focus-visible { outline: none; }
 .cl-palette__list { list-style: none; margin: 0; padding: var(--sp-2); max-height: 50vh; overflow-y: auto; }
 .cl-palette__list li { padding: var(--sp-2) var(--sp-3); border-radius: var(--cl-radius-sm);
   cursor: pointer; display: flex; align-items: center; gap: var(--sp-2); }
