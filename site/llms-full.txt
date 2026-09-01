@@ -2422,6 +2422,13 @@ either of them:
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [Connect and enrich](connecting-and-enriching.md)
@@ -2860,6 +2867,13 @@ getting a silent best-guess.
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 
@@ -5669,6 +5683,13 @@ Three behaviours that bite scripts:
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [Serve it to your editor](serving-over-mcp.md), the same answers as MCP tools
@@ -6918,6 +6939,13 @@ identical here: an HTTP call whose target path matches no indexed repo's `expose
 box labels yourself; you'll recognize your own internal hosts. `--c1` requires `--c4` (it has no
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 

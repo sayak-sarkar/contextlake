@@ -761,6 +761,35 @@ def _mermaid_fence(source, language, css_class, options, md, **kw) -> str:
     return f'<pre class="mermaid">{source}</pre>'
 
 
+# The live graph, swapped in for its screenshot when the reader scrolls near it.
+# `graph-embed.html` is 788 KB, so four docs pages embedding it eagerly would cost
+# every reader that whether or not they ever scroll to it -- the landing page solved
+# this first (site/index.html), and this is the same swap. A page that never scrolls
+# there, and a reader with no JS, keeps the screenshot, which is why the <img> is the
+# markup in the source and the iframe is the enhancement.
+EMBED_JS = r"""<script>(function(){
+  var imgs = document.querySelectorAll("img[data-embed]");
+  if(!imgs.length || !window.IntersectionObserver) return;
+  function theme(){var e=document.documentElement.getAttribute("data-theme");
+    if(e==="dark"||e==="light")return e;
+    return matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+  imgs.forEach(function(img){
+    var embed = img.getAttribute("data-embed");
+    var io = new IntersectionObserver(function(es){
+      if(!es[0].isIntersecting) return;
+      io.disconnect();
+      var f = document.createElement("iframe");
+      f.className = "shot graph-embed"; f.title = img.alt;
+      f.setAttribute("scrolling","no"); f.setAttribute("loading","lazy");
+      f.onerror = function(){ f.replaceWith(img); };
+      f.src = embed + "#theme=" + theme();
+      img.replaceWith(f);
+    }, {rootMargin:"400px 0px"});
+    io.observe(img);
+  });
+})();</script>"""
+
+
 MERMAID_JS = (
     '<script src="mermaid.min.js"></script>\n'
     '<script>(function(){\n'
@@ -812,6 +841,12 @@ def shell(meta, body, toc_html) -> str:
     out, src, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
     # 3.5 MB of vendored mermaid: only the pages that draw something pay for it.
     MERMAID = MERMAID_JS if 'class="mermaid"' in body else ""
+    # Both halves of the markup, not the attribute name alone. The changelog discusses
+    # `data-embed` inside a <code> tag; that prose lacks the `=` so it never matched,
+    # but a page quoting the full `data-embed="..."` would, and would then ship a script
+    # with nothing to swap. Requiring the opening tag too costs nothing and removes the
+    # question. A prose page that names an attribute is not a page that has one.
+    EMBED = EMBED_JS if '<img class="shot"' in body and "data-embed=" in body else ""
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
     url = f"{BASE}{linkify(out)}"
     jsonld = docs_jsonld(nav_title, subtitle, url, git_date(src))
@@ -880,6 +915,7 @@ def shell(meta, body, toc_html) -> str:
 {MERMAID}
 {TAB_JS}
 {SIDE_JS}
+{EMBED}
 <script defer src="cmdk.js"></script>
 </body>
 </html>"""

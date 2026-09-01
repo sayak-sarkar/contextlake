@@ -426,6 +426,13 @@ getting a silent best-guess.
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [Indexing the code graph](indexing-the-code-graph.md)

@@ -305,6 +305,13 @@ box labels yourself; you'll recognize your own internal hosts. `--c1` requires `
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [The dashboard](using-the-dashboard.md)

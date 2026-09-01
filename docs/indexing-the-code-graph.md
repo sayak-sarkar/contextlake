@@ -219,6 +219,13 @@ either of them:
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [Connect and enrich](connecting-and-enriching.md)

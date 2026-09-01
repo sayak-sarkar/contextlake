@@ -280,6 +280,13 @@ Three behaviours that bite scripts:
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
 
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 ## See also
 
 - [Serve it to your editor](serving-over-mcp.md), the same answers as MCP tools
