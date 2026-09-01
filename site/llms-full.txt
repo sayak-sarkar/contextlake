@@ -6821,6 +6821,24 @@ many nodes it found ("4 nodes downstream"). It appears only on nodes that have a
 It traces the graph currently on the canvas. In `--serve` mode that's whatever you've expanded so
 far, so if a trace looks short, expand further with **depth** raised, then run it again.
 
+### Read the prose about a node
+
+**Read the wiki** in the inspector opens the generated wiki for the node's repository. It appears
+only when that repository has one.
+
+Where it lands depends on how you opened the graph:
+
+- **In the dashboard**, it opens the subsystem page covering that node's file, and falls back to
+  the repository's own page when no subsystem page covers it.
+- **On a `--site` export**, it opens the repository page beside it. The export writes whole-repo
+  pages only, so there is nothing narrower to open.
+
+There is no link to a heading. Generated pages are written in page-level sections (Overview,
+Setup & Run, Architecture, Dependencies, Gotchas) and the model is asked to leave out any it has
+nothing to say for, so no section is about one symbol and no named section is certain to be
+there. A link to a heading that was not written lands at the top of the page and looks like it
+worked.
+
 ### Filter with the legend
 
 The **Nodes** legend groups every kind present into the vocabulary's ten bands: Symbols,
@@ -8254,6 +8272,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **A node in the architecture graph now opens the wiki for its repo, and lands on the
+  subsystem page covering that node's file.** The graph page had no wiki link of any kind.
+  Inside the dashboard the graph runs in an iframe, so the node's control asks the
+  dashboard to route; the dashboard resolves the file to the narrowest generated
+  subsystem page that contains it and opens that, falling back to the repo's own page
+  when no subsystem page covers it. Opened through the dashboard's Fullscreen link the
+  same page has no parent, so it links that route directly. A static export links the
+  sibling wiki page it already writes.
+
+  The control appears only for a repo that has a generated wiki. The prefix match is
+  anchored on a path segment, so `src` cannot claim `srcutil/helper.py`.
+
+  There is no jump to a *heading*, and that is a limit of the data rather than an
+  omission. Generated pages carry page-level headings only (Overview, Setup & Run,
+  Architecture, Dependencies, Gotchas), the model is told to omit any it has nothing to
+  say for, and nothing in a page is about a single symbol. A computed anchor would land
+  silently at the top of the page.
+
+### Fixed
+
+- **A static export's graph pages disagreed about which repos had a wiki.** The map was
+  filled while the pages were being written, so each page saw only the repos written
+  before it and the fleet overview, written first, saw none. Nothing read the map yet, so
+  nothing failed. It is now built before the first page.
 
 ## [8.11.0] - 2026-08-31
 

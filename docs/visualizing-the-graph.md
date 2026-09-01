@@ -207,6 +207,24 @@ many nodes it found ("4 nodes downstream"). It appears only on nodes that have a
 It traces the graph currently on the canvas. In `--serve` mode that's whatever you've expanded so
 far, so if a trace looks short, expand further with **depth** raised, then run it again.
 
+### Read the prose about a node
+
+**Read the wiki** in the inspector opens the generated wiki for the node's repository. It appears
+only when that repository has one.
+
+Where it lands depends on how you opened the graph:
+
+- **In the dashboard**, it opens the subsystem page covering that node's file, and falls back to
+  the repository's own page when no subsystem page covers it.
+- **On a `--site` export**, it opens the repository page beside it. The export writes whole-repo
+  pages only, so there is nothing narrower to open.
+
+There is no link to a heading. Generated pages are written in page-level sections (Overview,
+Setup & Run, Architecture, Dependencies, Gotchas) and the model is asked to leave out any it has
+nothing to say for, so no section is about one symbol and no named section is certain to be
+there. A link to a heading that was not written lands at the top of the page and looks like it
+worked.
+
 ### Filter with the legend
 
 The **Nodes** legend groups every kind present into the vocabulary's ten bands: Symbols,

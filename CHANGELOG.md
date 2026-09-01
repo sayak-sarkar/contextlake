@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A node in the architecture graph now opens the wiki for its repo, and lands on the
+  subsystem page covering that node's file.** The graph page had no wiki link of any kind.
+  Inside the dashboard the graph runs in an iframe, so the node's control asks the
+  dashboard to route; the dashboard resolves the file to the narrowest generated
+  subsystem page that contains it and opens that, falling back to the repo's own page
+  when no subsystem page covers it. Opened through the dashboard's Fullscreen link the
+  same page has no parent, so it links that route directly. A static export links the
+  sibling wiki page it already writes.
+
+  The control appears only for a repo that has a generated wiki. The prefix match is
+  anchored on a path segment, so `src` cannot claim `srcutil/helper.py`.
+
+  There is no jump to a *heading*, and that is a limit of the data rather than an
+  omission. Generated pages carry page-level headings only (Overview, Setup & Run,
+  Architecture, Dependencies, Gotchas), the model is told to omit any it has nothing to
+  say for, and nothing in a page is about a single symbol. A computed anchor would land
+  silently at the top of the page.
+
+### Fixed
+
+- **A static export's graph pages disagreed about which repos had a wiki.** The map was
+  filled while the pages were being written, so each page saw only the repos written
+  before it and the fleet overview, written first, saw none. Nothing read the map yet, so
+  nothing failed. It is now built before the first page.
+
 ## [8.11.0] - 2026-08-31
 
 ### Fixed

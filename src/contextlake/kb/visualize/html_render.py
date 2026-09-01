@@ -609,37 +609,48 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
         repos_with_nodes = [r for r in repos_with_nodes if _match_repo(r, repos)]
     pages = {r: f"repo-{repo_slug(r)}.html" for r in repos_with_nodes}
 
+    # wiki pages, if the LLM-wiki has been generated (store_dir/wiki/<slug>.md).
+    # Discovered in full BEFORE any page is written, not while writing them: every
+    # page carries the whole map so a node's inspector can offer its repo's wiki,
+    # and a node on the overview (or a cross-repo node on a repo page) belongs to a
+    # repo whose page has not been reached yet. Building the map inside the write
+    # loop meant each page saw only the repos written before it, so the same node
+    # got the affordance on one page and not on another. Statting first is the fix.
+    sp = getattr(store, "path", None)
+    wiki_dir = (Path(sp).parent / "wiki") if sp else None
+    wiki_srcs: dict[str, Path] = {}
+    wiki_pages: dict[str, str] = {}
+    if wiki_dir:
+        for r in repos_with_nodes:
+            wf = wiki_dir / (repo_slug(r) + ".md")
+            if wf.exists():
+                wiki_srcs[r] = wf
+                wiki_pages[r] = f"wiki-{repo_slug(r)}.html"
+
     meta: dict = {}
     nodes, edges = overview_subgraph(store, max_nodes=max_nodes, meta=meta)
     for n in nodes:
         if n["id"] in pages:
             n["href"] = pages[n["id"]]
     meta["mode"] = "overview"
+    meta["wiki"] = wiki_pages
     (out / "overview.html").write_text(
         to_html(to_payload(nodes, edges, meta, fold_leaves=True), cdn=cdn,
                 layout=overview_layout, assets="sibling", site=True,
                 title="contextlake — fleet overview"), encoding="utf-8")
 
-    # wiki pages, if the LLM-wiki has been generated (store_dir/wiki/<slug>.md)
-    sp = getattr(store, "path", None)
-    wiki_dir = (Path(sp).parent / "wiki") if sp else None
-    wiki_pages: dict[str, str] = {}
-
     for r in repos_with_nodes:
         m: dict = {}
         rn, re_ = repo_subgraph(store, r, max_nodes=repo_max_nodes, meta=m)
-        m.update(mode="repo", repo=r)
+        m.update(mode="repo", repo=r, wiki=wiki_pages)
         (out / pages[r]).write_text(
             to_html(to_payload(rn, re_, m, fold_leaves=True), cdn=cdn,
                     layout=repo_layout, assets="sibling", site=True,
                     title=f"contextlake — {r}"), encoding="utf-8")
-        if wiki_dir:
-            wf = wiki_dir / (repo_slug(r) + ".md")
-            if wf.exists():
-                wiki_pages[r] = f"wiki-{repo_slug(r)}.html"
-                (out / wiki_pages[r]).write_text(
-                    _wiki_page(r, wf.read_text(encoding="utf-8", errors="replace"), store),
-                    encoding="utf-8")
+        if r in wiki_srcs:
+            (out / wiki_pages[r]).write_text(
+                _wiki_page(r, wiki_srcs[r].read_text(encoding="utf-8", errors="replace"), store),
+                encoding="utf-8")
     log(f"  wrote overview + {len(repos_with_nodes)} repo pages "
         f"+ {len(wiki_pages)} wiki pages + index")
 

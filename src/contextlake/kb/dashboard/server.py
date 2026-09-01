@@ -184,7 +184,29 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     pages = {r: f"repo-{viz.repo_slug(r)}.html" for r in repos_with_nodes}
     slug_to_repo = {viz.repo_slug(r): r for r in repos_with_nodes}
 
-    ov_meta: dict = {"mode": "overview"}
+    # Which repos have a generated wiki, and where to send a reader for it. The graph
+    # page reads this to decide whether to offer a node's "Read the wiki" control at
+    # all -- an affordance that lands on an empty tab is worse than none.
+    #
+    # The value is a real dashboard route, not a flag, because the graph page is
+    # reachable two ways and only one of them can post a message. Inside the
+    # dashboard it sits in an iframe and asks its parent to route; opened through the
+    # dashboard's own "Fullscreen" link it is a top-level document with no parent, and
+    # the only thing that still works there is a plain link. An empty value here left
+    # that second path with no control at all, silently: same node, same graph, one
+    # click apart.
+    #
+    # ``wiki_scoped`` says this target accepts ``&file=``. The static export's
+    # sibling pages do not -- it writes whole-repo pages only -- so the flag is what
+    # keeps the graph page from appending a parameter that would be ignored.
+    # One stat per repo, once at startup.
+    wiki_present = {
+        r: "/#/repo/" + urllib.parse.quote(r, safe="") + "?tab=wiki"
+        for r in repos_with_nodes
+        if (store_dir / "wiki" / f"{viz.repo_slug(r)}.md").exists()
+    }
+
+    ov_meta: dict = {"mode": "overview", "wiki": wiki_present, "wiki_scoped": True}
     ov_nodes, ov_edges = viz.overview_subgraph(store, meta=ov_meta)
     for n in ov_nodes:
         if n["id"] in pages:
@@ -230,7 +252,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 return 404, "text/plain", b"unknown repo"
             req = _open_store()
             try:
-                m: dict = {"mode": "repo", "repo": repo}
+                m: dict = {"mode": "repo", "repo": repo, "wiki": wiki_present,
+                           "wiki_scoped": True}
                 rn, re_ = viz.repo_subgraph(req, repo, meta=m)
                 body = viz.to_html(viz.to_payload(rn, re_, m), assets="inline", live=True,
                                    layout="cose", title=f"contextlake — {repo}").encode("utf-8")
