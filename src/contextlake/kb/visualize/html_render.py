@@ -669,6 +669,10 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
+<!-- Inline, not a linked file: without any icon the browser requests /favicon.ico
+     on every page load and the server 404s it. A data URI costs no request and
+     survives an offline export, which a linked .ico would not. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23137A8B'/%3E%3Cpath d='M6 20c3-2 5-2 8 0s5 2 8 0M6 14c3-2 5-2 8 0s5 2 8 0' stroke='%23EAF4F4' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 __STYLE_BLOCK__
 __LIB_TAG__
 </head>
