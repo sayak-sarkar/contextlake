@@ -8301,6 +8301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.12.0] - 2026-09-02
+
 ### Added
 
 - **A node in the architecture graph now opens the wiki for its repo, and lands on the
@@ -8321,12 +8323,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   say for, and nothing in a page is about a single symbol. A computed anchor would land
   silently at the top of the page.
 
+- **The docs pages that explain the graph now carry the running graph.**
+  `asking-the-graph`, `code-graph-model`, `indexing-the-code-graph` and
+  `visualizing-the-graph` described the visualizer in prose while the live page sat one
+  directory away, reachable only from the landing page. The page is 788 KB, so it is not
+  embedded eagerly: the markup ships a screenshot and an IntersectionObserver swaps the
+  iframe in when the reader scrolls near it, carrying the current theme. A reader with no
+  JavaScript, or who never scrolls that far, keeps the screenshot.
+
 ### Fixed
 
 - **A static export's graph pages disagreed about which repos had a wiki.** The map was
   filled while the pages were being written, so each page saw only the repos written
   before it and the fleet overview, written first, saw none. Nothing read the map yet, so
   nothing failed. It is now built before the first page.
+
+- **`RepoTooLarge` told you to pass a flag that does not exist.** A repository over the
+  memory budget was refused with "narrow it with `--languages`". There has never been a
+  `--languages` flag; the message introduced it, so anyone who followed the advice got
+  "unrecognized arguments" and no way to act on the error. The setting is real and lives
+  in `kb.toml` as `kb.languages`, which the message now names. A guard was added: no
+  string inside a `raise` or an exception's `__init__` may name a long flag that no parser
+  registers.
+
+- **The command palette's search field removed its own focus ring.**
+  `.cl-palette__input:focus` set `outline: none`, which takes the indicator away from
+  keyboard users rather than only from mouse users. It was safe while the palette held one
+  focusable control and would have become a WCAG 2.4.7 failure the moment a second one was
+  added, silently. Narrowed to `:focus-visible`, with a stylesheet-wide guard.
 
 ## [8.11.0] - 2026-08-31
 
