@@ -1464,7 +1464,10 @@ class RepoTooLarge(Exception):
             f"{repo_id}: estimated {estimate_bytes / 1073741824:.1f} GB peak "
             f"exceeds the {budget_bytes / 1073741824:.1f} GB per-repository "
             f"budget ({top}). Raise kb.max_repo_memory to index it anyway, or "
-            f"narrow it with --languages.")
+            # `kb.languages`, not `--languages`: there has never been such a flag.
+            # This advice named one from the day it shipped, so a reader who took it
+            # got "unrecognized arguments" and no way to act on the error.
+            f"narrow it with kb.languages.")
 
     def __reduce__(self):
         """Rebuild from the four values ``__init__`` needs, not from ``args``.
