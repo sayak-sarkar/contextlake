@@ -225,10 +225,45 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
     }
 
 
+# What this export writes at the top level. A directory holding only these (or nothing)
+# is one of ours to overwrite; anything else is someone's own folder.
+_OWN_FILES = frozenset({
+    "index.html", "data.js", "data.json", "dashboard.js", "dashboard.css",
+    "mermaid.min.js", "cmdk.js", "graph",
+})
+
+
+def _refuse_foreign_dir(out: Path) -> None:
+    """Refuse to write into a directory this export did not create.
+
+    ``--site <dir>`` writes ``index.html`` unconditionally. Pointed at a directory that
+    already holds something else -- a docs site, a hand-maintained landing page -- it
+    overwrote it silently, and the loss looked like nothing at all: the command succeeded,
+    and the damage sat in the working tree until someone read a diff. That happened here
+    on 2026-08-25 and was found a week later.
+
+    So the rule is about ownership, not emptiness: an export may overwrite its own output
+    and nothing else. Re-running into the same directory stays idempotent, which is the
+    normal case and must not need a flag.
+    """
+    if not out.exists():
+        return
+    foreign = sorted(p.name for p in out.iterdir()
+                     if not p.name.startswith(".") and p.name not in _OWN_FILES)
+    if foreign:
+        shown = ", ".join(foreign[:6]) + (", ..." if len(foreign) > 6 else "")
+        raise SystemExit(
+            f"refusing to build into {out}: it already holds files this export does not "
+            f"write ({shown}).\n"
+            f"An export overwrites its own output and nothing else. Point --site at a new "
+            f"or previously-exported directory, or move those files aside first.")
+
+
 def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos) -> None:
     """Write the snapshot global (data.js) + data.json, the SPA shell + assets, the graph site."""
     from .. import visualize as viz
 
+    _refuse_foreign_dir(out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "data.json").write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
     (out / "dashboard.js").write_text(_static("dashboard.js"), encoding="utf-8")
