@@ -710,6 +710,12 @@ __LIB_TAG__
       </div>
       <div class="row">
         <label>layout <select id="layout" aria-label="Layout">__LAYOUT_OPTIONS__</select></label>
+        <button class="ibtn" id="zoomout" title="Zoom out" aria-label="Zoom out"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle
+          cx="7" cy="7" r="4.5"/><path d="M4.5 7h5M10.5 10.5 14 14"/></svg></button>
+        <button class="ibtn" id="zoomin" title="Zoom in" aria-label="Zoom in"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle
+          cx="7" cy="7" r="4.5"/><path d="M4.5 7h5M7 4.5v5M10.5 10.5 14 14"/></svg></button>
         <button class="ibtn" id="fit" title="Fit to view" aria-label="Fit to view"><svg
           viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path
           d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>

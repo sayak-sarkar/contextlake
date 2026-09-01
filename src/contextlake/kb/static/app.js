@@ -122,7 +122,11 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   var cy = cytoscape({
     container: cyEl,
     elements: ELEMENTS,
-    wheelSensitivity: 0.2,
+    // 1, not 0.2. At 0.2 a wheel notch moved the zoom so little that reaching a
+    // readable scale took a dozen scrolls, which reads as a stuck canvas rather than a
+    // careful one. cytoscape warns about any non-default value here because it cannot
+    // know the user's hardware; the warning is accepted deliberately.
+    wheelSensitivity: 1,
     // Clamp wheel-zoom so the graph can't shrink to unreadable specks or balloon
     // past usefulness; fitClamped (below) enforces a higher readable floor on "fit".
     minZoom: 0.06, maxZoom: 2.5,
@@ -996,6 +1000,16 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
   // toolbar
   document.getElementById("fit").onclick = function(){ reframe(); };
+  // Zoom without a gesture (WCAG 2.5.1). Wheel zoom is fine with a mouse, but pinch is a
+  // multipoint gesture and was the only way to CHOOSE a zoom level -- "Fit to view" sets
+  // one, it does not let you pick. Each press steps by a fixed ratio about the viewport
+  // centre, and cytoscape clamps to minZoom/maxZoom on its own.
+  function stepZoom(factor){
+    cy.zoom({ level: cy.zoom() * factor,
+              renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
+  document.getElementById("zoomin").onclick = function(){ stepZoom(1.3); };
+  document.getElementById("zoomout").onclick = function(){ stepZoom(1 / 1.3); };
   document.getElementById("png").onclick = function(){
     saveUri(pngDataUri(), "contextlake-graph.png");
   };
