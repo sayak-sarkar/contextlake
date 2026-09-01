@@ -3628,10 +3628,22 @@ def _resolve_name_refs(
         # Reported to the caller, not just logged at DEBUG. A reference over the fanout
         # cap produces NO edge at all, so a genuine caller is simply absent from the
         # answer -- and a loss nobody is told about is indistinguishable from a repo
-        # that really has no such caller. Measured on a large legacy tree: 21.6% of
-        # resolvable call references sit above the cap. The cap stays (admitting them
-        # all costs 3.6x the calls edges for 21.6% more references, with no knee in the
-        # distribution), so the honest move is to say so out loud.
+        # that really has no such caller.
+        #
+        # Re-measured 2026-09-01 with the cap removed, on the two largest ambiguity
+        # contributors in a 717,381-node store. Both figures this comment used to carry
+        # were wrong. The loss is 29.6% and 37.0% of resolvable call references, not
+        # 21.6%. And there IS a knee: cap 10 reaches 76.2% and 80.6% of references for
+        # 1.22x and 1.52x the ambiguous edges. The old "3.6x for 21.6%" was the cost of
+        # admitting EVERYTHING, which is a different question from where to put the cap.
+        #
+        # The cap stays at 6 for now because two repositories of one fleet is thin
+        # evidence for a constant that sets every user's store size, not because 6 was
+        # shown to be right. Raising it to 10 is the recommendation on the table.
+        # Admitting everything stays wrong, for a sharper reason than "no knee": the
+        # uncapped cost is one or two pathological names per repo -- 2,864 sites naming
+        # a symbol with 1,432 definitions produced 4.1M edges by themselves, 92% of that
+        # repository's uncapped total.
         stats["ambiguity_dropped"] = stats.get("ambiguity_dropped", 0) + dropped
     if edges or dropped:
         unit = "call site(s)" if per_site else "edge(s)"
