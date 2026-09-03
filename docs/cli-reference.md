@@ -60,7 +60,7 @@ These work on every command, before or after it:
 | `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
 | `--access-log` | log every request the local HTTP servers answer (off by default) |
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
-| `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
+| `--offline` | refuse every non-loopback connection this process makes (same as `CONTEXTLAKE_OFFLINE=1`); `mirror` network commands and the `cli` LLM provider stop before they spawn. Some subprocesses are not covered, listed below |
 
 Five flags exist for unattended operation: `--log-file`, `--log-format`, `--metrics-file`,
 `--redact` / `--no-redact`, and `--access-log`. They are for the systemd service and timer in
@@ -72,6 +72,38 @@ Two more look similar and are not:
 - **`--plain`** is a piping and TTY switch.
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
+
+### What `--offline` covers, and what it does not
+
+It blocks at the socket, inside this process. Every client here inherits the block: `urllib`,
+`requests`, `httpx`, and the model downloaders inside the embedding and LLM libraries. Loopback
+stays open on purpose, so a local Ollama, the MCP server, the dashboard and the graph viewer keep
+working.
+
+A subprocess has its own sockets, so the block cannot reach one. Three of them are handled
+another way:
+
+- `mirror fetch`, `clone`, `update`, `branches` and `sync` refuse and exit 2. `bootstrap` skips
+  its mirror stage and runs the local stages.
+- `[llm] provider = "cli"` is refused before the agent CLI is spawned, so `kb wiki`, `kb docs`
+  and dashboard chat print the refusal and carry on without prose.
+- The dashboard's MCP start/restart control, its `Regenerate wiki` control, and
+  `kb refresh --refresh` spawn contextlake itself and pass `CONTEXTLAKE_OFFLINE` down, so
+  the child guards itself.
+
+These are **not** covered. Audited 2026-09-03; treat the list as open, not complete:
+
+| Not covered | Reached by | Why |
+| --- | --- | --- |
+| `kb connect` running `glab api` | any `[[sources]] type="gitlab"` | `glab` is a separate program and does not read the variable |
+| Dashboard `git clone` / `git pull` | adding or refreshing a repo in the dashboard | same: `git` does not read the variable |
+| `contextlake doctor --fix` running `pip install` | repairing a missing extra | same: `pip` does not read the variable |
+| `mcp` sources and connector tool calls over stdio | any `[[sources]] type="mcp"`, and the Atlassian / Figma / Slack connectors | the MCP SDK replaces the child's environment with a six-name whitelist, so the variable is stripped. Their `url` transport is in-process and **is** covered |
+| Scheduled runs (`contextlake schedule`) | the scheduler spawning a job | the child is contextlake and reads `CONTEXTLAKE_OFFLINE`, so the env-var form works. `--offline` as a flag does not survive the spawn |
+
+Closing these is per-call-site work, not one switch. Until it lands, `CONTEXTLAKE_OFFLINE=1` in
+the environment is the stronger of the two forms: it reaches any child that reads it, while the
+flag reaches only this process.
 
 [Console output](console-output.md) has the JSON shape, the redaction placeholders and the metric
 names.

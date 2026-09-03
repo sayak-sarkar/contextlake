@@ -113,6 +113,29 @@ def build_llm(cfg) -> LlmClient | None:
             timeout=getattr(cfg, "timeout", 300),
         )
     if provider == "cli":
+        # The one provider that spawns a process. A subprocess owns its own sockets, so
+        # netguard.install() cannot reach it: offline mode is true here only if this
+        # refuses before the spawn. This is the single IN-PROCESS resolution point, so
+        # wiki, docs, dashboard --llm-chat and build_review_llm all inherit the refusal.
+        #
+        # It is half the guarantee, not all of it. A command that spawns contextlake
+        # ITSELF gets a child that runs this check in its own process, and the child
+        # only knows it is offline if the parent said so: netguard.child_env() at the
+        # three spawn sites (kb/dashboard/mutations.py mcp_start and wiki_generate_start,
+        # kb/cmds/refresh.py _spawn_refresh) is that half. Still uncovered, and named
+        # here so the gap is not mistaken for coverage: schedule/runner.py spawns
+        # contextlake and kb/cmds/doctor_fix.py spawns pip, both with the inherited
+        # environment. `--offline` is a global flag, so both are reachable from an
+        # offline parent.
+        #
+        # None, not a raise: every caller already treats None as "no model" and degrades.
+        from ... import netguard, style
+        from ...logging_setup import log
+
+        if netguard.offline():
+            log(style.warn(netguard.refuse(
+                "the cli llm provider (it spawns an agent CLI)")))
+            return None
         from .cli import CliLlm
 
         return CliLlm(

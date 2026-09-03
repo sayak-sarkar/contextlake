@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`[embeddings] base_url` now defaults per provider. Check yours before upgrading if you point
+  it at a local server.** The field was declared as the literal `http://127.0.0.1:11434`, and one
+  declared literal wins for every provider. So `[embeddings] provider = "openai"` with no
+  `base_url` line sent each batch of indexed code to `POST http://127.0.0.1:11434/embeddings`,
+  with the value of `OPENAI_API_KEY` in the `Authorization` header. The field is now unset by
+  default and resolved when it is read: `https://api.openai.com/v1` for `openai`,
+  `http://127.0.0.1:11434` for everything else. `[llm]` already worked this way.
+
+  **This changes where your requests go.** If you run an OpenAI-compatible server on port 11434
+  and reach it with `provider = "openai"` and no `base_url` line, that traffic stayed on your
+  machine before the upgrade. After it, embedding requests go to
+  `https://api.openai.com/v1/embeddings` and your indexed code leaves the machine. One line keeps
+  it where it was:
+
+  ```toml
+  [embeddings]
+  provider = "openai"
+  base_url = "http://127.0.0.1:11434"
+  ```
+
+  Nothing changes for `provider = "ollama"`, `"builtin"` or `"auto"`, or for any config that
+  already writes a `base_url` line.
+
+### Security
+
+- **A config file found by walking up from the current directory may no longer choose an endpoint,
+  a credential variable, or a credential-carrying provider.** The provenance gate covered the keys
+  that become a subprocess argv (`[llm] command`/`args`/`provider = "cli"`, `[[sources]]`
+  `command`/`args`/`mcp_command`). It now also covers `[llm]`/`[embeddings]` `base_url` and
+  `api_key_env`, and `[[sources]]` `mcp`, `token_env` and `auth_dir`. `[[sources]] scopes` is
+  strengthen-only: a discovered file may narrow the OAuth grant and may not widen it.
+
+  On top of the per-key refusal, a discovered file may not aim a tier that carries a credential.
+  When the `provider` that wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`
+  and that value came from a discovered file, the tier is off for that run, rather than falling
+  back to built-in defaults nobody chose.
+
+  **This breaks an honest project-local block** that names `openai` or `anthropic` in a
+  `.contextlake.kb.toml`. Three things clear it: delete those keys from that file and set them in
+  `~/.contextlake/kb.toml`; pass `--config PATH` naming that file; or, for `[llm]` only, pass
+  `--llm PROVIDER` to `kb wiki`, `kb docs` or `bootstrap`. Adding the block to
+  `~/.contextlake/kb.toml` while the discovered file keeps its own `provider` line does not clear
+  it, because the discovered file is merged last and its `provider` still wins. Set
+  `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely.
+
 ## [8.13.0] - 2026-09-02
 
 ### Changed

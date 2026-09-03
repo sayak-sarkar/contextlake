@@ -66,6 +66,35 @@ def _local_llm_runtime_present() -> bool:
     return importlib.util.find_spec("openvino_genai") is not None
 
 
+def _refused_tier_detail(table: str) -> str:
+    """Why a tier is off when workspace trust refused it, and what clears it.
+
+    The sentence the two call sites print when ``KbConfig.refused_tiers`` names
+    their table. That field exists so a surface can tell a refused tier from one
+    the user switched off; both are the same ``enabled = False`` in the merged
+    config, and doctor printed the same line for both: "not enabled in config (set
+    [llm] enabled = true, or pass --llm PROVIDER)". That advice does nothing here.
+    The key sits in the file whose provider was refused, so setting it there
+    re-fires the refusal on the next load.
+
+    The remedies named are the two that were run against ``load_kb_config``: move
+    the block out of the discovered file into the global config, or pass
+    ``--config`` naming that file. Adding the block to the global config while the
+    discovered file keeps its own ``provider`` line does NOT clear it -- the merge
+    is last-wins, so that line still wins and the tier goes off again.
+
+    ``GLOBAL_CONFIG`` is read from the module at call time, not bound at import,
+    so the file this names is the one ``load_kb_config`` would actually treat as
+    privileged. Same reason ``trust.is_privileged_source`` reads it late.
+    """
+    from ..config import GLOBAL_CONFIG
+
+    return (f"refused: a config file found by walking up from the current directory "
+            f"chose the provider for this tier. Move the [{table}] block out of that "
+            f"file and into {GLOBAL_CONFIG}, or pass --config PATH to name that file. "
+            "See SECURITY.md, 'Workspace trust'")
+
+
 def _builtin_model_present(cache_dir, model_id: str) -> bool:
     """True if a HuggingFace-cached model dir exists under ``cache_dir/hub``.
 
@@ -193,7 +222,14 @@ def cmd_doctor(args) -> int:
 
         emb = cfg.embeddings
         if not emb.enabled:
-            _check("embeddings", True, "disabled")
+            # ⚠ rather than ✓ for the refused case. An off-by-choice optional tier is
+            # not a fault, but a tier the config asked for and contextlake refused is
+            # something the operator has to act on, and it is not a ✗ either: the
+            # refusal is the tool working. Advisory leaves the exit code alone.
+            if "embeddings" in cfg.refused_tiers:
+                _check("embeddings", None, _refused_tier_detail("embeddings"))
+            else:
+                _check("embeddings", True, "disabled")
         else:
             vec_path = store_dir / "embeddings.sqlite"
             count, backend = 0, emb.vector_backend
@@ -236,16 +272,21 @@ def cmd_doctor(args) -> int:
 
         llm = cfg.llm
         if not llm.enabled:
-            # "disabled" alone conflated two different situations for anyone asking
-            # why wiki generation is unavailable: a tier switched off in config, and
-            # a tier whose local runtime was never installed. They have different
-            # fixes, so they get different sentences. Still a ✓ either way -- an
-            # off-by-default optional tier is not a fault.
-            detail = "not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER)"
-            if llm.provider in ("builtin", "auto") and not _local_llm_runtime_present():
-                detail += ("; the local runtime (openvino-genai) is not installed either: "
-                           "contextlake doctor --fix llm-local")
-            _check("wiki LLM", True, detail)
+            # "disabled" alone conflated three different situations for anyone asking
+            # why wiki generation is unavailable: a tier switched off in config, a
+            # tier whose local runtime was never installed, and a tier workspace
+            # trust refused. They have different fixes, so they get different
+            # sentences. The first two stay ✓ -- an off-by-default optional tier is
+            # not a fault -- and the refused one is ⚠, because the operator's config
+            # asked for it and did not get it.
+            if "llm" in cfg.refused_tiers:
+                _check("wiki LLM", None, _refused_tier_detail("llm"))
+            else:
+                detail = "not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER)"
+                if llm.provider in ("builtin", "auto") and not _local_llm_runtime_present():
+                    detail += ("; the local runtime (openvino-genai) is not installed either: "
+                               "contextlake doctor --fix llm-local")
+                _check("wiki LLM", True, detail)
         elif llm.provider in ("builtin", "auto"):
             from ..llm.builtin import BuiltinLlm
 

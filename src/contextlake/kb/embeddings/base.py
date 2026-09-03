@@ -84,6 +84,23 @@ def embedder_runtime_state(embedder) -> tuple[bool | None, str]:
     return True, ""
 
 
+def default_base_url(provider: str) -> str:
+    """The API endpoint to use when the config left ``base_url`` unset.
+
+    Resolved at read time, not as a declared default on ``EmbeddingsCfg``: one
+    literal wins for every provider, so an unset ``base_url`` with
+    ``provider = "openai"`` POSTed to the local Ollama port with the
+    OPENAI_API_KEY value in the Authorization header. ``llm/base.py`` carries
+    the same function for the same reason.
+
+    Not imported from ``llm/base.py``: its anthropic branch is unreachable here,
+    because there is no anthropic embeddings provider.
+    """
+    if provider == "openai":
+        return "https://api.openai.com/v1"
+    return "http://127.0.0.1:11434"   # ollama, and auto's ollama probe
+
+
 def build_embedder(cfg) -> Embedder | None:
     """Construct an Embedder from an EmbeddingsCfg, or None when disabled.
 
@@ -93,12 +110,14 @@ def build_embedder(cfg) -> Embedder | None:
     if not getattr(cfg, "enabled", False):
         return None
     provider = (getattr(cfg, "provider", "") or "").lower()
+    # Resolved once, before the dispatch, so the three read sites cannot drift.
+    base_url = getattr(cfg, "base_url", None) or default_base_url(provider)
     if provider == "ollama":
         from .ollama import OllamaEmbedder
 
         return OllamaEmbedder(
             model=cfg.model or "nomic-embed-text",
-            base_url=getattr(cfg, "base_url", "http://127.0.0.1:11434"),
+            base_url=base_url,
             batch_size=getattr(cfg, "batch_size", 64),
         )
     if provider == "openai":
@@ -106,7 +125,7 @@ def build_embedder(cfg) -> Embedder | None:
 
         return OpenAIEmbedder(
             model=cfg.model or "text-embedding-3-small",
-            base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
+            base_url=base_url,
             api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
             batch_size=getattr(cfg, "batch_size", 64),
         )
@@ -143,7 +162,7 @@ def _resolve_auto_embedder(cfg) -> Embedder | None:
     with Ollama's own real 404 ("model ... not found, try pulling it first")
     instead of "auto" falling through to a provider that actually works.
     """
-    base_url = getattr(cfg, "base_url", "http://127.0.0.1:11434")
+    base_url = getattr(cfg, "base_url", None) or default_base_url("auto")
     model = getattr(cfg, "model", None) or "nomic-embed-text"
     if ollama_reachable(base_url) and ollama_has_model(base_url, model):
         from .ollama import OllamaEmbedder

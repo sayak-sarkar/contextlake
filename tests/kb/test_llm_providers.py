@@ -12,6 +12,31 @@ from contextlake.kb.llm.base import build_llm, build_review_llm
 from contextlake.kb.llm.cli import CliLlm
 
 
+@pytest.fixture(autouse=True)
+def _offline_latch_does_not_leak_out_of_this_module():
+    """Stop `cli.main` from latching offline mode on for the rest of the pytest worker.
+
+    `_run` drives `cli.main`, and `cli.main` calls `netguard.install()` whenever
+    `CONTEXTLAKE_OFFLINE` is set in the runner's environment. That latch is one-way and
+    process-wide by design, so it survives into every later test module.
+
+    HONEST LABEL: no test fails when this fixture's body is removed, so it is a
+    containment measure, not a fix with an observable of its own. Measured with the body
+    removed and `CONTEXTLAKE_OFFLINE=1` set: `tests/test_netguard.py` stayed green,
+    because its own `_no_ambient_offline` fixture clears the latch per test and defends
+    it independently. Its consumer is a module that has no such guard.
+    `tests/kb/test_config_trust.py` is the one measured today: run after this module it
+    fails `test_planted_command_never_reaches_subprocess_run` and
+    `test_same_content_at_the_global_path_is_honoured`. That module's own env-var
+    dependence is a separate defect and this fixture does not fix it; it stops this
+    module from adding the second route on top."""
+    from contextlake import netguard
+
+    was = netguard._installed
+    yield
+    netguard._installed = was
+
+
 def _run(argv):
     with pytest.raises(SystemExit) as e:
         main(argv)
@@ -260,7 +285,14 @@ def test_cli_matches_preset_and_auth_vars_by_basename(monkeypatch):
     assert "ANTHROPIC_API_KEY" not in seen["env"]
 
 
-def test_build_llm_returns_cli():
+def test_build_llm_returns_cli(monkeypatch):
+    """Online, the cli provider builds. The offline refusal is asserted in
+    tests/kb/test_offline_refuses_a_subprocess_llm.py. Both offline sources are cleared
+    here so this states its precondition rather than inheriting it from the runner."""
+    from contextlake import netguard
+
+    monkeypatch.delenv(netguard.OFFLINE_ENV, raising=False)
+    monkeypatch.setattr(netguard, "_installed", False)
     cfg = SimpleNamespace(enabled=True, provider="cli", command="gemini", args=None)
     llm = build_llm(cfg)
     assert isinstance(llm, CliLlm)

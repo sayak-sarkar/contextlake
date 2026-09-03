@@ -60,20 +60,81 @@ That is not hypothetical. Both `contextlake mirror sync` and the dashboard's "Ad
 clone repositories into your workspace, so such a file can land there without you creating
 it.
 
-A few config keys become part of a command line contextlake executes:
+Some config keys decide what contextlake runs, where a request goes, and which
+environment variable holds that request's credential:
 
 | Key | What it does |
 |---|---|
 | `[llm] command`, `[llm] args` | the agent CLI invoked when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+| `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
+| `[[sources]] token_env` | the environment variable read for an api/graphql source's bearer token |
+| `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
+| `[llm] base_url`, `[embeddings] base_url` | the host every prompt, or every chunk of indexed code, is posted to |
+| `[llm] api_key_env`, `[embeddings] api_key_env` | the environment variable read for the credential sent to that host |
+
+The first three rows run a program. The rest are gated for a different reason: an
+endpoint and a secret to send to it are the same capability arriving in two pieces.
+
+`[embeddings]` is on by default with `provider = "auto"`, and `bootstrap` runs
+`kb embed` as a stage, so one planted `base_url` line, with no provider line, was
+enough to point the default configuration at a host of the file author's choosing.
+`api_key_env` and `[[sources]] token_env` each name any variable in your environment,
+and the client puts that value into an `Authorization` (or `x-api-key`) header on the
+request it sends to that host. `[[sources]] auth_dir` chooses where `mcp-remote`
+writes the OAuth refresh token it obtains, so an honest endpoint and honest scopes
+still hand a refreshable grant to a path the file picked. `kb connect` is a
+`bootstrap` stage, so no opt-in stands between a clone and the connector half of that.
 
 **Those keys are honoured only from a config file you chose:** the global
 `~/.contextlake/kb.toml`, or a path you passed to `--config`. When they appear in an
 auto-discovered file, they are dropped and a warning naming the file and the key is
-logged. Everything else in that file still applies as normal -- `store_dir`,
-`languages`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers all keep working,
-so directory-scoped config is unaffected.
+logged. The rest of that file still applies as normal -- `store_dir`, `languages`,
+`[[rules]]`, `[embeddings] provider`, and non-`cli` LLM providers all keep working, so
+directory-scoped config keeps doing its job. What a discovered file can no longer do is
+name the host a request goes to, or the environment variable read for its credential, in
+`[llm]`, `[embeddings]` or `[[sources]]`.
+
+When a refusal leaves nothing but a default, the tier is switched off instead. A config file
+found by directory walk may not aim a credential-carrying tier it also chose. So when the
+`provider` that wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic` and that
+value came from a discovered file, the tier is off for that run and a second warning says so.
+
+Dropping the refused key is not enough on its own. A discovered file asking for
+`base_url = "http://127.0.0.1:1234/v1"` with `provider = "openai"` would fall back to
+`api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for loopback. One
+asking for `api_key_env = "PROJECT_KEY"` would fall back to the broad `OPENAI_API_KEY`. And a file
+that names the provider alone still points your key at a vendor you did not pick for that
+directory. Refusing a value is the gate's job; substituting a built-in default for it is not.
+
+Three things clear the refusal, and each is you naming the file or the backend:
+
+- **Delete the `[llm]` or `[embeddings]` keys from the file the warning names**, and set them in
+  `~/.contextlake/kb.toml` if you want them. The deletion is the half that clears it. The merge is
+  last-wins and the discovered file is merged after the global one, so its `provider` line still
+  wins: adding the block to `~/.contextlake/kb.toml` while that file keeps its own `provider` line
+  produces the identical warning on the next run.
+- Pass `--config PATH` naming that file, to say you meant it.
+- For `[llm]` only, pass `--llm PROVIDER` to `kb wiki`, `kb docs` or `bootstrap`. That flag sets the
+  provider on the already-loaded config, so it turns the tier on for that run. `[embeddings]` has
+  no such flag, and no other command carries `--llm`: delete the keys, or name the file.
+
+The cost is that an honest project-local `[llm]` or `[embeddings]` block naming `openai` or
+`anthropic` stops working where it sits, and has to move to `~/.contextlake/kb.toml` or be reached
+with `--config`. A privileged provider is trusted with its own defaults, so a global
+`provider = "openai"` still builds when a discovered file's `api_key_env` is refused. `builtin` and
+`ollama` tiers are never switched off this way: they send no credential.
+
+Two keys are gated by **direction** rather than outright, because one way round is an
+honest thing for a project-local file to do.
+
+- `[kb] anonymize`: a discovered file may set it to `"always"` and may not set it to
+  `"never"`. Turning anonymising on is always allowed; turning off the setting that hides
+  contributor identities on a dashboard you are about to share is not.
+- `[[sources]] scopes`: a discovered file may narrow the OAuth scopes the Atlassian
+  connector asks for, and may not widen them. A value that is not a subset of the
+  read-only default is dropped, and the connector falls back to that default.
 
 Passing `--config ./.contextlake.kb.toml` from inside such a repository *does* make it
 privileged. That is intended: naming the file is the explicit decision the gate asks
@@ -91,11 +152,15 @@ Ancestor discovery is then skipped for both `.contextlake.ini` and
 `contextlake kb source add --local` also writes to the global config rather than to a local file
 this environment would never read.
 
-What this gate does **not** cover, deliberately: a discovered config can still set `[llm] enabled`
-and `[[sources]] url`. Neither runs attacker code, but the first can switch on an LLM tier your
-global config already points at (spending against that key), and the second can point a connector
-at a host of the file author's choosing. Those are data-egress questions rather than code
-execution; use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the discovered tier gone entirely.
+What this gate does **not** cover, deliberately: a discovered config can still set `[llm] enabled`,
+a `provider` that stays on your machine (`ollama`, `builtin`, `auto`), and `[[sources]] url`. None of
+those runs attacker code, and none of them names a host or a credential. The first switches on a
+tier your global config already points at, so if that tier is `openai` or `anthropic` a discovered
+file can start spending against your key. The second picks between local backends. The third names
+the host an ingest fetch, or an MCP tool query, is sent to. Gating `provider` for every value would
+break ordinary directory-scoped config, which is the feature this tier exists for, so the gate stops
+at the values that carry a credential. Use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the
+discovered tier gone entirely.
 
 `[[sources]] url` really is limited to a *host*: ingest fetchers open `http`/`https` only and
 refuse any other scheme with a warning. That is enforced, not assumed -- `urllib` also speaks

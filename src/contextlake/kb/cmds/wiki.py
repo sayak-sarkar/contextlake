@@ -580,6 +580,33 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     return written, briefs, pages
 
 
+def no_llm_message(llm_cfg, is_offline: bool) -> str:
+    """What `kb wiki` says when ``build_llm`` handed it nothing.
+
+    Two ways to arrive there and they need different advice.
+
+    * ``build_llm`` refuses the ``cli`` provider under offline mode. Reporting that as
+      "LLM tier disabled" sends the reader to a setting that is already true, and hides
+      the one thing they can act on.
+    * ``openai`` is dropped from the suggestion whenever offline mode is on, because the
+      socket guard blocks it. Recommending it during an offline run is advice that
+      cannot work.
+
+    A function rather than inline text so it can be read back in a test without running
+    a wiki generation, which would spawn an agent CLI on the unfixed path.
+    """
+    done = ("so no generated prose pages were written. The structural pages above need "
+            "no model and are complete.")
+    provider = str(getattr(llm_cfg, "provider", "") or "").strip().lower()
+    if is_offline and provider == "cli":
+        return (f"Offline mode refused the cli LLM provider, which spawns an agent CLI, "
+                f"{done} For prose in an offline run, pass --llm builtin or "
+                f"--llm ollama; both run on this machine.")
+    choices = "builtin|ollama" if is_offline else "builtin|ollama|openai"
+    return (f"LLM tier disabled, {done} For prose on top of them, pass --llm {choices} "
+            f"(or set [llm] enabled = true in kb.toml).")
+
+
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
     from ..llm import build_llm, build_review_llm
@@ -677,10 +704,9 @@ def cmd_wiki(args) -> int:
 
         llm = build_llm(cfg.llm)
         if llm is None:
-            log("LLM tier disabled, so no generated prose pages were written. "
-                "The structural pages above need no model and are complete. "
-                "For prose on top of them, pass --llm builtin|ollama|openai "
-                "(or set [llm] enabled = true in kb.toml).")
+            from ... import netguard
+
+            log(no_llm_message(cfg.llm, netguard.offline()))
             return 0
 
         # Said once, and only on a run that will actually send something. The structural

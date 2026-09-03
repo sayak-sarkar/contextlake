@@ -211,8 +211,15 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
     from ..server import TOKEN_ENV
 
     token = secrets.token_urlsafe(32)
+    # `child_env` and not `os.environ`: the child is a fresh process with its own
+    # sockets, and `--offline` as a flag leaves nothing in the environment for it to
+    # read. Without this an offline dashboard starts an MCP server that answers a chat
+    # turn from a hosted provider.
+    from ... import netguard
+
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                            start_new_session=True, env={**os.environ, TOKEN_ENV: token})
+                            start_new_session=True,
+                            env={**netguard.child_env(), TOKEN_ENV: token})
     time.sleep(0.3)
     if proc.poll() is not None:
         return {"ok": False, "error": f"process exited immediately (code {proc.returncode})"}
@@ -412,9 +419,15 @@ def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = 
         cmd += ["--config", config_path]
     log_path = _wiki_logfile(store_dir)
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    # Offline mode is process-wide state, and this child is a new process. `kb wiki`
+    # builds its own LLM, so an offline dashboard whose offline came from the
+    # `--offline` FLAG would spawn a child that constructs a CliLlm and runs an agent
+    # CLI. `child_env` carries the state across as `CONTEXTLAKE_OFFLINE`.
+    from ... import netguard
+
     with open(log_path, "w", encoding="utf-8") as logf:
         proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
-                                start_new_session=True)
+                                start_new_session=True, env=netguard.child_env())
     pf = _wiki_pidfile(store_dir)
     pf.write_text(json.dumps({"pid": proc.pid, "repo": repo_id, "force": force}))
     return {"ok": True, "running": True, "pid": proc.pid}

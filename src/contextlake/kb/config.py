@@ -14,11 +14,15 @@ surprise merging of list tables).
 
 One exception cuts across that precedence: the handful of keys that end up in a
 ``subprocess`` argv (``[llm] command``/``args``/``provider = "cli"``,
-``[[sources]] command``/``args``/``mcp_command``) are honoured **only** from the
-global file or an explicit ``--config`` path, never from the auto-discovered
-``.contextlake.kb.toml`` -- otherwise cloning a hostile repo and working inside
-it is remote code execution. See ``kb/trust.py`` for the full rationale, and
-``CONTEXTLAKE_NO_LOCAL_CONFIG=1`` to skip the discovered tier altogether.
+``[[sources]] command``/``args``/``mcp_command``), plus the two that decide where
+a request goes and which environment variable holds its credential
+(``[llm]``/``[embeddings]`` ``base_url`` and ``api_key_env``), are honoured
+**only** from the global file or an explicit ``--config`` path, never from the
+auto-discovered ``.contextlake.kb.toml`` -- otherwise cloning a hostile repo and
+working inside it is remote code execution, and one planted ``base_url`` line
+sends every embedding request to a host that file's author chose. See
+``kb/trust.py`` for the full rationale, and ``CONTEXTLAKE_NO_LOCAL_CONFIG=1`` to
+skip the discovered tier altogether.
 """
 
 from __future__ import annotations
@@ -30,7 +34,19 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import ConfigError, expand_path, find_ancestor_config  # noqa: F401 -- re-exported
 from ..logging_setup import log
-from .trust import EXECUTABLE_SOURCE_KEYS, is_executable_key, is_privileged_source
+from .trust import (
+    CREDENTIAL_PROVIDERS,
+    EGRESS_KEYS,
+    EGRESS_TABLES,
+    PRIVILEGED_SOURCE_KEYS,
+    REFUSE_DISCOVERED_CREDENTIAL_PROVIDER,
+    SCOPE_KEY,
+    SOURCE_AUTH_KEYS,
+    SOURCE_EGRESS_KEYS,
+    is_privileged_source,
+    requires_privileged_source,
+    scopes_widen,
+)
 
 try:  # Python 3.11+
     import tomllib
@@ -136,7 +152,14 @@ class EmbeddingsCfg(BaseModel):
     # skips. Extra keys (engine, cache_dir, model_revision) ride along via extra="allow".
     provider: str = "auto"
     model: str | None = None
-    base_url: str = "http://127.0.0.1:11434"
+    # the API endpoint. None means "not explicitly set" -> resolved per-provider
+    # at read time (see embeddings.base.default_base_url), the same shape LlmCfg
+    # already uses below and for the same measured reason: one declared literal
+    # wins for every provider, so `provider = "openai"` with no base_url line
+    # POSTed to the local Ollama port with the OPENAI_API_KEY value in the
+    # Authorization header. api_key_env keeps its declared default because
+    # OPENAI_API_KEY is right for the one provider that reads it here.
+    base_url: str | None = None
     batch_size: int = 64
     vector_backend: str = "auto"  # auto | sqlite-vec | brute
     # sqlite-vec only: the vec0 chunk size (vectors scanned per chunk during KNN).
@@ -236,6 +259,18 @@ class KbConfig(BaseModel):
     # caller, which would drift the moment the chain changes.
     loaded_from: list[str] = Field(default_factory=list)
     searched: list[str] = Field(default_factory=list)
+    # Tables switched off because a config file found by walking up from the
+    # current directory chose a credential-carrying provider for them (see
+    # load_kb_config). Named for the outcome rather than for one cause: the
+    # refusal used to need a refused base_url or api_key_env as well, and the
+    # name `egress_refused` then described a tier that is off for a reason no
+    # egress key was involved in.
+    #
+    # Not settable from TOML: KbConfig is built from explicit kwargs, nothing
+    # splats `**kb`, and _KB_KEYS warns on an unknown [kb] key. Its reader is
+    # `doctor`, which would otherwise tell the user to set `enabled = true` in
+    # the file whose provider was refused, where setting it changes nothing.
+    refused_tiers: tuple[str, ...] = ()
 
     @property
     def store_path(self) -> Path:
@@ -292,12 +327,25 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     for src in (GLOBAL_CONFIG, local_config, config_path):
         if src and Path(expand_path(src)).exists():
             loaded_from.append(str(Path(expand_path(src))))
+    # Which tier had an egress key refused, and whether the provider that WON the
+    # merge came from a file the user named. The gate may refuse a value; it may
+    # not substitute a built-in default for one. Dropping [llm]
+    # api_key_env = "PROJECT_KEY" and letting build_llm fall back to
+    # OPENAI_API_KEY sends a broader secret than the file asked for; dropping
+    # base_url = "http://127.0.0.1:1234/v1" sends OPENAI_API_KEY to
+    # api.openai.com from a config that asked for loopback. Read only on the
+    # revert path of REFUSE_DISCOVERED_CREDENTIAL_PROVIDER; see the tier-off
+    # loop below.
+    egress_refused: set[str] = set()
+    provider_privileged: dict[str, bool] = {}
     for src in (GLOBAL_CONFIG, local_config, config_path):
         # Provenance gate. A config file the user never named -- i.e. the one
         # found by walking up from cwd -- may not carry keys that become a
-        # subprocess argv: cloning a hostile repo and cd-ing into it was
+        # subprocess argv, choose an endpoint, or name the environment variable
+        # holding a credential: cloning a hostile repo and cd-ing into it was
         # otherwise enough to get code execution on the next LLM-touching
-        # command. Everything else in that file still applies. See kb/trust.py.
+        # command, and to redirect every embedding request off the machine.
+        # Everything else in that file still applies. See kb/trust.py.
         privileged = is_privileged_source(src, config_path, global_config=GLOBAL_CONFIG)
         for table, values in _read_toml(src).items():
             if table == "kb" and "store_dir" in values:
@@ -305,7 +353,18 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
                 # merge is last-wins, so this ends up naming the file that decided it.
                 store_dir_src = str(Path(expand_path(src)))
             if not privileged:
-                values = _drop_executable_keys(table, values, src)
+                raw = values
+                values = _drop_untrusted_keys(table, values, src)
+                if table in EGRESS_TABLES and isinstance(raw, dict) and any(
+                        k in EGRESS_KEYS and requires_privileged_source(table, k, v)
+                        for k, v in raw.items()):
+                    egress_refused.add(table)
+            if table in EGRESS_TABLES and isinstance(values, dict) and "provider" in values:
+                # Read AFTER the drop and overwritten per source, so this ends up
+                # naming the file whose provider WON: a refused `provider = "cli"`
+                # never won, and a discovered `provider = "anthropic"` overriding a
+                # privileged global did.
+                provider_privileged[table] = privileged
             if table in _SCALAR_TABLES:
                 # Deep-merge by key: a local file setting only `model` must not
                 # wipe out `enabled`/`provider` set globally under the same table.
@@ -315,6 +374,36 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
                 # per the documented precedence rule above.
                 merged[table] = values
 
+    # A config file found by directory walk may not aim a credential-carrying
+    # tier it also chose. `provider` is the key that aims one, so a
+    # non-privileged file winning it for [llm] or [embeddings] with a value in
+    # CREDENTIAL_PROVIDERS switches that tier off. A privileged provider is
+    # trusted with that provider's own defaults, so a global
+    # `provider = "openai"` still builds when a discovered file's narrowing of
+    # api_key_env is refused.
+    #
+    # The `or table in egress_refused` term is what the switch reverts TO, not
+    # a second rule. With REFUSE_DISCOVERED_CREDENTIAL_PROVIDER set False the
+    # condition is the older three-term one -- a tier goes off only when the
+    # same non-privileged file also had base_url or api_key_env refused, where
+    # dropping the key alone would have filled it from a default the user never
+    # chose (the broad env var, or api.openai.com in place of a loopback
+    # base_url). Written this way so flipping the switch reverts the widening
+    # and leaves that older refusal standing; a bare `if not <switch>: continue`
+    # would take both out.
+    #
+    # Written into `merged` after the loop, so a planted `enabled = true` cannot
+    # survive it, and before the two model constructions below, which are the
+    # only ones in src/.
+    tiers_off: list[str] = []
+    for table in sorted(EGRESS_TABLES):
+        provider = (merged.get(table, {}).get("provider") or "").strip().lower()
+        if (provider in CREDENTIAL_PROVIDERS
+                and not provider_privileged.get(table, False)
+                and (REFUSE_DISCOVERED_CREDENTIAL_PROVIDER or table in egress_refused)):
+            merged.setdefault(table, {})["enabled"] = False
+            tiers_off.append(table)
+            _warn_tier_off(table)
     kb = merged.get("kb", {})
     _warn_unknown_config(kb, merged)
     if config_path:
@@ -352,6 +441,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         rules=[RuleCfg(**r) for r in merged.get("rules", [])],
         loaded_from=loaded_from,
         searched=searched,
+        refused_tiers=tuple(tiers_off),
     )
     # Registered here, where the store's location becomes known, rather than where
     # a store is opened. `_open_store` looked like the choke point and is not:
@@ -379,15 +469,16 @@ _TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
 _SCALAR_TABLES = {"kb", "embeddings", "llm"}
 
 
-def _drop_executable_keys(table: str, values, source: str):
-    """Strip argv-reaching keys out of one table of a non-privileged config file.
+def _drop_untrusted_keys(table: str, values, source: str):
+    """Strip the keys a non-privileged config file may not set out of one of its tables.
 
     Returns ``values`` unchanged (the same object, no copy) when there is nothing
     to drop, which is every table of every honest config -- the gate costs one
     scan on the normal path.
     """
     if table in _SCALAR_TABLES and isinstance(values, dict):
-        dropped = [k for k, v in values.items() if is_executable_key(table, k, v)]
+        dropped = [k for k, v in values.items()
+                   if requires_privileged_source(table, k, v)]
         # `[kb] anonymize` may only be STRENGTHENED by a file found by walking up from
         # the current directory. The provenance hole this module documents is not only
         # about running a program: a checkout that ships `anonymize = "never"` turns off
@@ -400,23 +491,50 @@ def _drop_executable_keys(table: str, values, source: str):
         if not dropped and not weakens_privacy:
             return values
         for key in dropped:
-            _warn_untrusted(f"[{table}] {key}", source)
+            if key in EGRESS_KEYS:
+                _warn_untrusted_egress(f"[{table}] {key}", source)
+            else:
+                _warn_untrusted(f"[{table}] {key}", source)
         if weakens_privacy:
             _warn_untrusted_privacy(source)
             dropped = [*dropped, "anonymize"]
         return {k: v for k, v in values.items() if k not in dropped}
     if table == "sources" and isinstance(values, list):
-        # sources is a list table: screen each entry's dict. A source's transport
-        # command spawns a process just like [llm] command does (see trust.py).
+        # sources is a list table: screen each entry's dict. A source entry decides
+        # the same four things a scalar table does -- the argv of a spawned server,
+        # the endpoint it is spawned against, the env var holding the token sent to
+        # it, and the directory its OAuth refresh token is written to. See trust.py.
+        #
+        # `scopes` is folded into the same per-entry set rather than checked
+        # separately, because the early return below fires on an empty set: a
+        # widening `scopes` in an entry with no other gated key would otherwise
+        # skip the whole branch and survive. Refused outright rather than
+        # rewritten, which is the shape `[kb] anonymize` already uses above --
+        # dropping it falls the connector back to DEFAULT_SCOPES.
         cleaned, dropped_keys = [], set()
         for entry in values:
-            bad = EXECUTABLE_SOURCE_KEYS & entry.keys() if isinstance(entry, dict) else set()
+            if isinstance(entry, dict):
+                bad = PRIVILEGED_SOURCE_KEYS & entry.keys()
+                if SCOPE_KEY in entry and scopes_widen(entry[SCOPE_KEY]):
+                    bad = bad | {SCOPE_KEY}
+            else:
+                bad = set()
             dropped_keys |= bad
             cleaned.append({k: v for k, v in entry.items() if k not in bad} if bad else entry)
         if not dropped_keys:
             return values
         for key in sorted(dropped_keys):
-            _warn_untrusted(f"[[sources]] {key}", source)
+            # One sentence per capability class (see trust.py). The generic one
+            # says the key runs a program, which is true of command/args/
+            # mcp_command and of nothing else here.
+            if key in SOURCE_EGRESS_KEYS:
+                _warn_untrusted_egress(f"[[sources]] {key}", source)
+            elif key in SOURCE_AUTH_KEYS:
+                _warn_untrusted_auth_dir(source)
+            elif key == SCOPE_KEY:
+                _warn_untrusted_scopes(source)
+            else:
+                _warn_untrusted(f"[[sources]] {key}", source)
         return cleaned
     return values
 
@@ -443,6 +561,108 @@ def _warn_untrusted(what: str, source: str) -> None:
         "up from the current directory may not set keys that run a program. "
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say "
         "you meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_untrusted_egress(what: str, source: str) -> None:
+    """The same refusal for `base_url` and `api_key_env`, which need their own sentence.
+
+    The generic message says "may not set keys that run a program". Neither of these
+    runs anything, so that sentence sends the reader looking for an exec they will
+    not find. This one names what was actually refused: the endpoint, and the
+    environment variable read for the credential sent to it."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", what)
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring {what} from {source} -- a config file found by walking up "
+        "from the current directory may not choose where requests are sent, or which "
+        "environment variable holds the API key. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_tier_off(table: str) -> None:
+    """Report a tier switched off because a file the user never named aimed it.
+
+    The per-key refusal names the key; this names the consequence, which is the
+    only thing separating "contextlake refused this" from "you turned it off".
+
+    Every remedy below was run against `load_kb_config` before it was written
+    here. Two candidates are absent because they do NOT clear the refusal:
+
+    - `set enabled = true`. That key lives in the discovered file, and the tier
+      is switched off after the merge, so setting it there changes nothing.
+    - "set [table] in the global config", on its own. The merge is last-wins and
+      the discovered file is merged after the global one, so its `provider` line
+      still wins and the tier goes off again on the next run. Deleting that line
+      is the half that clears it; adding the global block without deleting it is
+      the remedy SECURITY.md used to publish, and it produced the identical
+      warning a second time.
+
+    Keyed through :data:`_WARNED_UNTRUSTED` on the table alone, so it prints once
+    per process rather than once per load_kb_config call.
+    """
+    ident = ("", f"[{table}] tier-off")
+    if ident in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(ident)
+    # `--llm PROVIDER` is named for [llm] alone because that is the only tier
+    # with the flag: apply_llm_overrides runs after the load and sets
+    # enabled + provider on the built config (cmds/wiki.py, cmds/docs.py).
+    # [embeddings] has no equivalent, so offering it there would be advice that
+    # does nothing, which is the defect this message was rewritten to remove.
+    by_flag = (" For [llm] only, `--llm PROVIDER` on `kb wiki`, `kb docs` or "
+               "`bootstrap` also turns the tier on for that run."
+               if table == "llm" else "")
+    log(f"config: [{table}] is off for this run. A config file found by walking up "
+        "from the current directory chose a provider that sends a credential, and a "
+        "file you did not name may not aim a tier that carries your API key. That "
+        f"also stops an honest project-local [{table}] block that names a remote "
+        "provider, so such a block has to move. Two things clear it: delete the "
+        f"[{table}] keys from that file and set them in {GLOBAL_CONFIG}, or pass "
+        "`--config PATH` naming that file to say you meant it." + by_flag +
+        f" Adding the block to {GLOBAL_CONFIG} while that file keeps its own "
+        "`provider` line changes nothing. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_untrusted_auth_dir(source: str) -> None:
+    """The refusal for ``[[sources]] auth_dir``, which needs its own sentence.
+
+    It runs nothing and sends nothing. It is the directory ``mcp-remote`` writes
+    the OAuth refresh token into (MCP_REMOTE_CONFIG_DIR, see
+    connectors/atlassian.py), so what it decides is where a long-lived grant is
+    stored -- which is what this says."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", "[[sources]] auth_dir")
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring [[sources]] auth_dir from {source} -- a config file found by "
+        "walking up from the current directory may not choose the directory the OAuth "
+        "refresh token is written to. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_untrusted_scopes(source: str) -> None:
+    """The refusal for a widening ``[[sources]] scopes``.
+
+    Strengthen-only, like ``[kb] anonymize``: a narrower scope from any file is
+    honoured and never reaches here, so the message has to say the direction or
+    it reads as `scopes` being unusable in a project-local file."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", "[[sources]] scopes")
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring [[sources]] scopes from {source} -- a config file found by "
+        "walking up from the current directory may narrow the OAuth scope contextlake "
+        "asks for, not widen it, and this value asks for more than the read-only "
+        "default. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
         level=logging.WARNING)
 
 

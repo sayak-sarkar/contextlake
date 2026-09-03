@@ -619,10 +619,11 @@ def _add_global(p):
                    help="no colour, even on a TTY (same effect as NO_COLOR=1); "
                         "unicode status glyphs (✓⚠✗...) still render")
     g.add_argument("--offline", action="store_true", default=_S,
-                   help="refuse every network connection except loopback, so you can "
-                        "check for yourself that a command stays local (also "
-                        "CONTEXTLAKE_OFFLINE=1); commands that fetch from a forge or a "
-                        "hosted model say so and stop")
+                   help="refuse every non-loopback connection this process makes, so "
+                        "you can check a command stays local (also "
+                        "CONTEXTLAKE_OFFLINE=1); mirror network commands and the cli "
+                        "LLM provider stop before they spawn, and some subprocesses "
+                        "(git, glab, pip, MCP servers) are not covered")
 
 
 def _add_mirror(p, hidden=False):

@@ -62,9 +62,12 @@ the model pulled, and otherwise to the built-in CPU model.
 - **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`, or `codex`.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
   the prompt on stdin. No API key touches contextlake; data goes to whatever provider that CLI uses. Reuses
-  your subscription, offline-adjacent (still a network call by that tool), and mirrors how contextlake
-  already shells out to `git` and `glab`. For the three recognised commands, contextlake strips that CLI's
-  own API-key env var(s) (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
+  your subscription, and mirrors how contextlake already shells out to `git` and `glab`. It is **not** an
+  offline backend: the CLI makes its own network call, and a subprocess owns its own sockets, so
+  `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command carries on with
+  no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
+  For the three recognised commands, contextlake strips that CLI's own API-key env var(s)
+  (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
   `GOOGLE_API_KEY` for `gemini`) from the child process only -- otherwise a key set anywhere in your shell
   for an unrelated reason (e.g. testing the `anthropic` provider) can silently override the CLI's
   subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
@@ -74,8 +77,14 @@ the model pulled, and otherwise to the built-in CPU model.
   **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
   `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
   directory, since that file may have arrived inside a repository you cloned and these keys are a
-  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
-  provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
+  command line contextlake runs. Setting them locally logs a warning and is ignored. `base_url` and
+  `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every provider: a
+  discovered file may not choose the host a request goes to, or the environment variable read for its
+  credential. Everything else, `provider` included for any value other than `"cli"`, works from a local
+  file as usual. One knock-on: if a discovered file picks `openai` or `anthropic` *and* tries to set
+  `base_url` or `api_key_env`, the tier is switched off for that run rather than falling back to
+  built-in defaults you did not choose. Pass `--llm PROVIDER`, or `--config PATH`, or set the tier in
+  `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -83,7 +92,7 @@ the model pulled, and otherwise to the built-in CPU model.
 |---|---|---|
 | `builtin` / `auto`→builtin | No: fully local CPU model | none |
 | `ollama` | No: local daemon | none |
-| `cli` | Yes: to whatever provider that CLI uses | reuses the CLI's own login |
+| `cli` | Yes: to whatever provider that CLI uses. Refused under `--offline` | reuses the CLI's own login |
 | `anthropic` / `openai` | Yes: to the API endpoint | env-var key (never stored) |
 
 ## Configuring the wiki LLM

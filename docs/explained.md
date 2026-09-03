@@ -199,12 +199,25 @@ It now defaults to `~/.cache/contextlake`, in a per-workspace subdirectory creat
 A directory *you* configure explicitly is created but never re-permissioned, on the grounds that
 silently changing the mode of a path you pointed the tool at is a side effect nobody asked for.
 
-### Config that can run a program is trusted by provenance, not by content
+### Config that spends a capability is trusted by provenance, not by content
 
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
-the feature, and it is also a hole: a config file can arrive inside a repository you cloned. The
-settings that would cause contextlake to *run a program* are therefore honoured only from a file
-you named with `--config` or from your own home config.
+the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
+classes of setting are therefore honoured only from a file you named with `--config` or from your
+own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
+`provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
+request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
+holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth_dir`, the
+directory an OAuth refresh token is written to).
+
+The first class was the whole gate to begin with, and reading the others as "not argv, so not this
+gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
+capability arriving in two pieces.
+
+On top of the per-key refusal, a discovered file may not aim a tier that carries a credential:
+`[llm]` or `[embeddings]` with `provider = "openai"` or `"anthropic"` from such a file is switched
+off for the run rather than falling back to defaults you did not choose. `SECURITY.md` has the
+remedies that clear it.
 
 `src/contextlake/kb/trust.py` records both alternatives it turned down. Distrusting a
 directory-scoped file wholesale was rejected because directory-scoped config is the point, and a

@@ -85,9 +85,16 @@ def _spawn_refresh(store_dir: Path, config: str | None,
     except OSError:
         return False, logfile
     try:
+        # `child_env` and not the inherited environment: this child runs `kb index`,
+        # `kb embed` and `kb steer` in a new process with its own sockets, and
+        # `--offline` as a flag leaves nothing for it to read. `kb embed` downloads a
+        # model and reaches a remote endpoint, so an offline `kb refresh --refresh`
+        # spawned an unguarded child. The env var makes the child install its own guard.
+        from ... import netguard
+
         subprocess.Popen(["/bin/sh", "-c", script], stdout=fh, stderr=subprocess.STDOUT,
                          stdin=subprocess.DEVNULL, start_new_session=True,
-                         cwd=str(store_dir))
+                         cwd=str(store_dir), env=netguard.child_env())
     except (OSError, ValueError):
         fh.close()
         return False, logfile
@@ -177,5 +184,3 @@ def cmd_refresh(args) -> int:
         + (f", {f.unchecked} left unchecked (raise --budget to cover them)"
            if f.unchecked else ""))
     return 0
-
-
