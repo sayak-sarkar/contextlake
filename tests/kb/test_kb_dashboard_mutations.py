@@ -4,6 +4,7 @@ functions shell out to `git`, and the whole point of validate_clone_url is to
 prove specific malicious inputs get rejected before they reach subprocess argv.
 """
 
+import json
 import subprocess
 import time
 
@@ -372,3 +373,323 @@ def test_wiki_generate_estimate_does_not_count_a_repo_the_run_will_refuse(tmp_pa
     result = mut.wiki_generate_estimate(store, tmp_path)
     assert result["would_regenerate"] == 0
     store.close()
+
+
+# --- Live document generation ------------------------------------------------
+#
+# `kb docs` is a different shape from `kb wiki` in three ways these tests pin:
+# the refusal payload keeps the pid AND a start time (wiki_generate_status strips
+# the pid and the wiki pidfile records no start time), and the result is read back
+# from the files the run wrote, never from the child's exit code.
+
+
+def _docs_store(tmp_path, repo_id="r"):
+    """A store with one indexed repo, plus an isolated HOME and an explicit config.
+
+    PRECONDITION: both isolations are load-bearing, not decoration. When the
+    break-tests below delete a guard, ``docs_generate_start`` spawns a real
+    ``contextlake kb docs``, and the guard being deleted is the guard against that
+    spawn resolving a discovered store instead of this temp one.
+    """
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_repo(Repo(id=repo_id, path=str(tmp_path)))
+    _shard_with_wiki(store_dir, repo_id, head="abc123")
+    store.close()
+    config_path = tmp_path / "kb.toml"
+    config_path.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    return store_dir, str(config_path)
+
+
+def _await_finished(store_dir):
+    for _ in range(50):
+        status = mut.docs_generate_status(store_dir)
+        if status.get("finished"):
+            return status
+        time.sleep(0.1)
+    raise AssertionError("docs generation subprocess did not finish in time")
+
+
+def test_docs_generate_status_when_never_started(tmp_path):
+    """No run has ever started, so no ``documents_written`` key is invented with
+    nothing behind it. An absent field reading as a pass is the failure this
+    guards: `== 0 documents` and `no run happened` are different answers."""
+    assert mut.docs_generate_status(tmp_path) == {"running": False, "log_tail": ""}
+
+
+def test_docs_generate_start_refuses_a_second_run_and_names_the_pid(tmp_path, monkeypatch):
+    """The refusal carries the running pid AND its start time.
+
+    Copying ``wiki_generate_start``'s refusal verbatim cannot satisfy that:
+    ``wiki_generate_status`` filters ``pid`` out of its payload, and the wiki
+    pidfile records no start time at all. The docs payload diverges on both fields
+    on purpose, and these two assertions are what pin the divergence.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+    started_at = 1756800000.5
+    pf = mut._docs_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text(f'{{"pid": {_alive_pid()}, "started_at": {started_at!r}}}')
+
+    result = mut.docs_generate_start(store_dir, config_path=config_path)
+
+    assert result["ok"] is False
+    assert "already in progress" in result["error"]
+    assert result["pid"] == _alive_pid()
+    assert result["started_at"] == started_at
+
+
+def test_docs_generate_reports_two_documents_for_a_repo_scoped_run(tmp_path, monkeypatch):
+    """A repo-scoped run writes the API reference and the design notes: 2, not 3.
+
+    ``cmd_docs`` writes the fleet page only when the run covered every indexed repo,
+    so the count is scope-dependent. Asserted alongside the files themselves, and
+    the child's return code is never read.
+
+    PRECONDITION: the count compares ``st_mtime`` against ``int(started_at)``, so a
+    filesystem with 1-second mtime granularity still counts this run's output.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+
+    started = mut.docs_generate_start(store_dir, repo_id="r", config_path=config_path)
+    assert started["ok"] is True
+    status = _await_finished(store_dir)
+
+    assert status["documents_written"] == 2
+    api = store_dir / "docs" / "api" / "r.md"
+    design = store_dir / "docs" / "design" / "r.md"
+    assert api.is_file() and api.read_text(encoding="utf-8").strip()
+    assert design.is_file() and design.read_text(encoding="utf-8").strip()
+    assert not (store_dir / "docs" / "fleet" / "design.md").exists()
+
+
+def test_docs_generate_counts_the_fleet_page_on_an_unscoped_run(tmp_path, monkeypatch):
+    """An unscoped run over the same one-repo store writes 3, because it also writes
+    the fleet page. Paired with the repo-scoped row above on purpose: with one
+    shared expected number, a stubbed constant would satisfy both."""
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+
+    started = mut.docs_generate_start(store_dir, repo_id=None, config_path=config_path)
+    assert started["ok"] is True
+    status = _await_finished(store_dir)
+
+    assert status["documents_written"] == 3
+    assert (store_dir / "docs" / "fleet" / "design.md").is_file()
+
+
+def test_the_count_ignores_documents_that_were_already_on_disk(tmp_path, monkeypatch):
+    """The mtime cutoff has to FILTER, not just count what it finds.
+
+    Both rows above start from a store with no ``docs/`` tree, so every file found
+    is the run's own and a cutoff that filtered nothing would pass them. Here repo
+    "a" already has both its documents, backdated an hour, and the run is scoped to
+    repo "b": the answer is 2.
+
+    Two guards hold that 2 now, and this row cannot tell them apart: the count is
+    scoped to repo "b"'s two paths AND the cutoff filters. The row below
+    (``test_the_cutoff_still_filters_on_an_unscoped_run``) is the one that pins the
+    cutoff on its own, on a run with no scope to hide behind.
+    """
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path, repo_id="a")
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_repo(Repo(id="b", path=str(tmp_path)))
+    store.close()
+    _shard_with_wiki(store_dir, "b", head="def456")
+
+    old = time.time() - 3600
+    for kind in ("api", "design"):
+        d = store_dir / "docs" / kind
+        d.mkdir(parents=True, exist_ok=True)
+        page = d / "a.md"
+        page.write_text("# a\n\nstale\n", encoding="utf-8")
+        os.utime(page, (old, old))
+
+    started = mut.docs_generate_start(store_dir, repo_id="b", config_path=config_path)
+    assert started["ok"] is True
+    status = _await_finished(store_dir)
+
+    assert status["documents_written"] == 2
+    # The pre-existing pages are still there, so the count is a filter and not a
+    # side effect of them having been removed.
+    assert (store_dir / "docs" / "api" / "a.md").read_text(encoding="utf-8") == "# a\n\nstale\n"
+    assert (store_dir / "docs" / "api" / "b.md").is_file()
+
+
+@pytest.mark.parametrize("value", [
+    # Every row is a shape one of the two id WRITERS can emit, not a shape that
+    # merely looks plausible. `normalize_remote_url` builds `host/path` from the
+    # origin remote and keeps the port, so `:` is in a real id;
+    # `_fallback_repo_id` builds `<directory name>@<root commit>` for a repo with
+    # no remote, so `@` is, and the directory-name half can hold a space or a
+    # bracket. A tighter character class refuses ids the product produces, and the
+    # Regenerate button on those repo panes would 400 where it used to work.
+    # Every value here is SYNTHETIC on purpose. The deep-nested row exists to cover
+    # a five-segment namespace, and an earlier draft used a real id read out of a
+    # local store, which the publish-guard refused: this repo is public, so a real
+    # id in a fixture is a private identifier in published history.
+    "r", "team/app", "acme/teams/platform/bi/one-order", "a_b.c-d", "R2",
+    "alpha@48409ae66487", "gitlab.example.com/acme/api",
+    "gitlab.example.com:8443/acme/api", "my project@abc123def456", ".hidden",
+])
+def test_validate_repo_id_accepts_the_ids_the_product_actually_writes(value):
+    assert mut.validate_repo_id(value) == value
+
+
+@pytest.mark.parametrize("value", ["--llm=openai", "--max-symbols=1", "-r", "-",
+                                   "../etc", "..", "a/../b", "/etc/passwd", "/a",
+                                   "a\tb", "a\x00b", "", "   ", "a//b", "a/",
+                                   "x" * 513, 123, ["a"], {"a": 1}, None, True])
+def test_validate_repo_id_refuses_everything_that_is_not_one(value):
+    """The child's argv is a trust boundary even on loopback.
+
+    A leading ``-`` is the one that mattered: ``--llm=openai`` reached
+    ``contextlake kb docs`` as a FLAG and turned on the model tier the spawn
+    withholds, with a real outbound call. The rest of this list is why the check is
+    more than a dash test -- ``../etc``, an absolute path, a control character and
+    a non-string are all things a dash test accepts and no repo id ever is.
+    """
+    assert mut.validate_repo_id(value) is None
+
+
+def test_a_stale_pidfile_does_not_wedge_the_route(tmp_path, monkeypatch):
+    """A run whose process is gone must not hold the in-progress claim for good.
+
+    This row exists because the O_CREAT|O_EXCL claim gave an old line a new job.
+    A pidfile used to be overwritten by the next start, so a dead pid could never
+    block anything; now the ONLY thing that frees the claim is the
+    ``pf.unlink(missing_ok=True)`` in ``docs_generate_status``'s not-running
+    branch. Remove it and the route refuses every run from then on, with nothing
+    anywhere saying why.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+    pf = mut._docs_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text(json.dumps({"pid": 999999999, "repo": None,
+                              "started_at": time.time() - 3600}))
+
+    result = mut.docs_generate_start(store_dir, config_path=config_path)
+
+    assert result["ok"] is True
+    assert json.loads(pf.read_text())["pid"] == result["pid"] != 999999999
+    _await_finished(store_dir)
+
+
+def test_the_count_is_scoped_to_the_documents_the_run_could_write(tmp_path, monkeypatch):
+    """A run scoped to one repo is not credited with another writer's page.
+
+    ``kb index`` now writes documents on every commit, so the docs tree has a second
+    concurrent producer. Here a fleet page written by something else has its mtime
+    pinned into the second the scoped run starts in: measured, the count read 3 for
+    a run whose own log said it wrote 2, and the third file still held the other
+    writer's content.
+
+    ``cmd_docs`` writes the fleet page only for a run that covered every indexed
+    repo, so a scoped run can only ever have written its two named pages.
+    """
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path, repo_id="b")
+    fleet = store_dir / "docs" / "fleet"
+    fleet.mkdir(parents=True, exist_ok=True)
+    page = fleet / "design.md"
+    page.write_text("# written by a different writer\n", encoding="utf-8")
+
+    started = mut.docs_generate_start(store_dir, repo_id="b", config_path=config_path)
+    assert started["ok"] is True
+    # Pinned to the whole second the run started in, which is what the counter
+    # floors to. Done after the start so the value is known.
+    stamp = int(started["started_at"])
+    os.utime(page, (stamp, stamp))
+    status = _await_finished(store_dir)
+
+    assert status["documents_written"] == 2
+    assert page.read_text(encoding="utf-8") == "# written by a different writer\n"
+
+
+def test_the_cutoff_still_filters_on_an_unscoped_run(tmp_path, monkeypatch):
+    """An unscoped run counts the whole docs tree, so the mtime cutoff is the only
+    filter left. A page for a repo the store no longer holds, backdated an hour, is
+    not this run's output: the answer is 3, and a cutoff that does not filter reads
+    4."""
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path, repo_id="r")
+    api = store_dir / "docs" / "api"
+    api.mkdir(parents=True, exist_ok=True)
+    ghost = api / "gone.md"
+    ghost.write_text("# gone\n", encoding="utf-8")
+    old = time.time() - 3600
+    os.utime(ghost, (old, old))
+
+    started = mut.docs_generate_start(store_dir, repo_id=None, config_path=config_path)
+    assert started["ok"] is True
+    status = _await_finished(store_dir)
+
+    assert status["documents_written"] == 3
+    assert ghost.read_text(encoding="utf-8") == "# gone\n"
+
+
+def test_a_start_is_refused_while_the_claim_is_held_but_holds_no_pid_yet(tmp_path,
+                                                                        monkeypatch):
+    """The claim window itself refuses a second run.
+
+    An empty pidfile is what the winner leaves between taking the in-progress token
+    and writing its pid into it. ``docs_generate_status`` cannot parse that and
+    reports not-running, which is correct for a liveness question and wrong as a
+    permission to spawn. Before the O_CREAT|O_EXCL claim, this state let a second
+    request through: two children, one log file opened "w" twice, shredded output.
+
+    PRECONDITION: the isolated HOME is load-bearing. If this guard is deleted the
+    call spawns a real ``contextlake kb docs``, and the guard being deleted is the
+    one stopping it.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+    pf = mut._docs_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text("")
+    assert mut.docs_generate_status(store_dir)["running"] is False
+
+    result = mut.docs_generate_start(store_dir, config_path=config_path)
+
+    assert result["ok"] is False
+    assert result["running"] is True
+    assert "already in progress" in result["error"]
+    assert not (store_dir / "dashboard" / "docs-gen.log").exists()
+
+
+def test_a_failed_spawn_releases_the_claim_instead_of_wedging_the_route(tmp_path,
+                                                                       monkeypatch):
+    """A spawn that raises must hand the in-progress token back.
+
+    The token is a file, and ``docs_generate_status`` deliberately does not delete
+    an unparseable one (that state is the claim mid-write). So a spawn that failed
+    after claiming would leave an empty file that refuses every later run for good,
+    with no error anywhere saying why -- fixable only by deleting it by hand.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir, config_path = _docs_store(tmp_path)
+
+    def boom(*_a, **_kw):
+        raise OSError("no fork for you")
+
+    monkeypatch.setattr(mut.subprocess, "Popen", boom)
+    with pytest.raises(OSError):
+        mut.docs_generate_start(store_dir, config_path=config_path)
+    assert not mut._docs_pidfile(store_dir).exists()
+
+    monkeypatch.undo()
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    result = mut.docs_generate_start(store_dir, config_path=config_path)
+    assert result["ok"] is True
+    _await_finished(store_dir)

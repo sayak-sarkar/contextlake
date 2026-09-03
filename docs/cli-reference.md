@@ -167,7 +167,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | Command | What it does |
 | --- | --- |
 | `kb source` | add / list / remove / test / enable / disable knowledge-source connectors |
-| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
+| `kb index` | Build the code/dependency graph, and write the API reference and design notes for the repos it indexed (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway; `--no-docs` skips the documents, and a repo whose head commit has not moved is skipped) |
 | `kb forget` | Remove one repository from the store, in every tier it occupies: graph nodes and edges, semantic vectors, wiki pages, and its `@connect:` / `@enrich:` connector partitions. The repair for a mis-index (`--dry-run` reports what would go, and removes nothing) |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |

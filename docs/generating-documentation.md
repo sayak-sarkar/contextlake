@@ -1,7 +1,12 @@
 # Generate documentation
 
-`contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
-inferred, and every statement traces to an edge that a parser recorded.
+`contextlake kb docs` writes documentation from the graph. Nothing is inferred, and every
+statement traces to an edge that a parser recorded. No model is involved by default; `--llm`
+adds one marked orientation paragraph above the API reference and changes nothing else.
+
+`contextlake kb index` writes the same two per-repository documents itself, for the repos it
+indexed, so a fresh index leaves a store with documents in it. See
+[Keeping it current](#keeping-it-current).
 
 Two documents per repository:
 
@@ -26,7 +31,7 @@ Both read the same graph, and they answer different questions.
 | | `kb wiki` | `kb docs` |
 | --- | --- | --- |
 | Shape | one page you read start to finish | documents you look things up in |
-| Model | optional, gated by a review council | never |
+| Model | optional, gated by a review council | off by default, opt in with `--llm` |
 | Scope | what this repository is and does | where each symbol is used, and what its own files record about how it was built |
 
 They are separate commands rather than two sections of one page because a document that tries
@@ -72,10 +77,24 @@ reported as clean is how a broken store stays broken.
 
 ## Keeping it current
 
-The reference is generated, so regenerate it after re-indexing:
+`contextlake kb index` writes both per-repository documents for the repos it indexed, so
+one command keeps the graph and the documents together:
 
 ```bash
-contextlake kb index && contextlake kb docs
+contextlake kb index
+```
+
+It skips a repository whose head commit has not moved since its documents were written, so
+running it after every commit costs two file reads per unchanged repository. It never runs a
+model, and `--no-docs` switches the documents off.
+
+`contextlake kb docs` regenerates unconditionally, which is what to reach for when a document
+looks wrong. It also writes the whole-store fleet page, which `kb index` does not:
+`kb index` covers the repos of one run, and a page headed "the whole store" built from part
+of one would be a false claim.
+
+```bash
+contextlake kb docs
 ```
 
 See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.

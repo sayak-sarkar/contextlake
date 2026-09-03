@@ -261,7 +261,14 @@ live server would have given at export time.
 
 ## 9. Generate a wiki
 
-No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
+No wiki for a repo yet? What the **Wiki** tab offers depends on whether the server can
+write:
+
+- Started with `--allow-mutations`, the tab carries a **Generate wiki** card that runs
+  the CLI for you. See [§11](#11-mutating-routes).
+- Started without it, the tab hands you the exact command instead (one click to copy).
+  A button that only copies text is the honest control for a server that cannot run
+  anything.
 
 ```bash
 contextlake kb wiki acme/catalog-api --llm builtin
@@ -297,10 +304,34 @@ subsystem's own page, or the **Whole repo** option to go back, without leaving t
 only ever lists subsystems that actually have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
+A subsystem pane says the same thing in words: wiki pages are generated per repo, not
+per subsystem, and the card below it covers the whole repo. There is no module-scoped
+run, because `contextlake kb wiki` takes a repo.
+
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
 See [Generate the wiki](generating-the-wiki.md).
+
+## 9b. Generate the documents
+
+The **Docs** tab holds the two generated documents for a repo, the API reference and the
+design notes. It works the same way the Wiki tab does:
+
+- With `--allow-mutations`, the tab carries a card that runs `contextlake kb docs` for
+  this repo. It reads **Generate documents** when neither document is on disk and
+  **Regenerate documents** when one is, so the heading, the button and the confirm
+  dialog all say the same thing.
+- Without mutations, the tab hands you `contextlake kb docs` to copy.
+
+The card shows the run's log while it runs, then a count of the documents written. That
+count is read back from the files on disk, because an exit code says a process ended,
+not what it produced.
+
+Live-only: a `--site` export carries no generated documents, so it does not offer the
+tab at all.
+
+See [Generating documentation](generating-documentation.md).
 
 ## 10. MCP console and settings
 
@@ -319,7 +350,7 @@ it's a summary, not a form; edit `kb.toml` directly to change anything.
 
 Everything above is read-only.
 
-`contextlake kb dashboard --serve --allow-mutations` adds four write actions. Each one asks you
+`contextlake kb dashboard --serve --allow-mutations` adds five write actions. Each one asks you
 to confirm in the browser first.
 
 | Action | Where | What it does |
@@ -328,13 +359,16 @@ to confirm in the browser first.
 | **Add repo** | fleet overview | clone a URL into `--workspace`, then index it |
 | **Start / Stop / Restart** | MCP console tab | manages a separate `contextlake kb serve --transport http` process |
 | **Regenerate** | a repo's Wiki tab, or Settings | runs the real `contextlake kb wiki` CLI in the background |
+| **Generate / Regenerate documents** | a repo's Docs tab | runs the real `contextlake kb docs` CLI in the background for that repo |
 
 Two notes on those:
 
 - The MCP process is **not** the stdio server your editor spawns. This dashboard cannot see or
   manage that one. Its bearer token is covered below.
-- Regenerate runs detached from the request that started it, so it keeps going if you close the
-  browser tab.
+- Regenerate and Generate documents both run detached from the request that started them, so
+  they keep going if you close the browser tab.
+- Generate documents has no estimate step and no Force box. The run is model-free by default,
+  so there is no token cost to preview first, and `kb docs` has no `--force` flag to offer.
 
 Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
 are already up to date". A **Force** checkbox skips that freshness check and regenerates

@@ -1120,3 +1120,354 @@ def test_repo_docs_route_does_not_hijack_a_repo_literally_named_docs(served_with
     # The control: the sub-route still works for a repo that is NOT a collision.
     scoped = json.loads(_get(base + "/api/repo/team/app/docs"))
     assert scoped["kind"] == "api" and scoped["found"] is False
+
+
+# --- /api/docs/generate and /api/docs/status ---------------------------------
+
+
+@pytest.fixture
+def served_with_docs_mutations(tmp_path, monkeypatch):
+    """Like ``served_with_wiki_mutations``, for the docs routes.
+
+    Same two isolations and the same reason: ``/api/docs/generate`` spawns a real
+    ``contextlake kb docs`` subprocess, and without an explicit ``--config`` that
+    child falls back to the normal discovery chain, which on a real dev machine can
+    resolve a production store.
+
+    Holds ONE indexed repo "r" rather than an empty store. An empty store writes 0
+    documents, and 0 is also what a dead counter returns, so every count asserted
+    against it held at any value the counter could produce. With one indexed repo
+    the two scopes give different numbers: unscoped writes 3 (both documents plus
+    the whole-store fleet page), scoped to "r" writes 2.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    s = SqliteStore(store_dir / "index.sqlite")
+    s.upsert_repo(Repo(id="r", path=str(tmp_path)))
+    write_shard(store_dir, GraphShard(
+        repo="r", head_commit="abc123",
+        nodes=[Node(id="a", repo="r", kind="function", name="a", file="a.py"),
+               Node(id="b", repo="r", kind="function", name="b", file="a.py")],
+        edges=[Edge(src="a", dst="b", relation="calls",
+                    confidence=Confidence.EXTRACTED, provenance=_PROV)]))
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    port = _free_port()
+    srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port,
+                                 allow_mutations=True, workspace=str(tmp_path / "ws"),
+                                 config_path=str(cfg))
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        js = _get(base + "/dashboard.js").decode("utf-8")
+        token = re.search(r'__CL_TOKEN__=("(?:[^"\\]|\\.)*")', js).group(1)
+        token = json.loads(token)
+        yield base, token, store_dir
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def test_docs_generate_route_starts_and_reports_status(served_with_docs_mutations):
+    base, token, store_dir = served_with_docs_mutations
+    status, body = _post(base + "/api/docs/generate", {}, token=token)
+    assert status == 200
+    assert body["ok"] is True
+    assert "pid" in body
+    for _ in range(50):
+        poll = json.loads(_get(base + "/api/docs/status"))
+        if poll.get("finished"):
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("docs generation did not finish in time")
+    assert poll["running"] is False
+    # An unscoped run over the fixture's one indexed repo writes both its documents
+    # and the whole-store fleet page: 3. Asserted as 3 and not 0 so the row cannot
+    # be satisfied by a counter that returns a constant -- the scoped row below
+    # asserts 2 on the same store.
+    assert poll["documents_written"] == 3
+    assert (store_dir / "docs" / "fleet" / "design.md").is_file()
+    # Regression, the same one /api/wiki/generate carries: this route must NOT be
+    # dispatched through _mutate's store-lock window. The spawned `contextlake kb
+    # docs` child takes that same lock itself (via _guard_store) at startup, as a
+    # different pid, and loses the race if the parent request handler still holds
+    # it. See _docs_generate's docstring.
+    #
+    # Asserted on the words _guard_store actually prints. The wiki test beside this
+    # one probes for "busy", which is the StoreBusy exception's own wording and is
+    # NOT what the child logs (_common.py:128-133 prints "refusing to run
+    # concurrently"), so that probe cannot see the defect it is written for.
+    assert "refusing to run concurrently" not in poll["log_tail"].lower(), poll["log_tail"]
+
+
+def test_docs_generate_route_is_registered_only_behind_mutations_and_the_token(
+        served_with_docs_mutations, served):
+    """Three assertions, and only the first one discriminates.
+
+    (a) DISCRIMINATING: mutations on plus the right token returns 200. On unmodified
+        code this path reached ``_mutate`` and fell through to its own 404.
+    (b) GUARD ONLY, passes on unmodified code: a wrong token is 403, because
+        ``do_POST`` checks the token before any path dispatch.
+    (c) GUARD ONLY, passes on unmodified code: with mutations off the POST is 404,
+        from the ``if not allow_mutations`` check above that dispatch.
+
+    (b) and (c) are not tests of this change. They catch a future edit that
+    registers this route or its handler above those two gates, which is the only way
+    they could start failing.
+    """
+    base, token, _store_dir = served_with_docs_mutations
+
+    status, body = _post(base + "/api/docs/generate", {}, token=token)
+    assert status == 200 and body["ok"] is True
+
+    status, _ = _post(base + "/api/docs/generate", {}, token="not-the-token")
+    assert status == 403
+
+    status, _ = _post(served + "/api/docs/generate", {})
+    assert status == 404
+
+
+def test_docs_status_degrades_to_not_running_without_mutations(served):
+    """Without mutations the status route answers, it does not 404.
+
+    A 404 here is invisible in the UI: ``docsRegenerateCard``'s poll would report
+    the failure, but the wiki card's equivalent ``.catch`` swallows it and leaves
+    the card reading "Idle" with the run finished. Matching the wiki route's own
+    degradation keeps the two consistent."""
+    assert json.loads(_get(served + "/api/docs/status")) == {"running": False}
+
+
+def _poll_until_finished(base, tries=100):
+    for _ in range(tries):
+        poll = json.loads(_get(base + "/api/docs/status"))
+        if poll.get("finished"):
+            return poll
+        time.sleep(0.1)
+    raise AssertionError("docs generation did not finish in time")
+
+
+def test_docs_generate_route_carries_the_repo_the_card_sent(served_with_docs_mutations):
+    """The repo the card sent has to reach the child, not be dropped on the way.
+
+    Dropping it is silent and it inverts the button's meaning: a per-repo control
+    starts a fleet-wide run, which on a 480-repo store is the failure this whole
+    change exists to remove. Both new route rows used to POST ``{}``, so the field
+    was never carried end to end by any test.
+
+    Three assertions, each of which a dropped repo breaks: the pidfile records the
+    scope it was started with, a scoped run writes 2 documents and not 3, and it
+    writes no whole-store fleet page (``cmd_docs`` writes that only for a run that
+    covered every indexed repo).
+    """
+    base, token, store_dir = served_with_docs_mutations
+    status, body = _post(base + "/api/docs/generate", {"repo": "r"}, token=token)
+    assert status == 200 and body["ok"] is True
+
+    poll = _poll_until_finished(base)
+    assert poll["repo"] == "r"
+    assert poll["documents_written"] == 2
+    assert (store_dir / "docs" / "api" / "r.md").is_file()
+    assert not (store_dir / "docs" / "fleet" / "design.md").exists()
+
+
+@pytest.mark.parametrize("repo", ["--llm=openai", "--max-symbols=1", "--no-such-flag",
+                                  "-r", "../../etc/passwd", "/etc/passwd", "a/../b"])
+def test_docs_generate_refuses_a_repo_that_is_not_a_repo_id(served_with_docs_mutations, repo):
+    """Argv injection through an HTTP endpoint, refused before the spawn.
+
+    ``repo`` becomes a positional word in ``contextlake kb docs <word>``, and
+    argparse reads a word beginning with ``-`` as a FLAG. ``--llm=openai`` turned on
+    the model tier ``docs_generate_start``'s own docstring says it withholds, and
+    the child made a real outbound request to a provider (measured: an HTTP 401 from
+    the orientation path in the child's log).
+
+    The status code alone would not prove the spawn was prevented, so this also
+    asserts the two files a spawn always creates are absent, and it asserts the
+    specific error body: a check that merely stripped a leading dash would still
+    accept ``../../etc/passwd`` and ``/etc/passwd``.
+    """
+    base, token, store_dir = served_with_docs_mutations
+    status, body = _post(base + "/api/docs/generate", {"repo": repo}, token=token)
+    assert status == 400
+    assert body == {"error": "invalid repo id"}
+    assert not (store_dir / "dashboard" / "docs-gen.pid").exists()
+    assert not (store_dir / "dashboard" / "docs-gen.log").exists()
+
+
+@pytest.mark.parametrize("repo", ["--llm=openai", "-r", "../../etc/passwd"])
+def test_wiki_generate_refuses_a_repo_that_is_not_a_repo_id(served_with_wiki_mutations, repo):
+    """The wiki route shares the docs route's spawn shape and had the same hole:
+    the same unchecked value reaching ``contextlake kb wiki <word>``. Fixed in both,
+    so a reader who arrives at either one finds the check."""
+    base, token, store_dir = served_with_wiki_mutations
+    status, body = _post(base + "/api/wiki/generate", {"repo": repo}, token=token)
+    assert status == 400
+    assert body == {"error": "invalid repo id"}
+    assert not (store_dir / "dashboard" / "wiki-gen.pid").exists()
+
+
+@pytest.mark.parametrize("raw", ["   ", "\t", "\n"])
+def test_docs_generate_refuses_a_whitespace_only_repo(served_with_docs_mutations, raw):
+    """A whitespace-only value is not an absent one.
+
+    Every shipped caller OMITS the field for a fleet-wide run (dashboard.js:
+    ``if (repoId) body.repo = repoId``), so whitespace means a caller tried to name
+    a repo and got it wrong. Reading it as absent silently escalates a per-repo
+    button to the whole fleet, which is the same outcome as round 1's dropped-repo
+    defect reached through a different value.
+    """
+    base, token, store_dir = served_with_docs_mutations
+    status, body = _post(base + "/api/docs/generate", {"repo": raw}, token=token)
+    assert status == 400
+    assert body == {"error": "invalid repo id"}
+    assert not (store_dir / "dashboard" / "docs-gen.pid").exists()
+
+
+def test_validate_repo_id_refuses_a_backslash_for_the_windows_path():
+    """POSIX allows a backslash in a directory name; ``repo_slug`` keeps it, and on
+    Windows the page path built from this body field then resolves outside the docs
+    directory. Neither writer of a repo id emits one, so refusing costs nothing and
+    closes a traversal this process cannot see on Linux."""
+    from contextlake.kb.dashboard import mutations as kbmut
+    for bad in ("a\\b", "..\\..\\etc\\passwd", "a\\"):
+        assert kbmut.validate_repo_id(bad) is None, bad
+    # the shapes the two writers DO emit still pass
+    for good in ("acme/billing", "gitlab.example.com:8443/acme/api", "repo@abc123"):
+        assert kbmut.validate_repo_id(good) == good, good
+
+
+@pytest.mark.parametrize("value", [
+    # every provider cli.py's --llm choices declare
+    "auto", "ollama", "openai", "builtin", "anthropic", "cli",
+])
+def test_wiki_generate_accepts_every_provider_the_cli_declares(served_with_wiki_mutations, value):
+    """The POSITIVE direction, which is what was missing when this broke.
+
+    ``_model_field`` shipped returning an error for every non-empty value, so this
+    route could not start an LLM wiki run at all, and 116 targeted tests passed
+    against both the broken and the working version. A validator with only
+    rejection rows is indistinguishable from a validator that rejects everything.
+
+    Asserting 200 rather than the argv: the argv builder is covered by
+    tests/kb/test_kb_dashboard_mutations.py, and this route's job is to let the
+    value through.
+    """
+    base, token, store_dir = served_with_wiki_mutations
+    status, body = _post(base + "/api/wiki/generate", {"repo": "a", "llm": value},
+                         token=token)
+    assert status == 200, body
+    assert body.get("ok") is True, body
+
+
+@pytest.mark.parametrize("value", [
+    "gpt-4o-mini", "llama3.1",
+    # a real id carrying the ':' and '.' an over-strict rule would kill, and the
+    # example _model_field's own docstring gives as legitimate
+    "us.anthropic.claude-sonnet-4-v1:0",
+    "meta/llama-3.1-8b", "qwen2.5-coder:7b",
+])
+def test_wiki_generate_accepts_a_real_model_name(served_with_wiki_mutations, value):
+    """Model names carry ':' , '.' and '/'. Refusing those is the failure this row
+    guards: it looks like validation and removes the feature."""
+    base, token, store_dir = served_with_wiki_mutations
+    status, body = _post(base + "/api/wiki/generate",
+                         {"repo": "a", "llm": "builtin", "llm_model": value},
+                         token=token)
+    assert status == 200, body
+    assert body.get("ok") is True, body
+
+
+@pytest.mark.parametrize("field", ["llm", "llm_model"])
+@pytest.mark.parametrize("value", ["--force", "-x", "builtin --force", "a\nb", "a\x7fb", 5, ["x"]])
+def test_wiki_generate_refuses_a_model_value_that_could_reach_argv(
+        served_with_wiki_mutations, field, value):
+    """The negative direction. ``builtin --force`` is the interesting row: the rule
+    is loose on ':' and '/', so refusing WHITESPACE is what keeps it a single
+    rejected word instead of two argv words."""
+    base, token, store_dir = served_with_wiki_mutations
+    status, body = _post(base + "/api/wiki/generate", {"repo": "a", field: value},
+                         token=token)
+    assert status == 400
+    assert body == {"error": f"invalid {field} value"}
+    assert not (store_dir / "dashboard" / "wiki-gen.pid").exists()
+
+
+@pytest.mark.parametrize("payload", [{"repo": 123}, {"repo": ["a"]}, {"repo": {"a": 1}}, []])
+def test_docs_generate_answers_400_not_500_for_a_malformed_body(
+        served_with_docs_mutations, payload):
+    """A non-string ``repo``, or a JSON array as the whole body, used to reach
+    ``.strip()`` on whatever JSON held and come back as a 500 with an unhandled
+    AttributeError traceback. A traceback on this surface is an information leak as
+    well as a defect, and the same handler already answered 400 for a body that was
+    not JSON at all."""
+    base, token, store_dir = served_with_docs_mutations
+    status, _ = _post(base + "/api/docs/generate", payload, token=token)
+    assert status == 400
+    assert not (store_dir / "dashboard" / "docs-gen.pid").exists()
+
+
+@pytest.mark.parametrize("payload", [{"repo": 123}, {"llm": 5}, {"llm_model": ["x"]},
+                                     {"llm": "--force"}, []])
+def test_wiki_generate_answers_400_not_500_for_a_malformed_body(
+        served_with_wiki_mutations, payload):
+    """Same 500, same line, in the wiki route -- plus its two extra argv fields.
+    ``llm`` and ``llm_model`` are read with ``.strip()`` too, so a non-string is the
+    same crash, and a value beginning with ``-`` is the same flag hazard."""
+    base, token, _store_dir = served_with_wiki_mutations
+    status, _ = _post(base + "/api/wiki/generate", payload, token=token)
+    assert status == 400
+
+
+def test_two_concurrent_docs_generate_posts_start_exactly_one_run(
+        served_with_docs_mutations):
+    """Two POSTs fired at one moment: one starts a run, the other is refused.
+
+    Both used to answer ``ok: true``. The route-level in-progress check read the
+    status and then spawned, which is two filesystem operations, and both requests
+    cleared the read before either wrote the pidfile. Both children then opened the
+    one log file with "w" and wrote at independent offsets, so the log the card
+    shows was shredded: the loser's refusal partially overwrote the winner's output
+    and neither line could be matched in full.
+
+    NOT flaky by construction: the losing request reaches its claim within
+    microseconds of the winner's, while the winner's child is still starting a
+    Python interpreter. The one interleaving that would legitimately allow two runs
+    needs the child to exit between the winner's pid write and the loser's status
+    read, which that startup cost rules out here.
+    """
+    import threading as _threading
+
+    base, token, store_dir = served_with_docs_mutations
+    barrier = _threading.Barrier(2)
+    replies = []
+    lock = _threading.Lock()
+
+    def fire():
+        barrier.wait()
+        reply = _post(base + "/api/docs/generate", {}, token=token)
+        with lock:
+            replies.append(reply)
+
+    threads = [_threading.Thread(target=fire) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=20)
+
+    assert len(replies) == 2
+    assert all(code == 200 for code, _ in replies), replies
+    started = [b for _, b in replies if b.get("ok")]
+    refused = [b for _, b in replies if not b.get("ok")]
+    assert len(started) == 1, replies
+    assert len(refused) == 1, replies
+    assert "already in progress" in refused[0]["error"]
+
+    poll = _poll_until_finished(base)
+    # One writer means one clean log: the winner's completion line is intact, and
+    # the refusal was never written into this file at all.
+    assert "refusing to run concurrently" not in poll["log_tail"].lower(), poll["log_tail"]
+    assert poll["documents_written"] == 3

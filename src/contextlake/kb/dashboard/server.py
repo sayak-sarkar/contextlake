@@ -394,6 +394,9 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             if path == "/api/wiki/status":
                 out = kbmut.wiki_generate_status(sd) if allow_mutations else {"running": False}
                 return 200, _json_bytes(out)
+            if path == "/api/docs/status":
+                out = kbmut.docs_generate_status(sd) if allow_mutations else {"running": False}
+                return 200, _json_bytes(out)
             if path == "/api/wiki/estimate":
                 if not allow_mutations:
                     return 404, b'{"error":"not found"}'
@@ -460,6 +463,82 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         finally:
             lock.release()
 
+    def _generate_body(body: bytes):
+        """``(payload, error)`` for a generate route's request body.
+
+        The error is returned, not raised, so both generate routes answer 400 for a
+        body they cannot read. Before this, a body that parsed as JSON but was not
+        an object reached ``payload.get`` and the field reads below reached
+        ``.strip()`` on whatever JSON held, so ``{"repo": 123}`` and a bare JSON
+        array both came back as a 500 with an unhandled AttributeError traceback --
+        an information leak as well as a defect, in a handler that already answered
+        400 for a body that was not JSON at all.
+        """
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            return None, b'{"error":"invalid JSON body"}'
+        if not isinstance(payload, dict):
+            return None, b'{"error":"invalid JSON body"}'
+        return payload, None
+
+    def _repo_field(payload):
+        """``(repo_id, error)`` for the ``repo`` field, validated before argv.
+
+        The spawned child's argv is a trust boundary even on loopback -- see
+        ``kbmut.validate_repo_id`` for what an unchecked value did here. A request
+        that reaches this point has already passed the mutation gate, the
+        per-process token and the Host allowlist; none of those say the VALUE is a
+        repo id.
+
+        The rejection carries its own message rather than the body-shape one above,
+        so a caller (and a test) can tell "that is not a repo id" apart from "that
+        is not an object".
+        """
+        raw = payload.get("repo")
+        if raw is None:
+            return None, None
+        # A whitespace-only value is NOT absent. Every shipped caller omits the
+        # field for a fleet-wide run (dashboard.js: `if (repoId) body.repo = ...`),
+        # so whitespace means a caller tried to name a repo and got it wrong.
+        # Reading it as absent silently widens a per-repo button to the whole
+        # fleet, which is the same outcome as dropping the field.
+        if isinstance(raw, str) and not raw.strip():
+            return None, b'{"error":"invalid repo id"}'
+        repo_id = kbmut.validate_repo_id(raw)
+        if repo_id is None:
+            return None, b'{"error":"invalid repo id"}'
+        return repo_id, None
+
+    def _model_field(payload, field: str):
+        """``(value, error)`` for ``llm`` / ``llm_model``, validated before argv.
+
+        Looser than ``_repo_field`` because these are provider and model names,
+        which legitimately carry ``:`` and ``/`` (``us.anthropic.claude-...-v2:0``).
+        What is refused is anything argparse would read as a flag, or that could not
+        be one word: a leading ``-``, whitespace, and control characters.
+        """
+        raw = payload.get(field)
+        if raw is None:
+            return None, None
+        bad = b'{"error":"invalid ' + field.encode("ascii") + b' value"}'
+        if not isinstance(raw, str):
+            return None, bad
+        value = raw.strip()
+        if not value:
+            return None, None
+        # The three refusals the docstring promises. Whitespace is the load-bearing
+        # one: it keeps "builtin --force" a single rejected word instead of two argv
+        # words, so no flag reaches the child even though the rest of the rule is
+        # loose. A leading dash is what argparse itself reads as a flag.
+        if value.startswith("-"):
+            return None, bad
+        if any(c.isspace() for c in value):
+            return None, bad
+        if any(ord(c) < 32 or ord(c) == 127 for c in value):
+            return None, bad
+        return value, None
+
     def _wiki_generate(body: bytes) -> tuple[int, bytes]:
         """POST /api/wiki/generate -- deliberately NOT dispatched through _mutate:
         that helper holds the store's single-writer lock for the dispatch's
@@ -468,18 +547,55 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         lose the race against this request's own lock window and exit with
         "store is busy". wiki_generate_start() itself never touches the store
         (only a subprocess spawn + a pidfile write), so it needs no lock here at
-        all -- the child manages its own."""
-        try:
-            payload = json.loads(body) if body else {}
-        except json.JSONDecodeError:
-            return 400, b'{"error":"invalid JSON body"}'
-        repo_id = (payload.get("repo") or "").strip() or None
+        all -- the child manages its own.
+
+        Every field that reaches the child's argv is validated first, for the reason
+        ``_repo_field`` gives. This route has the same spawn shape as the docs one
+        below and had the same hole."""
+        payload, err = _generate_body(body)
+        if err:
+            return 400, err
+        repo_id, err = _repo_field(payload)
+        if err:
+            return 400, err
         force = bool(payload.get("force"))
-        llm = (payload.get("llm") or "").strip() or None
-        llm_model = (payload.get("llm_model") or "").strip() or None
+        llm, err = _model_field(payload, "llm")
+        if err:
+            return 400, err
+        llm_model, err = _model_field(payload, "llm_model")
+        if err:
+            return 400, err
         return 200, _json_bytes(kbmut.wiki_generate_start(
             store_dir, repo_id=repo_id, force=force, llm=llm,
             llm_model=llm_model, config_path=config_path))
+
+    def _docs_generate(body: bytes) -> tuple[int, bytes]:
+        """POST /api/docs/generate -- like /api/wiki/generate above, deliberately NOT
+        dispatched through _mutate. Written out here rather than cross-referenced:
+        a reader who arrives at the docs route will not find the wiki one.
+
+        _mutate holds the store's single-writer lock for the whole dispatch, and the
+        spawned `contextlake kb docs` child takes that SAME lock itself at startup
+        (via _guard_store in kb/cmds/docs.py) as a different pid. It would lose the
+        race against this request's own lock window and exit with "store is busy",
+        which reads as contention with some other tool. docs_generate_start() never
+        touches the store (a subprocess spawn and a pidfile write), so it needs no
+        lock here; the child manages its own. A second concurrent run is refused by
+        docs_generate_start's in-progress check, not by a lock.
+
+        No `llm`/`llm_model` is read off the body, unlike _wiki_generate. `kb docs`
+        does accept --llm, but this card offers no cost estimate before a run -- see
+        docs_generate_start's docstring for the reason that gates the flag. That
+        withholding is only real while `repo` cannot smuggle the flag back in, which
+        is what ``_repo_field`` enforces before the value reaches argv."""
+        payload, err = _generate_body(body)
+        if err:
+            return 400, err
+        repo_id, err = _repo_field(payload)
+        if err:
+            return 400, err
+        return 200, _json_bytes(kbmut.docs_generate_start(
+            store_dir, repo_id=repo_id, config_path=config_path))
 
     def _chat(body: bytes) -> tuple[int, bytes]:
         """POST /api/chat -- always available (see build_dashboard_server's
@@ -568,6 +684,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             body = self.read_body()
             if parsed.path == "/api/wiki/generate":
                 self.send_guarded(_wiki_generate, body)
+            elif parsed.path == "/api/docs/generate":
+                self.send_guarded(_docs_generate, body)
             else:
                 self.send_guarded(_mutate, parsed.path, body)
 

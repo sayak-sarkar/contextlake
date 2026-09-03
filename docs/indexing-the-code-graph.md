@@ -4,6 +4,13 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
 ~/work` walks every git repo under a folder and builds the graph. Runs are incremental by default;
 `--force` rebuilds from scratch.
 
+It also writes two documents per repository it indexed, `<store>/docs/api/<repo>.md` and
+`<store>/docs/design/<repo>.md`, so a fresh index leaves a store you can read as well as
+query. No model is ever run for them. A repository whose head commit has not moved since its
+documents were written is skipped, so the cost of the per-commit hook stays flat. `--no-docs`
+switches them off, and `contextlake kb docs` regenerates them unconditionally. See
+[Generate documentation](generating-documentation.md).
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>

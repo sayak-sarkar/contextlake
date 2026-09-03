@@ -49,7 +49,9 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
                      workers: int | None = None, repo_filter: str | None = None,
                      languages: list[str] | None = None,
-                     max_repo_memory: int | None = None) -> int:
+                     max_repo_memory: int | None = None,
+                     docs_targets: list | None = None,
+                     docs_rebuilt: set | None = None) -> int:
     from ..parse import (  # lazy: tree-sitter
         DEFAULT_MAX_FILE_BYTES,
         PARSER_VERSION,
@@ -110,6 +112,27 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     mode = "full" if force else "incremental"
     failed = skipped = 0
     oversized: list[str] = []
+    # Out-param, the shape `unusable=` above already uses: the caller writes the documents
+    # for these repos after this returns. Only repos whose graph is now on disk go in --
+    # a repo that failed, went over the memory guard or was refused as too large is left
+    # out, because documenting a repo the index itself refused is worse than documenting
+    # none. De-duplicated by id: the pool-break handler below re-runs the full work list
+    # serially, so `_persist` fires a second time for every repo it had already written.
+    _documented: set[str] = set()
+
+    def _want_docs(repo_id: str, path: str, *, rebuilt: bool = False) -> None:
+        if docs_targets is None:
+            return
+        # Recorded before the de-duplication, not after: the pool-break handler re-runs the
+        # whole work list serially, so `_persist` fires a second time for a repo that is
+        # already on the list, and the fact that its graph was rewritten must survive that.
+        if rebuilt and docs_rebuilt is not None:
+            docs_rebuilt.add(repo_id)
+        if repo_id in _documented:
+            return
+        _documented.add(repo_id)
+        docs_targets.append((repo_id, path))
+
     # Registered from the WALK, not from the store. _open_store registers whatever
     # the store already knows, which is empty on a first index -- exactly the run
     # that prints every repo id for the first time, and so exactly the run whose
@@ -138,6 +161,13 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             todo.append((repo_id, path, head))
         else:
             skipped += 1
+            # An unchanged repo still gets its documents checked. The graph is current, so
+            # the pages rendered from it are the ones this store should hold, and a page
+            # that was never written (or was written before this repo was) is missing for a
+            # reason the index can fix now. What the stamp test saves is the render and the
+            # two writes, not the shard read: `head_commit` comes off the shard on purpose,
+            # so the skip cannot drift from the value the renderer stamped.
+            _want_docs(repo_id, path)
     total = len(todo)
     progress = style.Progress(total=total, label="index")
     if workers is None or workers <= 0:
@@ -159,6 +189,14 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         # Stamp from the shard, never from PARSER_VERSION: the row then mirrors
         # the file that was actually written, so the two cannot drift.
         mark_repo_indexed(store, repo_id, head, shard.parser_version)
+        # Last, so a repo whose write raised is never handed to the docs step: the
+        # documents are rendered from the shard this function just wrote.
+        #
+        # `rebuilt=True` because that shard is new. The pages this repo already holds were
+        # rendered from the graph this call replaced, so the docs step regenerates them
+        # even when the commit did not move -- a parser change makes a different graph out
+        # of the same code, and `--force` rebuilds every repo through here.
+        _want_docs(repo_id, str(path), rebuilt=True)
 
     def _report(repo_id, shard):
         progress.advance(repo_id)
@@ -600,6 +638,66 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     return 0
 
 
+def _write_docs_for(args, store, store_dir, targets, rebuilt: set | None = None) -> None:
+    """Write the API reference and the design notes for the repos this run indexed.
+
+    Runs after the graph is on disk, never before: both documents are rendered from the
+    shard this run just wrote.
+
+    `--no-docs` opts out, using bootstrap's own dest (`no_docs`, `cli.py:1046`), so one
+    idea has one spelling.
+
+    `llm=None` is hardcoded rather than read from `args`. The root parser accepts `--llm`
+    before the subcommand (`cli.py:764`), so `contextlake --llm ollama kb index` would
+    otherwise put a model call on the path `kb hook` runs after every commit.
+
+    `generate_docs` is called directly rather than `cmd_docs`. `cmd_docs` derives its own
+    targets through `_connect_targets` (`_common.py:139-155`), which resolves
+    `--source <repo-id>` to EVERY indexed repo and `--source <dir>` to the directory name
+    instead of the canonical id this command files the graph under -- the same
+    non-canonical-id defect that once made every connector match nothing. It also takes
+    the store lock a second time, under the name `docs`, while this run holds it as
+    `index`.
+
+    No whole-store fleet page is written. This run's target list is a subset by
+    construction (a repo that failed, went over budget, or was filtered out by `--repos`
+    is not in it), and a page headed "the whole store" built from part of it is the false
+    claim `cmd_docs` refuses to make.
+
+    `rebuilt` names the repos whose shard this run rewrote. Their pages were rendered
+    from the graph this run replaced, so the freshness skip does not apply to them. Without
+    it the skip keys on the head commit alone, and a run that re-indexes a repo because its
+    graph "is not the one this build produces" then reports the pages built from that old
+    graph as current, in the same output.
+
+    Returns nothing and never touches the caller's exit code. A document that failed to
+    render is reported and counted; the index's verdict is about the graph.
+    """
+    if getattr(args, "no_docs", False) or not targets:
+        return
+    from .docs import generate_docs
+
+    try:
+        counts = generate_docs(store, store_dir, targets, llm=None,
+                               max_symbols=getattr(args, "max_symbols", None),
+                               skip_unchanged=True, rebuilt=rebuilt)
+    except Exception as e:  # noqa: BLE001 - a docs fault must not fail the index
+        log(f"{style.warn()} Documents: none written for this run ({e}). The graph is "
+            f"written and this run's verdict is about the graph; run "
+            f"`contextlake kb docs` to retry the documents.")
+        return
+    glyph = style.warn() if counts.failed else style.ok()
+    # Three numbers, never merged into one. "Not written" over a fresh repo, a repo with
+    # no symbols and a repo whose renderer raised are three different facts with three
+    # different repairs, and one count for all of them is the mislabelled-counter defect
+    # `kb wiki` already had.
+    log(f"{glyph} Documents: {counts.written} written, {counts.unchanged} unchanged, "
+        f"documents failed for {counts.failed} repo(s)"
+        + (f", {counts.skipped} with nothing to document" if counts.skipped else "")
+        + (f", {counts.missing} unreadable" if counts.missing else "")
+        + f" → {store_dir / 'docs'}")
+
+
 def cmd_index(args) -> int:
     """`--watch` was honoured only on the `--workspace` path. On the single-source path the
     flag parsed, ran one pass and exited 0, without watching and without saying it would not:
@@ -636,20 +734,30 @@ def _cmd_index_once(args) -> int:
         if workspace:
             force = getattr(args, "force", False)
             repo_filter = getattr(args, "repos", None)
+
+            def _pass() -> int:
+                # A fresh list per pass, so a watch running for days does not re-document
+                # every repo it has ever seen on every tick.
+                docs_targets: list = []
+                # Same lifetime as the target list, for the same reason: a watch running
+                # for days must not carry one tick's rebuild set into the next.
+                docs_rebuilt: set = set()
+                rc = _index_workspace(store, store_dir, Path(workspace),
+                                      force=force, workers=workers,
+                                      repo_filter=repo_filter,
+                                      docs_targets=docs_targets,
+                                      docs_rebuilt=docs_rebuilt, **parse_opts)
+                _write_docs_for(args, store, store_dir, docs_targets,
+                                rebuilt=docs_rebuilt)
+                return rc
+
             if getattr(args, "watch", False):
                 interval = _or_default(getattr(args, "interval", None), 60)
                 log(f"{style.cyan('watch')}: re-indexing {workspace} every "
                     f"{interval}s (Ctrl-C to stop)")
-                _watch_loop(
-                    lambda: _index_workspace(store, store_dir, Path(workspace),
-                                             force=force, workers=workers,
-                                             repo_filter=repo_filter, **parse_opts),
-                    interval=interval,
-                )
+                _watch_loop(_pass, interval=interval)
                 return 0
-            return _index_workspace(store, store_dir, Path(workspace),
-                                    force=force, workers=workers,
-                                    repo_filter=repo_filter, **parse_opts)
+            return _pass()
 
         # `contextlake kb index PATH` and `index --source PATH` are the same thing.
         source = getattr(args, "source", None) or getattr(args, "path", None)
@@ -740,12 +848,28 @@ def _cmd_index_once(args) -> int:
                 from ..parse import PARSER_VERSION
 
                 if indexed_parser_version(store, store_dir, repo_id) == PARSER_VERSION:
+                    # "nothing to do" stopped being true once the documents were part of
+                    # this command: the graph is unchanged, and a document that was never
+                    # written is still missing. So the graph is left alone and the
+                    # documents are checked, which is a stamp read per page when they are
+                    # already current.
                     log(f"{repo_id} is unchanged since its last index "
-                        f"(HEAD {(head or '?')[:8]}); nothing to do. "
-                        "Pass --force to re-index anyway.")
+                        f"(HEAD {(head or '?')[:8]}); the graph was left as it is and the "
+                        "documents were checked. Pass --force to re-index anyway.")
+                    _write_docs_for(args, store, store_dir,
+                                    [(repo_id, str(src.resolve()))])
                     return 0
             shard = index_repo_dir(str(src), repo_id, head_commit=head, **parse_opts)
-            return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
+            rc = _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
+            # Guarded on the return code, so this path states the invariant the workspace
+            # path states in `_persist`: a repo whose store write failed is never handed to
+            # the docs step, because the documents are rendered from the shard that write
+            # was meant to leave on disk. The two paths diverging is how every connector
+            # once came to match nothing.
+            if rc == 0:
+                _write_docs_for(args, store, store_dir, [(repo_id, str(src.resolve()))],
+                                rebuilt={repo_id})
+            return rc
 
         # otherwise treat --source as a graph-shard JSON file
         try:
@@ -759,8 +883,12 @@ def _cmd_index_once(args) -> int:
             log(f"{source!r} is not a valid graph shard ({e.error_count()} error(s)); "
                 "expected a JSON object with repo, nodes, and edges")
             return 1
-        return _store_and_index(
+        rc = _store_and_index(
             store, store_dir, shard.repo, src.resolve(), shard.head_commit, shard
         )
+        if rc == 0:
+            _write_docs_for(args, store, store_dir, [(shard.repo, str(src.resolve()))],
+                            rebuilt={shard.repo})
+        return rc
     finally:
         store.close()

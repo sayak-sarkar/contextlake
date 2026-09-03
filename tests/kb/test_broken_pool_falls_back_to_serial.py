@@ -100,6 +100,30 @@ class _PoolThatFailsThenBreaks(_PoolThatBreaks):
         return fut
 
 
+class _PoolThatSucceedsThenBreaks(_PoolThatBreaks):
+    """One repository is indexed and PERSISTED, then the pool breaks.
+
+    Distinct from `_PoolThatFailsThenBreaks`, where the first future raises and `_persist`
+    never runs. Here the first future carries a real shard, so everything `_persist` does
+    for that repository has already happened when the serial pass re-runs the full
+    work-list -- which is the state a double-count is reachable from.
+    """
+
+    def __init__(self, *_a, **_kw):
+        super().__init__()
+        self._submitted = 0
+
+    def submit(self, fn, *a, **kw):
+        fut = Future()
+        self._submitted += 1
+        if self._submitted == 1:
+            fut.set_result(fn(*a, **kw))
+            return fut
+        exc = BrokenProcessPool("terminated abruptly")
+        threading.Timer(0.05, fut.set_exception, args=(exc,)).start()
+        return fut
+
+
 @pytest.fixture
 def workspace(tmp_path):
     ws = tmp_path / "ws"
@@ -154,3 +178,20 @@ def test_a_failure_before_the_break_is_not_counted_twice(
     # Both repositories are valid, so the serial pass indexes both and the only
     # honest total is zero. A retained count would report "1 failed".
     assert "0 failed" in out
+
+
+def test_a_repo_reported_before_the_break_is_documented_once(
+        workspace, tmp_path, capsys, monkeypatch):
+    """The docs target list has the same double-count exposure the counters had.
+
+    The serial pass re-runs the full work-list, so `_persist` fires a second time for every
+    repository the pool phase already persisted. Appending unconditionally would hand the
+    docs step four targets for two repositories, and the summary would read "2 written,
+    2 unchanged" for a workspace holding two repos.
+    """
+    monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor",
+                        _PoolThatSucceedsThenBreaks)
+    _rc, out = _run(workspace, tmp_path, capsys)
+
+    assert "falling back to serial" in out
+    assert "Documents: 2 written, 0 unchanged, documents failed for 0 repo(s)" in out

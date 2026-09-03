@@ -44,6 +44,57 @@ def validate_clone_url(url: str) -> str | None:
     return "unsupported URL (allowed: https://, ssh://, or user@host:path)"
 
 
+def validate_repo_id(value) -> str | None:
+    """The repo id, or ``None`` when the value is not one.
+
+    Same job as :func:`validate_clone_url` above, on the other field a request body
+    puts on a child's argv.
+
+    The child's argv is a trust boundary even on loopback. A request that reaches
+    here has passed the mutation gate, the per-process token and the Host
+    allowlist, so the caller is a page this process served. The value still becomes
+    a positional word in ``contextlake kb docs <word>``, and argparse reads a word
+    beginning with ``-`` as a FLAG, not as a repo: ``--llm=openai`` turned on the
+    model tier :func:`docs_generate_start` deliberately withholds and made a real
+    outbound call to a provider, measured over HTTP.
+
+    The rules are taken from the two functions that WRITE repo ids, not invented
+    here, because a tighter character class refuses ids the product itself
+    produces:
+
+    * ``repo_identity.normalize_remote_url`` emits ``host/path`` from the origin
+      remote, and ``host`` keeps its port, so ``gitlab.example.com:8443/acme/api``
+      is a real id and ``:`` has to be allowed.
+    * ``repo_identity._fallback_repo_id`` emits ``<directory name>@<root commit>``
+      for a repo with no origin remote, so ``@`` has to be allowed and the
+      directory-name half can hold anything a directory name can.
+
+    A backslash is refused even though POSIX allows it in a directory name.
+    ``repo_slug`` keeps it, and on Windows the page path built from this value then
+    resolves OUTSIDE the docs directory. Neither writer emits one, so refusing it
+    costs nothing here and closes a traversal this process would not see on Linux.
+
+    What is left to refuse is everything neither of them can emit: a leading ``-``
+    (the flag), a leading ``/`` (an id is never absolute), a ``.`` or ``..`` or
+    empty path segment (the traversal shapes, and no repo is named that), control
+    characters, and a value past any real length.
+    """
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value or len(value) > 512:
+        return None
+    if value.startswith("-") or value.startswith("/"):
+        return None
+    if any(ord(c) < 32 or ord(c) == 127 for c in value):
+        return None
+    if "\\" in value:
+        return None
+    if any(seg in ("", ".", "..") for seg in value.split("/")):
+        return None
+    return value
+
+
 def _derive_dest_name(url: str) -> str:
     tail = url.rstrip("/").rsplit("/", 1)[-1]
     tail = tail.rsplit(":", 1)[-1]  # scp-like host:path form
@@ -431,3 +482,208 @@ def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = 
     pf = _wiki_pidfile(store_dir)
     pf.write_text(json.dumps({"pid": proc.pid, "repo": repo_id, "force": force}))
     return {"ok": True, "running": True, "pid": proc.pid}
+
+
+# --- Documents generation (live, from the dashboard) -------------------------
+#
+# Same plumbing as the wiki block above (detached Popen + pidfile + log file),
+# because a fleet-wide `kb docs` run has no safe fixed timeout either. Four things
+# differ from wiki on purpose, each named where it differs: the status payload
+# keeps `pid`, it reports how many documents the run wrote, there is no force flag
+# (the `kb docs` subparser has none), and the pidfile is claimed with O_CREAT|O_EXCL
+# before the spawn instead of written after it. The wiki block still has the race
+# that last one closes.
+
+
+def _docs_pidfile(store_dir) -> Path:
+    return Path(store_dir) / "dashboard" / "docs-gen.pid"
+
+
+def _docs_logfile(store_dir) -> Path:
+    return Path(store_dir) / "dashboard" / "docs-gen.log"
+
+
+def _docs_written_since(store_dir, started_at: float, repo_id: str | None = None) -> int:
+    """How many documents THIS run wrote, counted from the files themselves.
+
+    Counted over what the run could have written, not over the whole docs tree.
+    ``cmd_docs`` writes the API reference and the design notes for each repo it was
+    given, and the whole-store fleet page only when the run covered every indexed
+    repo (``written and not scoped``). So a run scoped to one repo can only have
+    produced two named files. Scanning the tree credited it with pages another
+    writer produced: a repo-scoped run that wrote 2 documents was measured
+    reporting 3, because a fleet page written by something else landed in the same
+    second and the third file still held that other writer's content.
+
+    The directory constants and ``repo_slug`` are imported from the modules that
+    WRITE the files, so reader and writer cannot drift apart: a reader that builds
+    the path its own way looks correct and matches nothing.
+
+    ``started_at`` is floored to the second so a filesystem with 1-second mtime
+    granularity still counts the run's own output. The cost of that flooring is
+    that a document written earlier in the same second by something else is
+    counted too -- now only inside the run's own scope, which for a scoped run is
+    two named paths.
+    """
+    from ..cmds.docs import API_DIR, DESIGN_DIR, FLEET_DIR
+    from ..visualize import repo_slug
+
+    cutoff = int(started_at)
+    root = Path(store_dir)
+    if repo_id:
+        pages = [root.joinpath(*parts, repo_slug(repo_id) + ".md")
+                 for parts in (API_DIR, DESIGN_DIR)]
+    else:
+        pages = []
+        for parts in (API_DIR, DESIGN_DIR, FLEET_DIR):
+            directory = root.joinpath(*parts)
+            if directory.is_dir():
+                pages.extend(directory.glob("*.md"))
+    written = 0
+    for page in pages:
+        try:
+            if page.stat().st_mtime >= cutoff:
+                written += 1
+        except OSError:
+            # A scoped target the run never wrote is absent, which is a count of
+            # zero for it, not an error.
+            continue
+    return written
+
+
+def docs_generate_status(store_dir) -> dict:
+    """Poll a run started by :func:`docs_generate_start`.
+
+    Tails the log unconditionally, even once the pidfile is gone, for the reason
+    :func:`wiki_generate_status` gives: the pidfile tracks liveness and is cleared
+    once a finished run has been reported, while the log is the durable record of
+    what happened, including a failure.
+
+    Two deliberate divergences from the wiki version, written down here because a
+    reader comparing the two will otherwise read them as a copying mistake:
+
+    * ``pid`` stays in the payload. ``wiki_generate_status`` filters it out, which
+      is why the wiki card renders "Running -- pid undefined" for a whole run.
+    * ``documents_written`` is computed on the one tick that sets ``finished``,
+      before the pidfile is unlinked, and counts FILES rather than reading the
+      child's exit code. It rides that single tick, the same one-shot contract the
+      pidfile already has: a later poll (a reload, a second tab) reports Idle plus
+      the durable log and no count. The log outlives the count.
+    """
+    log_path = _docs_logfile(store_dir)
+    tail = ""
+    if log_path.exists():
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        tail = "\n".join(text.splitlines()[-40:])
+    pf = _docs_pidfile(store_dir)
+    if not pf.exists():
+        return {"running": False, "log_tail": tail}
+    try:
+        info = json.loads(pf.read_text())
+    except (OSError, json.JSONDecodeError):
+        # Deliberately does NOT unlink. An unparseable pidfile is the normal
+        # mid-write state of the in-progress claim :func:`docs_generate_start`
+        # takes with O_CREAT|O_EXCL before it spawns. Unlinking it here as
+        # "cleanup" hands the claim back while its owner is still using it, which
+        # is the two-children race the claim exists to close.
+        return {"running": False, "log_tail": tail}
+    pid = info.get("pid")
+    running = isinstance(pid, int) and not _pid_finished(pid)
+    result = {"running": running, "log_tail": tail, **info}
+    if not running:
+        started_at = info.get("started_at")
+        if isinstance(started_at, (int, float)):
+            result["documents_written"] = _docs_written_since(
+                store_dir, started_at, info.get("repo"))
+        pf.unlink(missing_ok=True)
+        result["finished"] = True
+    return result
+
+
+def docs_generate_start(store_dir, *, repo_id: str | None = None,
+                        config_path: str | None = None) -> dict:
+    """Spawn ``contextlake kb docs`` as a subprocess -- reuses the tested CLI
+    generation loop unmodified. Refuses to start a second run while one is already
+    in progress, and that refusal is the ONLY contention handling here: see
+    ``_docs_generate`` in server.py for why no store lock is taken.
+
+    The refusal has two paths, and both are needed. The status read below answers a
+    run that is already visible, with its pid and start time. The O_CREAT|O_EXCL
+    claim on the pidfile answers the run that is not visible yet, because the
+    request that started it has not written the pid: read-then-spawn is two
+    operations, and two concurrent POSTs both cleared the read.
+
+    ``repo_id`` must already be a validated repo id (:func:`validate_repo_id`);
+    it goes straight onto the child's argv as a positional word.
+
+    ``kb docs`` does accept ``--llm`` -- the flag is declared on its subparser in
+    ``cli.py``, and ``cmd_docs`` reads it to add an opt-in prose tier. This spawn
+    deliberately does not forward it. The wiki card shows a cost estimate before an
+    LLM run; this card has no estimate step, and a fleet-wide model run started with
+    no preview is the surprise that estimate exists to prevent. Add ``--llm`` here
+    only together with an estimate.
+
+    What the run produced is read back from the files it wrote (see
+    :func:`docs_generate_status`), never from the child's exit code.
+
+    ``config_path`` should always be the caller's own resolved config path: without
+    it the subprocess falls back to the normal config discovery chain, which may not
+    be the store this dashboard is serving.
+    """
+    status = docs_generate_status(store_dir)
+    if status["running"]:
+        return {"ok": False, "error": "a docs generation run is already in progress",
+               **status}
+    cmd = [sys.executable, "-m", "contextlake", "kb", "docs"]
+    if repo_id:
+        cmd.append(repo_id)
+    if config_path:
+        cmd += ["--config", config_path]
+    log_path = _docs_logfile(store_dir)
+    pf = _docs_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # The pidfile IS the in-progress token, claimed with O_CREAT|O_EXCL so the
+        # check and the claim are ONE filesystem operation. The status read above
+        # is a courtesy that produces the informative refusal; on its own it was
+        # two operations, and two concurrent POSTs both passed it before either
+        # wrote. Both spawned a child, both children opened this one log file with
+        # "w", and their independent write offsets shredded the log the card shows:
+        # measured as a half-overwritten refusal line the poller could not match.
+        fd = os.open(pf, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        # Lost the race between the status read and this claim. The winner may not
+        # have written its pid into the token yet, so this refusal carries no pid
+        # and no start time, unlike the informative one above. It is still a
+        # refusal: somebody holds the token.
+        return {"ok": False, "running": True,
+               "error": "a docs generation run is already in progress"}
+    # Offline mode is process-wide state and this child is a new process that reads
+    # its own. `kb docs --llm` builds an LLM, so the state is carried across as
+    # CONTEXTLAKE_OFFLINE even though this spawn passes no --llm: a later edit that
+    # adds the flag must not have to remember this.
+    from ... import netguard
+
+    # Read before the spawn, so every file the child writes has an mtime at or
+    # after it. Taken after would drop the documents written in the first tick.
+    started_at = time.time()
+    try:
+        # The log stays "w" rather than "x": the claim above means one process at a
+        # time reaches this line, so truncating gives each run a clean log. Opened
+        # AFTER the claim, never before -- opening it first would truncate a
+        # running run's log, which is the shredding defect in another costume.
+        with open(log_path, "w", encoding="utf-8") as logf:
+            proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
+                                    start_new_session=True, env=netguard.child_env())
+        os.write(fd, json.dumps({"pid": proc.pid, "repo": repo_id,
+                                 "started_at": started_at}).encode("utf-8"))
+    except BaseException:
+        # A spawn that fails would otherwise leave an empty token behind forever:
+        # docs_generate_status cannot parse it and (correctly) will not unlink it,
+        # so every later claim would fail and the route would be dead until
+        # somebody deleted the file by hand.
+        pf.unlink(missing_ok=True)
+        raise
+    finally:
+        os.close(fd)
+    return {"ok": True, "running": True, "pid": proc.pid, "started_at": started_at}

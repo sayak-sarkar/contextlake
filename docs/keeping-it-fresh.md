@@ -198,6 +198,10 @@ re-uses the repo's stored id so it updates the same graph node rather than creat
 is written inside a delimited managed block, so a hook you already had is appended to rather than
 overwritten, and only that block is refreshed on re-runs.
 
+`kb index` rewrites that repo's API reference and design notes along with the graph, so the
+documents move with the commit. No model runs, and a repo whose head commit has not moved is
+skipped. Pass `--no-docs` in the hook command to leave the documents to `kb docs` instead.
+
 Mirror-wide work (fetching new clones, pruning) still belongs to `bootstrap` on a schedule. The
 hook keeps your *local edits* current in between.
 

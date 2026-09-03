@@ -18,6 +18,7 @@ knowledge-layer stage to run at all.
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 from pathlib import Path
@@ -98,3 +99,54 @@ def test_no_docs_skips_the_stage(tmp_path):
         "--no-docs did not skip the stage")
     assert not api.exists() or not any(api.glob("*.md")), (
         "--no-docs still wrote a reference")
+
+
+def test_bootstrap_writes_each_document_path_exactly_once(tmp_path, monkeypatch):
+    """`cmd_index` writes the same two documents `cmd_docs` writes.
+
+    Bootstrap runs both, so without `kb_args.no_docs = True` (`cli.py`, the kb_args block)
+    every document is written twice, the docs stage overwriting the index stage. Nothing
+    errors; bootstrap gets slower and that reads as "it does more now". Counted per
+    resolved path, so a fix that dedupes one directory and not the other is caught.
+    """
+    import contextlake.cli as cli
+
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    store = tmp_path / "store"
+    ws = tmp_path / "ws"
+    _repo(ws / "solo")
+    (home / ".contextlake" / "kb.toml").write_text(
+        f'[kb]\nstore_dir = "{store}"\n[embeddings]\nenabled = false\n', encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+
+    for name in ("fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
+                 "switch_repository_branches", "verify_structure"):
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+
+    writes: dict[str, int] = {}
+    real_write_text = Path.write_text
+
+    def _counting(self, *a, **k):
+        try:
+            key = str(self.resolve())
+        except OSError:  # pragma: no cover - a path that cannot be resolved is not ours
+            key = str(self)
+        if (store / "docs" / "api") == self.parent or (store / "docs" / "design") == self.parent:
+            writes[key] = writes.get(key, 0) + 1
+        return real_write_text(self, *a, **k)
+
+    monkeypatch.setattr(Path, "write_text", _counting)
+
+    args = argparse.Namespace(
+        no_sync=True, no_audit=True, no_connect=True, no_embed=True, no_enrich=True,
+        no_wiki=True, no_diagrams=True, no_docs=False, exit_zero_on_partial=False,
+        kb_config=str(home / ".contextlake" / "kb.toml"), config=None,
+        workspace=str(ws), source=None, out=None, force=False, args=[])
+    cli._bootstrap(args, {}, str(ws), "grp")
+
+    api = {k: v for k, v in writes.items() if "/docs/api/" in k}
+    design = {k: v for k, v in writes.items() if "/docs/design/" in k}
+    assert len(api) == 1 and len(design) == 1, writes
+    assert list(api.values()) == [1], f"the API reference was written {api} times"
+    assert list(design.values()) == [1], f"the design notes were written {design} times"

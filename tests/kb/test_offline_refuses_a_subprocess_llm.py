@@ -11,8 +11,9 @@ funnel through it, so one check covers every IN-PROCESS build.
 check in its own process, and the child reads its own offline state, not the parent's.
 `--offline` as a flag leaves nothing for it to read. `netguard.child_env()` at the spawn
 is what carries the state across, and the tests at the bottom of this module cover the
-three `kb`-side spawn sites: `kb/dashboard/mutations.py:wiki_generate_start`,
-`kb/dashboard/mutations.py:mcp_start` and `kb/cmds/refresh.py:_spawn_refresh`.
+four `kb`-side spawn sites: `kb/dashboard/mutations.py:wiki_generate_start`,
+`kb/dashboard/mutations.py:docs_generate_start`, `kb/dashboard/mutations.py:mcp_start`
+and `kb/cmds/refresh.py:_spawn_refresh`.
 
 Other spawn sites take no offline signal. They are enumerated in `netguard`'s module
 docstring, with the reason each is not a one-line fix. Kept in one place on purpose: an
@@ -181,6 +182,37 @@ def test_the_dashboard_wiki_spawn_carries_offline_to_its_child(
     monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
 
     result = mut.wiki_generate_start(tmp_path)
+
+    assert result["ok"], result
+    assert _child_says_offline(seen["env"])
+
+
+def test_the_dashboard_docs_spawn_carries_offline_to_its_child(
+        offline_flag, tmp_path, monkeypatch):
+    """The dashboard's Generate documents button spawns `kb docs`. That command is
+    model-free by default, and it accepts --llm, so the child can build an LLM in
+    its own process from its own config. Without propagation an offline dashboard
+    spawns a child that does not know it is offline."""
+    from contextlake.kb.dashboard import mutations as mut
+
+    seen = {}
+    real_popen = mut.subprocess.Popen
+
+    class _Proc:
+        pid = 999998
+
+    def _fake_popen(cmd, **kw):
+        # Intercept ONLY the `kb docs` spawn. The patch lands on the shared stdlib
+        # module, so `_child_says_offline`'s own probe reaches this function too and
+        # must be handed the real Popen, or the test measures the patch.
+        if isinstance(cmd, list) and cmd[:3] == [sys.executable, "-m", "contextlake"]:
+            seen["env"] = kw.get("env")
+            return _Proc()
+        return real_popen(cmd, **kw)
+
+    monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
+
+    result = mut.docs_generate_start(tmp_path)
 
     assert result["ok"], result
     assert _child_says_offline(seen["env"])

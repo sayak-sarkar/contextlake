@@ -256,8 +256,16 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 [data-rail="collapsed"] .cl-rail__toggle svg { transform: rotate(180deg); }
 
 /* ---- Main + panels ------------------------------------------------------ */
+/* `min-width: 0` is load-bearing, not tidying. .cl-main is a grid item of
+   .cl-shell, and a grid item's min-width defaults to `auto`, which resolves to its
+   min-content width -- so one wide, unwrappable child (a run log line in
+   `pre.cl-snippet`, a long code block) grew the whole column past the viewport and
+   the PAGE scrolled sideways. The child's own `overflow-x: auto` never engaged,
+   because the column kept growing instead of clipping it. With this, the column
+   stops at the viewport and the snippet scrolls inside its own box, which is where
+   wide content belongs. */
 .cl-main { padding: var(--sp-6); max-width: 1320px; margin: 0 auto; width: 100%;
-  outline: none; }
+  min-width: 0; outline: none; }
 .cl-panel { animation: cl-surface var(--cl-dur) var(--cl-ease); }
 .cl-panel__title { font-size: var(--fs-600); margin: 0 0 var(--sp-4); }
 .cl-panel__body { display: flex; flex-direction: column; gap: var(--sp-5); }

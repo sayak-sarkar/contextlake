@@ -1092,6 +1092,10 @@ Examples:
     p.add_argument("--bundle", action="store_true", default=_S,
                    help="index a directory that holds git repos as ONE repo anyway "
                         "(without it, that is refused and the right command printed)")
+    # bootstrap's dest, not a second spelling for the same idea (see :1046).
+    p.add_argument("--no-docs", dest="no_docs", action="store_true", default=_S,
+                   help="skip writing the API reference and design notes for the repos "
+                        "this run indexed")
     _add_watch(p, "the index")
 
     p = command("source",
@@ -1980,6 +1984,20 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     kb_args.args = []  # defensive: bootstrap has no positional args; _connect_targets
                        # short-circuits on workspace before consulting this
     kb_args.out = workspace
+    # SHAPE B, chosen over "drop the docs stage and let the index write them" (shape A).
+    # `cmd_index` writes the API reference and the design notes itself now, so without
+    # this bootstrap would write every document twice, the docs stage overwriting what the
+    # index stage wrote. Nothing errors on that; the only symptom is a slower bootstrap.
+    #
+    # B keeps three things A loses: bootstrap's `--llm` prose tier (the index never builds
+    # a model, `cmds/index.py:_write_docs_for`), the named "Write the API reference" line
+    # in `failures` and the final summary, and the stage list that
+    # `tests/kb/test_kb_bootstrap.py` reads out of this file by AST.
+    #
+    # Set unconditionally because the stage-list conditions below read `args`, not
+    # `kb_args`, so this is right whether or not the user passed --no-docs: with the flag,
+    # neither stage runs; without it, only the docs stage does.
+    kb_args.no_docs = True
 
     stages = [("Index the code graph", kb.cmd_index)]
     if not getattr(args, "no_connect", False):
@@ -1997,10 +2015,15 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         # empty diagram announces itself rather than looking finished.
         stages.append(("Draw the architecture", _diagram_stage(kb)))
     if not getattr(args, "no_docs", False):
-        # The cheapest of the promised outputs: no model, no network, one pass over shards
-        # already on disk. Leaving it out of the one command that goes "from nothing to a
-        # wired workspace" would mean the output nobody has to configure is the one nobody
-        # gets by default.
+        # The cheapest of the promised outputs: model-free by default, no network, one pass
+        # over shards already on disk. Leaving it out of the one command that goes "from
+        # nothing to a wired workspace" would mean the output nobody has to configure is
+        # the one nobody gets by default.
+        #
+        # Kept as its own stage even though `cmd_index` now writes the same two documents:
+        # this is the stage that honours bootstrap's `--llm`, and the index stage is
+        # switched off above so the two cannot both write. It also writes the whole-store
+        # fleet page, which the index deliberately does not.
         stages.append(("Write the API reference", kb.cmd_docs))
     stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
 

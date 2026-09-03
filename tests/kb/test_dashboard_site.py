@@ -177,6 +177,24 @@ def test_group_depth_flows_into_the_snapshot(tmp_path):
     assert g2 == {"(ungrouped)"}
 
 
+def test_the_export_ships_the_stylesheet_unchanged(tmp_path):
+    """The exported dashboard.css is the shipped file, byte for byte.
+
+    A page that renders live, embedded and exported is three surfaces, and this project
+    has shipped the third one broken before. The live surface's layout is measured in
+    tests/kb/test_wiki_tab_starts_the_run.py::test_a_run_log_never_widens_the_page,
+    against a real browser at a real origin. This row is what carries that result over
+    to the export: identical bytes, so the export cannot lose a layout guard the live
+    dashboard has. It fails the day the export starts rewriting or minifying the CSS,
+    which is when the measured result would stop transferring.
+    """
+    from contextlake.kb import dashboard as dashboard_pkg
+
+    out = build_dashboard_site(tmp_path / "store", tmp_path / "out", sample=True)
+    shipped = Path(dashboard_pkg.__file__).resolve().parent / "static" / "dashboard.css"
+    assert (out / "dashboard.css").read_bytes() == shipped.read_bytes()
+
+
 def test_the_docs_tab_is_left_out_of_a_static_export(tmp_path):
     """No generated document is bundled into the repo-detail payload, so the Docs tab
     has nothing to show in a snapshot. A tab that can never fill reads as broken in a
