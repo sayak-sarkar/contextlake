@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a06a793b">
-<link rel="stylesheet" href="tokens.css?v=a06a793b">
-<link rel="stylesheet" href="docs.css?v=a06a793b">
-<link rel="stylesheet" href="cmdk.css?v=a06a793b">
+<link rel="stylesheet" href="fonts.css?v=6cb12363">
+<link rel="stylesheet" href="tokens.css?v=6cb12363">
+<link rel="stylesheet" href="docs.css?v=6cb12363">
+<link rel="stylesheet" href="cmdk.css?v=6cb12363">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories" class="active">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories" class="active">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Mirroring repositories</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Mirroring repositories</h1><p class="doc-sub">Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -51,7 +51,8 @@
 <p>Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 <a href="quickstart">Quickstart</a>. For settings see <a href="configuration">Configuration</a>; for scheduling a
-sync see <a href="keeping-it-fresh">Bootstrap and keep it fresh</a>; for the knowledge layer see the
+sync see <a href="keeping-it-fresh">Bootstrap and keep it fresh</a> or, to have contextlake install and
+manage the schedule itself, <a href="scheduling">Scheduling runs</a>; for the knowledge layer see the
 <a href="knowledge-layer">Knowledge layer</a> overview.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -89,6 +90,59 @@ with a glob:</p>
 the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
 versions defaulted to substring matching with an opt-in <code>--repos-exact</code>; that flag is
 gone, and so is the surprise.</p>
+<h3 id="pattern-syntax">Pattern syntax<a class="anchor" href="#pattern-syntax" title="Link to this section">#</a></h3>
+<p>A pattern is a shell-style glob, matched against the whole path. Four wildcards are
+available:</p>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Matches</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code></td>
+<td>any run of characters, including none</td>
+<td><code>team/*</code> selects everything under <code>team/</code></td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>exactly one character</td>
+<td><code>api-v?</code> selects <code>api-v1</code> and <code>api-v2</code></td>
+</tr>
+<tr>
+<td><code>[abc]</code></td>
+<td>one character from the set</td>
+<td><code>api-v[12]</code> selects <code>api-v1</code> and <code>api-v2</code>, not <code>api-v3</code></td>
+</tr>
+<tr>
+<td><code>[!abc]</code></td>
+<td>one character NOT in the set</td>
+<td><code>api-v[!0]</code> skips <code>api-v0</code></td>
+</tr>
+</tbody>
+</table>
+<p>Four rules govern every pattern:</p>
+<ul>
+<li><strong>Comma-separated.</strong> <code>--repos "team/*,billing/core"</code> is two patterns, and a repo
+  matching either one is selected.</li>
+<li><strong>Anchored.</strong> The pattern must describe the whole path, not a piece of it. This is
+  why <code>api</code> does not select <code>payments-api</code>.</li>
+<li><strong>Case-insensitive.</strong> <code>--repos "TEAM/*"</code> and <code>--repos "team/*"</code> select the same repos.</li>
+<li><strong>Matched twice.</strong> Each pattern is tried against the group-qualified path
+  (<code>acme/team/api</code>) and against the local path (<code>team/api</code>), so either form works.</li>
+</ul>
+<h3 id="matching-a-repo-whose-name-contains-or">Matching a repo whose name contains <code>*</code> or <code>?</code><a class="anchor" href="#matching-a-repo-whose-name-contains-or" title="Link to this section">#</a></h3>
+<p>There is no escape character. A pattern like <code>odd*name</code> matches a repo literally called
+<code>odd*name</code>, but it also matches <code>oddXname</code>, so it cannot pick out the first one on its
+own.</p>
+<p>Use a single-character set instead, which treats the wildcard as an ordinary character:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;odd[*]name&quot;</span><span class="w">   </span><span class="c1"># only the repo literally named odd*name</span>
+contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;a[?]b&quot;</span><span class="w">        </span><span class="c1"># only the repo literally named a?b</span>
+</code></pre></div>
+<p>This is rare: <code>*</code> and <code>?</code> are legal in a path on Linux and macOS, and not on Windows.</p>
 <p>The filter scopes the whole pipeline: <code>fetch</code> narrows the cached project list, and
 <code>clone</code> / <code>update</code> / <code>branches</code> / <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
 <p>The scope belongs to the invocation, not to the cache. Pass the same <code>--repos</code> to each
@@ -453,6 +507,7 @@ looks in one place rather than guessing which page owns their symptom.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="keeping-it-fresh">Bootstrap and keep it fresh</a>, scheduling a sync and re-indexing on commit</li>
+<li><a href="scheduling">Scheduling runs</a>, a self-installed systemd timer or crontab entry</li>
 <li><a href="configuration">Configuration</a>, the full settings reference</li>
 <li><a href="console-output">Reading the console output</a>, the status glyphs and the exit codes</li>
 <li><a href="knowledge-layer">Knowledge layer</a>, what to build on top of the mirror</li>
@@ -463,6 +518,8 @@ looks in one place rather than guessing which page owns their symptom.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#command-reference">Command reference</a><ul>
+<li><a href="#pattern-syntax">Pattern syntax</a></li>
+<li><a href="#matching-a-repo-whose-name-contains-or">Matching a repo whose name contains * or ?</a></li>
 <li><a href="#mirror-status-check-current-synchronization-status">mirror status: check current synchronization status</a></li>
 <li><a href="#mirror-fetch-fetch-every-project-you-can-see">mirror fetch: fetch every project you can see</a></li>
 <li><a href="#mirror-clone-clone-missing-repositories">mirror clone: clone missing repositories</a></li>
@@ -516,6 +573,7 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a06a793b"></script>
+
+<script defer src="cmdk.js?v=6cb12363"></script>
 </body>
 </html>

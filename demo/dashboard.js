@@ -745,7 +745,7 @@
     });
     return btn;
   }
-  function viewRepo(id, tab) {
+  function viewRepo(id, tab, wikiFile) {
     if (!id) {
       renderInto("repo-body", stateBlock({
         kind: "empty", title: "Pick a repo first",
@@ -788,11 +788,11 @@
         }, t[0].toUpperCase() + t.slice(1)));
       });
       body.appendChild(strip); body.appendChild(pane);
-      renderRepoTab(pane, cur, d, id);
+      renderRepoTab(pane, cur, d, id, wikiFile);
       return body;
     });
   }
-  function renderRepoTab(pane, tab, d, id) {
+  function renderRepoTab(pane, tab, d, id, wikiFile) {
     clear(pane);
     var b = d.brief || {};
     if (tab === "anatomy") {
@@ -842,7 +842,7 @@
         h("div", { class: "cl-md", html: d.readme_html })));
       else pane.appendChild(stateBlock({ kind: "empty", title: "No README found in this repo" }));
     } else if (tab === "wiki") {
-      renderWikiTab(pane, d, id);
+      renderWikiTab(pane, d, id, wikiFile);
     } else if (tab === "docs") {
       renderDocsTab(pane, d, id);
     } else if (tab === "owners") {
@@ -903,7 +903,27 @@
       h("p", { class: "cl-muted" }, "Not ground truth — verify against the cited source."),
       h("div", { class: "cl-md", html: w.html || "" }));
   }
-  function renderWikiTab(pane, d, id) {
+  // Longest module prefix that CONTAINS this file, matched on a SEGMENT boundary.
+  // A bare startsWith would let "src" claim "srcutil/a.py" -- the same unanchored
+  // match that has been a defect here before. Longest wins so a repo offering both
+  // "src" and "src/parser" lands the reader on the narrower page.
+  function moduleForFile(mods, file) {
+    if (!file) return null;
+    var best = null;
+    mods.forEach(function (m) {
+      var pfx = m.prefix;
+      if (file === pfx || file.indexOf(pfx + "/") === 0) {
+        if (best === null || pfx.length > best.length) best = pfx;
+      }
+    });
+    return best;
+  }
+  // `wikiFile` is a file path a reader clicked in the architecture graph (a node's
+  // own `file`), passed as ?file= on the route. It scopes this tab to the subsystem
+  // page covering that file. It is a REQUEST, not a guarantee: `mods` is already
+  // filtered to modules with a page on disk, so a file under a module that never got
+  // one resolves to null and the tab shows the repo overview instead of an empty pane.
+  function renderWikiTab(pane, d, id, wikiFile) {
     var contentWrap = h("div", null, wikiContentNode(d.wiki, id, "this repo"));
     pane.appendChild(contentWrap);
     if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
@@ -926,38 +946,48 @@
     CL.data.repoModules(id, null, true).then(function (res) {
       var mods = ((res && res.modules) || []).filter(function (m) { return m.has_page; });
       if (!mods.length) return; // no generated subsystem pages -- degrade to nothing (no picker)
-      renderPicker(mods);
+      renderPicker(mods, moduleForFile(mods, wikiFile));
     }).catch(function () { /* module listing is a convenience, not essential -- fail quiet */ });
 
-    function renderPicker(mods) {
+    function renderPicker(mods, preselect) {
       var loadSeq = 0;
+      // The load is a named function, not just the onchange body, because a
+      // preselected scope has to run the identical path -- firing a synthetic
+      // change event to reach it would work today and break the moment the
+      // handler reads anything else off the event.
+      function loadScope(mod) {
+        var mySeq = ++loadSeq;
+        clear(contentWrap);
+        contentWrap.appendChild(skeleton(1));
+        var fetchWiki = mod ? CL.data.repoWiki(id, mod) : Promise.resolve(d.wiki);
+        fetchWiki.then(function (w) {
+          if (mySeq !== loadSeq) return; // a newer selection superseded this one
+          clear(contentWrap);
+          contentWrap.appendChild(wikiContentNode(w, id, mod ? "module “" + mod + "”" : "this repo"));
+        }).catch(function (e) {
+          if (mySeq !== loadSeq) return;
+          clear(contentWrap);
+          contentWrap.appendChild(stateBlock({
+            kind: "error", title: "Couldn't load this wiki page", msg: String(e)
+          }));
+        });
+      }
       var select = h("select", {
         class: "cl-select", "aria-label": "Wiki scope",
-        onchange: function (ev) {
-          var mod = ev.target.value || null;
-          var mySeq = ++loadSeq;
-          clear(contentWrap);
-          contentWrap.appendChild(skeleton(1));
-          var fetchWiki = mod ? CL.data.repoWiki(id, mod) : Promise.resolve(d.wiki);
-          fetchWiki.then(function (w) {
-            if (mySeq !== loadSeq) return; // a newer selection superseded this one
-            clear(contentWrap);
-            contentWrap.appendChild(wikiContentNode(w, id, mod ? "module “" + mod + "”" : "this repo"));
-          }).catch(function (e) {
-            if (mySeq !== loadSeq) return;
-            clear(contentWrap);
-            contentWrap.appendChild(stateBlock({
-              kind: "error", title: "Couldn't load this wiki page", msg: String(e)
-            }));
-          });
-        }
+        onchange: function (ev) { loadScope(ev.target.value || null); }
       }, [h("option", { value: "" }, "Whole repo — overview")].concat(
         mods.map(function (m) {
-          return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
+          // `selected` as an ATTRIBUTE, not `select.value = ...` after the fact.
+          // Both pick the option, but only this one is visible in the document, so
+          // which scope the reader is looking at can be read back -- by a test, and
+          // by anyone inspecting the page.
+          return h("option", { value: m.prefix, selected: m.prefix === preselect },
+                   m.prefix + " (" + m.nodes + ")");
         })
       ));
       pane.insertBefore(h("div", { class: "cl-row" },
         h("label", { class: "cl-muted" }, "Subsystem:"), select), contentWrap);
+      if (preselect) { loadScope(preselect); }  // the option carries the selection
     }
   }
 
@@ -2129,7 +2159,7 @@
         hasRenderedOnce = true;
       }
       if (lens === "fleet") viewFleet();
-      else if (lens === "repo") viewRepo(r.rest || ctx.repoId, r.query.tab);
+      else if (lens === "repo") viewRepo(r.rest || ctx.repoId, r.query.tab, r.query.file);
       else if (lens === "arch") viewArch(r.rest || null);
       else if (lens === "symbol") viewSymbol(r.rest || ctx.nodeId);
       else if (lens === "path") viewPath();
@@ -2263,6 +2293,25 @@
   }
   function palMove(d) { if (!palItems.length) return; palItems[palSel].setAttribute("aria-selected", "false"); palSel = (palSel + d + palItems.length) % palItems.length; var el = palItems[palSel]; el.setAttribute("aria-selected", "true"); el.scrollIntoView({ block: "nearest" }); $("#cl-palette-input").setAttribute("aria-activedescendant", el.id); }
 
+  // ---- graph frame -> dashboard -----------------------------------------
+  // The architecture graph runs in an iframe, so a control inside it cannot route
+  // the dashboard. This is the one message it may send: "open the wiki for this
+  // node". Registered once at load rather than per-render, because the frame can
+  // post while the reader is on any lens.
+  //
+  // The origin check is the whole security boundary. The frame is same-origin by
+  // construction (viewArch builds its src from our own /graph route), so anything
+  // arriving from elsewhere is an embedder or an injected frame, and `repo` goes
+  // straight into a route. Checked against location.origin, not a substring of it.
+  window.addEventListener("message", function (e) {
+    if (e.origin !== window.location.origin) return;
+    var d = e && e.data;
+    if (!d || d.type !== "cl-wiki" || !d.repo) return;
+    var to = "#/repo/" + encodeURIComponent(d.repo) + "?tab=wiki";
+    if (d.file) to += "&file=" + encodeURIComponent(d.file);
+    go(to);
+  });
+
   // ---- theme / density / rail ------------------------------------------
   function setTheme(t) {
     document.documentElement.dataset.theme = t; lsSet("theme", t);
@@ -2380,7 +2429,22 @@
   function boot() {
     initChrome();
     window.addEventListener("hashchange", function () { CL.router.render(); });
-    if (!location.hash) location.hash = "#/fleet";
+    // replaceState, not `location.hash =`, and the difference is a whole extra
+    // page load. Assigning location.hash fires `hashchange`, and the listener
+    // above is already attached by then, so boot rendered TWICE: once from the
+    // explicit render below and once from the event. Both renders call
+    // /api/overview, and they overlap, so neither can serve the other from
+    // cache. Measured on a 961,633-node store: two requests 35 ms apart taking
+    // 2,769 ms and 4,005 ms, against a page shell ready in 114 ms.
+    // replaceState writes the same URL and fires nothing.
+    // It also stops the default hash becoming a history entry, so Back from the
+    // fleet view no longer returns to the hash-less URL and straight back here.
+    // `parseHash` already reads an absent hash as `/fleet`, so this line is only
+    // making the default visible in the address bar; the router never needed it.
+    if (!location.hash) {
+      if (window.history && history.replaceState) history.replaceState(null, "", "#/fleet");
+      else location.hash = "#/fleet";  // no replaceState: one extra render, still correct
+    }
     CL.router.render();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

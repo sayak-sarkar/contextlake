@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Configuration · contextlake docs">
 <meta name="twitter:description" content="Config-file precedence and the full settings reference for the mirror layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a06a793b">
-<link rel="stylesheet" href="tokens.css?v=a06a793b">
-<link rel="stylesheet" href="docs.css?v=a06a793b">
-<link rel="stylesheet" href="cmdk.css?v=a06a793b">
+<link rel="stylesheet" href="fonts.css?v=6cb12363">
+<link rel="stylesheet" href="tokens.css?v=6cb12363">
+<link rel="stylesheet" href="docs.css?v=6cb12363">
+<link rel="stylesheet" href="cmdk.css?v=6cb12363">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration" class="active">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration" class="active">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Get started</span><span aria-hidden="true">/</span><span aria-current="page">Configuration</span></nav>
     <header class="doc-hero" data-kind="start"><div class="doc-hero-text"><div class="doc-eyebrow">Get started</div><h1>Configuration</h1><p class="doc-sub">Config-file precedence and the full settings reference for the mirror layer.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -132,9 +132,10 @@ never end up sharing one store. <code>work_dir</code> is not part of that: <stro
 it to the current directory, <code>--local</code> or not (override interactively, or with <code>--work-dir</code>).</p>
 <h2 id="workspace-trust">Workspace trust<a class="anchor" href="#workspace-trust" title="Link to this section">#</a></h2>
 <p>Because a local config is <em>discovered</em> rather than named, one can take effect that you never wrote:
-notably a <code>.contextlake.kb.toml</code> that came inside a repository you cloned. So the few config keys that
-become part of a command contextlake executes are honoured <strong>only</strong> from the global
-<code>~/.contextlake/kb.toml</code> or from a path you pass to <code>--config</code>:</p>
+notably a <code>.contextlake.kb.toml</code> that came inside a repository you cloned. So the config keys that
+decide what contextlake runs, where a request goes, and which environment variable holds that
+request's credential are honoured <strong>only</strong> from the global <code>~/.contextlake/kb.toml</code> or from a path
+you pass to <code>--config</code>:</p>
 <table>
 <thead>
 <tr>
@@ -155,18 +156,72 @@ become part of a command contextlake executes are honoured <strong>only</strong>
 <td><code>[[sources]] command</code>, <code>args</code>, <code>mcp_command</code></td>
 <td>the MCP server spawned over stdio</td>
 </tr>
+<tr>
+<td><code>[[sources]] mcp</code></td>
+<td>the host the <code>npx mcp-remote</code> OAuth bridge is pointed at</td>
+</tr>
+<tr>
+<td><code>[[sources]] token_env</code></td>
+<td>the env var read for an api/graphql source's bearer token</td>
+</tr>
+<tr>
+<td><code>[[sources]] auth_dir</code></td>
+<td>the directory <code>mcp-remote</code> writes its OAuth refresh token into</td>
+</tr>
+<tr>
+<td><code>[llm] base_url</code>, <code>[embeddings] base_url</code></td>
+<td>the host prompts and indexed code are posted to</td>
+</tr>
+<tr>
+<td><code>[llm] api_key_env</code>, <code>[embeddings] api_key_env</code></td>
+<td>the env var read for the credential sent to that host</td>
+</tr>
 </tbody>
 </table>
-<p>One key is gated by <strong>direction</strong> rather than outright. A discovered file may set
-<code>[kb] anonymize = "always"</code> and may not set it to <code>"never"</code>: turning anonymising on is
-always allowed, turning off the setting that hides contributor identities on a dashboard
-you are about to share is not. Same provenance hole, a privacy answer instead of an
-execution one.</p>
+<p>The first three rows run a program. The rest are gated because an endpoint and a secret to send to
+it are the same capability in two pieces. <code>[embeddings]</code> is on by default and <code>bootstrap</code> runs
+<code>kb embed</code> as a stage, so a single planted <code>base_url</code> line, with no provider line, pointed the
+default setup at a host the file author picked.</p>
+<p>When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
+by directory walk may not aim a credential-carrying tier it also chose. So when the <code>provider</code> that
+wins the merge for <code>[llm]</code> or <code>[embeddings]</code> is <code>openai</code> or <code>anthropic</code> and that value came from a
+discovered file, the tier is off for that run and a second warning says so. Dropping
+<code>base_url = "http://127.0.0.1:1234/v1"</code> on a <code>provider = "openai"</code> tier would otherwise fall back to
+<code>api.openai.com</code> and send your <code>OPENAI_API_KEY</code> there, from a file that asked for loopback.</p>
+<p>Three things clear it:</p>
+<ul>
+<li><strong>Delete the <code>[llm]</code> or <code>[embeddings]</code> keys from the file the warning names</strong>, and set them in
+  <code>~/.contextlake/kb.toml</code> if you want them. The deletion is the half that clears it. The merge is
+  last-wins and the discovered file is merged after the global one, so adding the block to
+  <code>~/.contextlake/kb.toml</code> while that file keeps its own <code>provider</code> line produces the identical
+  warning on the next run.</li>
+<li>Pass <code>--config PATH</code> naming that file.</li>
+<li>For <code>[llm]</code> only, pass <code>--llm PROVIDER</code> to <code>kb wiki</code>, <code>kb docs</code> or <code>bootstrap</code>. No other command
+  carries the flag, and <code>[embeddings]</code> has no equivalent.</li>
+</ul>
+<p>An honest project-local <code>[llm]</code> or <code>[embeddings]</code> block naming <code>openai</code> or <code>anthropic</code> therefore has
+to move to <code>~/.contextlake/kb.toml</code>, or be reached with <code>--config</code>. <code>builtin</code> and <code>ollama</code> tiers are
+never switched off this way: they send no credential.</p>
+<p>Two keys are gated by <strong>direction</strong> rather than outright, because one way round is honest for a
+project-local file.</p>
+<ul>
+<li><code>[kb] anonymize</code>: a discovered file may set it to <code>"always"</code> and may not set it to <code>"never"</code>.
+  Turning anonymising on is always allowed; turning off the setting that hides contributor
+  identities on a dashboard you are about to share is not.</li>
+<li><code>[[sources]] scopes</code>: a discovered file may narrow the OAuth scopes the Atlassian connector asks
+  for, and may not widen them. A value that is not a subset of the read-only default is dropped,
+  and the connector falls back to that default.</li>
+</ul>
 <p>In a discovered <code>.contextlake.kb.toml</code> those keys are ignored, with a warning naming the file and the
-key. Nothing else changes: <code>store_dir</code>, <code>languages</code>, <code>max_file_bytes</code>, <code>[embeddings]</code>, <code>[[rules]]</code>, and
-any non-<code>cli</code> LLM provider all keep working from a local file exactly as before. The one thing to know
-when scoping sources with <code>contextlake kb source add ... --local</code> is that an <em>MCP</em> source's <code>command</code>
-has to live in the global file (or be reached with <code>--config</code>); an <code>mcp</code> <strong>URL</strong> is fine locally.</p>
+key. The rest of the file still applies: <code>store_dir</code>, <code>languages</code>, <code>max_file_bytes</code>, <code>[[rules]]</code>,
+<code>[embeddings] provider</code>, and any non-<code>cli</code> LLM provider all keep working from a local file. What a
+local file can no longer do is name the host a request goes to, or the env var read for its
+credential, in <code>[llm]</code>, <code>[embeddings]</code> or <code>[[sources]]</code>.</p>
+<p>That last point changes what <code>contextlake kb source add ... --local</code> can scope. A <code>type = "mcp"</code>
+document source still works from a local file over its <code>url</code>; its <code>command</code> has to live in the
+global file, or be reached with <code>--config</code>. A <strong>connector</strong> source (<code>atlassian</code>, <code>figma</code>, <code>slack</code>)
+reaches its server through <code>mcp</code> / <code>mcp_command</code>, and both of those are now global-only, as are
+<code>token_env</code> and <code>auth_dir</code> on any source.</p>
 <p>Set <code>CONTEXTLAKE_NO_LOCAL_CONFIG=1</code> to skip ancestor discovery entirely, for both <code>.contextlake.ini</code> and
 <code>.contextlake.kb.toml</code>, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, <code>source add --local</code> writes to the global config too, rather than to a local file that
@@ -368,8 +423,83 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 <td><em>(empty)</em></td>
 <td><code>team/api=develop,legacy-*=maintenance</code></td>
 </tr>
+<tr>
+<td><code>schedule_interval</code></td>
+<td><code>auto</code> measures and adjusts; a duration (<code>45s</code>, <code>30m</code>, <code>2h</code>, <code>7d</code>) pins it and turns auto-adjust off</td>
+<td><code>auto</code></td>
+<td><code>2h</code></td>
+</tr>
+<tr>
+<td><code>schedule_min</code></td>
+<td>Lower bound the auto-adjusted interval is clamped to. Not applied to a pinned <code>schedule_interval</code></td>
+<td><code>1h</code></td>
+<td><code>30m</code></td>
+</tr>
+<tr>
+<td><code>schedule_max</code></td>
+<td>Upper bound the auto-adjusted interval is clamped to. Not applied to a pinned <code>schedule_interval</code></td>
+<td><code>24h</code></td>
+<td><code>12h</code></td>
+</tr>
+<tr>
+<td><code>schedule_duty_cycle</code></td>
+<td>Share of wall-clock time a run may occupy, as a fraction above 0 and below 1</td>
+<td><code>0.10</code></td>
+<td><code>0.05</code></td>
+</tr>
+<tr>
+<td><code>schedule_full_every</code></td>
+<td>How long since the last successful full rebuild before the next cycle forces one (<code>bootstrap --force</code>)</td>
+<td><code>7d</code></td>
+<td><code>3d</code></td>
+</tr>
+<tr>
+<td><code>schedule_adjust_threshold</code></td>
+<td>How far the installed interval must drift from the current recommendation before <code>status</code> flags it</td>
+<td><code>0.5</code></td>
+<td><code>0.25</code></td>
+</tr>
+<tr>
+<td><code>schedule_gate_retry</code></td>
+<td>How long a gated (skipped) cycle waits before trying again</td>
+<td><code>10m</code></td>
+<td><code>5m</code></td>
+</tr>
+<tr>
+<td><code>schedule_on_battery</code></td>
+<td><code>skip</code> refuses a run on battery power; <code>run</code> ignores battery state</td>
+<td><code>skip</code></td>
+<td><code>run</code></td>
+</tr>
+<tr>
+<td><code>schedule_require_idle</code></td>
+<td>Refuse a run unless the user is idle. Cannot be detected under a systemd timer or cron: see <a href="scheduling#platform-differences">Scheduling runs</a></td>
+<td><code>false</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>schedule_max_load</code></td>
+<td>Refuse a run when the 1-minute load average exceeds this. Empty turns the check off</td>
+<td><em>(empty)</em></td>
+<td><code>4.0</code></td>
+</tr>
 </tbody>
 </table>
+<p>Full detail, the interval formula, and what each command writes are on <a href="scheduling">Scheduling
+runs</a>.</p>
+<p>A worked block with all ten together:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">schedule_interval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">auto</span>
+<span class="na">schedule_min</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1h</span>
+<span class="na">schedule_max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">24h</span>
+<span class="na">schedule_duty_cycle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0.10</span>
+<span class="na">schedule_full_every</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">7d</span>
+<span class="na">schedule_adjust_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0.5</span>
+<span class="na">schedule_gate_retry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">10m</span>
+<span class="na">schedule_on_battery</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">skip</span>
+<span class="na">schedule_require_idle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">false</span>
+<span class="na">schedule_max_load</span><span class="w"> </span><span class="o">=</span>
+</code></pre></div>
 <p>The branch-safety settings (<code>require_clean_workspace</code>, <code>protect_working_branches</code>, <code>safe_branches</code>,
 <code>auto_stash</code>) live with <a href="mirroring-repositories#branch-safety">Mirror repositories</a>.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
@@ -377,6 +507,7 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 <li><a href="quickstart">Quickstart</a></li>
 <li><a href="mirroring-repositories">Mirror repositories</a></li>
 <li><a href="knowledge-layer">Knowledge layer</a></li>
+<li><a href="scheduling">Scheduling runs</a>, the <code>schedule_*</code> keys in depth</li>
 </ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="quickstart"><span>Quickstart</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="mirroring-repositories"><span>Mirroring repositories</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
@@ -459,6 +590,7 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a06a793b"></script>
+
+<script defer src="cmdk.js?v=6cb12363"></script>
 </body>
 </html>

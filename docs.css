@@ -359,3 +359,13 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .tryit-kind{font-size:.78rem;opacity:.7;margin-left:.4em}
 .tryit-cite{font-size:.8rem;opacity:.72;font-family:var(--ff-m,monospace)}
 .tryit-note,.tryit-foot{font-size:.84rem;opacity:.75;margin:.6rem 0 0}
+
+/* Live graph embed (see EMBED_JS in build_docs.py). The <img> ships in the markup and
+   the iframe replaces it on scroll, so both need the same box or the page jumps by the
+   difference at swap time. width/height on the <img> give it an aspect ratio before it
+   loads; the iframe has none, so its height is set here. */
+.prose .shot{display:block;width:100%;height:auto;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface)}
+.prose iframe.graph-embed{height:600px;overflow:hidden}
+@media (max-width:760px){ .prose iframe.graph-embed{height:460px} }
+.prose .shot-cap{margin:.5rem 0 0;font-size:.9rem;color:var(--muted)}

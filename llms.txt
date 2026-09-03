@@ -41,6 +41,7 @@
 ## Operate it
 
 - [Keeping it fresh](https://sayak.in/contextlake/keeping-it-fresh): Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.
+- [Scheduling runs](https://sayak.in/contextlake/scheduling): Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.
 - [Console output](https://sayak.in/contextlake/console-output): Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.
 - [Troubleshooting](https://sayak.in/contextlake/troubleshooting): Install and mirror problems that have actually been hit, each with the fix and the reason behind it.
 

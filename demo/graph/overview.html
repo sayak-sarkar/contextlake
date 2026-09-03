@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>contextlake — fleet overview</title>
+<!-- Inline, not a linked file: without any icon the browser requests /favicon.ico
+     on every page load and the server 404s it. A data URI costs no request and
+     survives an offline export, which a linked .ico would not. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23137A8B'/%3E%3Cpath d='M6 20c3-2 5-2 8 0s5 2 8 0M6 14c3-2 5-2 8 0s5 2 8 0' stroke='%23EAF4F4' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="app.css">
 <script src="cytoscape.min.js"></script>
 <script src="cytoscape-dagre.min.js"></script>
@@ -47,6 +51,12 @@
       </div>
       <div class="row">
         <label>layout <select id="layout" aria-label="Layout"><option value="cose">cose</option><option value="concentric">concentric</option><option value="breadthfirst">breadthfirst</option><option value="circle">circle</option><option value="grid">grid</option><option value="dagre">dagre (preview)</option></select></label>
+        <button class="ibtn" id="zoomout" title="Zoom out" aria-label="Zoom out"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle
+          cx="7" cy="7" r="4.5"/><path d="M4.5 7h5M10.5 10.5 14 14"/></svg></button>
+        <button class="ibtn" id="zoomin" title="Zoom in" aria-label="Zoom in"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle
+          cx="7" cy="7" r="4.5"/><path d="M4.5 7h5M7 4.5v5M10.5 10.5 14 14"/></svg></button>
         <button class="ibtn" id="fit" title="Fit to view" aria-label="Fit to view"><svg
           viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path
           d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>
@@ -132,7 +142,7 @@
   var DEFAULT_EDGE_COLOR = DEFAULT_EDGE_COLORS.light;
   var EDGE_INK = {"light": {"scaffold": "#588790", "node": "#4a6670", "hi": "#228f82", "found": "#a37914", "ns": "#137A8B"}, "dark": {"scaffold": "#9bbcc2", "node": "#EAF4F4", "hi": "#2BB3A3", "found": "#E7B53C", "ns": "#2BB3A3"}};
   var CONF_META = {"EXTRACTED": ["Extracted", "#2BB3A3", "Direct from source (AST / manifest)"], "INFERRED": ["Inferred", "#E7B53C", "Deduced (second-pass / heuristic)"], "AMBIGUOUS": ["Ambiguous", "#e76f51", "Uncertain (flagged for review)"]};
-  var META = {"truncated": false, "total": 7, "mode": "overview", "node_count": 7, "edge_count": 11};
+  var META = {"truncated": false, "total": 7, "mode": "overview", "wiki": {}, "node_count": 7, "edge_count": 11};
   var LIVE = false;
   var LAYOUT = "concentric";
   var SITE = true;

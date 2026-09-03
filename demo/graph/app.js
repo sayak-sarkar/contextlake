@@ -122,7 +122,11 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   var cy = cytoscape({
     container: cyEl,
     elements: ELEMENTS,
-    wheelSensitivity: 0.2,
+    // 1, not 0.2. At 0.2 a wheel notch moved the zoom so little that reaching a
+    // readable scale took a dozen scrolls, which reads as a stuck canvas rather than a
+    // careful one. cytoscape warns about any non-default value here because it cannot
+    // know the user's hardware; the warning is accepted deliberately.
+    wheelSensitivity: 1,
     // Clamp wheel-zoom so the graph can't shrink to unreadable specks or balloon
     // past usefulness; fitClamped (below) enforces a higher readable floor on "fit".
     minZoom: 0.06, maxZoom: 2.5,
@@ -996,6 +1000,16 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
   // toolbar
   document.getElementById("fit").onclick = function(){ reframe(); };
+  // Zoom without a gesture (WCAG 2.5.1). Wheel zoom is fine with a mouse, but pinch is a
+  // multipoint gesture and was the only way to CHOOSE a zoom level -- "Fit to view" sets
+  // one, it does not let you pick. Each press steps by a fixed ratio about the viewport
+  // centre, and cytoscape clamps to minZoom/maxZoom on its own.
+  function stepZoom(factor){
+    cy.zoom({ level: cy.zoom() * factor,
+              renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
+  document.getElementById("zoomin").onclick = function(){ stepZoom(1.3); };
+  document.getElementById("zoomout").onclick = function(){ stepZoom(1 / 1.3); };
   document.getElementById("png").onclick = function(){
     saveUri(pngDataUri(), "contextlake-graph.png");
   };
@@ -1196,6 +1210,45 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     return '<div class="conns"><h3>connections <span class="cc">' + es.length
       + "</span></h3><ul>" + items + "</ul></div>";
   }
+  // ---- wiki affordance ---------------------------------------------------
+  // A node's prose lives at REPO or SUBSYSTEM granularity, never per symbol. The
+  // generated wiki's headings are page-level (Overview / Setup & Run / Architecture
+  // / Dependencies / Gotchas) and the model is told to omit any it has nothing to
+  // say for, so there is no per-node heading to anchor at and no guarantee a named
+  // one exists. Guessing an anchor would land silently at the page top, which reads
+  // as a working link that went nowhere.
+  //
+  // So the target is a page, and this page is reachable three ways:
+  //   embedded    -- in the dashboard's iframe. Ask the parent to route: it owns the
+  //                  subsystem list and the has_page flag, so it can land on the
+  //                  module page covering this node's file.
+  //   fullscreen  -- the same live page opened top-level by the dashboard's own
+  //                  Fullscreen link. No parent to post to, so a plain link to the
+  //                  dashboard route, with the file appended so it lands the same way.
+  //   exported    -- a static site with no dashboard anywhere. Link the sibling page.
+  //                  The export writes whole-repo pages only, so no file scoping.
+  // META.wiki carries the target per repo and is absent for a repo with no wiki, so
+  // the control appears only when it resolves -- the same rule as `SITE && d.href`
+  // above. META.wiki_scoped says the target accepts `&file=`.
+  var EMBEDDED = (function(){ try { return window.parent && window.parent !== window; } catch(e){ return false; } })();
+  // A page opened from file:// reports origin "null", and postMessage THROWS on that
+  // as a target origin rather than failing quietly. So the channel needs a real
+  // origin, not just a parent frame; without one we fall back to the link.
+  var ORIGIN = (function(){ var o = window.location.origin; return (o && o !== "null") ? o : null; })();
+  var WIKI = (META && META.wiki) || {};
+  var WIKI_SCOPED = !!(META && META.wiki_scoped);
+  function wikiAction(d){
+    if(!d.repo || !Object.prototype.hasOwnProperty.call(WIKI, d.repo)) return "";
+    if(EMBEDDED && ORIGIN){
+      return '<button type="button" class="wikibtn" data-repo="' + esc(d.repo)
+        + '" data-wfile="' + esc(d.file || "") + '">Read the wiki \u2192</button>';
+    }
+    var href = WIKI[d.repo];
+    if(!href){ return ""; }
+    if(WIKI_SCOPED && d.file){ href += "&file=" + encodeURIComponent(d.file); }
+    return '<a class="wikibtn" href="' + esc(href) + '">Read the wiki \u2192</a>';
+  }
+
   var curNode = null;  // node whose detail is open, so "show all" can re-render it
   function showInfo(n, allConns, fromKeyboard){
     curNode = n;
@@ -1214,6 +1267,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
                     + esc(fileline) + '">copy file:line</button>' : "")
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
+      + wikiAction(d)
       + (n.outgoers("edge").length
           ? '<button type="button" class="tracebtn" id="tracedown">Trace downstream \u2192</button>'
             + '<div class="hint">Follows edge direction as far as it goes, through the graph'
@@ -1243,6 +1297,19 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     openInspector(fromKeyboard);
   }
   info.addEventListener("click", function(ev){
+    var w = ev.target.closest && ev.target.closest("button.wikibtn");
+    if(w){
+      // Same-origin by construction (the dashboard serves this page from its own
+      // /graph route), so the target origin is pinned rather than "*" -- this
+      // carries a repo id, and a wildcard would hand it to any embedder.
+      try {
+        window.parent.postMessage({
+          type: "cl-wiki", repo: w.getAttribute("data-repo"),
+          file: w.getAttribute("data-wfile") || null
+        }, window.location.origin);
+      } catch(e){ /* cross-origin embed: no channel, nothing to do */ }
+      return;
+    }
     var b = ev.target.closest && ev.target.closest(".copy-prov");
     if(b){
       var say = function(msg){

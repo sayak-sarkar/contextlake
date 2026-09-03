@@ -160,10 +160,12 @@
   #info .trust .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
   #info .trust .blurb{color:var(--muted)}
   #info .copy-prov,
+  #info .wikibtn,
   #info .tracebtn{display:inline-block;margin:10px 0 2px;padding:7px 12px;border-radius:8px;
     background:var(--surface);color:var(--text);border:1px solid var(--line);font-size:12px;
     font-weight:500;cursor:pointer;font-family:inherit}
   #info .copy-prov:hover,
+  #info .wikibtn:hover,
   #info .tracebtn:hover{border-color:var(--brand);color:var(--brand)}
   #info .gopage{display:inline-block;margin:10px 0 2px;padding:7px 12px;border-radius:8px;
     background:var(--brand);color:var(--on-brand);text-decoration:none;font-size:12px;

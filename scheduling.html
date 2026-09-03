@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Scheduling runs · contextlake docs</title>
+<meta name="description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/scheduling">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Scheduling runs · contextlake docs">
+<meta property="og:description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
+<meta property="og:url" content="https://sayak.in/contextlake/scheduling">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Scheduling runs · contextlake docs">
+<meta name="twitter:description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=6cb12363">
+<link rel="stylesheet" href="tokens.css?v=6cb12363">
+<link rel="stylesheet" href="docs.css?v=6cb12363">
+<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling" class="active">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Operate it</span><span aria-hidden="true">/</span><span aria-current="page">Scheduling runs</span></nav>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Operate it</div><h1>Scheduling runs</h1><p class="doc-sub">Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p><code>contextlake schedule</code> measures how long a run takes and how often your repositories change,
+works out an interval from those two numbers, and installs a background job that keeps the
+mirror and the knowledge layer current on its own. It runs on the core tier, so it works even
+without the <code>[kb]</code> extra. This page covers reading its recommendation, installing it, the
+set/reset/unset model, ad-hoc jobs, the interval formula, its config keys, platform differences,
+and containers.</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li>A configured workspace: <code>contextlake init</code>, or <code>.contextlake.ini</code> in place. See
+  <a href="configuration">Configuration</a>.</li>
+<li>Linux, with either a systemd user session or <code>crontab</code> available. Nothing else is supported
+  yet; see <a href="#platform-differences">Platform differences</a>.</li>
+</ul>
+<h2 id="schedule-recommend-what-interval-your-measurements-suggest"><code>schedule recommend</code>: what interval your measurements suggest<a class="anchor" href="#schedule-recommend-what-interval-your-measurements-suggest" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>recommend
+<span class="go">⚠ Recommended interval: 6h</span>
+<span class="go">  Because: no measured runs yet, so this is the built-in default of 6h, not a measurement. The first completed run replaces it.</span>
+<span class="go">  Nothing has been measured yet. Run `contextlake mirror sync` or `contextlake bootstrap` once, or install the schedule and let the first run replace this default.</span>
+
+<span class="go">  Install it:  contextlake schedule install</span>
+</code></pre></div>
+<p>That is the cold-start default: nothing has run yet, so there is nothing to measure. Once a few
+runs have completed, the same command reads real numbers:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>recommend
+<span class="go">✓ Recommended interval: 70m</span>
+<span class="go">  Because: duty cycle: the median incremental run takes 7m, and at 10% of wall-clock time that needs 70m between runs</span>
+<span class="go">  From 3 measured run(s) over 0.1 day(s)</span>
+<span class="go">    duty-cycle floor: 70m</span>
+<span class="go">    activity floor:   20m</span>
+
+<span class="go">  Install it:  contextlake schedule install</span>
+</code></pre></div>
+<p>The glyph names the answer: <code>⚠</code> for a default nobody has measured yet, <code>✓</code> for one built from
+real runs. <code>recommend</code> changes nothing. Add <code>--json</code> for the same answer as a
+machine-readable payload (<code>interval</code>, <code>basis</code>, <code>reason</code>, <code>floor_duty_seconds</code>,
+<code>floor_activity_seconds</code>, <code>history</code>, and so on).</p>
+<h2 id="schedule-install-measure-decide-and-install"><code>schedule install</code>: measure, decide, and install<a class="anchor" href="#schedule-install-measure-decide-and-install" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>install
+</code></pre></div>
+<p>This is idempotent: run it again after a config change or after more runs have accumulated, and
+it recomputes and rewrites the job in place. It writes to three places:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The job record (name, command, interval setting, failure count, last run)</td>
+<td><code>schedule-jobs.json</code>, beside the project cache</td>
+</tr>
+<tr>
+<td>The measured run history, appended to by every run</td>
+<td><code>schedule-history.jsonl</code>, beside the project cache</td>
+</tr>
+<tr>
+<td>The platform unit that fires</td>
+<td>a systemd user timer (<code>~/.config/systemd/user/contextlake-&lt;name&gt;.timer</code> + <code>.service</code>), or a marked block in your crontab</td>
+</tr>
+</tbody>
+</table>
+<p>"Beside the project cache" is the same directory <code>cache_dir</code> in <a href="configuration">Configuration</a>
+resolves to: <code>~/.cache/contextlake/&lt;workspace&gt;-&lt;id&gt;</code> by default.</p>
+<p><code>install</code> picks systemd if a systemd user session answers, cron otherwise, and prints the
+platform's own unit file (or crontab line) when it cannot write one, so you can install it by
+hand. Force a specific platform with <code>--platform systemd</code> or <code>--platform cron</code>.</p>
+<p>The default job runs <code>contextlake bootstrap</code> on most cycles, and switches to
+<code>contextlake bootstrap --force</code> (a full rebuild: every repository re-parsed, every node
+re-embedded) once <code>schedule_full_every</code> has passed since the last successful full run.</p>
+<h2 id="set-reset-and-unset">Set, reset, and unset<a class="anchor" href="#set-reset-and-unset" title="Link to this section">#</a></h2>
+<p>Three layers decide what interval a job runs on, and only one of them is read back as the truth:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Role</th>
+<th>Changed by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The INI (<code>schedule_interval</code>, or <code>--interval</code> on <code>install</code>)</td>
+<td>Supplies the starting value <strong>when the job is created</strong>. Ignored after that.</td>
+<td>Editing <code>.contextlake.ini</code> before the first <code>install</code></td>
+</tr>
+<tr>
+<td>The job record (<code>schedule-jobs.json</code>)</td>
+<td><strong>Authoritative.</strong> Holds <code>auto</code> or a pinned duration, plus the failure count that drives backoff.</td>
+<td><code>install</code>, <code>interval</code>, <code>reset</code>, <code>uninstall</code></td>
+</tr>
+<tr>
+<td>The platform unit (the systemd timer or the crontab line)</td>
+<td>Rendered <em>from</em> the job record's resolved interval. Never read back as truth; <code>status</code> reads it only to report drift or cron's rounding.</td>
+<td>Rewritten every <code>install</code> / <code>reset</code> / <code>interval</code></td>
+</tr>
+</tbody>
+</table>
+<p>Three commands change the job record:</p>
+<ul>
+<li><strong>Set</strong> an interval with <code>contextlake schedule --interval 2h install</code> (or pin an ad-hoc job the
+  same way with <code>schedule interval 2h run -- ...</code>). Auto-adjust turns off for that job: the
+  number you gave is used as-is, never clamped to <code>schedule_min</code> / <code>schedule_max</code>.</li>
+<li><strong>Reset</strong> with <code>contextlake schedule reset</code>. Clears a pin back to <code>auto</code>, clears the failure
+  count (so a backed-off interval snaps back to the recommendation), recomputes, and reinstalls
+  immediately. Add <code>--history</code> to also discard the measurements (see below); <code>reset</code> installs
+  first and discards second, so a failed install never destroys history for a reset that did not
+  happen.</li>
+<li><strong>Unset</strong> with <code>contextlake schedule uninstall</code>. Removes the job record and the installed unit.
+  Add <code>--purge</code> to also discard the measurements. Without <code>--purge</code>, the history is kept, so
+  installing again later starts warm instead of cold.</li>
+</ul>
+<h3 id="discarding-history-is-recoverable">Discarding history is recoverable<a class="anchor" href="#discarding-history-is-recoverable" title="Link to this section">#</a></h3>
+<p><code>--purge</code> and <code>reset --history</code> both ask first, printing the count of runs and the span of days
+they cover, because a useful median takes days to earn back:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>--history<span class="w"> </span>--yes<span class="w"> </span>reset
+<span class="go">About to discard 3 measured run(s) spanning 0.1 day(s) (2026-08-24T01:00:00Z to 2026-08-24T03:00:00Z).</span>
+<span class="go">  The recommender starts cold and re-learns from the next run.</span>
+<span class="go">✓ Discarded 3 measured run(s).</span>
+<span class="go">  Saved to /home/you/.cache/contextlake/work-ab12/schedule-history.jsonl.discarded in case you want it back.</span>
+</code></pre></div>
+<p>The discard renames the history file to a <code>.discarded</code> sidecar instead of deleting it. To get it
+back, move the sidecar over the live file yourself:</p>
+<div class="highlight"><pre><span></span><code>mv<span class="w"> </span>schedule-history.jsonl.discarded<span class="w"> </span>schedule-history.jsonl
+</code></pre></div>
+<p>Only one sidecar is kept. A second discard replaces it, so this is undo for the discard you just
+did, not an archive of every one you have ever run.</p>
+<h2 id="ad-hoc-jobs">Ad-hoc jobs<a class="anchor" href="#ad-hoc-jobs" title="Link to this section">#</a></h2>
+<p><code>schedule interval</code> creates or replaces a named job that runs any contextlake command on its own
+interval, separate from the default <code>bootstrap</code> cycle. Give it a duration (or <code>auto</code>), the word
+<code>run</code>, a <code>--</code> separator, then the command:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>interval<span class="w"> </span>6h<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>kb<span class="w"> </span>wiki<span class="w"> </span>--force
+contextlake<span class="w"> </span>schedule<span class="w"> </span>--job<span class="w"> </span>wiki-refresh<span class="w"> </span>interval<span class="w"> </span>2h<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>kb<span class="w"> </span>wiki<span class="w"> </span>--namespace<span class="w"> </span>acme/widgets
+</code></pre></div>
+<p><strong>The <code>--</code> separator is not optional the moment your command has its own flags.</strong> <code>schedule</code>
+parses everything before <code>--</code> as its own flags and action; without it, a flag meant for the
+trailing command is read as a flag of <code>schedule</code> itself and the whole thing fails:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>interval<span class="w"> </span>6h<span class="w"> </span>run<span class="w"> </span>kb<span class="w"> </span>wiki<span class="w"> </span>--force
+<span class="go">✗ &#39;--force&#39; isn&#39;t a flag on &#39;schedule&#39;</span>
+
+<span class="go">It&#39;s used by: bootstrap, kb embed, kb index, init, kb steer, kb wiki.</span>
+
+<span class="go">Run &#39;contextlake schedule --help&#39; to see schedule&#39;s own flags.</span>
+</code></pre></div>
+<p>A flag that no other contextlake command uses fails the same way, with <code>Unknown flag: '&lt;flag&gt;'
+(on 'schedule')</code> instead. Either way, the fix is the same: add <code>--</code>.</p>
+<p>The command is validated before the job is written: it must parse, and if it needs the <code>[kb]</code>
+extra and that extra is not installed here, <code>interval</code> warns rather than installing a job that
+fails on every run. A job named <code>schedule</code> itself is refused outright, because that would recurse.</p>
+<p>Every job appends to the same history file, and each record carries the job that wrote it.
+Reads are scoped to one job: a job's full-rebuild schedule and its measured duration come from
+its own runs only. Without that, a rebuild by one job satisfied <code>schedule_full_every</code> for all
+of them, and a two-minute <code>kb index</code> and a forty-minute <code>bootstrap</code> shared one median. Records
+written before the job name was recorded carry no job and count as the default job's.</p>
+<h2 id="the-interval-formula">The interval formula<a class="anchor" href="#the-interval-formula" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>floor_duty     = median(incremental run duration) / duty_cycle
+floor_activity = k / change_rate
+interval       = clamp(max(floor_duty, floor_activity), schedule_min, schedule_max)
+</code></pre></div>
+<p><code>floor_duty</code> is a cost bound: never occupy more than <code>duty_cycle</code> of wall-clock time.
+<code>floor_activity</code> is a freshness bound: there is no point running more often than the fleet
+produces roughly <code>k</code> changed repositories. Whichever bound needs the longer gap wins.</p>
+<p><code>floor_activity</code> needs a measurement that only the index stage produces: how many
+repositories changed on a run. That stage is part of the knowledge layer, so on an install
+without the <code>kb</code> extra nothing ever records it and the activity bound never engages. The
+interval then rests on <code>floor_duty</code> alone, which is correct behaviour rather than a fault.
+<code>contextlake schedule recommend</code> says so on the <code>activity floor</code> line, and its <code>--json</code>
+output carries an <code>activity</code> field reading <code>not-measured</code>, <code>no-change</code> or <code>measured</code>.</p>
+<p>Three worked examples, all at the default <code>duty_cycle = 0.10</code> and <code>k = 1.0</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Median incremental run</th>
+<th>Change rate</th>
+<th><code>floor_duty</code></th>
+<th><code>floor_activity</code></th>
+<th>Interval</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7 min</td>
+<td>~3 repos/hour</td>
+<td>70m</td>
+<td>20m</td>
+<td><strong>70m</strong></td>
+<td>Duty wins: a busy fleet, so the cost bound is what limits how often you can afford to run</td>
+</tr>
+<tr>
+<td>7 min</td>
+<td>~0.1 repos/hour</td>
+<td>70m</td>
+<td>10h</td>
+<td><strong>10h</strong></td>
+<td>Activity wins: a quiet fleet, so there is nothing to gain from running every 70 minutes</td>
+</tr>
+<tr>
+<td>40 min</td>
+<td>~3 repos/hour</td>
+<td>6.7h</td>
+<td>20m</td>
+<td><strong>6.7h</strong></td>
+<td>Duty wins again: a bigger, slower fleet costs more per run, which raises the cost bound past the freshness one</td>
+</tr>
+</tbody>
+</table>
+<h3 id="kubernetes-and-openshift">Kubernetes and OpenShift<a class="anchor" href="#kubernetes-and-openshift" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>k8s<span class="w"> </span>install<span class="w">            </span><span class="c1"># applies with kubectl, or oc</span>
+contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>k8s<span class="w"> </span>install<span class="w"> </span>--json<span class="w">     </span><span class="c1"># see the manifest without applying</span>
+</code></pre></div>
+<p>One adapter covers both, because OpenShift is Kubernetes with a stricter default security
+context and the manifest is written to satisfy the stricter one. Three properties of it are
+deliberate:</p>
+<ul>
+<li><code>concurrencyPolicy: Forbid</code> gives single-writer semantics from the cluster. The second of two
+  overlapping runs never starts, which is the corruption the advisory lock exists to prevent.</li>
+<li>No <code>runAsUser</code>. OpenShift's restricted SCC assigns an arbitrary UID and rejects a pinned one,
+  so a manifest that pins one works on vanilla Kubernetes and fails on OpenShift.</li>
+<li>The state directory is a <code>PersistentVolumeClaim</code>, not an <code>emptyDir</code>. An ephemeral store
+  re-indexes the whole fleet every run instead of doing an incremental pass, which
+  <code>schedule run</code> refuses without <code>--allow-ephemeral</code>.</li>
+</ul>
+<p>The schedule is a cron expression, so it rounds the way cron does and says when it rounded.
+Nothing is patched in the cluster on its own: changing an interval means re-running
+<code>schedule install</code>. A process that rewrote a <code>CronJob</code> in the background would need
+cluster-write rights for the life of the schedule, which is more authority than the benefit is
+worth.</p>
+<h3 id="aws-and-azure">AWS and Azure<a class="anchor" href="#aws-and-azure" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>aws<span class="w"> </span>install<span class="w">       </span><span class="c1"># EventBridge Scheduler firing an ECS task</span>
+contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>azure<span class="w"> </span>install<span class="w">     </span><span class="c1"># a Container Apps Job on a cron trigger</span>
+</code></pre></div>
+<p><strong>On EKS and AKS, use <code>--platform k8s</code> instead.</strong> Both are Kubernetes, so the <code>CronJob</code> adapter
+serves them and brings <code>concurrencyPolicy: Forbid</code> with it.</p>
+<p>Neither cloud service has an equivalent of <code>Forbid</code>. Both will start a second execution while
+the first is still running, so single-writer protection there rests on the store's advisory
+lock: the second run takes it, fails, and skips with a logged reason. That is the same
+protection a bare <code>schedule run</code> has, and weaker than what a cluster gives.</p>
+<p>Both need persistent storage for the same reason a container does anywhere: EFS on AWS, Azure
+Files on Azure. An ephemeral store re-indexes the whole fleet every run instead of doing an
+incremental pass, which <code>schedule run</code> refuses without <code>--allow-ephemeral</code>.</p>
+<p>The two round differently, and that is not an inconsistency. EventBridge takes
+<code>rate(N minutes)</code>, so AWS rounds to whole minutes. A Container Apps Job schedule trigger is a
+cron expression, so Azure rounds the way cron does and cannot express 70 minutes at all.</p>
+<p>Neither adapter ships an SDK. Both shell out to an already-authenticated <code>aws</code> or <code>az</code>.</p>
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
+<p>Ten <code>schedule_*</code> keys, read from the same <code>.contextlake.ini</code> <code>[contextlake]</code> section as
+<code>work_dir</code> and the rest of the mirror settings. Full descriptions and defaults are in
+<a href="configuration#settings-reference">Configuration</a>; the worked block below shows all ten
+together:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">schedule_interval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">auto</span>
+<span class="na">schedule_min</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1h</span>
+<span class="na">schedule_max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">24h</span>
+<span class="na">schedule_duty_cycle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0.10</span>
+<span class="na">schedule_full_every</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">7d</span>
+<span class="na">schedule_adjust_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">0.5</span>
+<span class="na">schedule_gate_retry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">10m</span>
+<span class="na">schedule_on_battery</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">skip</span>
+<span class="na">schedule_require_idle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">false</span>
+<span class="na">schedule_max_load</span><span class="w"> </span><span class="o">=</span>
+</code></pre></div>
+<p>A typo or an out-of-range value logs a warning and falls back to the built-in default, rather
+than stopping a run at 3am when nobody is there to fix it.</p>
+<h2 id="platform-differences">Platform differences<a class="anchor" href="#platform-differences" title="Link to this section">#</a></h2>
+<p>Seven adapters exist today: systemd and cron on Linux, launchd on macOS, Task Scheduler on
+Windows, a <code>CronJob</code> for Kubernetes and OpenShift, EventBridge Scheduler with ECS on AWS, and a
+Container Apps Job on Azure.</p>
+<p>Cluster and cloud adapters are never auto-detected. <code>kubectl</code>, <code>aws</code> or <code>az</code> being on your PATH
+does not mean a schedule belongs in whatever cluster your kubeconfig points at or whatever
+account your credentials reach, so reach them with <code>--platform k8s|aws|azure</code>. They are still
+registered, so <code>schedule list</code> reports an orphan there like anywhere else.</p>
+<p>Two of the seven are verified by running them: systemd and cron. The development machine is
+Linux with no cluster and no cloud account, so the other five (launchd, Task Scheduler,
+Kubernetes, AWS, Azure) are verified by asserting what they render and the exact <code>launchctl</code>,
+<code>schtasks</code>, <code>kubectl</code>, <code>aws</code> and <code>az</code> arguments they would run. That is a real check and a
+weaker one than execution, and the difference is worth knowing before you rely on one.</p>
+<p>The rendered documents are parsed rather than string-matched: the Kubernetes manifest through
+a YAML loader, the AWS schedule through a JSON one. A document that contains the right words
+but is malformed fails here instead of in your cluster or account.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>systemd (user timer)</th>
+<th>launchd (LaunchAgent)</th>
+<th>Task Scheduler</th>
+<th>cron</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interval</td>
+<td>Exact, any duration</td>
+<td>Exact, any whole number of seconds (<code>StartInterval</code>)</td>
+<td>Rounded to whole minutes (<code>/SC MINUTE /MO n</code>), reported the same way cron's rounding is</td>
+<td>Rounded. Cron's minute field only divides the hour, so <code>*/70</code> does not mean "every 70 minutes". The adapter picks the nearest interval it can express, rounding down above one minute and up below it, and tells you the difference</td>
+</tr>
+<tr>
+<td>Missed a run while asleep or off</td>
+<td>Replays it (<code>Persistent=true</code>)</td>
+<td>Replays it on wake</td>
+<td>Lost. <code>schtasks</code> cannot set <em>StartWhenAvailable</em></td>
+<td>Lost. cron has no equivalent</td>
+</tr>
+<tr>
+<td>Runs while logged out</td>
+<td>Only if linger is on: <code>loginctl enable-linger $USER</code>. <code>schedule status</code> reports when it is off</td>
+<td>No. A LaunchAgent runs in the user's GUI session</td>
+<td>Yes, a task runs under its registered account</td>
+<td>Yes, cron runs independent of any login session</td>
+</tr>
+<tr>
+<td>Skips on battery</td>
+<td><code>ConditionACPower=true</code> in the unit itself</td>
+<td>The <code>schedule_on_battery</code> gate at run time. launchd has no equivalent condition</td>
+<td>The <code>schedule_on_battery</code> gate at run time</td>
+<td>The <code>schedule_on_battery</code> gate at run time</td>
+</tr>
+<tr>
+<td><code>schedule_require_idle</code></td>
+<td>Same limitation as cron: see below</td>
+<td>Same limitation: a LaunchAgent sets no <code>XDG_SESSION_ID</code> either</td>
+<td>Same limitation</td>
+<td>Inert. Neither cron nor a systemd timer sets <code>XDG_SESSION_ID</code>, which idleness detection needs, so the gate cannot tell and passes every time. <code>status</code> and the run itself both warn when this is on</td>
+</tr>
+</tbody>
+</table>
+<h2 id="containers">Containers<a class="anchor" href="#containers" title="Link to this section">#</a></h2>
+<p>A container's writable layer is thrown away on every restart. Running the scheduler there without
+persistent storage would mean every cycle re-indexes the whole fleet from scratch, so <code>schedule
+run</code> refuses:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>run
+<span class="go">Refusing to run: this container&#39;s state does not survive a restart, so every run would re-index the whole fleet from scratch.</span>
+<span class="go">  Mount a volume at the cache directory (a PVC on Kubernetes, EFS on AWS, Azure Files on Azure), or pass --allow-ephemeral if that is what you want.</span>
+</code></pre></div>
+<p>The check is whether the cache directory sits on its own mount point, not what filesystem type it
+reports: a container's own writable layer is part of the root mount, while any volume you attach
+(a PVC, an <code>emptyDir</code>, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
+underlying filesystem. Fix it by pointing <code>cache_dir</code> at a mounted volume, or pass
+<code>--allow-ephemeral</code> if a from-scratch run every cycle is what you want. There is no daemon to
+install inside a container; run the cycle in the foreground instead:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>run<span class="w"> </span>--foreground
+</code></pre></div>
+<p><code>--foreground</code> loops here, sleeping between cycles, and does not re-read the config file
+mid-loop; restart the container to pick up an edited <code>schedule_interval</code>.</p>
+<h2 id="troubleshooting-it-is-installed-but-nothing-runs">Troubleshooting: it is installed but nothing runs<a class="anchor" href="#troubleshooting-it-is-installed-but-nothing-runs" title="Link to this section">#</a></h2>
+<p>Start with <code>contextlake schedule status</code>. It reads the job record, the platform unit, and the
+measured history, and reports every way they disagree:</p>
+<ol>
+<li><strong>Linger is off (systemd only).</strong> A user timer does not fire while you are logged out unless
+   linger is on. <code>status</code> reports this; fix it with <code>loginctl enable-linger $USER</code>.</li>
+<li><strong>The interpreter has moved.</strong> <code>status</code> resolves the path the installed unit runs and reports
+   it missing if the venv was moved or deleted. Re-run <code>contextlake schedule install</code>
+   from the current install to fix it.</li>
+<li><strong>The unit was removed outside contextlake.</strong> <code>status</code> reports "recorded but NOT installed"
+   when the job record exists but the systemd timer or crontab block does not. Re-run
+   <code>contextlake schedule install</code>.</li>
+<li><strong>The job record was removed and the unit was not.</strong> <code>schedule list</code> reports these as
+   orphaned units, by name and platform. Such a unit keeps firing on schedule, and <code>uninstall</code>
+   cannot reach it, because it resolves a job name through the record that is gone. Recreate the
+   record with <code>contextlake schedule --job NAME install</code> and then <code>uninstall</code> it, or delete the
+   unit on the platform. <code>list</code> also names any platform it could not enumerate, so an empty
+   result is never mistaken for one that was checked.</li>
+<li><strong><code>schedule_require_idle</code> is on and you expected it to gate a run.</strong> It cannot: see
+   <a href="#platform-differences">Platform differences</a>.</li>
+<li><strong>Consecutive failures are backing off the interval.</strong> <code>status</code> reports the failure count. Fix
+   the underlying command failure (run it by hand first) and the next success resets it to zero.</li>
+<li><strong>Nothing has fired yet at all.</strong> Check the platform directly: <code>systemctl --user list-timers</code>
+   for systemd, <code>crontab -l</code> for cron. A gap between what <code>status</code> reports and what the platform
+   shows is the bug to chase.</li>
+</ol>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="keeping-it-fresh">Bootstrap and keep it fresh</a>, the command the default job runs</li>
+<li><a href="configuration">Configuration</a>, the full settings reference</li>
+<li><a href="cli-reference">Command reference</a>, every <code>schedule</code> flag</li>
+<li><a href="console-output">Reading the console output</a>, exit codes and log formats</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="keeping-it-fresh"><span>Bootstrap and keep it fresh</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="configuration"><span>Configuration</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#schedule-recommend-what-interval-your-measurements-suggest">schedule recommend: what interval your measurements suggest</a></li>
+<li><a href="#schedule-install-measure-decide-and-install">schedule install: measure, decide, and install</a></li>
+<li><a href="#set-reset-and-unset">Set, reset, and unset</a><ul>
+<li><a href="#discarding-history-is-recoverable">Discarding history is recoverable</a></li>
+</ul>
+</li>
+<li><a href="#ad-hoc-jobs">Ad-hoc jobs</a></li>
+<li><a href="#the-interval-formula">The interval formula</a><ul>
+<li><a href="#kubernetes-and-openshift">Kubernetes and OpenShift</a></li>
+<li><a href="#aws-and-azure">AWS and Azure</a></li>
+</ul>
+</li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#platform-differences">Platform differences</a></li>
+<li><a href="#containers">Containers</a></li>
+<li><a href="#troubleshooting-it-is-installed-but-nothing-runs">Troubleshooting: it is installed but nothing runs</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+
+<script defer src="cmdk.js?v=6cb12363"></script>
+</body>
+</html>

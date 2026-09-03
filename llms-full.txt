@@ -52,7 +52,9 @@ each layer above it is optional.
 
 1. **Mirror.** Clone every repo you can reach into a local copy of its namespace tree. Works
    with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
-   owner. Each repo lands on its most active branch. One command keeps them fresh.
+   owner. Each repo lands on its most active branch. One command keeps them fresh, and
+   `contextlake schedule install` measures a run and installs a background job
+   entry that does it on its own.
 
 2. **Knowledge layer** *(optional)*. Turn the mirror into a graph you can query.
 
@@ -188,8 +190,8 @@ Verbs sit under the noun they belong to:
 
 - `mirror` for mirroring git repositories
 - `kb` for the knowledge layer
-- `init`, `bootstrap`, `version`, `completion` and `doctor` sit at the top, because they span
-  both tiers or neither
+- `init`, `bootstrap`, `version`, `completion`, `doctor` and `schedule` sit at the top, because
+  they span both tiers or neither
 
 Per-command docs live with their layer. The mirror commands are in
 [Mirroring repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md).
@@ -348,6 +350,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
 - **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
 - **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
+- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
 - **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
@@ -587,12 +590,25 @@ It now defaults to `~/.cache/contextlake`, in a per-workspace subdirectory creat
 A directory *you* configure explicitly is created but never re-permissioned, on the grounds that
 silently changing the mode of a path you pointed the tool at is a side effect nobody asked for.
 
-### Config that can run a program is trusted by provenance, not by content
+### Config that spends a capability is trusted by provenance, not by content
 
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
-the feature, and it is also a hole: a config file can arrive inside a repository you cloned. The
-settings that would cause contextlake to *run a program* are therefore honoured only from a file
-you named with `--config` or from your own home config.
+the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
+classes of setting are therefore honoured only from a file you named with `--config` or from your
+own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
+`provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
+request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
+holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth_dir`, the
+directory an OAuth refresh token is written to).
+
+The first class was the whole gate to begin with, and reading the others as "not argv, so not this
+gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
+capability arriving in two pieces.
+
+On top of the per-key refusal, a discovered file may not aim a tier that carries a credential:
+`[llm]` or `[embeddings]` with `provider = "openai"` or `"anthropic"` from such a file is switched
+off for the run rather than falling back to defaults you did not choose. `SECURITY.md` has the
+remedies that clear it.
 
 `src/contextlake/kb/trust.py` records both alternatives it turned down. Distrusting a
 directory-scoped file wholesale was rejected because directory-scoped config is the point, and a
@@ -1471,7 +1487,8 @@ Source: https://sayak.in/contextlake/mirroring-repositories
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for scheduling a
-sync see [Bootstrap and keep it fresh](keeping-it-fresh.md); for the knowledge layer see the
+sync see [Bootstrap and keep it fresh](keeping-it-fresh.md) or, to have contextlake install and
+manage the schedule itself, [Scheduling runs](scheduling.md); for the knowledge layer see the
 [Knowledge layer](knowledge-layer.md) overview.
 
 > [!NOTE]
@@ -1518,6 +1535,43 @@ That is the way round it is because a filter that selects *more* than you asked 
 the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
 versions defaulted to substring matching with an opt-in `--repos-exact`; that flag is
 gone, and so is the surprise.
+
+### Pattern syntax
+
+A pattern is a shell-style glob, matched against the whole path. Four wildcards are
+available:
+
+| Syntax | Matches | Example |
+| --- | --- | --- |
+| `*` | any run of characters, including none | `team/*` selects everything under `team/` |
+| `?` | exactly one character | `api-v?` selects `api-v1` and `api-v2` |
+| `[abc]` | one character from the set | `api-v[12]` selects `api-v1` and `api-v2`, not `api-v3` |
+| `[!abc]` | one character NOT in the set | `api-v[!0]` skips `api-v0` |
+
+Four rules govern every pattern:
+
+- **Comma-separated.** `--repos "team/*,billing/core"` is two patterns, and a repo
+  matching either one is selected.
+- **Anchored.** The pattern must describe the whole path, not a piece of it. This is
+  why `api` does not select `payments-api`.
+- **Case-insensitive.** `--repos "TEAM/*"` and `--repos "team/*"` select the same repos.
+- **Matched twice.** Each pattern is tried against the group-qualified path
+  (`acme/team/api`) and against the local path (`team/api`), so either form works.
+
+### Matching a repo whose name contains `*` or `?`
+
+There is no escape character. A pattern like `odd*name` matches a repo literally called
+`odd*name`, but it also matches `oddXname`, so it cannot pick out the first one on its
+own.
+
+Use a single-character set instead, which treats the wildcard as an ordinary character:
+
+```bash
+contextlake mirror sync --repos "odd[*]name"   # only the repo literally named odd*name
+contextlake mirror sync --repos "a[?]b"        # only the repo literally named a?b
+```
+
+This is rare: `*` and `?` are legal in a path on Linux and macOS, and not on Windows.
 
 The filter scopes the whole pipeline: `fetch` narrows the cached project list, and
 `clone` / `update` / `branches` / `verify` / `status` / `bootstrap` all follow from that.
@@ -1931,6 +1985,7 @@ looks in one place rather than guessing which page owns their symptom.
 ## See also
 
 - [Bootstrap and keep it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
+- [Scheduling runs](scheduling.md), a self-installed systemd timer or crontab entry
 - [Configuration](configuration.md), the full settings reference
 - [Reading the console output](console-output.md), the status glyphs and the exit codes
 - [Knowledge layer](knowledge-layer.md), what to build on top of the mirror
@@ -2052,27 +2107,70 @@ it to the current directory, `--local` or not (override interactively, or with `
 ## Workspace trust
 
 Because a local config is *discovered* rather than named, one can take effect that you never wrote:
-notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
-become part of a command contextlake executes are honoured **only** from the global
-`~/.contextlake/kb.toml` or from a path you pass to `--config`:
+notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the config keys that
+decide what contextlake runs, where a request goes, and which environment variable holds that
+request's credential are honoured **only** from the global `~/.contextlake/kb.toml` or from a path
+you pass to `--config`:
 
 | Key | Reaches |
 | --- | --- |
 | `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+| `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
+| `[[sources]] token_env` | the env var read for an api/graphql source's bearer token |
+| `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
+| `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
+| `[llm] api_key_env`, `[embeddings] api_key_env` | the env var read for the credential sent to that host |
 
-One key is gated by **direction** rather than outright. A discovered file may set
-`[kb] anonymize = "always"` and may not set it to `"never"`: turning anonymising on is
-always allowed, turning off the setting that hides contributor identities on a dashboard
-you are about to share is not. Same provenance hole, a privacy answer instead of an
-execution one.
+The first three rows run a program. The rest are gated because an endpoint and a secret to send to
+it are the same capability in two pieces. `[embeddings]` is on by default and `bootstrap` runs
+`kb embed` as a stage, so a single planted `base_url` line, with no provider line, pointed the
+default setup at a host the file author picked.
+
+When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
+by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
+wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic` and that value came from a
+discovered file, the tier is off for that run and a second warning says so. Dropping
+`base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise fall back to
+`api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for loopback.
+
+Three things clear it:
+
+- **Delete the `[llm]` or `[embeddings]` keys from the file the warning names**, and set them in
+  `~/.contextlake/kb.toml` if you want them. The deletion is the half that clears it. The merge is
+  last-wins and the discovered file is merged after the global one, so adding the block to
+  `~/.contextlake/kb.toml` while that file keeps its own `provider` line produces the identical
+  warning on the next run.
+- Pass `--config PATH` naming that file.
+- For `[llm]` only, pass `--llm PROVIDER` to `kb wiki`, `kb docs` or `bootstrap`. No other command
+  carries the flag, and `[embeddings]` has no equivalent.
+
+An honest project-local `[llm]` or `[embeddings]` block naming `openai` or `anthropic` therefore has
+to move to `~/.contextlake/kb.toml`, or be reached with `--config`. `builtin` and `ollama` tiers are
+never switched off this way: they send no credential.
+
+Two keys are gated by **direction** rather than outright, because one way round is honest for a
+project-local file.
+
+- `[kb] anonymize`: a discovered file may set it to `"always"` and may not set it to `"never"`.
+  Turning anonymising on is always allowed; turning off the setting that hides contributor
+  identities on a dashboard you are about to share is not.
+- `[[sources]] scopes`: a discovered file may narrow the OAuth scopes the Atlassian connector asks
+  for, and may not widen them. A value that is not a subset of the read-only default is dropped,
+  and the connector falls back to that default.
 
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
-key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
-any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
-when scoping sources with `contextlake kb source add ... --local` is that an *MCP* source's `command`
-has to live in the global file (or be reached with `--config`); an `mcp` **URL** is fine locally.
+key. The rest of the file still applies: `store_dir`, `languages`, `max_file_bytes`, `[[rules]]`,
+`[embeddings] provider`, and any non-`cli` LLM provider all keep working from a local file. What a
+local file can no longer do is name the host a request goes to, or the env var read for its
+credential, in `[llm]`, `[embeddings]` or `[[sources]]`.
+
+That last point changes what `contextlake kb source add ... --local` can scope. A `type = "mcp"`
+document source still works from a local file over its `url`; its `command` has to live in the
+global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
+reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
+`token_env` and `auth_dir` on any source.
 
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
 `.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
@@ -2114,6 +2212,35 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 | `branch` | Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone | *(empty)* | `release/24.1` |
 | `branch_map` | Per-repository pins, for when one branch does not fit the whole fleet. Comma-separated `pattern=branch` pairs using the same globs as `repo_filter`. First match wins, so list the specific before the general. Beats `branch`; falls back to it, then to the selection above | *(empty)* | `team/api=develop,legacy-*=maintenance` |
+| `schedule_interval` | `auto` measures and adjusts; a duration (`45s`, `30m`, `2h`, `7d`) pins it and turns auto-adjust off | `auto` | `2h` |
+| `schedule_min` | Lower bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `1h` | `30m` |
+| `schedule_max` | Upper bound the auto-adjusted interval is clamped to. Not applied to a pinned `schedule_interval` | `24h` | `12h` |
+| `schedule_duty_cycle` | Share of wall-clock time a run may occupy, as a fraction above 0 and below 1 | `0.10` | `0.05` |
+| `schedule_full_every` | How long since the last successful full rebuild before the next cycle forces one (`bootstrap --force`) | `7d` | `3d` |
+| `schedule_adjust_threshold` | How far the installed interval must drift from the current recommendation before `status` flags it | `0.5` | `0.25` |
+| `schedule_gate_retry` | How long a gated (skipped) cycle waits before trying again | `10m` | `5m` |
+| `schedule_on_battery` | `skip` refuses a run on battery power; `run` ignores battery state | `skip` | `run` |
+| `schedule_require_idle` | Refuse a run unless the user is idle. Cannot be detected under a systemd timer or cron: see [Scheduling runs](scheduling.md#platform-differences) | `false` | `true` |
+| `schedule_max_load` | Refuse a run when the 1-minute load average exceeds this. Empty turns the check off | *(empty)* | `4.0` |
+
+Full detail, the interval formula, and what each command writes are on [Scheduling
+runs](scheduling.md).
+
+A worked block with all ten together:
+
+```ini
+[contextlake]
+schedule_interval = auto
+schedule_min = 1h
+schedule_max = 24h
+schedule_duty_cycle = 0.10
+schedule_full_every = 7d
+schedule_adjust_threshold = 0.5
+schedule_gate_retry = 10m
+schedule_on_battery = skip
+schedule_require_idle = false
+schedule_max_load =
+```
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`, `safe_branches`,
 `auto_stash`) live with [Mirror repositories](mirroring-repositories.md#branch-safety).
@@ -2123,6 +2250,7 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 - [Quickstart](../QUICKSTART.md)
 - [Mirror repositories](mirroring-repositories.md)
 - [Knowledge layer](knowledge-layer.md)
+- [Scheduling runs](scheduling.md), the `schedule_*` keys in depth
 
 ---
 
@@ -2262,6 +2390,43 @@ All of that is derived noise rather than real source, and **every skip is report
 are no silent gaps. To index them anyway, set `[kb] skip_generated = false` or raise
 `max_file_bytes`.
 
+### The per-repository memory budget
+
+`max_file_bytes` bounds one FILE. It cannot bound a repository that is wide rather than deep,
+and that distinction is not theoretical: one repository in a 660-repo fleet took a 15.4 GB
+machine down while its largest single file was 3.57 MB, comfortably under the 5 MB cap. The
+cap never fired once. What broke it was 1,432 XML files averaging 0.42 MB, adding up to
+671 MB.
+
+`[kb] max_repo_memory` bounds the whole repository, and is checked **before any file is
+read** rather than after a shard exists. It defaults to 3 GB. A repository whose estimate
+exceeds it is skipped with its name, its estimated cost, and the file kinds that dominate,
+and the rest of the run continues.
+
+The estimate weights each file kind by measured cost per byte, because they differ by a lot:
+
+| Kind | Peak memory per byte of source |
+| --- | --- |
+| code | 19.6x |
+| SQL | 5.0x |
+| XSD / XSL | 4.3x |
+| XML | 3.5x |
+
+Code is six times worse than markup, and the reason is edge count rather than node count: a
+sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is far
+more expensive than 400 MB of XML, and a budget in raw bytes would refuse the wrong ones.
+
+Two caveats worth knowing before you tune it:
+
+- **The estimate is linear and the real cost is not.** Cross-file reference resolution grows
+  with the number of symbols, so the estimate runs low on the largest repositories, which is
+  where it matters most. Treat it as a coarse guard, not a prediction. The shard-item guard
+  that runs after a shard is built is the second layer.
+- **This bounds one repository; a run's peak is this times the worker count.** On a smaller
+  machine, lower `max_repo_memory`, `index_workers`, or both.
+
+Set `max_repo_memory = 0` to disable the check.
+
 Discovery also skips **vendored nested repos**: an upstream clone carried inside the mirror,
 with its own `.git`, under a `module-federation` path segment. That is not your source, and
 indexing it would flood the global graph with upstream demo nodes. Each skip is logged.
@@ -2312,6 +2477,13 @@ either of them:
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 
@@ -2519,6 +2691,17 @@ Three deliberate limits:
   reporting the guess, onto an unrelated `struct Address`.
 - **`.xsd` never reaches the XML config scanner.** `name` is one of that scanner's key attributes, so
   a schema sent there files every component as a `config_key` setting.
+- **Six extensions reach the config scanner**, not just `.xml`: `.config`, `.props`, `.targets`,
+  `.settings` and `.plist` carry settings too, and `.config` is the canonical .NET one. Measured
+  across 660 repositories, 1,023 `.config` files were contributing nothing while being exactly the
+  files "where is this setting defined" is asked about.
+- **`.resx`, project files and `.svg` are excluded on purpose.** `.resx` is localisation, and at
+  roughly 22.9 settings per file across 3,963 files it would add about 91,000 nodes fleet-wide for
+  translated labels nobody asks that question about. `.csproj`, `.vbproj` and `.nuspec` are build
+  definitions, which the manifest extractor already owns along with the `depends_on` relation that
+  belongs between a build file and a package. `.svg` is XML-shaped and is graphics.
+- **A settings extension whose file is not XML costs nothing.** The scanner is a regex over markup,
+  so an INI-style `.config` yields no settings rather than raising.
 
 Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
 entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and
@@ -2740,6 +2923,13 @@ getting a silent best-guess.
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 
@@ -4288,9 +4478,12 @@ the model pulled, and otherwise to the built-in CPU model.
 - **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`, or `codex`.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
   the prompt on stdin. No API key touches contextlake; data goes to whatever provider that CLI uses. Reuses
-  your subscription, offline-adjacent (still a network call by that tool), and mirrors how contextlake
-  already shells out to `git` and `glab`. For the three recognised commands, contextlake strips that CLI's
-  own API-key env var(s) (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
+  your subscription, and mirrors how contextlake already shells out to `git` and `glab`. It is **not** an
+  offline backend: the CLI makes its own network call, and a subprocess owns its own sockets, so
+  `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command carries on with
+  no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
+  For the three recognised commands, contextlake strips that CLI's own API-key env var(s)
+  (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
   `GOOGLE_API_KEY` for `gemini`) from the child process only -- otherwise a key set anywhere in your shell
   for an unrelated reason (e.g. testing the `anthropic` provider) can silently override the CLI's
   subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
@@ -4300,8 +4493,14 @@ the model pulled, and otherwise to the built-in CPU model.
   **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
   `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
   directory, since that file may have arrived inside a repository you cloned and these keys are a
-  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
-  provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
+  command line contextlake runs. Setting them locally logs a warning and is ignored. `base_url` and
+  `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every provider: a
+  discovered file may not choose the host a request goes to, or the environment variable read for its
+  credential. Everything else, `provider` included for any value other than `"cli"`, works from a local
+  file as usual. One knock-on: if a discovered file picks `openai` or `anthropic` *and* tries to set
+  `base_url` or `api_key_env`, the tier is switched off for that run rather than falling back to
+  built-in defaults you did not choose. Pass `--llm PROVIDER`, or `--config PATH`, or set the tier in
+  `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -4309,7 +4508,7 @@ the model pulled, and otherwise to the built-in CPU model.
 |---|---|---|
 | `builtin` / `auto`→builtin | No: fully local CPU model | none |
 | `ollama` | No: local daemon | none |
-| `cli` | Yes: to whatever provider that CLI uses | reuses the CLI's own login |
+| `cli` | Yes: to whatever provider that CLI uses. Refused under `--offline` | reuses the CLI's own login |
 | `anthropic` / `openai` | Yes: to the API endpoint | env-var key (never stored) |
 
 ## Configuring the wiki LLM
@@ -4610,10 +4809,12 @@ moved (or whose shard was built by an older parser), refreshes the knowledge lay
 steering, without touching an in-progress working tree.
 
 > [!NOTE]
-> contextlake installs no scheduler of its own. There is no built-in cron entry and no systemd unit
-> written for you; the one thing it does install is the git hook in the next section. Everything
-> below is you wiring it to your own scheduler, which is why the exit codes and the metrics file
-> matter.
+> `contextlake schedule install` does the rest of this section for you: it measures how long a
+> run takes, works out an interval, and installs the systemd timer or crontab entry itself. See
+> [Scheduling runs](scheduling.md). The rest of this section covers wiring `bootstrap` to a
+> scheduler by hand, which is still the right choice for more than one workspace, or a cron entry
+> your own tooling already manages. Both paths write the same exit codes and metrics file, so
+> everything below still applies once a schedule is installed.
 
 ### Before your first cron entry
 
@@ -4815,10 +5016,362 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 
 ## See also
 
+- [Scheduling runs](scheduling.md), `contextlake schedule` measuring and installing this for you
 - [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
 - [Generate the wiki](generating-the-wiki.md), the stage that needs a model
 - [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
 - [Troubleshooting](troubleshooting.md), when a scheduled run stops working
+
+---
+
+# Scheduling runs
+Source: https://sayak.in/contextlake/scheduling
+
+# Scheduling runs
+
+`contextlake schedule` measures how long a run takes and how often your repositories change,
+works out an interval from those two numbers, and installs a background job that keeps the
+mirror and the knowledge layer current on its own. It runs on the core tier, so it works even
+without the `[kb]` extra. This page covers reading its recommendation, installing it, the
+set/reset/unset model, ad-hoc jobs, the interval formula, its config keys, platform differences,
+and containers.
+
+## Prerequisites
+
+- A configured workspace: `contextlake init`, or `.contextlake.ini` in place. See
+  [Configuration](configuration.md).
+- Linux, with either a systemd user session or `crontab` available. Nothing else is supported
+  yet; see [Platform differences](#platform-differences).
+
+## `schedule recommend`: what interval your measurements suggest
+
+```console
+$ contextlake schedule recommend
+⚠ Recommended interval: 6h
+  Because: no measured runs yet, so this is the built-in default of 6h, not a measurement. The first completed run replaces it.
+  Nothing has been measured yet. Run `contextlake mirror sync` or `contextlake bootstrap` once, or install the schedule and let the first run replace this default.
+
+  Install it:  contextlake schedule install
+```
+
+That is the cold-start default: nothing has run yet, so there is nothing to measure. Once a few
+runs have completed, the same command reads real numbers:
+
+```console
+$ contextlake schedule recommend
+✓ Recommended interval: 70m
+  Because: duty cycle: the median incremental run takes 7m, and at 10% of wall-clock time that needs 70m between runs
+  From 3 measured run(s) over 0.1 day(s)
+    duty-cycle floor: 70m
+    activity floor:   20m
+
+  Install it:  contextlake schedule install
+```
+
+The glyph names the answer: `⚠` for a default nobody has measured yet, `✓` for one built from
+real runs. `recommend` changes nothing. Add `--json` for the same answer as a
+machine-readable payload (`interval`, `basis`, `reason`, `floor_duty_seconds`,
+`floor_activity_seconds`, `history`, and so on).
+
+## `schedule install`: measure, decide, and install
+
+```bash
+contextlake schedule install
+```
+
+This is idempotent: run it again after a config change or after more runs have accumulated, and
+it recomputes and rewrites the job in place. It writes to three places:
+
+| What | Where |
+| --- | --- |
+| The job record (name, command, interval setting, failure count, last run) | `schedule-jobs.json`, beside the project cache |
+| The measured run history, appended to by every run | `schedule-history.jsonl`, beside the project cache |
+| The platform unit that fires | a systemd user timer (`~/.config/systemd/user/contextlake-<name>.timer` + `.service`), or a marked block in your crontab |
+
+"Beside the project cache" is the same directory `cache_dir` in [Configuration](configuration.md)
+resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
+
+`install` picks systemd if a systemd user session answers, cron otherwise, and prints the
+platform's own unit file (or crontab line) when it cannot write one, so you can install it by
+hand. Force a specific platform with `--platform systemd` or `--platform cron`.
+
+The default job runs `contextlake bootstrap` on most cycles, and switches to
+`contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
+re-embedded) once `schedule_full_every` has passed since the last successful full run.
+
+## Set, reset, and unset
+
+Three layers decide what interval a job runs on, and only one of them is read back as the truth:
+
+| Layer | Role | Changed by |
+| --- | --- | --- |
+| The INI (`schedule_interval`, or `--interval` on `install`) | Supplies the starting value **when the job is created**. Ignored after that. | Editing `.contextlake.ini` before the first `install` |
+| The job record (`schedule-jobs.json`) | **Authoritative.** Holds `auto` or a pinned duration, plus the failure count that drives backoff. | `install`, `interval`, `reset`, `uninstall` |
+| The platform unit (the systemd timer or the crontab line) | Rendered *from* the job record's resolved interval. Never read back as truth; `status` reads it only to report drift or cron's rounding. | Rewritten every `install` / `reset` / `interval` |
+
+Three commands change the job record:
+
+- **Set** an interval with `contextlake schedule --interval 2h install` (or pin an ad-hoc job the
+  same way with `schedule interval 2h run -- ...`). Auto-adjust turns off for that job: the
+  number you gave is used as-is, never clamped to `schedule_min` / `schedule_max`.
+- **Reset** with `contextlake schedule reset`. Clears a pin back to `auto`, clears the failure
+  count (so a backed-off interval snaps back to the recommendation), recomputes, and reinstalls
+  immediately. Add `--history` to also discard the measurements (see below); `reset` installs
+  first and discards second, so a failed install never destroys history for a reset that did not
+  happen.
+- **Unset** with `contextlake schedule uninstall`. Removes the job record and the installed unit.
+  Add `--purge` to also discard the measurements. Without `--purge`, the history is kept, so
+  installing again later starts warm instead of cold.
+
+### Discarding history is recoverable
+
+`--purge` and `reset --history` both ask first, printing the count of runs and the span of days
+they cover, because a useful median takes days to earn back:
+
+```console
+$ contextlake schedule --history --yes reset
+About to discard 3 measured run(s) spanning 0.1 day(s) (2026-08-24T01:00:00Z to 2026-08-24T03:00:00Z).
+  The recommender starts cold and re-learns from the next run.
+✓ Discarded 3 measured run(s).
+  Saved to /home/you/.cache/contextlake/work-ab12/schedule-history.jsonl.discarded in case you want it back.
+```
+
+The discard renames the history file to a `.discarded` sidecar instead of deleting it. To get it
+back, move the sidecar over the live file yourself:
+
+```bash
+mv schedule-history.jsonl.discarded schedule-history.jsonl
+```
+
+Only one sidecar is kept. A second discard replaces it, so this is undo for the discard you just
+did, not an archive of every one you have ever run.
+
+## Ad-hoc jobs
+
+`schedule interval` creates or replaces a named job that runs any contextlake command on its own
+interval, separate from the default `bootstrap` cycle. Give it a duration (or `auto`), the word
+`run`, a `--` separator, then the command:
+
+```bash
+contextlake schedule interval 6h run -- kb wiki --force
+contextlake schedule --job wiki-refresh interval 2h run -- kb wiki --namespace acme/widgets
+```
+
+**The `--` separator is not optional the moment your command has its own flags.** `schedule`
+parses everything before `--` as its own flags and action; without it, a flag meant for the
+trailing command is read as a flag of `schedule` itself and the whole thing fails:
+
+```console
+$ contextlake schedule interval 6h run kb wiki --force
+✗ '--force' isn't a flag on 'schedule'
+
+It's used by: bootstrap, kb embed, kb index, init, kb steer, kb wiki.
+
+Run 'contextlake schedule --help' to see schedule's own flags.
+```
+
+A flag that no other contextlake command uses fails the same way, with `Unknown flag: '<flag>'
+(on 'schedule')` instead. Either way, the fix is the same: add `--`.
+
+The command is validated before the job is written: it must parse, and if it needs the `[kb]`
+extra and that extra is not installed here, `interval` warns rather than installing a job that
+fails on every run. A job named `schedule` itself is refused outright, because that would recurse.
+
+Every job appends to the same history file, and each record carries the job that wrote it.
+Reads are scoped to one job: a job's full-rebuild schedule and its measured duration come from
+its own runs only. Without that, a rebuild by one job satisfied `schedule_full_every` for all
+of them, and a two-minute `kb index` and a forty-minute `bootstrap` shared one median. Records
+written before the job name was recorded carry no job and count as the default job's.
+
+## The interval formula
+
+```
+floor_duty     = median(incremental run duration) / duty_cycle
+floor_activity = k / change_rate
+interval       = clamp(max(floor_duty, floor_activity), schedule_min, schedule_max)
+```
+
+`floor_duty` is a cost bound: never occupy more than `duty_cycle` of wall-clock time.
+`floor_activity` is a freshness bound: there is no point running more often than the fleet
+produces roughly `k` changed repositories. Whichever bound needs the longer gap wins.
+
+`floor_activity` needs a measurement that only the index stage produces: how many
+repositories changed on a run. That stage is part of the knowledge layer, so on an install
+without the `kb` extra nothing ever records it and the activity bound never engages. The
+interval then rests on `floor_duty` alone, which is correct behaviour rather than a fault.
+`contextlake schedule recommend` says so on the `activity floor` line, and its `--json`
+output carries an `activity` field reading `not-measured`, `no-change` or `measured`.
+
+Three worked examples, all at the default `duty_cycle = 0.10` and `k = 1.0`:
+
+| Median incremental run | Change rate | `floor_duty` | `floor_activity` | Interval | Why |
+| --- | --- | --- | --- | --- | --- |
+| 7 min | ~3 repos/hour | 70m | 20m | **70m** | Duty wins: a busy fleet, so the cost bound is what limits how often you can afford to run |
+| 7 min | ~0.1 repos/hour | 70m | 10h | **10h** | Activity wins: a quiet fleet, so there is nothing to gain from running every 70 minutes |
+| 40 min | ~3 repos/hour | 6.7h | 20m | **6.7h** | Duty wins again: a bigger, slower fleet costs more per run, which raises the cost bound past the freshness one |
+
+### Kubernetes and OpenShift
+
+```bash
+contextlake schedule --platform k8s install            # applies with kubectl, or oc
+contextlake schedule --platform k8s install --json     # see the manifest without applying
+```
+
+One adapter covers both, because OpenShift is Kubernetes with a stricter default security
+context and the manifest is written to satisfy the stricter one. Three properties of it are
+deliberate:
+
+- `concurrencyPolicy: Forbid` gives single-writer semantics from the cluster. The second of two
+  overlapping runs never starts, which is the corruption the advisory lock exists to prevent.
+- No `runAsUser`. OpenShift's restricted SCC assigns an arbitrary UID and rejects a pinned one,
+  so a manifest that pins one works on vanilla Kubernetes and fails on OpenShift.
+- The state directory is a `PersistentVolumeClaim`, not an `emptyDir`. An ephemeral store
+  re-indexes the whole fleet every run instead of doing an incremental pass, which
+  `schedule run` refuses without `--allow-ephemeral`.
+
+The schedule is a cron expression, so it rounds the way cron does and says when it rounded.
+Nothing is patched in the cluster on its own: changing an interval means re-running
+`schedule install`. A process that rewrote a `CronJob` in the background would need
+cluster-write rights for the life of the schedule, which is more authority than the benefit is
+worth.
+
+### AWS and Azure
+
+```bash
+contextlake schedule --platform aws install       # EventBridge Scheduler firing an ECS task
+contextlake schedule --platform azure install     # a Container Apps Job on a cron trigger
+```
+
+**On EKS and AKS, use `--platform k8s` instead.** Both are Kubernetes, so the `CronJob` adapter
+serves them and brings `concurrencyPolicy: Forbid` with it.
+
+Neither cloud service has an equivalent of `Forbid`. Both will start a second execution while
+the first is still running, so single-writer protection there rests on the store's advisory
+lock: the second run takes it, fails, and skips with a logged reason. That is the same
+protection a bare `schedule run` has, and weaker than what a cluster gives.
+
+Both need persistent storage for the same reason a container does anywhere: EFS on AWS, Azure
+Files on Azure. An ephemeral store re-indexes the whole fleet every run instead of doing an
+incremental pass, which `schedule run` refuses without `--allow-ephemeral`.
+
+The two round differently, and that is not an inconsistency. EventBridge takes
+`rate(N minutes)`, so AWS rounds to whole minutes. A Container Apps Job schedule trigger is a
+cron expression, so Azure rounds the way cron does and cannot express 70 minutes at all.
+
+Neither adapter ships an SDK. Both shell out to an already-authenticated `aws` or `az`.
+
+## Configuration
+
+Ten `schedule_*` keys, read from the same `.contextlake.ini` `[contextlake]` section as
+`work_dir` and the rest of the mirror settings. Full descriptions and defaults are in
+[Configuration](configuration.md#settings-reference); the worked block below shows all ten
+together:
+
+```ini
+[contextlake]
+schedule_interval = auto
+schedule_min = 1h
+schedule_max = 24h
+schedule_duty_cycle = 0.10
+schedule_full_every = 7d
+schedule_adjust_threshold = 0.5
+schedule_gate_retry = 10m
+schedule_on_battery = skip
+schedule_require_idle = false
+schedule_max_load =
+```
+
+A typo or an out-of-range value logs a warning and falls back to the built-in default, rather
+than stopping a run at 3am when nobody is there to fix it.
+
+## Platform differences
+
+Seven adapters exist today: systemd and cron on Linux, launchd on macOS, Task Scheduler on
+Windows, a `CronJob` for Kubernetes and OpenShift, EventBridge Scheduler with ECS on AWS, and a
+Container Apps Job on Azure.
+
+Cluster and cloud adapters are never auto-detected. `kubectl`, `aws` or `az` being on your PATH
+does not mean a schedule belongs in whatever cluster your kubeconfig points at or whatever
+account your credentials reach, so reach them with `--platform k8s|aws|azure`. They are still
+registered, so `schedule list` reports an orphan there like anywhere else.
+
+Two of the seven are verified by running them: systemd and cron. The development machine is
+Linux with no cluster and no cloud account, so the other five (launchd, Task Scheduler,
+Kubernetes, AWS, Azure) are verified by asserting what they render and the exact `launchctl`,
+`schtasks`, `kubectl`, `aws` and `az` arguments they would run. That is a real check and a
+weaker one than execution, and the difference is worth knowing before you rely on one.
+
+The rendered documents are parsed rather than string-matched: the Kubernetes manifest through
+a YAML loader, the AWS schedule through a JSON one. A document that contains the right words
+but is malformed fails here instead of in your cluster or account.
+
+| | systemd (user timer) | launchd (LaunchAgent) | Task Scheduler | cron |
+| --- | --- | --- | --- | --- |
+| Interval | Exact, any duration | Exact, any whole number of seconds (`StartInterval`) | Rounded to whole minutes (`/SC MINUTE /MO n`), reported the same way cron's rounding is | Rounded. Cron's minute field only divides the hour, so `*/70` does not mean "every 70 minutes". The adapter picks the nearest interval it can express, rounding down above one minute and up below it, and tells you the difference |
+| Missed a run while asleep or off | Replays it (`Persistent=true`) | Replays it on wake | Lost. `schtasks` cannot set *StartWhenAvailable* | Lost. cron has no equivalent |
+| Runs while logged out | Only if linger is on: `loginctl enable-linger $USER`. `schedule status` reports when it is off | No. A LaunchAgent runs in the user's GUI session | Yes, a task runs under its registered account | Yes, cron runs independent of any login session |
+| Skips on battery | `ConditionACPower=true` in the unit itself | The `schedule_on_battery` gate at run time. launchd has no equivalent condition | The `schedule_on_battery` gate at run time | The `schedule_on_battery` gate at run time |
+| `schedule_require_idle` | Same limitation as cron: see below | Same limitation: a LaunchAgent sets no `XDG_SESSION_ID` either | Same limitation | Inert. Neither cron nor a systemd timer sets `XDG_SESSION_ID`, which idleness detection needs, so the gate cannot tell and passes every time. `status` and the run itself both warn when this is on |
+
+## Containers
+
+A container's writable layer is thrown away on every restart. Running the scheduler there without
+persistent storage would mean every cycle re-indexes the whole fleet from scratch, so `schedule
+run` refuses:
+
+```console
+$ contextlake schedule run
+Refusing to run: this container's state does not survive a restart, so every run would re-index the whole fleet from scratch.
+  Mount a volume at the cache directory (a PVC on Kubernetes, EFS on AWS, Azure Files on Azure), or pass --allow-ephemeral if that is what you want.
+```
+
+The check is whether the cache directory sits on its own mount point, not what filesystem type it
+reports: a container's own writable layer is part of the root mount, while any volume you attach
+(a PVC, an `emptyDir`, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
+underlying filesystem. Fix it by pointing `cache_dir` at a mounted volume, or pass
+`--allow-ephemeral` if a from-scratch run every cycle is what you want. There is no daemon to
+install inside a container; run the cycle in the foreground instead:
+
+```bash
+contextlake schedule run --foreground
+```
+
+`--foreground` loops here, sleeping between cycles, and does not re-read the config file
+mid-loop; restart the container to pick up an edited `schedule_interval`.
+
+## Troubleshooting: it is installed but nothing runs
+
+Start with `contextlake schedule status`. It reads the job record, the platform unit, and the
+measured history, and reports every way they disagree:
+
+1. **Linger is off (systemd only).** A user timer does not fire while you are logged out unless
+   linger is on. `status` reports this; fix it with `loginctl enable-linger $USER`.
+2. **The interpreter has moved.** `status` resolves the path the installed unit runs and reports
+   it missing if the venv was moved or deleted. Re-run `contextlake schedule install`
+   from the current install to fix it.
+3. **The unit was removed outside contextlake.** `status` reports "recorded but NOT installed"
+   when the job record exists but the systemd timer or crontab block does not. Re-run
+   `contextlake schedule install`.
+4. **The job record was removed and the unit was not.** `schedule list` reports these as
+   orphaned units, by name and platform. Such a unit keeps firing on schedule, and `uninstall`
+   cannot reach it, because it resolves a job name through the record that is gone. Recreate the
+   record with `contextlake schedule --job NAME install` and then `uninstall` it, or delete the
+   unit on the platform. `list` also names any platform it could not enumerate, so an empty
+   result is never mistaken for one that was checked.
+5. **`schedule_require_idle` is on and you expected it to gate a run.** It cannot: see
+   [Platform differences](#platform-differences).
+6. **Consecutive failures are backing off the interval.** `status` reports the failure count. Fix
+   the underlying command failure (run it by hand first) and the next success resets it to zero.
+7. **Nothing has fired yet at all.** Check the platform directly: `systemctl --user list-timers`
+   for systemd, `crontab -l` for cron. A gap between what `status` reports and what the platform
+   shows is the bug to chase.
+
+## See also
+
+- [Bootstrap and keep it fresh](keeping-it-fresh.md), the command the default job runs
+- [Configuration](configuration.md), the full settings reference
+- [Command reference](cli-reference.md), every `schedule` flag
+- [Reading the console output](console-output.md), exit codes and log formats
 
 ---
 
@@ -5194,6 +5747,13 @@ Three behaviours that bite scripts:
   the default, which is exactly why it is now an error. Neither ever meant "no limit".
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 
@@ -6347,6 +6907,24 @@ many nodes it found ("4 nodes downstream"). It appears only on nodes that have a
 It traces the graph currently on the canvas. In `--serve` mode that's whatever you've expanded so
 far, so if a trace looks short, expand further with **depth** raised, then run it again.
 
+### Read the prose about a node
+
+**Read the wiki** in the inspector opens the generated wiki for the node's repository. It appears
+only when that repository has one.
+
+Where it lands depends on how you opened the graph:
+
+- **In the dashboard**, it opens the subsystem page covering that node's file, and falls back to
+  the repository's own page when no subsystem page covers it.
+- **On a `--site` export**, it opens the repository page beside it. The export writes whole-repo
+  pages only, so there is nothing narrower to open.
+
+There is no link to a heading. Generated pages are written in page-level sections (Overview,
+Setup & Run, Architecture, Dependencies, Gotchas) and the model is asked to leave out any it has
+nothing to say for, so no section is about one symbol and no named section is certain to be
+there. A link to a heading that was not written lands at the top of the page and looks like it
+worked.
+
 ### Filter with the legend
 
 The **Nodes** legend groups every kind present into the vocabulary's ten bands: Symbols,
@@ -6426,6 +7004,13 @@ identical here: an HTTP call whose target path matches no indexed repo's `expose
 box labels yourself; you'll recognize your own internal hosts. `--c1` requires `--c4` (it has no
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.
+
+## The graph, on this page
+
+<img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
+<p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
 
 ## See also
 
@@ -7139,7 +7724,7 @@ These work on every command, before or after it:
 | `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
 | `--access-log` | log every request the local HTTP servers answer (off by default) |
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
-| `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
+| `--offline` | refuse every non-loopback connection this process makes (same as `CONTEXTLAKE_OFFLINE=1`); `mirror` network commands and the `cli` LLM provider stop before they spawn. Some subprocesses are not covered, listed below |
 
 Five flags exist for unattended operation: `--log-file`, `--log-format`, `--metrics-file`,
 `--redact` / `--no-redact`, and `--access-log`. They are for the systemd service and timer in
@@ -7151,6 +7736,38 @@ Two more look similar and are not:
 - **`--plain`** is a piping and TTY switch.
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
+
+### What `--offline` covers, and what it does not
+
+It blocks at the socket, inside this process. Every client here inherits the block: `urllib`,
+`requests`, `httpx`, and the model downloaders inside the embedding and LLM libraries. Loopback
+stays open on purpose, so a local Ollama, the MCP server, the dashboard and the graph viewer keep
+working.
+
+A subprocess has its own sockets, so the block cannot reach one. Three of them are handled
+another way:
+
+- `mirror fetch`, `clone`, `update`, `branches` and `sync` refuse and exit 2. `bootstrap` skips
+  its mirror stage and runs the local stages.
+- `[llm] provider = "cli"` is refused before the agent CLI is spawned, so `kb wiki`, `kb docs`
+  and dashboard chat print the refusal and carry on without prose.
+- The dashboard's MCP start/restart control, its `Regenerate wiki` control, and
+  `kb refresh --refresh` spawn contextlake itself and pass `CONTEXTLAKE_OFFLINE` down, so
+  the child guards itself.
+
+These are **not** covered. Audited 2026-09-03; treat the list as open, not complete:
+
+| Not covered | Reached by | Why |
+| --- | --- | --- |
+| `kb connect` running `glab api` | any `[[sources]] type="gitlab"` | `glab` is a separate program and does not read the variable |
+| Dashboard `git clone` / `git pull` | adding or refreshing a repo in the dashboard | same: `git` does not read the variable |
+| `contextlake doctor --fix` running `pip install` | repairing a missing extra | same: `pip` does not read the variable |
+| `mcp` sources and connector tool calls over stdio | any `[[sources]] type="mcp"`, and the Atlassian / Figma / Slack connectors | the MCP SDK replaces the child's environment with a six-name whitelist, so the variable is stripped. Their `url` transport is in-process and **is** covered |
+| Scheduled runs (`contextlake schedule`) | the scheduler spawning a job | the child is contextlake and reads `CONTEXTLAKE_OFFLINE`, so the env-var form works. `--offline` as a flag does not survive the spawn |
+
+Closing these is per-call-site work, not one switch. Until it lands, `CONTEXTLAKE_OFFLINE=1` in
+the environment is the stronger of the two forms: it reaches any child that reads it, while the
+flag reaches only this process.
 
 [Console output](console-output.md) has the JSON shape, the redaction placeholders and the metric
 names.
@@ -7176,7 +7793,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-32 commands: 5 top-level, 8 under `mirror`, 19 under `kb`. `contextlake --help` groups them by
+34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -7192,6 +7809,7 @@ These span both tiers, or neither, so they are not namespaced.
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
+| `schedule` | Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own (`recommend`, `install`, `status`, `list`, `run`, `reset`, `uninstall`, `interval`). Core tier: works without the `[kb]` extra. See [Scheduling runs](scheduling.md) |
 
 ### Mirror commands
 
@@ -7246,6 +7864,7 @@ uvicorn's graceful shutdown. The conditions behind each are on
 
 ## See also
 
+- [Scheduling runs](scheduling.md), the `schedule` command in depth
 - [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
 - [Index the code graph](indexing-the-code-graph.md)
 - [Serve it to your editor](serving-over-mcp.md)
@@ -7779,7 +8398,480 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`[embeddings] base_url` now defaults per provider. Check yours before upgrading if you point
+  it at a local server.** The field was declared as the literal `http://127.0.0.1:11434`, and one
+  declared literal wins for every provider. So `[embeddings] provider = "openai"` with no
+  `base_url` line sent each batch of indexed code to `POST http://127.0.0.1:11434/embeddings`,
+  with the value of `OPENAI_API_KEY` in the `Authorization` header. The field is now unset by
+  default and resolved when it is read: `https://api.openai.com/v1` for `openai`,
+  `http://127.0.0.1:11434` for everything else. `[llm]` already worked this way.
+
+  **This changes where your requests go.** If you run an OpenAI-compatible server on port 11434
+  and reach it with `provider = "openai"` and no `base_url` line, that traffic stayed on your
+  machine before the upgrade. After it, embedding requests go to
+  `https://api.openai.com/v1/embeddings` and your indexed code leaves the machine. One line keeps
+  it where it was:
+
+  ```toml
+  [embeddings]
+  provider = "openai"
+  base_url = "http://127.0.0.1:11434"
+  ```
+
+  Nothing changes for `provider = "ollama"`, `"builtin"` or `"auto"`, or for any config that
+  already writes a `base_url` line.
+
+### Security
+
+- **A config file found by walking up from the current directory may no longer choose an endpoint,
+  a credential variable, or a credential-carrying provider.** The provenance gate covered the keys
+  that become a subprocess argv (`[llm] command`/`args`/`provider = "cli"`, `[[sources]]`
+  `command`/`args`/`mcp_command`). It now also covers `[llm]`/`[embeddings]` `base_url` and
+  `api_key_env`, and `[[sources]]` `mcp`, `token_env` and `auth_dir`. `[[sources]] scopes` is
+  strengthen-only: a discovered file may narrow the OAuth grant and may not widen it.
+
+  On top of the per-key refusal, a discovered file may not aim a tier that carries a credential.
+  When the `provider` that wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`
+  and that value came from a discovered file, the tier is off for that run, rather than falling
+  back to built-in defaults nobody chose.
+
+  **This breaks an honest project-local block** that names `openai` or `anthropic` in a
+  `.contextlake.kb.toml`. Three things clear it: delete those keys from that file and set them in
+  `~/.contextlake/kb.toml`; pass `--config PATH` naming that file; or, for `[llm]` only, pass
+  `--llm PROVIDER` to `kb wiki`, `kb docs` or `bootstrap`. Adding the block to
+  `~/.contextlake/kb.toml` while the discovered file keeps its own `provider` line does not clear
+  it, because the discovered file is merged last and its `provider` still wins. Set
+  `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely.
+
+## [8.13.0] - 2026-09-02
+
+### Changed
+
+- **The ambiguity fanout cap is 10, not 6, and stores re-index to pick it up.** A call
+  reference naming a symbol defined in more than the cap's many places produces no edge at
+  all, so the caller is simply absent from "who calls X". Measured with the cap removed on
+  the two largest ambiguity contributors in a 717,381-node store, the old cap was dropping
+  **29.6% and 37.0%** of resolvable call references. The comment beside it claimed 21.6%
+  and "no knee in the distribution"; both were wrong. There is a knee, and 10 sits on it:
+  76.2% and 80.6% of references for 1.22x and 1.52x the ambiguous edges.
+
+  Admitting everything is still wrong, for a sharper reason than the old note gave. The
+  uncapped cost is one or two pathological names per repository: 2,864 sites naming a
+  symbol with 1,432 definitions produced 4.1M edges by themselves, 92% of that
+  repository's uncapped total.
+
+  `PARSER_VERSION` moves to `12`, so existing stores re-index rather than keeping edges
+  built under the old cap.
+
 ### Added
+
+- **Zoom in and zoom out buttons on the graph toolbar.** Zoom level could only be chosen
+  by wheel or pinch. Pinch is a multipoint gesture, and WCAG 2.5.1 (Level A) wants a
+  single-pointer alternative; "Fit to view" sets a zoom level but does not let you pick
+  one. Each press steps by a fixed ratio about the viewport centre.
+
+  Wheel zoom got more responsive alongside them: `wheelSensitivity` was `0.2`, so reaching
+  a readable scale took a dozen notches and the canvas read as stuck. It is now `1`.
+
+### Fixed
+
+- **Every graph and dashboard page requested a favicon that did not exist**, producing a
+  404 in the console on each load. Both now carry an inline SVG icon, which costs no
+  request and survives an offline export.
+
+- **`kb dashboard --site <dir>` overwrote files it did not write.** The export writes
+  `index.html` unconditionally, so pointing it at a directory holding anything else --
+  a docs site, a hand-maintained landing page -- replaced that content silently, with the
+  command reporting success. It now refuses any directory containing files the export does
+  not itself produce, naming what it found. Re-running into a previous export stays
+  idempotent and needs no flag.
+
+## [8.12.0] - 2026-09-02
+
+### Added
+
+- **A node in the architecture graph now opens the wiki for its repo, and lands on the
+  subsystem page covering that node's file.** The graph page had no wiki link of any kind.
+  Inside the dashboard the graph runs in an iframe, so the node's control asks the
+  dashboard to route; the dashboard resolves the file to the narrowest generated
+  subsystem page that contains it and opens that, falling back to the repo's own page
+  when no subsystem page covers it. Opened through the dashboard's Fullscreen link the
+  same page has no parent, so it links that route directly. A static export links the
+  sibling wiki page it already writes.
+
+  The control appears only for a repo that has a generated wiki. The prefix match is
+  anchored on a path segment, so `src` cannot claim `srcutil/helper.py`.
+
+  There is no jump to a *heading*, and that is a limit of the data rather than an
+  omission. Generated pages carry page-level headings only (Overview, Setup & Run,
+  Architecture, Dependencies, Gotchas), the model is told to omit any it has nothing to
+  say for, and nothing in a page is about a single symbol. A computed anchor would land
+  silently at the top of the page.
+
+- **The docs pages that explain the graph now carry the running graph.**
+  `asking-the-graph`, `code-graph-model`, `indexing-the-code-graph` and
+  `visualizing-the-graph` described the visualizer in prose while the live page sat one
+  directory away, reachable only from the landing page. The page is 788 KB, so it is not
+  embedded eagerly: the markup ships a screenshot and an IntersectionObserver swaps the
+  iframe in when the reader scrolls near it, carrying the current theme. A reader with no
+  JavaScript, or who never scrolls that far, keeps the screenshot.
+
+### Fixed
+
+- **A static export's graph pages disagreed about which repos had a wiki.** The map was
+  filled while the pages were being written, so each page saw only the repos written
+  before it and the fleet overview, written first, saw none. Nothing read the map yet, so
+  nothing failed. It is now built before the first page.
+
+- **`RepoTooLarge` told you to pass a flag that does not exist.** A repository over the
+  memory budget was refused with "narrow it with `--languages`". There has never been a
+  `--languages` flag; the message introduced it, so anyone who followed the advice got
+  "unrecognized arguments" and no way to act on the error. The setting is real and lives
+  in `kb.toml` as `kb.languages`, which the message now names. A guard was added: no
+  string inside a `raise` or an exception's `__init__` may name a long flag that no parser
+  registers.
+
+- **The command palette's search field removed its own focus ring.**
+  `.cl-palette__input:focus` set `outline: none`, which takes the indicator away from
+  keyboard users rather than only from mouse users. It was safe while the palette held one
+  focusable control and would have become a WCAG 2.4.7 failure the moment a second one was
+  added, silently. Narrowed to `:focus-visible`, with a stylesheet-wide guard.
+
+## [8.11.0] - 2026-08-31
+
+### Fixed
+
+- **The dashboard rendered twice on every load, and fetched `/api/overview` twice with it.**
+  `boot()` attaches a `hashchange` listener and then gives the page a default hash when it
+  opens without one. Assigning `location.hash` fires `hashchange`, and the listener is
+  already attached, so the page rendered once from the explicit call and once from the
+  event. The two requests overlap, so neither can serve the other from cache. Measured
+  against a 961,633-node store: 2,769 ms and 4,005 ms, 35 ms apart, while the page shell was
+  ready in 114 ms. `history.replaceState` writes the same URL and dispatches nothing. It
+  also keeps the default hash out of the history stack, so Back no longer returns to the
+  hash-less URL and straight back again.
+
+- **The dashboard reserved layout columns for a sidebar and drawer that were not there.**
+  The rail becomes `position: fixed` below 768px and the drawer below 1280px, so both leave
+  the grid, but the rules naming their columns applied at every width. Specificity is
+  resolved before any media query is considered, so those rules won regardless of source
+  order. On a 700px viewport the main content measured 64px wide with the rail collapsed.
+  Three of the four rail and drawer combinations were wrong, not the one that was reported.
+  All four now use the full width, and 1000px and 1400px were re-checked.
+
+- **`kb wiki` under-reported how much of a run did not happen.** When a repository's
+  whole-repo page fails, the run skips that repository's module pages rather than trying
+  each one. Those pages were counted nowhere, so the four totals added up to less than the
+  run planned and six missing subsystem pages read the same as a repository that had none.
+  They are now reported as "N not attempted", kept separate from failures because a page
+  nobody tried is a different fact from a page that broke. The all-failed line also called a
+  page count "repo(s)", so a run that lost three module pages of one repository announced it
+  had failed for three repositories.
+
+### Added
+
+- **A truncated graph view now names the node kinds it dropped.** "500 of 3,200" says a view
+  is partial without saying that the part you came for is the part that is missing: a
+  repository with 412 `table` nodes that renders none of them has an empty ER diagram, and
+  the old message could not tell that apart from dropping 412 low-value nodes. The four
+  worst losses are logged with the count each kind had, and the full breakdown reaches
+  callers as `dropped_by_kind`. Both sides are counted rather than estimated. The key is
+  absent on a complete view, so nothing can render "0 dropped" over a view that dropped
+  nothing.
+
+- **A `forced-colors` block for the dashboard**, where there were none. Most of it needed
+  nothing: the health chips carry the words Fresh and Stale, the confidence chips carry a
+  border style and a clipped glyph, and cards, the rail and the drawer have borders that
+  survive a forced palette. The trust bar does not. Its segments are sized by flex and told
+  apart by background colour alone, so a forced palette merged them into one bar; they now
+  carry a divider, and focus uses the system highlight colour.
+
+### Documentation
+
+- **The `--repos` pattern syntax is documented in full**, in
+  [Mirroring repositories](docs/mirroring-repositories.md). The page said patterns are
+  globs and are anchored; it did not say which wildcards are available. It now lists all
+  four (`*`, `?`, `[abc]`, `[!abc]`) with an example each, and states the four rules that
+  govern every pattern: comma-separated, anchored, case-insensitive, and matched against
+  both the group-qualified and the local path.
+
+  It also covers the one case the anchoring does not reach. There is no escape character,
+  so `odd*name` matches a repo literally named `odd*name` and matches `oddXname` as well,
+  and cannot select the first on its own. A one-character set does:
+  `--repos "odd[*]name"`. `*` and `?` are legal in a path on Linux and macOS, not on
+  Windows.
+
+  Every claim on that page is now pinned by `tests/test_repos_pattern_syntax.py`.
+
+## [8.10.1] - 2026-08-31
+
+### Fixed
+
+- **`kb index --workspace` no longer breaks its worker pool.** The cause was
+  `RepoTooLarge`, the exception 8.10.0 added for the memory budget: it could not be
+  unpickled. A worker that refuses a repository sends the exception back to the parent,
+  and Python rebuilds an exception as `cls(*args)`, where `args` held only the formatted
+  message this class passes to `Exception.__init__`. The rebuild was three arguments
+  short and raised `TypeError` inside `ProcessPoolExecutor`'s manager thread, which has
+  no future to attribute a failure to, so it broke the whole executor: every healthy
+  worker was sent SIGTERM and every pending repository failed with `A process in the
+  process pool was terminated abruptly`. One refused repository ended a 656-repository
+  run in about a minute.
+
+  `pickle.dumps` succeeded on the exception throughout. Only the parent's unpickle
+  failed, which is why nothing caught it. The same 17-repository cluster that broke the
+  pool twice now completes at `--workers 4` with 0 failures, the over-budget repository
+  reported as a skip, and all four workers exiting 0.
+
+- **Five more exceptions had the same defect and are fixed with it.**
+  `GrammarNotInstalled` is raised on the same indexing path and would break a pool the
+  same way when an optional grammar is absent. `McpToolError`, `CircuitOpenError`,
+  `StoreBusy` and `RunBusy` are off that path today. Every exception in the package that
+  defines its own `__init__` now defines `__reduce__`, and a test walks the package to
+  assert each one survives a round trip, so the next one cannot ship without a sample.
+
+- **A broken worker pool now falls back to serial indexing.** That fallback was written
+  for this failure and was unreachable: `BrokenProcessPool` subclasses `RuntimeError`, so
+  the per-repository `except Exception` caught it, counted one failure against whichever
+  repository raised it, and continued, and the handler that re-runs the work-list serially
+  never ran once. The failure counters are reset before the serial pass, so a repository
+  that genuinely failed before the break is not counted again by it.
+
+- **The reason a pool broke is now reported.** `str(BrokenProcessPool)` is a fixed
+  sentence naming no cause, and the real reason is attached as `__cause__`, which was
+  discarded. Reporting only the fixed sentence is why three candidate causes stayed
+  unseparated across several investigations.
+
+## [8.10.0] - 2026-08-31
+
+### Upgrading
+
+**This release re-indexes every repository on your next `kb index`.** `PARSER_VERSION` moves
+from 10 to 11 because `.config` and four sibling extensions now carry settings into the graph,
+and no commit moves when an extractor starts reading a file type it previously ignored. Without
+the bump an existing store would report every repository "unchanged" and never gain a single
+setting.
+
+What that costs, measured on a 660-repository fleet:
+
+- The rebuild is automatic. `kb index` reports `older parser (10 -> 11)` and re-indexes rather
+  than skipping; the pass after that is quiet again.
+- The new extensions add roughly **61,000 `config_key` nodes** fleet-wide, dominated by 1,023
+  `.config` files at about 57 settings each.
+- The store-size change was **not measured** and no figure is given for it here. A full
+  re-index of that fleet has not been completed on this machine, and a number nobody measured
+  is worse than an absent one.
+
+### Known issues
+
+**`kb index --workspace` can break its worker pool at `--workers` above 1**, failing every
+still-pending repository with `A process in the process pool was terminated abruptly`. On a
+656-repository run this failed 640 of them in about a minute. `--workers 1` is unaffected.
+
+**Fixed in 8.10.1**, which describes the cause. It is `RepoTooLarge`, the exception this
+release added, failing to unpickle in the pool's manager thread. No worker runs out of memory
+and the `max_repo_memory` estimate is not involved. The wording in this section before 8.10.1
+attributed the break to that estimate and to a dying worker, and both were wrong.
+
+
+### Added
+
+- **`.config`, `.props`, `.targets`, `.settings` and `.plist` now reach the XML
+  config extractor, and `PARSER_VERSION` moves to 11 so existing stores get them.**
+  Without the bump the extraction reaches nobody who already has a store: `kb index`
+  gates re-indexing on the parser stamp, so an already-indexed repository reports
+  "unchanged" and never gains a setting. Re-indexing happens automatically on the
+  next `kb index`. Only `.xml` reached the extractor before, so the canonical .NET
+  settings file was contributing nothing: measured across 660 repositories, 1,023 `.config` files
+  produced zero nodes while being exactly the files "where is this setting
+  defined" is asked about. `.resx` is deliberately still excluded, being
+  localisation rather than settings and worth roughly 91,000 nodes fleet-wide;
+  so are project files, which the manifest extractor owns, and `.svg`, which is
+  XML-shaped graphics.
+
+- **`[kb] max_repo_memory`, a per-repository memory budget checked before any file
+  is parsed.** `max_file_bytes` bounds one file and cannot bound a repository that
+  is wide rather than deep. The repository that took a 15.4 GB machine down had a
+  largest file of 3.57 MB against a 5 MB cap, so that cap never fired once, while
+  1,432 XML files averaging 0.42 MB added up to 671 MB. The new budget estimates a
+  repository's cost from a stat-only pass, weighting each file kind by measured
+  peak memory per byte (code 19.6x, SQL 5.0x, XSD 4.3x, XML 3.5x), and skips the
+  repository with its name and the dominant kinds if it would exceed the budget.
+  It defaults to 3 GB, taken from the fleet rather than chosen: across 660 real
+  repositories the median estimate is near zero and p99 is 1.69 GB, with three
+  outliers at 6.09, 6.76 and 7.35 GB. Set it to 0 to disable. The estimate is
+  linear while the real cost is not, so it runs low on the largest repositories;
+  it is a coarse guard, and the existing shard-item check remains the second layer.
+
+## [8.9.0] - 2026-08-30
+
+### Added
+
+- **AWS and Azure adapters.** `--platform aws` creates an EventBridge Scheduler
+  schedule firing an ECS task; `--platform azure` creates a Container Apps Job on
+  a cron trigger. Both shell out to an already-authenticated `aws` or `az`, so
+  contextlake still ships no cloud SDK. On EKS and AKS use `--platform k8s`
+  instead: both are Kubernetes, so the `CronJob` adapter serves them and brings
+  `concurrencyPolicy: Forbid` with it. Neither cloud service has an equivalent of
+  `Forbid`, so two runs there can overlap and the second skips on the store's
+  advisory lock rather than never starting, which both adapters report. They round
+  differently by design: EventBridge takes `rate(N minutes)` and rounds to whole
+  minutes, while a Container Apps Job trigger is a cron expression and rounds the
+  way cron does. Registered but never auto-detected, for the same reason as the
+  Kubernetes adapter. Verified by asserting the rendered request documents and the
+  exact CLI arguments: there is no account here, so neither is verified by
+  execution.
+
+
+- **A Kubernetes adapter, covering OpenShift as well.** Renders a `CronJob` and
+  applies it with `kubectl`, falling back to `oc`. One adapter serves both,
+  because OpenShift is Kubernetes with a stricter default security context and
+  the manifest satisfies the stricter one: no `runAsUser`, since the restricted
+  SCC assigns an arbitrary UID and rejects a pinned one, plus `runAsNonRoot`,
+  a dropped capability set and an `fsGroup` so the mounted state directory stays
+  writable. `concurrencyPolicy: Forbid` gives single-writer semantics from the
+  cluster, so the second of two overlapping runs never starts. State mounts a
+  `PersistentVolumeClaim` rather than an `emptyDir`, because an ephemeral store
+  re-indexes the whole fleet every run. The schedule is a cron expression and
+  rounds through the same function the cron adapter uses. Nothing is patched in
+  the cluster on its own: changing an interval means re-running
+  `schedule install`, since a background rewrite would need cluster-write rights
+  for the life of the schedule. Reachable with `--platform k8s` and never
+  auto-detected: `kubectl` on a PATH does not mean a schedule belongs in that
+  cluster.
+
+
+- **A Windows adapter, so `contextlake schedule` works through Task Scheduler.**
+  Creates a task with `schtasks /SC MINUTE /MO n` under a `\contextlake` folder.
+  Two limits are reported rather than hidden. `/MO` counts whole minutes, so an
+  interval is rounded the way cron's is, down above a minute and up below it, and
+  `install` says when it rounded. `schtasks` cannot set *StartWhenAvailable*, so a
+  run missed while the machine was off is lost; the adapter reports that with the
+  same phrase cron uses, which is what stops `status` printing the fact twice. The
+  command is quoted with Windows rules rather than POSIX ones, because a venv path
+  containing a space is the ordinary case there. Verified by asserting the exact
+  `schtasks` arguments: the development machine is Linux, so this backend is not
+  verified by execution.
+
+
+- **A launchd adapter, so `contextlake schedule` works on macOS.** Renders a
+  LaunchAgent plist with `StartInterval` in seconds, installs it with
+  `launchctl bootstrap gui/$UID` (not the deprecated `load`, which can return 0
+  while doing nothing), and reads the interval back off the installed plist
+  rather than reporting what was requested. launchd replays a run missed while
+  the machine was asleep, like systemd and unlike cron. `schedule status` reports
+  no next-fire time for it, because launchd exposes none for an interval agent
+  and a computed guess would drift from what it actually does. Verified by
+  asserting the rendered plist and the exact `launchctl` arguments: the
+  development machine is Linux, so this backend is not verified by execution.
+
+
+- **`schedule list` reports units whose job record is gone.** `state()` can only
+  answer "is job X installed?", which can only be asked about a job that still
+  has a record. The reverse had no reader: delete a record and its unit keeps
+  firing on schedule, is absent from `list`, and `uninstall` cannot reach it,
+  because it resolves a job name through the record that is gone. Adapters gain
+  `installed_names()`, implemented by reading the unit directory for systemd and
+  the marked crontab blocks for cron. `list` names each orphan and its platform,
+  and says how to remove it. It also names any platform it could not enumerate:
+  skipping a platform and finding nothing on it both produce an empty result, so
+  reporting only the empty one would let "never looked" read as "checked, clean". With
+  `--json` the two arrive as `_orphaned_units` and `_unchecked_platforms`, added
+  alongside the jobs rather than nesting them: a script reading this output keeps
+  working. The leading underscore is what makes that safe, since a job name must
+  start with an alphanumeric and so can never collide.
+
+
+- **`schedule recommend` says when the activity bound was never measured.** The
+  freshness half of the interval formula needs a count of how many repositories
+  changed, which only the index stage records. On an install without the `kb`
+  extra nothing records it, so the bound never engages and the interval rests on
+  the duty-cycle floor alone. The `activity floor` line was omitted entirely in
+  that case, which read the same as the bound being switched off. It now states
+  that it was not measured and what records it. `--json` gains an `activity`
+  field reading `not-measured`, `no-change` or `measured`: `floor_activity_seconds`
+  is null for the first two of those, so the number alone could not tell them
+  apart.
+
+- **A memory-budget guard on `kb index`.** One repository in a real fleet
+  needed more than 9.3 GB in a single worker and never finished; no worker
+  count survives a repository that size. A repository whose parsed shard
+  exceeds 2,000,000 combined nodes and edges (well above the largest
+  repository known to index successfully, at roughly 356,000) is now skipped
+  with a named, explicit log line instead of being persisted, and the run
+  continues with the rest. This is a guard, not a fix: it stops one
+  pathological repository from taking a whole run down, it does not make that
+  repository indexable, and the exit code reflects that the run was not fully
+  clean.
+
+- **`--workers N` on `kb index` and `bootstrap`.** Caps how many repositories the
+  index stage parses in parallel. `_index_workspace` already accepted and honoured
+  a `workers` value, but nothing wired a flag to it, so the default (one fewer than
+  the CPU count, capped at 8) could not be overridden anywhere, including on
+  `bootstrap`, the default scheduled job. Lower it to cut peak memory on a large
+  fleet or a small machine.
+
+### Fixed
+
+- **Every scheduled job read every other job's run history.** All jobs append to
+  one history file and nothing in a record said which job wrote it. Two things
+  followed. `decide_kind` asks whether a successful full rebuild is older than
+  `schedule_full_every`, so a rebuild run by one job answered that question for
+  a job that had never run one and postponed its rebuild by a whole cycle. The
+  recommender's median run duration mixed every job's durations, so a
+  two-minute `kb index` and a forty-minute `bootstrap` produced one interval
+  that fitted neither. Records now carry the job name, passed to the child in
+  `CONTEXTLAKE_SCHEDULE_JOB`, and reads are scoped to one job. Records written
+  before this carry no job name and count as the default job's, so no existing
+  install loses the measurements it has earned. If you created a named job with
+  `schedule interval` on 8.8.0, its earlier records are reattributed to
+  `default`, so that job starts from an empty history and runs one extra full
+  rebuild on its next cycle. Every record it writes after that is tagged.
+
+- **`kb index`'s parallel path leaked every completed repository's parsed graph
+  for the whole run.** The worker pool's `futs` dict was keyed by `Future`, and
+  `fut.result()` does not clear a future's cached result, so a completed
+  repository's `GraphShard` stayed reachable through `futs` until the pool's
+  `with` block exited. Measured by A/B on the same 45 repositories at the same
+  worker count: 2,130 MB retained versus 95 MB released, 22x apart on
+  identical work, growing with repos indexed rather than with worker count.
+  Each future's dict entry is now dropped once its `(repo_id, path, head)` is
+  read off it, both on the fast path and the serial fallback after a broken
+  pool.
+
+- **A timed-out scheduled run orphaned its worker pool.** `contextlake schedule run`
+  spawned its child with `subprocess.run(..., timeout=...)`, which on a timeout kills
+  only the direct child. The child is usually `bootstrap` or `kb index`, which runs a
+  `ProcessPoolExecutor` of up to 8 workers, so a timed-out run left the whole pool
+  running, reparented to init and still holding memory. Measured on a real machine:
+  one killed run left 8 orphaned workers holding 12.4 GB. On a schedule, every
+  timed-out run leaked another pool. The child now starts in its own process group
+  and, on a timeout, the whole group is signalled (SIGTERM, then SIGKILL if it does
+  not exit within a few seconds), so nothing below it survives. Windows has neither process
+  groups nor `SIGKILL`, so there the timeout falls back to `taskkill /F /T`, which
+  walks the child tree and reclaims the pool the same way.
+
+## [8.8.0] - 2026-08-27
+
+### Added
+
+- **`contextlake schedule`: a self-scheduler.** Measures how long a run takes and how often your
+  repositories change, works out an interval from the two, and installs a systemd user timer or
+  a crontab entry that keeps the mirror and the knowledge layer current on its own, with no unit
+  file or cron line to write by hand. Core tier: works without the `[kb]` extra.
+  `recommend`, `status` and `list` read only; `install`, `interval`, `reset` and `uninstall`
+  write. Ad-hoc jobs run any contextlake command on their own interval:
+
+  ```bash
+  contextlake schedule interval 6h run -- kb wiki --force
+  ```
+
+  Ten `schedule_*` config keys, an honest split between what systemd and cron can each do, and a
+  container refusal for state that will not survive a restart. Discarding measured history
+  (`--purge`, `reset --history`) renames the history file to a `.discarded` sidecar instead of
+  deleting it, so a mistaken discard is recoverable. See [Scheduling runs](docs/scheduling.md).
 
 - **`branch_map`: per-repository branch pins.** `branch` puts the whole fleet on one branch,
   which is the common case and not the only one. `branch_map` takes comma-separated
@@ -7795,6 +8887,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```
 
 ### Changed
+
+- **`bootstrap` gained `--force`.** Rebuilds everything instead of only what changed: every
+  repository re-parsed, every node re-embedded. It did not exist as a flag before; it is what
+  `schedule`'s periodic full cycle runs.
 
 - **`configuration.md`'s example config now shows the scoping keys.** `repo_filter`, `branch`
   and `branch_map` were documented in the settings table but absent from the example anyone
@@ -15624,6 +16720,22 @@ These are contextlake's signature, and they are good technical writing on their 
 - **"please"** in instructions. Write "To view the graph, run `contextlake kb graph`", not "Please run".
 - **"click here" / "read this"** as link text. See the [formatting page](style-guide-formatting.md).
 - **Exclamation points** in body copy. One is allowed, rarely, in the warmest microcopy.
+- **Intensifiers.** very, really, quite, extremely, incredibly, absolutely, totally, truly,
+  genuinely, deeply, highly, thoroughly, perfectly, completely, simply, literally, actually,
+  obviously, clearly, certainly, definitely, massively, hugely, dramatically, substantially,
+  considerably, particularly, especially, crucially, fundamentally, essentially, basically,
+  effectively, indeed, pretty, far, much. Replace with the number, or delete the word.
+  "much faster" is "3x faster" or "faster"; "very large" is "5.6 GB". Deleting an
+  intensifier almost never changes the meaning, which is the test that it was one.
+- **Downtoners.** somewhat, slightly, fairly, rather, a bit, kind of, sort of, relatively,
+  marginally, largely, mostly, broadly, arguably, roughly (when the number is known). Never
+  downtone a fact the page verified: "the test seems to pass" is "12/12 pass". Real
+  uncertainty is different and must be stated outright, per *grounded* above.
+- **Scoped to sense, not banned outright.** `just` and `only` are fine meaning "only", banned
+  as minimizers ("just add a flag"). `exactly` is fine for literal identity ("exactly 200
+  records"), banned as emphasis ("exactly why", "exactly this"). `significantly` is fine for
+  statistical significance only. A bare word search will produce false positives here: a
+  `\bjust\b` rule once flagged 45 correct sentences meaning "only".
 
 ## Word choice
 

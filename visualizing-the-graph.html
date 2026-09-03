@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Visualizing the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-01"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a06a793b">
-<link rel="stylesheet" href="tokens.css?v=a06a793b">
-<link rel="stylesheet" href="docs.css?v=a06a793b">
-<link rel="stylesheet" href="cmdk.css?v=a06a793b">
+<link rel="stylesheet" href="fonts.css?v=6cb12363">
+<link rel="stylesheet" href="tokens.css?v=6cb12363">
+<link rel="stylesheet" href="docs.css?v=6cb12363">
+<link rel="stylesheet" href="cmdk.css?v=6cb12363">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,7 +43,7 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph" class="active">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph" class="active">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Visualizing the graph</span></nav>
     <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Visualizing the graph</h1><p class="doc-sub">Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
@@ -226,6 +226,21 @@ you're asking "what depends on this".</p>
 many nodes it found ("4 nodes downstream"). It appears only on nodes that have an outgoing edge.</p>
 <p>It traces the graph currently on the canvas. In <code>--serve</code> mode that's whatever you've expanded so
 far, so if a trace looks short, expand further with <strong>depth</strong> raised, then run it again.</p>
+<h3 id="read-the-prose-about-a-node">Read the prose about a node<a class="anchor" href="#read-the-prose-about-a-node" title="Link to this section">#</a></h3>
+<p><strong>Read the wiki</strong> in the inspector opens the generated wiki for the node's repository. It appears
+only when that repository has one.</p>
+<p>Where it lands depends on how you opened the graph:</p>
+<ul>
+<li><strong>In the dashboard</strong>, it opens the subsystem page covering that node's file, and falls back to
+  the repository's own page when no subsystem page covers it.</li>
+<li><strong>On a <code>--site</code> export</strong>, it opens the repository page beside it. The export writes whole-repo
+  pages only, so there is nothing narrower to open.</li>
+</ul>
+<p>There is no link to a heading. Generated pages are written in page-level sections (Overview,
+Setup &amp; Run, Architecture, Dependencies, Gotchas) and the model is asked to leave out any it has
+nothing to say for, so no section is about one symbol and no named section is certain to be
+there. A link to a heading that was not written lands at the top of the page and looks like it
+worked.</p>
 <h3 id="filter-with-the-legend">Filter with the legend<a class="anchor" href="#filter-with-the-legend" title="Link to this section">#</a></h3>
 <p>The <strong>Nodes</strong> legend groups every kind present into the vocabulary's ten bands: Symbols,
 Containers, Service surfaces, Data model, Infrastructure, Presentation, Configuration, Documents,
@@ -288,6 +303,12 @@ identical here: an HTTP call whose target path matches no indexed repo's <code>e
 box labels yourself; you'll recognize your own internal hosts. <code>--c1</code> requires <code>--c4</code> (it has no
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.</p>
+<h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=6cb12363"
+  alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
+<p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
+offline with no network calls.</p>
+
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="using-the-dashboard">The dashboard</a></li>
@@ -302,6 +323,7 @@ just never used until this view asks for it.</p>
 <li><a href="#working-the-served-graph">Working the served graph</a><ul>
 <li><a href="#expand-a-node-as-far-as-you-want">Expand a node, as far as you want</a></li>
 <li><a href="#trace-what-a-node-reaches">Trace what a node reaches</a></li>
+<li><a href="#read-the-prose-about-a-node">Read the prose about a node</a></li>
 <li><a href="#filter-with-the-legend">Filter with the legend</a></li>
 <li><a href="#whats-folded-away-and-where-it-went">What's folded away, and where it went</a></li>
 </ul>
@@ -310,6 +332,7 @@ just never used until this view asks for it.</p>
 <li><a href="#c1-external-systems">C1: external systems</a></li>
 </ul>
 </li>
+<li><a href="#the-graph-on-this-page">The graph, on this page</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -382,6 +405,27 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a06a793b"></script>
+<script>(function(){
+  var imgs = document.querySelectorAll("img[data-embed]");
+  if(!imgs.length || !window.IntersectionObserver) return;
+  function theme(){var e=document.documentElement.getAttribute("data-theme");
+    if(e==="dark"||e==="light")return e;
+    return matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}
+  imgs.forEach(function(img){
+    var embed = img.getAttribute("data-embed");
+    var io = new IntersectionObserver(function(es){
+      if(!es[0].isIntersecting) return;
+      io.disconnect();
+      var f = document.createElement("iframe");
+      f.className = "shot graph-embed"; f.title = img.alt;
+      f.setAttribute("scrolling","no"); f.setAttribute("loading","lazy");
+      f.onerror = function(){ f.replaceWith(img); };
+      f.src = embed + "#theme=" + theme();
+      img.replaceWith(f);
+    }, {rootMargin:"400px 0px"});
+    io.observe(img);
+  });
+})();</script>
+<script defer src="cmdk.js?v=6cb12363"></script>
 </body>
 </html>
