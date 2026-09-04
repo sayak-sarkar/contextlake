@@ -102,12 +102,31 @@ def test_de_emdash_leaves_fenced_console_output_byte_exact():
     The guard is written against a sample that would have been rewritten, so reverting
     `de_emdash` to a blanket replace fails here rather than shipping a wrong transcript.
     """
+    # `markdown` is a site dependency and is NOT installed in CI's jobs, while it is
+    # present in a dev venv. The first version of this test exec'd build_docs.py
+    # directly and went red on all eight CI cells while passing here. `importorskip`
+    # is not the fix either: tests/test_docs_graph_embed.py records that an earlier
+    # test of that file SKIPPED on CI while passing locally, which is the same
+    # only-runs-on-my-machine hole in a quieter form.
+    #
+    # `de_emdash` is pure string work and never touches `markdown`; only the
+    # module-level import does. So stub that one import, run the real function, and
+    # keep a behavioural assertion that runs everywhere.
     import importlib.util
+    import sys
+    import types
 
-    spec = importlib.util.spec_from_file_location(
-        "_bd_emdash", REPO / "site" / "build_docs.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    stubbed = "markdown" not in sys.modules
+    if stubbed:
+        sys.modules["markdown"] = types.ModuleType("markdown")
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "_bd_emdash", REPO / "site" / "build_docs.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        if stubbed:
+            del sys.modules["markdown"]
 
     source = (
         "A prose line — with an em-dash in it.\n"
