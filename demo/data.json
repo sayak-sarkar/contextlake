@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-09-03",
+  "snapshot_date": "2026-09-04",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -38,29 +38,7 @@
     },
     "repos": [
       {
-        "id": "acme/auth-service",
-        "group": "acme",
-        "node_count": 7,
-        "head_commit": "33bb44",
-        "default_branch": null,
-        "indexed_at": "2026-01-01T00:00:00Z",
-        "langs": {
-          "python": 5
-        }
-      },
-      {
-        "id": "acme/catalog-api",
-        "group": "acme",
-        "node_count": 7,
-        "head_commit": "55cc66",
-        "default_branch": null,
-        "indexed_at": "2026-01-01T00:00:00Z",
-        "langs": {
-          "csharp": 5
-        }
-      },
-      {
-        "id": "acme/notifications",
+        "id": "acme/alerts",
         "group": "acme",
         "node_count": 7,
         "head_commit": "99ee00",
@@ -71,7 +49,29 @@
         }
       },
       {
-        "id": "acme/payments-api",
+        "id": "acme/console-ui",
+        "group": "acme",
+        "node_count": 7,
+        "head_commit": "aabbcc",
+        "default_branch": null,
+        "indexed_at": "2026-01-01T00:00:00Z",
+        "langs": {
+          "typescript": 5
+        }
+      },
+      {
+        "id": "acme/forecast-api",
+        "group": "acme",
+        "node_count": 7,
+        "head_commit": "55cc66",
+        "default_branch": null,
+        "indexed_at": "2026-01-01T00:00:00Z",
+        "langs": {
+          "go": 5
+        }
+      },
+      {
+        "id": "acme/sensor-ingest",
         "group": "acme",
         "node_count": 7,
         "head_commit": "77dd88",
@@ -93,14 +93,14 @@
         }
       },
       {
-        "id": "acme/web-ui",
+        "id": "acme/station-registry",
         "group": "acme",
         "node_count": 7,
-        "head_commit": "aabbcc",
+        "head_commit": "33bb44",
         "default_branch": null,
         "indexed_at": "2026-01-01T00:00:00Z",
         "langs": {
-          "typescript": 5
+          "python": 5
         }
       },
       {
@@ -120,12 +120,12 @@
         "group": "acme",
         "count": 6,
         "repos": [
-          "acme/auth-service",
-          "acme/catalog-api",
-          "acme/notifications",
-          "acme/payments-api",
+          "acme/alerts",
+          "acme/console-ui",
+          "acme/forecast-api",
+          "acme/sensor-ingest",
           "acme/shared-lib",
-          "acme/web-ui"
+          "acme/station-registry"
         ]
       },
       {
@@ -138,322 +138,10 @@
     ]
   },
   "repos": {
-    "acme/auth-service": {
-      "repo": "acme/auth-service",
+    "acme/alerts": {
+      "repo": "acme/alerts",
       "brief": {
-        "repo": "acme/auth-service",
-        "head": "33bb44",
-        "node_count": 7,
-        "edge_count": 5,
-        "kinds": {
-          "repo": 1,
-          "file": 1,
-          "class": 2,
-          "function": 2,
-          "package": 1
-        },
-        "langs": {
-          "python": 5
-        },
-        "top_symbols": [
-          {
-            "kind": "file",
-            "name": "manifest.py",
-            "file": "manifest.py",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "TokenManager",
-            "file": "src/TokenManager.py",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "function",
-            "name": "verify_token",
-            "file": "src/verify_token.py",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "AuthService",
-            "file": "src/AuthService.py",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "function",
-            "name": "hash_password",
-            "file": "src/hash_password.py",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "package",
-            "name": "acme-auth",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/auth-service",
-            "file": null,
-            "signature": null,
-            "doc": null
-          }
-        ],
-        "hubs": [
-          {
-            "kind": "class",
-            "name": "TokenManager",
-            "file": "src/TokenManager.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "function",
-            "name": "verify_token",
-            "file": "src/verify_token.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "function",
-            "name": "hash_password",
-            "file": "src/hash_password.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "package",
-            "name": "acme-auth",
-            "file": null,
-            "signature": null,
-            "doc": null,
-            "count": 1
-          }
-        ],
-        "dispatchers": [
-          {
-            "kind": "file",
-            "name": "manifest.py",
-            "file": "manifest.py",
-            "signature": null,
-            "doc": null,
-            "count": 2
-          },
-          {
-            "kind": "class",
-            "name": "AuthService",
-            "file": "src/AuthService.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "TokenManager",
-            "file": "src/TokenManager.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "function",
-            "name": "verify_token",
-            "file": "src/verify_token.py",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          }
-        ],
-        "packages": [],
-        "files": [
-          "manifest.py",
-          "src/AuthService.py",
-          "src/TokenManager.py",
-          "src/hash_password.py",
-          "src/verify_token.py"
-        ],
-        "setup_signals": [],
-        "readme_excerpt": null
-      },
-      "readme_html": null,
-      "wiki": {
-        "found": false,
-        "stale": true,
-        "html": null
-      },
-      "owners": [],
-      "links": {}
-    },
-    "acme/catalog-api": {
-      "repo": "acme/catalog-api",
-      "brief": {
-        "repo": "acme/catalog-api",
-        "head": "55cc66",
-        "node_count": 7,
-        "edge_count": 8,
-        "kinds": {
-          "repo": 1,
-          "file": 1,
-          "class": 3,
-          "method": 1,
-          "package": 1
-        },
-        "langs": {
-          "csharp": 5
-        },
-        "top_symbols": [
-          {
-            "kind": "file",
-            "name": "manifest.cs",
-            "file": "manifest.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "CatalogService",
-            "file": "src/CatalogService.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "OrderRepository",
-            "file": "src/OrderRepository.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "OrderController",
-            "file": "src/OrderController.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "method",
-            "name": "ValidateOrder",
-            "file": "src/ValidateOrder.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "package",
-            "name": "acme-orders",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/catalog-api",
-            "file": null,
-            "signature": null,
-            "doc": null
-          }
-        ],
-        "hubs": [
-          {
-            "kind": "class",
-            "name": "CatalogService",
-            "file": "src/CatalogService.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "OrderRepository",
-            "file": "src/OrderRepository.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "method",
-            "name": "ValidateOrder",
-            "file": "src/ValidateOrder.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "package",
-            "name": "acme-orders",
-            "file": null,
-            "signature": null,
-            "doc": null,
-            "count": 1
-          }
-        ],
-        "dispatchers": [
-          {
-            "kind": "file",
-            "name": "manifest.cs",
-            "file": "manifest.cs",
-            "signature": null,
-            "doc": null,
-            "count": 5
-          },
-          {
-            "kind": "class",
-            "name": "OrderController",
-            "file": "src/OrderController.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "CatalogService",
-            "file": "src/CatalogService.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "OrderRepository",
-            "file": "src/OrderRepository.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          }
-        ],
-        "packages": [],
-        "files": [
-          "manifest.cs",
-          "src/CatalogService.cs",
-          "src/OrderController.cs",
-          "src/OrderRepository.cs",
-          "src/ValidateOrder.cs"
-        ],
-        "setup_signals": [],
-        "readme_excerpt": null
-      },
-      "readme_html": null,
-      "wiki": {
-        "found": false,
-        "stale": true,
-        "html": null
-      },
-      "owners": [],
-      "links": {}
-    },
-    "acme/notifications": {
-      "repo": "acme/notifications",
-      "brief": {
-        "repo": "acme/notifications",
+        "repo": "acme/alerts",
         "head": "99ee00",
         "node_count": 7,
         "edge_count": 5,
@@ -477,15 +165,15 @@
           },
           {
             "kind": "class",
-            "name": "EmailSender",
-            "file": "src/EmailSender.js",
+            "name": "AlertSender",
+            "file": "src/AlertSender.js",
             "signature": null,
             "doc": null
           },
           {
             "kind": "function",
-            "name": "sendEmail",
-            "file": "src/sendEmail.js",
+            "name": "sendAlert",
+            "file": "src/sendAlert.js",
             "signature": null,
             "doc": null
           },
@@ -505,14 +193,14 @@
           },
           {
             "kind": "package",
-            "name": "acme-notify",
+            "name": "acme-alerts",
             "file": null,
             "signature": null,
             "doc": null
           },
           {
             "kind": "repo",
-            "name": "acme/notifications",
+            "name": "acme/alerts",
             "file": null,
             "signature": null,
             "doc": null
@@ -521,16 +209,16 @@
         "hubs": [
           {
             "kind": "class",
-            "name": "EmailSender",
-            "file": "src/EmailSender.js",
+            "name": "AlertSender",
+            "file": "src/AlertSender.js",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "function",
-            "name": "sendEmail",
-            "file": "src/sendEmail.js",
+            "name": "sendAlert",
+            "file": "src/sendAlert.js",
             "signature": null,
             "doc": null,
             "count": 1
@@ -545,7 +233,7 @@
           },
           {
             "kind": "package",
-            "name": "acme-notify",
+            "name": "acme-alerts",
             "file": null,
             "signature": null,
             "doc": null,
@@ -571,16 +259,16 @@
           },
           {
             "kind": "class",
-            "name": "EmailSender",
-            "file": "src/EmailSender.js",
+            "name": "AlertSender",
+            "file": "src/AlertSender.js",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "function",
-            "name": "sendEmail",
-            "file": "src/sendEmail.js",
+            "name": "sendAlert",
+            "file": "src/sendAlert.js",
             "signature": null,
             "doc": null,
             "count": 1
@@ -589,10 +277,10 @@
         "packages": [],
         "files": [
           "manifest.js",
-          "src/EmailSender.js",
+          "src/AlertSender.js",
           "src/Notifier.js",
           "src/queueJob.js",
-          "src/sendEmail.js"
+          "src/sendAlert.js"
         ],
         "setup_signals": [],
         "readme_excerpt": null
@@ -606,10 +294,322 @@
       "owners": [],
       "links": {}
     },
-    "acme/payments-api": {
-      "repo": "acme/payments-api",
+    "acme/console-ui": {
+      "repo": "acme/console-ui",
       "brief": {
-        "repo": "acme/payments-api",
+        "repo": "acme/console-ui",
+        "head": "aabbcc",
+        "node_count": 7,
+        "edge_count": 7,
+        "kinds": {
+          "repo": 1,
+          "file": 1,
+          "class": 3,
+          "function": 1,
+          "package": 1
+        },
+        "langs": {
+          "typescript": 5
+        },
+        "top_symbols": [
+          {
+            "kind": "file",
+            "name": "manifest.tsx",
+            "file": "manifest.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "class",
+            "name": "ReadingsView",
+            "file": "src/ReadingsView.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "function",
+            "name": "useStation",
+            "file": "src/useStation.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "class",
+            "name": "StationPage",
+            "file": "src/StationPage.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "class",
+            "name": "ApiClient",
+            "file": "src/ApiClient.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-console",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/console-ui",
+            "file": null,
+            "signature": null,
+            "doc": null
+          }
+        ],
+        "hubs": [
+          {
+            "kind": "class",
+            "name": "ReadingsView",
+            "file": "src/ReadingsView.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "function",
+            "name": "useStation",
+            "file": "src/useStation.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "class",
+            "name": "ApiClient",
+            "file": "src/ApiClient.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "package",
+            "name": "acme-console",
+            "file": null,
+            "signature": null,
+            "doc": null,
+            "count": 1
+          }
+        ],
+        "dispatchers": [
+          {
+            "kind": "file",
+            "name": "manifest.tsx",
+            "file": "manifest.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 4
+          },
+          {
+            "kind": "class",
+            "name": "StationPage",
+            "file": "src/StationPage.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "class",
+            "name": "ReadingsView",
+            "file": "src/ReadingsView.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "function",
+            "name": "useStation",
+            "file": "src/useStation.tsx",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          }
+        ],
+        "packages": [],
+        "files": [
+          "manifest.tsx",
+          "src/ApiClient.tsx",
+          "src/ReadingsView.tsx",
+          "src/StationPage.tsx",
+          "src/useStation.tsx"
+        ],
+        "setup_signals": [],
+        "readme_excerpt": null
+      },
+      "readme_html": null,
+      "wiki": {
+        "found": false,
+        "stale": true,
+        "html": null
+      },
+      "owners": [],
+      "links": {}
+    },
+    "acme/forecast-api": {
+      "repo": "acme/forecast-api",
+      "brief": {
+        "repo": "acme/forecast-api",
+        "head": "55cc66",
+        "node_count": 7,
+        "edge_count": 8,
+        "kinds": {
+          "repo": 1,
+          "file": 1,
+          "function": 1,
+          "struct": 3,
+          "package": 1
+        },
+        "langs": {
+          "go": 5
+        },
+        "top_symbols": [
+          {
+            "kind": "file",
+            "name": "manifest.go",
+            "file": "manifest.go",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "struct",
+            "name": "ForecastRunner",
+            "file": "src/runner.go",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "struct",
+            "name": "GridSampler",
+            "file": "src/sampler.go",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "function",
+            "name": "RunCycle",
+            "file": "src/cycle.go",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "struct",
+            "name": "ModelGrid",
+            "file": "src/grid.go",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-forecast",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/forecast-api",
+            "file": null,
+            "signature": null,
+            "doc": null
+          }
+        ],
+        "hubs": [
+          {
+            "kind": "struct",
+            "name": "ForecastRunner",
+            "file": "src/runner.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "struct",
+            "name": "GridSampler",
+            "file": "src/sampler.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "struct",
+            "name": "ModelGrid",
+            "file": "src/grid.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "package",
+            "name": "acme-forecast",
+            "file": null,
+            "signature": null,
+            "doc": null,
+            "count": 1
+          }
+        ],
+        "dispatchers": [
+          {
+            "kind": "file",
+            "name": "manifest.go",
+            "file": "manifest.go",
+            "signature": null,
+            "doc": null,
+            "count": 5
+          },
+          {
+            "kind": "function",
+            "name": "RunCycle",
+            "file": "src/cycle.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "struct",
+            "name": "ForecastRunner",
+            "file": "src/runner.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "struct",
+            "name": "GridSampler",
+            "file": "src/sampler.go",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          }
+        ],
+        "packages": [],
+        "files": [
+          "manifest.go",
+          "src/cycle.go",
+          "src/grid.go",
+          "src/runner.go",
+          "src/sampler.go"
+        ],
+        "setup_signals": [],
+        "readme_excerpt": null
+      },
+      "readme_html": null,
+      "wiki": {
+        "found": false,
+        "stale": true,
+        "html": null
+      },
+      "owners": [],
+      "links": {}
+    },
+    "acme/sensor-ingest": {
+      "repo": "acme/sensor-ingest",
+      "brief": {
+        "repo": "acme/sensor-ingest",
         "head": "77dd88",
         "node_count": 7,
         "edge_count": 6,
@@ -633,42 +633,42 @@
           },
           {
             "kind": "class",
-            "name": "CardGateway",
-            "file": "src/CardGateway.cs",
+            "name": "ReadingProcessor",
+            "file": "src/ReadingProcessor.cs",
             "signature": null,
             "doc": null
           },
           {
             "kind": "method",
-            "name": "Charge",
-            "file": "src/Charge.cs",
+            "name": "Ingest",
+            "file": "src/Ingest.cs",
             "signature": null,
             "doc": null
           },
           {
             "kind": "class",
-            "name": "PaymentProcessor",
-            "file": "src/PaymentProcessor.cs",
+            "name": "SensorGateway",
+            "file": "src/SensorGateway.cs",
             "signature": null,
             "doc": null
           },
           {
             "kind": "method",
-            "name": "Refund",
-            "file": "src/Refund.cs",
+            "name": "Backfill",
+            "file": "src/Backfill.cs",
             "signature": null,
             "doc": null
           },
           {
             "kind": "package",
-            "name": "acme-payments",
+            "name": "acme-ingest",
             "file": null,
             "signature": null,
             "doc": null
           },
           {
             "kind": "repo",
-            "name": "acme/payments-api",
+            "name": "acme/sensor-ingest",
             "file": null,
             "signature": null,
             "doc": null
@@ -677,31 +677,23 @@
         "hubs": [
           {
             "kind": "class",
-            "name": "CardGateway",
-            "file": "src/CardGateway.cs",
+            "name": "ReadingProcessor",
+            "file": "src/ReadingProcessor.cs",
             "signature": null,
             "doc": null,
-            "count": 1
+            "count": 2
           },
           {
             "kind": "method",
-            "name": "Charge",
-            "file": "src/Charge.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "method",
-            "name": "Refund",
-            "file": "src/Refund.cs",
+            "name": "Ingest",
+            "file": "src/Ingest.cs",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "package",
-            "name": "acme-payments",
+            "name": "acme-ingest",
             "file": null,
             "signature": null,
             "doc": null,
@@ -719,24 +711,24 @@
           },
           {
             "kind": "class",
-            "name": "PaymentProcessor",
-            "file": "src/PaymentProcessor.cs",
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "CardGateway",
-            "file": "src/CardGateway.cs",
+            "name": "SensorGateway",
+            "file": "src/SensorGateway.cs",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "method",
-            "name": "Charge",
-            "file": "src/Charge.cs",
+            "name": "Ingest",
+            "file": "src/Ingest.cs",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "method",
+            "name": "Backfill",
+            "file": "src/Backfill.cs",
             "signature": null,
             "doc": null,
             "count": 1
@@ -745,10 +737,10 @@
         "packages": [],
         "files": [
           "manifest.cs",
-          "src/CardGateway.cs",
-          "src/Charge.cs",
-          "src/PaymentProcessor.cs",
-          "src/Refund.cs"
+          "src/Backfill.cs",
+          "src/Ingest.cs",
+          "src/ReadingProcessor.cs",
+          "src/SensorGateway.cs"
         ],
         "setup_signals": [],
         "readme_excerpt": null
@@ -919,69 +911,69 @@
       "owners": [],
       "links": {}
     },
-    "acme/web-ui": {
-      "repo": "acme/web-ui",
+    "acme/station-registry": {
+      "repo": "acme/station-registry",
       "brief": {
-        "repo": "acme/web-ui",
-        "head": "aabbcc",
+        "repo": "acme/station-registry",
+        "head": "33bb44",
         "node_count": 7,
-        "edge_count": 7,
+        "edge_count": 5,
         "kinds": {
           "repo": 1,
           "file": 1,
-          "class": 3,
-          "function": 1,
+          "class": 2,
+          "function": 2,
           "package": 1
         },
         "langs": {
-          "typescript": 5
+          "python": 5
         },
         "top_symbols": [
           {
             "kind": "file",
-            "name": "manifest.tsx",
-            "file": "manifest.tsx",
+            "name": "manifest.py",
+            "file": "manifest.py",
             "signature": null,
             "doc": null
           },
           {
             "kind": "class",
-            "name": "CartView",
-            "file": "src/CartView.tsx",
+            "name": "StationEnrollment",
+            "file": "src/StationEnrollment.py",
             "signature": null,
             "doc": null
           },
           {
             "kind": "function",
-            "name": "useCheckout",
-            "file": "src/useCheckout.tsx",
+            "name": "verify_station",
+            "file": "src/verify_station.py",
             "signature": null,
             "doc": null
           },
           {
             "kind": "class",
-            "name": "CheckoutPage",
-            "file": "src/CheckoutPage.tsx",
+            "name": "StationRegistry",
+            "file": "src/StationRegistry.py",
             "signature": null,
             "doc": null
           },
           {
-            "kind": "class",
-            "name": "ApiClient",
-            "file": "src/ApiClient.tsx",
+            "kind": "function",
+            "name": "normalize_station_id",
+            "file": "src/normalize_station_id.py",
             "signature": null,
             "doc": null
           },
           {
             "kind": "package",
-            "name": "acme-webui",
+            "name": "acme-stations",
             "file": null,
             "signature": null,
             "doc": null
           },
           {
             "kind": "repo",
-            "name": "acme/web-ui",
+            "name": "acme/station-registry",
             "file": null,
             "signature": null,
             "doc": null
@@ -990,31 +982,31 @@
         "hubs": [
           {
             "kind": "class",
-            "name": "CartView",
-            "file": "src/CartView.tsx",
+            "name": "StationEnrollment",
+            "file": "src/StationEnrollment.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "function",
-            "name": "useCheckout",
-            "file": "src/useCheckout.tsx",
+            "name": "verify_station",
+            "file": "src/verify_station.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "ApiClient",
-            "file": "src/ApiClient.tsx",
+            "kind": "function",
+            "name": "normalize_station_id",
+            "file": "src/normalize_station_id.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "package",
-            "name": "acme-webui",
+            "name": "acme-stations",
             "file": null,
             "signature": null,
             "doc": null,
@@ -1024,32 +1016,32 @@
         "dispatchers": [
           {
             "kind": "file",
-            "name": "manifest.tsx",
-            "file": "manifest.tsx",
+            "name": "manifest.py",
+            "file": "manifest.py",
             "signature": null,
             "doc": null,
-            "count": 4
+            "count": 2
           },
           {
             "kind": "class",
-            "name": "CheckoutPage",
-            "file": "src/CheckoutPage.tsx",
+            "name": "StationRegistry",
+            "file": "src/StationRegistry.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "class",
-            "name": "CartView",
-            "file": "src/CartView.tsx",
+            "name": "StationEnrollment",
+            "file": "src/StationEnrollment.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
             "kind": "function",
-            "name": "useCheckout",
-            "file": "src/useCheckout.tsx",
+            "name": "verify_station",
+            "file": "src/verify_station.py",
             "signature": null,
             "doc": null,
             "count": 1
@@ -1057,11 +1049,11 @@
         ],
         "packages": [],
         "files": [
-          "manifest.tsx",
-          "src/ApiClient.tsx",
-          "src/CartView.tsx",
-          "src/CheckoutPage.tsx",
-          "src/useCheckout.tsx"
+          "manifest.py",
+          "src/StationEnrollment.py",
+          "src/StationRegistry.py",
+          "src/normalize_station_id.py",
+          "src/verify_station.py"
         ],
         "setup_signals": [],
         "readme_excerpt": null
@@ -1092,15 +1084,15 @@
         "top_symbols": [
           {
             "kind": "class",
-            "name": "CatalogService",
-            "file": "src/catalog.py",
+            "name": "ForecastService",
+            "file": "src/forecast.py",
             "signature": null,
             "doc": null
           },
           {
             "kind": "function",
-            "name": "charge",
-            "file": "src/pay.py",
+            "name": "load_readings",
+            "file": "src/readings.py",
             "signature": null,
             "doc": null
           }
@@ -1108,8 +1100,8 @@
         "hubs": [
           {
             "kind": "function",
-            "name": "charge",
-            "file": "src/pay.py",
+            "name": "load_readings",
+            "file": "src/readings.py",
             "signature": null,
             "doc": null,
             "count": 1
@@ -1118,8 +1110,8 @@
         "dispatchers": [
           {
             "kind": "class",
-            "name": "CatalogService",
-            "file": "src/catalog.py",
+            "name": "ForecastService",
+            "file": "src/forecast.py",
             "signature": null,
             "doc": null,
             "count": 1
@@ -1127,8 +1119,8 @@
         ],
         "packages": [],
         "files": [
-          "src/catalog.py",
-          "src/pay.py"
+          "src/forecast.py",
+          "src/readings.py"
         ],
         "setup_signals": [],
         "readme_excerpt": null
@@ -1145,10 +1137,10 @@
   },
   "clusters": {},
   "relationships": {
-    "acme/auth-service": {
+    "acme/alerts": {
       "dependencies": [
         {
-          "src": "acme/auth-service",
+          "src": "acme/alerts",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1156,24 +1148,16 @@
           "context": null
         },
         {
-          "src": "acme/catalog-api",
-          "dst": "acme/auth-service",
+          "src": "acme/forecast-api",
+          "dst": "acme/alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/payments-api",
-          "dst": "acme/auth-service",
-          "relation": "depends_on",
-          "confidence": "INFERRED",
-          "weight": 1,
-          "context": null
-        },
-        {
-          "src": "acme/web-ui",
-          "dst": "acme/auth-service",
+          "src": "acme/sensor-ingest",
+          "dst": "acme/alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1183,34 +1167,18 @@
       "http_flow": [],
       "event_flow": []
     },
-    "acme/catalog-api": {
+    "acme/console-ui": {
       "dependencies": [
         {
-          "src": "acme/catalog-api",
-          "dst": "acme/auth-service",
+          "src": "acme/console-ui",
+          "dst": "acme/forecast-api",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/catalog-api",
-          "dst": "acme/notifications",
-          "relation": "depends_on",
-          "confidence": "INFERRED",
-          "weight": 1,
-          "context": null
-        },
-        {
-          "src": "acme/catalog-api",
-          "dst": "acme/payments-api",
-          "relation": "depends_on",
-          "confidence": "INFERRED",
-          "weight": 1,
-          "context": null
-        },
-        {
-          "src": "acme/catalog-api",
+          "src": "acme/console-ui",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1218,8 +1186,8 @@
           "context": null
         },
         {
-          "src": "acme/web-ui",
-          "dst": "acme/catalog-api",
+          "src": "acme/console-ui",
+          "dst": "acme/station-registry",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1229,18 +1197,34 @@
       "http_flow": [],
       "event_flow": []
     },
-    "acme/notifications": {
+    "acme/forecast-api": {
       "dependencies": [
         {
-          "src": "acme/catalog-api",
-          "dst": "acme/notifications",
+          "src": "acme/console-ui",
+          "dst": "acme/forecast-api",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/notifications",
+          "src": "acme/forecast-api",
+          "dst": "acme/alerts",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "weight": 1,
+          "context": null
+        },
+        {
+          "src": "acme/forecast-api",
+          "dst": "acme/sensor-ingest",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "weight": 1,
+          "context": null
+        },
+        {
+          "src": "acme/forecast-api",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1248,8 +1232,8 @@
           "context": null
         },
         {
-          "src": "acme/payments-api",
-          "dst": "acme/notifications",
+          "src": "acme/forecast-api",
+          "dst": "acme/station-registry",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1259,27 +1243,27 @@
       "http_flow": [],
       "event_flow": []
     },
-    "acme/payments-api": {
+    "acme/sensor-ingest": {
       "dependencies": [
         {
-          "src": "acme/catalog-api",
-          "dst": "acme/payments-api",
+          "src": "acme/forecast-api",
+          "dst": "acme/sensor-ingest",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/payments-api",
-          "dst": "acme/auth-service",
+          "src": "acme/sensor-ingest",
+          "dst": "acme/alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/payments-api",
-          "dst": "acme/notifications",
+          "src": "acme/sensor-ingest",
+          "dst": "acme/station-registry",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1292,7 +1276,7 @@
     "acme/shared-lib": {
       "dependencies": [
         {
-          "src": "acme/auth-service",
+          "src": "acme/alerts",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1300,7 +1284,7 @@
           "context": null
         },
         {
-          "src": "acme/catalog-api",
+          "src": "acme/console-ui",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1308,7 +1292,7 @@
           "context": null
         },
         {
-          "src": "acme/notifications",
+          "src": "acme/forecast-api",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1316,7 +1300,7 @@
           "context": null
         },
         {
-          "src": "acme/web-ui",
+          "src": "acme/station-registry",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1327,26 +1311,34 @@
       "http_flow": [],
       "event_flow": []
     },
-    "acme/web-ui": {
+    "acme/station-registry": {
       "dependencies": [
         {
-          "src": "acme/web-ui",
-          "dst": "acme/auth-service",
+          "src": "acme/console-ui",
+          "dst": "acme/station-registry",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/web-ui",
-          "dst": "acme/catalog-api",
+          "src": "acme/forecast-api",
+          "dst": "acme/station-registry",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/web-ui",
+          "src": "acme/sensor-ingest",
+          "dst": "acme/station-registry",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "weight": 1,
+          "context": null
+        },
+        {
+          "src": "acme/station-registry",
           "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -1366,7 +1358,7 @@
   "fleet_relationships": {
     "dependencies": [
       {
-        "src": "acme/auth-service",
+        "src": "acme/alerts",
         "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
@@ -1374,31 +1366,15 @@
         "context": null
       },
       {
-        "src": "acme/catalog-api",
-        "dst": "acme/auth-service",
+        "src": "acme/console-ui",
+        "dst": "acme/forecast-api",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
         "context": null
       },
       {
-        "src": "acme/catalog-api",
-        "dst": "acme/notifications",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/catalog-api",
-        "dst": "acme/payments-api",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/catalog-api",
+        "src": "acme/console-ui",
         "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
@@ -1406,7 +1382,31 @@
         "context": null
       },
       {
-        "src": "acme/notifications",
+        "src": "acme/console-ui",
+        "dst": "acme/station-registry",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/forecast-api",
+        "dst": "acme/alerts",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/forecast-api",
+        "dst": "acme/sensor-ingest",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/forecast-api",
         "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
@@ -1414,39 +1414,31 @@
         "context": null
       },
       {
-        "src": "acme/payments-api",
-        "dst": "acme/auth-service",
+        "src": "acme/forecast-api",
+        "dst": "acme/station-registry",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
         "context": null
       },
       {
-        "src": "acme/payments-api",
-        "dst": "acme/notifications",
+        "src": "acme/sensor-ingest",
+        "dst": "acme/alerts",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
         "context": null
       },
       {
-        "src": "acme/web-ui",
-        "dst": "acme/auth-service",
+        "src": "acme/sensor-ingest",
+        "dst": "acme/station-registry",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
         "context": null
       },
       {
-        "src": "acme/web-ui",
-        "dst": "acme/catalog-api",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/web-ui",
+        "src": "acme/station-registry",
         "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
@@ -1471,21 +1463,21 @@
     "empty_repos": [],
     "shard_repos": [],
     "unreadable_repos": [
-      "acme/auth-service",
-      "acme/catalog-api",
-      "acme/notifications",
-      "acme/payments-api",
+      "acme/alerts",
+      "acme/console-ui",
+      "acme/forecast-api",
+      "acme/sensor-ingest",
       "acme/shared-lib",
-      "acme/web-ui",
+      "acme/station-registry",
       "demo/app"
     ],
     "parser_stale_repos": [
-      "acme/auth-service",
-      "acme/catalog-api",
-      "acme/notifications",
-      "acme/payments-api",
+      "acme/alerts",
+      "acme/console-ui",
+      "acme/forecast-api",
+      "acme/sensor-ingest",
       "acme/shared-lib",
-      "acme/web-ui",
+      "acme/station-registry",
       "demo/app"
     ],
     "unresolved": {
@@ -1498,158 +1490,18 @@
   },
   "symbols": [
     {
-      "id": "acme_auth_service_authservice",
-      "repo": "acme/auth-service",
+      "id": "acme_alerts_alertsender",
+      "repo": "acme/alerts",
       "kind": "class",
-      "name": "AuthService",
+      "name": "AlertSender",
       "qualified_name": null,
-      "file": "src/AuthService.py",
-      "line": null,
-      "lang": "python"
-    },
-    {
-      "id": "acme_auth_service_tokenmanager",
-      "repo": "acme/auth-service",
-      "kind": "class",
-      "name": "TokenManager",
-      "qualified_name": null,
-      "file": "src/TokenManager.py",
-      "line": null,
-      "lang": "python"
-    },
-    {
-      "id": "pkg_acme-auth",
-      "repo": "acme/auth-service",
-      "kind": "package",
-      "name": "acme-auth",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_auth_service_repo",
-      "repo": "acme/auth-service",
-      "kind": "repo",
-      "name": "acme/auth-service",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_auth_service_hash_password",
-      "repo": "acme/auth-service",
-      "kind": "function",
-      "name": "hash_password",
-      "qualified_name": null,
-      "file": "src/hash_password.py",
-      "line": null,
-      "lang": "python"
-    },
-    {
-      "id": "acme_auth_service_manifest",
-      "repo": "acme/auth-service",
-      "kind": "file",
-      "name": "manifest.py",
-      "qualified_name": null,
-      "file": "manifest.py",
-      "line": null,
-      "lang": "python"
-    },
-    {
-      "id": "acme_auth_service_verify_token",
-      "repo": "acme/auth-service",
-      "kind": "function",
-      "name": "verify_token",
-      "qualified_name": null,
-      "file": "src/verify_token.py",
-      "line": null,
-      "lang": "python"
-    },
-    {
-      "id": "acme_orders_api_catalogservice",
-      "repo": "acme/catalog-api",
-      "kind": "class",
-      "name": "CatalogService",
-      "qualified_name": null,
-      "file": "src/CatalogService.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "acme_orders_api_ordercontroller",
-      "repo": "acme/catalog-api",
-      "kind": "class",
-      "name": "OrderController",
-      "qualified_name": null,
-      "file": "src/OrderController.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "acme_orders_api_orderrepository",
-      "repo": "acme/catalog-api",
-      "kind": "class",
-      "name": "OrderRepository",
-      "qualified_name": null,
-      "file": "src/OrderRepository.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "acme_orders_api_validateorder",
-      "repo": "acme/catalog-api",
-      "kind": "method",
-      "name": "ValidateOrder",
-      "qualified_name": null,
-      "file": "src/ValidateOrder.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "pkg_acme-orders",
-      "repo": "acme/catalog-api",
-      "kind": "package",
-      "name": "acme-orders",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_orders_api_repo",
-      "repo": "acme/catalog-api",
-      "kind": "repo",
-      "name": "acme/catalog-api",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_orders_api_manifest",
-      "repo": "acme/catalog-api",
-      "kind": "file",
-      "name": "manifest.cs",
-      "qualified_name": null,
-      "file": "manifest.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "acme_notifications_emailsender",
-      "repo": "acme/notifications",
-      "kind": "class",
-      "name": "EmailSender",
-      "qualified_name": null,
-      "file": "src/EmailSender.js",
+      "file": "src/AlertSender.js",
       "line": null,
       "lang": "javascript"
     },
     {
-      "id": "acme_notifications_notifier",
-      "repo": "acme/notifications",
+      "id": "acme_alerts_notifier",
+      "repo": "acme/alerts",
       "kind": "class",
       "name": "Notifier",
       "qualified_name": null,
@@ -1658,28 +1510,28 @@
       "lang": "javascript"
     },
     {
-      "id": "pkg_acme-notify",
-      "repo": "acme/notifications",
+      "id": "pkg_acme-alerts",
+      "repo": "acme/alerts",
       "kind": "package",
-      "name": "acme-notify",
+      "name": "acme-alerts",
       "qualified_name": null,
       "file": null,
       "line": null,
       "lang": null
     },
     {
-      "id": "acme_notifications_repo",
-      "repo": "acme/notifications",
+      "id": "acme_alerts_repo",
+      "repo": "acme/alerts",
       "kind": "repo",
-      "name": "acme/notifications",
+      "name": "acme/alerts",
       "qualified_name": null,
       "file": null,
       "line": null,
       "lang": null
     },
     {
-      "id": "acme_notifications_manifest",
-      "repo": "acme/notifications",
+      "id": "acme_alerts_manifest",
+      "repo": "acme/alerts",
       "kind": "file",
       "name": "manifest.js",
       "qualified_name": null,
@@ -1688,8 +1540,8 @@
       "lang": "javascript"
     },
     {
-      "id": "acme_notifications_queuejob",
-      "repo": "acme/notifications",
+      "id": "acme_alerts_queuejob",
+      "repo": "acme/alerts",
       "kind": "function",
       "name": "queueJob",
       "qualified_name": null,
@@ -1698,78 +1550,218 @@
       "lang": "javascript"
     },
     {
-      "id": "acme_notifications_sendemail",
-      "repo": "acme/notifications",
+      "id": "acme_alerts_sendalert",
+      "repo": "acme/alerts",
       "kind": "function",
-      "name": "sendEmail",
+      "name": "sendAlert",
       "qualified_name": null,
-      "file": "src/sendEmail.js",
+      "file": "src/sendAlert.js",
       "line": null,
       "lang": "javascript"
     },
     {
-      "id": "acme_payments_api_cardgateway",
-      "repo": "acme/payments-api",
+      "id": "acme_console_ui_apiclient",
+      "repo": "acme/console-ui",
       "kind": "class",
-      "name": "CardGateway",
+      "name": "ApiClient",
       "qualified_name": null,
-      "file": "src/CardGateway.cs",
+      "file": "src/ApiClient.tsx",
       "line": null,
-      "lang": "csharp"
+      "lang": "typescript"
     },
     {
-      "id": "acme_payments_api_charge",
-      "repo": "acme/payments-api",
-      "kind": "method",
-      "name": "Charge",
-      "qualified_name": null,
-      "file": "src/Charge.cs",
-      "line": null,
-      "lang": "csharp"
-    },
-    {
-      "id": "acme_payments_api_paymentprocessor",
-      "repo": "acme/payments-api",
+      "id": "acme_console_ui_readingsview",
+      "repo": "acme/console-ui",
       "kind": "class",
-      "name": "PaymentProcessor",
+      "name": "ReadingsView",
       "qualified_name": null,
-      "file": "src/PaymentProcessor.cs",
+      "file": "src/ReadingsView.tsx",
       "line": null,
-      "lang": "csharp"
+      "lang": "typescript"
     },
     {
-      "id": "acme_payments_api_refund",
-      "repo": "acme/payments-api",
-      "kind": "method",
-      "name": "Refund",
+      "id": "acme_console_ui_stationpage",
+      "repo": "acme/console-ui",
+      "kind": "class",
+      "name": "StationPage",
       "qualified_name": null,
-      "file": "src/Refund.cs",
+      "file": "src/StationPage.tsx",
       "line": null,
-      "lang": "csharp"
+      "lang": "typescript"
     },
     {
-      "id": "pkg_acme-payments",
-      "repo": "acme/payments-api",
+      "id": "pkg_acme-console",
+      "repo": "acme/console-ui",
       "kind": "package",
-      "name": "acme-payments",
+      "name": "acme-console",
       "qualified_name": null,
       "file": null,
       "line": null,
       "lang": null
     },
     {
-      "id": "acme_payments_api_repo",
-      "repo": "acme/payments-api",
+      "id": "acme_console_ui_repo",
+      "repo": "acme/console-ui",
       "kind": "repo",
-      "name": "acme/payments-api",
+      "name": "acme/console-ui",
       "qualified_name": null,
       "file": null,
       "line": null,
       "lang": null
     },
     {
-      "id": "acme_payments_api_manifest",
-      "repo": "acme/payments-api",
+      "id": "acme_console_ui_manifest",
+      "repo": "acme/console-ui",
+      "kind": "file",
+      "name": "manifest.tsx",
+      "qualified_name": null,
+      "file": "manifest.tsx",
+      "line": null,
+      "lang": "typescript"
+    },
+    {
+      "id": "acme_console_ui_usestation",
+      "repo": "acme/console-ui",
+      "kind": "function",
+      "name": "useStation",
+      "qualified_name": null,
+      "file": "src/useStation.tsx",
+      "line": null,
+      "lang": "typescript"
+    },
+    {
+      "id": "acme_forecast_api_forecastrunner",
+      "repo": "acme/forecast-api",
+      "kind": "struct",
+      "name": "ForecastRunner",
+      "qualified_name": null,
+      "file": "src/runner.go",
+      "line": null,
+      "lang": "go"
+    },
+    {
+      "id": "acme_forecast_api_gridsampler",
+      "repo": "acme/forecast-api",
+      "kind": "struct",
+      "name": "GridSampler",
+      "qualified_name": null,
+      "file": "src/sampler.go",
+      "line": null,
+      "lang": "go"
+    },
+    {
+      "id": "acme_forecast_api_modelgrid",
+      "repo": "acme/forecast-api",
+      "kind": "struct",
+      "name": "ModelGrid",
+      "qualified_name": null,
+      "file": "src/grid.go",
+      "line": null,
+      "lang": "go"
+    },
+    {
+      "id": "acme_forecast_api_runcycle",
+      "repo": "acme/forecast-api",
+      "kind": "function",
+      "name": "RunCycle",
+      "qualified_name": null,
+      "file": "src/cycle.go",
+      "line": null,
+      "lang": "go"
+    },
+    {
+      "id": "pkg_acme-forecast",
+      "repo": "acme/forecast-api",
+      "kind": "package",
+      "name": "acme-forecast",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_forecast_api_repo",
+      "repo": "acme/forecast-api",
+      "kind": "repo",
+      "name": "acme/forecast-api",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_forecast_api_manifest",
+      "repo": "acme/forecast-api",
+      "kind": "file",
+      "name": "manifest.go",
+      "qualified_name": null,
+      "file": "manifest.go",
+      "line": null,
+      "lang": "go"
+    },
+    {
+      "id": "acme_sensor_ingest_backfill",
+      "repo": "acme/sensor-ingest",
+      "kind": "method",
+      "name": "Backfill",
+      "qualified_name": null,
+      "file": "src/Backfill.cs",
+      "line": null,
+      "lang": "csharp"
+    },
+    {
+      "id": "acme_sensor_ingest_ingest",
+      "repo": "acme/sensor-ingest",
+      "kind": "method",
+      "name": "Ingest",
+      "qualified_name": null,
+      "file": "src/Ingest.cs",
+      "line": null,
+      "lang": "csharp"
+    },
+    {
+      "id": "acme_sensor_ingest_readingprocessor",
+      "repo": "acme/sensor-ingest",
+      "kind": "class",
+      "name": "ReadingProcessor",
+      "qualified_name": null,
+      "file": "src/ReadingProcessor.cs",
+      "line": null,
+      "lang": "csharp"
+    },
+    {
+      "id": "acme_sensor_ingest_sensorgateway",
+      "repo": "acme/sensor-ingest",
+      "kind": "class",
+      "name": "SensorGateway",
+      "qualified_name": null,
+      "file": "src/SensorGateway.cs",
+      "line": null,
+      "lang": "csharp"
+    },
+    {
+      "id": "pkg_acme-ingest",
+      "repo": "acme/sensor-ingest",
+      "kind": "package",
+      "name": "acme-ingest",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_sensor_ingest_repo",
+      "repo": "acme/sensor-ingest",
+      "kind": "repo",
+      "name": "acme/sensor-ingest",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_sensor_ingest_manifest",
+      "repo": "acme/sensor-ingest",
       "kind": "file",
       "name": "manifest.cs",
       "qualified_name": null,
@@ -1848,101 +1840,101 @@
       "lang": "typescript"
     },
     {
-      "id": "acme_web_ui_apiclient",
-      "repo": "acme/web-ui",
+      "id": "acme_station_registry_stationenrollment",
+      "repo": "acme/station-registry",
       "kind": "class",
-      "name": "ApiClient",
+      "name": "StationEnrollment",
       "qualified_name": null,
-      "file": "src/ApiClient.tsx",
-      "line": null,
-      "lang": "typescript"
-    },
-    {
-      "id": "acme_web_ui_cartview",
-      "repo": "acme/web-ui",
-      "kind": "class",
-      "name": "CartView",
-      "qualified_name": null,
-      "file": "src/CartView.tsx",
-      "line": null,
-      "lang": "typescript"
-    },
-    {
-      "id": "acme_web_ui_checkoutpage",
-      "repo": "acme/web-ui",
-      "kind": "class",
-      "name": "CheckoutPage",
-      "qualified_name": null,
-      "file": "src/CheckoutPage.tsx",
-      "line": null,
-      "lang": "typescript"
-    },
-    {
-      "id": "pkg_acme-webui",
-      "repo": "acme/web-ui",
-      "kind": "package",
-      "name": "acme-webui",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_web_ui_repo",
-      "repo": "acme/web-ui",
-      "kind": "repo",
-      "name": "acme/web-ui",
-      "qualified_name": null,
-      "file": null,
-      "line": null,
-      "lang": null
-    },
-    {
-      "id": "acme_web_ui_manifest",
-      "repo": "acme/web-ui",
-      "kind": "file",
-      "name": "manifest.tsx",
-      "qualified_name": null,
-      "file": "manifest.tsx",
-      "line": null,
-      "lang": "typescript"
-    },
-    {
-      "id": "acme_web_ui_usecheckout",
-      "repo": "acme/web-ui",
-      "kind": "function",
-      "name": "useCheckout",
-      "qualified_name": null,
-      "file": "src/useCheckout.tsx",
-      "line": null,
-      "lang": "typescript"
-    },
-    {
-      "id": "demo_app_catalogservice",
-      "repo": "demo/app",
-      "kind": "class",
-      "name": "CatalogService",
-      "qualified_name": null,
-      "file": "src/catalog.py",
+      "file": "src/StationEnrollment.py",
       "line": null,
       "lang": "python"
     },
     {
-      "id": "demo_app_charge",
+      "id": "acme_station_registry_stationregistry",
+      "repo": "acme/station-registry",
+      "kind": "class",
+      "name": "StationRegistry",
+      "qualified_name": null,
+      "file": "src/StationRegistry.py",
+      "line": null,
+      "lang": "python"
+    },
+    {
+      "id": "pkg_acme-stations",
+      "repo": "acme/station-registry",
+      "kind": "package",
+      "name": "acme-stations",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_station_registry_repo",
+      "repo": "acme/station-registry",
+      "kind": "repo",
+      "name": "acme/station-registry",
+      "qualified_name": null,
+      "file": null,
+      "line": null,
+      "lang": null
+    },
+    {
+      "id": "acme_station_registry_manifest",
+      "repo": "acme/station-registry",
+      "kind": "file",
+      "name": "manifest.py",
+      "qualified_name": null,
+      "file": "manifest.py",
+      "line": null,
+      "lang": "python"
+    },
+    {
+      "id": "acme_station_registry_normalize_station_id",
+      "repo": "acme/station-registry",
+      "kind": "function",
+      "name": "normalize_station_id",
+      "qualified_name": null,
+      "file": "src/normalize_station_id.py",
+      "line": null,
+      "lang": "python"
+    },
+    {
+      "id": "acme_station_registry_verify_station",
+      "repo": "acme/station-registry",
+      "kind": "function",
+      "name": "verify_station",
+      "qualified_name": null,
+      "file": "src/verify_station.py",
+      "line": null,
+      "lang": "python"
+    },
+    {
+      "id": "demo_app_forecastservice",
+      "repo": "demo/app",
+      "kind": "class",
+      "name": "ForecastService",
+      "qualified_name": null,
+      "file": "src/forecast.py",
+      "line": null,
+      "lang": "python"
+    },
+    {
+      "id": "demo_app_load_readings",
       "repo": "demo/app",
       "kind": "function",
-      "name": "charge",
+      "name": "load_readings",
       "qualified_name": null,
-      "file": "src/pay.py",
+      "file": "src/readings.py",
       "line": null,
       "lang": "python"
     }
   ],
   "impact": {
-    "acme_auth_service_tokenmanager": {
-      "seed": "acme_auth_service_tokenmanager",
-      "name": "TokenManager",
-      "repo": "acme/auth-service",
+    "acme_alerts_alertsender": {
+      "seed": "acme_alerts_alertsender",
+      "name": "AlertSender",
+      "repo": "acme/alerts",
       "found": true,
       "hops": 3,
       "total": 1,
@@ -1950,248 +1942,8 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_auth_service_authservice",
-          "repo": "acme/auth-service",
-          "kind": "class",
-          "name": "AuthService",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "pkg_acme-auth": {
-      "seed": "pkg_acme-auth",
-      "name": "acme-auth",
-      "repo": "acme/auth-service",
-      "found": true,
-      "hops": 3,
-      "total": 3,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_orders_api_manifest",
-          "repo": "acme/catalog-api",
-          "kind": "file",
-          "name": "manifest.cs",
-          "hop": 1,
-          "via": "depends_on",
-          "confidence": "INFERRED"
-        },
-        {
-          "id": "acme_payments_api_manifest",
-          "repo": "acme/payments-api",
-          "kind": "file",
-          "name": "manifest.cs",
-          "hop": 1,
-          "via": "depends_on",
-          "confidence": "INFERRED"
-        },
-        {
-          "id": "acme_web_ui_manifest",
-          "repo": "acme/web-ui",
-          "kind": "file",
-          "name": "manifest.tsx",
-          "hop": 1,
-          "via": "depends_on",
-          "confidence": "INFERRED"
-        }
-      ]
-    },
-    "acme_auth_service_hash_password": {
-      "seed": "acme_auth_service_hash_password",
-      "name": "hash_password",
-      "repo": "acme/auth-service",
-      "found": true,
-      "hops": 3,
-      "total": 3,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_auth_service_verify_token",
-          "repo": "acme/auth-service",
-          "kind": "function",
-          "name": "verify_token",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_auth_service_tokenmanager",
-          "repo": "acme/auth-service",
-          "kind": "class",
-          "name": "TokenManager",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_auth_service_authservice",
-          "repo": "acme/auth-service",
-          "kind": "class",
-          "name": "AuthService",
-          "hop": 3,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_auth_service_verify_token": {
-      "seed": "acme_auth_service_verify_token",
-      "name": "verify_token",
-      "repo": "acme/auth-service",
-      "found": true,
-      "hops": 3,
-      "total": 2,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_auth_service_tokenmanager",
-          "repo": "acme/auth-service",
-          "kind": "class",
-          "name": "TokenManager",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_auth_service_authservice",
-          "repo": "acme/auth-service",
-          "kind": "class",
-          "name": "AuthService",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_orders_api_catalogservice": {
-      "seed": "acme_orders_api_catalogservice",
-      "name": "CatalogService",
-      "repo": "acme/catalog-api",
-      "found": true,
-      "hops": 3,
-      "total": 1,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_orders_api_ordercontroller",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderController",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_orders_api_orderrepository": {
-      "seed": "acme_orders_api_orderrepository",
-      "name": "OrderRepository",
-      "repo": "acme/catalog-api",
-      "found": true,
-      "hops": 3,
-      "total": 2,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_orders_api_catalogservice",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "CatalogService",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_orders_api_ordercontroller",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderController",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_orders_api_validateorder": {
-      "seed": "acme_orders_api_validateorder",
-      "name": "ValidateOrder",
-      "repo": "acme/catalog-api",
-      "found": true,
-      "hops": 3,
-      "total": 3,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_orders_api_orderrepository",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderRepository",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_orders_api_catalogservice",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "CatalogService",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_orders_api_ordercontroller",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderController",
-          "hop": 3,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "pkg_acme-orders": {
-      "seed": "pkg_acme-orders",
-      "name": "acme-orders",
-      "repo": "acme/catalog-api",
-      "found": true,
-      "hops": 3,
-      "total": 1,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_web_ui_manifest",
-          "repo": "acme/web-ui",
-          "kind": "file",
-          "name": "manifest.tsx",
-          "hop": 1,
-          "via": "depends_on",
-          "confidence": "INFERRED"
-        }
-      ]
-    },
-    "acme_notifications_emailsender": {
-      "seed": "acme_notifications_emailsender",
-      "name": "EmailSender",
-      "repo": "acme/notifications",
-      "found": true,
-      "hops": 3,
-      "total": 1,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_notifications_notifier",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_notifier",
+          "repo": "acme/alerts",
           "kind": "class",
           "name": "Notifier",
           "hop": 1,
@@ -2200,10 +1952,10 @@
         }
       ]
     },
-    "pkg_acme-notify": {
-      "seed": "pkg_acme-notify",
-      "name": "acme-notify",
-      "repo": "acme/notifications",
+    "pkg_acme-alerts": {
+      "seed": "pkg_acme-alerts",
+      "name": "acme-alerts",
+      "repo": "acme/alerts",
       "found": true,
       "hops": 3,
       "total": 2,
@@ -2211,17 +1963,17 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_orders_api_manifest",
-          "repo": "acme/catalog-api",
+          "id": "acme_forecast_api_manifest",
+          "repo": "acme/forecast-api",
           "kind": "file",
-          "name": "manifest.cs",
+          "name": "manifest.go",
           "hop": 1,
           "via": "depends_on",
           "confidence": "INFERRED"
         },
         {
-          "id": "acme_payments_api_manifest",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_manifest",
+          "repo": "acme/sensor-ingest",
           "kind": "file",
           "name": "manifest.cs",
           "hop": 1,
@@ -2230,10 +1982,10 @@
         }
       ]
     },
-    "acme_notifications_queuejob": {
-      "seed": "acme_notifications_queuejob",
+    "acme_alerts_queuejob": {
+      "seed": "acme_alerts_queuejob",
       "name": "queueJob",
-      "repo": "acme/notifications",
+      "repo": "acme/alerts",
       "found": true,
       "hops": 3,
       "total": 3,
@@ -2241,26 +1993,26 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_notifications_sendemail",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_sendalert",
+          "repo": "acme/alerts",
           "kind": "function",
-          "name": "sendEmail",
+          "name": "sendAlert",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_notifications_emailsender",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_alertsender",
+          "repo": "acme/alerts",
           "kind": "class",
-          "name": "EmailSender",
+          "name": "AlertSender",
           "hop": 2,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_notifications_notifier",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_notifier",
+          "repo": "acme/alerts",
           "kind": "class",
           "name": "Notifier",
           "hop": 3,
@@ -2269,10 +2021,10 @@
         }
       ]
     },
-    "acme_notifications_sendemail": {
-      "seed": "acme_notifications_sendemail",
-      "name": "sendEmail",
-      "repo": "acme/notifications",
+    "acme_alerts_sendalert": {
+      "seed": "acme_alerts_sendalert",
+      "name": "sendAlert",
+      "repo": "acme/alerts",
       "found": true,
       "hops": 3,
       "total": 2,
@@ -2280,17 +2032,17 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_notifications_emailsender",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_alertsender",
+          "repo": "acme/alerts",
           "kind": "class",
-          "name": "EmailSender",
+          "name": "AlertSender",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_notifications_notifier",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_notifier",
+          "repo": "acme/alerts",
           "kind": "class",
           "name": "Notifier",
           "hop": 2,
@@ -2299,61 +2051,10 @@
         }
       ]
     },
-    "acme_payments_api_cardgateway": {
-      "seed": "acme_payments_api_cardgateway",
-      "name": "CardGateway",
-      "repo": "acme/payments-api",
-      "found": true,
-      "hops": 3,
-      "total": 1,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_payments_api_paymentprocessor",
-          "repo": "acme/payments-api",
-          "kind": "class",
-          "name": "PaymentProcessor",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_payments_api_charge": {
-      "seed": "acme_payments_api_charge",
-      "name": "Charge",
-      "repo": "acme/payments-api",
-      "found": true,
-      "hops": 3,
-      "total": 2,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_payments_api_cardgateway",
-          "repo": "acme/payments-api",
-          "kind": "class",
-          "name": "CardGateway",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_payments_api_paymentprocessor",
-          "repo": "acme/payments-api",
-          "kind": "class",
-          "name": "PaymentProcessor",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_payments_api_refund": {
-      "seed": "acme_payments_api_refund",
-      "name": "Refund",
-      "repo": "acme/payments-api",
+    "acme_console_ui_apiclient": {
+      "seed": "acme_console_ui_apiclient",
+      "name": "ApiClient",
+      "repo": "acme/console-ui",
       "found": true,
       "hops": 3,
       "total": 3,
@@ -2361,38 +2062,38 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_payments_api_charge",
-          "repo": "acme/payments-api",
-          "kind": "method",
-          "name": "Charge",
+          "id": "acme_console_ui_usestation",
+          "repo": "acme/console-ui",
+          "kind": "function",
+          "name": "useStation",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_payments_api_cardgateway",
-          "repo": "acme/payments-api",
+          "id": "acme_console_ui_readingsview",
+          "repo": "acme/console-ui",
           "kind": "class",
-          "name": "CardGateway",
+          "name": "ReadingsView",
           "hop": 2,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_payments_api_paymentprocessor",
-          "repo": "acme/payments-api",
+          "id": "acme_console_ui_stationpage",
+          "repo": "acme/console-ui",
           "kind": "class",
-          "name": "PaymentProcessor",
+          "name": "StationPage",
           "hop": 3,
           "via": "calls",
           "confidence": "EXTRACTED"
         }
       ]
     },
-    "pkg_acme-payments": {
-      "seed": "pkg_acme-payments",
-      "name": "acme-payments",
-      "repo": "acme/payments-api",
+    "acme_console_ui_readingsview": {
+      "seed": "acme_console_ui_readingsview",
+      "name": "ReadingsView",
+      "repo": "acme/console-ui",
       "found": true,
       "hops": 3,
       "total": 1,
@@ -2400,10 +2101,232 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_orders_api_manifest",
-          "repo": "acme/catalog-api",
+          "id": "acme_console_ui_stationpage",
+          "repo": "acme/console-ui",
+          "kind": "class",
+          "name": "StationPage",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_console_ui_usestation": {
+      "seed": "acme_console_ui_usestation",
+      "name": "useStation",
+      "repo": "acme/console-ui",
+      "found": true,
+      "hops": 3,
+      "total": 2,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_console_ui_readingsview",
+          "repo": "acme/console-ui",
+          "kind": "class",
+          "name": "ReadingsView",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_console_ui_stationpage",
+          "repo": "acme/console-ui",
+          "kind": "class",
+          "name": "StationPage",
+          "hop": 2,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_forecast_api_forecastrunner": {
+      "seed": "acme_forecast_api_forecastrunner",
+      "name": "ForecastRunner",
+      "repo": "acme/forecast-api",
+      "found": true,
+      "hops": 3,
+      "total": 1,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_forecast_api_runcycle",
+          "repo": "acme/forecast-api",
+          "kind": "function",
+          "name": "RunCycle",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_forecast_api_gridsampler": {
+      "seed": "acme_forecast_api_gridsampler",
+      "name": "GridSampler",
+      "repo": "acme/forecast-api",
+      "found": true,
+      "hops": 3,
+      "total": 2,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_forecast_api_forecastrunner",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "ForecastRunner",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_forecast_api_runcycle",
+          "repo": "acme/forecast-api",
+          "kind": "function",
+          "name": "RunCycle",
+          "hop": 2,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_forecast_api_modelgrid": {
+      "seed": "acme_forecast_api_modelgrid",
+      "name": "ModelGrid",
+      "repo": "acme/forecast-api",
+      "found": true,
+      "hops": 3,
+      "total": 3,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_forecast_api_gridsampler",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "GridSampler",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_forecast_api_forecastrunner",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "ForecastRunner",
+          "hop": 2,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_forecast_api_runcycle",
+          "repo": "acme/forecast-api",
+          "kind": "function",
+          "name": "RunCycle",
+          "hop": 3,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "pkg_acme-forecast": {
+      "seed": "pkg_acme-forecast",
+      "name": "acme-forecast",
+      "repo": "acme/forecast-api",
+      "found": true,
+      "hops": 3,
+      "total": 1,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_console_ui_manifest",
+          "repo": "acme/console-ui",
           "kind": "file",
-          "name": "manifest.cs",
+          "name": "manifest.tsx",
+          "hop": 1,
+          "via": "depends_on",
+          "confidence": "INFERRED"
+        }
+      ]
+    },
+    "acme_sensor_ingest_ingest": {
+      "seed": "acme_sensor_ingest_ingest",
+      "name": "Ingest",
+      "repo": "acme/sensor-ingest",
+      "found": true,
+      "hops": 3,
+      "total": 1,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_sensor_ingest_sensorgateway",
+          "repo": "acme/sensor-ingest",
+          "kind": "class",
+          "name": "SensorGateway",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_sensor_ingest_readingprocessor": {
+      "seed": "acme_sensor_ingest_readingprocessor",
+      "name": "ReadingProcessor",
+      "repo": "acme/sensor-ingest",
+      "found": true,
+      "hops": 3,
+      "total": 3,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_sensor_ingest_ingest",
+          "repo": "acme/sensor-ingest",
+          "kind": "method",
+          "name": "Ingest",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_sensor_ingest_backfill",
+          "repo": "acme/sensor-ingest",
+          "kind": "method",
+          "name": "Backfill",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_sensor_ingest_sensorgateway",
+          "repo": "acme/sensor-ingest",
+          "kind": "class",
+          "name": "SensorGateway",
+          "hop": 2,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "pkg_acme-ingest": {
+      "seed": "pkg_acme-ingest",
+      "name": "acme-ingest",
+      "repo": "acme/sensor-ingest",
+      "found": true,
+      "hops": 3,
+      "total": 1,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_forecast_api_manifest",
+          "repo": "acme/forecast-api",
+          "kind": "file",
+          "name": "manifest.go",
           "hop": 1,
           "via": "depends_on",
           "confidence": "INFERRED"
@@ -2460,8 +2383,8 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_auth_service_manifest",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_manifest",
+          "repo": "acme/station-registry",
           "kind": "file",
           "name": "manifest.py",
           "hop": 1,
@@ -2469,17 +2392,17 @@
           "confidence": "INFERRED"
         },
         {
-          "id": "acme_orders_api_manifest",
-          "repo": "acme/catalog-api",
+          "id": "acme_forecast_api_manifest",
+          "repo": "acme/forecast-api",
           "kind": "file",
-          "name": "manifest.cs",
+          "name": "manifest.go",
           "hop": 1,
           "via": "depends_on",
           "confidence": "INFERRED"
         },
         {
-          "id": "acme_notifications_manifest",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_manifest",
+          "repo": "acme/alerts",
           "kind": "file",
           "name": "manifest.js",
           "hop": 1,
@@ -2487,8 +2410,8 @@
           "confidence": "INFERRED"
         },
         {
-          "id": "acme_web_ui_manifest",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_manifest",
+          "repo": "acme/console-ui",
           "kind": "file",
           "name": "manifest.tsx",
           "hop": 1,
@@ -2548,49 +2471,10 @@
         }
       ]
     },
-    "acme_web_ui_apiclient": {
-      "seed": "acme_web_ui_apiclient",
-      "name": "ApiClient",
-      "repo": "acme/web-ui",
-      "found": true,
-      "hops": 3,
-      "total": 3,
-      "truncated": false,
-      "ticket": [],
-      "hits": [
-        {
-          "id": "acme_web_ui_usecheckout",
-          "repo": "acme/web-ui",
-          "kind": "function",
-          "name": "useCheckout",
-          "hop": 1,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_web_ui_cartview",
-          "repo": "acme/web-ui",
-          "kind": "class",
-          "name": "CartView",
-          "hop": 2,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        },
-        {
-          "id": "acme_web_ui_checkoutpage",
-          "repo": "acme/web-ui",
-          "kind": "class",
-          "name": "CheckoutPage",
-          "hop": 3,
-          "via": "calls",
-          "confidence": "EXTRACTED"
-        }
-      ]
-    },
-    "acme_web_ui_cartview": {
-      "seed": "acme_web_ui_cartview",
-      "name": "CartView",
-      "repo": "acme/web-ui",
+    "acme_station_registry_stationenrollment": {
+      "seed": "acme_station_registry_stationenrollment",
+      "name": "StationEnrollment",
+      "repo": "acme/station-registry",
       "found": true,
       "hops": 3,
       "total": 1,
@@ -2598,20 +2482,98 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_web_ui_checkoutpage",
-          "repo": "acme/web-ui",
+          "id": "acme_station_registry_stationregistry",
+          "repo": "acme/station-registry",
           "kind": "class",
-          "name": "CheckoutPage",
+          "name": "StationRegistry",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"
         }
       ]
     },
-    "acme_web_ui_usecheckout": {
-      "seed": "acme_web_ui_usecheckout",
-      "name": "useCheckout",
-      "repo": "acme/web-ui",
+    "pkg_acme-stations": {
+      "seed": "pkg_acme-stations",
+      "name": "acme-stations",
+      "repo": "acme/station-registry",
+      "found": true,
+      "hops": 3,
+      "total": 3,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_forecast_api_manifest",
+          "repo": "acme/forecast-api",
+          "kind": "file",
+          "name": "manifest.go",
+          "hop": 1,
+          "via": "depends_on",
+          "confidence": "INFERRED"
+        },
+        {
+          "id": "acme_sensor_ingest_manifest",
+          "repo": "acme/sensor-ingest",
+          "kind": "file",
+          "name": "manifest.cs",
+          "hop": 1,
+          "via": "depends_on",
+          "confidence": "INFERRED"
+        },
+        {
+          "id": "acme_console_ui_manifest",
+          "repo": "acme/console-ui",
+          "kind": "file",
+          "name": "manifest.tsx",
+          "hop": 1,
+          "via": "depends_on",
+          "confidence": "INFERRED"
+        }
+      ]
+    },
+    "acme_station_registry_normalize_station_id": {
+      "seed": "acme_station_registry_normalize_station_id",
+      "name": "normalize_station_id",
+      "repo": "acme/station-registry",
+      "found": true,
+      "hops": 3,
+      "total": 3,
+      "truncated": false,
+      "ticket": [],
+      "hits": [
+        {
+          "id": "acme_station_registry_verify_station",
+          "repo": "acme/station-registry",
+          "kind": "function",
+          "name": "verify_station",
+          "hop": 1,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_station_registry_stationenrollment",
+          "repo": "acme/station-registry",
+          "kind": "class",
+          "name": "StationEnrollment",
+          "hop": 2,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        },
+        {
+          "id": "acme_station_registry_stationregistry",
+          "repo": "acme/station-registry",
+          "kind": "class",
+          "name": "StationRegistry",
+          "hop": 3,
+          "via": "calls",
+          "confidence": "EXTRACTED"
+        }
+      ]
+    },
+    "acme_station_registry_verify_station": {
+      "seed": "acme_station_registry_verify_station",
+      "name": "verify_station",
+      "repo": "acme/station-registry",
       "found": true,
       "hops": 3,
       "total": 2,
@@ -2619,28 +2581,28 @@
       "ticket": [],
       "hits": [
         {
-          "id": "acme_web_ui_cartview",
-          "repo": "acme/web-ui",
+          "id": "acme_station_registry_stationenrollment",
+          "repo": "acme/station-registry",
           "kind": "class",
-          "name": "CartView",
+          "name": "StationEnrollment",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"
         },
         {
-          "id": "acme_web_ui_checkoutpage",
-          "repo": "acme/web-ui",
+          "id": "acme_station_registry_stationregistry",
+          "repo": "acme/station-registry",
           "kind": "class",
-          "name": "CheckoutPage",
+          "name": "StationRegistry",
           "hop": 2,
           "via": "calls",
           "confidence": "EXTRACTED"
         }
       ]
     },
-    "demo_app_charge": {
-      "seed": "demo_app_charge",
-      "name": "charge",
+    "demo_app_load_readings": {
+      "seed": "demo_app_load_readings",
+      "name": "load_readings",
       "repo": "demo/app",
       "found": true,
       "hops": 3,
@@ -2649,10 +2611,10 @@
       "ticket": [],
       "hits": [
         {
-          "id": "demo_app_catalogservice",
+          "id": "demo_app_forecastservice",
           "repo": "demo/app",
           "kind": "class",
-          "name": "CatalogService",
+          "name": "ForecastService",
           "hop": 1,
           "via": "calls",
           "confidence": "EXTRACTED"

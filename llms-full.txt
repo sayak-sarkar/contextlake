@@ -262,7 +262,7 @@ Chat answers from the graph for free. Prose written by a model is opt-in, with `
 Want to look first? `contextlake kb dashboard --serve --sample` needs no setup at all.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table/Treemap layout switcher." width="820">
 </p>
 
 **[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, step by step, with screenshots.
@@ -431,9 +431,10 @@ backoff with a decorator. You'll usually find it wrapped around HTTP calls."
 Plausible, generic, and possibly describing a different codebase entirely. There is nothing in it
 to verify.
 
-**With.** "`retry_with_backoff` is defined in `acme/billing-service`, at
-`src/billing/http.py:214`. Three call sites depend on it: `charge` (`src/billing/charge.py:88`),
-`refund` (`src/billing/refund.py:41`), and `sync_ledger` (`src/billing/ledger.py:302`). Those are
+**With.** "`retry_with_backoff` is defined in `acme/telemetry-service`, at
+`src/telemetry/http.py:214`. Three call sites depend on it: `fetch_batch`
+(`src/telemetry/fetch.py:88`), `replay_window` (`src/telemetry/replay.py:41`), and
+`sync_stations` (`src/telemetry/stations.py:302`). Those are
 `calls` edges, resolved by name and so marked `INFERRED`; the `contains` edge placing the function
 in that file is `EXTRACTED`."
 
@@ -451,7 +452,7 @@ Not prompt engineering, and not the model being careful. A node in the graph car
 `line_start` and `line_end` as first-class fields, and an edge carries `provenance`, which is a
 required `source_file` plus `source_line` plus `verified_at`
 (`Node` and `Provenance` in `src/contextlake/kb/model.py`). An assistant reporting
-`src/billing/http.py:214` is reading a column, not composing a sentence. The model docstring in
+`src/telemetry/http.py:214` is reading a column, not composing a sentence. The model docstring in
 that file states the intent plainly: the anti-hallucination contract is structural, not advisory.
 
 ## What it is: three layers you adopt one at a time
@@ -1123,6 +1124,12 @@ contextlake doctor
 layer in one pass (SQLite FTS5, `git` and `glab` on PATH, config, the store's real counts,
 the built-in embedder, the ANN index, shard freshness) and prints a line per check.
 
+Each configured source gets its own line, and the mark says which of three things happened.
+`✓` means doctor dialled it and it answered. `⚠` means doctor dialled it and it did not.
+`⊘` means nothing was dialled: either the type has no reachability check (`gitlab`,
+`zendesk`), or the source is switched off with `enabled = false`. None of the three changes
+the exit code.
+
 **Read the output, do not gate on the exit code alone.** `doctor` exits non-zero only when the
 environment cannot support a run at all: FTS5 missing, `git` missing, or the config and store
 unreadable. Everything else is reported and does not fail the command, including **shard
@@ -1448,8 +1455,8 @@ claude mcp add contextlake-kb -- contextlake kb serve --config ~/.contextlake/kb
 ```
 
 **Windsurf / Devin** and **Kiro** pick up the generated config and rules
-automatically. Now ask your agent: *"where is `CatalogService` defined?"*, *"who calls
-`charge`?"*, *"which repos depend on `shared-core`?"*, it queries the graph and cites
+automatically. Now ask your agent: *"where is `ForecastService` defined?"*, *"who calls
+`load_readings`?"*, *"which repos depend on `shared-core`?"*, it queries the graph and cites
 files instead of guessing. The installed skills give even a small-context model a
 strong operating playbook.
 
@@ -1517,14 +1524,14 @@ repo paths, so you can mirror and index just a handful instead of the whole grou
 Ideal for a demo or a try-before-fleet run:
 
 ```bash
-contextlake bootstrap --repos "team/api,billing/*,frontend/*"  # mirror + index just these
+contextlake bootstrap --repos "team/api,sensors/*,frontend/*"  # mirror + index just these
 contextlake mirror sync --repos "team/*"                       # sync one namespace
-contextlake kb index --workspace ~/work --repos "billing/core,team/api"
+contextlake kb index --workspace ~/work --repos "sensors/core,team/api"
 ```
 
 Each pattern is matched against the repo's group-qualified path and its local path,
 case-insensitively. **Patterns are anchored**: `--repos api` selects a repo named
-exactly `api`, never `payments-api` or `api-gateway`. For a substring match, say so
+exactly `api`, never `forecast-api` or `api-gateway`. For a substring match, say so
 with a glob:
 
 ```bash
@@ -1550,10 +1557,10 @@ available:
 
 Four rules govern every pattern:
 
-- **Comma-separated.** `--repos "team/*,billing/core"` is two patterns, and a repo
+- **Comma-separated.** `--repos "team/*,sensors/core"` is two patterns, and a repo
   matching either one is selected.
 - **Anchored.** The pattern must describe the whole path, not a piece of it. This is
-  why `api` does not select `payments-api`.
+  why `api` does not select `forecast-api`.
 - **Case-insensitive.** `--repos "TEAM/*"` and `--repos "team/*"` select the same repos.
 - **Matched twice.** Each pattern is tried against the group-qualified path
   (`acme/team/api`) and against the local path (`team/api`), so either form works.
@@ -2263,9 +2270,29 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
 ~/work` walks every git repo under a folder and builds the graph. Runs are incremental by default;
 `--force` rebuilds from scratch.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
-</p>
+It also writes two documents per repository it indexed, `<store>/docs/api/<repo>.md` and
+`<store>/docs/design/<repo>.md`, so a fresh index leaves a store you can read as well as
+query. No model is ever run for them. A repository whose head commit has not moved since its
+documents were written is skipped, so the cost of the per-commit hook stays flat. `--no-docs`
+switches them off, and `contextlake kb docs` regenerates them unconditionally. See
+[Generate documentation](generating-documentation.md).
+
+A run over a seven-repository workspace. The live progress bar is redrawn in place, so what
+stays on screen is one line per repository and the summary:
+
+```console
+$ contextlake kb index --workspace /tmp/work
+Found 7 repositories under /tmp/work (incremental); indexing 7 with 8 worker(s)
+  ✓ acme/alerts: 13 nodes, 13 edges
+  ✓ acme/sensor-ingest: 12 nodes, 12 edges
+  ✓ acme/console-ui: 16 nodes, 15 edges
+  ✓ acme/station-registry: 10 nodes, 11 edges
+  ✓ acme/shared-lib: 11 nodes, 8 edges
+  ✓ acme/forecast-api: 9 nodes, 8 edges
+  ✓ demo/app: 5 nodes, 4 edges
+✓ Workspace indexed: 7 repos, 76 nodes, 71 edges (0 unchanged, 0 failed)
+✓ Documents: 7 written, 0 unchanged, documents failed for 0 repo(s) → /tmp/work-kb/docs
+```
 
 ```mermaid
 flowchart TD
@@ -2793,7 +2820,7 @@ verified reference the way an import or a call site is, so nothing is inferred f
 A guarded assignment to a status, state or stage field becomes a `transitions_to` edge between
 `state` nodes, labelled with the method that makes the change. For example:
 
-    if order.status == Created: order.status = Paid
+    if reading.status == Received: reading.status = Validated
 
 **Only guarded transitions are emitted.** The source state has to be established by a comparison
 on the same field just before. That way a diagram never claims a transition the code does not
@@ -2916,13 +2943,18 @@ know which one it came from: Maven's `<scope>test</scope>` and npm's `devDepende
 a package manager's job, and the author's own text is the honest record of what was chosen.
 
 The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
-what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
+what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Forecast`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than
 getting a silent best-guess.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
+```console
+$ contextlake kb impact queueJob --hops 3
+Impact of changing queueJob (acme_alerts_queuejob): 3 affected node(s) within 3 hop(s)
+  seed: function src/queueJob.js
+  h1  acme/alerts:sendAlert  (function, src/sendAlert.js)  via calls at src/x:1  [extracted]
+  h2  acme/alerts:AlertSender  (class, src/AlertSender.js)  via calls at src/x:1  [extracted]
+  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]
+```
 
 ## The graph, on this page
 
@@ -3064,7 +3096,7 @@ across the whole fleet or a single repo:
 
 ```bash
 contextlake kb enrich --workspace ~/work     # all indexed repos
-contextlake kb enrich acme/catalog-api         # one repo
+contextlake kb enrich acme/forecast-api        # one repo
 ```
 
 **Prerequisites.** Two things must be true:
@@ -3478,13 +3510,32 @@ What gets embedded and which model to pick are in [Embeddings and models](embedd
 
 ## What a query returns
 
-A single query returns cited hits (`repo · file:line · kind · name`) that span repositories
-*and* languages, here the C# and Python payment paths together. `--retriever fts|semantic|hybrid`
-picks keyword, vector, or graph-propagation ranking.
+A single query returns cited hits, `repo · file:line · kind · name · symbol path`, that span
+repositories *and* languages. `--retriever fts|semantic|hybrid` picks keyword, vector, or graph-propagation
+ranking.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
-</p>
+Against the bundled `--sample` fleet, whose nodes carry a file but no line and no symbol path,
+one query crosses three repositories and three languages:
+
+```console
+$ contextlake kb query reading --retriever hybrid --limit 6
+  demo/app · src/readings.py · function · load_readings
+  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView
+  demo/app · src/forecast.py · class · ForecastService
+  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor
+  acme/console-ui · src/useStation.tsx · function · useStation
+  acme/console-ui · src/StationPage.tsx · class · StationPage
+```
+
+`--retriever fts` is keyword search over the same store. It returns the three nodes whose text
+carries the word, and stops there:
+
+```console
+$ contextlake kb query reading --retriever fts
+  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor
+  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView
+  demo/app · src/readings.py · function · load_readings
+```
 
 ## When a query finds nothing
 
@@ -3525,8 +3576,8 @@ a query with the node ids it should return:
 ```json
 {
   "queries": [
-    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
-    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+    {"query": "ForecastService", "expected": ["demo_app_forecastservice"]},
+    {"query": "load readings", "expected": ["load_readings"], "match": "name", "kind": "function"}
   ]
 }
 ```
@@ -3574,7 +3625,7 @@ $ contextlake kb eval --golden queries.json --verify-citations
 Citations: 178/180 verified (98.9%) of 184 distinct nodes
   4 unverifiable (no local checkout for the repo)
   name_absent: 2
-    src/billing/refund.py:88  (name_absent)
+    src/ingest/backfill.py:88  (name_absent)
 ```
 
 Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
@@ -3617,7 +3668,7 @@ graph is indexed and queryable by name, but has no vector.
 
 Each one is embedded with its name, qualified name, file path, and captured **signature and
 docstring**. The extra text is the point: a name alone is thin signal, and a query like
-*"refund a payment to the original card"* tends to share its words with the signature and the
+*"resend a reading that failed to upload"* tends to share its words with the signature and the
 docstring rather than with the identifier.
 
 The set is wider than code on purpose. A route, a table and an architecture decision record
@@ -3836,7 +3887,7 @@ Two ways to turn the tier on.
 - **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
   `ollama`, `openai`, `anthropic`, `cli`, `auto`.
 
-For example, `contextlake kb wiki acme/catalog-api --llm builtin` enables the tier and scopes
+For example, `contextlake kb wiki acme/forecast-api --llm builtin` enables the tier and scopes
 generation to that repo.
 
 `auto` picks for you, in order: a reachable local Ollama that already has the model pulled, else
@@ -4054,7 +4105,7 @@ Each section is also **linked to the symbols it names**, with a `documented_by` 
 
 ## Cluster (namespace) wiki
 
-`contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a whole group of
+`contextlake kb wiki --namespace acme/stations` writes one **cluster page** for a whole group of
 repos, meaning everything under that repo-id prefix. Use `--namespaces --depth N` to generate one
 page per namespace at that depth.
 
@@ -4093,11 +4144,14 @@ passed off as a code fact.
 The council still gates the enriched page before it is written. External context supplements
 code-backed facts, and never displaces them.
 
-The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
-strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
-from, and a **STALE** badge if the indexed commit has since moved.
+The result renders directly in the dashboard's Wiki tab, with no click-through: grounded strictly in
+real symbols, carrying a provenance footer, and showing a **STALE** badge if the indexed commit has
+since moved.
 
-![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+The page below is the **model-free** page, the one `contextlake kb wiki` writes with no `--llm`. Its
+footer names the commit. Add `--llm` and the same tab shows prose sections on top of these facts.
+
+![The Wiki tab: a generated page for acme/forecast-api, grounded in the repo's own symbols, under a "not ground truth" advisory banner](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
@@ -4123,8 +4177,13 @@ Source: https://sayak.in/contextlake/generating-documentation
 
 # Generate documentation
 
-`contextlake kb docs` writes documentation from the graph. No model is involved, nothing is
-inferred, and every statement traces to an edge that a parser recorded.
+`contextlake kb docs` writes documentation from the graph. Nothing is inferred, and every
+statement traces to an edge that a parser recorded. No model is involved by default; `--llm`
+adds one marked orientation paragraph above the API reference and changes nothing else.
+
+`contextlake kb index` writes the same two per-repository documents itself, for the repos it
+indexed, so a fresh index leaves a store with documents in it. See
+[Keeping it current](#keeping-it-current).
 
 Two documents per repository:
 
@@ -4149,7 +4208,7 @@ Both read the same graph, and they answer different questions.
 | | `kb wiki` | `kb docs` |
 | --- | --- | --- |
 | Shape | one page you read start to finish | documents you look things up in |
-| Model | optional, gated by a review council | never |
+| Model | optional, gated by a review council | off by default, opt in with `--llm` |
 | Scope | what this repository is and does | where each symbol is used, and what its own files record about how it was built |
 
 They are separate commands rather than two sections of one page because a document that tries
@@ -4178,7 +4237,7 @@ a symbol that is missing from a symbol that does not exist.
 Pass repo ids to document only those:
 
 ```bash
-contextlake kb docs team/api team/worker
+contextlake kb docs acme/forecast-api acme/alerts
 ```
 
 ## Exit codes
@@ -4195,10 +4254,24 @@ reported as clean is how a broken store stays broken.
 
 ## Keeping it current
 
-The reference is generated, so regenerate it after re-indexing:
+`contextlake kb index` writes both per-repository documents for the repos it indexed, so
+one command keeps the graph and the documents together:
 
 ```bash
-contextlake kb index && contextlake kb docs
+contextlake kb index
+```
+
+It skips a repository whose head commit has not moved since its documents were written, so
+running it after every commit costs two file reads per unchanged repository. It never runs a
+model, and `--no-docs` switches the documents off.
+
+`contextlake kb docs` regenerates unconditionally, which is what to reach for when a document
+looks wrong. It also writes the whole-store fleet page, which `kb index` does not:
+`kb index` covers the repos of one run, and a page headed "the whole store" built from part
+of one would be a false claim.
+
+```bash
+contextlake kb docs
 ```
 
 See [Bootstrap and keep it fresh](keeping-it-fresh.md) for running that on a schedule or on commit.
@@ -4887,6 +4960,10 @@ re-uses the repo's stored id so it updates the same graph node rather than creat
 is written inside a delimited managed block, so a hook you already had is appended to rather than
 overwritten, and only that block is refreshed on re-runs.
 
+`kb index` rewrites that repo's API reference and design notes along with the graph, so the
+documents move with the commit. No model runs, and a repo whose head commit has not moved is
+skipped. Pass `--no-docs` in the hook command to leave the documents to `kb docs` instead.
+
 Mirror-wide work (fetching new clones, pruning) still belongs to `bootstrap` on a schedule. The
 hook keeps your *local edits* current in between.
 
@@ -4900,9 +4977,9 @@ store can be arbitrarily out of date while every command it serves looks healthy
 ```console
 $ contextlake kb refresh
 ⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.
-  moved: payments-api
-  moved: billing-worker
-  moved: checkout-ui
+  moved: sensor-ingest
+  moved: forecast-api
+  moved: console-ui
   checked 12/12 in 0.06s
 ```
 
@@ -5422,9 +5499,22 @@ contextlake doctor                   # check the environment
 counts, the built-in CPU embedder, and the ANN index) and exits non-zero if anything is wrong, so it
 doubles as a CI health gate:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-doctor.png" alt="contextlake doctor output: green ticks for SQLite FTS5, git and glab on PATH, config loads, a reachable store with 4 repos / 29 nodes / 28 edges, the built-in embedder, and the sqlite-vec ANN index, ending in OK." width="820">
-</p>
+```console
+$ contextlake doctor --config /tmp/sample-kb.toml
+contextlake knowledge layer — doctor
+  ✓ SQLite FTS5 available
+  ✓ git on PATH
+  ✓ glab on PATH (for syncing)
+  ✓ config loads — 1 file(s), 0 source(s), 0 rule(s)
+      /tmp/sample-kb.toml
+  ✓ store reachable — /tmp/sample-kb · 7 repos, 44 nodes, 36 edges
+  ✓ shards up to date with the current parser
+  ✓ embeddings — auto · sqlite-vec · 26 vector(s)
+  ✓   built-in embedder model — minishlab/potion-base-8M · downloaded · /tmp/cl-home/.contextlake/models
+  ✓   ANN index (sqlite-vec) — available — native KNN
+  ✓ wiki LLM — not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER); the local runtime (openvino-genai) is not installed either: contextlake doctor --fix llm-local
+OK
+```
 
 The fastest way to build all of it is one command, `contextlake bootstrap` (see
 [Bootstrap and keep it fresh](keeping-it-fresh.md)). The rest of this section is the map of what that pipeline does,
@@ -5513,10 +5603,10 @@ than a path and it does open the store, only to find the clone.
 ## Find something: `kb query`
 
 ```bash
-contextlake kb query "CatalogService"
-contextlake kb query charge --kind function --repo acme/billing-service
-contextlake kb query "how do we charge a card" --retriever semantic
-contextlake kb query charge --repo acme/billing-service --as-of a1b2c3
+contextlake kb query "ForecastService"
+contextlake kb query ingest --kind method --repo acme/sensor-ingest
+contextlake kb query "how do we ingest a reading" --retriever semantic
+contextlake kb query ingest --repo acme/sensor-ingest --as-of a1b2c3
 ```
 
 Each hit prints as `repo · file:line · kind · name`, so every result is a place you can open.
@@ -5535,11 +5625,11 @@ Each hit prints as `repo · file:line · kind · name`, so every result is a pla
 | Mode | How it matches | Good for | Bad at |
 | --- | --- | --- | --- |
 | `fts` (default) | SQLite FTS5 over node name, qualified name and file, as **prefix** terms | a name you know, or its first few characters | a description of what the code does |
-| `semantic` | nearest neighbours in embedding space | "how do we charge a card", where you have the idea and not the name | an exact rare identifier |
+| `semantic` | nearest neighbours in embedding space | "how do we ingest a reading", where you have the idea and not the name | an exact rare identifier |
 | `hybrid` | semantic seeds, then a Personalized PageRank rerank over the graph | most real questions | nothing in particular, it is the slowest of the three |
 
 **`fts` is prefix search, not substring search.** Each word you type becomes a quoted prefix term,
-so `Catalog` finds `CatalogService` and `Service` does not
+so `Forecast` finds `ForecastService` and `Service` does not
 (`_fts_query` in `src/contextlake/kb/store/sqlite_store.py`). Multiple words are an implicit AND of
 prefix terms. That is the single most common reason a query that "should" match comes back empty.
 
@@ -5562,25 +5652,28 @@ honours `--retriever`. It needs `--repo`, because history is kept per repository
 ### Verification
 
 ```bash
-contextlake kb query CatalogService --limit 3
+contextlake kb query ForecastService --limit 3
 ```
 
 You should get up to three lines shaped like
-`acme/catalog-api · src/catalog/service.py:41 · class · CatalogService`. If you get
-`No matches for 'CatalogService'`, check the index is populated with `contextlake doctor` before
+`demo/app · src/forecast.py · class · ForecastService`. If you get
+`No matches for 'ForecastService'`, check the index is populated with `contextlake doctor` before
 suspecting the query.
 
 ## See what breaks: `kb impact`
 
 ```bash
-contextlake kb impact charge
-contextlake kb impact charge --repo acme/billing-service --hops 2
-contextlake kb blast-radius charge --json          # the same command
+contextlake kb impact ingest
+contextlake kb impact ingest --repo acme/sensor-ingest --hops 2
+contextlake kb blast-radius ingest --json          # the same command
 ```
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
+```console
+$ contextlake kb impact ingest --repo acme/sensor-ingest --hops 2
+Impact of changing Ingest (acme_sensor_ingest_ingest): 1 affected node(s) within 2 hop(s)
+  seed: method src/Ingest.cs
+  h1  acme/sensor-ingest:SensorGateway  (class, src/SensorGateway.cs)  via calls at src/x:1  [extracted]
+```
 
 | Flag | What it does | Default |
 | --- | --- | --- |
@@ -5644,8 +5737,8 @@ A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:
 
 ```text
-  --repo acme/billing-service   (function charge)
-  --repo acme/catalog-api       (method charge)
+  --repo acme/sensor-ingest     (class Reading)
+  --repo acme/forecast-api      (struct Reading)
 ```
 
 The candidate list stops at 10 repos even when the count in the line above it is higher.
@@ -5669,15 +5762,19 @@ a failure.
 ## Find who to ask: `kb owners`
 
 ```bash
-contextlake kb owners acme/payments-api                  # the whole repo
-contextlake kb owners acme/payments-api --path src/auth  # one sub-tree
+contextlake kb owners acme/sensor-ingest                    # the whole repo
+contextlake kb owners acme/sensor-ingest --path src/gateway  # one sub-tree
 contextlake kb owners .                                  # a directory on disk, no index needed
-contextlake kb who-knows acme/payments-api --json        # the same command
+contextlake kb who-knows acme/sensor-ingest --json          # the same command
 ```
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
-</p>
+```console
+$ contextlake kb owners acme/sensor-ingest
+Owners / SMEs for acme/sensor-ingest (recency-weighted):
+  1. Ada Rowan  —  2 commit(s), 14 line(s), last 2026-09-01, 43%
+  2. Ben Okafor  —  1 commit(s), 16 line(s), last 2026-07-14, 38%
+  3. Chen Wei  —  1 commit(s), 6 line(s), last 2026-08-18, 18%
+```
 
 | Flag | What it does | Default |
 | --- | --- | --- |
@@ -5881,8 +5978,8 @@ Stat cards, a **knowledge-confidence** bar, and your repos grouped by namespace.
 
 ![Fleet overview, cards layout](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png)
 
-Prefer denser views? Switch the layout, **Cards / List / Table** (your choice is
-remembered):
+Prefer denser views? Switch the layout, **Cards / List / Table / Treemap** (your choice
+is remembered):
 
 ![Fleet overview, list layout](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list.png)
 
@@ -5933,7 +6030,7 @@ into a PR or a design doc.
 showing a truncated whole-repo tangle, and if that module is *itself* still too large,
 it keeps narrowing into that module's own largest child, one level at a time, until the
 view fits (or there's genuinely nowhere further to go). A breadcrumb trail (`Whole repo
-› src › payments › tests`) shows the path taken; click any earlier crumb to widen back
+› src › sensors › tests`) shows the path taken; click any earlier crumb to widen back
 out, or pick a different child from the narrow-further control to explore a sibling.
 
 Live-only (not part of a `--site` export, same as MCP console/Settings below), Mermaid
@@ -5968,7 +6065,7 @@ hop by hop, with the confidence of each path. A **Call sequence** card renders t
 neighborhood as a Mermaid sequence diagram (`--format sequencediagram`, §5) seeded by
 the symbol you're on.
 
-![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
+![Blast radius for GridSampler: the hops a change would touch, and the Call sequence diagram for the same neighborhood](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
 The breadcrumb keeps going: **repo, symbol, Diagram, Wiki, Links, Ticket**. Each is one click
 to that symbol's repo-scoped architecture graph, its curated wiki, or its connector links in
@@ -6031,10 +6128,17 @@ live server would have given at export time.
 
 ## 9. Generate a wiki
 
-No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
+No wiki for a repo yet? What the **Wiki** tab offers depends on whether the server can
+write:
+
+- Started with `--allow-mutations`, the tab carries a **Generate wiki** card that runs
+  the CLI for you. See [§11](#11-mutating-routes).
+- Started without it, the tab hands you the exact command instead (one click to copy).
+  A button that only copies text is the honest control for a server that cannot run
+  anything.
 
 ```bash
-contextlake kb wiki acme/catalog-api --llm builtin
+contextlake kb wiki acme/forecast-api --llm builtin
 ```
 
 `--llm` turns on the LLM tier inline. Three choices:
@@ -6058,7 +6162,10 @@ footer names the exact commit and source files.
 A **STALE** badge appears beside the heading whenever the indexed commit has moved since the
 page was written. It is always visible, not hidden behind anything.
 
-![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+The page below is the **model-free** page, written with no `--llm`. Its sections come from the
+graph alone. Add `--llm` and the same tab shows the prose sections listed above.
+
+![The Wiki tab: a generated page for acme/forecast-api, grounded in the repo's own symbols, under a "not ground truth" advisory banner](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 **Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generating-the-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
@@ -6067,10 +6174,34 @@ subsystem's own page, or the **Whole repo** option to go back, without leaving t
 only ever lists subsystems that actually have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
+A subsystem pane says the same thing in words: wiki pages are generated per repo, not
+per subsystem, and the card below it covers the whole repo. There is no module-scoped
+run, because `contextlake kb wiki` takes a repo.
+
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
 See [Generate the wiki](generating-the-wiki.md).
+
+## 9b. Generate the documents
+
+The **Docs** tab holds the two generated documents for a repo, the API reference and the
+design notes. It works the same way the Wiki tab does:
+
+- With `--allow-mutations`, the tab carries a card that runs `contextlake kb docs` for
+  this repo. It reads **Generate documents** when neither document is on disk and
+  **Regenerate documents** when one is, so the heading, the button and the confirm
+  dialog all say the same thing.
+- Without mutations, the tab hands you `contextlake kb docs` to copy.
+
+The card shows the run's log while it runs, then a count of the documents written. That
+count is read back from the files on disk, because an exit code says a process ended,
+not what it produced.
+
+Live-only: a `--site` export carries no generated documents, so it does not offer the
+tab at all.
+
+See [Generating documentation](generating-documentation.md).
 
 ## 10. MCP console and settings
 
@@ -6089,7 +6220,7 @@ it's a summary, not a form; edit `kb.toml` directly to change anything.
 
 Everything above is read-only.
 
-`contextlake kb dashboard --serve --allow-mutations` adds four write actions. Each one asks you
+`contextlake kb dashboard --serve --allow-mutations` adds five write actions. Each one asks you
 to confirm in the browser first.
 
 | Action | Where | What it does |
@@ -6098,13 +6229,16 @@ to confirm in the browser first.
 | **Add repo** | fleet overview | clone a URL into `--workspace`, then index it |
 | **Start / Stop / Restart** | MCP console tab | manages a separate `contextlake kb serve --transport http` process |
 | **Regenerate** | a repo's Wiki tab, or Settings | runs the real `contextlake kb wiki` CLI in the background |
+| **Generate / Regenerate documents** | a repo's Docs tab | runs the real `contextlake kb docs` CLI in the background for that repo |
 
 Two notes on those:
 
 - The MCP process is **not** the stdio server your editor spawns. This dashboard cannot see or
   manage that one. Its bearer token is covered below.
-- Regenerate runs detached from the request that started it, so it keeps going if you close the
-  browser tab.
+- Regenerate and Generate documents both run detached from the request that started them, so
+  they keep going if you close the browser tab.
+- Generate documents has no estimate step and no Force box. The run is model-free by default,
+  so there is no token cost to preview first, and `kb docs` has no `--force` flag to offer.
 
 Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
 are already up to date". A **Force** checkbox skips that freshness check and regenerates
@@ -6241,9 +6375,9 @@ The transport only decides how your client reaches the server; the tool set behi
 whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
 can call either.
 
-**Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
-`ask("what breaks if I change CatalogService")` / `ask("what extends BaseController")` /
-`ask("explain the catalog-api")`. It classifies the question, routes it to the right
+**Start with `ask`.** One tool, natural language: `ask("who calls load_readings")` /
+`ask("what breaks if I change ReadingProcessor")` / `ask("what extends BaseController")` /
+`ask("explain the forecast-api")`. It classifies the question, routes it to the right
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
@@ -6436,7 +6570,7 @@ Transport choices, concurrency limits and the provenance each cited node carries
 
 ## Once connected
 
-Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
+Ask the agent things like *"where is `ForecastService` defined?"*, *"who calls `load_readings`?"*, or
 *"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
 
@@ -6645,7 +6779,7 @@ moved since this graph was built? See [Keeping it fresh](keeping-it-fresh.md).
 That is the right question for the graph as a whole. It is also blind to the case that bites
 hardest in practice: an agent editing files *between* index runs, inside the same commit.
 
-Here is what that looks like. The graph says `src/billing/refund.py:88`. Twenty lines get
+Here is what that looks like. The graph says `src/telemetry/window.py:88`. Twenty lines get
 inserted above it. The answer still says 88.
 
 A confidently wrong citation is worse than a miss, because the agent goes and reads it.
@@ -6705,10 +6839,10 @@ nodes) is far too large to render, so every view is scoped from a seed and cappe
 
 ```bash
 contextlake kb graph --overview --open                 # repos-as-nodes: the architecture map
-contextlake kb graph --name CatalogService --kind class  # a symbol's neighbourhood (default 2 hops)
+contextlake kb graph --name ForecastService --kind class  # a symbol's neighbourhood (default 2 hops)
 contextlake kb graph --node <id> --hops 3              # expand around an exact node id
-contextlake kb graph --search "payment" --open         # seed from a full-text search
-contextlake kb graph --repo acme/catalog-api           # one repo's internal code graph
+contextlake kb graph --search "sensor" --open          # seed from a full-text search
+contextlake kb graph --repo acme/forecast-api          # one repo's internal code graph
 ```
 
 ```mermaid
@@ -6740,7 +6874,7 @@ page: nodes coloured by kind and sized by degree, edges by relation, with an in-
 search, and a minimap; it opens straight from `file://`:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for one repository, acme/station-registry from the demo fleet. Eight nodes and five edges: the classes StationRegistry and StationEnrollment, the functions verify_station and normalize_station_id, the file manifest.py, the packages acme-stations and acme-shared, and the repo itself, coloured by kind and linked by calls, depends_on and publishes edges. The sidebar lists the node and relationship legend and a layout switcher, with a search box in the top bar and a minimap in the bottom corner." width="820">
 </p>
 
 **Pick a seed** with one of `--node`, `--name` (plus `--kind`), `--search`, `--repo` or
@@ -6815,24 +6949,24 @@ Output is chosen with `--format`:
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
-  `<|..` implements). Great for a PR or design doc: `contextlake kb graph --repo acme/app --format classdiagram`.
+  `<|..` implements). Great for a PR or design doc: `contextlake kb graph --repo demo/app --format classdiagram`.
 - **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
   ordered by call-site line, the order they actually appear in the source: `contextlake kb graph --name
-  process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
+  verify_station --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
   `--repo`/`--overview`; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
-  (`if order.status == Created: order.status = Paid`) become transitions, labeled with the method that
+  (`if reading.status == Received: reading.status = Validated`) become transitions, labeled with the method that
   makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
   comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
   (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake kb graph --repo
-  acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
+  demo/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
   `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
-  `contextlake kb graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
+  `contextlake kb graph --repo demo/app --format erdiagram`. No attribute/column data (the extractor
   only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
   relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
   so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
@@ -6843,18 +6977,18 @@ Output is chosen with `--format`:
   (network/compute/storage/database/security/other/module; a resource type matching none of the
   keyword lists lands in `other` and gets its own subgraph),
   from the HCL extractor (see [Index & Code Graph](indexing-the-code-graph.md)): `contextlake kb graph --repo
-  acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
+  demo/app --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
   parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
 - **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
   [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
-  acme/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
+  demo/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
   file, line, lang / relation, confidence, weight) as GraphML `<data>` keys, so Gephi's own filter and
   color-by-attribute tools work directly against them, not just a bare shape.
 - **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
-  import: `contextlake kb graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
+  import: `contextlake kb graph --repo demo/app --format cypher --output g.cypher`, then `cypher-shell -f
   g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`,
   both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
@@ -7830,8 +7964,8 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 
 | Command | What it does |
 | --- | --- |
-| `kb source` | add / list / remove / test / enable / disable knowledge-source connectors |
-| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
+| `kb source` | add / list / remove / test / enable / disable knowledge-source connectors, and `wizard` to check every configured one and then walk an add step by step (needs a terminal) |
+| `kb index` | Build the code/dependency graph, and write the API reference and design notes for the repos it indexed (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway; `--no-docs` skips the documents, and a repo whose head commit has not moved is skipped) |
 | `kb forget` | Remove one repository from the store, in every tier it occupies: graph nodes and edges, semantic vectors, wiki pages, and its `@connect:` / `@enrich:` connector partitions. The repair for a mis-index (`--dry-run` reports what would go, and removes nothing) |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
@@ -8398,7 +8532,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`contextlake kb source wizard`.** It lists every configured source with a reachability
+  mark, then offers to add another and loops until you answer no (pressing enter is no). The
+  survey reads the same `verify_source` path `kb doctor` and `kb source test` use, so
+  "is this source reachable" has one answer across all three. The add step is `kb source add`
+  run interactively, so the prompts, the literal-secret refusal and the write target are the
+  same ones. It needs a terminal: a prompt written to a pipe hangs, so a non-interactive run
+  is refused with exit 2 and the flag form to use instead.
+
 ### Changed
+
+- **`kb doctor`'s per-source line now separates three answers that used to render as one
+  `⚠`.** A source that was dialled and did not answer keeps `⚠`. A source of a type with no
+  reachability probe (`gitlab`, `zendesk`) now draws `⊘`, matching what `kb source test`
+  already prints for the same case. A source with `enabled = false` also draws `⊘` and is not
+  dialled at all, matching `kb connect` and `kb ingest`, which both skip disabled sources.
+  None of the three changes doctor's exit code, which is unchanged and still deliberate.
+
+  **What this loses:** doctor no longer reports a broken path or an unreachable endpoint on a
+  disabled source. Nothing reads that source, so the round trip bought nothing, but the line
+  used to be there. Re-enable the source to have it dialled again.
+
+- **The bundled `--sample` demo fleet moved to a new domain, and two of its repos changed
+  shape. Repo ids and symbol names changed, so a script that names one has to be edited.** The
+  old fleet's domain read as a real production estate rather than as an obvious invention, which
+  is what demo data has to be. It now models a weather-station monitoring network: stations
+  report readings, a forecast service runs a model over them, an ingest pipeline normalises raw
+  readings, an alerts service fans out severe-weather notices, and a console UI shows it.
+
+  ```text
+  acme/auth-service   ->  acme/station-registry
+  acme/catalog-api    ->  acme/forecast-api    (rebuilt, not renamed; see below)
+  acme/payments-api   ->  acme/sensor-ingest   (call edges redirected; see below)
+  acme/web-ui         ->  acme/console-ui
+  acme/notifications  ->  acme/alerts
+  acme/shared-lib     ->  acme/shared-lib      (unchanged)
+  demo/app            ->  demo/app             (id unchanged; its two symbols changed)
+  ```
+
+  **`acme/forecast-api` is a rebuild.** The old repo was a four-layer controller / service /
+  repository / validator chain in C#. It is now a scheduled model run in Go:
+  `RunCycle -> ForecastRunner -> GridSampler -> ModelGrid`, with no controller, no repository and
+  no validator. **`acme/sensor-ingest` keeps its nodes and redirects its call edges** so readings
+  flow one way: `SensorGateway -> Ingest -> ReadingProcessor`, plus
+  `Backfill -> ReadingProcessor`. Nothing downstream calls back into the gateway, and the two
+  triggers converge on one processor instead of forming another straight line.
+
+  **What moved and what did not, measured on the fixture.** The `acme` org, the repo count (7),
+  the node total (44), the edge total (36) and all 11 cross-repo edges are the same, edge for
+  edge, under the mapping above. Two counts did move: languages went from 4 to 5 (Go added, C#
+  down from 10 nodes to 5), and node kinds from 7 to 8 (`struct` added, `class` 12 to 11,
+  `method` 3 to 2).
+
+  Every symbol inside those repos changed with the ids, so a golden-query file, an MCP call or
+  a dashboard bookmark naming an old one returns nothing until it is updated. The new node and
+  edge lists are in `src/contextlake/kb/dashboard/fixtures/sample-dashboard.json`. Nothing in
+  the product changed. This is demo data and the docs that quote it.
 
 - **`[embeddings] base_url` now defaults per provider. Check yours before upgrading if you point
   it at a local server.** The field was declared as the literal `http://127.0.0.1:11434`, and one
@@ -11765,7 +11956,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.
 ### Changed
 
 - **`--repos` patterns are anchored, and `--repos-exact` is gone.** BREAKING: `--repos api` now
-  selects a repo named exactly `api`, where it previously also selected `payments-api` and
+  selects a repo named exactly `api`, where it previously also selected `forecast-api` and
   `api-gateway`. For a substring match, glob it: `--repos "*api*"`.
 
   A filter that silently selects *more* than you asked for is the expensive direction of this
@@ -14436,7 +14627,7 @@ spec-cli-simplification.md`.
 - **Dashboard/graph architecture view: repo labels no longer overlap when a
   namespace cluster expands.** The mindmap drill-in's grid layout only spaced
   node *shapes* apart (`avoidOverlap`), not their label text, so adjacent
-  repos with longer names (`catalog-api`, `auth-service`, `shared-lib`) ran
+  repos with longer names (`forecast-api`, `station-registry`, `shared-lib`) ran
   into each other. Now accounts for label width
   (`nodeDimensionsIncludeLabels`) and uses more generous cell spacing.
 
@@ -14596,7 +14787,7 @@ spec-cli-simplification.md`.
   in how repos were bucketed into namespaces for boundary purposes (shared with
   the dashboard's display-grouping heuristic, `derive_groups`, but wrong for
   boundary tagging specifically): (1) a repo whose id IS exactly a namespace
-  prefix (e.g. a repo literally named `acme` alongside `acme/pay/api`) fell into
+  prefix (e.g. a repo literally named `acme` alongside `acme/ingest/api`) fell into
   the meaningless catch-all `"(ungrouped)"` bucket instead of the `acme`
   boundary its own child repo joined, so a real edge between them wrongly
   rendered as crossing a boundary; (2) `"(ungrouped)"` was treated as one shared
@@ -14674,10 +14865,10 @@ spec-cli-simplification.md`.
 
 - **`ask`'s `explain`/`owners` routes didn't resolve a repo by its short name,
   contradicting the docs' own headline example.** `ask("explain the
-  catalog-api")` (verbatim from docs/serve.md) silently fell through to
+  forecast-api")` (verbatim from docs/serve.md) silently fell through to
   `search` instead of returning wiki prose or a repo brief: repo ids are
-  always host-qualified (`gitlab.example.com/acme/catalog-api`), but the
-  router only extracts the trailing "catalog-api" out of the question, which
+  always host-qualified (`gitlab.example.com/acme/forecast-api`), but the
+  router only extracts the trailing "forecast-api" out of the question, which
   never matched the full stored id via `get_wiki`/`get_repo_brief`/
   `who_knows`'s exact lookup. A person naturally refers to a repo by its
   short name, so this needed to be resolved, not documented around. Added
@@ -15001,7 +15192,7 @@ spec-cli-simplification.md`.
   dropped without a trace.
 - **`owners` and `graph` suggest close repo ids** when given an id that is not in the
   store, including the workspace-relative-prefix case (a sub-workspace-indexed
-  `team/billing/api` points at the stored `acme/team/billing/api`), instead of
+  `team/gateway/api` points at the stored `acme/team/gateway/api`), instead of
   a bare error or a silently empty view.
 
 ## [2.41.0] - 2026-07-21
@@ -15239,7 +15430,7 @@ spec-cli-simplification.md`.
 ### Fixed
 
 - **`find_callers` and `blast_radius` accept a bare symbol name.** Agents call these
-  MCP tools with a name (e.g. `CatalogService`), but they only accepted an internal
+  MCP tools with a name (e.g. `ForecastService`), but they only accepted an internal
   node id, so a name silently returned nothing even when the graph had the answer
   (only the `ask` router resolved names). Both now resolve a name to its first
   matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.
@@ -15351,7 +15542,7 @@ spec-cli-simplification.md`.
 ### Changed
 
 - **`ask`'s explain route degrades usefully.** When a question like "explain the
-  catalog-api" hits a repo with no generated wiki, `ask` now returns that repo's
+  forecast-api" hits a repo with no generated wiki, `ask` now returns that repo's
   grounded anatomy (top symbols, packages, languages) from the graph instead of a
   blind semantic search, a structured `brief` beats fuzzy hits for "explain this."
   (Surfaced by a full end-to-end test sweep of the CLI + MCP server, which otherwise
@@ -15362,8 +15553,8 @@ spec-cli-simplification.md`.
 ### Added
 
 - **`ask`, one MCP tool, natural language, auto-routed.** A small-context IDE agent
-  no longer has to pick among twenty graph tools: `ask("who calls charge_order")`,
-  `ask("what breaks if I change CatalogService")`, `ask("explain the catalog-api")`. A
+  no longer has to pick among twenty graph tools: `ask("who calls ingest_reading")`,
+  `ask("what breaks if I change ForecastService")`, `ask("explain the forecast-api")`. A
   deterministic, offline classifier maps the question to a substrate (definition /
   callers / dependents / impact / owners / explain / search), resolves the symbol or
   repo, and returns one labeled answer, graph facts cited and confidence-tagged, the
@@ -16832,7 +17023,7 @@ Answers "where am I, and where do I go next?".
 - **One topic per page.** A page must make sense on its own.
 - **No stubs.** A page covers its topic completely (every flag, the edge cases, at least one example) or it
   isn't ready. A thin page is worse than no page, because it looks finished.
-- **The Verification step earns its keep.** "You should see `4 repos, 29 nodes, 28 edges`" turns a hopeful
+- **The Verification step earns its keep.** "You should see `7 repos, 44 nodes, 36 edges`" turns a hopeful
   reader into a confident one, and it dogfoods the grounded ethos.
 
 ## Structure within a page
@@ -17082,7 +17273,7 @@ contextlake kb index --workspace ~/work
 ```
 
 The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
-summary ending in a line like `4 repos, 29 nodes, 28 edges`.
+summary ending in a line like `7 repos, 44 nodes, 36 edges`.
 ````
 
 ### A how-to skeleton
@@ -17594,8 +17785,8 @@ On a small Kotlin sample holding one class with one method, one import, one call
 
 ```
 file Svc.kt None None
-class CatalogService Svc.kt::CatalogService 5
-method process Svc.kt::CatalogService.process 6
+class GaugeService Svc.kt::GaugeService 5
+method process Svc.kt::GaugeService.process 6
 module com.example.Base None None
 calls    ['helper']
 inherits ['Base']
@@ -17655,17 +17846,17 @@ not hit the blanket handler. Zero nodes means your extension never reached the p
 Query a definition by name, and read the kind:
 
 ```bash
-contextlake kb --config /tmp/lang-check/kb.toml query CatalogService
+contextlake kb --config /tmp/lang-check/kb.toml query GaugeService
 ```
 
 ```
-  demo/kotlin · Svc.kt:5 · class · CatalogService
+  demo/kotlin · Svc.kt:5 · class · GaugeService
   demo/kotlin · Svc.kt:6 · method · process
 ```
 
 Each `repo · file:line · kind · name` hit proves a node reached the SQLite store with the right kind
 and line. The method is a hit too because search matches qualified names, and `process` is qualified
-`CatalogService.process`; that second line is expected, not an over-capture by your query.
+`GaugeService.process`; that second line is expected, not an over-capture by your query.
 
 Filter by kind, which is the strictest of the three:
 

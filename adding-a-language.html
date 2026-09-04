@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Adding a language · contextlake docs">
 <meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -383,8 +383,8 @@ silent.</p>
 </code></pre></div>
 <p>On a small Kotlin sample holding one class with one method, one import, one call and one base type:</p>
 <div class="highlight"><pre><span></span><code>file Svc.kt None None
-class CatalogService Svc.kt::CatalogService 5
-method process Svc.kt::CatalogService.process 6
+class GaugeService Svc.kt::GaugeService 5
+method process Svc.kt::GaugeService.process 6
 module com.example.Base None None
 calls    [&#39;helper&#39;]
 inherits [&#39;Base&#39;]
@@ -423,14 +423,14 @@ cp<span class="w"> </span>sample.&lt;ext&gt;<span class="w"> </span>/tmp/lang-ch
 <p>A non-zero node count proves the directory walk classified your extension as code and the parse did
 not hit the blanket handler. Zero nodes means your extension never reached the parser.</p>
 <p>Query a definition by name, and read the kind:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>query<span class="w"> </span>CatalogService
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>query<span class="w"> </span>GaugeService
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>  demo/kotlin · Svc.kt:5 · class · CatalogService
+<div class="highlight"><pre><span></span><code>  demo/kotlin · Svc.kt:5 · class · GaugeService
   demo/kotlin · Svc.kt:6 · method · process
 </code></pre></div>
 <p>Each <code>repo · file:line · kind · name</code> hit proves a node reached the SQLite store with the right kind
 and line. The method is a hit too because search matches qualified names, and <code>process</code> is qualified
-<code>CatalogService.process</code>; that second line is expected, not an over-capture by your query.</p>
+<code>GaugeService.process</code>; that second line is expected, not an over-capture by your query.</p>
 <p>Filter by kind, which is the strictest of the three:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>--config<span class="w"> </span>/tmp/lang-check/kb.toml<span class="w"> </span>query<span class="w"> </span>--kind<span class="w"> </span>method<span class="w"> </span>process
 </code></pre></div>
@@ -652,6 +652,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

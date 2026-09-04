@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generating documentation · contextlake docs">
 <meta name="twitter:description" content="An API reference straight from the graph, with every symbol's real call sites and no model involved.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generating-documentation", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating documentation", "item": "https://sayak.in/contextlake/generating-documentation"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating documentation", "description": "An API reference straight from the graph, with every symbol's real call sites and no model involved.", "url": "https://sayak.in/contextlake/generating-documentation", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating documentation", "item": "https://sayak.in/contextlake/generating-documentation"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -48,8 +48,12 @@
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Generating documentation</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Generating documentation</h1><p class="doc-sub">An API reference straight from the graph, with every symbol's real call sites and no model involved.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<p><code>contextlake kb docs</code> writes documentation from the graph. No model is involved, nothing is
-inferred, and every statement traces to an edge that a parser recorded.</p>
+<p><code>contextlake kb docs</code> writes documentation from the graph. Nothing is inferred, and every
+statement traces to an edge that a parser recorded. No model is involved by default; <code>--llm</code>
+adds one marked orientation paragraph above the API reference and changes nothing else.</p>
+<p><code>contextlake kb index</code> writes the same two per-repository documents itself, for the repos it
+indexed, so a fresh index leaves a store with documents in it. See
+<a href="#keeping-it-current">Keeping it current</a>.</p>
 <p>Two documents per repository:</p>
 <ul>
 <li>an <strong>API reference</strong>, listing each symbol and the real places the codebase calls it;</li>
@@ -82,7 +86,7 @@ per indexed repository, and <code>&lt;store&gt;/docs/fleet/design.md</code> for 
 <tr>
 <td>Model</td>
 <td>optional, gated by a review council</td>
-<td>never</td>
+<td>off by default, opt in with <code>--llm</code></td>
 </tr>
 <tr>
 <td>Scope</td>
@@ -107,7 +111,7 @@ importance. A reference that quietly stops is worse than a short one, because yo
 a symbol that is missing from a symbol that does not exist.</p>
 <h2 id="scoping-to-some-repositories">Scoping to some repositories<a class="anchor" href="#scoping-to-some-repositories" title="Link to this section">#</a></h2>
 <p>Pass repo ids to document only those:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs<span class="w"> </span>team/api<span class="w"> </span>team/worker
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs<span class="w"> </span>acme/forecast-api<span class="w"> </span>acme/alerts
 </code></pre></div>
 <h2 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h2>
 <table>
@@ -133,8 +137,18 @@ of build and configuration files has no interface to document. A shard the store
 cannot read <strong>is</strong> a failure, even when other repositories succeeded, because a partial run
 reported as clean is how a broken store stays broken.</p>
 <h2 id="keeping-it-current">Keeping it current<a class="anchor" href="#keeping-it-current" title="Link to this section">#</a></h2>
-<p>The reference is generated, so regenerate it after re-indexing:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
+<p><code>contextlake kb index</code> writes both per-repository documents for the repos it indexed, so
+one command keeps the graph and the documents together:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index
+</code></pre></div>
+<p>It skips a repository whose head commit has not moved since its documents were written, so
+running it after every commit costs two file reads per unchanged repository. It never runs a
+model, and <code>--no-docs</code> switches the documents off.</p>
+<p><code>contextlake kb docs</code> regenerates unconditionally, which is what to reach for when a document
+looks wrong. It also writes the whole-store fleet page, which <code>kb index</code> does not:
+<code>kb index</code> covers the repos of one run, and a page headed "the whole store" built from part
+of one would be a false claim.</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>docs
 </code></pre></div>
 <p>See <a href="keeping-it-fresh">Bootstrap and keep it fresh</a> for running that on a schedule or on commit.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
@@ -184,6 +198,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Installing and upgrading · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -285,6 +285,11 @@ contextlake<span class="w"> </span>doctor
 <p><code>--version</code> should print the version you just installed. <code>doctor</code> checks the whole knowledge
 layer in one pass (SQLite FTS5, <code>git</code> and <code>glab</code> on PATH, config, the store's real counts,
 the built-in embedder, the ANN index, shard freshness) and prints a line per check.</p>
+<p>Each configured source gets its own line, and the mark says which of three things happened.
+<code>✓</code> means doctor dialled it and it answered. <code>⚠</code> means doctor dialled it and it did not.
+<code>⊘</code> means nothing was dialled: either the type has no reachability check (<code>gitlab</code>,
+<code>zendesk</code>), or the source is switched off with <code>enabled = false</code>. None of the three changes
+the exit code.</p>
 <p><strong>Read the output, do not gate on the exit code alone.</strong> <code>doctor</code> exits non-zero only when the
 environment cannot support a run at all: FTS5 missing, <code>git</code> missing, or the config and store
 unreadable. Everything else is reported and does not fail the command, including <strong>shard
@@ -577,6 +582,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

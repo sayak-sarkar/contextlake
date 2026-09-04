@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Searching semantically · contextlake docs">
 <meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -91,13 +91,26 @@ Both of those run on your machine, so on the defaults your code never leaves it;
 </ul>
 <p>What gets embedded and which model to pick are in <a href="embedding-reference">Embeddings and models</a>.</p>
 <h2 id="what-a-query-returns">What a query returns<a class="anchor" href="#what-a-query-returns" title="Link to this section">#</a></h2>
-<p>A single query returns cited hits (<code>repo · file:line · kind · name</code>) that span repositories
-<em>and</em> languages, here the C# and Python payment paths together. <code>--retriever fts|semantic|hybrid</code>
-picks keyword, vector, or graph-propagation ranking.</p>
-<p align="center">
-  <img src="img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
-</p>
-
+<p>A single query returns cited hits, <code>repo · file:line · kind · name · symbol path</code>, that span
+repositories <em>and</em> languages. <code>--retriever fts|semantic|hybrid</code> picks keyword, vector, or graph-propagation
+ranking.</p>
+<p>Against the bundled <code>--sample</code> fleet, whose nodes carry a file but no line and no symbol path,
+one query crosses three repositories and three languages:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>reading<span class="w"> </span>--retriever<span class="w"> </span>hybrid<span class="w"> </span>--limit<span class="w"> </span><span class="m">6</span>
+<span class="go">  demo/app · src/readings.py · function · load_readings</span>
+<span class="go">  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView</span>
+<span class="go">  demo/app · src/forecast.py · class · ForecastService</span>
+<span class="go">  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor</span>
+<span class="go">  acme/console-ui · src/useStation.tsx · function · useStation</span>
+<span class="go">  acme/console-ui · src/StationPage.tsx · class · StationPage</span>
+</code></pre></div>
+<p><code>--retriever fts</code> is keyword search over the same store. It returns the three nodes whose text
+carries the word, and stops there:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>reading<span class="w"> </span>--retriever<span class="w"> </span>fts
+<span class="go">  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor</span>
+<span class="go">  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView</span>
+<span class="go">  demo/app · src/readings.py · function · load_readings</span>
+</code></pre></div>
 <h2 id="when-a-query-finds-nothing">When a query finds nothing<a class="anchor" href="#when-a-query-finds-nothing" title="Link to this section">#</a></h2>
 <p>A vector index has no concept of "no match". It returns its k nearest however far away they are,
 and every one of them is a real node with a real file and line, so an answer about nothing you
@@ -125,8 +138,8 @@ notion of "no match" and needs no floor.</p>
 a query with the node ids it should return:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;queries&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CatalogService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;demo_app_catalogservice&quot;</span><span class="p">]},</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;charge&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;match&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function&quot;</span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ForecastService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;demo_app_forecastservice&quot;</span><span class="p">]},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;load readings&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;load_readings&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;match&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -165,7 +178,7 @@ there:</p>
 <span class="go">Citations: 178/180 verified (98.9%) of 184 distinct nodes</span>
 <span class="go">  4 unverifiable (no local checkout for the repo)</span>
 <span class="go">  name_absent: 2</span>
-<span class="go">    src/billing/refund.py:88  (name_absent)</span>
+<span class="go">    src/ingest/backfill.py:88  (name_absent)</span>
 </code></pre></div>
 <p>Failures are named rather than counted: <code>file_missing</code> (the graph outlived the file), <code>line_out_of_range</code>
 (the file shrank under a stale index), <code>name_absent</code> (the line exists, the symbol is not on it),
@@ -267,6 +280,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

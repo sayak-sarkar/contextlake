@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serving over MCP · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -68,9 +68,9 @@ Postman, …) can query the graph directly instead of grepping.</p>
 <p>The transport only decides how your client reaches the server; the tool set behind it is the same
 whichever one you pick. <code>ask</code> is a front door onto those tools, not a layer above them, so an agent
 can call either.</p>
-<p><strong>Start with <code>ask</code>.</strong> One tool, natural language: <code>ask("who calls charge_order")</code> /
-<code>ask("what breaks if I change CatalogService")</code> / <code>ask("what extends BaseController")</code> /
-<code>ask("explain the catalog-api")</code>. It classifies the question, routes it to the right
+<p><strong>Start with <code>ask</code>.</strong> One tool, natural language: <code>ask("who calls load_readings")</code> /
+<code>ask("what breaks if I change ReadingProcessor")</code> / <code>ask("what extends BaseController")</code> /
+<code>ask("explain the forecast-api")</code>. It classifies the question, routes it to the right
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; <code>explain</code> returns advisory wiki prose, or the repo's grounded anatomy when
@@ -243,7 +243,7 @@ bites, when the workspace sits outside that config's directory <em>and</em> that
 </code></pre></div>
 <p>Transport choices, concurrency limits and the provenance each cited node carries are in <a href="mcp-transports">MCP transports and limits</a>.</p>
 <h2 id="once-connected">Once connected<a class="anchor" href="#once-connected" title="Link to this section">#</a></h2>
-<p>Ask the agent things like <em>"where is <code>CatalogService</code> defined?"</em>, <em>"who calls <code>charge</code>?"</em>, or
+<p>Ask the agent things like <em>"where is <code>ForecastService</code> defined?"</em>, <em>"who calls <code>load_readings</code>?"</em>, or
 <em>"which repos depend on <code>shared-core</code>?"</em> and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in <code>wiki</code> command.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
@@ -337,6 +337,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

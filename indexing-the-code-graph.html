@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Indexing the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-01"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,10 +51,26 @@
 <p>Indexing turns your mirrored repos into a queryable knowledge graph. <code>contextlake kb index --workspace
 ~/work</code> walks every git repo under a folder and builds the graph. Runs are incremental by default;
 <code>--force</code> rebuilds from scratch.</p>
-<p align="center">
-  <img src="img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
-</p>
-
+<p>It also writes two documents per repository it indexed, <code>&lt;store&gt;/docs/api/&lt;repo&gt;.md</code> and
+<code>&lt;store&gt;/docs/design/&lt;repo&gt;.md</code>, so a fresh index leaves a store you can read as well as
+query. No model is ever run for them. A repository whose head commit has not moved since its
+documents were written is skipped, so the cost of the per-commit hook stays flat. <code>--no-docs</code>
+switches them off, and <code>contextlake kb docs</code> regenerates them unconditionally. See
+<a href="generating-documentation">Generate documentation</a>.</p>
+<p>A run over a seven-repository workspace. The live progress bar is redrawn in place, so what
+stays on screen is one line per repository and the summary:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>/tmp/work
+<span class="go">Found 7 repositories under /tmp/work (incremental); indexing 7 with 8 worker(s)</span>
+<span class="go">  ✓ acme/alerts: 13 nodes, 13 edges</span>
+<span class="go">  ✓ acme/sensor-ingest: 12 nodes, 12 edges</span>
+<span class="go">  ✓ acme/console-ui: 16 nodes, 15 edges</span>
+<span class="go">  ✓ acme/station-registry: 10 nodes, 11 edges</span>
+<span class="go">  ✓ acme/shared-lib: 11 nodes, 8 edges</span>
+<span class="go">  ✓ acme/forecast-api: 9 nodes, 8 edges</span>
+<span class="go">  ✓ demo/app: 5 nodes, 4 edges</span>
+<span class="go">✓ Workspace indexed: 7 repos, 76 nodes, 71 edges (0 unchanged, 0 failed)</span>
+<span class="go">✓ Documents: 7 written, 0 unchanged, documents failed for 0 repo(s) → /tmp/work-kb/docs</span>
+</code></pre></div>
 <pre class="mermaid">flowchart TD
   D(["a directory you point kb index at"]) --> B{"--bundle passed?"}
   B -->|yes| ONE["indexed as one repository"]
@@ -265,7 +281,7 @@ either of them:</p>
 </ul>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=6cb12363"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=1c3e83ae"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -382,6 +398,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Keeping it fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -279,6 +279,9 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"
 re-uses the repo's stored id so it updates the same graph node rather than creating a duplicate. It
 is written inside a delimited managed block, so a hook you already had is appended to rather than
 overwritten, and only that block is refreshed on re-runs.</p>
+<p><code>kb index</code> rewrites that repo's API reference and design notes along with the graph, so the
+documents move with the commit. No model runs, and a repo whose head commit has not moved is
+skipped. Pass <code>--no-docs</code> in the hook command to leave the documents to <code>kb docs</code> instead.</p>
 <p>Mirror-wide work (fetching new clones, pruning) still belongs to <code>bootstrap</code> on a schedule. The
 hook keeps your <em>local edits</em> current in between.</p>
 <h2 id="refresh-when-a-coding-session-starts">Refresh when a coding session starts<a class="anchor" href="#refresh-when-a-coding-session-starts" title="Link to this section">#</a></h2>
@@ -288,9 +291,9 @@ that. <code>index</code> skips a repo whose head has not moved, which is the rig
 store can be arbitrarily out of date while every command it serves looks healthy.</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>refresh
 <span class="go">⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.</span>
-<span class="go">  moved: payments-api</span>
-<span class="go">  moved: billing-worker</span>
-<span class="go">  moved: checkout-ui</span>
+<span class="go">  moved: sensor-ingest</span>
+<span class="go">  moved: forecast-api</span>
+<span class="go">  moved: console-ui</span>
 <span class="go">  checked 12/12 in 0.06s</span>
 </code></pre></div>
 <p>It reads only. Add <code>--refresh</code> and it starts <code>kb index</code> then <code>kb steer</code> <strong>in the background</strong> and
@@ -481,6 +484,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

@@ -298,6 +298,16 @@
       if (repoId) body.repo = repoId;
       if (force) body.force = true;
       return postJSON("/api/wiki/generate", body);
+    },
+    // Live document generation. No estimate route to pair with these: `kb docs`
+    // is model-free by default, so there is no token cost to preview.
+    docsStatus: function () {
+      return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/docs/status");
+    },
+    docsGenerate: function (repoId) {
+      var body = {};
+      if (repoId) body.repo = repoId;
+      return postJSON("/api/docs/generate", body);
     }
   };
 
@@ -380,9 +390,12 @@
     if (opts.action) box.appendChild(opts.action);
     return box;
   }
-  // A primary action for empty states. The dashboard is read-only, so "generate"
-  // means: copy the exact command to run in the terminal (then refresh). Honest by
-  // design — we only offer it where contextlake can actually produce the thing.
+  // A clipboard button for a surface that cannot start the run itself. Two of those
+  // exist: a static export (no server to ask) and a live server started without
+  // --allow-mutations. Both leave window.__CL_MUTATIONS__ falsy, so `!MUTATIONS` is
+  // the single condition callers gate on. Where the run CAN be started, offer the
+  // real control instead: a button labelled "Generate" that only copies text reports
+  // progress for work that did not happen.
   function genAction(label, cmd) {
     var b = h("button", { class: "cl-btn cl-btn--primary", type: "button", title: "Copy: " + cmd },
       h("span", { html: icon("ui-copy") }), label);
@@ -885,16 +898,44 @@
   // Picking a module re-fetches via CL.data.repoWiki(id, module) -- its own
   // lightweight route -- and swaps just this section in place; picking back to
   // "whole repo" reuses the already-fetched `d.wiki` rather than refetching it.
-  function wikiEmptyState(id, forWhat) {
-    return stateBlock({
+  // `opts` is explicit and this function reads no globals: its two callers sit in
+  // different scopes (whole repo, and one module) and the decision belongs where the
+  // scope is known. `opts.offerCopy` hands over the command for a surface that cannot
+  // start the run; `opts.scope === "module"` says where a run IS started, because
+  // `contextlake kb wiki` takes a repo and there is no module-scoped run to offer.
+  // The sentences go in `msg` as plain text: .cl-state is display:flex/column
+  // (dashboard.css:625), so a direct element child renders on its own row.
+  function wikiEmptyState(id, forWhat, opts) {
+    opts = opts || {};
+    var msg = ["Generate a curated wiki from this repo's code and history, then refresh."];
+    if (opts.scope === "module") {
+      // Names the affordance already on this pane instead of sending the reader to a
+      // different scope to find it. The old sentence said "Pick Whole repo in the
+      // Subsystem list to start a run" while a repo-scoped run control sat directly
+      // below it, so following the instruction landed the reader on the button they
+      // were already looking at. Neither branch quotes the button's own label: the
+      // card reads "Generate wiki" when the whole-repo page is missing and
+      // "Regenerate wiki" when it is not, so a quoted label would be wrong in one
+      // state. `offerCopy` is the same flag that decides which affordance exists.
+      msg.push("Wiki pages are generated per repo, not per subsystem. "
+        + (opts.offerCopy ? "The command below runs the whole repo."
+                          : "The card below starts a run for the whole repo."));
+    }
+    if (opts.offerCopy) {
+      msg.push("contextlake bootstrap writes the wiki by default, and --no-wiki skips it.");
+    }
+    var block = {
       kind: "empty", title: "No wiki generated for " + forWhat + " yet",
-      msg: "Generate a curated wiki from this repo's code and history, then refresh.",
-      cmd: "contextlake kb wiki " + id + " --llm builtin",
-      action: genAction("Generate wiki", "contextlake kb wiki " + id + " --llm builtin")
-    });
+      msg: msg.join(" ")
+    };
+    if (opts.offerCopy) {
+      block.cmd = "contextlake kb wiki " + id + " --llm builtin";
+      block.action = genAction("Generate wiki", "contextlake kb wiki " + id + " --llm builtin");
+    }
+    return stateBlock(block);
   }
-  function wikiContentNode(w, id, forWhat) {
-    if (!w || !w.found) return wikiEmptyState(id, forWhat);
+  function wikiContentNode(w, id, forWhat, opts) {
+    if (!w || !w.found) return wikiEmptyState(id, forWhat, opts);
     var wikiHeader = [h("strong", null, "Curated wiki — advisory")];
     if (w.stale) wikiHeader.push(h("span", { class: "cl-healthchip cl-healthchip--stale" },
       "STALE — code changed since generation"));
@@ -924,9 +965,16 @@
   // filtered to modules with a page on disk, so a file under a module that never got
   // one resolves to null and the tab shows the repo overview instead of an empty pane.
   function renderWikiTab(pane, d, id, wikiFile) {
-    var contentWrap = h("div", null, wikiContentNode(d.wiki, id, "this repo"));
+    var contentWrap = h("div", null, wikiContentNode(d.wiki, id, "this repo",
+      { offerCopy: !MUTATIONS, scope: "repo" }));
     pane.appendChild(contentWrap);
-    if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
+    // The run control mounts on `pane`, not on the empty state. Both of
+    // wikiContentNode's callers would otherwise inherit it, including the
+    // module-scoped one below, where clicking it would regenerate the WHOLE repo
+    // without saying so. Mounted here it also survives a subsystem switch, and the
+    // copy button and the card are never offered together: one is gated on
+    // !MUTATIONS and the other on MUTATIONS.
+    if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id, !(d.wiki && d.wiki.found)));
 
     if (MODE === "static") return; // no /modules route to ask -- see CL.data.repoModules
     // repoModules(id, null, true) asks the server for a `has_page` flag per
@@ -963,7 +1011,8 @@
         fetchWiki.then(function (w) {
           if (mySeq !== loadSeq) return; // a newer selection superseded this one
           clear(contentWrap);
-          contentWrap.appendChild(wikiContentNode(w, id, mod ? "module “" + mod + "”" : "this repo"));
+          contentWrap.appendChild(wikiContentNode(w, id, mod ? "module “" + mod + "”" : "this repo",
+            { offerCopy: !MUTATIONS, scope: mod ? "module" : "repo" }));
         }).catch(function (e) {
           if (mySeq !== loadSeq) return;
           clear(contentWrap);
@@ -992,23 +1041,38 @@
   }
 
   // ---- Documents (repo page) ---------------------------------------------
-  // `kb docs` writes two pages per repo and neither involves a model: every line
-  // traces to an edge a parser recorded. That is the whole reason this tab reads
+  // `kb docs` writes two pages per repo, model-free by default: every line traces
+  // to an edge a parser recorded. That is the whole reason this tab reads
   // differently from Wiki next door -- the wiki carries an advisory caveat because
   // it is synthesized prose, and repeating that caveat here would understate these.
+  // `kb docs --llm` is an opt-in tier that adds one marked orientation paragraph
+  // above the API reference, so "no model, ever" is not what this tab can claim.
   // What they DO share is staleness, so the same chip appears for the same reason.
   var DOC_KINDS = [
     { key: "api", label: "API reference", blurb: "Every callable symbol, with the file-and-line call sites the graph recorded." },
     { key: "design", label: "Design notes", blurb: "What the repo's own files record: declared dependencies, and the values its code reads most." }
   ];
+  // With MUTATIONS the run can be started from this page, so the clipboard button
+  // is dropped and the reader is pointed at the card renderDocsTab mounts below.
+  // Without it there is no run path at all and the command is the right affordance.
+  // The card is NOT built here: this state is per document KIND, so a control here
+  // would render once per kind and imply kind scope for a run that writes both
+  // kinds plus the fleet page.
   function docsEmptyState(id, kind) {
-    return stateBlock({
+    var block = {
       kind: "empty",
       title: "No " + kind.label.toLowerCase() + " generated for this repo yet",
-      msg: "Built from the graph, with no model involved.",
-      cmd: "contextlake kb docs",
-      action: genAction("Generate documents", "contextlake kb docs")
-    });
+      msg: "Built from the graph, model-free by default."
+    };
+    if (MUTATIONS) {
+      block.msg += " Use Generate documents below to write them for this repo.";
+    } else {
+      block.msg += " contextlake bootstrap writes both documents by default,"
+        + " and --no-docs skips it.";
+      block.cmd = "contextlake kb docs";
+      block.action = genAction("Generate documents", "contextlake kb docs");
+    }
+    return stateBlock(block);
   }
   function docsContentNode(doc, id, kind) {
     if (!doc || !doc.found) return docsEmptyState(id, kind);
@@ -1025,7 +1089,8 @@
     }
     return h("div", { class: "cl-card" },
       h("div", { class: "cl-row" }, head),
-      h("p", { class: "cl-muted" }, kind.blurb + " No model was involved."),
+      h("p", { class: "cl-muted" }, kind.blurb + " Built from the graph, model-free"
+        + " unless this page was written with kb docs --llm."),
       h("div", { class: "cl-md", html: doc.html || "" }));
   }
   function renderDocsTab(pane, d, id) {
@@ -1040,6 +1105,27 @@
     var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Document kind" });
     var body = h("div", null, stateBlock({ kind: "loading", title: "Loading…" }));
 
+    // Both kinds are read at mount when a run can be started here, because the run
+    // control below writes BOTH documents and cannot word itself until it knows
+    // whether either is already on disk. The api read is HANDED to the first load()
+    // rather than repeated, so opening the tab still costs two requests. Only the
+    // first load consumes it: a later click on a kind re-fetches, so the body after a
+    // run shows what the run wrote and not a mount-time snapshot of it.
+    var firstApi = null;
+    if (MUTATIONS) {
+      firstApi = CL.data.repoDocs(id, "api");
+      Promise.all(DOC_KINDS.map(function (k) {
+        return (k.key === "api" ? firstApi : CL.data.repoDocs(id, k.key))
+          .then(function (doc) { return !!(doc && doc.found); });
+      })).then(function (found) {
+        pane.appendChild(docsRegenerateCard(id, found.indexOf(true) === -1));
+      }).catch(function () {
+        // A failed read must not cost the reader the run path. Mounted worded for a
+        // repo that has documents: one wrong verb beats a missing control.
+        pane.appendChild(docsRegenerateCard(id, false));
+      });
+    }
+
     function load(key) {
       current = key;
       Array.prototype.forEach.call(strip.children, function (b) {
@@ -1047,7 +1133,9 @@
       });
       body.replaceChildren(stateBlock({ kind: "loading", title: "Loading…" }));
       var kind = DOC_KINDS.filter(function (k) { return k.key === key; })[0];
-      CL.data.repoDocs(id, key).then(function (doc) {
+      var pending = (key === "api" && firstApi) ? firstApi : CL.data.repoDocs(id, key);
+      firstApi = null;
+      pending.then(function (doc) {
         if (current !== key) return;   // a later click already won
         body.replaceChildren(docsContentNode(doc, id, kind));
       }).catch(function (e) {
@@ -1070,6 +1158,9 @@
     pane.appendChild(strip);
     pane.appendChild(body);
     load("api");
+    // The run control is mounted at pane level by the block above, so the repo scope
+    // is unambiguous and the control survives a kind switch. That block sits below
+    // the static-mode early return, so a --site export never renders it.
   }
 
   // ---- Diagrams (repo page) ----------------------------------------------
@@ -1198,7 +1289,7 @@
       return modulesCache[key];
     }
 
-    // "src/payments" -> ["src", "src/payments"], each entry a full prefix
+    // "src/sensors" -> ["src", "src/sensors"], each entry a full prefix
     // ready to jump back to.
     function crumbPrefixes(mod) {
       if (!mod) return [];
@@ -1984,11 +2075,17 @@
   // a setTimeout chain (never overlapping requests); wikiPollGen guards
   // against a stale chain updating a card the user has since navigated away
   // from, same idiom as the Diagrams tab's renderGen.
+  // `missing` is true when this repo has no wiki page yet: the heading and the button
+  // then read "Generate", because a repo with no page is not being regenerated. The
+  // fleet-wide call passes no second argument and keeps the old wording. The
+  // cl-card--wikigen class is a counting hook, the same way the subsystem picker is
+  // found by class.
   var wikiPollGen = 0;
-  function wikiRegenerateCard(repoId) {
+  function wikiRegenerateCard(repoId, missing) {
     var myGen = ++wikiPollGen;
-    var card = h("div", { class: "cl-card" },
-      h("strong", null, "Regenerate wiki" + (repoId ? "" : " — fleet-wide")),
+    var noPage = !!(repoId && missing);
+    var card = h("div", { class: "cl-card cl-card--wikigen" },
+      h("strong", null, (noPage ? "Generate wiki" : "Regenerate wiki") + (repoId ? "" : " — fleet-wide")),
       h("p", { class: "cl-muted" },
         repoId ? "Runs contextlake kb wiki for this repo only."
               : "Runs contextlake kb wiki for every indexed repo — skips repos already up to date unless Force is checked."));
@@ -1996,7 +2093,7 @@
     var forceCheck = h("input", { type: "checkbox" });
     var logBox = h("pre", { class: "cl-snippet", hidden: true });
     var btn = h("button", { class: "cl-btn cl-btn--primary", type: "button" },
-      "Regenerate" + (repoId ? "" : " (fleet-wide)"));
+      (noPage ? "Generate" : "Regenerate") + (repoId ? "" : " (fleet-wide)"));
     card.appendChild(statusLine);
     card.appendChild(h("label", { class: "cl-row" }, forceCheck, "Force (ignore freshness — regenerate every targeted repo)"));
     card.appendChild(h("div", { class: "cl-actions" }, btn));
@@ -2033,6 +2130,80 @@
           if (!r.ok) { window.alert("Failed: " + (r.error || "unknown error")); btn.disabled = false; return; }
           poll();
         });
+      }).catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
+    });
+    poll();   // reflect an already-in-progress run on load
+    return card;
+  }
+  // A "Generate documents" control for one repo. Modelled on wikiRegenerateCard
+  // above, with four deliberate differences:
+  //   * No Force checkbox: the `kb docs` subparser has none.
+  //   * No estimate-then-confirm step: the run is model-free by default, so there
+  //     is no token cost to preview before starting it.
+  //   * The finished line reports documents_written, read back from the files the
+  //     run wrote. An exit code says a process ended, not what it produced.
+  //   * poll()'s .catch sets a visible failure instead of leaving "Idle". The wiki
+  //     card's .catch swallows its error, so a 404 on the status route leaves that
+  //     card reading Idle with the run finished and nothing on screen saying so.
+  //   * `missing` is true when neither document is on disk for this repo. The
+  //     heading, the button and the confirm dialog all read it, so the card cannot
+  //     offer to "Generate" and then ask to confirm a "Regenerate". Same flag, same
+  //     wording rule, as wikiRegenerateCard's own `missing` next door. It is read at
+  //     mount: after a run the wording needs a reload, which is also true of the wiki
+  //     card, and is why the finished line reports a count instead.
+  var docsPollGen = 0;
+  function docsRegenerateCard(repoId, missing) {
+    var myGen = ++docsPollGen;
+    var noDocs = !!missing;
+    var card = h("div", { class: "cl-card", "data-test": "docs-regenerate" },
+      h("strong", null, noDocs ? "Generate documents" : "Regenerate documents"),
+      h("p", { class: "cl-muted" },
+        "Runs contextlake kb docs for this repo only, writing the API reference and "
+        + "the design notes. No model."));
+    var statusLine = h("div", { class: "cl-row" }, h("span", null, "Idle"));
+    var logBox = h("pre", { class: "cl-snippet", hidden: true });
+    var btn = h("button", { class: "cl-btn cl-btn--primary", type: "button" },
+      noDocs ? "Generate" : "Regenerate");
+    card.appendChild(statusLine);
+    card.appendChild(h("div", { class: "cl-actions" }, btn));
+    card.appendChild(logBox);
+
+    function setStatus(text, running) {
+      clear(statusLine);
+      statusLine.appendChild(h("span", null, text));
+      btn.disabled = running;
+    }
+    function poll() {
+      if (myGen !== docsPollGen) return;
+      CL.data.docsStatus().then(function (s) {
+        if (myGen !== docsPollGen) return;
+        if (s.log_tail) { logBox.hidden = false; logBox.textContent = s.log_tail; }
+        if (s.running) {
+          setStatus("Running — pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
+          setTimeout(poll, 2000);
+        } else if (s.finished) {
+          // The count rides this one tick: it is computed just before the pidfile
+          // is cleared, so a reload after it shows Idle and the durable log.
+          setStatus("Finished — " + (s.documents_written == null ? "see log below"
+            : s.documents_written + " document(s) written"), false);
+        } else {
+          setStatus("Idle", false);
+        }
+      }).catch(function (e) {
+        if (myGen !== docsPollGen) return;
+        setStatus("Could not read the run status: " + ((e && e.message) || e), false);
+      });
+    }
+    btn.addEventListener("click", function () {
+      btn.disabled = true;
+      if (!window.confirm((noDocs ? "Write" : "Regenerate")
+          + " the API reference and design notes for this repo?")) {
+        btn.disabled = false;
+        return;
+      }
+      CL.data.docsGenerate(repoId).then(function (r) {
+        if (!r.ok) { window.alert("Failed: " + (r.error || "unknown error")); btn.disabled = false; return; }
+        poll();
       }).catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
     });
     poll();   // reflect an already-in-progress run on load
@@ -2190,7 +2361,7 @@
       crumb(ctx.repoId, "#/repo/" + ctx.repoId, lens === "repo");
     }
     if (ctx.nodeId && lens === "symbol") {
-      // The symbol's own repo path (acme / acme/auth-service) -- shown even when this
+      // The symbol's own repo path (acme / acme/station-registry) -- shown even when this
       // symbol was reached directly (search, a deep link) rather than by clicking
       // through its repo first, which is the only way ctx.repoId above gets set. Skipped
       // when it's already the pinned repoId's path, so it's never rendered twice.

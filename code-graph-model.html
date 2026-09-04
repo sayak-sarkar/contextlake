@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="The code graph model · contextlake docs">
 <meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-01"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -338,7 +338,7 @@ verified reference the way an import or a call site is, so nothing is inferred f
 <h3 id="entity-state-machines">Entity state machines<a class="anchor" href="#entity-state-machines" title="Link to this section">#</a></h3>
 <p>A guarded assignment to a status, state or stage field becomes a <code>transitions_to</code> edge between
 <code>state</code> nodes, labelled with the method that makes the change. For example:</p>
-<div class="codehilite"><pre><span></span><code>if order.status == Created: order.status = Paid
+<div class="codehilite"><pre><span></span><code>if reading.status == Received: reading.status = Validated
 </code></pre></div>
 
 <p><strong>Only guarded transitions are emitted.</strong> The source state has to be established by a comparison
@@ -477,15 +477,18 @@ know which one it came from: Maven's <code>&lt;scope&gt;test&lt;/scope&gt;</code
 <code>dev</code>. Nothing interprets a constraint. Deciding whether an installed version satisfies <code>^4.17.1</code> is
 a package manager's job, and the author's own text is the honest record of what was chosen.</p>
 <p>The same change-impact walk is a one-liner from the shell: <code>contextlake kb impact &lt;symbol&gt; [--hops N]</code> lists
-what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>, <code>Catalog</code>) is defined in
+what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>, <code>Forecast</code>) is defined in
 more than one repo, <code>impact</code> lists the candidates and you narrow it with <code>--repo &lt;repo&gt;</code> rather than
 getting a silent best-guess.</p>
-<p align="center">
-  <img src="img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
-
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>queueJob<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span>
+<span class="go">Impact of changing queueJob (acme_alerts_queuejob): 3 affected node(s) within 3 hop(s)</span>
+<span class="go">  seed: function src/queueJob.js</span>
+<span class="go">  h1  acme/alerts:sendAlert  (function, src/sendAlert.js)  via calls at src/x:1  [extracted]</span>
+<span class="go">  h2  acme/alerts:AlertSender  (class, src/AlertSender.js)  via calls at src/x:1  [extracted]</span>
+<span class="go">  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]</span>
+</code></pre></div>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=6cb12363"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=1c3e83ae"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -568,6 +571,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

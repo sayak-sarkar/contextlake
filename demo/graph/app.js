@@ -632,7 +632,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var cx = nsNode.position("x"), cy0 = nsNode.position("y");
     // sp must clear a typical repo-name label's rendered width, not just the node's
     // own glyph circle -- avoidOverlap alone only keeps the circles apart, so two
-    // adjacent long names (e.g. "catalog-api" / "auth-service") still ran into each
+    // adjacent long names (e.g. "forecast-api" / "sensor-ingest") still ran into each
     // other at the old 72px spacing.
     var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 130;
     var w = cols * sp, h = Math.ceil(kids.length / cols) * sp;

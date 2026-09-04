@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="contextlake, explained · contextlake docs">
 <meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -76,9 +76,10 @@ every one, which is most of the value gone.</p>
 backoff with a decorator. You'll usually find it wrapped around HTTP calls."</p>
 <p>Plausible, generic, and possibly describing a different codebase entirely. There is nothing in it
 to verify.</p>
-<p><strong>With.</strong> "<code>retry_with_backoff</code> is defined in <code>acme/billing-service</code>, at
-<code>src/billing/http.py:214</code>. Three call sites depend on it: <code>charge</code> (<code>src/billing/charge.py:88</code>),
-<code>refund</code> (<code>src/billing/refund.py:41</code>), and <code>sync_ledger</code> (<code>src/billing/ledger.py:302</code>). Those are
+<p><strong>With.</strong> "<code>retry_with_backoff</code> is defined in <code>acme/telemetry-service</code>, at
+<code>src/telemetry/http.py:214</code>. Three call sites depend on it: <code>fetch_batch</code>
+(<code>src/telemetry/fetch.py:88</code>), <code>replay_window</code> (<code>src/telemetry/replay.py:41</code>), and
+<code>sync_stations</code> (<code>src/telemetry/stations.py:302</code>). Those are
 <code>calls</code> edges, resolved by name and so marked <code>INFERRED</code>; the <code>contains</code> edge placing the function
 in that file is <code>EXTRACTED</code>."</p>
 <p>Every claim carries a location, and every location came out of a parse of your source rather than
@@ -92,7 +93,7 @@ answer possible, and the reasons it is shaped that way.</p>
 <code>line_start</code> and <code>line_end</code> as first-class fields, and an edge carries <code>provenance</code>, which is a
 required <code>source_file</code> plus <code>source_line</code> plus <code>verified_at</code>
 (<code>Node</code> and <code>Provenance</code> in <code>src/contextlake/kb/model.py</code>). An assistant reporting
-<code>src/billing/http.py:214</code> is reading a column, not composing a sentence. The model docstring in
+<code>src/telemetry/http.py:214</code> is reading a column, not composing a sentence. The model docstring in
 that file states the intent plainly: the anti-hallucination contract is structural, not advisory.</p>
 <h2 id="what-it-is-three-layers-you-adopt-one-at-a-time">What it is: three layers you adopt one at a time<a class="anchor" href="#what-it-is-three-layers-you-adopt-one-at-a-time" title="Link to this section">#</a></h2>
 <table>
@@ -591,6 +592,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Asking the graph · contextlake docs">
 <meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-01"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=6cb12363">
-<link rel="stylesheet" href="tokens.css?v=6cb12363">
-<link rel="stylesheet" href="docs.css?v=6cb12363">
-<link rel="stylesheet" href="cmdk.css?v=6cb12363">
+<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
+<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
+<link rel="stylesheet" href="docs.css?v=1c3e83ae">
+<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -86,10 +86,10 @@ Opening the store creates it if it is absent (<code>SqliteStore.__init__</code> 
 <code>contextlake doctor</code> if the counts look wrong; it reports the store's real node and edge totals.</p>
 </div>
 <h2 id="find-something-kb-query">Find something: <code>kb query</code><a class="anchor" href="#find-something-kb-query" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;CatalogService&quot;</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>charge<span class="w"> </span>--kind<span class="w"> </span><span class="k">function</span><span class="w"> </span>--repo<span class="w"> </span>acme/billing-service
-contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;how do we charge a card&quot;</span><span class="w"> </span>--retriever<span class="w"> </span>semantic
-contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>charge<span class="w"> </span>--repo<span class="w"> </span>acme/billing-service<span class="w"> </span>--as-of<span class="w"> </span>a1b2c3
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;ForecastService&quot;</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>ingest<span class="w"> </span>--kind<span class="w"> </span>method<span class="w"> </span>--repo<span class="w"> </span>acme/sensor-ingest
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;how do we ingest a reading&quot;</span><span class="w"> </span>--retriever<span class="w"> </span>semantic
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>ingest<span class="w"> </span>--repo<span class="w"> </span>acme/sensor-ingest<span class="w"> </span>--as-of<span class="w"> </span>a1b2c3
 </code></pre></div>
 <p>Each hit prints as <code>repo · file:line · kind · name</code>, so every result is a place you can open.</p>
 <table>
@@ -153,7 +153,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w
 <tr>
 <td><code>semantic</code></td>
 <td>nearest neighbours in embedding space</td>
-<td>"how do we charge a card", where you have the idea and not the name</td>
+<td>"how do we ingest a reading", where you have the idea and not the name</td>
 <td>an exact rare identifier</td>
 </tr>
 <tr>
@@ -165,7 +165,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w
 </tbody>
 </table>
 <p><strong><code>fts</code> is prefix search, not substring search.</strong> Each word you type becomes a quoted prefix term,
-so <code>Catalog</code> finds <code>CatalogService</code> and <code>Service</code> does not
+so <code>Forecast</code> finds <code>ForecastService</code> and <code>Service</code> does not
 (<code>_fts_query</code> in <code>src/contextlake/kb/store/sqlite_store.py</code>). Multiple words are an implicit AND of
 prefix terms. That is the single most common reason a query that "should" match comes back empty.</p>
 <p><strong>Semantic and hybrid degrade to <code>fts</code> rather than failing</strong>, and say so on stderr, when there is no
@@ -182,21 +182,22 @@ fewer than 20 functions even when the repo has hundreds.</p>
 shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor
 honours <code>--retriever</code>. It needs <code>--repo</code>, because history is kept per repository.</p>
 <h3 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>CatalogService<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>ForecastService<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
 </code></pre></div>
 <p>You should get up to three lines shaped like
-<code>acme/catalog-api · src/catalog/service.py:41 · class · CatalogService</code>. If you get
-<code>No matches for 'CatalogService'</code>, check the index is populated with <code>contextlake doctor</code> before
+<code>demo/app · src/forecast.py · class · ForecastService</code>. If you get
+<code>No matches for 'ForecastService'</code>, check the index is populated with <code>contextlake doctor</code> before
 suspecting the query.</p>
 <h2 id="see-what-breaks-kb-impact">See what breaks: <code>kb impact</code><a class="anchor" href="#see-what-breaks-kb-impact" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>charge
-contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>charge<span class="w"> </span>--repo<span class="w"> </span>acme/billing-service<span class="w"> </span>--hops<span class="w"> </span><span class="m">2</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span class="w"> </span>charge<span class="w"> </span>--json<span class="w">          </span><span class="c1"># the same command</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>ingest
+contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>ingest<span class="w"> </span>--repo<span class="w"> </span>acme/sensor-ingest<span class="w"> </span>--hops<span class="w"> </span><span class="m">2</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span class="w"> </span>ingest<span class="w"> </span>--json<span class="w">          </span><span class="c1"># the same command</span>
 </code></pre></div>
-<p align="center">
-  <img src="img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
-
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>ingest<span class="w"> </span>--repo<span class="w"> </span>acme/sensor-ingest<span class="w"> </span>--hops<span class="w"> </span><span class="m">2</span>
+<span class="go">Impact of changing Ingest (acme_sensor_ingest_ingest): 1 affected node(s) within 2 hop(s)</span>
+<span class="go">  seed: method src/Ingest.cs</span>
+<span class="go">  h1  acme/sensor-ingest:SensorGateway  (class, src/SensorGateway.cs)  via calls at src/x:1  [extracted]</span>
+</code></pre></div>
 <table>
 <thead>
 <tr>
@@ -267,8 +268,8 @@ the count is there to say what the label costs <em>in this result</em>: <code>3 
 list as leads, <code>1 of 40</code> means the opposite.</p>
 <p>A symbol defined in several <strong>repos</strong> makes <code>impact</code> say so,
 name how many repos define it, list the candidates, and exit <code>1</code>, so you can narrow it yourself:</p>
-<div class="highlight"><pre><span></span><code>  --repo acme/billing-service   (function charge)
-  --repo acme/catalog-api       (method charge)
+<div class="highlight"><pre><span></span><code>  --repo acme/sensor-ingest     (class Reading)
+  --repo acme/forecast-api      (struct Reading)
 </code></pre></div>
 <p>The candidate list stops at 10 repos even when the count in the line above it is higher.</p>
 <div class="admonition warning">
@@ -285,15 +286,17 @@ resolved, <code>Impact of changing &lt;name&gt; (&lt;node id&gt;)</code>, so rea
 dependents prints <code>nothing depends on it within 1 hop(s)</code> and exits <code>0</code>; that is a real answer, not
 a failure.</p>
 <h2 id="find-who-to-ask-kb-owners">Find who to ask: <code>kb owners</code><a class="anchor" href="#find-who-to-ask-kb-owners" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                  </span><span class="c1"># the whole repo</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># one sub-tree</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/sensor-ingest<span class="w">                    </span><span class="c1"># the whole repo</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/sensor-ingest<span class="w"> </span>--path<span class="w"> </span>src/gateway<span class="w">  </span><span class="c1"># one sub-tree</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>.<span class="w">                                  </span><span class="c1"># a directory on disk, no index needed</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>who-knows<span class="w"> </span>acme/payments-api<span class="w"> </span>--json<span class="w">        </span><span class="c1"># the same command</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>who-knows<span class="w"> </span>acme/sensor-ingest<span class="w"> </span>--json<span class="w">          </span><span class="c1"># the same command</span>
 </code></pre></div>
-<p align="center">
-  <img src="img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
-</p>
-
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/sensor-ingest
+<span class="go">Owners / SMEs for acme/sensor-ingest (recency-weighted):</span>
+<span class="go">  1. Ada Rowan  —  2 commit(s), 14 line(s), last 2026-09-01, 43%</span>
+<span class="go">  2. Ben Okafor  —  1 commit(s), 16 line(s), last 2026-07-14, 38%</span>
+<span class="go">  3. Chen Wei  —  1 commit(s), 6 line(s), last 2026-08-18, 18%</span>
+</code></pre></div>
 <table>
 <thead>
 <tr>
@@ -393,7 +396,7 @@ followed by up to three numbered lines ending in a percentage.</p>
   <code>--repo</code> prints a plain line to stderr and exits <code>2</code> with no JSON error object.</li>
 </ul>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=6cb12363"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=1c3e83ae"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -520,6 +523,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=6cb12363"></script>
+<script defer src="cmdk.js?v=1c3e83ae"></script>
 </body>
 </html>
