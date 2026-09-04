@@ -38,9 +38,28 @@ def _start_report() -> None:
     _FAULTS.clear()
 
 
+class _Untested:
+    """The "no answer was obtained" value for :func:`_check`.
+
+    True, False and None all report the ANSWER a check got. This reports that no
+    check ran, which is a different fact: a source of a type nothing can dial is
+    not a source that failed. An object rather than the string "untested" so the
+    identity test does not rest on literal interning.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "UNTESTED"
+
+
+UNTESTED = _Untested()
+
+
 def _check(label: str, ok, detail: str = "") -> bool:
-    """Print one line and RECORD its verdict. Tri-state: True -> ✓, False -> ✗ (a real
-    fault), None -> ⚠ (advisory, present-but-degraded or optional-unavailable).
+    """Print one line and RECORD its verdict. Four states: True -> ✓, False -> ✗ (a real
+    fault), None -> ⚠ (advisory, present-but-degraded or optional-unavailable), and
+    UNTESTED -> ⊘ (nothing was dialled, so the line makes no claim either way).
 
     The recording is the point. The summary used to be built from a hand-maintained
     `ok &= _check(...)` at three of twenty-odd call sites, so a genuine ✗ -- a repository
@@ -51,11 +70,18 @@ def _check(label: str, ok, detail: str = "") -> bool:
     advisory says so by passing None, which is a decision at the call site rather than an
     omission somewhere else.
     """
-    mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
+    if ok is UNTESTED:
+        mark, fault = style.dim("⊘"), False
+    else:
+        mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
+        fault = ok is not None and not ok
     _say(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
-    if ok is not None and not ok:
+    if fault:
         _FAULTS.append(label.strip())
-    return bool(ok)
+    # `ok is True`, not `bool(ok)`: bool(UNTESTED) is True, so an untested check
+    # would report itself to a caller as a pass. Every call site is bare today,
+    # so nothing would catch that; a unit test pins it instead. Do not simplify.
+    return ok is True
 
 
 def _local_llm_runtime_present() -> bool:
@@ -149,21 +175,29 @@ def cmd_doctor(args) -> int:
             _say(f"      {style.dim('run ' + style.bold('contextlake init') + ' to create one')}")
         # Lazy: source_cmd -> config_edit -> tomlkit, kept off every other kb
         # command's import path (see config_edit's module docstring).
-        from ..source_cmd import verify_source
-        # Per-source reachability, dispatched through the same verify_source()
-        # `source test` uses (DRY). Advisory only -- a source being unreachable
-        # (or of a type with no reachability check) never fails doctor's overall
-        # verdict, since that reflects live external connectivity, not the local
-        # environment. Bounded to 8s per source so an unreachable connector
-        # (atlassian/mcp default to 120s/60s) can't stall doctor for minutes.
+        from ..source_cmd import SURVEY_FAILED, SURVEY_OK, survey_source
+        # Per-source reachability, dispatched through survey_source(), which wraps
+        # the same verify_source() `source test` uses (DRY) and adds the two states
+        # a bool cannot carry. The wizard's survey reads the same function, so
+        # "is this source reachable" has one derivation and not three.
+        #
+        # Advisory only -- no source state fails doctor's overall verdict, since
+        # that reflects live external connectivity, not the local environment.
+        # Bounded to 8s per source so an unreachable connector (atlassian/mcp
+        # default to 120s/60s) can't stall doctor for minutes.
+        #
+        # `None`, not `False`, for a probed source that did not answer: this block
+        # says unreachable never fails the verdict, so it must say that in the mark
+        # rather than relying on a caller to leave it out of a sum. A red ✗ that is
+        # documented not to matter is the same contradiction from the other side.
+        # UNTESTED (⊘) for the other two, and they are a different fact from ⚠: a
+        # type with no probe and a source switched off were both dialled and drawn
+        # as failures before, so a broken source and a source nothing can dial read
+        # the same. That is an absent check rendering as an answer.
+        marks = {SURVEY_OK: True, SURVEY_FAILED: None}
         for src in cfg.sources:
-            reachable, detail = verify_source(src, timeout=8)
-            # `None`, not `False`, and it matters now that a printed ✗ counts. This block's
-            # own comment above says a source being unreachable never fails the verdict, so
-            # it must say that in the tri-state the mark is drawn from rather than relying
-            # on a caller to leave it out of a sum. A red ✗ that is documented not to
-            # matter is the same contradiction from the other side.
-            _check(f"  {src.name} ({src.type})", True if reachable else None, detail)
+            state, detail = survey_source(src, timeout=8)
+            _check(f"  {src.name} ({src.type})", marks.get(state, UNTESTED), detail)
         store_dir = cfg.store_path
         store_dir.mkdir(parents=True, exist_ok=True)
         store = SqliteStore(store_dir / "index.sqlite")

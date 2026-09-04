@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import importlib
 import socket
 import subprocess
 import threading
@@ -53,8 +54,8 @@ from ..logging_setup import get_logger
 
 __all__ = [
     "CircuitBreaker", "CircuitOpenError", "breaker_for", "degraded_calls", "describe",
-    "endpoint_key", "is_endpoint_failure", "is_retryable", "note_unavailable",
-    "reset_breakers",
+    "endpoint_key", "find_in_chain", "is_endpoint_failure", "is_retryable",
+    "note_unavailable", "reset_breakers",
 ]
 
 # Three strikes before a source is written off: enough that a single blip or a
@@ -79,17 +80,122 @@ DEFAULT_BACKOFF_MAX = 5.0
 _RETRY_STATUS = frozenset({429, 503})
 _UNHEALTHY_STATUS = frozenset({408, 429})
 
+def _optional_exception_types(attribute: str) -> tuple[type, ...]:
+    """The named exception class from every httpx flavour that is installed.
+
+    httpx is the transport under the MCP streamable-HTTP client, and its errors
+    are plain ``Exception`` subclasses, not ``OSError``. Without them in the
+    tuples below, a refused connection to a hosted MCP server reads as "not the
+    endpoint's fault" and the breaker never opens. Measured on this build: five
+    calls to a closed port, five dials, ``failures=0``.
+
+    Resolved at import rather than on first use, because the tuples below are
+    built once: a type added after they are built is a type no predicate ever
+    tests, which is a fix that ships and does nothing.
+
+    Two module names because ``mcp>=2.0`` depends on the ``httpx2`` fork while
+    other callers still have ``httpx``. Both are optional to this module, so one
+    that is absent contributes nothing rather than breaking the import.
+    """
+    found = []
+    for module_name in ("httpx", "httpx2"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        candidate = getattr(module, attribute, None)
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            found.append(candidate)
+    return tuple(found)
+
+
+# `TransportError` is httpx's base for everything that failed below the HTTP
+# response: connect, read, write, pool, proxy, protocol. `HTTPStatusError` is
+# deliberately not under it, so a rejected request keeps its own message instead
+# of turning into "circuit open".
+_HTTPX_TRANSPORT_TYPES = _optional_exception_types("TransportError")
+_HTTPX_TIMEOUT_TYPES = _optional_exception_types("TimeoutException")
+
 # Timeout spellings across the paths this module guards: urllib/sockets, the MCP
-# client's `asyncio.wait_for`, and the `glab` subprocess. Listed as a tuple
-# because they are not all one class: 3.10 aliases several onto the builtin
+# client's `asyncio.wait_for`, httpx, and the `glab` subprocess. Listed as a
+# tuple because they are not all one class: 3.10 aliases several onto the builtin
 # TimeoutError, but subprocess.TimeoutExpired stays distinct at every version.
 _TIMEOUT_TYPES = (
     socket.timeout, TimeoutError, asyncio.TimeoutError, subprocess.TimeoutExpired,
+    *_HTTPX_TIMEOUT_TYPES,
 )
 
 # Exception types both predicates below can actually read. Anything else has to
 # fall back to classifying its message text.
-_TRANSPORT_TYPES = (urllib.error.HTTPError, urllib.error.URLError, OSError, *_TIMEOUT_TYPES)
+_TRANSPORT_TYPES = (urllib.error.HTTPError, urllib.error.URLError, OSError,
+                    *_HTTPX_TRANSPORT_TYPES, *_TIMEOUT_TYPES)
+
+# JSON-RPC error codes the MCP SDK raises when the *connection* failed rather
+# than the request being refused. A stdio MCP server that starts and then exits
+# arrives as `MCPError(-32000, "Connection closed")` two ExceptionGroups deep,
+# and nothing above can read it: that class is a plain Exception. Measured on
+# this build before this existed: four spawn-and-die calls, four dials,
+# `failures=0`, circuit closed.
+#
+# Matched on the numeric code, never on the message, and never on an exception
+# merely having a `code`: `urllib.error.HTTPError.code` is an HTTP status and
+# would collide with these values' own numbering. The numbers are wire constants
+# from the MCP spec. The SDK's class name for them moved between majors
+# (`McpError` -> `MCPError`) and the numbers did not, which is why they are
+# written out here rather than imported.
+_MCP_CONNECTION_CLOSED = -32000
+_MCP_REQUEST_TIMEOUT = -32001
+_MCP_ENDPOINT_CODES = frozenset({_MCP_CONNECTION_CLOSED, _MCP_REQUEST_TIMEOUT})
+
+
+def _chain(exc: BaseException):
+    """Every exception inside ``exc``: itself, group members, ``raise ... from``.
+
+    Breadth-first, so the outermost real cause wins, and cycle-safe.
+    ``__context__`` is deliberately not followed: an incidental exception that
+    merely happened to be in flight says nothing about this call.
+
+    A group is detected by its ``exceptions`` attribute rather than by
+    ``isinstance(..., BaseExceptionGroup)``: that builtin arrived in 3.11 and
+    this package supports 3.10, where anyio raises the ``exceptiongroup``
+    backport's class instead.
+    """
+    seen = {id(exc)}
+    queue = [exc]
+    while queue:
+        current = queue.pop(0)
+        yield current
+        nested = list(getattr(current, "exceptions", None) or ())
+        if current.__cause__ is not None:
+            nested.append(current.__cause__)
+        for candidate in nested:
+            if id(candidate) not in seen:
+                seen.add(id(candidate))
+                queue.append(candidate)
+
+
+def find_in_chain(exc: BaseException, types) -> BaseException | None:
+    """The first exception of ``types`` inside ``exc``'s wrappers, or ``None``.
+
+    Public because ``isinstance`` is the wrong test on any exception that came
+    out of the MCP client. An :class:`~.mcp_client.McpToolError` -- the server
+    saying no -- arrives from a real stdio server inside a *doubly nested*
+    ``ExceptionGroup``, so a caller asking ``isinstance(e, McpToolError)``
+    silently never matches and its whole branch is dead code that passes every
+    test written against a directly-raised fake.
+    """
+    for current in _chain(exc):
+        if isinstance(current, types):
+            return current
+    return None
+
+
+def _leaf(exc: BaseException) -> BaseException:
+    """The first exception inside ``exc`` that is not itself a group wrapper."""
+    for candidate in _chain(exc):
+        if not getattr(candidate, "exceptions", None):
+            return candidate
+    return exc
 
 
 def _unwrap(exc: BaseException) -> BaseException:
@@ -102,26 +208,23 @@ def _unwrap(exc: BaseException) -> BaseException:
     ``TimeoutError`` was two groups deep, every failure classified as "not the
     endpoint's fault", and the circuit never opened at all -- i.e. the whole
     feature silently did nothing on the exact path it was built for.
-
-    Walks group members and the explicit ``raise ... from`` chain, breadth-first
-    so the outermost real cause wins. ``__context__`` is deliberately not
-    followed: an incidental exception that merely happened to be in flight says
-    nothing about this call.
     """
-    seen = {id(exc)}
-    queue = [exc]
-    while queue:
-        current = queue.pop(0)
+    return find_in_chain(exc, _TRANSPORT_TYPES) or exc
+
+
+def _mcp_connection_code(exc: BaseException) -> int | None:
+    """The MCP connection-level JSON-RPC code inside ``exc``, or ``None``.
+
+    Skips anything already readable as transport-shaped, so an ``HTTPError``
+    whose ``code`` is an HTTP status is never read as a JSON-RPC one.
+    """
+    for current in _chain(exc):
         if isinstance(current, _TRANSPORT_TYPES):
-            return current
-        nested = list(getattr(current, "exceptions", None) or ())
-        if current.__cause__ is not None:
-            nested.append(current.__cause__)
-        for candidate in nested:
-            if id(candidate) not in seen:
-                seen.add(id(candidate))
-                queue.append(candidate)
-    return exc
+            continue
+        code = getattr(current, "code", None)
+        if type(code) is int and code in _MCP_ENDPOINT_CODES:
+            return code
+    return None
 
 
 class CircuitOpenError(RuntimeError):
@@ -187,8 +290,13 @@ def describe(exc: BaseException) -> str:
     project that moved all read identically -- and the one line that says which
     was thrown away with the child's stderr. It is appended instead. Truncated,
     because a CLI can be verbose and this is one log line.
+
+    A wrapper carrying something that is *not* transport-shaped falls back to the
+    innermost real exception rather than the wrapper. Without that, a tool call
+    the server rejected reads as "unhandled errors in a TaskGroup", which is the
+    one line the reader needed replaced by no line at all.
     """
-    inner = _unwrap(exc)
+    inner = find_in_chain(exc, _TRANSPORT_TYPES) or _leaf(exc)
     reason = str(inner).strip() or type(inner).__name__
     stderr = _child_stderr(inner)
     if not stderr:
@@ -206,7 +314,15 @@ def is_endpoint_failure(exc: BaseException) -> bool:
     missing key -- because no amount of skipping calls fixes those, and hiding
     their message behind "circuit open" would remove the one line that tells the
     user what to do.
+
+    An MCP connection-level code (-32000 "Connection closed", -32001 request
+    timeout) counts too. That is how a stdio server which spawned and then died
+    reports itself, and it is the common shape of a down MCP server: the process
+    starts, so nothing raises ``FileNotFoundError``, and the failure arrives as
+    an SDK error two task-group wrappers deep.
     """
+    if _mcp_connection_code(exc) is not None:
+        return True
     exc = _unwrap(exc)
     if isinstance(exc, urllib.error.HTTPError):
         return exc.code >= 500 or exc.code in _UNHEALTHY_STATUS
@@ -225,7 +341,14 @@ def is_retryable(exc: BaseException) -> bool:
     server, or an explicit 429/503 "come back". A timeout is excluded on purpose
     (see the module docstring): the attempt already consumed its whole timeout
     budget, and repeating it doubles the worst-case stall D-8 is about.
+
+    An MCP request timeout (-32001) is excluded here for the same reason, by its
+    code: it arrives as a plain SDK exception that no type test above can read,
+    so without this row it would fall through to the text classifier and be
+    repeated.
     """
+    if _mcp_connection_code(exc) == _MCP_REQUEST_TIMEOUT:
+        return False
     exc = _unwrap(exc)
     if isinstance(exc, urllib.error.HTTPError):
         return exc.code in _RETRY_STATUS

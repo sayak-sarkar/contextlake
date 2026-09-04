@@ -101,10 +101,16 @@ class SlackConnector:
         self.timeout = timeout
 
     def _spawn(self) -> tuple[str, list[str], dict | None]:
+        # Only what this source overrides. The ambient environment is merged in
+        # underneath at the spawn (see `mcp_client._acall`), never here: a
+        # snapshot of `os.environ` taken at this point is shared by every source
+        # in the run, so it says nothing about which server this one reaches,
+        # and it moves whenever anything in the process sets a variable. Passing
+        # the snapshot made `mcp_client.server_key` a timestamp instead of an
+        # identity, and the circuit breaker never opened.
         env = None
         if self.auth_dir:
-            env = dict(os.environ)
-            env["MCP_REMOTE_CONFIG_DIR"] = os.path.expanduser(self.auth_dir)
+            env = {"MCP_REMOTE_CONFIG_DIR": os.path.expanduser(self.auth_dir)}
         if self.mcp_command:
             parts = self.mcp_command.split()
             return parts[0], parts[1:], env

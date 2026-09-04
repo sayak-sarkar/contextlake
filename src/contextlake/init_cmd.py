@@ -475,20 +475,61 @@ def cmd_init(args) -> int:
                     src["mcp"] = mcp_url
             try:
                 from .kb import config_edit  # lazy: needs tomlkit ([kb] extra)
+                from .kb.source_cmd import refusal_for_unloadable_keys
             except ImportError:
                 log("")
                 log(f"{style.warn('source')} Install contextlake[kb] to connect "
                     "a data source; skipping.")
                 break
-            else:
-                config_edit.add_source(kb_config_file, src)
+            # The same gate `kb source add` runs, on the file THIS command
+            # resolved. Without it `init --local` accepted an MCP URL, printed a
+            # green tick, and the next load dropped the key at the trust gate --
+            # after which `connectors/orchestrate.py` falls back to
+            # `DEFAULT_MCP_URL` and dials the vendor's hosted endpoint. An
+            # operator who typed an internal URL had every reason to believe
+            # their traffic went there.
+            #
+            # `explicit_config_path` is the kb file itself when the user passed
+            # `--config`, and None otherwise. That is not a bypass: with
+            # `--config` the kb file is a sibling `kb.toml`, whose name
+            # `find_ancestor_config` never looks for, so no run loads it without
+            # being told to and no load can strip the key from it. The refusal
+            # exists for the file that IS discovered and IS stripped, which is
+            # the `--local` `.contextlake.kb.toml`.
+            #
+            # `global_config=_KB_CONFIG` names the file THIS command means by
+            # "the global config". `init` keeps its own copy of that path so it
+            # runs without the [kb] extra, and the gate read `kb.config`'s copy
+            # instead -- so a plain `contextlake init` (no --local, no --config),
+            # whose target IS the global config, was judged a discovered project
+            # file and every MCP URL it collected was refused. `--local` still
+            # refuses: its target is `.contextlake.kb.toml`, which is not this
+            # path either.
+            refusal = refusal_for_unloadable_keys(
+                kb_config_file, kb_config_file if config_path else None, src,
+                global_config=_KB_CONFIG)
+            if refusal:
                 log("")
-                log(f"{style.ok('source')} Added {style.cyan(src_name)} "
-                    f"(type={src_type}) to {kb_config_file}")
-                log(f"  Run {style.cyan('contextlake kb source list')} to review, or "
-                    f"{style.cyan('contextlake kb source test ' + src_name)} "
-                    "to check reachability.")
+                log(style.fail(refusal))
+                log("  Nothing was written for this source.")
                 log("")
+                continue
+            config_edit.add_source(kb_config_file, src)
+            log("")
+            log(f"{style.ok('source')} Added {style.cyan(src_name)} "
+                f"(type={src_type}) to {kb_config_file}")
+            # Named with --config when that is the only way the file is read. A
+            # sibling `kb.toml` is on no discovery path, so the bare commands
+            # printed here would not see the source at all -- a printed command
+            # that cannot work is the same defect as the tick above.
+            suffix = f" --config {kb_config_file}" if config_path else ""
+            log(f"  Run {style.cyan('contextlake kb source list' + suffix)} to review, "
+                f"or {style.cyan('contextlake kb source test ' + src_name + suffix)} "
+                "to check reachability.")
+            if suffix:
+                log(f"  {kb_config_file} is read only by commands that name it, so "
+                    f"pass --config {kb_config_file} to kb connect / kb ingest too.")
+            log("")
 
     # --- auth guidance ------------------------------------------------------
     env, is_set = _token_status(platform)

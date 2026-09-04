@@ -5,7 +5,7 @@ from argparse import Namespace
 
 import pytest
 
-from contextlake import init_cmd
+from contextlake import init_cmd, style
 from contextlake.config import load_config
 
 
@@ -366,6 +366,57 @@ def test_init_connector_prompt_loops_to_add_multiple_sources(tmp_path, monkeypat
     # the suggested defaults were accepted, not left blank
     assert 'mcp = "https://mcp.atlassian.com/v1/mcp/authv2"' in kb
     assert 'mcp = "https://mcp.figma.com/mcp"' in kb
+
+
+def test_init_local_connector_prompt_refuses_an_mcp_url_the_loader_would_drop(
+        tmp_path, monkeypatch, gls_logs):
+    """The other half of the same gate, kept next to the two rows above.
+
+    `--local` writes `.contextlake.kb.toml`, a file contextlake finds by walking
+    up from the working directory, and the trust gate strips `mcp` from such a
+    file on the next load. So this run must refuse the URL, not tick over a key
+    that will be gone.
+
+    Paired here on purpose: the fix that lets the default (global) target
+    through is one argument away from letting EVERY target through, and that
+    spelling passes both rows above. `tests/kb/test_init_cmd.py` asserts the
+    same refusal through a real `load_kb_config`; this row keeps both directions
+    under the fixture these rows use.
+    """
+    pytest.importorskip("tomlkit")
+    monkeypatch.chdir(tmp_path)  # --local writes relative paths, into cwd
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
+    monkeypatch.setattr(init_cmd, "_interactive", lambda: True)
+    # Registering completion appends to the real ~/.bashrc and writes a marker
+    # under the real ~/.contextlake. Nothing in this row is about completion.
+    monkeypatch.setattr(init_cmd, "_setup_shell_completion", lambda **_kw: None)
+
+    def fake_ask_yn(prompt, default):
+        if "Connect a data source" in prompt:
+            return True
+        if "Connect another data source" in prompt:
+            return False
+        return default
+
+    def fake_ask(prompt, default):
+        if "Source type" in prompt:
+            return "atlassian"
+        if "Source name" in prompt:
+            return "jira"
+        if "MCP server URL" in prompt:
+            return "https://mcp.internal.example.net/v1/mcp"
+        return default
+
+    monkeypatch.setattr(init_cmd, "_ask_yn", fake_ask_yn)
+    monkeypatch.setattr(init_cmd, "_ask", fake_ask)
+
+    rc = init_cmd.cmd_init(_args(skip_interactive=False, local=True, group="acme"))
+    out = style.strip_ansi(gls_logs.text)
+    assert rc == 0
+    assert "Refusing to write 'mcp'" in out
+    assert "Added jira" not in out, "a refused source was reported as added"
+    assert "[[sources]]" not in (tmp_path / ".contextlake.kb.toml").read_text()
 
 
 def test_init_connector_prompt_never_asks_for_a_secret_value(tmp_path, monkeypatch):

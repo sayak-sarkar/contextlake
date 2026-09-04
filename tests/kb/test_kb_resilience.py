@@ -241,6 +241,22 @@ def test_task_group_wrapped_refusal_is_retryable_like_a_bare_one():
     assert describe(wrapped) == "connection refused"
 
 
+def test_describe_reads_through_a_wrapper_around_a_non_transport_failure():
+    """A rejection is not transport-shaped, and it still has to be readable.
+
+    Without the fallback the whole line is "unhandled errors in a TaskGroup
+    (1 sub-exception)", which replaces the one sentence the reader needed with
+    no sentence at all. This is the shape a real MCP server produces when it
+    answers a tool call with an error.
+    """
+    wrapped = _task_group_wrapped(RuntimeError("the server said no"))
+    assert is_endpoint_failure(wrapped) is False, "a refusal is not the endpoint failing"
+    assert describe(wrapped) == "the server said no"
+    # Positive row for the other branch: a transport failure inside the same
+    # wrapper still wins, so the fallback did not displace the transport match.
+    assert describe(_task_group_wrapped(TimeoutError())) == "TimeoutError"
+
+
 def test_mcp_wrapped_rejection_still_does_not_count_against_the_endpoint():
     wrapped = _task_group_wrapped(_http_error(404))
     assert is_endpoint_failure(wrapped) is False
@@ -370,7 +386,10 @@ def test_mcp_server_key_identifies_a_stdio_bridge_by_its_target(monkeypatch):
     figma = server_key("npx", ["-y", "mcp-remote@latest", "https://mcp.figma.invalid/v1"], None)
     other = server_key("npx", ["-y", "mcp-remote@latest", "https://mcp.other.invalid/v1"], None)
     assert figma != other
-    assert figma == "mcp:npx:https://mcp.figma.invalid"
+    # The readable half names the bridge and its target; the argv digest after
+    # `#` is what separates two bridges the readable half cannot tell apart
+    # (same host, different path or different credential in the argv).
+    assert figma.startswith("mcp:npx:https://mcp.figma.invalid#")
 
 
 def test_dead_mcp_server_is_skipped_after_three_calls_not_retried_per_design(
