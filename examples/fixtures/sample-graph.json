@@ -3,35 +3,39 @@
   "head_commit": "abc123",
   "nodes": [
     {
-      "id": "demo_app_catalogservice",
+      "id": "demo_app_forecastservice",
       "repo": "demo/app",
       "kind": "class",
-      "name": "CatalogService",
-      "qualified_name": "demo.app.order.CatalogService",
-      "file": "src/catalog.py",
+      "name": "ForecastService",
+      "qualified_name": "demo.app.forecast.ForecastService",
+      "file": "src/forecast.py",
       "line_start": 1,
       "line_end": 40,
       "lang": "python",
       "attrs": {}
     },
     {
-      "id": "demo_app_charge",
+      "id": "demo_app_load_readings",
       "repo": "demo/app",
       "kind": "function",
-      "name": "charge",
-      "file": "src/pay.py",
+      "name": "load_readings",
+      "file": "src/readings.py",
       "lang": "python",
       "attrs": {}
     }
   ],
   "edges": [
     {
-      "src": "demo_app_catalogservice",
-      "dst": "demo_app_charge",
+      "src": "demo_app_forecastservice",
+      "dst": "demo_app_load_readings",
       "relation": "calls",
       "confidence": "EXTRACTED",
       "context": "call",
-      "provenance": {"source_file": "src/catalog.py", "source_line": 12, "verified_at": "2026-06-21"},
+      "provenance": {
+        "source_file": "src/forecast.py",
+        "source_line": 12,
+        "verified_at": "2026-06-21"
+      },
       "weight": 1.0
     }
   ]

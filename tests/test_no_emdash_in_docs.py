@@ -87,3 +87,41 @@ def test_no_emdash_in_doc_prose(path):
         "site/build_docs.py's de_emdash only hides it on the rendered site, not on "
         "GitHub, PyPI or in llms-full.txt):\n" + "\n".join(offenders)
     )
+
+
+def test_de_emdash_leaves_fenced_console_output_byte_exact():
+    """The render-time rewrite must not reach inside a fenced block.
+
+    `de_emdash` was a blanket `str.replace` over the whole markdown file, so it also
+    rewrote captured CLI output. Five ```console blocks replaced five stale screenshots
+    in the docs, and contextlake's own output uses em-dashes (`✓ config loads — 1
+    file(s)`). Under the blanket rewrite the published transcript would have read
+    `config loads, 1 file(s)`, which the program never printed: a documented output that
+    disagrees with the program, which is the defect the screenshots were removed to end.
+
+    The guard is written against a sample that would have been rewritten, so reverting
+    `de_emdash` to a blanket replace fails here rather than shipping a wrong transcript.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_bd_emdash", REPO / "site" / "build_docs.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    source = (
+        "A prose line — with an em-dash in it.\n"
+        "\n"
+        "```console\n"
+        "$ contextlake doctor\n"
+        "  ✓ config loads — 1 file(s), 0 source(s), 0 rule(s)\n"
+        "  ✓ embeddings — auto · sqlite-vec · 26 vector(s)\n"
+        "```\n"
+        "\n"
+        "Another prose line — also with one.\n"
+    )
+    out = mod.de_emdash(source)
+    assert "  ✓ config loads — 1 file(s), 0 source(s), 0 rule(s)" in out
+    assert "  ✓ embeddings — auto · sqlite-vec · 26 vector(s)" in out
+    assert "A prose line, with an em-dash in it." in out
+    assert "Another prose line, also with one." in out

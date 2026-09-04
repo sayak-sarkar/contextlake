@@ -38,11 +38,11 @@ def _setup(tmp_path, cfg=_CFG_NO_LLM):
     store.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
     store.close()
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py"),
         Node(id="main", repo="r", kind="entry_point", name="main", file="cmd/main.go"),
-        Node(id="charge", repo="r", kind="function", name="charge", file="svc.py"),
+        Node(id="sample_grid", repo="r", kind="function", name="sample_grid", file="svc.py"),
     ]
-    edges = [Edge(src="charge", dst="svc", relation="calls",
+    edges = [Edge(src="sample_grid", dst="svc", relation="calls",
                   confidence=Confidence.EXTRACTED,
                   provenance=Provenance(source_file="svc.py", source_line=1,
                                         verified_at=date(2026, 6, 21)))]
@@ -122,7 +122,7 @@ def test_a_generated_page_is_never_overwritten_by_the_structural_stage(tmp_path,
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert "no language model" in _page(store_dir).read_text(encoding="utf-8")
 
-    prose = "# r\n\nCatalogService charges orders, reviewed and accepted.\n"
+    prose = "# r\n\nForecastService samples the grid, reviewed and accepted.\n"
     _page(store_dir).write_text(prose, encoding="utf-8")
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert _page(store_dir).read_text(encoding="utf-8") == prose, (
@@ -200,7 +200,7 @@ class _PromptCapturingLlm:
         if "Review lens" in prompt:
             return '{"score": 0.97, "issues": []}'
         self.page_prompts.append(prompt)
-        return ("## Overview\nCatalogService charges orders and `main` starts the "
+        return ("## Overview\nForecastService samples the grid and `main` starts the "
                 "service.\n")
 
 
@@ -387,7 +387,7 @@ def test_a_page_written_by_an_older_version_is_read_as_generated(tmp_path, monke
     store_dir = _setup(tmp_path)
     (store_dir / "wiki").mkdir(parents=True, exist_ok=True)
     # Exactly what 7.11.0 wrote: a title, prose, and a provenance footer. No marker.
-    legacy = ("# r\n\n## Overview\n\nCatalogService charges orders.\n\n---\n"
+    legacy = ("# r\n\n## Overview\n\nForecastService samples the grid.\n\n---\n"
               "*Generated from the knowledge graph of `r` at commit `abc123` on "
               "2026-08-01. Sources: `svc.py`.*\n")
     _page(store_dir).write_text(legacy, encoding="utf-8")

@@ -35,6 +35,36 @@ def test_an_advisory_does_not_count():
     assert doctor._FAULTS == []
 
 
+def test_an_untested_check_is_neither_a_fault_nor_a_pass(capsys):
+    """The fourth state, pinned from both sides.
+
+    `bool(UNTESTED)` is True, so `_check`'s old `return bool(ok)` would report a
+    check that never ran as a pass. Every call site is bare, so nothing else in
+    the codebase would catch that; this assertion is the only thing pinning
+    `return ok is True`.
+    """
+    from contextlake.kb.cmds import doctor
+
+    doctor._start_report()
+    assert doctor._check("nothing to dial", doctor.UNTESTED, "no probe for this type") is False, (
+        "a check that never ran must not report itself to a caller as a pass")
+    assert doctor._FAULTS == [], "and it is not a fault either"
+
+    # The other three states still behave, in the same test: a branch that
+    # returned False and recorded nothing for EVERY input would satisfy the two
+    # assertions above on its own.
+    assert doctor._check("a real passing check", True) is True
+    assert doctor._FAULTS == []
+    doctor._check("a real fault", False)
+    assert doctor._FAULTS == ["a real fault"]
+
+    printed = capsys.readouterr().out
+    assert printed.strip(), "the capture must see something or this proves nothing"
+    untested_line = [ln for ln in printed.splitlines() if "nothing to dial" in ln][0]
+    assert "⊘" in untested_line
+    assert "⚠" not in untested_line, "not-tested and probed-and-degraded are different facts"
+
+
 def test_the_report_resets_between_runs():
     """A fault left over from a previous run would fail the next one for nothing."""
     from contextlake.kb.cmds import doctor

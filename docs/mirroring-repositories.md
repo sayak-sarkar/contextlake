@@ -33,14 +33,14 @@ repo paths, so you can mirror and index just a handful instead of the whole grou
 Ideal for a demo or a try-before-fleet run:
 
 ```bash
-contextlake bootstrap --repos "team/api,billing/*,frontend/*"  # mirror + index just these
+contextlake bootstrap --repos "team/api,sensors/*,frontend/*"  # mirror + index just these
 contextlake mirror sync --repos "team/*"                       # sync one namespace
-contextlake kb index --workspace ~/work --repos "billing/core,team/api"
+contextlake kb index --workspace ~/work --repos "sensors/core,team/api"
 ```
 
 Each pattern is matched against the repo's group-qualified path and its local path,
 case-insensitively. **Patterns are anchored**: `--repos api` selects a repo named
-exactly `api`, never `payments-api` or `api-gateway`. For a substring match, say so
+exactly `api`, never `forecast-api` or `api-gateway`. For a substring match, say so
 with a glob:
 
 ```bash
@@ -66,10 +66,10 @@ available:
 
 Four rules govern every pattern:
 
-- **Comma-separated.** `--repos "team/*,billing/core"` is two patterns, and a repo
+- **Comma-separated.** `--repos "team/*,sensors/core"` is two patterns, and a repo
   matching either one is selected.
 - **Anchored.** The pattern must describe the whole path, not a piece of it. This is
-  why `api` does not select `payments-api`.
+  why `api` does not select `forecast-api`.
 - **Case-insensitive.** `--repos "TEAM/*"` and `--repos "team/*"` select the same repos.
 - **Matched twice.** Each pattern is tried against the group-qualified path
   (`acme/team/api`) and against the local path (`team/api`), so either form works.

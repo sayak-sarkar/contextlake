@@ -7,7 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`contextlake kb source wizard`.** It lists every configured source with a reachability
+  mark, then offers to add another and loops until you answer no (pressing enter is no). The
+  survey reads the same `verify_source` path `kb doctor` and `kb source test` use, so
+  "is this source reachable" has one answer across all three. The add step is `kb source add`
+  run interactively, so the prompts, the literal-secret refusal and the write target are the
+  same ones. It needs a terminal: a prompt written to a pipe hangs, so a non-interactive run
+  is refused with exit 2 and the flag form to use instead.
+
 ### Changed
+
+- **`kb doctor`'s per-source line now separates three answers that used to render as one
+  `⚠`.** A source that was dialled and did not answer keeps `⚠`. A source of a type with no
+  reachability probe (`gitlab`, `zendesk`) now draws `⊘`, matching what `kb source test`
+  already prints for the same case. A source with `enabled = false` also draws `⊘` and is not
+  dialled at all, matching `kb connect` and `kb ingest`, which both skip disabled sources.
+  None of the three changes doctor's exit code, which is unchanged and still deliberate.
+
+  **What this loses:** doctor no longer reports a broken path or an unreachable endpoint on a
+  disabled source. Nothing reads that source, so the round trip bought nothing, but the line
+  used to be there. Re-enable the source to have it dialled again.
+
+- **The bundled `--sample` demo fleet moved to a new domain, and two of its repos changed
+  shape. Repo ids and symbol names changed, so a script that names one has to be edited.** The
+  old fleet's domain read as a real production estate rather than as an obvious invention, which
+  is what demo data has to be. It now models a weather-station monitoring network: stations
+  report readings, a forecast service runs a model over them, an ingest pipeline normalises raw
+  readings, an alerts service fans out severe-weather notices, and a console UI shows it.
+
+  ```text
+  acme/auth-service   ->  acme/station-registry
+  acme/catalog-api    ->  acme/forecast-api    (rebuilt, not renamed; see below)
+  acme/payments-api   ->  acme/sensor-ingest   (call edges redirected; see below)
+  acme/web-ui         ->  acme/console-ui
+  acme/notifications  ->  acme/alerts
+  acme/shared-lib     ->  acme/shared-lib      (unchanged)
+  demo/app            ->  demo/app             (id unchanged; its two symbols changed)
+  ```
+
+  **`acme/forecast-api` is a rebuild.** The old repo was a four-layer controller / service /
+  repository / validator chain in C#. It is now a scheduled model run in Go:
+  `RunCycle -> ForecastRunner -> GridSampler -> ModelGrid`, with no controller, no repository and
+  no validator. **`acme/sensor-ingest` keeps its nodes and redirects its call edges** so readings
+  flow one way: `SensorGateway -> Ingest -> ReadingProcessor`, plus
+  `Backfill -> ReadingProcessor`. Nothing downstream calls back into the gateway, and the two
+  triggers converge on one processor instead of forming another straight line.
+
+  **What moved and what did not, measured on the fixture.** The `acme` org, the repo count (7),
+  the node total (44), the edge total (36) and all 11 cross-repo edges are the same, edge for
+  edge, under the mapping above. Two counts did move: languages went from 4 to 5 (Go added, C#
+  down from 10 nodes to 5), and node kinds from 7 to 8 (`struct` added, `class` 12 to 11,
+  `method` 3 to 2).
+
+  Every symbol inside those repos changed with the ids, so a golden-query file, an MCP call or
+  a dashboard bookmark naming an old one returns nothing until it is updated. The new node and
+  edge lists are in `src/contextlake/kb/dashboard/fixtures/sample-dashboard.json`. Nothing in
+  the product changed. This is demo data and the docs that quote it.
 
 - **`[embeddings] base_url` now defaults per provider. Check yours before upgrading if you point
   it at a local server.** The field was declared as the literal `http://127.0.0.1:11434`, and one
@@ -3374,7 +3431,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.
 ### Changed
 
 - **`--repos` patterns are anchored, and `--repos-exact` is gone.** BREAKING: `--repos api` now
-  selects a repo named exactly `api`, where it previously also selected `payments-api` and
+  selects a repo named exactly `api`, where it previously also selected `forecast-api` and
   `api-gateway`. For a substring match, glob it: `--repos "*api*"`.
 
   A filter that silently selects *more* than you asked for is the expensive direction of this
@@ -6045,7 +6102,7 @@ spec-cli-simplification.md`.
 - **Dashboard/graph architecture view: repo labels no longer overlap when a
   namespace cluster expands.** The mindmap drill-in's grid layout only spaced
   node *shapes* apart (`avoidOverlap`), not their label text, so adjacent
-  repos with longer names (`catalog-api`, `auth-service`, `shared-lib`) ran
+  repos with longer names (`forecast-api`, `station-registry`, `shared-lib`) ran
   into each other. Now accounts for label width
   (`nodeDimensionsIncludeLabels`) and uses more generous cell spacing.
 
@@ -6205,7 +6262,7 @@ spec-cli-simplification.md`.
   in how repos were bucketed into namespaces for boundary purposes (shared with
   the dashboard's display-grouping heuristic, `derive_groups`, but wrong for
   boundary tagging specifically): (1) a repo whose id IS exactly a namespace
-  prefix (e.g. a repo literally named `acme` alongside `acme/pay/api`) fell into
+  prefix (e.g. a repo literally named `acme` alongside `acme/ingest/api`) fell into
   the meaningless catch-all `"(ungrouped)"` bucket instead of the `acme`
   boundary its own child repo joined, so a real edge between them wrongly
   rendered as crossing a boundary; (2) `"(ungrouped)"` was treated as one shared
@@ -6283,10 +6340,10 @@ spec-cli-simplification.md`.
 
 - **`ask`'s `explain`/`owners` routes didn't resolve a repo by its short name,
   contradicting the docs' own headline example.** `ask("explain the
-  catalog-api")` (verbatim from docs/serve.md) silently fell through to
+  forecast-api")` (verbatim from docs/serve.md) silently fell through to
   `search` instead of returning wiki prose or a repo brief: repo ids are
-  always host-qualified (`gitlab.example.com/acme/catalog-api`), but the
-  router only extracts the trailing "catalog-api" out of the question, which
+  always host-qualified (`gitlab.example.com/acme/forecast-api`), but the
+  router only extracts the trailing "forecast-api" out of the question, which
   never matched the full stored id via `get_wiki`/`get_repo_brief`/
   `who_knows`'s exact lookup. A person naturally refers to a repo by its
   short name, so this needed to be resolved, not documented around. Added
@@ -6610,7 +6667,7 @@ spec-cli-simplification.md`.
   dropped without a trace.
 - **`owners` and `graph` suggest close repo ids** when given an id that is not in the
   store, including the workspace-relative-prefix case (a sub-workspace-indexed
-  `team/billing/api` points at the stored `acme/team/billing/api`), instead of
+  `team/gateway/api` points at the stored `acme/team/gateway/api`), instead of
   a bare error or a silently empty view.
 
 ## [2.41.0] - 2026-07-21
@@ -6848,7 +6905,7 @@ spec-cli-simplification.md`.
 ### Fixed
 
 - **`find_callers` and `blast_radius` accept a bare symbol name.** Agents call these
-  MCP tools with a name (e.g. `CatalogService`), but they only accepted an internal
+  MCP tools with a name (e.g. `ForecastService`), but they only accepted an internal
   node id, so a name silently returned nothing even when the graph had the answer
   (only the `ask` router resolved names). Both now resolve a name to its first
   matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.
@@ -6960,7 +7017,7 @@ spec-cli-simplification.md`.
 ### Changed
 
 - **`ask`'s explain route degrades usefully.** When a question like "explain the
-  catalog-api" hits a repo with no generated wiki, `ask` now returns that repo's
+  forecast-api" hits a repo with no generated wiki, `ask` now returns that repo's
   grounded anatomy (top symbols, packages, languages) from the graph instead of a
   blind semantic search — a structured `brief` beats fuzzy hits for "explain this."
   (Surfaced by a full end-to-end test sweep of the CLI + MCP server, which otherwise
@@ -6971,8 +7028,8 @@ spec-cli-simplification.md`.
 ### Added
 
 - **`ask` — one MCP tool, natural language, auto-routed.** A small-context IDE agent
-  no longer has to pick among twenty graph tools: `ask("who calls charge_order")`,
-  `ask("what breaks if I change CatalogService")`, `ask("explain the catalog-api")`. A
+  no longer has to pick among twenty graph tools: `ask("who calls ingest_reading")`,
+  `ask("what breaks if I change ForecastService")`, `ask("explain the forecast-api")`. A
   deterministic, offline classifier maps the question to a substrate (definition /
   callers / dependents / impact / owners / explain / search), resolves the symbol or
   repo, and returns one labeled answer — graph facts cited and confidence-tagged, the

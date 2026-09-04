@@ -78,7 +78,7 @@ def _c4_namespaces(repo_ids: list[str], depth: int) -> dict[str, list[str]]:
     no namespace beyond ``depth`` gets a namespace of exactly itself (any edge
     touching it is always a boundary edge), and a repo that IS the exact
     namespace another repo sits under (e.g. a repo literally named ``acme``
-    alongside ``acme/pay/api``) correctly joins that namespace instead of a
+    alongside ``acme/sensors/api``) correctly joins that namespace instead of a
     meaningless shared catch-all.
     """
     depth = max(1, int(depth))
@@ -181,14 +181,14 @@ _DOT_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
 
 
 def _dot_id(raw: str) -> str:
-    """Turn a repo id or namespace (e.g. ``acme/pay/api``) into a DOT-safe node
+    """Turn a repo id or namespace (e.g. ``acme/sensors/api``) into a DOT-safe node
     or subgraph name.
 
     Every character outside ``[0-9A-Za-z_]`` (``/``, ``.``, ``-``, etc.) becomes
     ``_``. This is not collision-proof in the abstract: two distinct ids collide
     only if an intra-segment ``-``/``.`` in one id lands where another id has an
-    inter-segment ``/`` (e.g. ``acme/pay-web`` and ``acme/pay/web`` both sanitize
-    to ``acme_pay_web``). GitLab namespace paths do not form ids that way in
+    inter-segment ``/`` (e.g. ``acme/sensors-web`` and ``acme/sensors/web`` both
+    sanitize to ``acme_sensors_web``). GitLab namespace paths do not form ids that way in
     practice, so this does not occur in the fleet. The full (unsanitized) path
     is kept as the DOT ``label``, so even in a hypothetical collision the
     rendered text stays readable; only the internal node identity would be

@@ -19,7 +19,7 @@ from contextlake.kb.docs.design import render_design_document
 from contextlake.kb.docs.stamp import UNKNOWN, read_stamp, stamp
 from contextlake.kb.store.shards import GraphShard
 
-REPO = "acme/orders"
+REPO = "acme/stations"
 SHA = "d318b683471101618febed18996405ad26462110"
 
 
@@ -56,8 +56,8 @@ def test_an_absent_commit_is_recorded_as_unknown_rather_than_omitted():
 
 
 @pytest.mark.parametrize("hostile", [
-    "acme/orders commit=deadbeef",   # a space plus a second commit= would shift the capture
-    "acme/orders>",                  # closing the comment early
+    "acme/stations commit=deadbeef",   # a space plus a second commit= would shift the capture
+    "acme/stations>",                  # closing the comment early
     "acme/<script>",
     "  ",                            # nothing but whitespace
 ])

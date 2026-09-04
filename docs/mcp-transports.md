@@ -191,7 +191,7 @@ moved since this graph was built? See [Keeping it fresh](keeping-it-fresh.md).
 That is the right question for the graph as a whole. It is also blind to the case that bites
 hardest in practice: an agent editing files *between* index runs, inside the same commit.
 
-Here is what that looks like. The graph says `src/billing/refund.py:88`. Twenty lines get
+Here is what that looks like. The graph says `src/telemetry/window.py:88`. Twenty lines get
 inserted above it. The answer still says 88.
 
 A confidently wrong citation is worse than a miss, because the agent goes and reads it.

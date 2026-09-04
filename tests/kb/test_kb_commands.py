@@ -75,15 +75,15 @@ def test_index_then_query_round_trip(tmp_path, capsys):
 
     # the store on disk is populated
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
-    assert store.get_node("demo_app_catalogservice").name == "CatalogService"
+    assert store.get_node("demo_app_forecastservice").name == "ForecastService"
     assert store.stats().edges == 1
     store.close()
 
     # query finds it (cited)
     capsys.readouterr()
-    assert _run(["kb", "query", "CatalogService", "--config", str(cfg)]) == 0
+    assert _run(["kb", "query", "ForecastService", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
-    assert "CatalogService" in out and "demo/app" in out
+    assert "ForecastService" in out and "demo/app" in out
 
 
 def test_query_retriever_semantic_degrades_to_fts_without_embeddings(tmp_path, capsys):
@@ -96,10 +96,10 @@ def test_query_retriever_semantic_degrades_to_fts_without_embeddings(tmp_path, c
     cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n\n[embeddings]\nenabled = false\n')
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
-    assert _run(["kb", "query", "CatalogService", "--config", str(cfg),
+    assert _run(["kb", "query", "ForecastService", "--config", str(cfg),
                 "--retriever", "semantic"]) == 0
     captured = capsys.readouterr()
-    assert "CatalogService" in captured.out
+    assert "ForecastService" in captured.out
     assert "showing fts results instead" in (captured.out + captured.err)
 
 
@@ -116,15 +116,15 @@ def test_query_retriever_semantic_respects_kind_filter(tmp_path, capsys, monkeyp
 
     monkeypatch.setattr(
         query_mod, "_semantic_results",
-        lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
+        lambda args, store, text, limit: ["demo_app_forecastservice", "demo_app_load_readings"])
 
     capsys.readouterr()
-    # "CatalogService" is indexed, so the query clears the relevance floor and the
+    # "ForecastService" is indexed, so the query clears the relevance floor and the
     # stubbed retriever's ids get through -- this test is about --kind, not the floor.
-    assert _run(["kb", "query", "CatalogService", "--config", str(cfg),
+    assert _run(["kb", "query", "ForecastService", "--config", str(cfg),
                 "--retriever", "semantic", "--kind", "function"]) == 0
     out = capsys.readouterr().out
-    assert "charge" in out and "CatalogService" not in out
+    assert "load_readings" in out and "ForecastService" not in out
 
 
 def test_index_workspace_indexes_each_repo(tmp_path):
@@ -387,7 +387,7 @@ def test_read_only_commands_do_not_import_tomlkit_eagerly(tmp_path):
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "try:\n"
-        "    main(['kb', 'query', 'CatalogService', '--config', cfg])\n"
+        "    main(['kb', 'query', 'ForecastService', '--config', cfg])\n"
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "assert 'tomlkit' not in sys.modules, 'tomlkit imported by index/query'\n"
@@ -610,14 +610,14 @@ def test_query_json_emits_a_clean_parseable_array(tmp_path, capsys):
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["kb", "query", "CatalogService", "--config", str(cfg), "--json"]) == 0
+    assert _run(["kb", "query", "ForecastService", "--config", str(cfg), "--json"]) == 0
     captured = capsys.readouterr()  # --json redirects logs to stderr like graph does
     assert captured.out.strip(), "payload must be on stdout"
     hits = json.loads(captured.out)
     assert hits == [{
-        "repo": "demo/app", "file": "src/catalog.py", "line": 1,
-        "kind": "class", "name": "CatalogService",
-        "qualified_name": "demo.app.order.CatalogService",
+        "repo": "demo/app", "file": "src/forecast.py", "line": 1,
+        "kind": "class", "name": "ForecastService",
+        "qualified_name": "demo.app.forecast.ForecastService",
     }]
 
 
@@ -751,11 +751,11 @@ def test_impact_json_emits_a_clean_parseable_object(tmp_path, capsys):
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    rc = _run(["kb", "impact", "CatalogService", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "impact", "ForecastService", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 0
     payload = json.loads(captured.out)
-    assert payload["target"]["name"] == "CatalogService"
+    assert payload["target"]["name"] == "ForecastService"
     assert payload["hops"] == 3
     assert isinstance(payload["affected"], list)
 
@@ -923,7 +923,7 @@ def test_query_semantic_applies_the_same_relevance_floor_as_mcp(tmp_path, capsys
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     monkeypatch.setattr(
         query_mod, "_semantic_results",
-        lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
+        lambda args, store, text, limit: ["demo_app_forecastservice", "demo_app_load_readings"])
 
     capsys.readouterr()
     rc = _run(["kb", "query", "SamlAssertionValidator", "--config", str(cfg),
@@ -933,7 +933,7 @@ def test_query_semantic_applies_the_same_relevance_floor_as_mcp(tmp_path, capsys
     # "nothing in here is about that" is a valid answer, so the exit code is 0...
     assert rc == 0
     # ...but nothing unrelated is presented as if it were one.
-    assert "CatalogService" not in text and "charge" not in text
+    assert "ForecastService" not in text and "load_readings" not in text
     # The refusal names the term, so it is checkable and retryable, not a dead end.
     assert "'SamlAssertionValidator'" in text
 
@@ -950,7 +950,7 @@ def test_query_semantic_json_refusal_is_an_empty_list(tmp_path, capsys, monkeypa
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     monkeypatch.setattr(
         query_mod, "_semantic_results",
-        lambda args, store, text, limit: ["demo_app_catalogservice"])
+        lambda args, store, text, limit: ["demo_app_forecastservice"])
 
     capsys.readouterr()
     assert _run(["kb", "query", "SamlAssertionValidator", "--config", str(cfg),

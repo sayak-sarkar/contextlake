@@ -45,11 +45,11 @@ def _prov():
 def _seed_indexed_repo(store, store_dir, repo_id, repo_path):
     """An indexed repo: a shard with an embeddable symbol (so build_terms finds
     something) plus the store's repo record (so `_connect_targets` lists it)."""
-    order_service = Node(id="n1", repo=repo_id, kind="class", name="CatalogService",
-                          file="app/catalog.py")
-    charge_fn = Node(id="n2", repo=repo_id, kind="function", name="chargeCard",
-                      file="app/billing.py")
-    nodes = [order_service, charge_fn]
+    forecast_service = Node(id="n1", repo=repo_id, kind="class", name="ForecastService",
+                          file="app/forecast.py")
+    reading_fn = Node(id="n2", repo=repo_id, kind="function", name="readSensor",
+                      file="app/readings.py")
+    nodes = [forecast_service, reading_fn]
     edges = [
         Edge(src="n1", dst="n2", relation="calls", confidence=Confidence.EXTRACTED,
              provenance=_prov()),

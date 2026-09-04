@@ -191,7 +191,7 @@ def test_no_leftover_deprecation_notice_on_the_namespaced_form(capsys):
     """Nothing warns any more -- and stdout in particular stays clean, which is
     what lint/query/owners/impact `--json` and `graph --format
     json|graphml|cypher|dot|mermaid` pipes depend on."""
-    _resolve(["kb", "query", "CatalogService"])
+    _resolve(["kb", "query", "ForecastService"])
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""

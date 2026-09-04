@@ -637,7 +637,7 @@ def _add_mirror(p, hidden=False):
     add("--group", help="GitLab group (overrides config file)")
     add("--repos", metavar="PATTERN",
         help="mirror/index only repos matching this comma-separated glob filter "
-             "(e.g. 'team/api,catalog-api,frontend/*') — great for a demo subset. "
+             "(e.g. 'acme/forecast-api,alerts,console-*') — great for a demo subset. "
              "Patterns are anchored: a plain name matches that repo exactly, never "
              "one that merely contains it. For a substring match, glob it: '*api*'")
     add("--branch", metavar="NAME",
@@ -792,7 +792,7 @@ Get started:
   contextlake init                           guided setup: write your config (start here)
   contextlake bootstrap                      one command: mirror + index + connect + steer
   contextlake kb index .                     index the current repo into the local graph
-  contextlake kb query "CatalogService"      search the graph (cited file:line hits)
+  contextlake kb query "ForecastService"     search the graph (cited file:line hits)
   contextlake kb serve                       expose the graph to your editor over MCP
   contextlake kb dashboard --serve --sample  explore a demo fleet, zero setup
 
@@ -961,8 +961,8 @@ docs/cli-reference.md#shell-completion), so both stay idempotent and in sync.
     for name, help_, epilog in (
         ("fetch", "enumerate the GitLab projects you can access and cache the list", """
 Examples:
-  contextlake mirror fetch                             list every accessible GitLab project
-  contextlake mirror fetch --repos 'team/api,billing'  only projects matching this filter
+  contextlake mirror fetch                                     list every accessible GitLab project
+  contextlake mirror fetch --repos 'acme/forecast-api,alerts'  only projects matching this filter
                 """),
         ("clone", "clone repositories missing from the local workspace", """
 Examples:
@@ -971,8 +971,8 @@ Examples:
                 """),
         ("update", "fetch + fast-forward every existing clone", """
 Examples:
-  contextlake mirror update                             fetch + fast-forward every clone
-  contextlake mirror update --repos 'team/api,billing'  only these repos
+  contextlake mirror update                                     fetch + fast-forward every clone
+  contextlake mirror update --repos 'acme/forecast-api,alerts'  only these repos
                 """),
         ("branches", "switch each repo to its most active development branch", """
 Examples:
@@ -1080,7 +1080,7 @@ Examples:
                    help="index every git repo under this directory")
     p.add_argument("--repos", default=_S, metavar="PATTERN",
                    help="--workspace: index only repos matching this comma-separated "
-                        "glob/substring filter (e.g. 'team/api,billing,frontend/*')")
+                        "glob/substring filter (e.g. 'acme/forecast-api,alerts,console-*')")
     p.add_argument("--workers", type=_COUNT, default=_S, metavar="N",
                    help="--workspace: how many repos to index in parallel (default: "
                         "one fewer than the CPU count, capped at 8). Lower this to cut "
@@ -1108,6 +1108,7 @@ Examples:
   contextlake kb source list
   contextlake kb source test jira
   contextlake kb source disable jira
+  contextlake kb source wizard
 
 `list` and `test` show the effective (merged) config -- the same precedence
 chain `connect`/`ingest`/`wiki` use -- so a source defined in a local
@@ -1120,9 +1121,16 @@ that file. --local forces the nearest-ancestor (or a fresh one in cwd if none
 exists yet) even when a --config path isn't given. Note the asymmetric exit
 codes for a missing name: `remove` is a no-op (exit 0), `enable`/`disable`
 fail (exit 1).
+
+`wizard` checks every configured source first, then offers to add another, and
+loops until you answer no (or press enter). It needs a terminal: a prompt
+written to a pipe hangs, so a non-interactive run is refused with the flag form
+to use instead.
                 """)
-    p.add_argument("action", choices=["add", "list", "remove", "test", "enable", "disable"])
-    p.add_argument("name", nargs="?", help="source name (required for all actions except list)")
+    p.add_argument("action",
+                   choices=["add", "list", "remove", "test", "enable", "disable", "wizard"])
+    p.add_argument("name", nargs="?",
+                   help="source name (required for all actions except list and wizard)")
     p.add_argument("--local", action="store_true", default=_S,
                    help="add/remove/enable/disable: target the nearest ancestor "
                         "directory's .contextlake.kb.toml (or create one in cwd) "
@@ -1188,7 +1196,7 @@ evidence a value is load-bearing and no evidence at all about why.
 
 Examples:
   contextlake kb docs                        every indexed repository
-  contextlake kb docs team/app               just this one
+  contextlake kb docs demo/app               just this one
   contextlake kb docs --max-symbols 2000     a larger reference for a big repository
 """)
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
@@ -1217,7 +1225,7 @@ Examples:
                    help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
     p.add_argument("--namespace", default=_S, metavar="PREFIX",
                    help="generate ONE cluster page for the repos under this repo-id "
-                        "prefix (e.g. team/api), narrating their cross-repo coupling")
+                        "prefix (e.g. acme/), narrating their cross-repo coupling")
     p.add_argument("--namespaces", action="store_true", default=_S,
                    help="generate a cluster page for every namespace at --depth")
     p.add_argument("--depth", type=_DEPTH, default=_S, metavar="N",
@@ -1308,10 +1316,10 @@ to pin one across restarts. stdio needs no token. See docs/serving-over-mcp.md.
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""
 Examples:
-  contextlake kb query "CatalogService"
-  contextlake kb query charge --kind function --repo billing-service
-  contextlake kb query charge --repo billing-service --as-of a1b2c3
-  contextlake kb query "how do we charge a card" --retriever semantic
+  contextlake kb query "ForecastService"
+  contextlake kb query load_readings --kind function --repo demo/app
+  contextlake kb query load_readings --repo demo/app --as-of a1b2c3
+  contextlake kb query "where do we load sensor readings" --retriever semantic
                 """)
     p.add_argument("args", nargs="*", metavar="text", help="the search text")
     p.add_argument("--kind", default=_S, help="filter by node kind")
@@ -1330,12 +1338,12 @@ Examples:
                 epilog="""
 Examples:
   contextlake kb graph --overview                                  repos-as-nodes fleet view
-  contextlake kb graph --name CatalogService --hops 2              neighbourhood of a symbol
-  contextlake kb graph --repo acme/app --format classdiagram       UML class diagram (Mermaid)
+  contextlake kb graph --name ForecastService --hops 2             neighbourhood of a symbol
+  contextlake kb graph --repo demo/app --format classdiagram       UML class diagram (Mermaid)
   contextlake kb graph --node ID --format sequencediagram          call-order trace (Mermaid)
-  contextlake kb graph --repo acme/app --format statediagram       entity state machine (Mermaid)
-  contextlake kb graph --repo acme/app --format erdiagram          table/view ER diagram (Mermaid)
-  contextlake kb graph --repo acme/app --format deploymentdiagram  Terraform diagram (Mermaid)
+  contextlake kb graph --repo demo/app --format statediagram       entity state machine (Mermaid)
+  contextlake kb graph --repo demo/app --format erdiagram          table/view ER diagram (Mermaid)
+  contextlake kb graph --repo demo/app --format deploymentdiagram  Terraform diagram (Mermaid)
   contextlake kb graph --overview --serve                          live click-to-expand UI
   contextlake kb graph --site                                      offline cross-linked site
   contextlake kb graph --c4 --group-depth 2                        composed namespace (C4) diagram
@@ -1527,8 +1535,8 @@ flag inside that trailing command is never parsed as a flag of `schedule`.
 The golden file, in full. `expected` is a LIST, and `match` decides what it holds:
 
   {"queries": [
-     {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
-     {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+     {"query": "ForecastService", "expected": ["demo_app_forecastservice"]},
+     {"query": "load readings", "expected": ["load_readings"], "match": "name", "kind": "function"}
   ]}
 
   match "id"   (the default) -- `expected` holds node ids, as `kb query --json` prints them

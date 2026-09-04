@@ -58,10 +58,10 @@ def test_load_golden(tmp_path):
 def test_fts_retriever_scores_real_search(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     s.upsert_nodes("r", [
-        Node(id="os", repo="r", kind="class", name="CatalogService"),
-        Node(id="bh", repo="r", kind="class", name="BaggageHandler"),
+        Node(id="fs", repo="r", kind="class", name="ForecastService"),
+        Node(id="sg", repo="r", kind="class", name="SensorGateway"),
     ])
-    r = evaluate(s, [GoldenQuery("CatalogService", ["os"])], k=5,
+    r = evaluate(s, [GoldenQuery("ForecastService", ["fs"])], k=5,
                  retriever=make_fts_retriever(s))
     assert r["hit_rate"] == 1.0          # search finds the node we asked for
     assert r["mrr"] > 0.0
@@ -70,18 +70,18 @@ def test_fts_retriever_scores_real_search(tmp_path):
 
 def test_match_by_name(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
-    s.upsert_nodes("r", [Node(id="n1", repo="r", kind="function", name="charge")])
-    # expected by NAME ("charge"), not id — harness resolves retrieved ids -> names
-    r = evaluate(s, [GoldenQuery("charge", ["charge"], match="name")], k=5)
+    s.upsert_nodes("r", [Node(id="n1", repo="r", kind="function", name="load_readings")])
+    # expected by NAME ("load_readings"), not id — harness resolves retrieved ids -> names
+    r = evaluate(s, [GoldenQuery("load_readings", ["load_readings"], match="name")], k=5)
     assert r["hit_rate"] == 1.0
     s.close()
 
 
 def test_evaluate_reports_cost_dimension(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class",
-                              name="CatalogService", file="svc.py")])
-    r = evaluate(s, [GoldenQuery("CatalogService", ["os"])], k=5)
+    s.upsert_nodes("r", [Node(id="fs", repo="r", kind="class",
+                              name="ForecastService", file="svc.py")])
+    r = evaluate(s, [GoldenQuery("ForecastService", ["fs"])], k=5)
     assert r["est_tokens_per_query"] > 0                 # returning a node costs tokens
     assert r["precision_per_1k_tokens"] > 0              # found it, at finite token cost
     assert "est_tokens" in r["per_query"][0]
@@ -104,12 +104,12 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
 
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.upsert_nodes("r", [Node(id="fs", repo="r", kind="class", name="ForecastService")])
     s.close()
 
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [
-        {"query": "CatalogService", "expected": ["os"]},          # hit
+        {"query": "ForecastService", "expected": ["fs"]},          # hit
         {"query": "NoSuchThing", "expected": ["missing-id"]},   # miss
     ]}))
 
@@ -119,7 +119,7 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
     # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler itself, so
     # read the raw record messages (log()'s actual argument) to see the codes.
     raw = "\n".join(r.getMessage() for r in gls_logs.records)
-    assert "\033[32m✓\033[0m CatalogService" in raw   # hit: style.ok(), green + reset
+    assert "\033[32m✓\033[0m ForecastService" in raw   # hit: style.ok(), green + reset
     assert "\033[31m✗\033[0m NoSuchThing" in raw    # miss: style.fail(), red + reset
 
 
@@ -212,11 +212,11 @@ def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monke
                    '\n[embeddings]\nenabled = false\n')
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.upsert_nodes("r", [Node(id="fs", repo="r", kind="class", name="ForecastService")])
     s.close()
 
     golden = tmp_path / "golden.json"
-    golden.write_text(json.dumps({"queries": [{"query": "CatalogService", "expected": ["os"]}]}))
+    golden.write_text(json.dumps({"queries": [{"query": "ForecastService", "expected": ["fs"]}]}))
 
     # One vector, so the retriever has something to search. Without this the command
     # refuses (correctly) and the build-and-retrieve path below is never reached.
@@ -226,7 +226,7 @@ def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monke
     # and correctly found nothing -- a fixture and its subject disagreeing about where
     # the data lives, which looks exactly like the feature being broken.
     vs = build_vector_store(store_dir / "embeddings.sqlite")
-    vs.upsert([("os", "r", _FakeEmbedder().embed(["CatalogService"])[0])])
+    vs.upsert([("fs", "r", _FakeEmbedder().embed(["ForecastService"])[0])])
     vs.close()
 
     args = Namespace(golden=str(golden), limit=None, retriever="semantic", config=str(cfg))
@@ -243,12 +243,12 @@ def test_cmd_eval_json_output_is_machine_readable(tmp_path, capsys):
 
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.upsert_nodes("r", [Node(id="fs", repo="r", kind="class", name="ForecastService")])
     s.close()
 
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [
-        {"query": "CatalogService", "expected": ["os"]},
+        {"query": "ForecastService", "expected": ["fs"]},
     ]}))
 
     args = Namespace(golden=str(golden), limit=None, retriever=None, config=str(cfg),
@@ -268,11 +268,11 @@ def _store_and_golden(tmp_path):
                    '\n[embeddings]\nenabled = false\n')
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.upsert_nodes("r", [Node(id="fs", repo="r", kind="class", name="ForecastService")])
     s.close()
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [
-        {"query": "CatalogService", "expected": ["os"]},
+        {"query": "ForecastService", "expected": ["fs"]},
     ]}))
     return cfg, golden
 
@@ -312,7 +312,7 @@ def test_make_semantic_retriever_binds_deps():
 
     class FakeVS:
         def search(self, vec, k=10, repo=None):
-            return [("os", 0.9), ("bh", 0.4)]
+            return [("fs", 0.9), ("sg", 0.4)]
 
     r = make_semantic_retriever(store=None, vector_store=FakeVS(), embedder=FakeEmb())
-    assert r("anything", 5, None, None) == ["os", "bh"]   # binds deps, returns ranked ids
+    assert r("anything", 5, None, None) == ["fs", "sg"]   # binds deps, returns ranked ids

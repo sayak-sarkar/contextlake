@@ -23,10 +23,10 @@ def match_symbol_mentions(
 ) -> list[tuple[str, Confidence]]:
     """(symbol_node_id, Confidence.AMBIGUOUS) for every embeddable symbol whose
     name appears in `text` as a whole-word match. Whole-word `\\b` matching
-    prevents substring false-positives (e.g. `charge` won't match inside
-    `charge_order`); the longest-name-first sort only fixes the order of the
+    prevents substring false-positives (e.g. `sample` won't match inside
+    `sample_grid`); the longest-name-first sort only fixes the order of the
     returned list -- it does not suppress two genuinely distinct,
-    overlapping-name symbols (e.g. `charge` and `chargeOrder`) from both
+    overlapping-name symbols (e.g. `sample` and `sampleGrid`) from both
     matching if both are present in the text."""
     candidates = [
         s for s in symbols

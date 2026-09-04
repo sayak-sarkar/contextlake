@@ -25,9 +25,9 @@ The transport only decides how your client reaches the server; the tool set behi
 whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
 can call either.
 
-**Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
-`ask("what breaks if I change CatalogService")` / `ask("what extends BaseController")` /
-`ask("explain the catalog-api")`. It classifies the question, routes it to the right
+**Start with `ask`.** One tool, natural language: `ask("who calls load_readings")` /
+`ask("what breaks if I change ReadingProcessor")` / `ask("what extends BaseController")` /
+`ask("explain the forecast-api")`. It classifies the question, routes it to the right
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
@@ -220,7 +220,7 @@ Transport choices, concurrency limits and the provenance each cited node carries
 
 ## Once connected
 
-Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
+Ask the agent things like *"where is `ForecastService` defined?"*, *"who calls `load_readings`?"*, or
 *"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
 

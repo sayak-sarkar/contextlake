@@ -6,7 +6,7 @@ example and exited 2 with a usage banner, because `kb graph` requires one of
 correct and deliberate ("asking for nothing is a usage error"); the *example* was wrong.
 
 Only the usage-error class counts as a failure. An example carrying a placeholder
-(`acme/app`, `CatalogService`) legitimately exits 1 "not found" against an empty store -- a
+(`demo/app`, `ForecastService`) legitimately exits 1 "not found" against an empty store -- a
 well-formed command with an empty answer is not a broken example.
 
 The seed check lives in the command body, not in argparse, so a parse-only test would not

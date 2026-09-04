@@ -224,6 +224,12 @@ contextlake doctor
 layer in one pass (SQLite FTS5, `git` and `glab` on PATH, config, the store's real counts,
 the built-in embedder, the ANN index, shard freshness) and prints a line per check.
 
+Each configured source gets its own line, and the mark says which of three things happened.
+`✓` means doctor dialled it and it answered. `⚠` means doctor dialled it and it did not.
+`⊘` means nothing was dialled: either the type has no reachability check (`gitlab`,
+`zendesk`), or the source is switched off with `enabled = false`. None of the three changes
+the exit code.
+
 **Read the output, do not gate on the exit code alone.** `doctor` exits non-zero only when the
 environment cannot support a run at all: FTS5 missing, `git` missing, or the config and store
 unreadable. Everything else is reported and does not fail the command, including **shard

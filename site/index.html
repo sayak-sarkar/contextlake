@@ -786,7 +786,7 @@
     <div id="tryit" class="tryit">
       <label class="tryit-label" for="tryit-q">Try a lookup against the sample fleet</label>
       <input id="tryit-q" type="search" autocomplete="off" spellcheck="false"
-             placeholder="AuthService, auth-service, .py &hellip;">
+             placeholder="StationRegistry, sensor-ingest, .go &hellip;">
       <div class="tryit-out" aria-live="polite"></div>
       <p class="tryit-foot">Runs in your browser against the demo fleet, no server and no network
         call beyond this page. This is a name lookup, not semantic search &mdash; that needs an
@@ -903,13 +903,13 @@
                 <div class="tline stg s2"><span class="prompt">$</span>contextlake mirror sync</div>
                 <div class="tline stg s2"><span class="dim">Found 8 local repositories</span></div>
                 <div class="rows">
-                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">user-profile</span><em>skipped, uncommitted changes</em></div>
-                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">auth-service</span><em>skipped, uncommitted changes</em></div>
-                  <div class="r up"><span class="g">&#10003;</span><span class="nm">billing-api</span><em>updated, main</em></div>
-                  <div class="r same"><span class="g">=</span><span class="nm">notify-worker</span><em>up to date</em></div>
-                  <div class="r up"><span class="g">&#10003;</span><span class="nm">gateway</span><em>updated, main</em></div>
-                  <div class="r up"><span class="g">&#10003;</span><span class="nm">web-frontend</span><em>updated, main</em></div>
-                  <div class="r same"><span class="g">=</span><span class="nm">search-index</span><em>up to date</em></div>
+                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">station-registry</span><em>skipped, uncommitted changes</em></div>
+                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">sensor-ingest</span><em>skipped, uncommitted changes</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">forecast-api</span><em>updated, main</em></div>
+                  <div class="r same"><span class="g">=</span><span class="nm">shared-lib</span><em>up to date</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">alerts</span><em>updated, main</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">console-ui</span><em>updated, main</em></div>
+                  <div class="r same"><span class="g">=</span><span class="nm">radar-tiles</span><em>up to date</em></div>
                   <div class="r same"><span class="g">=</span><span class="nm">docs-site</span><em>up to date</em></div>
                 </div>
                 <div class="term-progress stg s3"><span class="pb"><i></i></span><span>8/8</span></div>
@@ -962,7 +962,7 @@
         <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
         <h3>Find who knows it</h3>
         <p>Surface the likely owners and reviewers for a repo or path from commit history, so you know who to ask before a change lands.</p>
-        <span class="uc-cmd"><span class="p">$</span> contextlake kb owners billing-api</span>
+        <span class="uc-cmd"><span class="p">$</span> contextlake kb owners sensor-ingest</span>
       </div>
     </div>
   </div>

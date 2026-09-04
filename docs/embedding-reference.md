@@ -19,7 +19,7 @@ graph is indexed and queryable by name, but has no vector.
 
 Each one is embedded with its name, qualified name, file path, and captured **signature and
 docstring**. The extra text is the point: a name alone is thin signal, and a query like
-*"refund a payment to the original card"* tends to share its words with the signature and the
+*"resend a reading that failed to upload"* tends to share its words with the signature and the
 docstring rather than with the identifier.
 
 The set is wider than code on purpose. A route, a table and an architecture decision record

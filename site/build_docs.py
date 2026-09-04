@@ -383,7 +383,22 @@ FOOT_MARK = ('<img src="mark.png" width="28" height="28" alt="" aria-hidden="tru
 
 
 def de_emdash(text: str) -> str:
-    return text.replace(" — ", ", ").replace("—", ", ")
+    """Rewrite em-dashes to commas in PROSE, leaving fenced code blocks byte-exact.
+
+    The house style bans em-dashes in copy, and `tests/test_no_emdash_in_docs.py`
+    enforces that on the way in. Both exempt fenced blocks for the same reason: a
+    ```console block holds output a terminal actually printed, and contextlake's own
+    output uses em-dashes (`✓ config loads — 1 file(s)`). Rewriting them here would
+    publish a transcript the program never produced, which is the exact defect the
+    captured blocks replaced screenshots to avoid.
+    """
+    out, fenced = [], False
+    for line in text.split("\n"):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        out.append(line if fenced or line.lstrip().startswith("```")
+                   else line.replace(" — ", ", ").replace("—", ", "))
+    return "\n".join(out)
 
 
 # GitHub's native alert syntax (`> [!NOTE]` etc.) is the markdown SOURCE OF TRUTH for callouts --

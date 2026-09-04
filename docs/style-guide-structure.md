@@ -59,7 +59,7 @@ Answers "where am I, and where do I go next?".
 - **One topic per page.** A page must make sense on its own.
 - **No stubs.** A page covers its topic completely (every flag, the edge cases, at least one example) or it
   isn't ready. A thin page is worse than no page, because it looks finished.
-- **The Verification step earns its keep.** "You should see `4 repos, 29 nodes, 28 edges`" turns a hopeful
+- **The Verification step earns its keep.** "You should see `7 repos, 44 nodes, 36 edges`" turns a hopeful
   reader into a confident one, and it dogfoods the grounded ethos.
 
 ## Structure within a page

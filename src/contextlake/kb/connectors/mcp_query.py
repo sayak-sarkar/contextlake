@@ -13,8 +13,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ..mcp_client import call_tool
-from ..resilience import note_unavailable
+from ..capabilities import explain_tool_failure
+from ..mcp_client import McpToolError, call_tool
+from ..resilience import find_in_chain, note_unavailable
 from ..sources.base import Document
 
 _RESULT_LIST_KEYS = ("results", "items", "data", "hits")
@@ -118,16 +119,27 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
     failures trip the per-server circuit breaker inside
     :func:`mcp_client.call_tool`, so a dead server stops costing a full timeout
     per enrich call.
+
+    One failure is named rather than counted. When the *server* rejects the call
+    (:class:`~..mcp_client.McpToolError`: the handshake worked and the tool level
+    said no), the server is re-asked which tools it advertises and, if the
+    configured one has gone, that is said out loud -- see
+    :func:`capabilities.explain_tool_failure`. Without it a renamed tool reads
+    like a provider with nothing to say. The re-ask is latched per server
+    for the run, because this runs once per repo.
     """
+    command = _cfg_get(cfg, "command")
+    args_cfg = _cfg_get(cfg, "args") or ()
+    url = _cfg_get(cfg, "url")
     tool = _cfg_get(cfg, "tool")
     if not tool:
         return []
     try:
         args = _render_args(_cfg_get(cfg, "arg_template") or {}, terms)
         result = call_tool(
-            command=_cfg_get(cfg, "command"),
-            args=_cfg_get(cfg, "args") or (),
-            url=_cfg_get(cfg, "url"),
+            command=command,
+            args=args_cfg,
+            url=url,
             tool=tool,
             arguments=args,
             timeout=timeout or 60,
@@ -135,5 +147,23 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
         )
         return _normalize(result, tool)
     except Exception as e:  # noqa: BLE001 - an unreachable/misbehaving server yields nothing
+        # `find_in_chain`, not `isinstance`: a real stdio server delivers the
+        # rejection inside a doubly nested ExceptionGroup, so an isinstance test
+        # here would be a branch that never runs against anything but a fake.
+        if find_in_chain(e, McpToolError) is not None:
+            try:
+                explain_tool_failure(
+                    source=_cfg_get(cfg, "name") or tool,
+                    tool=tool,
+                    command=command,
+                    args=args_cfg,
+                    url=url,
+                    env=_cfg_get(cfg, "env"),
+                )
+            except Exception as inner:  # noqa: BLE001 - a diagnostic must not raise
+                # This function is documented as never raising, and its caller
+                # runs it once per repo. A diagnostic that threw would turn one
+                # renamed tool into an aborted enrich for the whole fleet.
+                note_unavailable(f"mcp capability probe for {tool!r}", inner)
         note_unavailable(f"mcp tool {tool!r}", e)
         return []

@@ -72,7 +72,7 @@ def _setup_repo(tmp_path):
 
 def _shard(store_dir):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py"),
         Node(id="charge", repo="r", kind="function", name="charge", file="svc.py"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests"),
     ]
@@ -155,7 +155,7 @@ def test_a_compliant_page_about_the_same_subject_passes():
     is grounded in the facts must not be mistaken for one that copied them."""
     page = (
         "# repo\n\n"
-        "## Overview\nA service that resolves catalog identifiers.\n\n"
+        "## Overview\nA service that resolves station identifiers.\n\n"
         "## Architecture\nThe repo has three subsystems, each with its own page: "
         "`api`, `worker`, `docs`. The api subsystem exposes the HTTP surface, the "
         "worker subsystem drains the queue, and docs holds the published guides.\n\n"
@@ -169,8 +169,8 @@ def test_a_compliant_page_about_the_same_subject_passes():
 
 
 def test_repetition_threshold_boundary():
-    line = ("The catalog service resolves every product identifier against the "
-            "nightly pricing index before the batch runs.\n")
+    line = ("The forecast service resolves every station identifier against the "
+            "nightly model index before the batch runs.\n")
     assert repeated_span(line * _MAX_REPEATS) is None
     hit = repeated_span(line * (_MAX_REPEATS + 1))
     assert hit is not None and hit[1] == _MAX_REPEATS + 1
@@ -208,7 +208,7 @@ def test_facts_in_the_prompt_are_not_part_of_the_instruction_corpus(tmp_path):
     _shard(tmp_path)
     prompt = render_prompt(repo_brief(tmp_path, "r"))
     for instruction in PROMPT_INSTRUCTIONS:
-        assert "CatalogService" not in instruction and "svc.py" not in instruction
+        assert "ForecastService" not in instruction and "svc.py" not in instruction
     # every instruction is genuinely part of the prompt, or the guard would be
     # matching against text no model was ever shown
     assert PROMPT_INSTRUCTIONS[-1] in prompt

@@ -20,7 +20,7 @@ def _shard():
         repo="team/api",
         head_commit="deadbeef",
         nodes=[
-            Node(id="a", repo="team/api", kind="function", name="CatalogService"),
+            Node(id="a", repo="team/api", kind="function", name="ForecastService"),
             Node(id="b", repo="team/api", kind="function", name="charge"),
         ],
         edges=[Edge(src="a", dst="b", relation="calls", confidence=Confidence.EXTRACTED,
@@ -48,7 +48,7 @@ def test_reindex_matches_direct_upsert(tmp_path):
     write_shard(tmp_path, s)
     store = SqliteStore(tmp_path / "kb.sqlite")
     assert reindex_shard(store, tmp_path, "team/api") is True
-    assert store.get_node("a").name == "CatalogService"
+    assert store.get_node("a").name == "ForecastService"
     assert {e.dst for e in store.neighbors("a", direction="out")} == {"b"}
     assert store.stats().nodes == 2 and store.stats().edges == 1
     # re-running is idempotent (clear + reload), not duplicating
@@ -159,7 +159,7 @@ def test_read_shard_picks_up_a_same_process_rewrite(tmp_path):
     resolution."""
     s = _shard()
     write_shard(tmp_path, s)
-    assert read_shard(tmp_path, "team/api").nodes[0].name == "CatalogService"
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "ForecastService"
 
     changed = s.model_copy(deep=True)
     changed.nodes[0].name = "RenamedService"
@@ -178,7 +178,7 @@ def test_read_shard_picks_up_an_external_rewrite(tmp_path):
     from contextlake.kb.store.shards import shard_path
 
     write_shard(tmp_path, _shard())
-    assert read_shard(tmp_path, "team/api").nodes[0].name == "CatalogService"
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "ForecastService"
 
     p = shard_path(tmp_path, "team/api")
     new_content = _shard().model_copy(deep=True)

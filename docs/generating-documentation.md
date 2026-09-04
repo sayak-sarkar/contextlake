@@ -60,7 +60,7 @@ a symbol that is missing from a symbol that does not exist.
 Pass repo ids to document only those:
 
 ```bash
-contextlake kb docs team/api team/worker
+contextlake kb docs acme/forecast-api acme/alerts
 ```
 
 ## Exit codes

@@ -51,13 +51,32 @@ What gets embedded and which model to pick are in [Embeddings and models](embedd
 
 ## What a query returns
 
-A single query returns cited hits (`repo · file:line · kind · name`) that span repositories
-*and* languages, here the C# and Python payment paths together. `--retriever fts|semantic|hybrid`
-picks keyword, vector, or graph-propagation ranking.
+A single query returns cited hits, `repo · file:line · kind · name · symbol path`, that span
+repositories *and* languages. `--retriever fts|semantic|hybrid` picks keyword, vector, or graph-propagation
+ranking.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
-</p>
+Against the bundled `--sample` fleet, whose nodes carry a file but no line and no symbol path,
+one query crosses three repositories and three languages:
+
+```console
+$ contextlake kb query reading --retriever hybrid --limit 6
+  demo/app · src/readings.py · function · load_readings
+  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView
+  demo/app · src/forecast.py · class · ForecastService
+  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor
+  acme/console-ui · src/useStation.tsx · function · useStation
+  acme/console-ui · src/StationPage.tsx · class · StationPage
+```
+
+`--retriever fts` is keyword search over the same store. It returns the three nodes whose text
+carries the word, and stops there:
+
+```console
+$ contextlake kb query reading --retriever fts
+  acme/sensor-ingest · src/ReadingProcessor.cs · class · ReadingProcessor
+  acme/console-ui · src/ReadingsView.tsx · class · ReadingsView
+  demo/app · src/readings.py · function · load_readings
+```
 
 ## When a query finds nothing
 
@@ -98,8 +117,8 @@ a query with the node ids it should return:
 ```json
 {
   "queries": [
-    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
-    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+    {"query": "ForecastService", "expected": ["demo_app_forecastservice"]},
+    {"query": "load readings", "expected": ["load_readings"], "match": "name", "kind": "function"}
   ]
 }
 ```
@@ -147,7 +166,7 @@ $ contextlake kb eval --golden queries.json --verify-citations
 Citations: 178/180 verified (98.9%) of 184 distinct nodes
   4 unverifiable (no local checkout for the repo)
   name_absent: 2
-    src/billing/refund.py:88  (name_absent)
+    src/ingest/backfill.py:88  (name_absent)
 ```
 
 Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`

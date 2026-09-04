@@ -94,7 +94,7 @@ def _looks_like_symbol(tok: str) -> bool:
 def extract_target(question: str) -> str | None:
     """The symbol / repo id the question is about, or None. A backticked or quoted
     span wins; otherwise the most symbol-like identifier (last one, since questions
-    tend to put the subject at the end: 'who calls charge_order')."""
+    tend to put the subject at the end: 'who calls load_reading')."""
     m = _QUOTED.search(question)
     if m:
         return m.group(1).strip()
@@ -149,7 +149,7 @@ def classify(question: str) -> tuple[str, str | None]:
 
 
 # Generic English scaffolding, plus the route verbs and the meta-nouns a person
-# uses to describe the KIND of thing they want ("the payments *service*", "which
+# uses to describe the KIND of thing they want ("the forecast *service*", "which
 # *repository*"). Deliberately NOT _STOP, which also drops domain words like
 # impact / blast / radius / package because they are route keywords -- those are
 # exactly the words that anchor a question like "blast radius impact analysis",

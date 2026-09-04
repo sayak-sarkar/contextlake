@@ -29,7 +29,7 @@ from contextlake.kb.docs.design import (
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
 from contextlake.kb.store.shards import GraphShard
 
-REPO = "acme/orders"
+REPO = "acme/stations"
 _DATE = date(2026, 1, 1)
 
 

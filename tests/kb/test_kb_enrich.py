@@ -29,13 +29,13 @@ def _prov():
 def _seed_shard(store_dir):
     """A shard with a mix of embeddable and non-embeddable nodes, wired up with
     edges so degree-ranking has something real to rank."""
-    order_service = Node(id="n1", repo=REPO, kind="class", name="CatalogService",
-                          file="app/catalog.py")
-    charge_fn = Node(id="n2", repo=REPO, kind="function", name="chargeCard",
-                      file="app/billing.py")
+    forecast_service = Node(id="n1", repo=REPO, kind="class", name="ForecastService",
+                          file="app/forecast.py")
+    reading_fn = Node(id="n2", repo=REPO, kind="function", name="readSensor",
+                      file="app/readings.py")
     a_module = Node(id="n3", repo=REPO, kind="module", name="app.main", file="app/main.py")
     a_file = Node(id="n4", repo=REPO, kind="file", name="app/main.py", file="app/main.py")
-    nodes = [order_service, charge_fn, a_module, a_file]
+    nodes = [forecast_service, reading_fn, a_module, a_file]
     edges = [
         Edge(src="n1", dst="n2", relation="calls", confidence=Confidence.EXTRACTED,
              provenance=_prov()),
@@ -59,8 +59,8 @@ def test_build_terms_returns_repo_name_and_embeddable_symbols(tmp_path):
     _seed_shard(tmp_path)
     terms = build_terms(tmp_path, REPO)
     assert terms[0] == "app"  # repo name leads
-    assert "CatalogService" in terms
-    assert "chargeCard" in terms
+    assert "ForecastService" in terms
+    assert "readSensor" in terms
     # non-embeddable kinds (module, file) never make the cut
     assert "app.main" not in terms
     assert "app/main.py" not in terms
@@ -79,10 +79,10 @@ def test_build_terms_no_shard_returns_empty(tmp_path):
 
 def test_build_terms_dedupes_and_preserves_order(tmp_path):
     # repo name collides with a symbol name -- must not appear twice
-    nodes = [Node(id="n1", repo="group/CatalogService", kind="class", name="CatalogService")]
-    write_shard(tmp_path, GraphShard(repo="group/CatalogService", head_commit="c", nodes=nodes))
-    terms = build_terms(tmp_path, "group/CatalogService")
-    assert terms == ["CatalogService"]
+    nodes = [Node(id="n1", repo="group/ForecastService", kind="class", name="ForecastService")]
+    write_shard(tmp_path, GraphShard(repo="group/ForecastService", head_commit="c", nodes=nodes))
+    terms = build_terms(tmp_path, "group/ForecastService")
+    assert terms == ["ForecastService"]
 
 
 # --- search_source dispatch ---------------------------------------------------
@@ -91,7 +91,7 @@ def test_search_source_tool_cfg_delegates_to_mcp_tool_query(monkeypatch):
     known = [Document(id="1", title="T", text="body", uri="u")]
     monkeypatch.setattr(enrich, "mcp_tool_query", lambda cfg, terms, timeout=None: known)
     cfg = {"tool": "search", "command": "srv"}
-    assert search_source(cfg, ["Order"]) == known
+    assert search_source(cfg, ["Reading"]) == known
 
 
 def test_search_source_atlassian_cfg_normalizes_documents(monkeypatch):
@@ -106,7 +106,7 @@ def test_search_source_atlassian_cfg_normalizes_documents(monkeypatch):
     monkeypatch.setattr(atlassian_mod, "AtlassianConnector", _Stub)
 
     cfg = SourceCfg(type="atlassian", name="site-a")
-    docs = search_source(cfg, ["Order"])
+    docs = search_source(cfg, ["Reading"])
     assert len(docs) == 1
     assert docs[0].title == "Runbook"
     assert docs[0].uri == "https://x/1"
@@ -116,7 +116,7 @@ def test_search_source_atlassian_cfg_normalizes_documents(monkeypatch):
 
 def test_search_source_unknown_type_returns_empty():
     cfg = SourceCfg(type="figma", name="design")
-    assert search_source(cfg, ["Order"]) == []
+    assert search_source(cfg, ["Reading"]) == []
 
 
 def test_search_source_raising_source_returns_empty(monkeypatch):
@@ -125,7 +125,7 @@ def test_search_source_raising_source_returns_empty(monkeypatch):
 
     monkeypatch.setattr(enrich, "mcp_tool_query", boom)
     cfg = {"tool": "search", "command": "srv"}
-    assert search_source(cfg, ["Order"]) == []
+    assert search_source(cfg, ["Reading"]) == []
 
 
 # --- enrich_repo ---------------------------------------------------------------
@@ -248,10 +248,10 @@ def test_enrich_repo_links_documents_to_the_symbols_they_mention(tmp_path, monke
     try:
         # the matcher reads symbols out of the index, not the shard
         store.upsert_nodes(REPO, [
-            Node(id="n2", repo=REPO, kind="function", name="chargeCard", file="app/billing.py"),
+            Node(id="n2", repo=REPO, kind="function", name="readSensor", file="app/readings.py"),
         ])
         docs = [
-            Document(id="d1", title="Runbook", text="chargeCard retries twice", uri="https://x/1"),
+            Document(id="d1", title="Runbook", text="readSensor retries twice", uri="https://x/1"),
             Document(id="d2", title="Offsite", text="lunch is at noon", uri="https://x/2"),
         ]
         monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)

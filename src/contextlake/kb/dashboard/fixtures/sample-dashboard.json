@@ -5,28 +5,28 @@
       "head_commit": "abc123",
       "nodes": [
         {
-          "id": "demo_app_catalogservice",
+          "id": "demo_app_forecastservice",
           "repo": "demo/app",
           "kind": "class",
-          "name": "CatalogService",
+          "name": "ForecastService",
           "attrs": {},
           "lang": "python",
-          "file": "src/catalog.py"
+          "file": "src/forecast.py"
         },
         {
-          "id": "demo_app_charge",
+          "id": "demo_app_load_readings",
           "repo": "demo/app",
           "kind": "function",
-          "name": "charge",
+          "name": "load_readings",
           "attrs": {},
           "lang": "python",
-          "file": "src/pay.py"
+          "file": "src/readings.py"
         }
       ],
       "edges": [
         {
-          "src": "demo_app_catalogservice",
-          "dst": "demo_app_charge",
+          "src": "demo_app_forecastservice",
+          "dst": "demo_app_load_readings",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -159,19 +159,19 @@
       ]
     },
     {
-      "repo": "acme/auth-service",
+      "repo": "acme/station-registry",
       "head_commit": "33bb44",
       "nodes": [
         {
-          "id": "acme_auth_service_repo",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_repo",
+          "repo": "acme/station-registry",
           "kind": "repo",
-          "name": "acme/auth-service",
+          "name": "acme/station-registry",
           "attrs": {}
         },
         {
-          "id": "acme_auth_service_manifest",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_manifest",
+          "repo": "acme/station-registry",
           "kind": "file",
           "name": "manifest.py",
           "attrs": {},
@@ -179,53 +179,53 @@
           "file": "manifest.py"
         },
         {
-          "id": "acme_auth_service_authservice",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_stationregistry",
+          "repo": "acme/station-registry",
           "kind": "class",
-          "name": "AuthService",
+          "name": "StationRegistry",
           "attrs": {},
           "lang": "python",
-          "file": "src/AuthService.py"
+          "file": "src/StationRegistry.py"
         },
         {
-          "id": "acme_auth_service_tokenmanager",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_stationenrollment",
+          "repo": "acme/station-registry",
           "kind": "class",
-          "name": "TokenManager",
+          "name": "StationEnrollment",
           "attrs": {},
           "lang": "python",
-          "file": "src/TokenManager.py"
+          "file": "src/StationEnrollment.py"
         },
         {
-          "id": "acme_auth_service_verify_token",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_verify_station",
+          "repo": "acme/station-registry",
           "kind": "function",
-          "name": "verify_token",
+          "name": "verify_station",
           "attrs": {},
           "lang": "python",
-          "file": "src/verify_token.py"
+          "file": "src/verify_station.py"
         },
         {
-          "id": "acme_auth_service_hash_password",
-          "repo": "acme/auth-service",
+          "id": "acme_station_registry_normalize_station_id",
+          "repo": "acme/station-registry",
           "kind": "function",
-          "name": "hash_password",
+          "name": "normalize_station_id",
           "attrs": {},
           "lang": "python",
-          "file": "src/hash_password.py"
+          "file": "src/normalize_station_id.py"
         },
         {
-          "id": "pkg_acme-auth",
-          "repo": "acme/auth-service",
+          "id": "pkg_acme-stations",
+          "repo": "acme/station-registry",
           "kind": "package",
-          "name": "acme-auth",
+          "name": "acme-stations",
           "attrs": {}
         }
       ],
       "edges": [
         {
-          "src": "acme_auth_service_authservice",
-          "dst": "acme_auth_service_tokenmanager",
+          "src": "acme_station_registry_stationregistry",
+          "dst": "acme_station_registry_stationenrollment",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -237,8 +237,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_auth_service_tokenmanager",
-          "dst": "acme_auth_service_verify_token",
+          "src": "acme_station_registry_stationenrollment",
+          "dst": "acme_station_registry_verify_station",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -250,8 +250,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_auth_service_verify_token",
-          "dst": "acme_auth_service_hash_password",
+          "src": "acme_station_registry_verify_station",
+          "dst": "acme_station_registry_normalize_station_id",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -263,8 +263,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_auth_service_manifest",
-          "dst": "pkg_acme-auth",
+          "src": "acme_station_registry_manifest",
+          "dst": "pkg_acme-stations",
           "relation": "publishes",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -276,7 +276,7 @@
           "weight": 1.0
         },
         {
-          "src": "acme_auth_service_manifest",
+          "src": "acme_station_registry_manifest",
           "dst": "pkg_acme-shared",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -291,73 +291,73 @@
       ]
     },
     {
-      "repo": "acme/catalog-api",
+      "repo": "acme/forecast-api",
       "head_commit": "55cc66",
       "nodes": [
         {
-          "id": "acme_orders_api_repo",
-          "repo": "acme/catalog-api",
+          "id": "acme_forecast_api_repo",
+          "repo": "acme/forecast-api",
           "kind": "repo",
-          "name": "acme/catalog-api",
+          "name": "acme/forecast-api",
           "attrs": {}
         },
         {
-          "id": "acme_orders_api_manifest",
-          "repo": "acme/catalog-api",
+          "id": "acme_forecast_api_manifest",
+          "repo": "acme/forecast-api",
           "kind": "file",
-          "name": "manifest.cs",
+          "name": "manifest.go",
           "attrs": {},
-          "lang": "csharp",
-          "file": "manifest.cs"
+          "lang": "go",
+          "file": "manifest.go"
         },
         {
-          "id": "acme_orders_api_ordercontroller",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderController",
+          "id": "acme_forecast_api_runcycle",
+          "repo": "acme/forecast-api",
+          "kind": "function",
+          "name": "RunCycle",
           "attrs": {},
-          "lang": "csharp",
-          "file": "src/OrderController.cs"
+          "lang": "go",
+          "file": "src/cycle.go"
         },
         {
-          "id": "acme_orders_api_catalogservice",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "CatalogService",
+          "id": "acme_forecast_api_forecastrunner",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "ForecastRunner",
           "attrs": {},
-          "lang": "csharp",
-          "file": "src/CatalogService.cs"
+          "lang": "go",
+          "file": "src/runner.go"
         },
         {
-          "id": "acme_orders_api_orderrepository",
-          "repo": "acme/catalog-api",
-          "kind": "class",
-          "name": "OrderRepository",
+          "id": "acme_forecast_api_gridsampler",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "GridSampler",
           "attrs": {},
-          "lang": "csharp",
-          "file": "src/OrderRepository.cs"
+          "lang": "go",
+          "file": "src/sampler.go"
         },
         {
-          "id": "acme_orders_api_validateorder",
-          "repo": "acme/catalog-api",
-          "kind": "method",
-          "name": "ValidateOrder",
+          "id": "acme_forecast_api_modelgrid",
+          "repo": "acme/forecast-api",
+          "kind": "struct",
+          "name": "ModelGrid",
           "attrs": {},
-          "lang": "csharp",
-          "file": "src/ValidateOrder.cs"
+          "lang": "go",
+          "file": "src/grid.go"
         },
         {
-          "id": "pkg_acme-orders",
-          "repo": "acme/catalog-api",
+          "id": "pkg_acme-forecast",
+          "repo": "acme/forecast-api",
           "kind": "package",
-          "name": "acme-orders",
+          "name": "acme-forecast",
           "attrs": {}
         }
       ],
       "edges": [
         {
-          "src": "acme_orders_api_ordercontroller",
-          "dst": "acme_orders_api_catalogservice",
+          "src": "acme_forecast_api_runcycle",
+          "dst": "acme_forecast_api_forecastrunner",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -369,8 +369,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_catalogservice",
-          "dst": "acme_orders_api_orderrepository",
+          "src": "acme_forecast_api_forecastrunner",
+          "dst": "acme_forecast_api_gridsampler",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -382,8 +382,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_orderrepository",
-          "dst": "acme_orders_api_validateorder",
+          "src": "acme_forecast_api_gridsampler",
+          "dst": "acme_forecast_api_modelgrid",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -395,8 +395,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_manifest",
-          "dst": "pkg_acme-orders",
+          "src": "acme_forecast_api_manifest",
+          "dst": "pkg_acme-forecast",
           "relation": "publishes",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -408,7 +408,7 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_manifest",
+          "src": "acme_forecast_api_manifest",
           "dst": "pkg_acme-shared",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -421,8 +421,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_manifest",
-          "dst": "pkg_acme-auth",
+          "src": "acme_forecast_api_manifest",
+          "dst": "pkg_acme-stations",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -434,8 +434,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_manifest",
-          "dst": "pkg_acme-payments",
+          "src": "acme_forecast_api_manifest",
+          "dst": "pkg_acme-ingest",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -447,8 +447,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_manifest",
-          "dst": "pkg_acme-notify",
+          "src": "acme_forecast_api_manifest",
+          "dst": "pkg_acme-alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -462,19 +462,19 @@
       ]
     },
     {
-      "repo": "acme/payments-api",
+      "repo": "acme/sensor-ingest",
       "head_commit": "77dd88",
       "nodes": [
         {
-          "id": "acme_payments_api_repo",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_repo",
+          "repo": "acme/sensor-ingest",
           "kind": "repo",
-          "name": "acme/payments-api",
+          "name": "acme/sensor-ingest",
           "attrs": {}
         },
         {
-          "id": "acme_payments_api_manifest",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_manifest",
+          "repo": "acme/sensor-ingest",
           "kind": "file",
           "name": "manifest.cs",
           "attrs": {},
@@ -482,53 +482,53 @@
           "file": "manifest.cs"
         },
         {
-          "id": "acme_payments_api_paymentprocessor",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_readingprocessor",
+          "repo": "acme/sensor-ingest",
           "kind": "class",
-          "name": "PaymentProcessor",
+          "name": "ReadingProcessor",
           "attrs": {},
           "lang": "csharp",
-          "file": "src/PaymentProcessor.cs"
+          "file": "src/ReadingProcessor.cs"
         },
         {
-          "id": "acme_payments_api_cardgateway",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_sensorgateway",
+          "repo": "acme/sensor-ingest",
           "kind": "class",
-          "name": "CardGateway",
+          "name": "SensorGateway",
           "attrs": {},
           "lang": "csharp",
-          "file": "src/CardGateway.cs"
+          "file": "src/SensorGateway.cs"
         },
         {
-          "id": "acme_payments_api_charge",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_ingest",
+          "repo": "acme/sensor-ingest",
           "kind": "method",
-          "name": "Charge",
+          "name": "Ingest",
           "attrs": {},
           "lang": "csharp",
-          "file": "src/Charge.cs"
+          "file": "src/Ingest.cs"
         },
         {
-          "id": "acme_payments_api_refund",
-          "repo": "acme/payments-api",
+          "id": "acme_sensor_ingest_backfill",
+          "repo": "acme/sensor-ingest",
           "kind": "method",
-          "name": "Refund",
+          "name": "Backfill",
           "attrs": {},
           "lang": "csharp",
-          "file": "src/Refund.cs"
+          "file": "src/Backfill.cs"
         },
         {
-          "id": "pkg_acme-payments",
-          "repo": "acme/payments-api",
+          "id": "pkg_acme-ingest",
+          "repo": "acme/sensor-ingest",
           "kind": "package",
-          "name": "acme-payments",
+          "name": "acme-ingest",
           "attrs": {}
         }
       ],
       "edges": [
         {
-          "src": "acme_payments_api_paymentprocessor",
-          "dst": "acme_payments_api_cardgateway",
+          "src": "acme_sensor_ingest_sensorgateway",
+          "dst": "acme_sensor_ingest_ingest",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -540,8 +540,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_payments_api_cardgateway",
-          "dst": "acme_payments_api_charge",
+          "src": "acme_sensor_ingest_ingest",
+          "dst": "acme_sensor_ingest_readingprocessor",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -553,8 +553,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_payments_api_charge",
-          "dst": "acme_payments_api_refund",
+          "src": "acme_sensor_ingest_backfill",
+          "dst": "acme_sensor_ingest_readingprocessor",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -566,8 +566,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_payments_api_manifest",
-          "dst": "pkg_acme-payments",
+          "src": "acme_sensor_ingest_manifest",
+          "dst": "pkg_acme-ingest",
           "relation": "publishes",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -579,8 +579,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_payments_api_manifest",
-          "dst": "pkg_acme-auth",
+          "src": "acme_sensor_ingest_manifest",
+          "dst": "pkg_acme-stations",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -592,8 +592,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_payments_api_manifest",
-          "dst": "pkg_acme-notify",
+          "src": "acme_sensor_ingest_manifest",
+          "dst": "pkg_acme-alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -607,19 +607,19 @@
       ]
     },
     {
-      "repo": "acme/notifications",
+      "repo": "acme/alerts",
       "head_commit": "99ee00",
       "nodes": [
         {
-          "id": "acme_notifications_repo",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_repo",
+          "repo": "acme/alerts",
           "kind": "repo",
-          "name": "acme/notifications",
+          "name": "acme/alerts",
           "attrs": {}
         },
         {
-          "id": "acme_notifications_manifest",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_manifest",
+          "repo": "acme/alerts",
           "kind": "file",
           "name": "manifest.js",
           "attrs": {},
@@ -627,8 +627,8 @@
           "file": "manifest.js"
         },
         {
-          "id": "acme_notifications_notifier",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_notifier",
+          "repo": "acme/alerts",
           "kind": "class",
           "name": "Notifier",
           "attrs": {},
@@ -636,26 +636,26 @@
           "file": "src/Notifier.js"
         },
         {
-          "id": "acme_notifications_emailsender",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_alertsender",
+          "repo": "acme/alerts",
           "kind": "class",
-          "name": "EmailSender",
+          "name": "AlertSender",
           "attrs": {},
           "lang": "javascript",
-          "file": "src/EmailSender.js"
+          "file": "src/AlertSender.js"
         },
         {
-          "id": "acme_notifications_sendemail",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_sendalert",
+          "repo": "acme/alerts",
           "kind": "function",
-          "name": "sendEmail",
+          "name": "sendAlert",
           "attrs": {},
           "lang": "javascript",
-          "file": "src/sendEmail.js"
+          "file": "src/sendAlert.js"
         },
         {
-          "id": "acme_notifications_queuejob",
-          "repo": "acme/notifications",
+          "id": "acme_alerts_queuejob",
+          "repo": "acme/alerts",
           "kind": "function",
           "name": "queueJob",
           "attrs": {},
@@ -663,17 +663,17 @@
           "file": "src/queueJob.js"
         },
         {
-          "id": "pkg_acme-notify",
-          "repo": "acme/notifications",
+          "id": "pkg_acme-alerts",
+          "repo": "acme/alerts",
           "kind": "package",
-          "name": "acme-notify",
+          "name": "acme-alerts",
           "attrs": {}
         }
       ],
       "edges": [
         {
-          "src": "acme_notifications_notifier",
-          "dst": "acme_notifications_emailsender",
+          "src": "acme_alerts_notifier",
+          "dst": "acme_alerts_alertsender",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -685,8 +685,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_notifications_emailsender",
-          "dst": "acme_notifications_sendemail",
+          "src": "acme_alerts_alertsender",
+          "dst": "acme_alerts_sendalert",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -698,8 +698,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_notifications_sendemail",
-          "dst": "acme_notifications_queuejob",
+          "src": "acme_alerts_sendalert",
+          "dst": "acme_alerts_queuejob",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -711,8 +711,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_notifications_manifest",
-          "dst": "pkg_acme-notify",
+          "src": "acme_alerts_manifest",
+          "dst": "pkg_acme-alerts",
           "relation": "publishes",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -724,7 +724,7 @@
           "weight": 1.0
         },
         {
-          "src": "acme_notifications_manifest",
+          "src": "acme_alerts_manifest",
           "dst": "pkg_acme-shared",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -739,19 +739,19 @@
       ]
     },
     {
-      "repo": "acme/web-ui",
+      "repo": "acme/console-ui",
       "head_commit": "aabbcc",
       "nodes": [
         {
-          "id": "acme_web_ui_repo",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_repo",
+          "repo": "acme/console-ui",
           "kind": "repo",
-          "name": "acme/web-ui",
+          "name": "acme/console-ui",
           "attrs": {}
         },
         {
-          "id": "acme_web_ui_manifest",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_manifest",
+          "repo": "acme/console-ui",
           "kind": "file",
           "name": "manifest.tsx",
           "attrs": {},
@@ -759,35 +759,35 @@
           "file": "manifest.tsx"
         },
         {
-          "id": "acme_web_ui_checkoutpage",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_stationpage",
+          "repo": "acme/console-ui",
           "kind": "class",
-          "name": "CheckoutPage",
+          "name": "StationPage",
           "attrs": {},
           "lang": "typescript",
-          "file": "src/CheckoutPage.tsx"
+          "file": "src/StationPage.tsx"
         },
         {
-          "id": "acme_web_ui_cartview",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_readingsview",
+          "repo": "acme/console-ui",
           "kind": "class",
-          "name": "CartView",
+          "name": "ReadingsView",
           "attrs": {},
           "lang": "typescript",
-          "file": "src/CartView.tsx"
+          "file": "src/ReadingsView.tsx"
         },
         {
-          "id": "acme_web_ui_usecheckout",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_usestation",
+          "repo": "acme/console-ui",
           "kind": "function",
-          "name": "useCheckout",
+          "name": "useStation",
           "attrs": {},
           "lang": "typescript",
-          "file": "src/useCheckout.tsx"
+          "file": "src/useStation.tsx"
         },
         {
-          "id": "acme_web_ui_apiclient",
-          "repo": "acme/web-ui",
+          "id": "acme_console_ui_apiclient",
+          "repo": "acme/console-ui",
           "kind": "class",
           "name": "ApiClient",
           "attrs": {},
@@ -795,17 +795,17 @@
           "file": "src/ApiClient.tsx"
         },
         {
-          "id": "pkg_acme-webui",
-          "repo": "acme/web-ui",
+          "id": "pkg_acme-console",
+          "repo": "acme/console-ui",
           "kind": "package",
-          "name": "acme-webui",
+          "name": "acme-console",
           "attrs": {}
         }
       ],
       "edges": [
         {
-          "src": "acme_web_ui_checkoutpage",
-          "dst": "acme_web_ui_cartview",
+          "src": "acme_console_ui_stationpage",
+          "dst": "acme_console_ui_readingsview",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -817,8 +817,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_cartview",
-          "dst": "acme_web_ui_usecheckout",
+          "src": "acme_console_ui_readingsview",
+          "dst": "acme_console_ui_usestation",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -830,8 +830,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_usecheckout",
-          "dst": "acme_web_ui_apiclient",
+          "src": "acme_console_ui_usestation",
+          "dst": "acme_console_ui_apiclient",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -843,8 +843,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_manifest",
-          "dst": "pkg_acme-webui",
+          "src": "acme_console_ui_manifest",
+          "dst": "pkg_acme-console",
           "relation": "publishes",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -856,7 +856,7 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_manifest",
+          "src": "acme_console_ui_manifest",
           "dst": "pkg_acme-shared",
           "relation": "depends_on",
           "confidence": "INFERRED",
@@ -869,8 +869,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_manifest",
-          "dst": "pkg_acme-auth",
+          "src": "acme_console_ui_manifest",
+          "dst": "pkg_acme-stations",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",
@@ -882,8 +882,8 @@
           "weight": 1.0
         },
         {
-          "src": "acme_web_ui_manifest",
-          "dst": "pkg_acme-orders",
+          "src": "acme_console_ui_manifest",
+          "dst": "pkg_acme-forecast",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "context": "manifest",

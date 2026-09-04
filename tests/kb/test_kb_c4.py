@@ -28,39 +28,39 @@ def _edge(rid, name, dst, relation):
 
 
 def _seed(store_dir):
-    """3 repos under acme/pay + 1 outside; web->api HTTP (internal),
-    ship/api->web HTTP (boundary), web-> an unresolved external call (C1, off
+    """3 repos under acme/sensors + 1 outside; web->api HTTP (internal),
+    alerts/api->web HTTP (boundary), web-> an unresolved external call (C1, off
     by default -- c1=False callers never see it). Each repo also gets a shard
     for its brief."""
     s = SqliteStore(store_dir / "index.sqlite")
-    for rid in ("acme/pay/api", "acme/pay/web", "acme/pay/core", "acme/ship/api"):
+    for rid in ("acme/sensors/api", "acme/sensors/web", "acme/sensors/core", "acme/alerts/api"):
         s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
-    ep_e = make_id("endpoint", "/orders")
-    ep_f = make_id("endpoint", "/ship")
-    ep_x = make_id("endpoint", "/v1/charges")  # never exposed by anyone
-    # api exposes /orders
-    s.upsert_nodes("acme/pay/api",
-                   [_fnode("acme/pay/api", "ctrl"),
-                    Node(id=ep_e, repo="acme/pay/api", kind="endpoint", name="/orders")])
-    s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "ctrl", ep_e, "exposes")])
-    # web calls /orders (-> internal web->api), exposes /ship, and calls an
+    ep_e = make_id("endpoint", "/readings")
+    ep_f = make_id("endpoint", "/alerts")
+    ep_x = make_id("endpoint", "/v1/samples")  # never exposed by anyone
+    # api exposes /readings
+    s.upsert_nodes("acme/sensors/api",
+                   [_fnode("acme/sensors/api", "ctrl"),
+                    Node(id=ep_e, repo="acme/sensors/api", kind="endpoint", name="/readings")])
+    s.upsert_edges("acme/sensors/api", [_edge("acme/sensors/api", "ctrl", ep_e, "exposes")])
+    # web calls /readings (-> internal web->api), exposes /alerts, and calls an
     # external system (Stripe) that nothing in the fleet exposes
-    s.upsert_nodes("acme/pay/web",
-                   [_fnode("acme/pay/web", "app"),
-                    Node(id=ep_f, repo="acme/pay/web", kind="endpoint", name="/ship")])
-    s.upsert_edges("acme/pay/web",
-                   [_edge("acme/pay/web", "app", ep_e, "calls_http"),
-                    _edge("acme/pay/web", "app", ep_f, "exposes"),
-                    Edge(src=make_id("acme/pay/web", "app"), dst=ep_x, relation="calls_http",
+    s.upsert_nodes("acme/sensors/web",
+                   [_fnode("acme/sensors/web", "app"),
+                    Node(id=ep_f, repo="acme/sensors/web", kind="endpoint", name="/alerts")])
+    s.upsert_edges("acme/sensors/web",
+                   [_edge("acme/sensors/web", "app", ep_e, "calls_http"),
+                    _edge("acme/sensors/web", "app", ep_f, "exposes"),
+                    Edge(src=make_id("acme/sensors/web", "app"), dst=ep_x, relation="calls_http",
                          confidence=Confidence.INFERRED, provenance=_PROV,
                          attrs={"raw_host": "api.stripe.com"})])
-    # ship/api calls /ship (-> boundary ship/api->web)
-    s.upsert_nodes("acme/ship/api", [_fnode("acme/ship/api", "cl")])
-    s.upsert_edges("acme/ship/api", [_edge("acme/ship/api", "cl", ep_f, "calls_http")])
+    # alerts/api calls /alerts (-> boundary alerts/api->web)
+    s.upsert_nodes("acme/alerts/api", [_fnode("acme/alerts/api", "cl")])
+    s.upsert_edges("acme/alerts/api", [_edge("acme/alerts/api", "cl", ep_f, "calls_http")])
     s.close()
     # shards for briefs
-    for rid, head in (("acme/pay/api", "a1"), ("acme/pay/web", "w1"),
-                      ("acme/pay/core", "c1"), ("acme/ship/api", "s1")):
+    for rid, head in (("acme/sensors/api", "a1"), ("acme/sensors/web", "w1"),
+                      ("acme/sensors/core", "c1"), ("acme/alerts/api", "s1")):
         node = Node(id=make_id(rid, "m"), repo=rid, kind="class", name="Main",
                     file="m.py", lang="python")
         write_shard(store_dir, GraphShard(repo=rid, head_commit=head, nodes=[node], edges=[]))
@@ -69,17 +69,17 @@ def _seed(store_dir):
 
 def test_c4_model_buckets_namespaces_and_splits_edges(tmp_path):
     store = _seed(tmp_path)
-    model = c4.c4_model(store, group_depth=2)  # depth 2 -> acme/pay, acme/ship
+    model = c4.c4_model(store, group_depth=2)  # depth 2 -> acme/sensors, acme/alerts
     ns = {b.namespace for b in model.boundaries}
-    assert "acme/pay" in ns and "acme/ship" in ns
+    assert "acme/sensors" in ns and "acme/alerts" in ns
     # every container maps to exactly one boundary
     total_containers = sum(len(b.containers) for b in model.boundaries)
     assert total_containers == model.meta["container_count"]
-    # the acme/ship/api -> acme/pay/web edge is a boundary (cross-namespace) edge
+    # the acme/alerts/api -> acme/sensors/web edge is a boundary (cross-namespace) edge
     boundary_edges = [e for e in model.edges if e.boundary]
-    assert any(e.src.startswith("acme/ship") and e.dst.startswith("acme/pay")
+    assert any(e.src.startswith("acme/alerts") and e.dst.startswith("acme/sensors")
                for e in boundary_edges)
-    # the intra-acme/pay edges are internal
+    # the intra-acme/sensors edges are internal
     assert any(not e.boundary for e in model.edges)
     # weights preserved, confidence INFERRED
     assert all(e.confidence == "INFERRED" and e.weight >= 1 for e in model.edges)
@@ -105,7 +105,7 @@ def test_c4_model_c1_true_adds_the_external_system(tmp_path):
     ext_edges = [e for e in model.edges if e.flavor == "external"]
     assert len(ext_edges) == 1
     e = ext_edges[0]
-    assert e.src == "acme/pay/web" and e.dst == sysbox.system_id
+    assert e.src == "acme/sensors/web" and e.dst == sysbox.system_id
     assert e.boundary is True  # a system is never in any namespace
     assert e.confidence == "INFERRED" and e.weight == 1
     assert model.meta["system_count"] == 1
@@ -113,32 +113,32 @@ def test_c4_model_c1_true_adds_the_external_system(tmp_path):
 
 def test_c4_model_c1_excludes_a_repo_filtered_out_by_repos(tmp_path):
     store = _seed(tmp_path)
-    # scope to acme/ship only -- the caller of the external system (acme/pay/web)
+    # scope to acme/alerts only -- the caller of the external system (acme/sensors/web)
     # is excluded, so the system must not appear either
-    model = c4.c4_model(store, group_depth=2, repos=["acme/ship/api"], c1=True)
+    model = c4.c4_model(store, group_depth=2, repos=["acme/alerts/api"], c1=True)
     assert model.systems == []
 
 
 def test_c4_boundary_repo_that_is_the_exact_namespace_joins_it(tmp_path):
-    """A repo literally named "acme" (the same namespace "acme/pay/api" sits
+    """A repo literally named "acme" (the same namespace "acme/sensors/api" sits
     under) used to fall into a meaningless shared "(ungrouped)" bucket instead
     of the "acme" boundary its own child repo joins -- so a real edge between
     them wrongly rendered as crossing a namespace boundary."""
     s = SqliteStore(tmp_path / "index.sqlite")
-    for rid in ("acme", "acme/pay/api"):
+    for rid in ("acme", "acme/sensors/api"):
         s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
     ep = make_id("endpoint", "/x")
     s.upsert_nodes("acme", [_fnode("acme", "root"),
                             Node(id=ep, repo="acme", kind="endpoint", name="/x")])
     s.upsert_edges("acme", [_edge("acme", "root", ep, "exposes")])
-    s.upsert_nodes("acme/pay/api", [_fnode("acme/pay/api", "cl")])
-    s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "cl", ep, "calls_http")])
+    s.upsert_nodes("acme/sensors/api", [_fnode("acme/sensors/api", "cl")])
+    s.upsert_edges("acme/sensors/api", [_edge("acme/sensors/api", "cl", ep, "calls_http")])
     s.close()
 
     store = SqliteStore(tmp_path / "index.sqlite")
     model = c4.c4_model(store, group_depth=1)
     ns = {b.namespace: {c.repo_id for c in b.containers} for b in model.boundaries}
-    assert ns.get("acme") == {"acme", "acme/pay/api"}
+    assert ns.get("acme") == {"acme", "acme/sensors/api"}
     edge = next(e for e in model.edges if e.flavor == "http")
     assert edge.boundary is False
 
@@ -150,7 +150,7 @@ def test_c4_boundary_two_unrelated_ungrouped_repos_are_not_one_namespace(tmp_pat
     entirely unrelated repos rendered as internal, identical to a genuinely
     related same-namespace edge."""
     s = SqliteStore(tmp_path / "index.sqlite")
-    for rid in ("solo1", "solo2", "acme/pay/api", "acme/billing/svc"):
+    for rid in ("solo1", "solo2", "acme/sensors/api", "acme/console/svc"):
         s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
     solo_ep = make_id("endpoint", "/solo")
     acme_ep = make_id("endpoint", "/acme")
@@ -159,19 +159,19 @@ def test_c4_boundary_two_unrelated_ungrouped_repos_are_not_one_namespace(tmp_pat
     s.upsert_nodes("solo2", [_fnode("solo2", "root"),
                              Node(id=solo_ep, repo="solo2", kind="endpoint", name="/solo")])
     s.upsert_edges("solo2", [_edge("solo2", "root", solo_ep, "exposes")])
-    s.upsert_nodes("acme/pay/api", [_fnode("acme/pay/api", "cl")])
-    s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "cl", acme_ep, "calls_http")])
-    s.upsert_nodes("acme/billing/svc",
-                   [_fnode("acme/billing/svc", "root"),
-                    Node(id=acme_ep, repo="acme/billing/svc", kind="endpoint", name="/acme")])
-    s.upsert_edges("acme/billing/svc", [_edge("acme/billing/svc", "root", acme_ep, "exposes")])
+    s.upsert_nodes("acme/sensors/api", [_fnode("acme/sensors/api", "cl")])
+    s.upsert_edges("acme/sensors/api", [_edge("acme/sensors/api", "cl", acme_ep, "calls_http")])
+    s.upsert_nodes("acme/console/svc",
+                   [_fnode("acme/console/svc", "root"),
+                    Node(id=acme_ep, repo="acme/console/svc", kind="endpoint", name="/acme")])
+    s.upsert_edges("acme/console/svc", [_edge("acme/console/svc", "root", acme_ep, "exposes")])
     s.close()
 
     store = SqliteStore(tmp_path / "index.sqlite")
     model = c4.c4_model(store, group_depth=1)
     by_endpoints = {(e.src, e.dst): e for e in model.edges}
     assert by_endpoints[("solo1", "solo2")].boundary is True
-    assert by_endpoints[("acme/pay/api", "acme/billing/svc")].boundary is False
+    assert by_endpoints[("acme/sensors/api", "acme/console/svc")].boundary is False
 
 
 def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
@@ -180,7 +180,7 @@ def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
     dot = c4.to_c4_dot(model)
     assert dot.startswith("digraph")
     assert "subgraph cluster_" in dot          # boundaries drawn as clusters
-    assert 'label="acme/pay"' in dot           # boundary label present
+    assert 'label="acme/sensors"' in dot           # boundary label present
     assert "http x1" in dot                    # full "<flavor> x<weight>" edge label
     assert "style=dashed" in dot               # INFERRED edges render dashed
     # deterministic: two independent model builds from the same store render
@@ -283,24 +283,24 @@ def test_graph_c4_dot_writes_cluster_subgraph(tmp_path):
 
 
 def test_graph_c4_repos_filter_scopes_namespaces(tmp_path):
-    """--c4 --repos scopes the model to matching repos: fnmatch("acme/pay*")
-    matches all three acme/pay/* repos (the "*" wildcard also matches "/") but
-    not acme/ship/api, so only the acme/pay namespace should be emitted."""
+    """--c4 --repos scopes the model to matching repos: fnmatch("acme/sensors*")
+    matches all three acme/sensors/* repos (the "*" wildcard also matches "/") but
+    not acme/alerts/api, so only the acme/sensors namespace should be emitted."""
     cfg = _seed_and_configure(tmp_path)
     out = tmp_path / "c4-scoped.dot"
     with pytest.raises(SystemExit) as e:
-        main(["kb", "graph", "--c4", "--group-depth", "2", "--repos", "acme/pay*",
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--repos", "acme/sensors*",
               "--format", "dot", "--output", str(out), "--config", str(cfg)])
     assert e.value.code == 0
     text = out.read_text(encoding="utf-8")
     assert text.startswith("digraph")
     # the matched namespace's cluster is present, with its containers
-    assert "subgraph cluster_acme_pay {" in text
-    assert 'label="acme/pay"' in text
-    assert "acme_pay_api" in text
+    assert "subgraph cluster_acme_sensors {" in text
+    assert 'label="acme/sensors"' in text
+    assert "acme_sensors_api" in text
     # the excluded namespace (and its repo) never appear anywhere in the model
-    assert "acme_ship" not in text
-    assert "acme/ship" not in text
+    assert "acme_alerts" not in text
+    assert "acme/alerts" not in text
 
 
 def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path):

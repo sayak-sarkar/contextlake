@@ -29,12 +29,12 @@ from contextlake.kb.wiki.generate import (
 
 def _shard(store_dir):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
-        Node(id="charge", repo="r", kind="function", name="charge", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py"),
+        Node(id="sample_grid", repo="r", kind="function", name="sample_grid", file="svc.py"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests"),
     ]
     edges = [
-        Edge(src="svc", dst="charge", relation="calls", confidence=Confidence.EXTRACTED,
+        Edge(src="svc", dst="sample_grid", relation="calls", confidence=Confidence.EXTRACTED,
              provenance=Provenance(source_file="svc.py", source_line=1,
                                    verified_at=date(2026, 6, 21))),
         # The package node needs the EDGE that makes it a dependency. Without one this
@@ -78,7 +78,7 @@ def test_repo_brief_and_prompt(tmp_path):
     assert brief["head"] == "abc123" and brief["node_count"] == 3
     assert "requests" in brief["packages"]
     prompt = render_prompt(brief)
-    assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
+    assert "ForecastService" in prompt and "svc.py" in prompt and "requests" in prompt
 
 
 def test_repo_brief_caches_the_shard_aggregation(tmp_path, monkeypatch):
@@ -236,8 +236,8 @@ def test_kind_floor_only_backfills_zero_degree_into_top_symbols_not_hubs(tmp_pat
 
 
 def test_repo_brief_grounded_count_is_the_union_not_the_sum(tmp_path):
-    # _shard: 3 nodes (svc, charge, pkg), cap=15 so top_ids covers all 3;
-    # in_degree only has "charge" (called once), out_degree only has "svc"
+    # _shard: 3 nodes (svc, sample_grid, pkg), cap=15 so top_ids covers all 3;
+    # in_degree only has "sample_grid" (called once), out_degree only has "svc"
     # (calls once) -- top_ids/hub_ids/dispatcher_ids overlap heavily, so the
     # union must differ from a naive sum (3 + 1 + 1 == 5). The file-less "pkg"
     # node then drops out of the coverage numerator, which counts file-backed
@@ -246,7 +246,7 @@ def test_repo_brief_grounded_count_is_the_union_not_the_sum(tmp_path):
     _shard(tmp_path)
     brief = repo_brief(tmp_path, "r")
     assert brief["grounded_count"] == 2
-    assert brief["coverage_total"] == 2      # svc + charge; "pkg" has no file
+    assert brief["coverage_total"] == 2      # svc + sample_grid; "pkg" has no file
     assert brief["grounded_count"] <= brief["coverage_total"] <= brief["node_count"]
 
 
@@ -499,7 +499,7 @@ def test_render_prompt_notes_generated_paths_when_detected(tmp_path):
 def test_render_prompt_omits_setup_and_gotchas_sections_without_grounding(tmp_path):
     # No edges (so no hubs) and no conventional setup/config filenames --
     # both new sections must be left out entirely, not emitted empty.
-    nodes = [Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py")]
+    nodes = [Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py")]
     write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
     brief = repo_brief(tmp_path, "r")
     prompt = render_prompt(brief)
@@ -509,18 +509,19 @@ def test_render_prompt_omits_setup_and_gotchas_sections_without_grounding(tmp_pa
 
 def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py",
-             attrs={"doc": "Handles orders end to end.", "signature": "(self)"}),
-        Node(id="chg", repo="r", kind="function", name="charge", file="svc.py")]
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py",
+             attrs={"doc": "Handles forecast runs end to end.", "signature": "(self)"}),
+        Node(id="smp", repo="r", kind="function", name="sample_grid", file="svc.py")]
     edges = [Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
                   provenance=Provenance(source_file="svc.py", source_line=1,
                                         verified_at=date(2026, 6, 21)))]
     write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
     brief = repo_brief(tmp_path, "r")
     top = {t["name"]: t for t in brief["top_symbols"]}
-    assert top["CatalogService"]["doc"] == "Handles orders end to end."
-    assert top["CatalogService"]["signature"] == "(self)"
-    assert "Handles orders end to end." in render_prompt(brief)   # docstring reaches the wiki
+    assert top["ForecastService"]["doc"] == "Handles forecast runs end to end."
+    assert top["ForecastService"]["signature"] == "(self)"
+    # docstring reaches the wiki
+    assert "Handles forecast runs end to end." in render_prompt(brief)
 
 
 def _enrich_shard(store_dir, repo_id, docs):
@@ -538,7 +539,7 @@ def _enrich_shard(store_dir, repo_id, docs):
 def test_external_context_reads_enrich_partition(tmp_path):
     _enrich_shard(tmp_path, "r", [
         ("atlassian", "Runbook", "https://x/1", "how to page the on-call engineer"),
-        ("atlassian", "Design doc", "https://x/2", "architecture notes for CatalogService"),
+        ("atlassian", "Design doc", "https://x/2", "architecture notes for ForecastService"),
     ])
     items = external_context(tmp_path, "r")
     assert len(items) == 2
@@ -627,7 +628,7 @@ def test_repo_brief_external_empty_when_module_scoped(tmp_path):
 
 def _shard_with_adr(store_dir):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py"),
         Node(id="adr1", repo="r", kind="adr", name="Use PostgreSQL",
             qualified_name="docs/adr/0001-use-postgres.md", file="docs/adr/0001-use-postgres.md",
             attrs={"doc": "Because it's boring and reliable."}),
@@ -692,7 +693,7 @@ def test_render_prompt_without_external_context_is_unchanged(tmp_path):
     prompt = render_prompt(brief)
     assert "External context" not in prompt
     # baseline code-facts content is still present, byte-for-byte behavior preserved
-    assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
+    assert "ForecastService" in prompt and "svc.py" in prompt and "requests" in prompt
     assert prompt.strip().endswith(
         "Write a wiki page in Markdown with sections: Overview, Architecture, "
         "Dependencies, Gotchas, in that order. Ground every statement in the facts "
@@ -1025,7 +1026,7 @@ def _setup_multi_repo(tmp_path, repo_ids):
     check_schema(store)
     for rid in repo_ids:
         store.upsert_repo(Repo(id=rid, path=str(tmp_path / rid)))
-        node = Node(id=f"{rid}:svc", repo=rid, kind="class", name="CatalogService", file="svc.py")
+        node = Node(id=f"{rid}:svc", repo=rid, kind="class", name="ForecastService", file="svc.py")
         write_shard(store_dir, GraphShard(repo=rid, head_commit=f"head-{rid}",
                                           nodes=[node], edges=[]))
     store.close()
@@ -1159,7 +1160,7 @@ def test_cmd_wiki_links_page_sections_to_the_symbols_they_mention(tmp_path, monk
     store_dir = _setup_repo(tmp_path)
     store = SqliteStore(store_dir / "index.sqlite")
     store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
-                                  name="CatalogService", file="svc.py")])
+                                  name="ForecastService", file="svc.py")])
     store.close()
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
 
@@ -1169,7 +1170,7 @@ def test_cmd_wiki_links_page_sections_to_the_symbols_they_mention(tmp_path, monk
     # The index encodes how many sections the page happens to have, so adding one to the
     # structural page (D-AG's "Getting started") silently shifted it and broke a test that
     # is about LINKING, not about ordering. What the test means is that the section naming
-    # CatalogService is linked and the others are not.
+    # ForecastService is linked and the others are not.
     shard = read_shard(store_dir, "@wiki:r")
     linked = [e.dst for e in shard.edges if e.src == "svc"]
     sections = [n.id for n in shard.nodes]
@@ -1195,7 +1196,7 @@ def test_cmd_wiki_does_not_attach_its_own_pages_to_the_repos_external_links(
     store_dir = _setup_repo(tmp_path)
     store = SqliteStore(store_dir / "index.sqlite")
     store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
-                                  name="CatalogService", file="svc.py")])
+                                  name="ForecastService", file="svc.py")])
     store.close()
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
 
@@ -1253,7 +1254,7 @@ def test_cmd_wiki_backfills_symbol_links_into_a_partition_from_an_older_build(
     store_dir = _setup_repo(tmp_path)
     store = SqliteStore(store_dir / "index.sqlite")
     store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
-                                  name="CatalogService", file="svc.py")])
+                                  name="ForecastService", file="svc.py")])
     store.close()
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
@@ -1323,7 +1324,7 @@ def test_cmd_wiki_backfills_partition_for_skipped_fresh_pages(tmp_path, monkeypa
 # One >= _MIN_SENTENCE_WORDS sentence repeated past _MAX_REPEATS: the exact
 # degenerate shape structural_gate exists to catch, and the shape the shipped
 # default provider's council scored 0.967 on -- the highest of that run.
-_LOOPED = "CatalogService reads the catalog index and writes the resulting entries out to disk.\n"
+_LOOPED = "ForecastService reads the station index and writes the resulting entries out to disk.\n"
 
 
 def _make_page_defective(page_file):

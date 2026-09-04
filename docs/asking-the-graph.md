@@ -45,10 +45,10 @@ than a path and it does open the store, only to find the clone.
 ## Find something: `kb query`
 
 ```bash
-contextlake kb query "CatalogService"
-contextlake kb query charge --kind function --repo acme/billing-service
-contextlake kb query "how do we charge a card" --retriever semantic
-contextlake kb query charge --repo acme/billing-service --as-of a1b2c3
+contextlake kb query "ForecastService"
+contextlake kb query ingest --kind method --repo acme/sensor-ingest
+contextlake kb query "how do we ingest a reading" --retriever semantic
+contextlake kb query ingest --repo acme/sensor-ingest --as-of a1b2c3
 ```
 
 Each hit prints as `repo · file:line · kind · name`, so every result is a place you can open.
@@ -67,11 +67,11 @@ Each hit prints as `repo · file:line · kind · name`, so every result is a pla
 | Mode | How it matches | Good for | Bad at |
 | --- | --- | --- | --- |
 | `fts` (default) | SQLite FTS5 over node name, qualified name and file, as **prefix** terms | a name you know, or its first few characters | a description of what the code does |
-| `semantic` | nearest neighbours in embedding space | "how do we charge a card", where you have the idea and not the name | an exact rare identifier |
+| `semantic` | nearest neighbours in embedding space | "how do we ingest a reading", where you have the idea and not the name | an exact rare identifier |
 | `hybrid` | semantic seeds, then a Personalized PageRank rerank over the graph | most real questions | nothing in particular, it is the slowest of the three |
 
 **`fts` is prefix search, not substring search.** Each word you type becomes a quoted prefix term,
-so `Catalog` finds `CatalogService` and `Service` does not
+so `Forecast` finds `ForecastService` and `Service` does not
 (`_fts_query` in `src/contextlake/kb/store/sqlite_store.py`). Multiple words are an implicit AND of
 prefix terms. That is the single most common reason a query that "should" match comes back empty.
 
@@ -94,25 +94,28 @@ honours `--retriever`. It needs `--repo`, because history is kept per repository
 ### Verification
 
 ```bash
-contextlake kb query CatalogService --limit 3
+contextlake kb query ForecastService --limit 3
 ```
 
 You should get up to three lines shaped like
-`acme/catalog-api · src/catalog/service.py:41 · class · CatalogService`. If you get
-`No matches for 'CatalogService'`, check the index is populated with `contextlake doctor` before
+`demo/app · src/forecast.py · class · ForecastService`. If you get
+`No matches for 'ForecastService'`, check the index is populated with `contextlake doctor` before
 suspecting the query.
 
 ## See what breaks: `kb impact`
 
 ```bash
-contextlake kb impact charge
-contextlake kb impact charge --repo acme/billing-service --hops 2
-contextlake kb blast-radius charge --json          # the same command
+contextlake kb impact ingest
+contextlake kb impact ingest --repo acme/sensor-ingest --hops 2
+contextlake kb blast-radius ingest --json          # the same command
 ```
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
+```console
+$ contextlake kb impact ingest --repo acme/sensor-ingest --hops 2
+Impact of changing Ingest (acme_sensor_ingest_ingest): 1 affected node(s) within 2 hop(s)
+  seed: method src/Ingest.cs
+  h1  acme/sensor-ingest:SensorGateway  (class, src/SensorGateway.cs)  via calls at src/x:1  [extracted]
+```
 
 | Flag | What it does | Default |
 | --- | --- | --- |
@@ -176,8 +179,8 @@ A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:
 
 ```text
-  --repo acme/billing-service   (function charge)
-  --repo acme/catalog-api       (method charge)
+  --repo acme/sensor-ingest     (class Reading)
+  --repo acme/forecast-api      (struct Reading)
 ```
 
 The candidate list stops at 10 repos even when the count in the line above it is higher.
@@ -201,15 +204,19 @@ a failure.
 ## Find who to ask: `kb owners`
 
 ```bash
-contextlake kb owners acme/payments-api                  # the whole repo
-contextlake kb owners acme/payments-api --path src/auth  # one sub-tree
+contextlake kb owners acme/sensor-ingest                    # the whole repo
+contextlake kb owners acme/sensor-ingest --path src/gateway  # one sub-tree
 contextlake kb owners .                                  # a directory on disk, no index needed
-contextlake kb who-knows acme/payments-api --json        # the same command
+contextlake kb who-knows acme/sensor-ingest --json          # the same command
 ```
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
-</p>
+```console
+$ contextlake kb owners acme/sensor-ingest
+Owners / SMEs for acme/sensor-ingest (recency-weighted):
+  1. Ada Rowan  —  2 commit(s), 14 line(s), last 2026-09-01, 43%
+  2. Ben Okafor  —  1 commit(s), 16 line(s), last 2026-07-14, 38%
+  3. Chen Wei  —  1 commit(s), 6 line(s), last 2026-08-18, 18%
+```
 
 | Flag | What it does | Default |
 | --- | --- | --- |

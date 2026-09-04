@@ -44,10 +44,10 @@ def test_a_draft_citing_a_name_the_page_does_not_hold_is_refused():
     else, so a name that is not there was invented. The check would be wrong the other way
     round, which is why the grounding change had to land first."""
     verdict = replacement_gate(
-        _complete_draft() + "\nIt also calls `PaymentGateway`.\n", PAGE)
+        _complete_draft() + "\nIt also calls `SensorGateway`.\n", PAGE)
     assert verdict is not None
     assert verdict["reason"] == "cites names the graph does not hold"
-    assert "PaymentGateway" in verdict["issues"][0]
+    assert "SensorGateway" in verdict["issues"][0]
 
 
 def test_a_draft_that_drops_a_section_is_refused():

@@ -19,8 +19,8 @@ _PROV = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 
 def _seeded_store(tmp_path):
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
-        Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),
-        Node(id="caller", repo="team/app", kind="function", name="checkout", lang="python"),
+        Node(id="svc", repo="team/app", kind="class", name="ForecastService", lang="python"),
+        Node(id="caller", repo="team/app", kind="function", name="run_cycle", lang="python"),
     ]
     edges = [Edge(src="caller", dst="svc", relation="calls",
                   confidence=Confidence.EXTRACTED, provenance=_PROV)]
@@ -46,12 +46,12 @@ class _StubLlm:
 def test_chat_answer_free_mode_returns_structured_result_no_llm(tmp_path):
     s = _seeded_store(tmp_path)
     try:
-        result = chat_answer(s, "who calls CatalogService?")
+        result = chat_answer(s, "who calls ForecastService?")
         assert result["llm_used"] is False
         assert result["answer"] is None
         assert "llm_error" not in result
         assert result["structured"]["route"] == "callers"
-        assert {n["name"] for n in result["structured"]["nodes"]} == {"checkout"}
+        assert {n["name"] for n in result["structured"]["nodes"]} == {"run_cycle"}
     finally:
         s.close()
 
@@ -62,8 +62,8 @@ def test_chat_answer_reuses_the_real_ask_tool_not_a_reimplementation(tmp_path):
     nodes_by_name), not some parallel lookup that would silently drift."""
     s = _seeded_store(tmp_path)
     try:
-        result = chat_answer(s, "who calls CatalogService?")
-        assert result["structured"]["target"] == "CatalogService"
+        result = chat_answer(s, "who calls ForecastService?")
+        assert result["structured"]["target"] == "ForecastService"
     finally:
         s.close()
 
@@ -71,16 +71,16 @@ def test_chat_answer_reuses_the_real_ask_tool_not_a_reimplementation(tmp_path):
 def test_chat_answer_llm_mode_grounds_prose_in_the_structured_result(tmp_path):
     s = _seeded_store(tmp_path)
     try:
-        llm = _StubLlm(reply="checkout calls CatalogService.")
-        result = chat_answer(s, "who calls CatalogService?", llm=llm)
+        llm = _StubLlm(reply="run_cycle calls ForecastService.")
+        result = chat_answer(s, "who calls ForecastService?", llm=llm)
         assert result["llm_used"] is True
-        assert result["answer"] == "checkout calls CatalogService."
+        assert result["answer"] == "run_cycle calls ForecastService."
         # the free layer is still present alongside the LLM prose -- callers
         # can always show/verify the citations the prose was grounded in
         assert result["structured"]["route"] == "callers"
         # the prompt actually carries the real structured data, not a stub
-        assert "checkout" in llm.last_prompt
-        assert "who calls CatalogService?" in llm.last_prompt
+        assert "run_cycle" in llm.last_prompt
+        assert "who calls ForecastService?" in llm.last_prompt
     finally:
         s.close()
 
@@ -91,7 +91,7 @@ def test_chat_answer_llm_failure_degrades_to_the_free_result(tmp_path):
     s = _seeded_store(tmp_path)
     try:
         llm = _StubLlm(raises=RuntimeError("provider unreachable"))
-        result = chat_answer(s, "who calls CatalogService?", llm=llm)
+        result = chat_answer(s, "who calls ForecastService?", llm=llm)
         assert result["llm_used"] is False
         assert result["answer"] is None
         assert "provider unreachable" in result["llm_error"]

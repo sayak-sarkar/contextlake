@@ -119,7 +119,7 @@ across the whole fleet or a single repo:
 
 ```bash
 contextlake kb enrich --workspace ~/work     # all indexed repos
-contextlake kb enrich acme/catalog-api         # one repo
+contextlake kb enrich acme/forecast-api        # one repo
 ```
 
 **Prerequisites.** Two things must be true:

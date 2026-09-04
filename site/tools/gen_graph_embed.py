@@ -16,6 +16,13 @@ Run it after any change to the graph renderer or the brand palette:
 
     python3 site/tools/gen_graph_embed.py
 
+Nothing runs it for you. `build_docs.py` does not write this page, and `deploy.sh` skips
+it in both directions: `.gitignore` un-ignores it so it is tracked and copied, and the
+prune loop names it as an exception so a deploy never retires it. A renderer change
+therefore ships to the docs pages and leaves this one on whatever it was last built
+from -- which is how the embedded copy fell 194 lines behind `static/app.js` (missing
+the keyboard zoom controls, the folded-leaves count and the wiki link).
+
 The index is built in a throwaway store under a temp directory, never the caller's real
 one. Note the config key is `[kb] store_dir`; a `[store]` table is silently ignored and
 the whole run lands in the default store instead (see kb/config.py's own warning).
@@ -38,22 +45,53 @@ HOPS = "2"
 MAX_NODES = "140"
 
 
+def _only_repo_id(store_dir: pathlib.Path) -> str:
+    """The id `kb index` stored for this repository, read back from the store.
+
+    `--repo` used to be the literal string "contextlake" and the run stopped working
+    the day the indexer started storing remote-derived ids: the id on disk is
+    `github.com/<owner>/contextlake`, `--repo` is matched against it exactly, and a
+    scope that matches nothing takes the seed down with it -- the run failed on
+    "Nothing in the graph matches 'repo_subgraph'", which names the seed and says
+    nothing about the scope that hid it. Reading the id back cannot drift: whatever
+    the indexer wrote is what the graph call asks for.
+
+    The store is built one line above this call and holds this repository alone, so
+    more than one id means the index step did something other than what it says.
+    """
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        ids = sorted(r.id for r in store.list_repos())
+    finally:
+        store.close()
+    if len(ids) != 1:
+        raise SystemExit(
+            f"  [gen_graph_embed] expected 1 indexed repository, found {len(ids)}: {ids}")
+    return ids[0]
+
+
 def main() -> int:
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="cl-graph-embed-"))
     try:
         cfg = tmp / "kb.toml"
-        cfg.write_text(f'[kb]\nstore_dir = "{tmp / "store"}"\n', encoding="utf-8")
+        store_dir = tmp / "store"
+        cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n', encoding="utf-8")
 
-        for args in (
-            ["kb", "index", str(REPO), "--config", str(cfg)],
-            ["kb", "graph", "--search", SEED, "--repo", "contextlake",
-             "--hops", HOPS, "--max-nodes", MAX_NODES,
-             "--format", "html", "--output", str(OUT), "--config", str(cfg)],
-        ):
-            r = subprocess.run([sys.executable, "-m", "contextlake", *args], cwd=REPO)
-            if r.returncode != 0:
-                print(f"  [gen_graph_embed] FAILED: {' '.join(args)}")
-                return r.returncode
+        index_args = ["kb", "index", str(REPO), "--config", str(cfg)]
+        r = subprocess.run([sys.executable, "-m", "contextlake", *index_args], cwd=REPO)
+        if r.returncode != 0:
+            print(f"  [gen_graph_embed] FAILED: {' '.join(index_args)}")
+            return r.returncode
+
+        graph_args = ["kb", "graph", "--search", SEED, "--repo", _only_repo_id(store_dir),
+                      "--hops", HOPS, "--max-nodes", MAX_NODES,
+                      "--format", "html", "--output", str(OUT), "--config", str(cfg)]
+        r = subprocess.run([sys.executable, "-m", "contextlake", *graph_args], cwd=REPO)
+        if r.returncode != 0:
+            print(f"  [gen_graph_embed] FAILED: {' '.join(graph_args)}")
+            return r.returncode
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

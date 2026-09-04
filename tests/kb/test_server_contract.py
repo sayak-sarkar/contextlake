@@ -87,7 +87,7 @@ def _seed(store, *, repo_path: str | None = None) -> None:
     if repo_path is not None:
         store.upsert_repo(Repo(id=REPO, path=repo_path, head_commit="0" * 40))
     store.upsert_nodes(REPO, [
-        Node(id="a", repo=REPO, kind="function", name="CatalogService", file="svc.py"),
+        Node(id="a", repo=REPO, kind="function", name="ForecastService", file="svc.py"),
         Node(id="b", repo=REPO, kind="function", name="charge", file="svc.py"),
     ])
     store.upsert_edges(REPO, [Edge(

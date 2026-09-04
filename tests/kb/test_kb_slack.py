@@ -126,6 +126,23 @@ def test_verify_true_via_mock(tmp_path):
     assert c.verify("C1") is True
 
 
+def test_a_refused_call_is_not_reported_as_reachable(tmp_path):
+    """Same defect as Figma's: ``verify`` returns ``bool(result)``, and a refusal
+    that came back as its error *text* is truthy. Driven through a tool name the
+    mock server does not have, so it exercises the real result path rather than
+    a stubbed exception.
+
+    Precondition: a spawned local subprocess, no network.
+    """
+    c = SlackConnector("s", mcp_command="placeholder", verify_tool="gone_tool")
+    c._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert c.verify("C1") is False
+    # Positive row: the configured tool that does exist still verifies.
+    ok = SlackConnector("s", mcp_command="placeholder", verify_tool="conversations_info")
+    ok._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert ok.verify("C1") is True
+
+
 def test_verify_uses_configured_tool_name(tmp_path):
     c = SlackConnector("s", mcp_command="placeholder", verify_tool="conversations_info")
     c._spawn = lambda: (sys.executable, _server(tmp_path), None)

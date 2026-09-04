@@ -33,7 +33,7 @@ def _git_repo(path):
     """A tmp git repo with a README and one commit (explicit identity for clean CI)."""
     path.mkdir(parents=True, exist_ok=True)
     _git(path, "init", "-q")
-    (path / "README.md").write_text("# team/app\n\nThe **order** service. See `charge`.\n")
+    (path / "README.md").write_text("# team/app\n\nThe **station** service. See `ingest`.\n")
     _git(path, "add", "README.md")
     env = {**os.environ,
            "GIT_AUTHOR_NAME": "Ada Lovelace", "GIT_AUTHOR_EMAIL": "ada@example.io",
@@ -51,33 +51,33 @@ def store_dir(tmp_path):
 
     # team/app — a class + a function, a caller (for impact), a dep edge, a repo link.
     app_nodes = [
-        Node(id="app_catalogservice", repo="team/app", kind="class", name="CatalogService",
-             file="src/catalog.py", lang="python"),
-        Node(id="app_charge", repo="team/app", kind="function", name="charge",
-             file="src/pay.py", lang="python"),
-        Node(id="app_caller", repo="team/app", kind="function", name="checkout",
+        Node(id="app_forecastservice", repo="team/app", kind="class", name="ForecastService",
+             file="src/forecast.py", lang="python"),
+        Node(id="app_ingest", repo="team/app", kind="function", name="ingest",
+             file="src/ingest.py", lang="python"),
+        Node(id="app_caller", repo="team/app", kind="function", name="run_forecast",
              file="src/web.py", lang="python"),
         Node(id="app_mod", repo="team/app", kind="module", name="app", lang="python"),
         Node(id=make_id("repo", "team/app"), repo="team/app", kind="repo", name="team/app"),
         Node(id="issue_42", repo="team/app", kind="issue", name="PROJ-42",
-             attrs={"url": "https://tracker.example.com/PROJ-42", "title": "Fix charge",
+             attrs={"url": "https://tracker.example.com/PROJ-42", "title": "Fix ingest",
                     "status": "open"}),
         Node(id="issue_99", repo="team/app", kind="issue", name="PROJ-99",
              attrs={"url": "https://tracker.example.com/PROJ-99",
-                    "title": "Charge refund edge case", "status": "open"}),
+                    "title": "Ingest backfill edge case", "status": "open"}),
         Node(id="mr_7", repo="team/app", kind="merge_request", name="!7",
              attrs={"url": "https://gitlab.example.com/team/app/-/merge_requests/7",
-                    "title": "Fix charge overflow", "status": "merged"}),
-        Node(id="chan_pay", repo="team/app", kind="channel", name="#payments",
-             attrs={"url": "https://chat.example.com/archives/C01", "title": "#payments"}),
+                    "title": "Fix ingest overflow", "status": "merged"}),
+        Node(id="chan_alerts", repo="team/app", kind="channel", name="#alerts",
+             attrs={"url": "https://chat.example.com/archives/C01", "title": "#alerts"}),
     ]
     app_edges = [
-        _edge("app_caller", "app_catalogservice", "calls"),
+        _edge("app_caller", "app_forecastservice", "calls"),
         _edge("app_mod", "libpkg", "depends_on"),
         _edge(make_id("repo", "team/app"), "issue_42", "tracked_by"),
-        _edge("app_charge", "issue_99", "tracked_by"),  # per-symbol attribution
+        _edge("app_ingest", "issue_99", "tracked_by"),  # per-symbol attribution
         _edge(make_id("repo", "team/app"), "mr_7", "touched_by"),  # GitLab diff-derived link
-        _edge(make_id("repo", "team/app"), "chan_pay", "discussed_in"),  # Slack history link
+        _edge(make_id("repo", "team/app"), "chan_alerts", "discussed_in"),  # Slack history link
     ]
     # team/lib — publishes the package team/app depends on.
     lib_nodes = [
@@ -100,7 +100,7 @@ def store_dir(tmp_path):
     # a curated wiki page for team/app (slug = team__app)
     (tmp_path / "wiki").mkdir()
     (tmp_path / "wiki" / "team__app.md").write_text(
-        "# team/app\n\nGenerated at commit `head-app`.\n\n- handles **orders**\n")
+        "# team/app\n\nGenerated at commit `head-app`.\n\n- handles **readings**\n")
 
     yield s, tmp_path
     s.close()
@@ -132,8 +132,9 @@ def test_repo_detail_brief_readme_wiki_owners(store_dir):
     s, sd = store_dir
     d = kbdata.repo_detail(s, sd, "team/app")
     assert d["brief"]["node_count"] >= 4
-    assert "CatalogService" in {t["name"] for t in d["brief"]["top_symbols"]} or d["brief"]["kinds"]
-    assert d["readme_html"] and "<strong>order</strong>" in d["readme_html"]
+    assert ("ForecastService" in {t["name"] for t in d["brief"]["top_symbols"]}
+            or d["brief"]["kinds"])
+    assert d["readme_html"] and "<strong>station</strong>" in d["readme_html"]
     # hubs/dispatchers are always present as keys (possibly empty), sanitized the
     # same way top_symbols is -- see wiki.generate.repo_brief's split.
     assert isinstance(d["brief"]["hubs"], list) and isinstance(d["brief"]["dispatchers"], list)
@@ -175,8 +176,8 @@ def test_repo_links_identical_on_both_front_doors(store_dir):
     assert set(dashboard_links) == set(mcp_links) == {"tracked_by", "touched_by", "discussed_in"}
     assert dashboard_links["touched_by"][0]["name"] == "!7"
     assert mcp_links["touched_by"][0]["name"] == "!7"
-    assert dashboard_links["discussed_in"][0]["name"] == "#payments"
-    assert mcp_links["discussed_in"][0]["name"] == "#payments"
+    assert dashboard_links["discussed_in"][0]["name"] == "#alerts"
+    assert mcp_links["discussed_in"][0]["name"] == "#alerts"
     # ...and every relation either door groups is one the shared constant declares.
     assert set(dashboard_links) <= EXTERNAL_LINK_RELATIONS
     assert {"referenced_in", "documented_by", "designed_in", "has_merge_request",
@@ -205,12 +206,12 @@ def test_repo_wiki_module_scoped_page(store_dir):
     modules_dir.mkdir(parents=True, exist_ok=True)
     (modules_dir / _module_wiki_filename("team/app", "src")).write_text(
         "# team/app: src\n\nGenerated at commit `head-app`.\n\n"
-        "- the **payments** subsystem\n"
+        "- the **sensor** subsystem\n"
     )
 
     out = kbdata.repo_wiki(s, sd, "team/app", module="src")
     assert out["repo"] == "team/app" and out["module"] == "src"
-    assert out["found"] and "<strong>payments</strong>" in out["html"]
+    assert out["found"] and "<strong>sensor</strong>" in out["html"]
     assert out["stale"] is False  # embedded commit matches team/app's current head
 
     # A module repo_modules() never named (or generation never ran for) is an
@@ -321,19 +322,19 @@ def test_data_flow_lists_intra_repo_reads_and_writes(store_dir):
     try:
         s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
         s.upsert_nodes("team/app", [
-            Node(id="app_charge", repo="team/app", kind="function", name="charge",
-                 file="src/pay.py"),
-            Node(id="app_orders_table", repo="team/app", kind="table", name="orders",
+            Node(id="app_ingest", repo="team/app", kind="function", name="ingest",
+                 file="src/ingest.py"),
+            Node(id="app_readings_table", repo="team/app", kind="table", name="readings",
                  file="db/schema.sql"),
         ])
         s.upsert_edges("team/app", [
-            Edge(src="app_charge", dst="app_orders_table", relation="reads",
+            Edge(src="app_ingest", dst="app_readings_table", relation="reads",
                  confidence=Confidence.EXTRACTED,
-                 provenance=Provenance(source_file="src/pay.py", source_line=42,
+                 provenance=Provenance(source_file="src/ingest.py", source_line=42,
                                        verified_at=date(2026, 6, 21))),
         ])
         result = kbdata.data_flow(s, "team/app")
-        assert result == {"rows": [{"file": "src/pay.py", "line": 42, "table": "orders",
+        assert result == {"rows": [{"file": "src/ingest.py", "line": 42, "table": "readings",
                                     "kind": "table", "relation": "reads"}],
                           "truncated": False}
     finally:
@@ -350,14 +351,14 @@ def test_data_flow_reports_truncated_past_the_limit(store_dir):
     try:
         s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
         s.upsert_nodes("team/app", [
-            Node(id="app_orders_table", repo="team/app", kind="table", name="orders"),
+            Node(id="app_readings_table", repo="team/app", kind="table", name="readings"),
         ] + [
             Node(id=f"app_reader_{i}", repo="team/app", kind="function", name=f"reader_{i}",
                  file=f"src/r{i}.py")
             for i in range(3)
         ])
         s.upsert_edges("team/app", [
-            Edge(src=f"app_reader_{i}", dst="app_orders_table", relation="reads",
+            Edge(src=f"app_reader_{i}", dst="app_readings_table", relation="reads",
                  confidence=Confidence.EXTRACTED,
                  provenance=Provenance(source_file=f"src/r{i}.py", source_line=1,
                                        verified_at=date(2026, 6, 21)))
@@ -371,11 +372,11 @@ def test_data_flow_reports_truncated_past_the_limit(store_dir):
 
 
 def test_diagram_classdiagram_renders_the_fixtures_class_node(store_dir):
-    # team/app's app_catalogservice node (kind="class") from the store_dir fixture
+    # team/app's app_forecastservice node (kind="class") from the store_dir fixture
     s, _ = store_dir
     d = kbdata.diagram(s, "team/app", "classdiagram")
     assert d["format"] == "classdiagram"
-    assert "CatalogService" in d["text"]
+    assert "ForecastService" in d["text"]
     assert d["text"].startswith("classDiagram")
 
 
@@ -398,7 +399,7 @@ def test_diagram_mermaid_generic_format_always_available(store_dir):
     s, _ = store_dir
     d = kbdata.diagram(s, "team/app", "mermaid")
     assert d["text"].startswith("graph LR")
-    assert "CatalogService" in d["text"]
+    assert "ForecastService" in d["text"]
 
 
 def test_diagram_rejects_sequencediagram_and_unknown_formats():
@@ -511,18 +512,18 @@ def test_repo_modules_wiki_pages_flag_marks_only_generated_pages(tmp_path):
 
 
 def test_sequence_diagram_renders_the_seeds_outgoing_calls(store_dir):
-    # app_caller ("checkout") --calls--> app_catalogservice ("CatalogService") in the fixture
+    # app_caller ("run_forecast") --calls--> app_forecastservice ("ForecastService") in the fixture
     s, _ = store_dir
     d = kbdata.sequence_diagram(s, "app_caller")
     assert d["format"] == "sequencediagram"
     assert d["text"].startswith("sequenceDiagram")
-    assert "checkout" in d["text"] and "CatalogService" in d["text"]
+    assert "run_forecast" in d["text"] and "ForecastService" in d["text"]
 
 
 def test_sequence_diagram_is_honest_empty_when_seed_has_no_outgoing_calls(store_dir):
-    # app_charge ("charge") is a leaf in the fixture -- no outgoing calls edges
+    # app_ingest ("ingest") is a leaf in the fixture -- no outgoing calls edges
     s, _ = store_dir
-    d = kbdata.sequence_diagram(s, "app_charge")
+    d = kbdata.sequence_diagram(s, "app_ingest")
     assert d["text"].startswith("sequenceDiagram")
     assert "no outgoing calls" in d["text"]
 
@@ -536,10 +537,10 @@ def test_sequence_diagram_reports_error_for_unknown_node(store_dir):
 
 def test_impact_blast_radius_and_name_fallback(store_dir):
     s, _ = store_dir
-    by_id = kbdata.impact(s, "app_catalogservice")
+    by_id = kbdata.impact(s, "app_forecastservice")
     assert by_id["found"] and by_id["total"] >= 1
-    assert "checkout" in {h["name"] for h in by_id["hits"]}
-    by_name = kbdata.impact(s, "CatalogService")  # falls back to search
+    assert "run_forecast" in {h["name"] for h in by_id["hits"]}
+    by_name = kbdata.impact(s, "ForecastService")  # falls back to search
     assert by_name["found"]
     assert kbdata.impact(s, "does-not-exist")["found"] is False
 
@@ -549,7 +550,7 @@ def test_impact_carries_the_seeds_own_repo(store_dir):
     (node ids don't encode it) -- without this, cross-repo filtering and any
     repo-scoped link from the symbol view silently can't work in live mode."""
     s, _ = store_dir
-    imp = kbdata.impact(s, "app_catalogservice")
+    imp = kbdata.impact(s, "app_forecastservice")
     assert imp["repo"]
 
 
@@ -557,24 +558,24 @@ def test_impact_carries_the_seeds_own_ticket(store_dir):
     """Per-symbol ticket attribution: a symbol-SOURCED tracked_by edge shows up
     on that symbol's own impact payload, distinct from the repo-level Links."""
     s, _ = store_dir
-    imp = kbdata.impact(s, "app_charge")
+    imp = kbdata.impact(s, "app_ingest")
     assert imp["ticket"] == [{
         "kind": "issue", "name": "PROJ-99",
         "url": "https://tracker.example.com/PROJ-99",
-        "title": "Charge refund edge case", "status": "open",
+        "title": "Ingest backfill edge case", "status": "open",
         "confidence": "EXTRACTED",
     }]
 
 
 def test_impact_ticket_empty_for_symbol_without_one(store_dir):
     s, _ = store_dir
-    imp = kbdata.impact(s, "app_catalogservice")
+    imp = kbdata.impact(s, "app_forecastservice")
     assert imp["ticket"] == []
 
 
 def test_impact_ticket_anonymize_strips_url(store_dir):
     s, _ = store_dir
-    imp = kbdata.impact(s, "app_charge", anonymize=True)
+    imp = kbdata.impact(s, "app_ingest", anonymize=True)
     assert imp["ticket"][0]["url"] is None
     assert imp["ticket"][0]["name"] == "PROJ-99"  # non-URL fields survive
 
@@ -589,9 +590,9 @@ def test_health_shape(store_dir):
 
 def test_code_search_returns_nodes(store_dir):
     s, _ = store_dir
-    res = kbdata.code_search(s, "CatalogService")
+    res = kbdata.code_search(s, "ForecastService")
     assert res["semantic"] is False
-    assert "CatalogService" in {n["name"] for n in res["results"]}
+    assert "ForecastService" in {n["name"] for n in res["results"]}
 
 
 def test_mcp_console_lists_the_real_tool_catalog(store_dir):

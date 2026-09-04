@@ -215,9 +215,9 @@ store can be arbitrarily out of date while every command it serves looks healthy
 ```console
 $ contextlake kb refresh
 ⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.
-  moved: payments-api
-  moved: billing-worker
-  moved: checkout-ui
+  moved: sensor-ingest
+  moved: forecast-api
+  moved: console-ui
   checked 12/12 in 0.06s
 ```
 

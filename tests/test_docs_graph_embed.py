@@ -113,3 +113,45 @@ def test_the_builder_ships_the_swap_script_only_with_the_markup():
     assert not emits("<p>the <code>data-embed</code> attribute</p>")
     assert not emits('<img class="shot" src="graph.jpg">')
     assert not emits("<p>nothing here</p>")
+
+
+# The five files `html_render` inlines into every exported graph page, and the escape it
+# applies to the ones that land inside a `<script>`. Read from the repo, not from
+# `importlib.resources`: a non-editable install resolves the package to site-packages, so
+# an edit to `src/.../static/app.js` that was never reinstalled would compare the built
+# page against the OLD text and pass.
+STATIC = REPO / "src" / "contextlake" / "kb" / "static"
+INLINED = {"app.js": True, "app.css": False, "cytoscape.min.js": True,
+           "cytoscape-dagre.min.js": True, "cytoscape-dom-node.js": True}
+RENDERER = REPO / "src" / "contextlake" / "kb" / "visualize" / "html_render.py"
+
+
+def test_the_renderer_still_escapes_script_payloads_the_way_this_file_assumes():
+    """The escape below is a copy of the renderer's. Pin the original so the copy cannot
+    drift into passing against a rule the renderer stopped applying."""
+    assert 'replace("</script", "<\\\\/script")' in RENDERER.read_text(encoding="utf-8")
+
+
+def test_the_embedded_graph_carries_the_current_renderer():
+    """`site/graph-embed.html` is a STATIC export, and a renderer fix does not reach one
+    already on disk.
+
+    Nothing rebuilds it: `build_docs.py` does not write it, `.gitignore` un-ignores it so
+    it stays tracked, and `deploy.sh` names it as a prune exception. It has gone stale
+    twice -- the 6.2.0 stored-XSS fix left the published copy vulnerable while the
+    advisory told users to regenerate theirs, and the copy later sat 194 lines behind
+    `static/app.js`. Both times the page rendered, so nothing failed.
+
+    Every one of the five files is inlined verbatim, so a substring test is exact.
+    """
+    embed = (SITE / "graph-embed.html").read_text(encoding="utf-8")
+    stale = []
+    for name, in_script in INLINED.items():
+        text = (STATIC / name).read_text(encoding="utf-8")
+        if in_script:
+            text = text.replace("</script", "<\\/script")
+        if text not in embed:
+            stale.append(name)
+    assert not stale, (
+        f"site/graph-embed.html no longer carries the current {', '.join(stale)}. "
+        "Rebuild it: python3 site/tools/gen_graph_embed.py")

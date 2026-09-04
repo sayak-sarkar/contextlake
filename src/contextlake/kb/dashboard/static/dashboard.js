@@ -1289,7 +1289,7 @@
       return modulesCache[key];
     }
 
-    // "src/payments" -> ["src", "src/payments"], each entry a full prefix
+    // "src/sensors" -> ["src", "src/sensors"], each entry a full prefix
     // ready to jump back to.
     function crumbPrefixes(mod) {
       if (!mod) return [];
@@ -2361,7 +2361,7 @@
       crumb(ctx.repoId, "#/repo/" + ctx.repoId, lens === "repo");
     }
     if (ctx.nodeId && lens === "symbol") {
-      // The symbol's own repo path (acme / acme/auth-service) -- shown even when this
+      // The symbol's own repo path (acme / acme/station-registry) -- shown even when this
       // symbol was reached directly (search, a deep link) rather than by clicking
       // through its repo first, which is the only way ctx.repoId above gets set. Skipped
       // when it's already the pinned repoId's path, so it's never rendered twice.

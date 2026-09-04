@@ -108,9 +108,9 @@ def test_connect_attributes_ticket_to_symbol_via_docstring(tmp_path, monkeypatch
     repo = tmp_path / "app"
     repo.mkdir()
 
-    symbol = Node(id="sym-checkout", repo="group/app", kind="function", name="checkout",
-                 file="billing.py", line_start=10,
-                 attrs={"doc": "Handles checkout. See PROJ-1 for the refund edge case."})
+    symbol = Node(id="sym-ingest", repo="group/app", kind="function", name="ingest_batch",
+                 file="ingest.py", line_start=10,
+                 attrs={"doc": "Handles a reading batch. See PROJ-1 for the backfill edge case."})
     write_shard(store_dir, GraphShard(repo="group/app", head_commit="abc123", nodes=[symbol]))
 
     monkeypatch.setattr(orch, "build_atlassian", lambda src: _Stub())
@@ -123,7 +123,7 @@ def test_connect_attributes_ticket_to_symbol_via_docstring(tmp_path, monkeypatch
     store = SqliteStore(store_dir / "index.sqlite")
     try:
         check_schema(store)
-        ticket_edges = [e for e in store.neighbors("sym-checkout", direction="out")
+        ticket_edges = [e for e in store.neighbors("sym-ingest", direction="out")
                         if e.relation == "tracked_by"]
         assert len(ticket_edges) == 1
         assert ticket_edges[0].confidence.value == "INFERRED"  # promoted, JQL-confirmed

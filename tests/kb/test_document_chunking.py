@@ -107,7 +107,7 @@ def test_a_chunk_key_round_trips_to_its_node_id():
 def test_an_unchunked_key_passes_through_unchanged():
     """Code-node vectors are still written under a bare node id. They must survive the same
     collapse path untouched, or every code symbol disappears from semantic search."""
-    assert base_node_id("demo_app_catalogservice") == "demo_app_catalogservice"
+    assert base_node_id("demo_app_forecastservice") == "demo_app_forecastservice"
 
 
 def test_the_separator_cannot_occur_in_a_document_id():

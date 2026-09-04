@@ -88,7 +88,7 @@ Two ways to turn the tier on.
 - **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
   `ollama`, `openai`, `anthropic`, `cli`, `auto`.
 
-For example, `contextlake kb wiki acme/catalog-api --llm builtin` enables the tier and scopes
+For example, `contextlake kb wiki acme/forecast-api --llm builtin` enables the tier and scopes
 generation to that repo.
 
 `auto` picks for you, in order: a reachable local Ollama that already has the model pulled, else
@@ -306,7 +306,7 @@ Each section is also **linked to the symbols it names**, with a `documented_by` 
 
 ## Cluster (namespace) wiki
 
-`contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a whole group of
+`contextlake kb wiki --namespace acme/stations` writes one **cluster page** for a whole group of
 repos, meaning everything under that repo-id prefix. Use `--namespaces --depth N` to generate one
 page per namespace at that depth.
 
@@ -345,11 +345,14 @@ passed off as a code fact.
 The council still gates the enriched page before it is written. External context supplements
 code-backed facts, and never displaces them.
 
-The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
-strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
-from, and a **STALE** badge if the indexed commit has since moved.
+The result renders directly in the dashboard's Wiki tab, with no click-through: grounded strictly in
+real symbols, carrying a provenance footer, and showing a **STALE** badge if the indexed commit has
+since moved.
 
-![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+The page below is the **model-free** page, the one `contextlake kb wiki` writes with no `--llm`. Its
+footer names the commit. Add `--llm` and the same tab shows prose sections on top of these facts.
+
+![The Wiki tab: a generated page for acme/forecast-api, grounded in the repo's own symbols, under a "not ground truth" advisory banner](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the

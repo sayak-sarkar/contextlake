@@ -343,8 +343,8 @@ On a small Kotlin sample holding one class with one method, one import, one call
 
 ```
 file Svc.kt None None
-class CatalogService Svc.kt::CatalogService 5
-method process Svc.kt::CatalogService.process 6
+class GaugeService Svc.kt::GaugeService 5
+method process Svc.kt::GaugeService.process 6
 module com.example.Base None None
 calls    ['helper']
 inherits ['Base']
@@ -404,17 +404,17 @@ not hit the blanket handler. Zero nodes means your extension never reached the p
 Query a definition by name, and read the kind:
 
 ```bash
-contextlake kb --config /tmp/lang-check/kb.toml query CatalogService
+contextlake kb --config /tmp/lang-check/kb.toml query GaugeService
 ```
 
 ```
-  demo/kotlin · Svc.kt:5 · class · CatalogService
+  demo/kotlin · Svc.kt:5 · class · GaugeService
   demo/kotlin · Svc.kt:6 · method · process
 ```
 
 Each `repo · file:line · kind · name` hit proves a node reached the SQLite store with the right kind
 and line. The method is a hit too because search matches qualified names, and `process` is qualified
-`CatalogService.process`; that second line is expected, not an over-capture by your query.
+`GaugeService.process`; that second line is expected, not an over-capture by your query.
 
 Filter by kind, which is the strictest of the three:
 

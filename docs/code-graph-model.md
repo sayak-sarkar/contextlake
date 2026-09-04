@@ -295,7 +295,7 @@ verified reference the way an import or a call site is, so nothing is inferred f
 A guarded assignment to a status, state or stage field becomes a `transitions_to` edge between
 `state` nodes, labelled with the method that makes the change. For example:
 
-    if order.status == Created: order.status = Paid
+    if reading.status == Received: reading.status = Validated
 
 **Only guarded transitions are emitted.** The source state has to be established by a comparison
 on the same field just before. That way a diagram never claims a transition the code does not
@@ -418,13 +418,18 @@ know which one it came from: Maven's `<scope>test</scope>` and npm's `devDepende
 a package manager's job, and the author's own text is the honest record of what was chosen.
 
 The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
-what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
+what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Forecast`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than
 getting a silent best-guess.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
-</p>
+```console
+$ contextlake kb impact queueJob --hops 3
+Impact of changing queueJob (acme_alerts_queuejob): 3 affected node(s) within 3 hop(s)
+  seed: function src/queueJob.js
+  h1  acme/alerts:sendAlert  (function, src/sendAlert.js)  via calls at src/x:1  [extracted]
+  h2  acme/alerts:AlertSender  (class, src/AlertSender.js)  via calls at src/x:1  [extracted]
+  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]
+```
 
 ## The graph, on this page
 

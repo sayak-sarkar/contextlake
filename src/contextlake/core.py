@@ -586,12 +586,12 @@ def resolve_branch_pin(full_path: str, local_path: str, config) -> str:
 
 def match_repo_filter(full_path: str, local_path: str, patterns: list[str]) -> bool:
     """A repo matches if any pattern is a glob hit on its group-qualified path or
-    its local (group-stripped) path. Case-insensitive. ``team/*``, ``catalog-api``
-    and ``acme/catalog-api`` all work.
+    its local (group-stripped) path. Case-insensitive. ``team/*``,
+    ``station-registry`` and ``acme/station-registry`` all work.
 
     **Patterns are anchored**, because ``fnmatch`` matches the whole string. A bare
     name like ``api`` selects a repo called exactly ``api``, never one that merely
-    contains it (``payments-api``, ``api-gateway``). Ask for those with a glob:
+    contains it (``forecast-api``, ``api-gateway``). Ask for those with a glob:
     ``*api*``.
 
     That anchoring used to be opt-in behind ``--repos-exact``, with a substring

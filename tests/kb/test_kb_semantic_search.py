@@ -14,8 +14,8 @@ class _FakeEmbedder:
     name = "fake"
 
     def embed(self, texts):
-        # "order"-ish text -> x axis (near node a); otherwise y axis (near node b)
-        return [[1.0, 0.0] if "order" in t.lower() else [0.0, 1.0] for t in texts]
+        # "grid"-ish text -> x axis (near node a); otherwise y axis (near node b)
+        return [[1.0, 0.0] if "grid" in t.lower() else [0.0, 1.0] for t in texts]
 
 
 def _nodes(structured):
@@ -51,8 +51,8 @@ async def _tool_names(server):
 def _store_with_vectors(tmp_path):
     store = SqliteStore(tmp_path / "kb.sqlite")
     store.upsert_nodes("r", [
-        Node(id="a", repo="r", kind="function", name="CatalogService"),
-        Node(id="b", repo="r", kind="function", name="charge"),
+        Node(id="a", repo="r", kind="function", name="ForecastService"),
+        Node(id="b", repo="r", kind="function", name="load_readings"),
     ])
     vs = VectorStore(tmp_path / "embeddings.sqlite")
     vs.upsert([("a", "r", [1.0, 0.0]), ("b", "r", [0.0, 1.0])])
@@ -63,13 +63,13 @@ def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
     store, vs = _store_with_vectors(tmp_path)
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
-        # "CatalogService" anchors the query in the index; "order" is what steers
-        # the fake embedder onto node a's axis. The query used to be "the order
-        # workflow", which names nothing this store holds -- so it now trips the
+        # "ForecastService" anchors the query in the index; "grid" is what steers
+        # the fake embedder onto node a's axis. The query used to be "the grid
+        # sampling", which names nothing this store holds -- so it now trips the
         # relevance floor, which is the point of the floor rather than a conflict
         # with it.
         res = asyncio.run(_call(server, "semantic_search",
-                                {"query": "the order workflow in CatalogService", "k": 1}))
+                                {"query": "the grid sampling in ForecastService", "k": 1}))
         items = _nodes(res.structured_content)
         assert [n["id"] for n in items] == ["a"]  # nearest to the query vector
         assert items[0]["score"] is not None      # the ranking is readable, not just claimed
@@ -92,7 +92,7 @@ def test_semantic_search_returns_nothing_when_no_query_term_is_indexed(tmp_path)
     """
     store, vs = _store_with_vectors(tmp_path)
     plausible_but_absent = [
-        "PaymentGatewayAdapter",              # reads exactly like an indexed class
+        "SensorGatewayAdapter",               # reads like an indexed class
         "where is the retry scheduler configured",
         "SamlAssertionValidator",
     ]
@@ -115,7 +115,7 @@ def test_semantic_search_reports_the_similarity_it_ranks_by(tmp_path):
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
         res = asyncio.run(_call(server, "semantic_search",
-                                {"query": "CatalogService", "k": 2}))
+                                {"query": "ForecastService", "k": 2}))
         items = _nodes(res.structured_content)
         assert items, "the query names an indexed symbol, so it must return hits"
         assert all(n["score"] is not None for n in items)

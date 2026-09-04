@@ -356,8 +356,8 @@ def _seed_indexed_symbol(store_dir, repo_id="team/api"):
     try:
         check_schema(store)
         store.upsert_nodes(repo_id, [
-            Node(id="team_api_chargeCard", repo=repo_id, kind="function",
-                 name="chargeCard", file="billing.py"),
+            Node(id="team_api_readSensor", repo=repo_id, kind="function",
+                 name="readSensor", file="readings.py"),
         ])
     finally:
         store.close()
@@ -368,7 +368,7 @@ def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, capsys
     monkeypatch.setenv("HOME", str(tmp_path))
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     (docs_dir / "offsite.md").write_text("Lunch is at noon.\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
@@ -382,14 +382,14 @@ def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, capsys
 
     shard = read_shard(tmp_path / "kb", "@ingest:cli")
     runbook = "@ingest:cli:runbook.md"
-    assert any(e.src == "team_api_chargeCard" and e.dst == runbook
+    assert any(e.src == "team_api_readSensor" and e.dst == runbook
                and e.relation == "documented_by" for e in shard.edges)
     # a document mentioning nothing gets no edges at all, not even the repo-level one
     assert not any(e.dst == "@ingest:cli:offsite.md" for e in shard.edges)
 
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
     try:  # live in the index too, not only in the shard
-        out = store.neighbors("team_api_chargeCard", direction="out")
+        out = store.neighbors("team_api_readSensor", direction="out")
         assert [e.dst for e in out] == [runbook]
     finally:
         store.close()
@@ -401,7 +401,7 @@ def test_cmd_ingest_without_a_target_repo_writes_no_edges(tmp_path, monkeypatch)
     monkeypatch.setenv("HOME", str(tmp_path))
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
     _seed_indexed_symbol(tmp_path / "kb")
@@ -418,7 +418,7 @@ def test_cmd_ingest_source_config_can_name_its_target_repo(tmp_path, monkeypatch
     monkeypatch.setenv("HOME", str(tmp_path))
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
         f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
@@ -431,7 +431,7 @@ def test_cmd_ingest_source_config_can_name_its_target_repo(tmp_path, monkeypatch
         main(["kb", "ingest", "--config", str(cfg)])
     assert e.value.code == 0
     shard = read_shard(tmp_path / "kb", "@ingest:docs")
-    assert any(e.src == "team_api_chargeCard" for e in shard.edges)
+    assert any(e.src == "team_api_readSensor" for e in shard.edges)
 
 
 def test_cmd_ingest_unknown_target_repo_warns_and_links_nothing(tmp_path, capsys,
@@ -439,7 +439,7 @@ def test_cmd_ingest_unknown_target_repo_warns_and_links_nothing(tmp_path, capsys
     monkeypatch.setenv("HOME", str(tmp_path))
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
-    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
     _seed_indexed_symbol(tmp_path / "kb")
@@ -557,7 +557,7 @@ def test_api_and_graphql_sources_refuse_file_urls(tmp_path):
 # --- document titles -------------------------------------------------------
 #
 # The path was used for both the id and the title, so a page headed
-# "# Payments runbook" was stored, listed and cited as "runbook.md". The id has
+# "# Readings runbook" was stored, listed and cited as "runbook.md". The id has
 # to stay the path (it is the stable identity a re-ingest matches on); only the
 # title, which is the part a reader sees, comes from the document.
 
@@ -567,8 +567,8 @@ def _one(tmp_path, name: str, text: str):
 
 
 def test_a_markdown_heading_becomes_the_title(tmp_path):
-    doc = _one(tmp_path, "runbook.md", "# Payments runbook\n\nCall verify_signature.\n")
-    assert doc.title == "Payments runbook"
+    doc = _one(tmp_path, "runbook.md", "# Readings runbook\n\nCall verify_signature.\n")
+    assert doc.title == "Readings runbook"
     # The id stays the path: it is what a re-ingest matches on.
     assert doc.id == "runbook.md"
 

@@ -42,10 +42,10 @@ def test_patterns_are_anchored_not_substring():
     run, which is why this is the default rather than an opt-in.
     """
     assert match_repo_filter("acme/api", "api", ["api"]) is True
-    assert match_repo_filter("acme/payments-api", "payments-api", ["api"]) is False
+    assert match_repo_filter("acme/forecast-api", "forecast-api", ["api"]) is False
     assert match_repo_filter("acme/api-gateway", "api-gateway", ["api"]) is False
     # Substring is still available, spelled the way it is spelled everywhere else.
-    assert match_repo_filter("acme/payments-api", "payments-api", ["*api*"]) is True
+    assert match_repo_filter("acme/forecast-api", "forecast-api", ["*api*"]) is True
 
 
 def test_matching_is_case_insensitive():
@@ -59,10 +59,10 @@ def test_each_pattern_is_tried_against_both_the_qualified_and_the_local_path():
 
 
 def test_a_comma_separated_filter_selects_a_repo_matching_any_one_pattern():
-    patterns = repo_filter_patterns({"repo_filter": "team/*,billing/core"})
-    assert patterns == ["team/*", "billing/core"]
+    patterns = repo_filter_patterns({"repo_filter": "team/*,sensors/core"})
+    assert patterns == ["team/*", "sensors/core"]
     assert match_repo_filter("acme/team/api", "team/api", patterns) is True
-    assert match_repo_filter("acme/billing/core", "billing/core", patterns) is True
+    assert match_repo_filter("acme/sensors/core", "sensors/core", patterns) is True
     assert match_repo_filter("acme/other/x", "other/x", patterns) is False
 
 

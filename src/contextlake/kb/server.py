@@ -159,8 +159,8 @@ def apply_tool_limiter(limit: int) -> None:
 # or `query`, so the obvious first call failed with a raw pydantic validation dump
 # -- an error about a schema, addressed to nobody, in place of an instruction.
 _NEEDS_SYMBOL = ("Pass the symbol as `node_id` or `name` -- either a node id "
-                 "(e.g. 'src/svc.py::CatalogService') or a bare symbol name "
-                 "(e.g. 'CatalogService').")
+                 "(e.g. 'src/svc.py::ForecastService') or a bare symbol name "
+                 "(e.g. 'ForecastService').")
 
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
@@ -985,7 +985,7 @@ def build_server(
     def _as_node_id(node_id_or_name: str) -> tuple[str | None, str | None]:
         """Accept a node id OR a bare symbol name, plus the disclosure it needs.
 
-        Agents (and humans) naturally pass a name like ``CatalogService``; resolve
+        Agents (and humans) naturally pass a name like ``ForecastService``; resolve
         it to the first matching node id so callers/impact work without a separate
         find_definition round-trip. An exact node id is returned as-is; an unknown
         string yields None.
@@ -1014,7 +1014,7 @@ def build_server(
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
 
         Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
-        name (e.g. ``CatalogService``), resolved to its first matching definition.
+        name (e.g. ``ForecastService``), resolved to its first matching definition.
         EXTRACTED-first, capped at `limit`.
 
         Each entry carries `call_file`/`call_line` — the line the call is written on,
@@ -1191,7 +1191,7 @@ def build_server(
         """What could break if you change this node — bounded transitive REVERSE reach.
 
         Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
-        name (e.g. ``CatalogService``),
+        name (e.g. ``ForecastService``),
         resolved to its first matching definition. Walks INCOMING edges (who calls /
         depends on / subclasses the node) breadth-first up to `hops`, capped at
         `limit`, over `relations` (default calls + depends_on + inherits).
@@ -1742,9 +1742,9 @@ def build_server(
 
         def _resolve_repo(name):
             """A question names a repo, typically by a short/partial name (the
-            natural way a person refers to one, e.g. "the catalog-api") -- but
+            natural way a person refers to one, e.g. "the forecast-api") -- but
             owners/explain need the full, canonical repo id (host-qualified,
-            e.g. "gitlab.example.com/acme/catalog-api") an exact store lookup
+            e.g. "gitlab.example.com/acme/forecast-api") an exact store lookup
             requires. Falls back to matching the repo's last path segment,
             mirroring how _resolve_id resolves a symbol name to a node id."""
             if not name:

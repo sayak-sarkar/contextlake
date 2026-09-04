@@ -77,7 +77,7 @@ def sound_draft(prompt: str) -> str:
         # path, so completeness is not being asked of this draft, and the historical
         # sentence is what those tests assert on. It carries SOUND_MARKER too so a test can
         # assert "a generated page reached disk" without caring which path produced it.
-        return ("## Overview\n\nCatalogService charges orders, and that is recorded "
+        return ("## Overview\n\nForecastService samples the grid, and that is recorded "
                 "under overview.\n")
     return "\n".join(out).rstrip() + "\n"
 

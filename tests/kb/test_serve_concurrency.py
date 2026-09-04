@@ -388,7 +388,7 @@ def test_ask_can_call_other_tools_while_holding_the_bound(tmp_path):
         done = []
 
         def call():
-            done.append(registered(question="where is CatalogService defined"))
+            done.append(registered(question="where is ForecastService defined"))
 
         worker = threading.Thread(target=call)
         worker.start()
@@ -416,4 +416,3 @@ def test_the_tool_concurrency_env_var_keeps_its_lenient_path(monkeypatch):
 # kb.server there fails with ModuleNotFoundError: mcp on every Python version. A
 # local run with kb installed passes it either way, so CI's core job is the only
 # thing that catches this.
-

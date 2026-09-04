@@ -42,9 +42,22 @@ contextlake doctor                   # check the environment
 counts, the built-in CPU embedder, and the ANN index) and exits non-zero if anything is wrong, so it
 doubles as a CI health gate:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-doctor.png" alt="contextlake doctor output: green ticks for SQLite FTS5, git and glab on PATH, config loads, a reachable store with 4 repos / 29 nodes / 28 edges, the built-in embedder, and the sqlite-vec ANN index, ending in OK." width="820">
-</p>
+```console
+$ contextlake doctor --config /tmp/sample-kb.toml
+contextlake knowledge layer — doctor
+  ✓ SQLite FTS5 available
+  ✓ git on PATH
+  ✓ glab on PATH (for syncing)
+  ✓ config loads — 1 file(s), 0 source(s), 0 rule(s)
+      /tmp/sample-kb.toml
+  ✓ store reachable — /tmp/sample-kb · 7 repos, 44 nodes, 36 edges
+  ✓ shards up to date with the current parser
+  ✓ embeddings — auto · sqlite-vec · 26 vector(s)
+  ✓   built-in embedder model — minishlab/potion-base-8M · downloaded · /tmp/cl-home/.contextlake/models
+  ✓   ANN index (sqlite-vec) — available — native KNN
+  ✓ wiki LLM — not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER); the local runtime (openvino-genai) is not installed either: contextlake doctor --fix llm-local
+OK
+```
 
 The fastest way to build all of it is one command, `contextlake bootstrap` (see
 [Bootstrap and keep it fresh](keeping-it-fresh.md)). The rest of this section is the map of what that pipeline does,

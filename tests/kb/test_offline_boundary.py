@@ -44,7 +44,7 @@ def test_core_commands_run_with_network_blocked(tmp_path, no_network):
     cfg = _cfg(tmp_path)
     # index -> query -> visualize -> lint, all with every outbound connection blocked
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
-    assert _run(["kb", "query", "CatalogService", "--config", str(cfg)]) == 0
+    assert _run(["kb", "query", "ForecastService", "--config", str(cfg)]) == 0
     assert _run(["kb", "graph", "--config", str(cfg), "--overview"]) == 0
     # lint runs offline too; it exits 1 here only because a JSON-fixture repo has no
     # matching git HEAD (a normal "stale" health finding), never a network error.

@@ -76,10 +76,10 @@ def _stub(monkeypatch, lines):
 
 def test_an_image_with_text_is_ingested(tmp_path, monkeypatch):
     _png(tmp_path)
-    _stub(monkeypatch, ["CatalogService charges orders", "TELEMETRY_MAX_BATCH = 512"])
+    _stub(monkeypatch, ["ForecastService samples the grid", "TELEMETRY_MAX_BATCH = 512"])
     docs = list(FilesSource(path=str(tmp_path)).iter_documents())
     assert len(docs) == 1
-    assert "CatalogService charges orders" in docs[0].text
+    assert "ForecastService samples the grid" in docs[0].text
     assert "TELEMETRY_MAX_BATCH = 512" in docs[0].text
 
 

@@ -27,7 +27,7 @@ def _seed(store_dir):
     check_schema(store)
     for rid, path, nodes in [
         ("team/api", "/w/team/api", [
-            Node(id="a", repo="team/api", kind="class", name="CatalogService", lang="python"),
+            Node(id="a", repo="team/api", kind="class", name="ForecastService", lang="python"),
             Node(id="p", repo="(packages)", kind="package", name="requests"),
         ]),
         ("team/ui", "/w/team/ui", [

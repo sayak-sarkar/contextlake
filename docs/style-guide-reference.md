@@ -69,7 +69,7 @@ contextlake kb index --workspace ~/work
 ```
 
 The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
-summary ending in a line like `4 repos, 29 nodes, 28 edges`.
+summary ending in a line like `7 repos, 44 nodes, 36 edges`.
 ````
 
 ### A how-to skeleton

@@ -40,9 +40,10 @@ backoff with a decorator. You'll usually find it wrapped around HTTP calls."
 Plausible, generic, and possibly describing a different codebase entirely. There is nothing in it
 to verify.
 
-**With.** "`retry_with_backoff` is defined in `acme/billing-service`, at
-`src/billing/http.py:214`. Three call sites depend on it: `charge` (`src/billing/charge.py:88`),
-`refund` (`src/billing/refund.py:41`), and `sync_ledger` (`src/billing/ledger.py:302`). Those are
+**With.** "`retry_with_backoff` is defined in `acme/telemetry-service`, at
+`src/telemetry/http.py:214`. Three call sites depend on it: `fetch_batch`
+(`src/telemetry/fetch.py:88`), `replay_window` (`src/telemetry/replay.py:41`), and
+`sync_stations` (`src/telemetry/stations.py:302`). Those are
 `calls` edges, resolved by name and so marked `INFERRED`; the `contains` edge placing the function
 in that file is `EXTRACTED`."
 
@@ -60,7 +61,7 @@ Not prompt engineering, and not the model being careful. A node in the graph car
 `line_start` and `line_end` as first-class fields, and an edge carries `provenance`, which is a
 required `source_file` plus `source_line` plus `verified_at`
 (`Node` and `Provenance` in `src/contextlake/kb/model.py`). An assistant reporting
-`src/billing/http.py:214` is reading a column, not composing a sentence. The model docstring in
+`src/telemetry/http.py:214` is reading a column, not composing a sentence. The model docstring in
 that file states the intent plainly: the anti-hallucination contract is structural, not advisory.
 
 ## What it is: three layers you adopt one at a time

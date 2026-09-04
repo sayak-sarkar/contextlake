@@ -30,8 +30,8 @@ class _PathlessStore:
 
 def _seed(store):
     store.upsert_nodes("team/api", [
-        Node(id="a", repo="team/api", kind="function", name="CatalogService", file="svc.py"),
-        Node(id="b", repo="team/api", kind="function", name="charge"),
+        Node(id="a", repo="team/api", kind="function", name="ForecastService", file="svc.py"),
+        Node(id="b", repo="team/api", kind="function", name="ingest"),
     ])
     store.upsert_edges("team/api", [Edge(
         src="a", dst="b", relation="calls", confidence=Confidence.EXTRACTED,
@@ -78,7 +78,7 @@ def test_lists_expected_tools(server):
 
 
 def test_find_definition_exact(server):
-    res = asyncio.run(_call(server, "find_definition", {"name": "CatalogService"}))
+    res = asyncio.run(_call(server, "find_definition", {"name": "ForecastService"}))
     out = _unwrap(res.structured_content)
     assert any(n["id"] == "a" for n in out["nodes"])
     assert out["total"] == 1 and out["note"] is None
@@ -121,7 +121,7 @@ def test_get_node_round_trip(server):
     res = asyncio.run(_call(server, "get_node", {"node_id": "a"}))
     assert not res.is_error
     node = _unwrap(res.structured_content)
-    assert node["name"] == "CatalogService"
+    assert node["name"] == "ForecastService"
     assert node["repo"] == "team/api"
 
 
@@ -132,9 +132,9 @@ def test_graph_stats(server):
 
 
 def test_search_code(server):
-    res = asyncio.run(_call(server, "search_code", {"query": "catalog"}))
+    res = asyncio.run(_call(server, "search_code", {"query": "forecast"}))
     out = _unwrap(res.structured_content)
-    assert any(n["name"] == "CatalogService" for n in out["nodes"])
+    assert any(n["name"] == "ForecastService" for n in out["nodes"])
     assert out["truncated"] is False and out["note"] is None
 
 
@@ -148,9 +148,9 @@ def test_search_code_negative_limit_is_clamped_not_unbounded(tmp_path):
     the negative limit clamps to 0 before it reaches `store.search`, so this must
     come back with zero hits, not all 20."""
     s = SqliteStore(tmp_path / "k.sqlite")
-    s.upsert_nodes("r", [Node(id=f"n{i}", repo="r", kind="function", name=f"catalog{i}")
+    s.upsert_nodes("r", [Node(id=f"n{i}", repo="r", kind="function", name=f"forecast{i}")
                         for i in range(20)])
-    res = asyncio.run(_call(build_server(s), "search_code", {"query": "catalog", "limit": -1}))
+    res = asyncio.run(_call(build_server(s), "search_code", {"query": "forecast", "limit": -1}))
     out = _unwrap(res.structured_content)
     assert out["nodes"] == []
     # The total is what a capped list owes its caller: the clamp must return nothing
@@ -243,10 +243,10 @@ def _seed_cross_repo(s):
         e("B:man", "pkg:lib", "depends_on", Confidence.EXTRACTED),
         e("B:cli", "ep:/api/x", "calls_http", Confidence.INFERRED)])
     # event flow: repoB publishes a topic repoA consumes -> repoB --flow--> repoA
-    s.upsert_nodes("repoB", [Node(id="topic:orders", repo="(topics)",
-                                  kind="topic", name="orders.created")])
-    s.upsert_edges("repoB", [e("B:cli", "topic:orders", "publishes_event", Confidence.INFERRED)])
-    s.upsert_edges("repoA", [e("A:man", "topic:orders", "consumes_event", Confidence.INFERRED)])
+    s.upsert_nodes("repoB", [Node(id="topic:readings", repo="(topics)",
+                                  kind="topic", name="readings.recorded")])
+    s.upsert_edges("repoB", [e("B:cli", "topic:readings", "publishes_event", Confidence.INFERRED)])
+    s.upsert_edges("repoA", [e("A:man", "topic:readings", "consumes_event", Confidence.INFERRED)])
 
 
 def test_repo_dependencies_and_flow_tools(tmp_path):
@@ -288,12 +288,12 @@ def test_get_readme_reads_local_clone(tmp_path):
 def test_get_repo_brief_from_shard(tmp_path):
     from contextlake.kb.store.shards import GraphShard, write_shard
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
-        Node(id="chg", repo="r", kind="function", name="charge", file="svc.py", lang="python"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService", file="svc.py"),
+        Node(id="ing", repo="r", kind="function", name="ingest", file="svc.py", lang="python"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests")]
     prov = Provenance(source_file="svc.py", source_line=1, verified_at=date(2026, 6, 21))
     edges = [
-        Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
+        Edge(src="svc", dst="ing", relation="calls", confidence=Confidence.EXTRACTED,
              provenance=prov),
         # `packages` is derived from depends_on edges now, not from the package node kind,
         # so that a repo's own published name can no longer appear among its dependencies.
@@ -361,11 +361,12 @@ def test_get_repo_links_grouped(tmp_path):
 
 def test_get_node_surfaces_doc_and_signature(tmp_path):
     s = SqliteStore(tmp_path / "k.sqlite")
-    s.upsert_nodes("r", [Node(id="fn", repo="r", kind="function", name="charge",
-                              attrs={"doc": "Charge a card.", "signature": "(amount, currency)"})])
+    s.upsert_nodes("r", [Node(id="fn", repo="r", kind="function", name="ingest",
+                              attrs={"doc": "Ingest a reading.",
+                                     "signature": "(station_id, reading)"})])
     srv = build_server(s)
     out = _unwrap(asyncio.run(_call(srv, "get_node", {"node_id": "fn"})).structured_content)
-    assert out["doc"] == "Charge a card." and out["signature"] == "(amount, currency)"
+    assert out["doc"] == "Ingest a reading." and out["signature"] == "(station_id, reading)"
     s.close()
 
 
@@ -482,13 +483,13 @@ def test_get_wiki_serves_prose_with_staleness(tmp_path):
     wdir = tmp_path / "wiki"
     wdir.mkdir()
     (wdir / "team__api.md").write_text(
-        "# team/api\n\nThe catalog service.\n\n"
+        "# team/api\n\nThe forecast service.\n\n"
         "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
 
     out = _unwrap(asyncio.run(
         _call(build_server(s), "get_wiki", {"repo": "team/api"})).structured_content)
     assert out["found"] and out["stale"] is False   # wiki commit == current head
-    assert "The catalog service." in out["markdown"]
+    assert "The forecast service." in out["markdown"]
     assert out["wiki_commit"] == "abc123"
 
     # repo moves on -> the wiki is now stale
@@ -566,30 +567,30 @@ def test_get_generated_doc_serves_both_kinds_with_staleness(tmp_path):
 # --- ask router -----------------------------------------------------------
 
 def test_ask_routes_definition(server):
-    res = asyncio.run(_call(server, "ask", {"question": "where is CatalogService defined"}))
+    res = asyncio.run(_call(server, "ask", {"question": "where is ForecastService defined"}))
     out = res.structured_content
     assert out["route"] == "definition"
-    assert out["target"] == "CatalogService"
-    assert [n["name"] for n in out["nodes"]] == ["CatalogService"]
+    assert out["target"] == "ForecastService"
+    assert [n["name"] for n in out["nodes"]] == ["ForecastService"]
 
 
 def test_ask_routes_callers(server):
-    res = asyncio.run(_call(server, "ask", {"question": "who calls charge"}))
+    res = asyncio.run(_call(server, "ask", {"question": "who calls ingest"}))
     out = res.structured_content
     assert out["route"] == "callers"
-    # CatalogService (node a) calls charge (node b)
-    assert "CatalogService" in [n["name"] for n in out["nodes"]]
+    # ForecastService (node a) calls ingest (node b)
+    assert "ForecastService" in [n["name"] for n in out["nodes"]]
 
 
 def test_ask_routes_impact(server):
-    res = asyncio.run(_call(server, "ask", {"question": "what breaks if I change charge"}))
+    res = asyncio.run(_call(server, "ask", {"question": "what breaks if I change ingest"}))
     out = res.structured_content
     assert out["route"] == "impact"
     assert out["blast"] is not None and out["blast"]["total"] >= 1
 
 
 def test_ask_falls_back_to_search(server):
-    res = asyncio.run(_call(server, "ask", {"question": "find the checkout flow logic"}))
+    res = asyncio.run(_call(server, "ask", {"question": "find the station flow logic"}))
     out = res.structured_content
     assert out["route"] == "search"           # no exact route matched
     assert "note" in out and out["note"]
@@ -698,7 +699,7 @@ def test_ask_returns_no_nodes_when_no_query_term_is_indexed(tmp_path):
     """A question made only of terms the graph has never seen must come back
     empty, not with the nearest k.
 
-    The seeded store holds CatalogService and charge. Nothing in it is about
+    The seeded store holds ForecastService and ingest. Nothing in it is about
     SAML, so ranking a top k over it produces citations that all resolve and
     none of which are about the question -- the exact failure this product
     exists to prevent.
@@ -721,7 +722,7 @@ def test_ask_still_answers_when_a_query_term_is_indexed(tmp_path):
     srv, store, vs = _server_with_perfect_embedder(tmp_path)
     try:
         out = asyncio.run(_call(srv, "ask", {
-            "question": "CatalogService charge"})).structured_content
+            "question": "ForecastService ingest"})).structured_content
         assert out["answered"] is True
         assert out["nodes"] != []
     finally:
@@ -735,7 +736,7 @@ def test_ask_names_the_terms_that_matched_nothing(tmp_path):
     srv, store, vs = _server_with_perfect_embedder(tmp_path)
     try:
         out = asyncio.run(_call(srv, "ask", {
-            "question": "CatalogService kerberos delegation"})).structured_content
+            "question": "ForecastService kerberos delegation"})).structured_content
         assert out["answered"] is False
         assert out["nodes"] != []                  # the anchored term still retrieves
         assert "kerberos" in out["note"].lower()
@@ -758,36 +759,36 @@ def test_ask_explain_falls_back_to_repo_brief_when_no_wiki(tmp_path):
     # (repo brief), not a blind semantic search.
     from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
     s = SqliteStore(tmp_path / "kb.sqlite")
-    nodes = [Node(id="svc", repo="acme/orders", kind="class", name="CatalogService",
+    nodes = [Node(id="svc", repo="acme/forecast-api", kind="class", name="ForecastService",
                   file="svc.py")]
-    s.upsert_repo(Repo(id="acme/orders", path=str(tmp_path), head_commit="h1"))
-    write_shard(tmp_path, GraphShard(repo="acme/orders", head_commit="h1",
+    s.upsert_repo(Repo(id="acme/forecast-api", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="acme/forecast-api", head_commit="h1",
                                      nodes=nodes, edges=[]))
-    reindex_shard(s, tmp_path, "acme/orders")
+    reindex_shard(s, tmp_path, "acme/forecast-api")
     res = asyncio.run(_call(build_server(s), "ask",
-                            {"question": "explain the acme/orders repo"}))
+                            {"question": "explain the acme/forecast-api repo"}))
     out = res.structured_content
     assert out["route"] == "explain"
     assert out["brief"] is not None and out["brief"]["found"] is True
-    assert out["brief"]["repo"] == "acme/orders"
+    assert out["brief"]["repo"] == "acme/forecast-api"
     assert out["wiki"] is None
     s.close()
 
 
 def test_ask_explain_resolves_a_short_name_to_the_full_host_qualified_repo_id(tmp_path):
-    """A person naturally says "explain the catalog-api", not the full
-    host-qualified id (`gitlab.example.com/acme/catalog-api`) contextlake
+    """A person naturally says "explain the forecast-api", not the full
+    host-qualified id (`gitlab.example.com/acme/forecast-api`) contextlake
     actually stores repos under -- the router's extract_target only pulls
     that trailing segment out of the question, so explain must resolve it
     back to the real repo id rather than treat it as an unknown repo."""
     from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
     s = SqliteStore(tmp_path / "kb.sqlite")
-    repo_id = "gitlab.example.com/acme/catalog-api"
-    nodes = [Node(id="svc", repo=repo_id, kind="class", name="CatalogService", file="svc.py")]
+    repo_id = "gitlab.example.com/acme/forecast-api"
+    nodes = [Node(id="svc", repo=repo_id, kind="class", name="ForecastService", file="svc.py")]
     s.upsert_repo(Repo(id=repo_id, path=str(tmp_path), head_commit="h1"))
     write_shard(tmp_path, GraphShard(repo=repo_id, head_commit="h1", nodes=nodes, edges=[]))
     reindex_shard(s, tmp_path, repo_id)
-    res = asyncio.run(_call(build_server(s), "ask", {"question": "explain the catalog-api"}))
+    res = asyncio.run(_call(build_server(s), "ask", {"question": "explain the forecast-api"}))
     out = res.structured_content
     assert out["route"] == "explain"
     assert out["brief"] is not None and out["brief"]["found"] is True
@@ -797,12 +798,12 @@ def test_ask_explain_resolves_a_short_name_to_the_full_host_qualified_repo_id(tm
 
 def test_ask_owners_resolves_a_short_repo_name_too(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
-    repo_id = "gitlab.example.com/acme/catalog-api"
+    repo_id = "gitlab.example.com/acme/forecast-api"
     s.upsert_repo(Repo(id=repo_id, path=str(tmp_path), head_commit="h1"))
-    res = asyncio.run(_call(build_server(s), "ask", {"question": "who owns catalog-api"}))
+    res = asyncio.run(_call(build_server(s), "ask", {"question": "who owns forecast-api"}))
     out = res.structured_content
     assert out["route"] == "owners"
-    assert repo_id in out["note"] or "catalog-api" in out["note"]
+    assert repo_id in out["note"] or "forecast-api" in out["note"]
     s.close()
 
 
@@ -856,9 +857,9 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService"),
-        Node(id="c1", repo="r", kind="function", name="checkout"),
-        Node(id="c2", repo="r", kind="function", name="refund"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService"),
+        Node(id="c1", repo="r", kind="function", name="report_reading"),
+        Node(id="c2", repo="r", kind="function", name="backfill"),
     ]
     edges = [
         Edge(src="c1", dst="svc", relation="calls", confidence=Confidence.EXTRACTED,
@@ -871,9 +872,9 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     reindex_shard(s, tmp_path, "r")
     srv = build_server(s)
     # by NAME (what an agent passes) — not by the internal id "svc"
-    callers = asyncio.run(_call(srv, "find_callers", {"node_id": "CatalogService"}))
+    callers = asyncio.run(_call(srv, "find_callers", {"node_id": "ForecastService"}))
     assert callers.structured_content["total"] == 2
-    blast = asyncio.run(_call(srv, "blast_radius", {"node_id": "CatalogService"}))
+    blast = asyncio.run(_call(srv, "blast_radius", {"node_id": "ForecastService"}))
     assert blast.structured_content["total"] == 2
     # an unknown name resolves to an empty (not an error) result
     empty = asyncio.run(_call(srv, "find_callers", {"node_id": "NoSuchSymbol"}))
@@ -934,8 +935,8 @@ def test_graph_walk_tools_accept_the_name_argument_too(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="CatalogService"),
-        Node(id="c1", repo="r", kind="function", name="checkout"),
+        Node(id="svc", repo="r", kind="class", name="ForecastService"),
+        Node(id="c1", repo="r", kind="function", name="report_reading"),
     ]
     edges = [Edge(src="c1", dst="svc", relation="calls",
                   confidence=Confidence.EXTRACTED, provenance=prov)]
@@ -946,9 +947,9 @@ def test_graph_walk_tools_accept_the_name_argument_too(tmp_path):
     try:
         for tool, key in (("find_callers", "total"), ("blast_radius", "total")):
             by_name = asyncio.run(
-                _call(srv, tool, {"name": "CatalogService"})).structured_content
+                _call(srv, tool, {"name": "ForecastService"})).structured_content
             by_id = asyncio.run(
-                _call(srv, tool, {"node_id": "CatalogService"})).structured_content
+                _call(srv, tool, {"node_id": "ForecastService"})).structured_content
             assert by_name[key] == by_id[key] == 1, tool
 
             # neither spelling supplied: an instruction, not a validation dump
@@ -964,15 +965,15 @@ def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
     _seed(s)
     wiki = tmp_path / "wiki"
     (wiki / "_clusters").mkdir(parents=True)
-    (wiki / "_clusters" / "acme__pay.md").write_text(
-        "# acme/pay (cluster)\n\nThe pay cluster talks over HTTP.\n\n---\n"
+    (wiki / "_clusters" / "acme__weather.md").write_text(
+        "# acme/weather (cluster)\n\nThe weather cluster talks over HTTP.\n\n---\n"
         "*cluster-commits: abc123def456.*\n", encoding="utf-8")
     server = build_server(s)
     try:
-        res = asyncio.run(_call(server, "get_wiki", {"repo": "acme/pay"}))
+        res = asyncio.run(_call(server, "get_wiki", {"repo": "acme/weather"}))
         out = res.structured_content
         assert out["found"] is True and out["kind"] == "cluster"
-        assert "pay cluster talks over HTTP" in out["markdown"]
+        assert "weather cluster talks over HTTP" in out["markdown"]
         # an unknown target (no repo page, no cluster page) is not found
         miss = asyncio.run(_call(server, "get_wiki", {"repo": "no/such"}))
         assert miss.structured_content["found"] is False
@@ -1242,7 +1243,7 @@ def test_ask_impact_honours_the_k_it_advertises(tmp_path):
     small-context agent asking for one result could receive a hundred."""
     s = SqliteStore(tmp_path / "kb.sqlite")
     try:
-        s.upsert_nodes("r", [Node(id="hot", repo="r", kind="function", name="charge_order")]
+        s.upsert_nodes("r", [Node(id="hot", repo="r", kind="function", name="ingest_reading")]
                        + [Node(id=f"c{i}", repo="r", kind="function", name=f"c{i}")
                           for i in range(30)])
         prov = Provenance(source_file="f", source_line=1, verified_at=date(2026, 8, 5))
@@ -1251,7 +1252,7 @@ def test_ask_impact_honours_the_k_it_advertises(tmp_path):
                              for i in range(30)])
         srv = build_server(s)
         out = asyncio.run(_call(srv, "ask", {
-            "question": "what breaks if I change charge_order", "k": 3})).structured_content
+            "question": "what breaks if I change ingest_reading", "k": 3})).structured_content
         assert out["route"] == "impact"
         assert len(out["blast"]["hits"]) == 3
         assert out["blast"]["truncated"] is True and out["truncated"] is True
@@ -1259,7 +1260,7 @@ def test_ask_impact_honours_the_k_it_advertises(tmp_path):
         assert "the first 3 node(s)" in out["note"]
 
         wide = asyncio.run(_call(srv, "ask", {
-            "question": "what breaks if I change charge_order", "k": 30})).structured_content
+            "question": "what breaks if I change ingest_reading", "k": 30})).structured_content
         assert len(wide["blast"]["hits"]) == 30 and wide["blast"]["truncated"] is False
     finally:
         s.close()
@@ -1352,30 +1353,30 @@ def test_cluster_wiki_staleness_is_derived_not_asserted(tmp_path):
 
     s = SqliteStore(tmp_path / "kb.sqlite")
     try:
-        s.upsert_repo(Repo(id="acme/pay/api", path="/a", head_commit="h1"))
-        s.upsert_repo(Repo(id="acme/pay/web", path="/b", head_commit="h2"))
-        fresh = cluster_fingerprint({"heads": {"acme/pay/api": "h1", "acme/pay/web": "h2"}})
+        s.upsert_repo(Repo(id="acme/weather/api", path="/a", head_commit="h1"))
+        s.upsert_repo(Repo(id="acme/weather/web", path="/b", head_commit="h2"))
+        fresh = cluster_fingerprint({"heads": {"acme/weather/api": "h1", "acme/weather/web": "h2"}})
         clusters = tmp_path / "wiki" / "_clusters"
         clusters.mkdir(parents=True)
-        page = clusters / "acme__pay.md"
-        page.write_text(f"# acme/pay (cluster)\n\nThey talk over HTTP.\n\n---\n"
+        page = clusters / "acme__weather.md"
+        page.write_text(f"# acme/weather (cluster)\n\nThey talk over HTTP.\n\n---\n"
                         f"*cluster-commits: {fresh}.*\n", encoding="utf-8")
 
         out = asyncio.run(_call(build_server(s), "get_wiki", {
-            "repo": "acme/pay"})).structured_content
+            "repo": "acme/weather"})).structured_content
         assert out["found"] is True and out["kind"] == "cluster"
         assert out["stale"] is False, "members unmoved: the page really is fresh"
 
         # a member's head moves on -> the page describes code that has changed
-        s.upsert_repo(Repo(id="acme/pay/web", path="/b", head_commit="h9"))
+        s.upsert_repo(Repo(id="acme/weather/web", path="/b", head_commit="h9"))
         moved = asyncio.run(_call(build_server(s), "get_wiki", {
-            "repo": "acme/pay"})).structured_content
+            "repo": "acme/weather"})).structured_content
         assert moved["stale"] is True
 
         # no stamp at all -> nothing to compare against, so fail closed
-        page.write_text("# acme/pay (cluster)\n\nNo provenance footer.\n", encoding="utf-8")
+        page.write_text("# acme/weather (cluster)\n\nNo provenance footer.\n", encoding="utf-8")
         unstamped = asyncio.run(_call(build_server(s), "get_wiki", {
-            "repo": "acme/pay"})).structured_content
+            "repo": "acme/weather"})).structured_content
         assert unstamped["found"] is True and unstamped["stale"] is True
     finally:
         s.close()

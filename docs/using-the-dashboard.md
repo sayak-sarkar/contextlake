@@ -111,8 +111,8 @@ Stat cards, a **knowledge-confidence** bar, and your repos grouped by namespace.
 
 ![Fleet overview, cards layout](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png)
 
-Prefer denser views? Switch the layout, **Cards / List / Table** (your choice is
-remembered):
+Prefer denser views? Switch the layout, **Cards / List / Table / Treemap** (your choice
+is remembered):
 
 ![Fleet overview, list layout](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list.png)
 
@@ -163,7 +163,7 @@ into a PR or a design doc.
 showing a truncated whole-repo tangle, and if that module is *itself* still too large,
 it keeps narrowing into that module's own largest child, one level at a time, until the
 view fits (or there's genuinely nowhere further to go). A breadcrumb trail (`Whole repo
-› src › payments › tests`) shows the path taken; click any earlier crumb to widen back
+› src › sensors › tests`) shows the path taken; click any earlier crumb to widen back
 out, or pick a different child from the narrow-further control to explore a sibling.
 
 Live-only (not part of a `--site` export, same as MCP console/Settings below), Mermaid
@@ -198,7 +198,7 @@ hop by hop, with the confidence of each path. A **Call sequence** card renders t
 neighborhood as a Mermaid sequence diagram (`--format sequencediagram`, §5) seeded by
 the symbol you're on.
 
-![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
+![Blast radius for GridSampler: the hops a change would touch, and the Call sequence diagram for the same neighborhood](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
 The breadcrumb keeps going: **repo, symbol, Diagram, Wiki, Links, Ticket**. Each is one click
 to that symbol's repo-scoped architecture graph, its curated wiki, or its connector links in
@@ -271,7 +271,7 @@ write:
   anything.
 
 ```bash
-contextlake kb wiki acme/catalog-api --llm builtin
+contextlake kb wiki acme/forecast-api --llm builtin
 ```
 
 `--llm` turns on the LLM tier inline. Three choices:
@@ -295,7 +295,10 @@ footer names the exact commit and source files.
 A **STALE** badge appears beside the heading whenever the indexed commit has moved since the
 page was written. It is always visible, not hidden behind anything.
 
-![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+The page below is the **model-free** page, written with no `--llm`. Its sections come from the
+graph alone. Add `--llm` and the same tab shows the prose sections listed above.
+
+![The Wiki tab: a generated page for acme/forecast-api, grounded in the repo's own symbols, under a "not ground truth" advisory banner](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 **Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generating-the-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any

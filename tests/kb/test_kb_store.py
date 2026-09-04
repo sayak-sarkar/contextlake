@@ -71,15 +71,15 @@ def test_upsert_nodes_batches_across_chunk_boundary(store):
 
 def test_search_finds_by_prefix(store):
     store.upsert_nodes("team/api", [
-        _node("n1", name="CatalogService"),
-        _node("n2", name="CatalogRepository"),
-        _node("n3", name="PaymentGateway"),
+        _node("n1", name="StationService"),
+        _node("n2", name="StationRegistry"),
+        _node("n3", name="SensorGateway"),
     ])
-    names = {n.name for n in store.search("catalog")}
-    assert names == {"CatalogService", "CatalogRepository"}
+    names = {n.name for n in store.search("station")}
+    assert names == {"StationService", "StationRegistry"}
     # kind + repo filters
-    assert store.search("payment", kind="class") == []
-    assert {n.name for n in store.search("payment", repo="team/api")} == {"PaymentGateway"}
+    assert store.search("sensor", kind="class") == []
+    assert {n.name for n in store.search("sensor", repo="team/api")} == {"SensorGateway"}
 
 
 def test_nodes_by_name_is_exact(store):

@@ -22,34 +22,34 @@ from contextlake.kb.router import (
 
 # (question, expected_route, expected_target-or-None-to-skip-target-check)
 _CASES = [
-    ("where is CatalogService defined", DEFINITION, "CatalogService"),
-    ("definition of charge_order", DEFINITION, "charge_order"),
-    ("who calls charge_order", CALLERS, "charge_order"),
-    ("what calls PaymentClient", CALLERS, "PaymentClient"),
+    ("where is ForecastService defined", DEFINITION, "ForecastService"),
+    ("definition of load_reading", DEFINITION, "load_reading"),
+    ("who calls load_reading", CALLERS, "load_reading"),
+    ("what calls StationClient", CALLERS, "StationClient"),
     ("callers of validate_token", CALLERS, "validate_token"),
-    ("who uses the auth-service", CALLERS, "auth-service"),
+    ("who uses the station-registry", CALLERS, "station-registry"),
     ("what depends on requests", DEPENDENTS, "requests"),
     ("which repos use shared-core", DEPENDENTS, "shared-core"),
-    ("dependents of the payments package", DEPENDENTS, "payments"),
+    ("dependents of the readings package", DEPENDENTS, "readings"),
     ("what extends BaseController", SUBCLASSES, "BaseController"),
     ("subclasses of Embedder", SUBCLASSES, "Embedder"),
     ("who implements Store", SUBCLASSES, "Store"),
-    ("implementations of PaymentGateway", SUBCLASSES, "PaymentGateway"),
+    ("implementations of SensorGateway", SUBCLASSES, "SensorGateway"),
     ("classes that extend BaseView", SUBCLASSES, "BaseView"),
-    ("what breaks if I change CatalogService", IMPACT, "CatalogService"),
-    ("blast radius of charge_order", IMPACT, "charge_order"),
+    ("what breaks if I change ForecastService", IMPACT, "ForecastService"),
+    ("blast radius of load_reading", IMPACT, "load_reading"),
     ("is it safe to remove LegacyAdapter", IMPACT, "LegacyAdapter"),
-    ("impact of modifying the billing module", IMPACT, "billing"),
-    ("who owns the catalog-api", OWNERS, "catalog-api"),
-    ("who knows about payment-gateway", OWNERS, "payment-gateway"),
-    ("who is the SME for billing-api", OWNERS, "billing-api"),
-    ("explain the order-service architecture", EXPLAIN, "order-service"),
-    ("how does CatalogService work", EXPLAIN, "CatalogService"),
-    ("what is the billing-service", EXPLAIN, "billing-service"),
-    ("give me an overview of auth-service", EXPLAIN, "auth-service"),
+    ("impact of modifying the alerts module", IMPACT, "alerts"),
+    ("who owns the forecast-api", OWNERS, "forecast-api"),
+    ("who knows about sensor-gateway", OWNERS, "sensor-gateway"),
+    ("who is the SME for alerts-api", OWNERS, "alerts-api"),
+    ("explain the ingest-service architecture", EXPLAIN, "ingest-service"),
+    ("how does ForecastService work", EXPLAIN, "ForecastService"),
+    ("what is the alerts-service", EXPLAIN, "alerts-service"),
+    ("give me an overview of station-registry", EXPLAIN, "station-registry"),
     ("where do we validate the tenant header", SEARCH, None),
     ("find the code that parses ISO timestamps", SEARCH, None),
-    ("logic for refunding a payment", SEARCH, None),
+    ("logic for backfilling a reading", SEARCH, None),
 ]
 
 
@@ -87,9 +87,9 @@ def test_target_none_when_no_symbol_present():
 _TRAILING_SENTENCE_CASES = [
     ("Where is mark_indexed defined? Give the file and line.", DEFINITION, "mark_indexed"),
     ("Who calls classify? List every caller.", CALLERS, "classify"),
-    ("Where is CatalogService defined? Give the file.", DEFINITION, "CatalogService"),
-    ("What breaks if I change charge_order? Be thorough.", IMPACT, "charge_order"),
-    ("Who owns catalog-api? Name the team.", OWNERS, "catalog-api"),
+    ("Where is ForecastService defined? Give the file.", DEFINITION, "ForecastService"),
+    ("What breaks if I change load_reading? Be thorough.", IMPACT, "load_reading"),
+    ("Who owns forecast-api? Name the team.", OWNERS, "forecast-api"),
 ]
 
 
@@ -101,7 +101,7 @@ def test_a_second_sentence_does_not_steal_the_target(question, route, target):
 
 
 def test_a_trailing_full_stop_is_not_part_of_the_symbol():
-    assert extract_target("who calls charge_order.") == "charge_order"
+    assert extract_target("who calls load_reading.") == "load_reading"
 
 
 def test_a_dotted_path_still_survives_sentence_splitting():
@@ -114,7 +114,7 @@ def test_a_dotted_path_still_survives_sentence_splitting():
 def test_content_terms_keeps_the_words_worth_probing():
     assert content_terms("Which repository implements the SAML SSO flow?") == [
         "SAML", "SSO", "flow"]
-    assert content_terms("Summarise the payments service.") == ["payments"]
+    assert content_terms("Summarise the readings service.") == ["readings"]
 
 
 def test_content_terms_keeps_domain_words_that_stop_would_have_dropped():
@@ -126,5 +126,5 @@ def test_content_terms_keeps_domain_words_that_stop_would_have_dropped():
 
 
 def test_content_terms_deduplicates_case_insensitively_and_keeps_order():
-    assert content_terms("charge_order and Charge_Order") == ["charge_order"]
+    assert content_terms("load_reading and Load_Reading") == ["load_reading"]
     assert content_terms("beta alpha beta") == ["beta", "alpha"]

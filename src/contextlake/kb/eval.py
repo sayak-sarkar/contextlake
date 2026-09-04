@@ -8,12 +8,17 @@ so a retrieval change (embed-bodies, reranking, the future ``ask`` router) is
 Stdlib-only; the golden set is plain JSON:
 
     {"queries": [
-      {"query": "catalog service", "expected": ["demo_app_catalogservice"]},
-      {"query": "charge a card", "expected": ["charge"], "match": "name", "kind": "function"}
+      {"query": "ForecastService", "expected": ["demo_app_forecastservice"]},
+      {"query": "load readings", "expected": ["load_readings"], "match": "name", "kind": "function"}
     ]}
 
 ``match`` is ``"id"`` (default — compare against node ids) or ``"name"`` (compare
 against node names, handy when ids are path-derived and unstable).
+
+Check a new entry scores before you add it. A query that matches nothing still
+counts, so it drags the whole set down without saying why. Measured against
+``examples/fixtures/sample-graph.json``: both queries above score P@k=1.00, while
+``forecast service`` scores 0.00 against the same ``ForecastService`` node.
 """
 
 from __future__ import annotations

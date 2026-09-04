@@ -5,14 +5,67 @@ call, so a caller iterating the result found a string, yielded nothing, and
 reported an empty answer. Live symptom was an Atlassian source reporting
 "0 site(s) reachable" -- which reads as a permissions problem -- when the real
 cause was elsewhere entirely.
+
+The fake below must spell the field the way the SDK spells it. It said `isError`
+while every real `CallToolResult` on mcp>=2.0 carries `is_error`, so these tests
+stayed green against a `_parse_result` that could not raise at all -- three
+passing tests proving nothing about the installed SDK. Hence
+`test_a_rejected_tool_call_raises_against_the_real_sdk` below, which spawns a
+real server and never touches a fake.
 """
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from contextlake.kb.connectors.atlassian import parse_sites
-from contextlake.kb.mcp_client import McpToolError, _parse_result
+from contextlake.kb.mcp_client import McpToolError, _parse_result, call_tool
+from contextlake.kb.resilience import describe, find_in_chain
+
+_MOCK_SERVER = """
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock")
+
+@m.tool()
+def echo(text: str) -> str:
+    return text
+
+m.run()
+"""
+
+
+def _server(tmp_path):
+    p = tmp_path / "mock_server.py"
+    p.write_text(_MOCK_SERVER)
+    return [str(p)]
+
+
+def test_a_rejected_tool_call_raises_against_the_real_sdk(tmp_path):
+    """Against a spawned server and a real CallToolResult, not a fake of one.
+
+    Precondition: a local subprocess, no network. The fakes elsewhere in this
+    file can drift from the SDK's field names without failing; this cannot.
+
+    Caught as ``Exception`` and unwrapped on purpose. A real stdio server
+    delivers the rejection inside a doubly nested ``ExceptionGroup``, so
+    ``pytest.raises(McpToolError)`` fails here even when the raise is working --
+    which is the same trap any caller writing ``isinstance(e, McpToolError)``
+    falls into.
+    """
+    with pytest.raises(Exception) as caught:  # noqa: B017 - the wrapper type is the point
+        call_tool(sys.executable, _server(tmp_path), "gone_tool", {})
+    inner = find_in_chain(caught.value, McpToolError)
+    assert inner is not None, f"no McpToolError inside {caught.value!r}"
+    assert "gone_tool" in inner.detail
+    # The wrapper says nothing; the reason has to survive the unwrapping.
+    assert "TaskGroup" not in describe(caught.value)
+    assert "gone_tool" in describe(caught.value)
+
+    # Positive row: the same server, the same call path, a tool that exists.
+    # Without it "raise on every result" would pass the assertions above.
+    assert call_tool(sys.executable, _server(tmp_path), "echo", {"text": "hi"}) == "hi"
 
 
 class _Content:
@@ -24,7 +77,7 @@ class _Result:
     def __init__(self, *, text: str = "", structured=None, is_error: bool = False):
         self.content = [_Content(text)] if text else []
         self.structured_content = structured
-        self.isError = is_error
+        self.is_error = is_error
 
 
 def test_error_result_raises_and_carries_the_servers_own_text():

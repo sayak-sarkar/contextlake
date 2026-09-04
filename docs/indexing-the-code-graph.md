@@ -11,9 +11,22 @@ documents were written is skipped, so the cost of the per-commit hook stays flat
 switches them off, and `contextlake kb docs` regenerates them unconditionally. See
 [Generate documentation](generating-documentation.md).
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
-</p>
+A run over a seven-repository workspace. The live progress bar is redrawn in place, so what
+stays on screen is one line per repository and the summary:
+
+```console
+$ contextlake kb index --workspace /tmp/work
+Found 7 repositories under /tmp/work (incremental); indexing 7 with 8 worker(s)
+  ✓ acme/alerts: 13 nodes, 13 edges
+  ✓ acme/sensor-ingest: 12 nodes, 12 edges
+  ✓ acme/console-ui: 16 nodes, 15 edges
+  ✓ acme/station-registry: 10 nodes, 11 edges
+  ✓ acme/shared-lib: 11 nodes, 8 edges
+  ✓ acme/forecast-api: 9 nodes, 8 edges
+  ✓ demo/app: 5 nodes, 4 edges
+✓ Workspace indexed: 7 repos, 76 nodes, 71 edges (0 unchanged, 0 failed)
+✓ Documents: 7 written, 0 unchanged, documents failed for 0 repo(s) → /tmp/work-kb/docs
+```
 
 ```mermaid
 flowchart TD

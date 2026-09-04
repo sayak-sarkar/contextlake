@@ -33,8 +33,8 @@ def served(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
-        Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),
-        Node(id="caller", repo="team/app", kind="function", name="checkout", lang="python"),
+        Node(id="svc", repo="team/app", kind="class", name="ForecastService", lang="python"),
+        Node(id="caller", repo="team/app", kind="function", name="run_cycle", lang="python"),
     ]
     edges = [Edge(src="caller", dst="svc", relation="calls",
                   confidence=Confidence.EXTRACTED, provenance=_PROV)]
@@ -68,16 +68,16 @@ def test_health_endpoint(served):
 
 
 def test_search_and_impact_endpoints(served):
-    res = json.loads(_get(served + "/api/search?q=CatalogService"))
-    assert "CatalogService" in {n["name"] for n in res["results"]}
+    res = json.loads(_get(served + "/api/search?q=ForecastService"))
+    assert "ForecastService" in {n["name"] for n in res["results"]}
     imp = json.loads(_get(served + "/api/impact?node=svc"))
-    assert imp["found"] and "checkout" in {h["name"] for h in imp["hits"]}
+    assert imp["found"] and "run_cycle" in {h["name"] for h in imp["hits"]}
 
 
 def test_symbol_sequence_diagram_endpoint(served):
     body = json.loads(_get(served + "/api/impact/diagram?node=caller"))
     assert body["format"] == "sequencediagram"
-    assert "checkout" in body["text"] and "CatalogService" in body["text"]
+    assert "run_cycle" in body["text"] and "ForecastService" in body["text"]
     missing = json.loads(_get(served + "/api/impact/diagram?node=does-not-exist"))
     assert missing["error"] == "node not found"
 
@@ -108,7 +108,7 @@ def test_repo_data_flow_endpoint(served):
 def test_repo_diagram_endpoint(served):
     body = json.loads(_get(served + "/api/repo/team/app/diagram?format=classdiagram"))
     assert body["format"] == "classdiagram"
-    assert "CatalogService" in body["text"]
+    assert "ForecastService" in body["text"]
     # default format (no ?format=) is the generic mermaid relation graph
     default = json.loads(_get(served + "/api/repo/team/app/diagram"))
     assert default["format"] == "mermaid"
@@ -122,7 +122,7 @@ def test_repo_diagram_endpoint_module_param_scopes_the_view(served):
     # not an error -- proves the query param reaches data.diagram() at all.
     scoped = json.loads(_get(served + "/api/repo/team/app/diagram?format=mermaid&module=nope"))
     assert scoped["format"] == "mermaid"
-    assert "CatalogService" not in scoped["text"]
+    assert "ForecastService" not in scoped["text"]
 
 
 def test_repo_wiki_endpoint(served, tmp_path):
@@ -316,13 +316,13 @@ def test_repo_modules_endpoint_within_param_drills_one_level_deeper(tmp_path, mo
 
 
 def test_path_endpoint(served):
-    found = json.loads(_get(served + "/api/path?from=checkout&to=CatalogService"))
+    found = json.loads(_get(served + "/api/path?from=run_cycle&to=ForecastService"))
     assert found["found"] and found["hops"] == 1
-    missing = json.loads(_get(served + "/api/path?from=checkout&to=does-not-exist"))
+    missing = json.loads(_get(served + "/api/path?from=run_cycle&to=does-not-exist"))
     assert missing["found"] is False and missing["which"] == "to"
     # missing `to` -> a real 400, not a 500/traceback
     try:
-        urllib.request.urlopen(served + "/api/path?from=checkout", timeout=5)
+        urllib.request.urlopen(served + "/api/path?from=run_cycle", timeout=5)
         raise AssertionError("expected HTTPError")
     except urllib.error.HTTPError as e:
         assert e.code == 400
@@ -643,7 +643,7 @@ def test_chat_endpoint_works_without_any_flag(served):
     """Chat is not a mutation -- it must work on the plain `served` fixture
     (no --allow-mutations, no --llm-chat, no token) at the same risk level as
     any other read-only /api/* route."""
-    status, body = _post(served + "/api/chat", {"question": "who calls CatalogService?"})
+    status, body = _post(served + "/api/chat", {"question": "who calls ForecastService?"})
     assert status == 200
     assert body["llm_used"] is False
     assert body["structured"]["route"] == "callers"
@@ -671,8 +671,8 @@ def served_with_llm_chat(tmp_path, monkeypatch):
 
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
-        Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),
-        Node(id="caller", repo="team/app", kind="function", name="checkout", lang="python"),
+        Node(id="svc", repo="team/app", kind="class", name="ForecastService", lang="python"),
+        Node(id="caller", repo="team/app", kind="function", name="run_cycle", lang="python"),
     ]
     edges = [Edge(src="caller", dst="svc", relation="calls",
                   confidence=Confidence.EXTRACTED, provenance=_PROV)]
@@ -701,20 +701,21 @@ def served_with_llm_chat(tmp_path, monkeypatch):
 
 def test_chat_requires_token_when_llm_chat_enabled(served_with_llm_chat):
     base, _token = served_with_llm_chat
-    status, _body = _post(base + "/api/chat", {"question": "who calls CatalogService?"})
+    status, _body = _post(base + "/api/chat", {"question": "who calls ForecastService?"})
     assert status == 403
 
 
 def test_chat_rejects_wrong_token_when_llm_chat_enabled(served_with_llm_chat):
     base, _token = served_with_llm_chat
-    status, _body = _post(base + "/api/chat", {"question": "who calls CatalogService?"},
+    status, _body = _post(base + "/api/chat", {"question": "who calls ForecastService?"},
                           token="not-the-real-token")
     assert status == 403
 
 
 def test_chat_with_correct_token_returns_llm_synthesized_answer(served_with_llm_chat):
     base, token = served_with_llm_chat
-    status, body = _post(base + "/api/chat", {"question": "who calls CatalogService?"}, token=token)
+    status, body = _post(base + "/api/chat",
+                         {"question": "who calls ForecastService?"}, token=token)
     assert status == 200
     assert body["llm_used"] is True
     assert body["answer"] == "STUBBED ANSWER"
@@ -771,7 +772,7 @@ def test_get_rejects_mismatched_host_header(served):
     page on an attacker domain that re-resolved to 127.0.0.1 could read the whole
     graph cross-origin (CORS doesn't help -- rebinding makes the browser believe
     it is same-origin). Every GET route is pinned now, assets included."""
-    for route in ("/api/overview", "/api/search?q=CatalogService", "/graph/overview", "/"):
+    for route in ("/api/overview", "/api/search?q=ForecastService", "/graph/overview", "/"):
         status, _body = _get_with_host(served + route, host="evil.example.com")
         assert status == 403, route
         assert _get_with_host(served + route)[0] == 200, route
@@ -801,7 +802,7 @@ def test_non_numeric_query_param_is_400_json_not_a_dropped_connection(served):
 def test_out_of_range_query_params_clamp_rather_than_error(served):
     status, body = _get_status(served + "/api/impact?node=svc&hops=99999&limit=99999")
     assert status == 200 and body["found"] is True
-    assert _get_status(served + "/api/search?q=CatalogService&limit=-5")[0] == 200
+    assert _get_status(served + "/api/search?q=ForecastService&limit=-5")[0] == 200
     assert _get_status(served + "/api/path?from=caller&to=svc&max_hops=99999")[0] == 200
 
 

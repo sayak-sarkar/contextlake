@@ -445,3 +445,308 @@ def test_the_parser_version_carve_out_matches_what_doctor_actually_does():
         f"{reported_stale}")
     section = _text("README.md").split("## Versioning and compatibility", 1)[1]
     assert "advisory" in section, "the README no longer states the carve-out this checks"
+
+
+# --- the demo fleet -----------------------------------------------------------------
+#
+# A repo id in a doc command is a claim like any count: "type this and it works". Five
+# `kb graph --repo acme/app` commands and one `--name process_reading` shipped against a
+# bundled fleet that holds neither, so every one of them failed for a reader who typed it.
+# The CLI epilog had already moved to `demo/app`; the page had not, so the docs contradicted
+# the CLI.
+#
+# The authority is the SHIPPED FIXTURE, read through the same `_fixture_path()` the dashboard
+# uses. Reading it any other way means a fixture that moves blinds this gate instead of
+# failing it.
+
+
+def _fleet():
+    """`(repo ids, symbol names, (repos, nodes, edges))` from the bundled demo fixture."""
+    import json
+
+    from contextlake.kb.dashboard.site import _fixture_path
+
+    raw = json.loads(_fixture_path().read_text(encoding="utf-8"))
+    shards = raw["shards"] if isinstance(raw, dict) and "shards" in raw else [raw]
+    repos = {s["repo"] for s in shards}
+    names = {n["name"] for s in shards for n in s["nodes"]}
+    triple = (len(shards), sum(len(s["nodes"]) for s in shards),
+              sum(len(s["edges"]) for s in shards))
+    return repos, names, triple
+
+
+# Fences that render a picture rather than something a reader runs.
+_DIAGRAM_FENCES = {"mermaid"}
+
+
+def _unwrap(snippet: str) -> str:
+    """One command on one logical line: shell continuations joined, whitespace collapsed."""
+    return re.sub(r"\s+", " ", re.sub(r"\\\s*\n", " ", snippet)).strip()
+
+
+def _commands(text: str) -> list[tuple[str, int]]:
+    """Every runnable-looking line in a fenced block or inline-code span, with its offset.
+
+    Unwrapping is what makes this readable at all. A markdown command wraps mid-flag:
+    `--repo` ends a line and its value starts the next, inside ONE inline-code span. A
+    line-anchored search over `visualizing-the-graph.md` found `acme/app` on three of the
+    five lines carrying it and found no `process_reading` at all. Both instances that hid
+    from two earlier sweeps were wrapped ones. So fences and code spans are extracted and
+    unwrapped first, rather than the file being read a line at a time.
+    """
+    out: list[tuple[str, int]] = []
+    prose: list[tuple[str, int]] = []
+    pos = 0
+    for m in re.finditer(r"```([^\n]*)\n(.*?)```", text, re.S):
+        prose.append((text[pos:m.start()], pos))
+        pos = m.end()
+        # A ```mermaid fence is a DIAGRAM. Its node labels quote flag names
+        # (`--node / --name / --search`) beside the words `contextlake kb graph`, which
+        # reads as a command with `/` for a value. Skipping the fence keeps the value
+        # check strict instead of loosening it to tolerate a non-command.
+        if m.group(1).strip().lower() in _DIAGRAM_FENCES:
+            continue
+        body = re.sub(r"\\\s*\n", " ", m.group(2))
+        # Per LINE, not per block: a block holding both `kb index --repo team/widgets`
+        # (an id being assigned) and a `kb graph` line would otherwise read as one command
+        # and hand the assigned id to the reading-verb check.
+        off = m.start(2)
+        for line in body.split("\n"):
+            out.append((_unwrap(line), off))
+            off += len(line) + 1
+    prose.append((text[pos:], pos))
+    for chunk, base in prose:
+        for m in re.finditer(r"`([^`]+)`", chunk):
+            out.append((_unwrap(m.group(1)), base + m.start(1)))
+    return [(c, o) for c, o in out if c]
+
+
+# Only the verbs whose `--repo` is a FILTER over ids already in the store. `kb index
+# --source ./widgets --repo team/widgets` ASSIGNS an id (the repo does not exist yet, and
+# must not), and `gh attestation verify --repo sayak-sarkar/contextlake` is not contextlake
+# at all. A guard that could not tell those apart would demand the fleet contain them.
+_READING_VERB = re.compile(r"contextlake kb (?:graph|query|ask)\b")
+# `--repo REPO`, `--repo R`, `--repo <repo>`: a placeholder standing for a value the reader
+# supplies, not an id being promised.
+_PLACEHOLDER = re.compile(r"^([A-Z_]+|.*<.*)$")
+
+
+def _seeds(pattern: str) -> list[tuple[str, str, int]]:
+    """`(file, value, line)` for a flag on every reading command, across every doc file."""
+    found: list[tuple[str, str, int]] = []
+    for rel in _doc_files():
+        text = _text(rel)
+        for cmd, off in _commands(text):
+            if not _READING_VERB.search(cmd):
+                continue
+            for m in re.finditer(pattern, cmd):
+                value = m.group(1)
+                if _PLACEHOLDER.match(value):
+                    continue
+                found.append((rel, value, text[:off].count("\n") + 1))
+    return found
+
+
+def test_every_repo_a_docs_command_filters_on_is_in_the_demo_fleet():
+    """`kb graph --repo <id>` names an id the reader must already have.
+
+    Break-tested in both directions, and on a WRAPPED instance specifically: restoring
+    `--repo\\n  acme/app` (the value on the following line) has to go red, or the gate has
+    the same blind spot as the sweeps that let this ship.
+    """
+    repos, _names, _triple = _fleet()
+    seeds = _seeds(r"--repo[= ]([^\s]+)")
+    assert seeds, "no doc command filters by repo any more; this gate has gone blind"
+    wrong = sorted({(rel, value, line) for rel, value, line in seeds if value not in repos})
+    assert not wrong, (
+        f"doc commands name repos the bundled fleet does not hold (file, id, line): {wrong}. "
+        f"The fixture ships {sorted(repos)}. Every one of these fails for a reader who types "
+        f"it. Update the docs, not this test.")
+
+
+def test_every_symbol_a_docs_command_seeds_from_is_in_the_demo_fleet():
+    """`kb graph --name <symbol>` is the same promise one level down.
+
+    Its own test rather than a branch of the one above: `--name process_reading` was wrong
+    while every `--repo` on the page was right, so a single combined check would have been
+    satisfied by fixing only the repos.
+    """
+    _repos, names, _triple = _fleet()
+    seeds = _seeds(r"--name[= ]([^\s]+)")
+    assert seeds, "no doc command seeds by name any more; this gate has gone blind"
+    wrong = sorted({(rel, value, line) for rel, value, line in seeds if value not in names})
+    assert not wrong, (
+        f"doc commands seed from symbols the bundled fleet does not hold (file, name, line): "
+        f"{wrong}. `kb graph --name` on any of these exits with 'Nothing named ... is in the "
+        f"graph'.")
+
+
+# --- the fleet triple ---------------------------------------------------------------
+#
+# `4 repos, 29 nodes, 28 edges` sat in two style guides as a WRITING PATTERN, teaching the
+# old fleet's numbers to whoever writes the next page, and the built site and its search
+# index carried them. A word-shaped sweep cannot see a count, which is why two rounds of
+# name sweeps left them standing.
+
+_TRIPLE = re.compile(r"(\d+) repos?, (\d+) nodes?, (\d+) edges?")
+# A `kb index --workspace` transcript counts REAL SOURCE TREES, not the fixture, so its
+# triple has a different authority and gets its own test below. Excluding it here rather
+# than listing the file keeps the split by authority instead of by filename.
+_WORKSPACE_RUN = re.compile(r"```.*?\n(.*?kb index --workspace.*?)```", re.S)
+
+
+def test_every_stated_fleet_triple_matches_the_bundled_fixture():
+    fleet_repos, _names, triple = _fleet()
+    assert len(fleet_repos) == triple[0]
+    found: list[tuple[str, tuple[int, int, int]]] = []
+    for rel in _doc_files():
+        text = _text(rel)
+        spans = [m.span(1) for m in _WORKSPACE_RUN.finditer(text)]
+        for m in _TRIPLE.finditer(text):
+            if any(lo <= m.start() < hi for lo, hi in spans):
+                continue
+            found.append((f"{rel}:{text[:m.start()].count(chr(10)) + 1}",
+                          tuple(int(g) for g in m.groups())))
+    assert found, "no page states the fleet triple any more; this gate has gone blind"
+    wrong = sorted({(where, got) for where, got in found if got != triple})
+    assert not wrong, (
+        f"stale fleet triples (where, stated): {wrong}; the bundled fixture holds {triple}")
+
+
+def test_a_workspace_index_transcript_sums_its_own_per_repo_lines():
+    """`Workspace indexed: N repos, X nodes, Y edges` is arithmetic, so it is checkable.
+
+    `index.py` builds `ws_nodes`/`ws_edges` by summing `store.repo_counts(repo_id)` over the
+    repos the run discovered, and prints those same per-repo counts on the lines above. So a
+    transcript whose summary does not equal its own lines is a transcript no run could have
+    produced. One shipped saying 66 over lines adding to 76.
+
+    This gate is why fixing that number is derivation rather than invention: the fixture
+    cannot supply it (these are real source trees), but the code's own arithmetic can.
+    """
+    per_repo = re.compile(r"^\s*\S*\s*[\w./-]+: (\d+) nodes?, (\d+) edges?\s*$", re.M)
+    summary = re.compile(r"Workspace indexed: (\d+) repos?, (\d+) nodes?, (\d+) edges?")
+    checked = 0
+    wrong: list[str] = []
+    for rel in _doc_files():
+        text = _text(rel)
+        for block in _WORKSPACE_RUN.finditer(text):
+            body = block.group(1)
+            s = summary.search(body)
+            if not s:
+                continue
+            lines = per_repo.findall(body)
+            if not lines:
+                continue
+            checked += 1
+            repos, nodes, edges = (int(g) for g in s.groups())
+            want = (len(lines), sum(int(n) for n, _ in lines), sum(int(e) for _, e in lines))
+            if (repos, nodes, edges) != want:
+                wrong.append(f"{rel}: summary says {(repos, nodes, edges)}, its own "
+                             f"{len(lines)} per-repo lines add to {want}")
+    assert checked, (
+        "no `kb index --workspace` transcript is checkable any more; the console block was "
+        "reworded and this gate has gone blind")
+    assert not wrong, (
+        "a workspace-index transcript contradicts itself, so no real run produced it: "
+        + "; ".join(wrong))
+
+
+# --- the worked eval example -------------------------------------------------------
+#
+# `searching-semantically.md` shows a golden-query file a reader copies. It shipped with a
+# second query expecting a node the shipped fixture does not hold, so the example scored
+# P@k=0.50 against the very fixture it is written for. Measured: 0.50 before, 1.00 after.
+#
+# The other gates here read a number out of prose and compare it. This one RUNS the example,
+# because the claim it makes is not a number at all -- it is "copy this and it works", and
+# only running it can check that.
+
+
+def test_the_worked_golden_query_example_scores_on_the_shipped_fixture():
+    """Every query in the documented golden set must find what it says it will.
+
+    A worked example that half fails teaches the reader that a red row is normal, which is
+    the opposite of what `kb eval` is for. Break-tested by restoring the shipped pair
+    (`{"query": "ingest", "expected": ["ingest"], "match": "name", "kind": "function"}`):
+    it goes red on P@k, not on a parse error.
+
+    Runs against `examples/fixtures/sample-graph.json` through the real FTS retriever, so it
+    cannot pass by agreeing with a number written next to it.
+    """
+    import json
+    import tempfile
+
+    from contextlake.kb.eval import evaluate, load_golden, make_fts_retriever
+    from contextlake.kb.model import Repo
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    page = _text("docs/searching-semantically.md")
+    blocks = [b for b in re.findall(r"```json\n(.*?)```", page, re.S) if '"queries"' in b]
+    assert len(blocks) == 1, (
+        f"expected one golden-query example on the page, found {len(blocks)}; the section "
+        f"was restructured and this gate no longer knows which block to run")
+    golden_doc = json.loads(blocks[0])
+    assert golden_doc["queries"], "the documented golden set is empty"
+
+    fixture = json.loads(
+        (REPO_ROOT / "examples" / "fixtures" / "sample-graph.json").read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory() as d:
+        tmp = Path(d)
+        (tmp / "golden.json").write_text(blocks[0], encoding="utf-8")
+        store = SqliteStore(tmp / "index.sqlite")
+        try:
+            shard = GraphShard.model_validate(fixture)
+            store.upsert_repo(Repo(id=shard.repo, path=str(tmp), head_commit=shard.head_commit))
+            write_shard(tmp, shard)
+            reindex_shard(store, tmp, shard.repo)
+            report = evaluate(store, load_golden(tmp / "golden.json"), k=10,
+                              retriever=make_fts_retriever(store))
+        finally:
+            store.close()
+
+    missed = [row["query"] for row in report["per_query"] if row["precision@k"] == 0.0]
+    assert not missed, (
+        f"the documented golden-query example does not score against the fixture it is "
+        f"written for: {missed} find nothing, so the page's P@k reads "
+        f"{report['precision@k']:.2f}. A reader who copies it sees a failing row and "
+        f"learns that a red row is normal.")
+    assert report["precision@k"] == 1.0, (
+        f"the example scores P@k={report['precision@k']:.2f}; every documented query "
+        f"should find what it claims")
+
+
+# A repo id does not always arrive on a flag. `kb docs <id>` and `kb wiki <id>` take it
+# POSITIONALLY, and the flag-shaped check above cannot see that form at all -- neither
+# could the grep that found the five `--repo acme/app` lines. `generating-documentation.md`
+# was showing `kb docs team/api team/worker`, which answers "No indexed repo matches
+# team/api, team/worker" against the bundled fleet.
+_POSITIONAL_IDS = re.compile(
+    r"contextlake kb (?:docs|wiki)((?:\s+[a-z0-9_.-]+/[a-z0-9_./-]+)+)")
+
+
+def test_every_repo_a_docs_command_names_positionally_is_in_the_demo_fleet():
+    """The same promise as the `--repo` gate, in the shape that has no flag to match on.
+
+    Its own test rather than a branch of the flag one, for the reason the `--name` split
+    exists: a combined check is satisfied by fixing whichever half happens to be wrong.
+
+    `--namespace acme/stations` is not caught here and should not be: the scan stops at the
+    first flag, and a namespace is a repo-id PREFIX over the reader's own store rather than
+    an id that has to resolve.
+    """
+    repos, _names, _triple = _fleet()
+    found: list[tuple[str, str, int]] = []
+    for rel in _doc_files():
+        text = _text(rel)
+        for cmd, off in _commands(text):
+            for m in _POSITIONAL_IDS.finditer(cmd):
+                line = text[:off].count("\n") + 1
+                found += [(rel, v, line) for v in m.group(1).split()]
+    assert found, "no doc command names a repo positionally any more; this gate has gone blind"
+    wrong = sorted({(rel, value, line) for rel, value, line in found if value not in repos})
+    assert not wrong, (
+        f"doc commands name repos positionally that the bundled fleet does not hold "
+        f"(file, id, line): {wrong}. `kb docs` on any of these answers 'No indexed repo "
+        f"matches ...'. The fixture ships {sorted(repos)}.")

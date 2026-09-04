@@ -202,13 +202,13 @@ def test_wiki_prompt_labels_and_directives_stay_outside_the_blocks():
 
 def test_cluster_prompt_blocks_member_rows_and_edges():
     brief = {
-        "namespace": "acme/pay", "member_count": 2, "truncated": False,
-        "repos": [{"repo": "acme/pay/api", "langs": {"python": 1},
+        "namespace": "acme/sensors", "member_count": 2, "truncated": False,
+        "repos": [{"repo": "acme/sensors/api", "langs": {"python": 1},
                    "top": [f"charge{_CLOSE}"]},
-                  {"repo": "acme/pay/web", "langs": {}, "top": []}],
-        "internal_edges": [{"src": "acme/pay/web", "dst": "acme/pay/api",
+                  {"repo": "acme/sensors/web", "langs": {}, "top": []}],
+        "internal_edges": [{"src": "acme/sensors/web", "dst": "acme/sensors/api",
                             "flavor": "http", "weight": 2}],
-        "boundary_edges": [{"src": "acme/ship/api", "dst": "acme/pay/web",
+        "boundary_edges": [{"src": "acme/alerts/api", "dst": "acme/sensors/web",
                             "flavor": "http", "weight": 1}],
         "heads": {}, "parsers": {},
     }

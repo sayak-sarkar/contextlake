@@ -116,6 +116,43 @@ def test_verify_true_via_mock(tmp_path):
     assert c.verify("ABC123") is True
 
 
+# A server whose only tool refuses the call. Used to prove a refusal is not read
+# as a pass -- see the test below.
+_REFUSING_SERVER = """
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock-figma")
+
+@m.tool()
+def get_metadata(fileKey: str) -> dict:
+    raise ValueError("file not found")
+
+m.run()
+"""
+
+
+def _refusing_server(tmp_path):
+    p = tmp_path / "mock_figma_refusing.py"
+    p.write_text(_REFUSING_SERVER)
+    return [str(p)]
+
+
+def test_a_refused_call_is_not_reported_as_reachable(tmp_path):
+    """`verify` returns ``bool(result)``, so a refusal that came back as *text*
+    read as True: `kb source test` printed reachable and exited 0 for a file the
+    server had just refused. It reached this connector because ``_parse_result``
+    checked ``isError`` while mcp>=2.0 spells the field ``is_error``.
+
+    Precondition: a spawned local subprocess, no network.
+    """
+    c = FigmaConnector("f", mcp_command="placeholder")
+    c._spawn = lambda: (sys.executable, _refusing_server(tmp_path), None)
+    assert c.verify("ABC123") is False
+    # Positive row, against the server that answers: the fix is not "refuse
+    # everything", which is the shape that passes a rejection-only test suite.
+    c._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert c.verify("ABC123") is True
+
+
 def test_fetch_metadata_none_without_mcp():
     assert FigmaConnector("f").fetch_metadata("ABC123") is None
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 from contextlake.kb.docs.fleet import FleetDep, render_fleet_design
 from contextlake.kb.docs.stamp import FLEET_REPO, UNKNOWN, fingerprint, read_stamp
 
-R1, R2, R3 = "acme/orders", "acme/billing", "acme/web"
+R1, R2, R3 = "acme/stations", "acme/readings", "acme/console"
 
 
 def _dep(pkg, repo, manifest="pyproject.toml", constraint="", group="runtime"):

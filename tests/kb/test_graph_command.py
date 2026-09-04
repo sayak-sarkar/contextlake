@@ -1037,14 +1037,14 @@ def test_build_site_emits_wiki_page_with_staleness(store, tmp_path):
     wiki_dir = store.path.parent / "wiki"
     wiki_dir.mkdir(parents=True, exist_ok=True)
     (wiki_dir / "team__api.md").write_text(
-        "# team/api\n\nThe catalog service.\n\n"
+        "# team/api\n\nThe forecast service.\n\n"
         "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
     out = tmp_path / "site"
     viz.build_site(store, out)
     wiki_html = out / "wiki-team__api.html"
     assert wiki_html.is_file()
     body = wiki_html.read_text(encoding="utf-8")
-    assert "The catalog service." in body and "fresh" in body   # commit matches -> fresh
+    assert "The forecast service." in body and "fresh" in body   # commit matches -> fresh
     assert 'href="repo-team__api.html"' in body               # links back to the graph
     assert 'href="wiki-team__api.html"' in (out / "index.html").read_text(encoding="utf-8")
 
@@ -1216,22 +1216,22 @@ def test_cli_graph_formats_and_seeds(tmp_path, capsys):
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    # --name seed -> mermaid to stdout (charge is reachable from CatalogService)
-    assert _run(["kb", "graph", "--config", str(cfg), "--name", "CatalogService", "--kind", "class",
-                 "--hops", "1", "--format", "mermaid"]) == 0
+    # --name seed -> mermaid to stdout (load_readings is reachable from ForecastService)
+    assert _run(["kb", "graph", "--config", str(cfg), "--name", "ForecastService",
+                 "--kind", "class", "--hops", "1", "--format", "mermaid"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("graph LR") and "CatalogService" in out
+    assert out.startswith("graph LR") and "ForecastService" in out
 
     # --node seed -> json to a file
     target = tmp_path / "g.json"
-    assert _run(["kb", "graph", "--config", str(cfg), "--node", "demo_app_catalogservice",
+    assert _run(["kb", "graph", "--config", str(cfg), "--node", "demo_app_forecastservice",
                  "--format", "json", "--output", str(target)]) == 0
     d = json.loads(target.read_text())
-    assert any(n["id"] == "demo_app_catalogservice" for n in d["nodes"])
+    assert any(n["id"] == "demo_app_forecastservice" for n in d["nodes"])
 
     # default html lands in --output
     html = tmp_path / "g.html"
-    assert _run(["kb", "graph", "--config", str(cfg), "--search", "Order",
+    assert _run(["kb", "graph", "--config", str(cfg), "--search", "Forecast",
                  "--output", str(html)]) == 0
     assert html.exists() and _CDN_URL not in html.read_text()
 
@@ -1313,7 +1313,7 @@ def _class_payload():
     prov = Provenance(source_file="m.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [
         Node(id="base", repo="r", kind="class", name="BaseController"),
-        Node(id="sub", repo="r", kind="class", name="OrdersController"),
+        Node(id="sub", repo="r", kind="class", name="StationController"),
         Node(id="iface", repo="r", kind="interface", name="Named"),
         Node(id="m1", repo="r", kind="method", name="handle",
              attrs={"signature": "(self, req)"}),
@@ -1444,31 +1444,31 @@ def _state_edge(src, dst, method, line=1):
 
 
 def test_state_diagram_single_entity_renders_flat():
-    created, paid, shipped = (_state_node(n, "Order") for n in ("Created", "Paid", "Shipped"))
-    edges = [_state_edge(created.id, paid.id, "pay"), _state_edge(paid.id, shipped.id, "ship")]
-    payload = viz.to_payload([created, paid, shipped], edges)
+    received, valid, stored = (_state_node(n, "Reading") for n in ("Received", "Valid", "Stored"))
+    edges = [_state_edge(received.id, valid.id, "check"), _state_edge(valid.id, stored.id, "store")]
+    payload = viz.to_payload([received, valid, stored], edges)
     out = viz.to_state_diagram(payload)
     assert out.startswith("stateDiagram-v2")
-    assert "Created --> Paid : pay" in out
-    assert "Paid --> Shipped : ship" in out
-    assert "state Order {" not in out   # single entity -> flat, no composite wrapper
+    assert "Received --> Valid : check" in out
+    assert "Valid --> Stored : store" in out
+    assert "state Reading {" not in out  # single entity -> flat, no composite wrapper
 
 
 def test_state_diagram_multiple_entities_get_composite_blocks():
-    o_created, o_paid = _state_node("Created", "Order"), _state_node("Paid", "Order")
-    i_draft, i_issued = _state_node("Draft", "Invoice"), _state_node("Issued", "Invoice")
-    edges = [_state_edge(o_created.id, o_paid.id, "pay"),
-             _state_edge(i_draft.id, i_issued.id, "issue")]
-    payload = viz.to_payload([o_created, o_paid, i_draft, i_issued], edges)
+    r_recv, r_valid = _state_node("Received", "Reading"), _state_node("Valid", "Reading")
+    a_raised, a_cleared = _state_node("Raised", "Alert"), _state_node("Cleared", "Alert")
+    edges = [_state_edge(r_recv.id, r_valid.id, "check"),
+             _state_edge(a_raised.id, a_cleared.id, "clear")]
+    payload = viz.to_payload([r_recv, r_valid, a_raised, a_cleared], edges)
     out = viz.to_state_diagram(payload)
-    assert "state Order {" in out and "state Invoice {" in out
-    assert "Created --> Paid : pay" in out
-    assert "Draft --> Issued : issue" in out
+    assert "state Reading {" in out and "state Alert {" in out
+    assert "Received --> Valid : check" in out
+    assert "Raised --> Cleared : clear" in out
 
 
 def test_state_diagram_unreached_value_still_appears_unconnected():
-    known, reached = _state_node("Known", "Order"), _state_node("Reached", "Order")
-    orphan = _state_node("Orphan", "Order")  # a value the code never transitions to/from
+    known, reached = _state_node("Known", "Reading"), _state_node("Reached", "Reading")
+    orphan = _state_node("Orphan", "Reading")  # a value the code never transitions to/from
     payload = viz.to_payload([known, reached, orphan], [_state_edge(known.id, reached.id, "go")])
     out = viz.to_state_diagram(payload)
     assert "Orphan" in out
