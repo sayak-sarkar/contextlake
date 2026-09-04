@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-request identity on the network MCP transports, and the frame that will carry access
+  control.** Groundwork only: nothing is enforced yet and nothing changes for a local run.
+
+  `build_http_app` now resolves a `Principal` per request and the tool wrapper reads it, so
+  two callers holding two different credentials are two different identities inside a tool
+  body rather than one anonymous caller. Until now there was no place to put that fact, which
+  is why access control, rate limiting and usage accounting could not be built: each would
+  have had to invent its own notion of who was asking.
+
+  The wrapper's whole `try`/`finally`/`except` structure lands here, once, deliberately. Four
+  planned stories each need to add a line to that twelve-line function, and when they were
+  specified separately their orderings contradicted each other. Landing the frame first turns
+  each of them into an insertion at a named anchor instead of a restructure, so whoever lands
+  second does not have to unpick whoever landed first.
+
+  It fails closed. Whether identity is required is a build-time decision made by
+  `build_http_app`, never inferred from whether an identity happens to be present. A stdio run
+  does not read the value at all, and on a network run a missing identity refuses the call
+  rather than answering it unscoped. Those two states used to be the same value, which meant a
+  server whose identity plumbing broke would have answered every request as if unauthenticated
+  access were intended, with every test still passing.
+
+  **What it does not do.** It detects a MISSING identity. It cannot tell a WRONG one, and on
+  the SSE transport the plausible failure is substitution rather than absence. Closing that
+  needs a per-connection token compared at the boundary, which is specified and not built.
+  `ask` calls its sibling tools directly, so those legs never cross the wrapper and an access
+  check placed there will not cover them; the anchor comment says so. And the run outcome the
+  wrapper records has no reader until the usage recorder lands.
+
+  **stdio, the default, is unchanged**: same tool output, no identity lookup, no new file,
+  config field or dependency for anyone who never serves over the network.
+
 - **`contextlake kb source wizard`.** It lists every configured source with a reachability
   mark, then offers to add another and loops until you answer no (pressing enter is no). The
   survey reads the same `verify_source` path `kb doctor` and `kb source test` use, so
