@@ -354,3 +354,85 @@ def test_run_enrich_repo_reports_zero_edges_for_documents_that_name_no_symbol(
         assert counts.edges == 0
     finally:
         store.close()
+
+
+# --- build_terms: the cap must be spent on symbols, not on files -------------
+
+def _seed_cap_starved_shard(store_dir, *, embeddable_pairs: int = 6):
+    """A shard shaped like a real repo whose graph is dominated by non-symbols.
+
+    18 high-degree `file`/`config_key` nodes sit in front of ``embeddable_pairs``
+    * 2 low-degree `function`/`class` nodes. 30 nodes at the default, so
+    `_grounding_cap` is 15 and `top_symbols` is filled by the non-embeddable
+    kinds plus one floor slot per missing embeddable kind. Returns the distinct
+    embeddable names seeded.
+    """
+    nodes, edges = [], []
+    for i in range(9):
+        nodes.append(Node(id=f"f{i}", repo=REPO, kind="file", name=f"src/mod{i}.py",
+                          file=f"src/mod{i}.py"))
+        nodes.append(Node(id=f"c{i}", repo=REPO, kind="config_key", name=f"setting.{i}",
+                          file="app.ini"))
+    names = []
+    for i in range(embeddable_pairs):
+        nodes.append(Node(id=f"fn{i}", repo=REPO, kind="function", name=f"handle_request_{i}",
+                          file=f"src/mod{i}.py"))
+        nodes.append(Node(id=f"cl{i}", repo=REPO, kind="class", name=f"WidgetService{i}",
+                          file=f"src/mod{i}.py"))
+        names += [f"handle_request_{i}", f"WidgetService{i}"]
+    # Every non-embeddable node outranks every embeddable one by degree.
+    for i in range(9):
+        for j in range(9):
+            if i != j:
+                edges.append(Edge(src=f"f{i}", dst=f"c{j}", relation="contains",
+                                  confidence=Confidence.EXTRACTED, provenance=_prov()))
+    for i in range(embeddable_pairs):
+        edges.append(Edge(src=f"fn{i}", dst=f"cl{i}", relation="calls",
+                          confidence=Confidence.EXTRACTED, provenance=_prov()))
+    write_shard(store_dir, GraphShard(repo=REPO, head_commit="cafe1",
+                                      nodes=nodes, edges=edges))
+    return names
+
+
+def test_build_terms_is_not_starved_by_high_degree_non_embeddable_nodes(tmp_path):
+    """The term cap must be spent AFTER the kind filter, not before it.
+
+    `build_terms` used to read `top_symbols`, which ranks every node and then
+    caps, so files/packages/modules/config keys consumed the cap before one
+    searchable symbol was considered. This fixture holds 12 embeddable symbols
+    behind 18 higher-degree non-embeddable nodes, which is the shape measured
+    on the real store.
+    """
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+    from contextlake.kb.wiki.generate import repo_brief
+
+    seeded = _seed_cap_starved_shard(tmp_path)
+
+    # The fixture contains the case: `top_symbols` really is starved. 2 of its
+    # 15 rows are embeddable (one per-kind floor slot each for function and
+    # class), so the old path could only ever have produced 1 + 2 = 3 terms.
+    brief = repo_brief(tmp_path, REPO)
+    assert len(brief["top_symbols"]) == 15
+    assert sum(1 for t in brief["top_symbols"] if t["kind"] in EMBEDDABLE_KINDS) == 2
+
+    terms = build_terms(tmp_path, REPO)
+    assert len(terms) == 10          # was 3 while the cap ran before the filter
+    assert terms[0] == "app"         # the repo name still leads
+    # The filter itself still holds: no file or config-key name became a term,
+    # even though those nodes outrank every symbol here.
+    assert set(terms[1:]) <= set(seeded)
+    assert not any(t.startswith("src/") or t.startswith("setting.") for t in terms)
+
+
+def test_build_terms_is_bounded_by_the_briefs_own_symbol_cap(tmp_path):
+    """Terms are bounded by `max_terms` AND by how many symbols the brief carries.
+
+    A caller raising `max_terms` past `wiki.generate._TERM_SYMBOL_CAP` gets the
+    cap, not a silent truncation nobody can see.
+    """
+    from contextlake.kb.wiki.generate import _TERM_SYMBOL_CAP
+
+    _seed_cap_starved_shard(tmp_path, embeddable_pairs=40)  # 80 distinct names
+    terms = build_terms(tmp_path, REPO, max_terms=100)
+    assert len(terms) == _TERM_SYMBOL_CAP + 1  # the repo name plus the capped symbols
+    assert len(set(terms)) == len(terms)       # and every one of them distinct

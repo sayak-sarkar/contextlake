@@ -14,6 +14,7 @@ from collections import Counter, OrderedDict
 from datetime import date
 from pathlib import Path
 
+from ..embeddings.index import EMBEDDABLE_KINDS
 from ..model import PER_SITE_RELATIONS
 from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from ..store.shards import (
@@ -243,6 +244,19 @@ def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None
 # that can grow without bound stops being a floor and becomes the ranking.
 _KIND_FLOOR_SHARE = 2
 
+# How many embeddable symbols a brief carries in `top_embeddable_symbols`, whose
+# only reader is `connectors.enrich.build_terms` (the wiki reads `top_symbols`
+# and never this field).
+#
+# Deliberately NOT `_grounding_cap`. That number is the wiki prompt's
+# depth-vs-cost knob -- more rows means a longer, more expensive LLM call -- and
+# spending a prompt-cost budget on search-term selection is the same category
+# error this field exists to fix, one level milder. Sized for its reader
+# instead: `build_terms` takes `max_terms - 1` names, 9 at its default of 10, so
+# 25 leaves room for a caller that raises `max_terms` without a change here, and
+# still bounds what each cached brief holds.
+_TERM_SYMBOL_CAP = 25
+
 
 def _ranked_with_kind_floor(
     candidates: list[tuple[str, int]], by_id: dict, cap: int,
@@ -331,8 +345,9 @@ def _ranked_with_kind_floor(
 # for a rewrite this process just made.
 #
 # Deliberately excludes the repo's full ``all_files`` set: every other field
-# here is capped (<=80 symbols, <=20 files/packages/decisions), but the raw
-# file set is not, so a huge repo would make each cached entry itself large --
+# here is capped (<=80 symbols, <=25 in ``top_embeddable_symbols``, <=20
+# files/packages/decisions), but the raw file set is not, so a huge repo would
+# make each cached entry itself large --
 # unlike the shard cache in ``store.shards``, this one has no byte budget, so
 # an unbounded field would defeat the point of bounding it by entry count.
 # ``repo_brief`` recomputes it fresh via ``_scoped_nodes_edges`` instead (a
@@ -430,6 +445,71 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     all_node_candidates = sorted(((n.id, degree[n.id]) for n in nodes), key=lambda x: -x[1])
     top_ids = _ranked_with_kind_floor(all_node_candidates, by_id, cap)
     top = [by_id[i] for i in top_ids]
+    # A SECOND ranked list, built for `connectors.enrich.build_terms` and read by
+    # nothing else. It filters to EMBEDDABLE_KINDS first and caps after, which is
+    # the opposite order from `top_symbols` above.
+    #
+    # That order is the whole point. `top_symbols` ranks every node and then caps,
+    # so on a repo whose highest-degree nodes are files, packages, modules and
+    # config keys, the cap is spent before one searchable symbol is considered.
+    # `build_terms` used to read `top_symbols` and filter it here, which is a
+    # narrowing applied after a cap on the wide set. Measured on 48 of a 56-repo
+    # store (the 8 largest shards left out to bound the measurement's own
+    # memory): 24 of the 29 repos holding 9 or more embeddable nodes got fewer
+    # than the 10 terms asked for, and the largest of them, at 5,494 embeddable
+    # nodes, produced 5.
+    #
+    # It is computed HERE, beside `degree`, rather than inside `build_terms`, so
+    # there is one degree computation and one ranking. Ranking in `enrich.py`
+    # would mean a second parse of the same shard and a second copy of the
+    # PER_SITE_RELATIONS per-pair dedup above, which would drift from this one.
+    #
+    # `top_symbols` is left alone: its all-node candidate set is deliberate (a
+    # kind that never appears in `degree` at all still gets a floor slot), and
+    # these ids stay out of `grounded_ids`, `hubs` and `dispatchers` below, so no
+    # wiki output moves.
+    #
+    # One row per distinct name, because the reader wants distinct query terms:
+    # two same-named symbols in different files are one term, and de-duplicating
+    # after the cap would let name collisions eat the budget the reader needs.
+    #
+    # NO per-kind floor here, unlike `top_symbols` above. That is a decision, not
+    # an omission, so the cost is written down.
+    #
+    # The reader spends `max_terms - 1` names, 9 at its default of 10, over the
+    # 19 kinds in EMBEDDABLE_KINDS. A floor could reserve at most one slot per
+    # kind, and reserving one for every kind present would leave the ranking two
+    # or three slots to decide. A floor is also half of what made the old path bad:
+    # the `_ranked_with_kind_floor` call above is why a cap-starved repo's
+    # `top_symbols` held one `function` row and one `class` row and nothing else
+    # searchable. Spending this budget by kind identity rather than by rank is
+    # the same category error one level down.
+    #
+    # What that costs, measured on the same 48 repos: `field` reaches no term in
+    # any of the 4 repos that hold `field` nodes, at `max_terms=10` or at 25, and
+    # that includes the repo where 103 of 178 embeddable nodes are fields;
+    # `endpoint` reaches none in 12 of the 15 repos that hold one. Degree is the
+    # ranking, and those two kinds sit low in it: a field is read, not called,
+    # and an endpoint is reached over HTTP rather than through a graph edge. The
+    # reader queries prose in Jira and Confluence, and a `field` name is short
+    # there (median 11 characters in that store, 18.9% of them 6 or fewer,
+    # against 4.6% for `class`) while an `endpoint` name is a URL path.
+    # Revisit this if a repo turns up whose embeddable nodes are ONLY fields or
+    # endpoints, which none of the 48 is.
+    embeddable_ranked = sorted(
+        ((n.id, degree[n.id]) for n in nodes if n.kind in EMBEDDABLE_KINDS),
+        key=lambda x: -x[1],
+    )
+    seen_names: set[str] = set()
+    top_embeddable: list = []
+    for nid, _deg in embeddable_ranked:
+        name = by_id[nid].name
+        if not name or name in seen_names:
+            continue
+        seen_names.add(name)
+        top_embeddable.append(by_id[nid])
+        if len(top_embeddable) >= _TERM_SYMBOL_CAP:
+            break
     # hubs/dispatchers keep counts, so their floor only reorders real
     # candidates (nodes that actually have the relevant degree) -- it must
     # never manufacture a "0 caller(s)" row for a kind with no real signal.
@@ -470,6 +550,10 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
         "top_symbols": [_symbol_row(n) for n in top],
+        # Read by `connectors.enrich.build_terms` alone -- see the ranking above.
+        # No wiki/dashboard/MCP surface reads it; every one of them names the
+        # fields it wants, so this one reaches none of them.
+        "top_embeddable_symbols": [_symbol_row(n) for n in top_embeddable],
         # Split combined-degree ranking above into fan-in/fan-out separately --
         # the dashboard's own risk view (Anatomy tab's hotspots section), not
         # folded into top_symbols so existing consumers of that field are
@@ -715,6 +799,9 @@ def repo_brief(
         "kinds": core["kinds"],
         "langs": core["langs"],
         "top_symbols": core["top_symbols"],
+        # Read by `connectors.enrich.build_terms` alone: the top symbols whose
+        # kind is embeddable, filtered BEFORE the cap rather than after it.
+        "top_embeddable_symbols": core["top_embeddable_symbols"],
         # Split combined-degree ranking above into fan-in/fan-out separately --
         # the dashboard's own risk view (Anatomy tab's hotspots section), not
         # folded into top_symbols so existing consumers of that field are

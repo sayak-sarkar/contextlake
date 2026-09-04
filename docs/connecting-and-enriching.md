@@ -112,7 +112,8 @@ agent. The dashboard and the graph legend use these same tiers.
 ## Query-driven enrichment
 
 `contextlake kb enrich` performs **query-driven enrichment**: it derives search terms from each repo's code
-graph (the repo's name and its top symbols by graph degree) and queries your connected sources (Atlassian
+graph (the repo's name and its top searchable symbols by graph degree, which is the symbol kinds the
+embedder covers, not files or packages) and queries your connected sources (Atlassian
 Rovo search, or any `mcp` source with a `tool` and `arg_template` configured) with those terms, then stores
 the returned documents in a searchable, embedded `@enrich:<repo>` partition, idempotent and re-runnable
 across the whole fleet or a single repo:
@@ -121,6 +122,12 @@ across the whole fleet or a single repo:
 contextlake kb enrich --workspace ~/work     # all indexed repos
 contextlake kb enrich acme/forecast-api        # one repo
 ```
+
+**Which symbols become terms.** Ranking is by graph degree, and by nothing else. There is no
+per-kind quota, so a repo whose highest-degree definitions are all classes and functions gets
+classes and functions, and no `field` or `endpoint` name at all, even when it holds many of
+them. That is on purpose: a repo gets its name plus 9 symbol names by default, and reserving one for
+each of the 19 embeddable kinds would leave the ranking two or three slots to decide.
 
 **Prerequisites.** Two things must be true:
 

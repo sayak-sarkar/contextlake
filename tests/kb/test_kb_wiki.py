@@ -2558,3 +2558,271 @@ def test_the_all_failed_message_counts_pages_not_repos(tmp_path, monkeypatch, gl
 
     assert "page(s) — none written" in out, out
     assert "repo(s) — none written" not in out, out
+
+
+def _cap_starved_nodes(pairs: int = 6, *, link_symbols: bool = True):
+    """18 high-degree non-embeddable nodes in front of ``pairs`` * 2 symbols.
+
+    ``link_symbols=False`` leaves every symbol at degree 0, which keeps them out
+    of `hubs`/`dispatchers` entirely.
+    """
+    prov = Provenance(source_file="src/mod0.py", verified_at=date(2026, 1, 1))
+    nodes, edges = [], []
+    for i in range(9):
+        nodes.append(Node(id=f"f{i}", repo="r", kind="file", name=f"src/mod{i}.py",
+                          file=f"src/mod{i}.py"))
+        nodes.append(Node(id=f"c{i}", repo="r", kind="config_key", name=f"setting.{i}",
+                          file="app.ini"))
+    for i in range(pairs):
+        nodes.append(Node(id=f"fn{i}", repo="r", kind="function", name=f"handle_request_{i}",
+                          file=f"src/mod{i}.py"))
+        nodes.append(Node(id=f"cl{i}", repo="r", kind="class", name=f"WidgetService{i}",
+                          file=f"src/mod{i}.py"))
+    for i in range(9):
+        for j in range(9):
+            if i != j:
+                edges.append(Edge(src=f"f{i}", dst=f"c{j}", relation="contains",
+                                  confidence=Confidence.EXTRACTED, provenance=prov))
+    if link_symbols:
+        for i in range(pairs):
+            edges.append(Edge(src=f"fn{i}", dst=f"cl{i}", relation="calls",
+                              confidence=Confidence.EXTRACTED, provenance=prov))
+    return nodes, edges
+
+
+def test_top_embeddable_symbols_filters_before_the_cap_unlike_top_symbols(tmp_path):
+    """`top_embeddable_symbols` exists because `top_symbols` caps a superset.
+
+    `top_symbols` ranks every node and then caps, which is deliberate (a kind
+    with no edges still gets a floor slot). Its reader in
+    `connectors.enrich.build_terms` needs the opposite order, so the brief
+    carries a second list: embeddable kinds only, capped after the filter.
+    """
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+
+    nodes, edges = _cap_starved_nodes()
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    # The starved list, kept as it was: 15 rows, only 2 of them embeddable.
+    assert sum(1 for t in brief["top_symbols"] if t["kind"] in EMBEDDABLE_KINDS) == 2
+    # The new list: every embeddable symbol in the repo, none of the 18 others.
+    rows = brief["top_embeddable_symbols"]
+    assert len(rows) == 12
+    assert all(t["kind"] in EMBEDDABLE_KINDS for t in rows)
+    assert not any(t["name"].startswith(("src/", "setting.")) for t in rows)
+
+
+def test_top_embeddable_symbols_holds_one_row_per_distinct_name(tmp_path):
+    """Its reader wants distinct query terms, so a repeated name is one row.
+
+    De-duplicating after the cap instead would let name collisions eat the
+    budget the reader was given.
+    """
+    nodes = [Node(id=f"h{i}", repo="r", kind="function", name="handle",
+                  file=f"src/{i}.py") for i in range(5)]
+    nodes.append(Node(id="only", repo="r", kind="class", name="Widget", file="src/w.py"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=[]))
+
+    names = [t["name"] for t in repo_brief(tmp_path, "r")["top_embeddable_symbols"]]
+    assert sorted(names) == ["Widget", "handle"]
+
+
+def test_top_embeddable_symbols_is_capped_by_its_readers_budget(tmp_path):
+    """Bounded, and bounded by its READER's need rather than by `_grounding_cap`.
+
+    `_grounding_cap` is the wiki prompt's depth-vs-cost knob; spending it on
+    term selection would repeat the error this field fixes.
+
+    Ranking is pinned by the test below, not here: this fixture gives one node
+    degree 59 and every other node degree 1, and that node is also first in
+    shard order, so an assertion on which row comes first could not tell the
+    ranking from the shard.
+    """
+    from contextlake.kb.wiki.generate import _TERM_SYMBOL_CAP, _grounding_cap
+
+    prov = Provenance(source_file="a.py", verified_at=date(2026, 1, 1))
+    nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}",
+                  file=f"src/{i}.py") for i in range(60)]
+    edges = [Edge(src=f"fn{i}", dst="fn0", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=prov) for i in range(1, 60)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+
+    rows = repo_brief(tmp_path, "r")["top_embeddable_symbols"]
+    assert len(rows) == _TERM_SYMBOL_CAP    # 60 distinct names seeded, 25 kept
+    assert _grounding_cap(60) == 15 and _TERM_SYMBOL_CAP != 15  # not the same knob
+    # Pin the VALUE, not only the symbol. Every other assertion here reads the
+    # constant, so the cap could be moved anywhere between 9 and 24 and no test
+    # would notice: build_terms takes max_terms - 1 = 9 names by default, so any
+    # value at or above 9 keeps its reader satisfied. The number is a budget for
+    # that reader with headroom for name collisions, so moving it is a decision,
+    # not a refactor, and it should have to change a test.
+    assert _TERM_SYMBOL_CAP == 25
+
+
+def _degree_ladder_shard(cap: int):
+    """Nodes whose SHARD ORDER disagrees with their DEGREE ORDER.
+
+    ``cap`` + 10 filler symbols at degree 1 are written first, then the ``cap``
+    symbols the ranking must keep, in ASCENDING degree. So the node that has to
+    rank first is written LAST, and its id sorts last too (`zzz_` after `aaa_`).
+    Degree comes from `file` nodes pointing at each symbol, which keeps the
+    ladder strict: the ``cap`` ranked symbols run 3, 4, ... ``cap`` + 2 with no
+    two alike, so no expected row can be settled by the sort's stability rather
+    than by its key. The fillers all sit at degree 1, below every one of them.
+
+    Without the ranking, the first ``cap`` embeddable nodes in shard order are
+    all fillers, so both the membership and the order of the result move.
+    """
+    prov = Provenance(source_file="src/spoke.py", verified_at=date(2026, 1, 1))
+    nodes, edges = [], []
+    for i in range(cap + 10):
+        nodes.append(Node(id=f"aaa_fill_{i:02d}", repo="r", kind="function",
+                          name=f"filler_symbol_{i:02d}", file=f"src/fill{i:02d}.py"))
+    for j in range(cap + 2):
+        nodes.append(Node(id=f"mmm_spoke_{j:02d}", repo="r", kind="file",
+                          name=f"src/spoke{j:02d}.py", file=f"src/spoke{j:02d}.py"))
+    for i in range(cap):
+        nodes.append(Node(id=f"zzz_rank_{i:02d}", repo="r", kind="class",
+                          name=f"RankedSymbol{i:02d}", file=f"src/rank{i:02d}.py"))
+    # `contains` is not a per-site relation, and every edge here is a distinct
+    # (src, dst) pair anyway, so each one counts once.
+    for i in range(cap + 10):
+        edges.append(Edge(src="mmm_spoke_00", dst=f"aaa_fill_{i:02d}", relation="contains",
+                          confidence=Confidence.EXTRACTED, provenance=prov))
+    for i in range(cap):
+        for j in range(3 + i):  # degree 3 for rank_00 up to cap + 2 for the last
+            edges.append(Edge(src=f"mmm_spoke_{j:02d}", dst=f"zzz_rank_{i:02d}",
+                              relation="contains", confidence=Confidence.EXTRACTED,
+                              provenance=prov))
+    return GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges)
+
+
+def test_top_embeddable_symbols_ranks_by_degree_not_shard_order(tmp_path):
+    """Degree order is the only thing that can produce this result.
+
+    The list is documented as ranked by graph degree, and its reader spends a
+    9-name budget on it, so which symbols make the cut is the whole value. A
+    fixture whose shard order already agrees with its degree order cannot show
+    that: drop the ranking and it still passes.
+    """
+    from contextlake.kb.wiki.generate import _TERM_SYMBOL_CAP as CAP
+
+    shard = _degree_ladder_shard(CAP)
+    write_shard(tmp_path, shard)
+
+    # The fixture contains the case: in shard order the first CAP embeddable
+    # nodes are all fillers, none of which may appear in the result.
+    shard_order = [n.name for n in shard.nodes if n.kind in ("function", "class")]
+    assert all(n.startswith("filler_") for n in shard_order[:CAP])
+
+    rows = repo_brief(tmp_path, "r")["top_embeddable_symbols"]
+    # Highest degree first, so the ladder is walked from its top: the node
+    # written last is the row read first.
+    assert [r["name"] for r in rows] == [f"RankedSymbol{i:02d}" for i in reversed(range(CAP))]
+
+
+def test_top_embeddable_symbols_has_no_per_kind_floor(tmp_path):
+    """No kind is held a slot. The ranking alone fills the list.
+
+    `top_symbols` above runs `_ranked_with_kind_floor`, and that floor is half
+    of what starved the old term builder. This list must not repeat it: the
+    reader gets 9 names over 19 embeddable kinds, so a floor would leave the
+    ranking two or three slots to decide. The cost is that a repo whose
+    definitions outrank its data members gets no `field` term at all, which is
+    the accepted outcome and the thing this test pins.
+
+    Pinned by break-test: routing the candidates through
+    `_ranked_with_kind_floor` seats a `field` row and this assertion fails.
+    """
+    from contextlake.kb.wiki.generate import _TERM_SYMBOL_CAP as CAP
+
+    prov = Provenance(source_file="src/a.py", verified_at=date(2026, 1, 1))
+    nodes, edges = [], []
+    for i in range(CAP + 5):
+        nodes.append(Node(id=f"fn{i:02d}", repo="r", kind="function",
+                          name=f"resolve_widget_{i:02d}", file=f"src/m{i:02d}.py"))
+    # Five fields at degree 0, so every function outranks every one of them.
+    for i in range(5):
+        nodes.append(Node(id=f"fd{i}", repo="r", kind="field", name=f"widget_id_{i}",
+                          file="src/m00.py"))
+    for i in range(CAP + 5):
+        edges.append(Edge(src="fn00", dst=f"fn{i:02d}", relation="contains",
+                          confidence=Confidence.EXTRACTED, provenance=prov))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+
+    rows = repo_brief(tmp_path, "r")["top_embeddable_symbols"]
+    # The fixture contains the case: the repo really does hold `field` nodes,
+    # and there really are more functions than the cap, so a floor would have
+    # to evict one of them to seat a field.
+    assert sum(1 for n in nodes if n.kind == "field") == 5
+    assert len(rows) == CAP
+    assert {r["kind"] for r in rows} == {"function"}
+
+
+def test_top_embeddable_symbols_changes_no_wiki_output(tmp_path):
+    """The second list must not reach the wiki: not the prompt, not the ratio.
+
+    `grounded_count`/`coverage_total` are rendered as a coverage ratio in the
+    provenance footer, so an id joining that union would move a published page.
+    """
+    # 80 zero-degree symbols behind 18 high-degree non-symbols, so the ratio is
+    # far from saturated and any extra id joining it shows up as a number.
+    nodes, edges = _cap_starved_nodes(40, link_symbols=False)
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    # 98 file-backed nodes; the union of top_symbols/hubs/dispatchers covers 20
+    # of them. `top_embeddable_symbols` carries 23 ids that union does not hold,
+    # so it would read 43 if they joined.
+    assert brief["coverage_total"] == 98
+    assert brief["grounded_count"] == 20
+    # And the second list reaches neither fan-in nor fan-out ranking.
+    assert {r["kind"] for r in brief["hubs"]} == {"config_key"}
+    assert {r["kind"] for r in brief["dispatchers"]} == {"file"}
+
+    # A name the new list carries and `top_symbols` does not must not appear in
+    # the prompt at all.
+    prompt = render_prompt(brief)
+    in_top = {t["name"] for t in brief["top_symbols"]}
+    extra = [t["name"] for t in brief["top_embeddable_symbols"] if t["name"] not in in_top]
+    assert len(extra) == 23, "fixture no longer carries symbols outside top_symbols"
+    for name in extra:
+        assert name not in prompt
+
+
+def test_top_embeddable_symbols_is_scoped_by_path_prefix_like_every_other_field(tmp_path):
+    """A module-scoped brief must carry only that module's symbols.
+
+    `cmd_wiki` builds one brief per subsystem with `path_prefix`, and the new
+    list is ranked over the already-scoped node set, so it scopes with the rest.
+    The scoped `top_symbols` and coverage ratio must not move either.
+    """
+    prov = Provenance(source_file="api/a.py", verified_at=date(2026, 1, 1))
+    nodes = [
+        Node(id="a1", repo="r", kind="function", name="api_handler", file="api/a.py"),
+        Node(id="a2", repo="r", kind="class", name="ApiRouter", file="api/b.py"),
+        Node(id="w1", repo="r", kind="function", name="worker_loop", file="worker/w.py"),
+        Node(id="w2", repo="r", kind="class", name="WorkerPool", file="worker/p.py"),
+        Node(id="af", repo="r", kind="file", name="api/a.py", file="api/a.py"),
+    ]
+    edges = [Edge(src="a1", dst="a2", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=prov)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+
+    api = repo_brief(tmp_path, "r", path_prefix="api")
+    worker = repo_brief(tmp_path, "r", path_prefix="worker")
+    # Compared as sets. The two `api` symbols are the two ends of one edge, so
+    # they share a degree, and an ordered comparison here would be settled by
+    # the sort's stability rather than by the ranking. Ranking is pinned by
+    # `test_top_embeddable_symbols_ranks_by_degree_not_shard_order`.
+    assert sorted(t["name"] for t in api["top_embeddable_symbols"]) == [
+        "ApiRouter", "api_handler"]
+    assert sorted(t["name"] for t in worker["top_embeddable_symbols"]) == [
+        "WorkerPool", "worker_loop"]
+    # The scoped wiki fields stay what they were: 3 nodes under `api`, all of
+    # them file-backed and all of them in top_symbols.
+    assert api["node_count"] == 3
+    assert api["coverage_total"] == 3 and api["grounded_count"] == 3
+    assert sorted(t["name"] for t in api["top_symbols"]) == [
+        "ApiRouter", "api/a.py", "api_handler"]

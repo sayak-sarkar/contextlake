@@ -1,0 +1,350 @@
+{
+  "ask": {
+    "answered": true,
+    "blast": null,
+    "brief": null,
+    "nodes": [
+      {
+        "call_file": "svc.py",
+        "call_line": 5,
+        "citation_note": "no readable local checkout is on record for this repo, so this citation was NOT checked against disk",
+        "citation_status": "unverifiable",
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": "svc.py",
+        "id": "a",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ForecastService",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ],
+    "note": "Callers of 'ingest' \u2014 incoming calls, EXTRACTED-first.",
+    "owners": null,
+    "question": "who calls ingest",
+    "route": "callers",
+    "target": "ingest",
+    "truncated": false,
+    "wiki": null
+  },
+  "blast_radius": {
+    "hits": [],
+    "hops": 3,
+    "note": null,
+    "seed": "a",
+    "total": 0,
+    "truncated": false
+  },
+  "find_callees": {
+    "nodes": [
+      {
+        "call_file": "svc.py",
+        "call_line": 5,
+        "citation_note": null,
+        "citation_status": null,
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": null,
+        "id": "b",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ingest",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ],
+    "note": null,
+    "total": 1,
+    "truncated": false
+  },
+  "find_callers": {
+    "nodes": [
+      {
+        "call_file": "svc.py",
+        "call_line": 5,
+        "citation_note": "no readable local checkout is on record for this repo, so this citation was NOT checked against disk",
+        "citation_status": "unverifiable",
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": "svc.py",
+        "id": "a",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ForecastService",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ],
+    "note": null,
+    "total": 1,
+    "truncated": false
+  },
+  "find_definition": {
+    "nodes": [
+      {
+        "call_file": null,
+        "call_line": null,
+        "citation_note": null,
+        "citation_status": null,
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": null,
+        "id": "b",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ingest",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ],
+    "note": null,
+    "total": 1,
+    "truncated": false
+  },
+  "find_dependents": {
+    "nodes": [],
+    "note": "No indexed package named 'requests'.",
+    "total": 0,
+    "truncated": false
+  },
+  "get_fleet_doc": {
+    "current_fingerprint": null,
+    "doc_fingerprint": null,
+    "found": false,
+    "markdown": "",
+    "note": "No fleet page has been generated yet. `contextlake kb docs` writes it, but only on an UNSCOPED run: a fleet view of part of the store would report shares and disagreements that are not true of the whole, so a run naming particular repos skips it.",
+    "repo_count": 0,
+    "stale": true
+  },
+  "get_generated_doc": {
+    "current_commit": null,
+    "doc_commit": null,
+    "found": false,
+    "kind": "api",
+    "markdown": "",
+    "note": "No api page has been generated for team/api yet -- run `contextlake kb docs`.",
+    "repo": "team/api",
+    "stale": true
+  },
+  "get_neighbors": {
+    "edges": [
+      {
+        "confidence": "EXTRACTED",
+        "context": null,
+        "dst": "b",
+        "relation": "calls",
+        "source_file": "svc.py",
+        "source_line": 5,
+        "src": "a",
+        "verified_at": "2026-06-21"
+      }
+    ],
+    "note": null,
+    "total": 1,
+    "truncated": false
+  },
+  "get_node": {
+    "result": {
+      "call_file": null,
+      "call_line": null,
+      "citation_note": "no readable local checkout is on record for this repo, so this citation was NOT checked against disk",
+      "citation_status": "unverifiable",
+      "doc": null,
+      "edge_file": null,
+      "edge_line": null,
+      "file": "svc.py",
+      "id": "a",
+      "kind": "function",
+      "lang": null,
+      "line_end": null,
+      "line_start": null,
+      "name": "ForecastService",
+      "qualified_name": null,
+      "repo": "team/api",
+      "score": null,
+      "signature": null
+    }
+  },
+  "get_readme": {
+    "found": false,
+    "markdown": "",
+    "path": null,
+    "repo": "team/api"
+  },
+  "get_repo_brief": {
+    "edge_count": 0,
+    "files": [],
+    "found": false,
+    "head": null,
+    "kinds": {},
+    "langs": {},
+    "node_count": 0,
+    "packages": [],
+    "repo": "team/api",
+    "top_symbols": []
+  },
+  "get_repo_links": {
+    "found": false,
+    "links": {},
+    "repo": "team/api",
+    "total": 0
+  },
+  "get_wiki": {
+    "current_commit": null,
+    "found": false,
+    "kind": "repo",
+    "markdown": "",
+    "repo": "team/api",
+    "stale": true,
+    "wiki_commit": null
+  },
+  "graph_health": {
+    "checked": 0,
+    "dangling": 0,
+    "dangling_sample": [],
+    "empty": 0,
+    "empty_repos": [],
+    "indexed": false,
+    "parser_stale": 0,
+    "parser_stale_repos": [],
+    "repos": 0,
+    "shard": 0,
+    "shard_repos": [],
+    "stale": 0,
+    "stale_repos": [],
+    "unreadable": 0,
+    "unreadable_repos": []
+  },
+  "graph_stats": {
+    "by_confidence": {
+      "EXTRACTED": 1
+    },
+    "edges": 1,
+    "nodes": 2,
+    "repos": 0
+  },
+  "list_repos": {
+    "repos": [],
+    "total": 0,
+    "truncated": false
+  },
+  "repo_dependencies": {
+    "edges": [],
+    "found": false,
+    "total": 0,
+    "truncated": false
+  },
+  "repo_event_flow": {
+    "edges": [],
+    "found": false,
+    "total": 0,
+    "truncated": false
+  },
+  "repo_flow": {
+    "edges": [],
+    "found": false,
+    "total": 0,
+    "truncated": false
+  },
+  "search_code": {
+    "nodes": [
+      {
+        "call_file": null,
+        "call_line": null,
+        "citation_note": null,
+        "citation_status": null,
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": null,
+        "id": "b",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ingest",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ],
+    "note": null,
+    "total": 1,
+    "truncated": false
+  },
+  "shortest_path": {
+    "found": true,
+    "gap": null,
+    "hops": 1,
+    "nodes": [
+      {
+        "call_file": null,
+        "call_line": null,
+        "citation_note": "no readable local checkout is on record for this repo, so this citation was NOT checked against disk",
+        "citation_status": "unverifiable",
+        "doc": null,
+        "edge_file": null,
+        "edge_line": null,
+        "file": "svc.py",
+        "id": "a",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ForecastService",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      },
+      {
+        "call_file": null,
+        "call_line": null,
+        "citation_note": null,
+        "citation_status": null,
+        "doc": null,
+        "edge_file": "svc.py",
+        "edge_line": 5,
+        "file": null,
+        "id": "b",
+        "kind": "function",
+        "lang": null,
+        "line_end": null,
+        "line_start": null,
+        "name": "ingest",
+        "qualified_name": null,
+        "repo": "team/api",
+        "score": null,
+        "signature": null
+      }
+    ]
+  },
+  "who_knows": {
+    "found": false,
+    "owners": [],
+    "ranking_gap": "no repository with this id is indexed, so there was nothing to read a history from",
+    "scope": "team/api"
+  }
+}

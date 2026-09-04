@@ -3089,7 +3089,8 @@ agent. The dashboard and the graph legend use these same tiers.
 ## Query-driven enrichment
 
 `contextlake kb enrich` performs **query-driven enrichment**: it derives search terms from each repo's code
-graph (the repo's name and its top symbols by graph degree) and queries your connected sources (Atlassian
+graph (the repo's name and its top searchable symbols by graph degree, which is the symbol kinds the
+embedder covers, not files or packages) and queries your connected sources (Atlassian
 Rovo search, or any `mcp` source with a `tool` and `arg_template` configured) with those terms, then stores
 the returned documents in a searchable, embedded `@enrich:<repo>` partition, idempotent and re-runnable
 across the whole fleet or a single repo:
@@ -3098,6 +3099,12 @@ across the whole fleet or a single repo:
 contextlake kb enrich --workspace ~/work     # all indexed repos
 contextlake kb enrich acme/forecast-api        # one repo
 ```
+
+**Which symbols become terms.** Ranking is by graph degree, and by nothing else. There is no
+per-kind quota, so a repo whose highest-degree definitions are all classes and functions gets
+classes and functions, and no `field` or `endpoint` name at all, even when it holds many of
+them. That is on purpose: a repo gets its name plus 9 symbol names by default, and reserving one for
+each of the 19 embeddable kinds would leave the ranking two or three slots to decide.
 
 **Prerequisites.** Two things must be true:
 
@@ -8656,6 +8663,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Nothing changes for `provider = "ollama"`, `"builtin"` or `"auto"`, or for any config that
   already writes a `base_url` line.
+
+### Fixed
+
+- **`kb enrich` term selection: the cap is now spent on searchable symbols.** The term builder
+  read `repo_brief`'s `top_symbols`, which ranks every node in a repo and then caps the result,
+  and filtered that capped list down to the embeddable kinds. So files, packages, modules and
+  config keys consumed the budget before one searchable symbol was considered. Measured on 48
+  of a 56-repo store (the 8 largest shards left out to bound the measurement's own memory): 24
+  of the 29 repos holding 9 or more embeddable nodes got fewer than the 10 terms asked for, and
+  the largest of them, at 5,494 embeddable nodes, produced 5.
+
+  `repo_brief` now carries a second ranked list, `top_embeddable_symbols`, filtered to the
+  embeddable kinds first and capped after, one row per distinct name. The term builder reads
+  that. On the same 48 repos all 29 with enough symbols now reach 10 terms, and the total rises
+  from 191 terms to 321.
+
+  **Your terms will change, not only grow.** The count per repo rises or holds, and no repo ends
+  with fewer, but the ranking that fills the list is different, so the SET moves: 20 of the 32
+  repos that HELD a symbol term lose at least one they used to get, and 41 of the 143 previous
+  symbol terms are gone. A term drops out when a higher-degree definition displaces it.
+  (The denominator is 32, not the 48 measured: the other 16 held no symbol term to lose, so
+  counting them would understate the churn among repos this can affect.)
+
+  **`field` and `endpoint` names can vanish from a repo's terms entirely.** There is no per-kind
+  floor, so the ranking alone decides. On those 48 repos, `field` reached no term in any of the
+  4 repos holding `field` nodes, including one where 103 of its 178 embeddable nodes are fields;
+  `endpoint` reached none in 12 of the 15 repos holding one. Widening the budget barely helps:
+  re-measured at 25 terms a repo instead of 10, all 4 `field` repos stay empty, and `endpoint`
+  recovers in at most 2, leaving 10 of 15 still empty. So a bigger budget is not the fix for
+  either kind, and for `field` it changes nothing at all. This is deliberate. A repo gets 9 symbol names by default, across 19 embeddable kinds,
+  so a floor could reserve at most one slot each, and a per-kind floor is half of what starved
+  the old path. The full reasoning sits beside the ranking in `wiki/generate.py`.
+
+  `top_symbols` is unchanged, and so is every wiki page: its all-node candidate set is
+  deliberate, the new list stays out of the `grounded_count`/`coverage_total` ratio and out of
+  `hubs`/`dispatchers`, and no wiki, dashboard or MCP surface reads it. The 16 repos in that
+  measured set whose symbols were never extracted still get one term; that is indexer coverage,
+  and this change does not claim it.
 
 ### Security
 

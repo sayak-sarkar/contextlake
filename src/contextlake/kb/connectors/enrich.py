@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from ..embeddings.index import EMBEDDABLE_KINDS
 from ..model import Node
 from ..resilience import note_unavailable
 from ..sources.base import Document
@@ -34,19 +33,41 @@ def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
     """Query terms for ``repo_id``: its name plus its top meaningful symbols.
 
     The repo name (last ``/``-segment of ``repo_id``) always leads, followed by
-    up to ``max_terms - 1`` of :func:`repo_brief`'s ``top_symbols`` (ranked by
-    graph degree) whose kind is in :data:`EMBEDDABLE_KINDS` - definitions worth
-    searching for, not files/packages/modules. Empty if the repo has no shard.
+    up to ``max_terms - 1`` of :func:`repo_brief`'s ``top_embeddable_symbols``:
+    its highest-degree definitions worth searching for, already filtered to the
+    embeddable kinds and carrying one row per distinct name. Empty if the repo
+    has no shard.
+
+    It reads that field and NOT ``top_symbols``, which is the fix for a real
+    defect rather than a preference. ``top_symbols`` ranks every node and then
+    caps the result, so filtering it to embeddable kinds HERE spent the cap on
+    files, packages, modules and config keys before one searchable symbol was
+    considered. Measured on 48 of a 56-repo store: 24 of the 29 repos holding 9
+    or more embeddable nodes got fewer than the 10 terms asked for, and the
+    largest of them, at 5,494 embeddable nodes, yielded 5. ``repo_brief`` filters
+    first and caps after, which is the order this needs.
+
+    The field carries no per-kind floor, so a repo's terms can hold no ``field``
+    and no ``endpoint`` name at all. That is deliberate and the reasoning sits
+    beside the ranking in ``wiki.generate._repo_brief_core_uncached``.
+
+    The result is bounded by ``max_terms`` and by the length of that field
+    (``wiki.generate._TERM_SYMBOL_CAP``), so a caller raising ``max_terms``
+    past that cap gets the cap.
     """
     brief = repo_brief(store_dir, repo_id)
     if brief is None:
         return []
     terms = [repo_id.rsplit("/", 1)[-1]]
-    for sym in brief["top_symbols"]:
+    # A plain subscript, not `.get`: this function builds the brief itself two
+    # lines up, so the key is always present, and a missing one means the core's
+    # shape changed. A fallback here would degrade to a single term in silence,
+    # which is the failure mode this whole change exists to remove.
+    for sym in brief["top_embeddable_symbols"]:
         if len(terms) >= max_terms:
             break
         name = sym.get("name")
-        if sym.get("kind") in EMBEDDABLE_KINDS and name and name not in terms:
+        if name and name not in terms:
             terms.append(name)
     return terms
 
