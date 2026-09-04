@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 from ... import style
 from ...logging_setup import log
 from ._common import (
@@ -61,14 +63,66 @@ def cmd_enrich(args) -> int:
             # happened, so a run where EVERY source call was written off printed the same
             # green line as a healthy run over repos with nothing to find.
             degraded_before = degraded_calls()
-            log(f"Enriching {len(targets)} repo(s) against {len(term_searchable)} "
+            # Read from the target list BEFORE the loop, and never from the counters
+            # below. `planned` computed as the sum of the buckets would make the
+            # "everything is accounted for" check a tautology that holds however
+            # many repos the loop drops.
+            planned = len(targets)
+            log(f"Enriching {planned} repo(s) against {len(term_searchable)} "
                 f"term-searchable source(s)")
             total = 0
+            edge_total = 0
+            # Five buckets, one per repo, no overlap. `kb wiki` had to grow a
+            # `suppressed` counter after its four numbers quietly added up to less
+            # than the run planned, and six missing pages read the same as a repo
+            # that had none.
+            enriched = nothing_returned = unattached = failed = skipped = 0
             for repo_id, _path in targets:
-                n = run_enrich_repo(store, store_dir, cfg, repo_id,
-                                    embedder=embedder, vector_store=vector_store)
-                total += n
-                log(f"  {repo_id}: {n} document(s)", inline=True)
+                try:
+                    counts = run_enrich_repo(store, store_dir, cfg, repo_id,
+                                             embedder=embedder, vector_store=vector_store)
+                except (OSError, sqlite3.Error) as e:
+                    # Narrow on purpose. `search_source` is contractually non-raising,
+                    # so the only failures that reach here are the store and shard
+                    # writes: a full disk, a locked or corrupt database. Anything
+                    # else still aborts the run rather than being filed as one bad
+                    # repo.
+                    failed += 1
+                    log(f"  {style.warn(repo_id)}: enrichment failed ({e})", inline=True)
+                    continue
+                total += counts.documents
+                edge_total += counts.edges
+                if not counts.terms:
+                    skipped += 1
+                    log(f"  {repo_id}: skipped (no graph shard to build terms from, "
+                        f"so nothing was searched for; run index first)", inline=True)
+                elif not counts.documents:
+                    nothing_returned += 1
+                    log(f"  {repo_id}: {counts.terms} term(s), nothing returned",
+                        inline=True)
+                elif not counts.edges:
+                    # A state, not a failure, and deliberately not styled as one. The
+                    # matcher is whole-word with a 3-character floor, so a document
+                    # that discusses this repo in prose without naming a symbol
+                    # correctly attaches to nothing.
+                    unattached += 1
+                    log(f"  {repo_id}: {counts.terms} term(s), {counts.documents} "
+                        f"document(s), 0 edges to code (returned, unattached)",
+                        inline=True)
+                else:
+                    enriched += 1
+                    log(f"  {repo_id}: {counts.terms} term(s), {counts.documents} "
+                        f"document(s), {counts.edges} edge(s) to code", inline=True)
+            # Built once and printed on EVERY exit path below. A run that ends early
+            # still has to say where its repos went: an accounting line that appears
+            # only on the happy path leaves the reader guessing on the one run where
+            # the numbers matter most.
+            # Repo-level counters get repo-level nouns. `kb wiki` once printed a
+            # page-level counter as "failed for all N repo(s)".
+            buckets_line = (f"  {planned} repo(s) planned: {enriched} enriched, "
+                            f"{nothing_returned} nothing returned, {unattached} "
+                            f"returned but unattached, {failed} failed, "
+                            f"{skipped} skipped")
             degraded = degraded_calls() - degraded_before
             if degraded:
                 log(style.warn(
@@ -86,14 +140,30 @@ def cmd_enrich(args) -> int:
                 log(style.summary_line(
                     "fail", f"Enrich failed: nothing stored, and {degraded} source call(s) "
                             f"were written off as unavailable"))
+                log(buckets_line)
                 return 1
+            if unattached:
+                log(f"  {unattached} repo(s) returned documents that name none of their "
+                    f"symbols (returned, unattached). That is the correct result when "
+                    f"the documents discuss the repo in prose. Check the repo is "
+                    f"indexed and that its symbol names appear in the text.")
             # Partial degradation with results still exits 0, which is `kb connect`'s
             # existing rule and is deliberately copied rather than tightened: two sibling
             # commands giving different verdicts for the same event is the defect this
             # whole batch is about, and a stricter rule invented here would recreate it.
-            kind = "warn" if degraded else "ok"
-            word = "incomplete" if degraded else "complete"
-            log(style.summary_line(kind, f"Enrich {word}: {total} document(s) stored"))
+            kind = "warn" if (degraded or failed) else "ok"
+            word = "incomplete" if (degraded or failed) else "complete"
+            # Both numbers, never one instead of the other: documents stored answers
+            # "did the sources have anything", edges to code answers "can a question
+            # about the code reach it".
+            log(style.summary_line(
+                kind, f"Enrich {word}: {total} document(s) stored, "
+                      f"{edge_total} edge(s) to code"))
+            log(buckets_line)
+            if planned and failed == planned:
+                log(style.warn(f"Enrich failed for all {planned} repo(s): "
+                               f"nothing was stored"))
+                return 1
             return 0
         finally:
             if vector_store is not None:

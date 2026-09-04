@@ -140,6 +140,28 @@ With the semantic tier enabled they are embedded too, so they appear in semantic
 A result that names one of the repo's symbols is linked straight to it with a `documented_by`
 edge, so the enrichment lands **on** the graph rather than beside it.
 
+**How to read the run.** Each repo prints the terms tried, the documents returned and the
+edges attached to code. Both numbers are reported because they answer different questions:
+documents returned says whether your sources had anything, edges to code says whether a
+question about the code can reach it.
+
+The closing line puts every targeted repo in one of five buckets, and the five add up to the
+number of repos the run planned to touch:
+
+| Bucket | What it means |
+|---|---|
+| `enriched` | Documents came back and at least one names a symbol in the repo. |
+| `nothing returned` | The repo was searched and the sources had nothing. |
+| `returned but unattached` | Documents came back and none names a symbol in the repo. |
+| `failed` | The store or shard write failed for that repo. The run continues. |
+| `skipped` | No graph shard, so no terms were built. Run `kb index` first. |
+
+`returned but unattached` is a normal outcome, not a failure, and the run still ends with a
+`✓`. Symbol matching is whole-word and ignores names under three characters, so a ticket that
+discusses the repo in prose without naming any of its code correctly attaches to nothing. If
+you expected attachments, check the repo is indexed and that the document text spells the
+symbol names the way the code does.
+
 After `contextlake kb wiki` runs, these documents become an attributed "External context"
 section in the curated wiki, grounded to the code graph's terms.
 

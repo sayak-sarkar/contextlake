@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`kb enrich` reports edges to code, not only documents stored.** The linking step already
+  ran: every enrichment document was matched against the repo's symbol names and the matches
+  were stored as `documented_by` edges. The count was then discarded, so the run could report
+  only how many documents came back. A document with no edge to any symbol cannot answer a
+  question about the code, and it read as a success.
+
+  The run now prints, per repo, the terms tried, the documents returned and the edges attached
+  to code, and closes with a line that puts every targeted repo in one of five buckets:
+  enriched, nothing returned, returned but unattached, failed, skipped. The five add up to the
+  number of repos the run planned to touch, on every exit path.
+
+  **"Returned but unattached" is a state, not a failure.** The matcher is whole-word with a
+  three-character floor, so a ticket that discusses a repo in prose without naming a symbol
+  correctly attaches to nothing. That run still prints `✓`.
+
+  A repo whose store or shard write fails is now counted and reported instead of aborting the
+  whole run. A run where every repo failed that way exits 1.
+
+  **API change:** `run_enrich_repo` returns an `EnrichCounts(terms, documents, edges)` triple
+  instead of the document count alone.
+
 - **`kb doctor`'s per-source line now separates three answers that used to render as one
   `⚠`.** A source that was dialled and did not answer keeps `⚠`. A source of a type with no
   reachability probe (`gitlab`, `zendesk`) now draws `⊘`, matching what `kb source test`

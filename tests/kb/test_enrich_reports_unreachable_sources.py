@@ -14,6 +14,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from contextlake.kb.connectors.enrich import EnrichCounts
+
 
 def _args(tmp_path):
     cfg = tmp_path / "kb.toml"
@@ -53,7 +55,7 @@ def test_every_source_call_written_off_is_a_failure(tmp_path, monkeypatch, capsy
 
     def _fail(*a, **k):
         resilience.note_unavailable("deadsrc search", RuntimeError("unreachable"))
-        return 0
+        return EnrichCounts(3, 0, 0)
 
     monkeypatch.setattr(enrich_mod, "run_enrich_repo", _fail)
     code = cmd_enrich(args)
@@ -61,6 +63,10 @@ def test_every_source_call_written_off_is_a_failure(tmp_path, monkeypatch, capsy
     assert printed.strip(), "the capture must see something or this proves nothing"
     assert code == 1, "no source reachable and nothing stored is a failed run, not an empty one"
     assert "unavailable" in printed
+    # The accounting has to survive the early exit. A bucket line printed only on the
+    # happy path leaves the reader guessing on the one run where the numbers matter.
+    assert ("1 repo(s) planned: 0 enriched, 1 nothing returned, 0 returned but "
+            "unattached, 0 failed, 0 skipped") in printed
 
 
 def test_a_clean_run_with_nothing_to_find_still_succeeds(tmp_path, monkeypatch, capsys):
@@ -72,7 +78,8 @@ def test_a_clean_run_with_nothing_to_find_still_succeeds(tmp_path, monkeypatch, 
     capsys.readouterr()
     import contextlake.kb.connectors.enrich as enrich_mod
 
-    monkeypatch.setattr(enrich_mod, "run_enrich_repo", lambda *a, **k: 0)
+    monkeypatch.setattr(enrich_mod, "run_enrich_repo",
+                        lambda *a, **k: EnrichCounts(3, 0, 0))
     code = cmd_enrich(args)
     printed = "".join(capsys.readouterr())
     assert code == 0
@@ -92,7 +99,7 @@ def test_partial_degradation_with_results_matches_connects_rule(tmp_path, monkey
 
     def _partial(*a, **k):
         resilience.note_unavailable("deadsrc search", RuntimeError("unreachable"))
-        return 3
+        return EnrichCounts(3, 3, 1)
 
     monkeypatch.setattr(enrich_mod, "run_enrich_repo", _partial)
     code = cmd_enrich(args)
