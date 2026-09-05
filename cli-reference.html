@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
-<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
-<link rel="stylesheet" href="docs.css?v=1c3e83ae">
-<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
+<link rel="stylesheet" href="fonts.css?v=945ec8b9">
+<link rel="stylesheet" href="tokens.css?v=945ec8b9">
+<link rel="stylesheet" href="docs.css?v=945ec8b9">
+<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -378,7 +378,11 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>kb serve</code></td>
-<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>; the network transports print a bearer token and need <code>--allow-remote</code> for a non-loopback <code>--host</code>; <code>--tool-concurrency N</code> bounds how many tool calls run at once, default <code>2</code>)</td>
+<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>; the network transports print a bearer token and need <code>--allow-remote</code> for a non-loopback <code>--host</code>; <code>--keys-file</code> and <code>--keys-only</code> decide which key file is read and whether a shared token may be minted; <code>--tool-concurrency N</code> bounds how many tool calls run at once, default <code>2</code>)</td>
+</tr>
+<tr>
+<td><code>kb keys</code></td>
+<td>Create and manage the API keys that authenticate MCP callers: <code>create</code>, <code>list</code>, <code>show</code>, <code>revoke</code>, <code>rotate</code>, <code>check</code>, <code>prune</code></td>
 </tr>
 <tr>
 <td><code>kb steer</code></td>
@@ -392,6 +396,118 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </table>
 <p><code>doctor --fix</code>'s own flags, and the two privilege tiers behind them, are on
 <a href="installing#installing-what-is-missing">Install and upgrade</a>.</p>
+<h3 id="kb-serve-which-key-file-and-whether-it-may-mint"><code>kb serve</code>: which key file, and whether it may mint<a class="anchor" href="#kb-serve-which-key-file-and-whether-it-may-mint" title="Link to this section">#</a></h3>
+<p>Two flags decide whether a network start comes up shared, comes up per-key, or refuses.</p>
+<p><strong><code>--keys-file PATH</code></strong> says where the keys live. Four tiers, highest wins:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Where it is set</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--keys-file PATH</code></td>
+<td>the command line</td>
+</tr>
+<tr>
+<td><code>$CONTEXTLAKE_KEYS_FILE</code></td>
+<td>the environment</td>
+</tr>
+<tr>
+<td><code>[serve] keys_file</code></td>
+<td><code>~/.contextlake/kb.toml</code>, or the file passed to <code>--config</code></td>
+</tr>
+<tr>
+<td><code>~/.contextlake/mcp-keys.json</code></td>
+<td>nowhere. The default</td>
+</tr>
+</tbody>
+</table>
+<p>Naming a path in any of the top three says the keys live there, so <strong>an absent file at a
+named path is refused, exit 1</strong>. It is not read as a first start. The case this stops: a
+container whose volume mount did not appear starts with the named path empty, and the server
+used to mint one unscoped shared token and print stderr that read like a fresh machine. Only
+the default tier, with nobody naming anything, may mint.</p>
+<p>A <code>[serve] keys_file</code> in a <code>.contextlake.kb.toml</code> found by walking up from the current
+directory is ignored, and the run says so on one line. That file sits inside a repository
+checkout, so anything it points at gets committed. Pass <code>--config &lt;file&gt;</code>, or set the key in
+<code>~/.contextlake/kb.toml</code>, to have it honoured.</p>
+<p><strong><code>--keys-only</code></strong> refuses to start rather than mint an unscoped shared token. Use it where an
+open server is worse than no server. It refuses in two cases:</p>
+<ul>
+<li>No key file with a live key was found. Minting is the thing the flag exists to prevent, so
+  the server exits <code>1</code> and names <code>contextlake kb keys create</code>.</li>
+<li><code>$CONTEXTLAKE_MCP_TOKEN</code> is set. That is one credential every caller shares, so per-key
+  revocation and attribution stop meaning anything. Unset the variable, or drop the flag.</li>
+</ul>
+<p><strong>Every refusal prints before the line that says the server is up.</strong> A start that is going to
+refuse never prints <code>✓ MCP server on http://...</code>; the banner is the last thing written before
+the socket opens.</p>
+<h3 id="kb-keys"><code>kb keys</code><a class="anchor" href="#kb-keys" title="Link to this section">#</a></h3>
+<p>Every key is one caller's credential. The server checks the key on each request, so
+revoking one takes effect on the next request with no restart.</p>
+<div class="highlight"><pre><span></span><code>contextlake kb keys create alice-laptop --expires 90d
+contextlake kb keys list
+contextlake kb keys show k_4f2a91
+contextlake kb keys revoke k_4f2a91 --reason &quot;laptop returned&quot;
+contextlake kb keys rotate k_4f2a91 --overlap 24h
+printf &#39;%s&#39; &quot;$KEY&quot; | contextlake kb keys check
+contextlake kb keys prune --before 2026-01-01
+</code></pre></div>
+<p><strong>The key is shown once, and only once.</strong> It is printed to standard error at creation and
+never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
+to print later. A key nobody wrote down is rotated, never recovered:
+<code>contextlake kb keys rotate &lt;id&gt;</code> issues a replacement and keeps the old one working for
+<code>--overlap</code> so the holder has time to swap.</p>
+<p>Three ways to capture it at creation:</p>
+<ul>
+<li>Read it off the screen. This is the default.</li>
+<li><code>--print-key</code> writes the bare key to standard output for a pipe, e.g.
+  <code>contextlake kb keys create ci --print-key | pass insert -e contextlake</code>. It refuses a
+  terminal, because on one the key lands in the scrollback instead of a secret store.</li>
+<li><code>--out FILE</code> writes the key to a file at mode <code>0600</code>. The file is created with <code>O_EXCL</code>,
+  so an existing path is refused rather than overwritten.</li>
+</ul>
+<p>The key never reaches standard output on the default path and never reaches <code>--log-file</code>,
+which is a rotating file that outlives the process.</p>
+<p><strong><code>check</code> reads the key from standard input only.</strong> A key typed on a command line lands in
+shell history and shows in <code>ps</code> to every account on the machine, so
+<code>contextlake kb keys check &lt;key&gt;</code> is refused with exit 2. A terminal with nothing piped in
+is refused the same way, rather than waiting for end-of-file behind a blank screen. <code>check</code>
+opens no socket and sends no request: it compares the digest against the key file, which is
+what lets it answer when the server is the thing that is down. It reports what the record
+stores, not what a server would allow.</p>
+<p><strong>The checksum in a key is a typo filter, not a security control.</strong> It catches a key
+mistyped or truncated in transit before a request is sent. It stops nobody from forging a
+key, which is the digest comparison's job.</p>
+<p><strong>The scope flags are recorded and enforced by nothing.</strong> <code>--tools</code>, <code>--repos</code>,
+<code>--owners</code>, <code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are written onto the key and rendered
+back by <code>create</code>, <code>list</code>, <code>show</code> and <code>check</code>. No code reads them. A key created with
+<code>--tools none --repos nothing-matches/*</code> gets the full tool list over MCP and can call
+every one of them on every indexed repository. Measured, not assumed: that key was
+presented to a live <code>kb serve --transport http --keys-only</code> server and <code>tools/list</code>
+answered with all 23 registered tools.</p>
+<p>So every surface that prints them says <code>(recorded, not enforced)</code> beside the values and
+carries three lines saying what that means. <code>show --json</code> and <code>list --json</code> carry
+<code>"policy_enforced": false</code> for the same reason. Do not hand out a key believing the scope
+limits it. Enforcement ships in a later release; <code>--rate</code> and <code>--cost-budget</code> are stored
+as typed and are not validated yet either.</p>
+<p><strong><code>--client</code> prints the config snippet for the editor that will hold the key</strong>
+(<code>claude-code</code>, <code>cursor</code>, <code>vscode</code>, <code>windsurf</code>, <code>zed</code>). Every snippet reads the key from a
+variable rather than inlining it, except Zed, whose <code>context_servers</code> documents no
+environment expansion for a header value. VS Code has the best handling of the five: it
+prompts once and keeps the value outside the config file. <code>claude-desktop</code> and <code>claude-web</code>
+are refused, each naming the route that does work.</p>
+<p><strong>Exit codes.</strong> <code>0</code> on success, including <code>list</code> on a key file that does not exist yet. <code>1</code>
+on an id that is not in the file, on a key file that cannot be read, and on <code>check</code> of a
+key that is malformed, unknown, revoked or expired. <code>2</code> on a missing positional or a bad
+flag value. Note the asymmetry with <code>kb source remove</code>, which treats a missing name as a
+no-op at <code>0</code>: <code>revoke</code> on an unknown id fails, because an admin scripting a revocation
+reads the exit code and "I revoked nothing" must not read as success.</p>
+<p>No <code>kb keys</code> verb opens the store database, so every one of them runs on a machine with no
+index built. <code>kb keys list</code> is the first command to run after a server refuses to start.</p>
 <h2 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h2>
 <p>Four: <code>0</code> nothing failed, <code>1</code> something did, <code>2</code> the invocation was wrong, <code>130</code> interrupted
 mid-job. The long-running servers are not in that last one: <code>Ctrl-C</code> is how you are told to stop
@@ -422,6 +538,8 @@ uvicorn's graceful shutdown. The conditions behind each are on
 <li><a href="#top-level-commands">Top-level commands</a></li>
 <li><a href="#mirror-commands">Mirror commands</a></li>
 <li><a href="#knowledge-layer-commands">Knowledge-layer commands</a></li>
+<li><a href="#kb-serve-which-key-file-and-whether-it-may-mint">kb serve: which key file, and whether it may mint</a></li>
+<li><a href="#kb-keys">kb keys</a></li>
 </ul>
 </li>
 <li><a href="#exit-codes">Exit codes</a></li>
@@ -456,6 +574,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=1c3e83ae"></script>
+<script defer src="cmdk.js?v=945ec8b9"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@
   <url><loc>https://sayak.in/contextlake/configuration</loc><lastmod>2026-09-03</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/indexing-the-code-graph</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/code-graph-model</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/connecting-and-enriching</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/connecting-and-enriching</loc><lastmod>2026-09-05</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/document-sources</loc><lastmod>2026-08-25</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/searching-semantically</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/embedding-reference</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
@@ -23,14 +23,14 @@
   <url><loc>https://sayak.in/contextlake/asking-the-graph</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/using-the-dashboard</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/serving-over-mcp</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/mcp-transports</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/mcp-transports</loc><lastmod>2026-09-05</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/visualizing-the-graph</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/benchmarks</loc><lastmod>2026-08-25</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/internals</loc><lastmod>2026-08-25</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/cli-reference</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/console-output</loc><lastmod>2026-08-25</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/cli-reference</loc><lastmod>2026-09-05</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/console-output</loc><lastmod>2026-09-05</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/troubleshooting</loc><lastmod>2026-08-24</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/changelog</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/changelog</loc><lastmod>2026-09-05</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/style-guide</loc><lastmod>2026-08-24</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/style-guide-voice</loc><lastmod>2026-08-26</lastmod><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/style-guide-structure</loc><lastmod>2026-09-04</lastmod><priority>0.6</priority></url>

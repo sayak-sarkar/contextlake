@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
-<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
-<link rel="stylesheet" href="docs.css?v=1c3e83ae">
-<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
+<link rel="stylesheet" href="fonts.css?v=945ec8b9">
+<link rel="stylesheet" href="tokens.css?v=945ec8b9">
+<link rel="stylesheet" href="docs.css?v=945ec8b9">
+<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -274,17 +274,20 @@ separately.</p>
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>) produces far fewer rejections, see
   <a href="model-providers">Model providers</a>.</li>
-<li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> once it starts listening --
-  <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code> for <code>http</code>, or the same with an <code>/sse</code>
-  suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing an editor at it.
+<li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> as the last line before it
+  opens the socket -- <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code> for <code>http</code>, or the
+  same with an <code>/sse</code> suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing
+  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
+  on your screen means a server that is coming up.
   Both URLs include the path because neither transport is served at the bare root. Note that probing
   the root will not tell you that: the bearer-token middleware wraps the whole app, so an
   unauthenticated request to any path, the root included, answers <code>401</code> rather than <code>404</code>.
   <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
-<li><strong>The network transports print their bearer token right under that URL, on stderr.</strong> A socket that
+<li><strong>The network transports print their bearer token just above that URL, on stderr.</strong> A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
   you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. Deliberately <em>not</em> through the logger: <code>--log-file</code> would otherwise leave the token on
+  discovered. It comes first because the credential is decided first: the same step can refuse the
+  start, and a refusal has to reach you before anything says the server is up. Deliberately <em>not</em> through the logger: <code>--log-file</code> would otherwise leave the token on
   disk after the process is gone. Pin your own with <code>CONTEXTLAKE_MCP_TOKEN</code> and the line acknowledges
   it instead of echoing the value. <code>stdio</code> prints no token because it needs none. See
   <a href="serving-over-mcp">Serve</a>.</li>
@@ -436,6 +439,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=1c3e83ae"></script>
+<script defer src="cmdk.js?v=945ec8b9"></script>
 </body>
 </html>

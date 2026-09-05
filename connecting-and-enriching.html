@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connecting and enriching · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
-<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
-<link rel="stylesheet" href="docs.css?v=1c3e83ae">
-<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
+<link rel="stylesheet" href="fonts.css?v=945ec8b9">
+<link rel="stylesheet" href="tokens.css?v=945ec8b9">
+<link rel="stylesheet" href="docs.css?v=945ec8b9">
+<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -148,13 +148,19 @@ resolved call or link), or <strong><code>AMBIGUOUS</code></strong> (an unconfirm
 agent. The dashboard and the graph legend use these same tiers.</p>
 <h2 id="query-driven-enrichment">Query-driven enrichment<a class="anchor" href="#query-driven-enrichment" title="Link to this section">#</a></h2>
 <p><code>contextlake kb enrich</code> performs <strong>query-driven enrichment</strong>: it derives search terms from each repo's code
-graph (the repo's name and its top symbols by graph degree) and queries your connected sources (Atlassian
+graph (the repo's name and its top searchable symbols by graph degree, which is the symbol kinds the
+embedder covers, not files or packages) and queries your connected sources (Atlassian
 Rovo search, or any <code>mcp</code> source with a <code>tool</code> and <code>arg_template</code> configured) with those terms, then stores
 the returned documents in a searchable, embedded <code>@enrich:&lt;repo&gt;</code> partition, idempotent and re-runnable
 across the whole fleet or a single repo:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>acme/forecast-api<span class="w">        </span><span class="c1"># one repo</span>
 </code></pre></div>
+<p><strong>Which symbols become terms.</strong> Ranking is by graph degree, and by nothing else. There is no
+per-kind quota, so a repo whose highest-degree definitions are all classes and functions gets
+classes and functions, and no <code>field</code> or <code>endpoint</code> name at all, even when it holds many of
+them. That is on purpose: a repo gets its name plus 9 symbol names by default, and reserving one for
+each of the 19 embeddable kinds would leave the ranking two or three slots to decide.</p>
 <p><strong>Prerequisites.</strong> Two things must be true:</p>
 <ol>
 <li>The code graph is indexed, via <code>contextlake kb index</code>.</li>
@@ -169,6 +175,47 @@ re-fetched without clobbering earlier results.</p>
 <code>document</code> nodes tagged with their source in <code>attrs.source</code>.</p>
 <p>A result that names one of the repo's symbols is linked straight to it with a <code>documented_by</code>
 edge, so the enrichment lands <strong>on</strong> the graph rather than beside it.</p>
+<p><strong>How to read the run.</strong> Each repo prints the terms tried, the documents returned and the
+edges attached to code. Both numbers are reported because they answer different questions:
+documents returned says whether your sources had anything, edges to code says whether a
+question about the code can reach it.</p>
+<p>The closing line puts every targeted repo in one of five buckets, and the five add up to the
+number of repos the run planned to touch:</p>
+<table>
+<thead>
+<tr>
+<th>Bucket</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enriched</code></td>
+<td>Documents came back and at least one names a symbol in the repo.</td>
+</tr>
+<tr>
+<td><code>nothing returned</code></td>
+<td>The repo was searched and the sources had nothing.</td>
+</tr>
+<tr>
+<td><code>returned but unattached</code></td>
+<td>Documents came back and none names a symbol in the repo.</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>The store or shard write failed for that repo. The run continues.</td>
+</tr>
+<tr>
+<td><code>skipped</code></td>
+<td>No graph shard, so no terms were built. Run <code>kb index</code> first.</td>
+</tr>
+</tbody>
+</table>
+<p><code>returned but unattached</code> is a normal outcome, not a failure, and the run still ends with a
+<code>✓</code>. Symbol matching is whole-word and ignores names under three characters, so a ticket that
+discusses the repo in prose without naming any of its code correctly attaches to nothing. If
+you expected attachments, check the repo is indexed and that the document text spells the
+symbol names the way the code does.</p>
 <p>After <code>contextlake kb wiki</code> runs, these documents become an attributed "External context"
 section in the curated wiki, grounded to the code graph's terms.</p>
 <p>Configuring document sources, including the built-in <code>files</code> source, plugin packages and MCP endpoints, is in <a href="document-sources">Document sources and RAG</a>.</p>
@@ -289,6 +336,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=1c3e83ae"></script>
+<script defer src="cmdk.js?v=945ec8b9"></script>
 </body>
 </html>

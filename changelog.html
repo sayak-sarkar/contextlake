@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Changelog · contextlake docs">
 <meta name="twitter:description" content="Release history for contextlake.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
-<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
-<link rel="stylesheet" href="docs.css?v=1c3e83ae">
-<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
+<link rel="stylesheet" href="fonts.css?v=945ec8b9">
+<link rel="stylesheet" href="tokens.css?v=945ec8b9">
+<link rel="stylesheet" href="docs.css?v=945ec8b9">
+<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -54,6 +54,84 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
+<li><strong><code>contextlake kb keys</code>, the command every key-file refusal already named.</strong> Seven verbs:
+  <code>create</code>, <code>list</code>, <code>show</code>, <code>revoke</code>, <code>rotate</code>, <code>check</code> and <code>prune</code>.</li>
+</ul>
+<p><code>kb serve</code> refuses to start on several key-file states, and each refusal told the operator
+  to run <code>contextlake kb keys create &lt;name&gt;</code>. That command did not exist. A server that
+  refuses and names a way out the reader cannot take is worse than one that starts wrongly,
+  because the operator has nothing to do next. This is that command.</p>
+<p><strong>The key is shown once.</strong> It goes to standard error at creation and never appears again,
+  because the file stores a SHA-256 digest rather than the key. It is deliberately never sent
+  through the logger: the console handler always writes to stdout, a <code>--log-file</code> run adds a
+  5 MB rotating file with three backups that outlives the process, and the redactor rewrites
+  workspace paths and repo names, so it would scrub a key on neither. A lost key is rotated,
+  never recovered, and <code>rotate</code> keeps the old key working for <code>--overlap</code> so the holder can
+  swap without an outage.</p>
+<p>Two other paths can carry the key out, and both are narrower than they look. <code>--print-key</code>
+  writes the bare key to stdout for a pipe and refuses a terminal, where it would land in the
+  scrollback instead of a secret store. <code>--out FILE</code> writes it at mode 0600, with the mode set
+  at creation rather than chmod-ed afterwards, and with <code>O_EXCL</code> so an existing path is
+  refused rather than overwritten.</p>
+<p><code>check</code> reads the key from standard input only. A key on a command line lands in shell
+  history and shows in <code>ps</code> to every account on the machine. A terminal with nothing piped
+  in is refused too, rather than waiting for end-of-file behind a blank screen: it does not
+  prompt, because a typed key lands in the scrollback. It opens no socket and sends no
+  request, which is what lets it answer when the server is the thing that is down, and it
+  says so rather than implying it verified anything against a server.</p>
+<p><strong>No verb opens the store database.</strong> Every one of them runs on a machine that has never
+  built an index, which is the machine an operator is on when a server has just refused to
+  start. <code>kb keys list</code> is the first command they run.</p>
+<p>Two refusals split by verb rather than collapsed into one rule. A key file carrying group
+  or other bits, or sitting in a directory anyone can write to, is a policy fault: write
+  verbs refuse, and <code>list</code> warns and prints the table anyway, because blocking the operator
+  from seeing what exists is the wrong failure when <code>list</code> is how they diagnose the refusal
+  they just hit. A file that cannot be read at all is not that: nothing was read, so every
+  verb fails and names the path.</p>
+<p><strong>The scope flags are recorded and enforced by nothing, and every surface says so.</strong>
+  <code>--tools</code>, <code>--repos</code>, <code>--owners</code>, <code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are written onto
+  the key and rendered back by <code>create</code>, <code>list</code>, <code>show</code> and <code>check</code>. No code reads them. A
+  key created with <code>--tools none --repos nothing-matches/*</code> was presented to a live
+  <code>kb serve --transport http --keys-only</code> server and <code>tools/list</code> answered with all 23
+  registered tools, one of which then ran and returned a result.</p>
+<p>So the values print with <code>(recorded, not enforced)</code> beside them and three lines saying
+  what that means, <code>show --json</code> and <code>list --json</code> carry <code>"policy_enforced": false</code>, and an
+  unset axis reads <code>unset</code> rather than <code>none</code>, which read as a denial for the key a bare
+  <code>create</code> makes. Telling an operator their key is scoped when it is not is worse than not
+  offering the flags, because they hand the key out on that reading.</p>
+<p>Scope is per tool, not per repository once it does work: a key allowed a tool will read
+  every indexed repo through it. <code>--rate</code> and <code>--cost-budget</code> are stored as typed and
+  validated by nobody, because their parser ships with the rate limiter. The <code>LAST USED</code>
+  column reads <code>never</code> until the usage file it reads from exists.</p>
+<ul>
+<li><strong>Per-request identity on the network MCP transports, and the frame that will carry access
+  control.</strong> Groundwork only: nothing is enforced yet and nothing changes for a local run.</li>
+</ul>
+<p><code>build_http_app</code> now resolves a <code>Principal</code> per request and the tool wrapper reads it, so
+  two callers holding two different credentials are two different identities inside a tool
+  body rather than one anonymous caller. Until now there was no place to put that fact, which
+  is why access control, rate limiting and usage accounting could not be built: each would
+  have had to invent its own notion of who was asking.</p>
+<p>The wrapper's whole <code>try</code>/<code>finally</code>/<code>except</code> structure lands here, once, deliberately. Four
+  planned stories each need to add a line to that twelve-line function, and when they were
+  specified separately their orderings contradicted each other. Landing the frame first turns
+  each of them into an insertion at a named anchor instead of a restructure, so whoever lands
+  second does not have to unpick whoever landed first.</p>
+<p>It fails closed. Whether identity is required is a build-time decision made by
+  <code>build_http_app</code>, never inferred from whether an identity happens to be present. A stdio run
+  does not read the value at all, and on a network run a missing identity refuses the call
+  rather than answering it unscoped. Those two states used to be the same value, which meant a
+  server whose identity plumbing broke would have answered every request as if unauthenticated
+  access were intended, with every test still passing.</p>
+<p><strong>What it does not do.</strong> It detects a MISSING identity. It cannot tell a WRONG one, and on
+  the SSE transport the plausible failure is substitution rather than absence. Closing that
+  needs a per-connection token compared at the boundary, which is specified and not built.
+  <code>ask</code> calls its sibling tools directly, so those legs never cross the wrapper and an access
+  check placed there will not cover them; the anchor comment says so. And the run outcome the
+  wrapper records has no reader until the usage recorder lands.</p>
+<p><strong>stdio, the default, is unchanged</strong>: same tool output, no identity lookup, no new file,
+  config field or dependency for anyone who never serves over the network.</p>
+<ul>
 <li><strong><code>contextlake kb source wizard</code>.</strong> It lists every configured source with a reachability
   mark, then offers to add another and loops until you answer no (pressing enter is no). The
   survey reads the same <code>verify_source</code> path <code>kb doctor</code> and <code>kb source test</code> use, so
@@ -63,6 +141,24 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   is refused with exit 2 and the flag form to use instead.</li>
 </ul>
 <h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>kb enrich</code> reports edges to code, not only documents stored.</strong> The linking step already
+  ran: every enrichment document was matched against the repo's symbol names and the matches
+  were stored as <code>documented_by</code> edges. The count was then discarded, so the run could report
+  only how many documents came back. A document with no edge to any symbol cannot answer a
+  question about the code, and it read as a success.</li>
+</ul>
+<p>The run now prints, per repo, the terms tried, the documents returned and the edges attached
+  to code, and closes with a line that puts every targeted repo in one of five buckets:
+  enriched, nothing returned, returned but unattached, failed, skipped. The five add up to the
+  number of repos the run planned to touch, on every exit path.</p>
+<p><strong>"Returned but unattached" is a state, not a failure.</strong> The matcher is whole-word with a
+  three-character floor, so a ticket that discusses a repo in prose without naming a symbol
+  correctly attaches to nothing. That run still prints <code>✓</code>.</p>
+<p>A repo whose store or shard write fails is now counted and reported instead of aborting the
+  whole run. A run where every repo failed that way exits 1.</p>
+<p><strong>API change:</strong> <code>run_enrich_repo</code> returns an <code>EnrichCounts(terms, documents, edges)</code> triple
+  instead of the document count alone.</p>
 <ul>
 <li><strong><code>kb doctor</code>'s per-source line now separates three answers that used to render as one
   <code>⚠</code>.</strong> A source that was dialled and did not answer keeps <code>⚠</code>. A source of a type with no
@@ -126,6 +222,94 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
 </code></pre></div>
 <p>Nothing changes for <code>provider = "ollama"</code>, <code>"builtin"</code> or <code>"auto"</code>, or for any config that
   already writes a <code>base_url</code> line.</p>
+<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>kb serve</code> printed a green success banner for a server that never started.</strong> A network
+  start that was about to refuse printed</li>
+</ul>
+<div class="highlight"><pre><span></span><code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+  --keys-only refused: no key file with a live key was found ...
+</code></pre></div>
+<p>and exited 1 with nothing listening. The banner sat above the block that reads the key file,
+  so all five key-file refusals printed second, and an operator reading their terminal top to
+  bottom saw a running server. A code comment on that block claimed the opposite, that every
+  refusal ran before any banner.</p>
+<p>The two banner lines are printed last now, right before the server call, with nothing
+  between them that can return. A start that refuses prints no banner at all. The refusals
+  covered: a key file that cannot be trusted, <code>--keys-only</code> with <code>$CONTEXTLAKE_MCP_TOKEN</code> set,
+  a file this reader cannot account for, a file whose keys have all expired or that holds no
+  records, and <code>--keys-only</code> with no live key anywhere. The <code>--host</code> refusal already ran before
+  the banner and is unchanged. Output on a start that goes ahead is unchanged.</p>
+<ul>
+<li>
+<p><strong><code>kb serve --keys-file</code> and <code>--keys-only</code> are documented.</strong> They decide which key file a
+  network start reads and whether it may mint a shared token, and <code>docs/cli-reference.md</code>
+  described neither. It carries the four-tier resolution order now, why an absent file at a
+  named path is refused rather than read as a first start, and the two cases <code>--keys-only</code>
+  refuses.</p>
+</li>
+<li>
+<p><strong>A first start named no way to stop using the shared token.</strong> Every key-file refusal told
+  the operator to run <code>contextlake kb keys create &lt;name&gt;</code>. The one route a new operator walks,
+  a first start on a machine with no key file, printed the unscoped token and named nothing, so
+  the person who most needed a scoped key was the only one never told the command exists. That
+  start now adds one line saying the token is shared and naming <code>kb keys create</code>. The
+  all-revoked start, which already named it for its own reason, is unchanged and does not say
+  it twice.</p>
+</li>
+<li>
+<p><strong><code>[serve]</code> was reported as an unknown config table while the same run refused a start over
+  <code>[serve] keys_file</code>.</strong> One <code>kb serve</code> run printed <code>config: unknown config table 'serve'
+  (ignored)</code> on stdout and <code>Key file refused: [serve] keys_file names ...</code> on stderr. The table
+  is known: <code>keyfile._serve_keys_file</code> opens the same TOML files and honours the value, which
+  is how the second line came to name it. The warning was the wrong line, and <code>serve</code> is in the
+  known-table set now. Keys inside the table are still not checked the way <code>[kb]</code> keys are.</p>
+</li>
+<li>
+<p><strong>The reason written down for one fail-closed refusal was false.</strong> A key file holding no
+  records is refused, and <code>kb/keyfile.py</code> justified that with "<code>kb keys prune</code> on a schedule
+  empties a file whose keys lapsed, so the calendar reaches this state too". Nothing schedules
+  <code>prune</code>; it runs when a person types it. The refusal is unchanged, because it never depended
+  on who emptied the file: a file holding no record admits nobody and reads on stderr like a
+  first start, so minting on it turns a deployment that asked for scoped keys into an open one.
+  The same false premise was restated in <code>kb/cmds/serve.py</code>'s table of zero-live states and in
+  a test docstring; all three are corrected, and a test now fails if the sentence returns to
+  any of them.</p>
+</li>
+<li>
+<p><strong><code>kb enrich</code> term selection: the cap is now spent on searchable symbols.</strong> The term builder
+  read <code>repo_brief</code>'s <code>top_symbols</code>, which ranks every node in a repo and then caps the result,
+  and filtered that capped list down to the embeddable kinds. So files, packages, modules and
+  config keys consumed the budget before one searchable symbol was considered. Measured on 48
+  of a 56-repo store (the 8 largest shards left out to bound the measurement's own memory): 24
+  of the 29 repos holding 9 or more embeddable nodes got fewer than the 10 terms asked for, and
+  the largest of them, at 5,494 embeddable nodes, produced 5.</p>
+</li>
+</ul>
+<p><code>repo_brief</code> now carries a second ranked list, <code>top_embeddable_symbols</code>, filtered to the
+  embeddable kinds first and capped after, one row per distinct name. The term builder reads
+  that. On the same 48 repos all 29 with enough symbols now reach 10 terms, and the total rises
+  from 191 terms to 321.</p>
+<p><strong>Your terms will change, not only grow.</strong> The count per repo rises or holds, and no repo ends
+  with fewer, but the ranking that fills the list is different, so the SET moves: 20 of the 32
+  repos that HELD a symbol term lose at least one they used to get, and 41 of the 143 previous
+  symbol terms are gone. A term drops out when a higher-degree definition displaces it.
+  (The denominator is 32, not the 48 measured: the other 16 held no symbol term to lose, so
+  counting them would understate the churn among repos this can affect.)</p>
+<p><strong><code>field</code> and <code>endpoint</code> names can vanish from a repo's terms entirely.</strong> There is no per-kind
+  floor, so the ranking alone decides. On those 48 repos, <code>field</code> reached no term in any of the
+  4 repos holding <code>field</code> nodes, including one where 103 of its 178 embeddable nodes are fields;
+  <code>endpoint</code> reached none in 12 of the 15 repos holding one. Widening the budget barely helps:
+  re-measured at 25 terms a repo instead of 10, all 4 <code>field</code> repos stay empty, and <code>endpoint</code>
+  recovers in at most 2, leaving 10 of 15 still empty. So a bigger budget is not the fix for
+  either kind, and for <code>field</code> it changes nothing at all. This is deliberate. A repo gets 9 symbol names by default, across 19 embeddable kinds,
+  so a floor could reserve at most one slot each, and a per-kind floor is half of what starved
+  the old path. The full reasoning sits beside the ranking in <code>wiki/generate.py</code>.</p>
+<p><code>top_symbols</code> is unchanged, and so is every wiki page: its all-node candidate set is
+  deliberate, the new list stays out of the <code>grounded_count</code>/<code>coverage_total</code> ratio and out of
+  <code>hubs</code>/<code>dispatchers</code>, and no wiki, dashboard or MCP surface reads it. The 16 repos in that
+  measured set whose symbols were never extracted still get one term; that is indexer coverage,
+  and this change does not claim it.</p>
 <h3 id="security">Security<a class="anchor" href="#security" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A config file found by walking up from the current directory may no longer choose an endpoint,
@@ -172,7 +356,7 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
 </ul>
 <p>Wheel zoom got more responsive alongside them: <code>wheelSensitivity</code> was <code>0.2</code>, so reaching
   a readable scale took a dozen notches and the canvas read as stuck. It is now <code>1</code>.</p>
-<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>Every graph and dashboard page requested a favicon that did not exist</strong>, producing a
@@ -216,7 +400,7 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
   iframe in when the reader scrolls near it, carrying the current theme. A reader with no
   JavaScript, or who never scrolls that far, keeps the screenshot.</li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
+<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>A static export's graph pages disagreed about which repos had a wiki.</strong> The map was
@@ -242,7 +426,7 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
 </li>
 </ul>
 <h2 id="8110-2026-08-31">[8.11.0] - 2026-08-31<a class="anchor" href="#8110-2026-08-31" title="Link to this section">#</a></h2>
-<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
+<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The dashboard rendered twice on every load, and fetched <code>/api/overview</code> twice with it.</strong>
@@ -312,7 +496,7 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
   Windows.</p>
 <p>Every claim on that page is now pinned by <code>tests/test_repos_pattern_syntax.py</code>.</p>
 <h2 id="8101-2026-08-31">[8.10.1] - 2026-08-31<a class="anchor" href="#8101-2026-08-31" title="Link to this section">#</a></h2>
-<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
+<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb index --workspace</code> no longer breaks its worker pool.</strong> The cause was
   <code>RepoTooLarge</code>, the exception 8.10.0 added for the memory budget: it could not be
@@ -521,7 +705,7 @@ attributed the break to that estimate and to a dying worker, and both were wrong
   fleet or a small machine.</p>
 </li>
 </ul>
-<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
+<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>Every scheduled job read every other job's run history.</strong> All jobs append to
@@ -615,7 +799,7 @@ floored without a cap and a new release changed how tool errors surface.</p>
 reason for a refusal it was right to make. One is a documentation example that does not run.</p>
 <p><code>PARSER_VERSION</code>, <code>SCHEMA_VERSION</code> and <code>EMBED_CONTENT_VERSION</code> are untouched, so nothing
 re-parses and nothing re-embeds. <strong>One stored value does change:</strong> see Migration.</p>
-<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
+<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong><code>kb index --source</code> filed repositories under their directory name instead of their
@@ -668,7 +852,7 @@ logged, for example <code>oldname -&gt; gitlab.example.com/acme/widgets</code>.<
 <h2 id="861-2026-08-24">[8.6.1] - 2026-08-24<a class="anchor" href="#861-2026-08-24" title="Link to this section">#</a></h2>
 <p>A documentation-structure release. No behaviour changed, no schema moved,
 <code>EMBED_CONTENT_VERSION</code> untouched, so nothing re-embeds.</p>
-<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
+<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Two strings the CLI prints at users named documentation files that no longer exist.</strong>
   <code>kb serve --help</code> pointed at <code>docs/serve.md</code> and the unsupported-language error pointed at
@@ -792,7 +976,7 @@ change, no parser change, and <code>EMBED_CONTENT_VERSION</code> is untouched, s
   and any kind the projection does not cover falls through to a visible <code>Other</code> band
   rather than disappearing from the legend.</li>
 </ul>
-<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
+<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Folded leaves are now visible in the count, not only absent from the picture.</strong> Leaf
   folding writes a tally onto each container and onto the page meta, and nothing read either
@@ -871,7 +1055,7 @@ arrives behind an optional extra or a file you do not have to write.</p>
   non-deterministically.</p>
 </li>
 </ul>
-<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
+<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The sqlite-vec backend was tested in no CI job at all.</strong> <code>ci.yml</code> did not install <code>kb-vec</code>,
@@ -1005,7 +1189,7 @@ Nothing is required of you beyond the next run costing more than usual.</p>
 <p>This also catches something a per-repo commit stamp cannot express at all: a new
   repository joining the store makes the page wrong without any existing member changing,
   because its populations count a fleet that grew.</p>
-<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
+<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The cluster page and the fleet page now share one fingerprint rule.</strong> Both ask "have the
@@ -1048,7 +1232,7 @@ Nothing is required of you beyond the next run costing more than usual.</p>
   fleet still exits 0.</p>
 <p>The name is matched <strong>exactly</strong>: <code>--branch release/24</code> does not select <code>release/24.1</code>. A
   prefix test on an identity question is a hole this project has closed three times already.</p>
-<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
+<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A misspelled <code>branch_strategy</code> ran a different selection and said nothing.</strong> The
   selector falls through to <code>hybrid</code> for any name it does not recognise, so
@@ -1205,7 +1389,7 @@ sentence into an immutable release, so it says seven and names the eighth.</p>
   was considered and rejected: it would sort below everything already published, so nobody on
   7.x would ever be offered it.</li>
 </ul>
-<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
+<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A registry-parity test carried a hand-written list of the kinds one module produces.</strong>
   It read <code>{"table", "view", "procedure"}</code> for the SQL extractor, so adding a kind there
@@ -1214,7 +1398,7 @@ sentence into an immutable release, so it says seven and names the eighth.</p>
   that declaration.</li>
 </ul>
 <h2 id="7320-2026-08-19">[7.32.0] - 2026-08-19<a class="anchor" href="#7320-2026-08-19" title="Link to this section">#</a></h2>
-<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
+<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The derivation harness counted an arrow inside a node label as an edge.</strong> A scanner
   flagged the bare <code>--&gt;</code> match as HTML comment handling, which it is not: the file is
@@ -1293,7 +1477,7 @@ sentence into an immutable release, so it says seven and names the eighth.</p>
   from the source. The measured rank is kept in the evidence either way, so a regression in
   that quality stays visible.</p>
 <h2 id="7290-2026-08-18">[7.29.0] - 2026-08-18<a class="anchor" href="#7290-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
+<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>get_generated_doc</code> gave three different absences one shape.</strong> A kind this server does
   not generate, an indexed repository whose page has not been written yet, and a repository
@@ -1363,7 +1547,7 @@ sentence into an immutable release, so it says seven and names the eighth.</p>
 <p>This does not close that gate on its own. A harness that has never run is not evidence,
   and the result file is written by a live run.</p>
 <h2 id="7260-2026-08-18">[7.26.0] - 2026-08-18<a class="anchor" href="#7260-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
+<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Three MCP tools returned an empty result with nothing to say why.</strong> A probe drove all
   twenty-two tools over the stdio transport with the real client. Nineteen already
@@ -1454,7 +1638,7 @@ sentence into an immutable release, so it says seven and names the eighth.</p>
 </li>
 </ul>
 <h2 id="7240-2026-08-18">[7.24.0] - 2026-08-18<a class="anchor" href="#7240-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
+<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
 <p>Four commands printed a fault and then a success word about the same run. Each was found by
 a probe of a surface nobody had exercised, and each has the same shape: the summary was
 written from a variable the reporting did not feed.</p>
@@ -1516,7 +1700,7 @@ written from a variable the reporting did not feed.</p>
 </li>
 </ul>
 <h2 id="7230-2026-08-18">[7.23.0] - 2026-08-18<a class="anchor" href="#7230-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
+<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The gate that keeps every documented number honest was reading a list of files somebody
   had remembered.</strong> Each family of claims named the pages it knew stated its number, which
@@ -1582,7 +1766,7 @@ written from a variable the reporting did not feed.</p>
 </li>
 </ul>
 <h2 id="7220-2026-08-18">[7.22.0] - 2026-08-18<a class="anchor" href="#7220-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
+<h3 id="fixed_18">Fixed<a class="anchor" href="#fixed_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb query --retriever semantic</code> answered "No matches" on every freshly-initialised
   workspace.</strong> A nearest-neighbour search over an EMPTY table returns <code>[]</code>, which is the
@@ -1661,7 +1845,7 @@ written from a variable the reporting did not feed.</p>
 </li>
 </ul>
 <h2 id="7210-2026-08-18">[7.21.0] - 2026-08-18<a class="anchor" href="#7210-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_18">Fixed<a class="anchor" href="#fixed_18" title="Link to this section">#</a></h3>
+<h3 id="fixed_19">Fixed<a class="anchor" href="#fixed_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A malformed golden set scored 0.0 instead of being rejected.</strong> <code>kb eval --json</code> exists to
   gate CI on a metric, so a typo in the golden file reported <code>hit_rate: 0.0</code> and read as
@@ -1703,7 +1887,7 @@ written from a variable the reporting did not feed.</p>
   holds, and points at <code>kb query --json</code> as the way to get real ids.</li>
 </ul>
 <h2 id="7200-2026-08-18">[7.20.0] - 2026-08-18<a class="anchor" href="#7200-2026-08-18" title="Link to this section">#</a></h2>
-<h3 id="fixed_19">Fixed<a class="anchor" href="#fixed_19" title="Link to this section">#</a></h3>
+<h3 id="fixed_20">Fixed<a class="anchor" href="#fixed_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb wiki &lt;repo&gt;</code> ignored its repo filter entirely.</strong> It rewrote every repository's
   structural page, and given a repo id that does not exist it regenerated everything and
@@ -2012,7 +2196,7 @@ reason, so what was weighed against it is not recoverable from the code.*
   previous bump, which is not ideal for anyone who just re-indexed. The alternative is worse: a
   manifest that has not changed since the last index would keep the thinner edges forever, and
   no commit-keyed check would ever say so.</p>
-<h3 id="fixed_20">Fixed<a class="anchor" href="#fixed_20" title="Link to this section">#</a></h3>
+<h3 id="fixed_21">Fixed<a class="anchor" href="#fixed_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The same two strip helpers missed one more spelling of an end tag: <code>&lt;/script foo=1&gt;</code>.</strong> A
   browser closes a script there, because attributes on an end tag are ignored while the tag still
@@ -2057,7 +2241,7 @@ reason, so what was weighed against it is not recoverable from the code.*
   package and +63% on a macro-heavy C++ one, where one test-assertion macro is read from 22
   different files. Shard bytes stay reproducible: two independent indexes of one tree are byte-identical
   with the new stream, checked before and after.</p>
-<h3 id="fixed_21">Fixed<a class="anchor" href="#fixed_21" title="Link to this section">#</a></h3>
+<h3 id="fixed_22">Fixed<a class="anchor" href="#fixed_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A test helper that stripped <code>&lt;script&gt;</code> and <code>&lt;style&gt;</code> blocks missed two spellings</strong>, so four
   accessibility assertions could have run against text the helper exists to remove, passing while
@@ -2114,7 +2298,7 @@ reason, so what was weighed against it is not recoverable from the code.*
   one-line description had also drifted: it listed neither the diagram stage nor this one.</p>
 </li>
 </ul>
-<h3 id="fixed_22">Fixed<a class="anchor" href="#fixed_22" title="Link to this section">#</a></h3>
+<h3 id="fixed_23">Fixed<a class="anchor" href="#fixed_23" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>A table cell built with <code>mdwrite.code()</code> was escaped twice</strong>, so a C++ <code>operator|</code> overload
@@ -2134,7 +2318,7 @@ reason, so what was weighed against it is not recoverable from the code.*
   for a path carrying an embedded NUL byte, so the copy written for the documentation generator
   would have ended a run with an uncaught exception on such a path.</p>
 <h2 id="7121-2026-08-17">[7.12.1] - 2026-08-17<a class="anchor" href="#7121-2026-08-17" title="Link to this section">#</a></h2>
-<h3 id="fixed_23">Fixed<a class="anchor" href="#fixed_23" title="Link to this section">#</a></h3>
+<h3 id="fixed_24">Fixed<a class="anchor" href="#fixed_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Four defects in the structural page, all found by reading one a real install
   produced.</strong> The suite was green and every one of these was visible in the first page a
@@ -2225,7 +2409,7 @@ reason, so what was weighed against it is not recoverable from the code.*
 <p><strong>This is a parser change, so every existing store is stale and re-indexes itself.</strong>
   <code>kb index</code> already refuses to skip a repository whose graph an older parser built, and
   says how many it is re-indexing and why. Nothing to do by hand.</p>
-<h3 id="fixed_24">Fixed<a class="anchor" href="#fixed_24" title="Link to this section">#</a></h3>
+<h3 id="fixed_25">Fixed<a class="anchor" href="#fixed_25" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The graph-vocabulary diagram's alt text stated the wrong counts</strong>, "40 node kinds in
@@ -2254,7 +2438,7 @@ reason, so what was weighed against it is not recoverable from the code.*
   walking up from the current directory may turn it on but never off, since contextlake
   clones repositories into the workspace itself and a checkout could otherwise disable
   the operator's own setting.</p>
-<h3 id="fixed_25">Fixed<a class="anchor" href="#fixed_25" title="Link to this section">#</a></h3>
+<h3 id="fixed_26">Fixed<a class="anchor" href="#fixed_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>--anonymize</code> no longer serves a repo's wiki prose on a second route.</strong> The served
   dashboard's <code>/api/repo/&lt;id&gt;</code> deliberately drops the wiki body under <code>--anonymize</code>,
@@ -2390,7 +2574,7 @@ TypeScript repositories stale indefinitely while every surface reported healthy.
 <p>What this does <strong>not</strong> claim: more nodes is not automatically better. A <code>const</code> holding a
   <code>require()</code> alias is a weaker answer to "what is in this codebase" than a function is. The
   benchmark measures coverage, not precision.</p>
-<h3 id="fixed_26">Fixed<a class="anchor" href="#fixed_26" title="Link to this section">#</a></h3>
+<h3 id="fixed_27">Fixed<a class="anchor" href="#fixed_27" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The mirror banner names the forge you configured.</strong> A GitHub run printed "Mirror
   repositories from GitLab", and "Active GitLab projects: 2", two lines above "Enumerating via
@@ -2426,7 +2610,7 @@ its name.</p>
   whole range this gate can discriminate, and MRR over 30 queries moves in steps of about
   1/30, so read the note beside the floor in the golden set before moving it.</li>
 </ul>
-<h3 id="fixed_27">Fixed<a class="anchor" href="#fixed_27" title="Link to this section">#</a></h3>
+<h3 id="fixed_28">Fixed<a class="anchor" href="#fixed_28" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>A query against an empty store no longer answers like a genuine miss.</strong> Querying also
@@ -2511,7 +2695,7 @@ the whole-repo wiki was already carried there. See "Verified, no change needed" 
   quickstart addresses. The local-only path writes a knowledge config and no mirror INI, since a
   mirror INI would name a forge group that does not exist.</li>
 </ul>
-<h3 id="fixed_28">Fixed<a class="anchor" href="#fixed_28" title="Link to this section">#</a></h3>
+<h3 id="fixed_29">Fixed<a class="anchor" href="#fixed_29" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>--anonymize</code> now covers the served dashboard, not only <code>--site</code>.</strong> The flag was documented
   for both and implemented for one: the data layer accepted the argument on every
@@ -2550,7 +2734,7 @@ automation that was silently passing</strong>, which is the point, a content pip
 source at a time was previously invisible until the answers got worse. Every affected command
 names <strong><code>--exit-zero-on-partial</code></strong> in its own output, and that flag already exists as a global
 option, so a scheduled run needs one flag rather than a rollback.</p>
-<h3 id="fixed_29">Fixed<a class="anchor" href="#fixed_29" title="Link to this section">#</a></h3>
+<h3 id="fixed_30">Fixed<a class="anchor" href="#fixed_30" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>An unreachable source was a green tick.</strong> Four of nine source types swallowed every fetch
@@ -2636,7 +2820,7 @@ option, so a scheduled run needs one flag rather than a rollback.</p>
 <p><strong>The command you were told to run, runs, and writes where you said it would.</strong> Six defects,
 every one of them a documented path that silently did the wrong thing while reporting success.
 Two of them wrote into a production knowledge store during the audit that found them.</p>
-<h3 id="fixed_30">Fixed<a class="anchor" href="#fixed_30" title="Link to this section">#</a></h3>
+<h3 id="fixed_31">Fixed<a class="anchor" href="#fixed_31" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong><code>kb refresh --refresh</code> indexed your home directory.</strong> This is the SessionStart hook
@@ -2693,7 +2877,7 @@ Two of them wrote into a production knowledge store during the audit that found 
   command, telling a user who had just supplied the group that no group was found.</p>
 </li>
 </ul>
-<h3 id="fixed_31">Fixed<a class="anchor" href="#fixed_31" title="Link to this section">#</a></h3>
+<h3 id="fixed_32">Fixed<a class="anchor" href="#fixed_32" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>"This is a timeout, not an empty history" was printed for things that were not timeouts.</strong>
   The ownership walk can fail three ways, and all three collapsed into one boolean; the caller then
@@ -2773,7 +2957,7 @@ Two of them wrote into a production knowledge store during the audit that found 
   line while the index still reports success, which would cost a first-time contributor an hour. And
   it says what <strong>not</strong> to touch: the golden-query fixture and <code>PARSER_VERSION</code> should not move for a
   pure addition, with the cost of doing so stated.</p>
-<h3 id="fixed_32">Fixed<a class="anchor" href="#fixed_32" title="Link to this section">#</a></h3>
+<h3 id="fixed_33">Fixed<a class="anchor" href="#fixed_33" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The release checklist's own first step could not pass.</strong> <code>docs/releasing.md</code> opened with
@@ -2901,7 +3085,7 @@ until you force a reload.</p>
   it. The cost is bounded and flat: one rule plus about 130 characters per block, at most 5 blocks , 
   between +837 and +1,133 characters, which is +3.5% on the largest wiki prompt and +12.7% on the
   smallest.</p>
-<h3 id="fixed_33">Fixed<a class="anchor" href="#fixed_33" title="Link to this section">#</a></h3>
+<h3 id="fixed_34">Fixed<a class="anchor" href="#fixed_34" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Thirteen accessibility defects in the dashboard, fixed against measured contrast rather than
   judgement.</strong> Seven Level A and six Level AA, from a WCAG 2.2 AA audit of the whole UI.</li>
@@ -2988,7 +3172,7 @@ embed once more to catch up, and then settle.</p>
   refused, so the test cannot pass by everything simply never erroring. <code>docs/serve.md</code> states what
   callers may rely on and what remains an error.</li>
 </ul>
-<h3 id="fixed_34">Fixed<a class="anchor" href="#fixed_34" title="Link to this section">#</a></h3>
+<h3 id="fixed_35">Fixed<a class="anchor" href="#fixed_35" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong><code>ask</code> reported four established negatives as answered.</strong> The callers, subclasses, impact and
@@ -3198,7 +3382,7 @@ change and <code>PARSER_VERSION</code> stays at <code>4</code>.</p>
 <p><code>field</code> is the heaviest by far (+105.9% vectors alone, and the least distinctive names, 54.8%
   unique, one name occurring 506 times). It is recorded in the kind registry as the first row to
   reconsider if that cost ever bites.</p>
-<h3 id="fixed_35">Fixed<a class="anchor" href="#fixed_35" title="Link to this section">#</a></h3>
+<h3 id="fixed_36">Fixed<a class="anchor" href="#fixed_36" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The dashboard's repo panel spent 30 seconds in a git subprocess on every single request.</strong>
   Profiled on a 131,603-node repository: the panel took 41s, and 30 of those were one
@@ -3499,7 +3683,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.</
   floors, so widening it would evict existing vectors. <code>config_key</code> and <code>test</code> are recorded in the
   registry as eligible and deliberately deferred, with the reason, and a test now refuses any kind that
   is excluded without one.</p>
-<h3 id="fixed_36">Fixed<a class="anchor" href="#fixed_36" title="Link to this section">#</a></h3>
+<h3 id="fixed_37">Fixed<a class="anchor" href="#fixed_37" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A parser bump now invalidates the artefacts built on top of the graph, not just the graph.</strong>
   <code>PARSER_VERSION</code> moves to <code>4</code>, and this release is the reason the gap mattered: node ids are
@@ -3695,7 +3879,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.</
   existed (<code>get_neighbors</code> has accepted <code>direction="out"</code> all along), so this exposes reachable data
   rather than computing anything new.</li>
 </ul>
-<h3 id="fixed_37">Fixed<a class="anchor" href="#fixed_37" title="Link to this section">#</a></h3>
+<h3 id="fixed_38">Fixed<a class="anchor" href="#fixed_38" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Edges cited a file with no line.</strong> <code>EdgeOut</code> carried <code>source_file</code> but not <code>source_line</code>,
   although <code>Provenance</code> has always held both, so every verb returning edges named a file and left the
@@ -3799,7 +3983,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.</
   the release build gate, and in a contributor's own <code>ruff check</code>. A new finding fails the build.
   The separate job is gone rather than kept alongside, since it would only re-report what the
   main gate already refuses.</p>
-<h3 id="fixed_38">Fixed<a class="anchor" href="#fixed_38" title="Link to this section">#</a></h3>
+<h3 id="fixed_39">Fixed<a class="anchor" href="#fixed_39" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>A DOM helper turned a caller's mistake into a rendered error carrying the caller's data.</strong>
@@ -3882,7 +4066,7 @@ anchored, so a bare name no longer selects every repo that merely contains it.</
   between 5,000,000 and 5,242,880 bytes was parsed and is now skipped, and its symbols leave the
   graph on the next index. The window is narrow and a source file that size is usually generated,
   but the change is real and it is not a bug fix.</p>
-<h3 id="fixed_39">Fixed<a class="anchor" href="#fixed_39" title="Link to this section">#</a></h3>
+<h3 id="fixed_40">Fixed<a class="anchor" href="#fixed_40" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong><code>kb embed</code> no longer deletes vectors it was never going to write.</strong> It clears a repository's
@@ -3964,7 +4148,7 @@ identity. On one real store that reached 63% of all nodes. <code>--bundle</code>
   bundled as before, now with a line saying so rather than in silence. A directory that is itself a
   git repository never reaches the diagnosis at all, however many checkouts it contains, so the
   ordinary <code>kb index .</code> is untouched.</p>
-<h3 id="fixed_40">Fixed<a class="anchor" href="#fixed_40" title="Link to this section">#</a></h3>
+<h3 id="fixed_41">Fixed<a class="anchor" href="#fixed_41" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb index</code>'s bundling advice now names the directory you actually gave it.</strong> The remedy it
   prints when a directory holds git repositories was the hardcoded string <code>contextlake kb index
@@ -4037,7 +4221,7 @@ security audit that 6.2.0 began; and <code>kb index</code> now sees nested repos
   and the jsDelivr origin is permitted for scripts because <code>kb graph --serve --cdn</code> loads
   cytoscape from there. Inline scripts and styles are allowed, since the pages inline their
   own assets by design.</p>
-<h3 id="fixed_41">Fixed<a class="anchor" href="#fixed_41" title="Link to this section">#</a></h3>
+<h3 id="fixed_42">Fixed<a class="anchor" href="#fixed_42" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: keyboard focus no longer jumps into main content on the very first page
   load (WCAG 2.4.3 Focus Order).</strong> The router moves focus to <code>#app</code> on a genuine route
@@ -4162,7 +4346,7 @@ manual step: regenerating graph HTML you saved or published.</p>
   "this repo, not also anything that happens to contain its name." The default is unchanged --
   <code>--repos</code> alone still matches on substring, so nobody's existing script silently starts
   matching less.</p>
-<h3 id="fixed_42">Fixed<a class="anchor" href="#fixed_42" title="Link to this section">#</a></h3>
+<h3 id="fixed_43">Fixed<a class="anchor" href="#fixed_43" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>SECURITY: generated graph pages could execute HTML/JavaScript taken from an indexed
   repository (stored cross-site scripting).</strong>
@@ -4314,7 +4498,7 @@ manual step: regenerating graph HTML you saved or published.</p>
   health API carry the same new fields, <code>stale</code> in all three is now genuine staleness only, and the
   dashboard's health panel gained an <code>Unreadable</code> tile and list so that fault is still visible there.</li>
 </ul>
-<h3 id="fixed_43">Fixed<a class="anchor" href="#fixed_43" title="Link to this section">#</a></h3>
+<h3 id="fixed_44">Fixed<a class="anchor" href="#fixed_44" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb query --retriever semantic|hybrid</code> applies the same relevance floor the MCP tools do.</strong>
   <code>semantic_search</code> and <code>hybrid_search</code> have refused a query with no anchor in the index since 6.0.0,
@@ -4410,7 +4594,7 @@ rather than always returning <code>k</code> results.</p>
   <code>who_knows</code> also stops reporting an unindexed repository as one with no local clone, which
   asserts it is indexed.</li>
 </ul>
-<h3 id="fixed_44">Fixed<a class="anchor" href="#fixed_44" title="Link to this section">#</a></h3>
+<h3 id="fixed_45">Fixed<a class="anchor" href="#fixed_45" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>get_wiki</code> reported a cluster page as fresh without checking.</strong> <code>stale</code> was hardcoded to false
   on that path, so an agent filtering on the field treated a page nothing had verified as verified,
@@ -4510,7 +4694,7 @@ rather than always returning <code>k</code> results.</p>
   <code>ranking_gap</code> field, so the MCP tool is as honest as the router that wraps it.</p>
 <h2 id="511-2026-08-04">[5.1.1] - 2026-08-04<a class="anchor" href="#511-2026-08-04" title="Link to this section">#</a></h2>
 <p>Two defects found by manual CLI testing, both of which a developer machine hides.</p>
-<h3 id="fixed_45">Fixed<a class="anchor" href="#fixed_45" title="Link to this section">#</a></h3>
+<h3 id="fixed_46">Fixed<a class="anchor" href="#fixed_46" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>kb connect</code> with a GitLab source could never have worked, and reported success anyway.</strong>
   Repo ids became canonical <code>host/namespace/project</code>, but the connector still prepended the
@@ -4586,7 +4770,7 @@ rather than always returning <code>k</code> results.</p>
   that one package deliberately rather than <code>:all:</code>, which would forbid a source fallback for every
   other dependency and let one missing wheel break the whole binary.</li>
 </ul>
-<h3 id="fixed_46">Fixed<a class="anchor" href="#fixed_46" title="Link to this section">#</a></h3>
+<h3 id="fixed_47">Fixed<a class="anchor" href="#fixed_47" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The container image kept its knowledge store outside the volume you mounted.</strong> The documented
   <code>docker run -v "$PWD:/work" ... kb index</code> built a store under the runtime user's home, inside the
@@ -4843,7 +5027,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
 <p><strong>Migrating:</strong> if a script or CI job relies on a mirror command always exiting 0, add
   <code>--exit-zero-on-partial</code>. If it already checks the exit status, it starts working as intended,
   expect jobs to go red that were silently failing before.</p>
-<h3 id="fixed_47">Fixed<a class="anchor" href="#fixed_47" title="Link to this section">#</a></h3>
+<h3 id="fixed_48">Fixed<a class="anchor" href="#fixed_48" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing a hostile or merely corrupted <code>pom.xml</code> no longer hangs.</strong> The Maven block regexes
   were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
@@ -4902,7 +5086,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   window: same hard-cutover approach as the CLI namespacing change below, since there are no
   external users of the flag yet to accommodate.</li>
 </ul>
-<h3 id="fixed_48">Fixed<a class="anchor" href="#fixed_48" title="Link to this section">#</a></h3>
+<h3 id="fixed_49">Fixed<a class="anchor" href="#fixed_49" title="Link to this section">#</a></h3>
 <ul>
 <li><code>contextlake init</code> no longer writes a config naming a group/org/workspace that doesn't exist.
   Previously, <code>init --yes</code> (now <code>--skip-interactive</code>) without <code>--group</code> silently wrote
@@ -5038,7 +5222,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   outright, along with the deprecation notice and its <code>CONTEXTLAKE_NO_DEPRECATION</code> opt-out, the
   namespaced form is the only one that parses. See the two required post-upgrade steps above.</li>
 </ul>
-<h3 id="fixed_49">Fixed<a class="anchor" href="#fixed_49" title="Link to this section">#</a></h3>
+<h3 id="fixed_50">Fixed<a class="anchor" href="#fixed_50" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake kb graph --layout dagre</code> was unreachable from the CLI.</strong> The renderer has
   supported <code>dagre</code> since the preview landed, but <code>cli.py</code> restates the layout names as two
@@ -5247,7 +5431,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   that convention is, by default, already excluded from indexing before it can reach the graph --
   so that half of the check only has an effect when a repo's <code>[kb] skip_generated = false</code>.</li>
 </ul>
-<h3 id="fixed_50">Fixed<a class="anchor" href="#fixed_50" title="Link to this section">#</a></h3>
+<h3 id="fixed_51">Fixed<a class="anchor" href="#fixed_51" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake graph --repo &lt;repo&gt;</code> (and the dashboard's repo diagram) now truncates to
   <code>--max-nodes</code> by degree rank, not by an arbitrary <code>node_id</code> order.</strong> When a repo's node count
@@ -5261,7 +5445,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   the caller count is the only fact actually given, not an explanation of the symbol's role.</li>
 </ul>
 <h2 id="2650-2026-07-31">[2.65.0] - 2026-07-31<a class="anchor" href="#2650-2026-07-31" title="Link to this section">#</a></h2>
-<h3 id="fixed_51">Fixed<a class="anchor" href="#fixed_51" title="Link to this section">#</a></h3>
+<h3 id="fixed_52">Fixed<a class="anchor" href="#fixed_52" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>C++: out-of-line qualified method definitions (<code>Widget::Draw</code>, <code>App::Gadget::Spin</code>) are no
   longer lost or misfiled.</strong> A method body defined outside its class, at any qualification depth
@@ -5362,7 +5546,7 @@ reachable by indexing a repository you cloned. Upgrading is recommended for anyo
   handling the Blast radius view already has) or a node id.</li>
 </ul>
 <h2 id="2621-2026-07-30">[2.62.1] - 2026-07-30<a class="anchor" href="#2621-2026-07-30" title="Link to this section">#</a></h2>
-<h3 id="fixed_52">Fixed<a class="anchor" href="#fixed_52" title="Link to this section">#</a></h3>
+<h3 id="fixed_53">Fixed<a class="anchor" href="#fixed_53" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake completion</code> crashed on Python 3.9-3.11</strong> with <code>argparse.ArgumentError: argument
   shell: invalid choice: '==SUPPRESS=='</code> when run without an explicit shell argument. Root cause:
@@ -5415,7 +5599,7 @@ everything documented in <code>docs/usage.md</code>, the README, and the site ke
 Full proposal, rationale, and what was deliberately deferred (not done here): <code>planning/specs/
 spec-cli-simplification.md</code>.</p>
 <h2 id="2608-2026-07-30">[2.60.8] - 2026-07-30<a class="anchor" href="#2608-2026-07-30" title="Link to this section">#</a></h2>
-<h3 id="fixed_53">Fixed<a class="anchor" href="#fixed_53" title="Link to this section">#</a></h3>
+<h3 id="fixed_54">Fixed<a class="anchor" href="#fixed_54" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>provider = "auto"</code> (embeddings and wiki-LLM tiers) no longer commits to a local Ollama that
   doesn't have the target model pulled.</strong> Root-caused the long-standing "Embedder unavailable , 
@@ -5462,7 +5646,7 @@ spec-cli-simplification.md</code>.</p>
   recognized flag").</li>
 </ul>
 <h2 id="2607-2026-07-30">[2.60.7] - 2026-07-30<a class="anchor" href="#2607-2026-07-30" title="Link to this section">#</a></h2>
-<h3 id="fixed_54">Fixed<a class="anchor" href="#fixed_54" title="Link to this section">#</a></h3>
+<h3 id="fixed_55">Fixed<a class="anchor" href="#fixed_55" title="Link to this section">#</a></h3>
 <ul>
 <li>Dashboard's Mermaid-rendered diagram formats (<code>mermaid</code>/<code>classdiagram</code>/
   <code>statediagram</code>/<code>erdiagram</code>/<code>deploymentdiagram</code>) now cap a repo's internal
@@ -5497,7 +5681,7 @@ spec-cli-simplification.md</code>.</p>
 <li><code>/api/repo/&lt;id&gt;/modules</code> endpoint.</li>
 </ul>
 <h2 id="2606-2026-07-29">[2.60.6] - 2026-07-29<a class="anchor" href="#2606-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_55">Fixed<a class="anchor" href="#fixed_55" title="Link to this section">#</a></h3>
+<h3 id="fixed_56">Fixed<a class="anchor" href="#fixed_56" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake dashboard --serve</code> on a port already in use dumped a raw traceback</strong>
   instead of a clean, actionable message. Found live: a second <code>dashboard --serve</code>
@@ -5515,7 +5699,7 @@ spec-cli-simplification.md</code>.</p>
   when cwd clearly isn't that case.</li>
 </ul>
 <h2 id="2605-2026-07-29">[2.60.5] - 2026-07-29<a class="anchor" href="#2605-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_56">Fixed<a class="anchor" href="#fixed_56" title="Link to this section">#</a></h3>
+<h3 id="fixed_57">Fixed<a class="anchor" href="#fixed_57" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A def nested directly under an unnamed struct/union/enum could silently drop an entire
   C/C++ file from the graph.</strong> Found indexing a real legacy C++ codebase: the containment-edge
@@ -5534,7 +5718,7 @@ spec-cli-simplification.md</code>.</p>
   CI was always green. Both now isolate <code>HOME</code>.</li>
 </ul>
 <h2 id="2604-2026-07-29">[2.60.4] - 2026-07-29<a class="anchor" href="#2604-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_57">Fixed<a class="anchor" href="#fixed_57" title="Link to this section">#</a></h3>
+<h3 id="fixed_58">Fixed<a class="anchor" href="#fixed_58" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>init --local</code> now actually scopes its own defaults to the workspace it's writing into.</strong>
   Found via live dogfooding: <code>contextlake init --local --yes</code> wrote a project-scoped
@@ -5574,7 +5758,7 @@ spec-cli-simplification.md</code>.</p>
   both spellings; <code>version</code> previously errored as an unknown command, suggesting <code>verify</code>).</li>
 </ul>
 <h2 id="2602-2026-07-29">[2.60.2] - 2026-07-29<a class="anchor" href="#2602-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_58">Fixed<a class="anchor" href="#fixed_58" title="Link to this section">#</a></h3>
+<h3 id="fixed_59">Fixed<a class="anchor" href="#fixed_59" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Ctrl-C during <code>init</code> (or any knowledge-layer command) no longer dumps a raw traceback.</strong>
   Only the mirror-pipeline commands (<code>fetch</code>/<code>clone</code>/<code>sync</code>/...) had a <code>KeyboardInterrupt</code> catch in
@@ -5590,7 +5774,7 @@ spec-cli-simplification.md</code>.</p>
   per-command stop messages.</li>
 </ul>
 <h2 id="2601-2026-07-29">[2.60.1] - 2026-07-29<a class="anchor" href="#2601-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_59">Fixed<a class="anchor" href="#fixed_59" title="Link to this section">#</a></h3>
+<h3 id="fixed_60">Fixed<a class="anchor" href="#fixed_60" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Chat: a failed question now offers Retry.</strong> If a chat request fails for any reason (a network
   blip, the server restarting mid-request, and so on), the error now carries a <strong>Retry</strong> button that
@@ -5630,7 +5814,7 @@ spec-cli-simplification.md</code>.</p>
   two files, <code>CallToolResult.structuredContent</code>/<code>isError</code> -&gt; snake_case, the removed
   <code>mcp.shared.memory</code> in-memory test helper -&gt; the new <code>mcp.Client</code>).</li>
 </ul>
-<h3 id="fixed_60">Fixed<a class="anchor" href="#fixed_60" title="Link to this section">#</a></h3>
+<h3 id="fixed_61">Fixed<a class="anchor" href="#fixed_61" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake serve</code> was completely broken for any tool touching the SQLite-backed store</strong>, on
   either transport. This mcp SDK version dispatches every synchronous tool call through
@@ -5655,7 +5839,7 @@ spec-cli-simplification.md</code>.</p>
   once one exists, instead of always writing to global.</li>
 </ul>
 <h2 id="2583-2026-07-29">[2.58.3] - 2026-07-29<a class="anchor" href="#2583-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed_61">Fixed<a class="anchor" href="#fixed_61" title="Link to this section">#</a></h3>
+<h3 id="fixed_62">Fixed<a class="anchor" href="#fixed_62" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Pinned <code>mcp</code> to <code>&lt;2</code> in the <code>kb</code> extra.</strong> The v2.58.2 release gate failed in CI (nothing published)
   because <code>mcp&gt;=1.28</code> had no upper bound and CI resolved the just-released <code>mcp</code> 2.0.0, which renamed
@@ -5678,7 +5862,7 @@ spec-cli-simplification.md</code>.</p>
   (<code>https://mcp.atlassian.com/v1/mcp/authv2</code>) and <code>figma</code> (<code>https://mcp.figma.com/mcp</code>), verified against
   each provider's own docs, so the prompt no longer forces you to already know the endpoint yourself.</li>
 </ul>
-<h3 id="fixed_62">Fixed<a class="anchor" href="#fixed_62" title="Link to this section">#</a></h3>
+<h3 id="fixed_63">Fixed<a class="anchor" href="#fixed_63" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[llm] provider = "cli"</code> with <code>command = "gemini"</code> was broken since it shipped.</strong> <code>gemini</code>'s
   <code>-p</code>/<code>--prompt</code> flag is a required string <em>value</em>, not a boolean "read the rest from stdin" switch --
@@ -5696,7 +5880,7 @@ spec-cli-simplification.md</code>.</p>
   a future <code>codex</code> version could change that behavior.</li>
 </ul>
 <h2 id="2581-2026-07-28">[2.58.1] - 2026-07-28<a class="anchor" href="#2581-2026-07-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_63">Fixed<a class="anchor" href="#fixed_63" title="Link to this section">#</a></h3>
+<h3 id="fixed_64">Fixed<a class="anchor" href="#fixed_64" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[llm] provider = "cli"</code> no longer leaks the CLI's own API-key env var into the child process.</strong>
   The whole point of this provider is reusing a subscription (<code>claude -p</code> / <code>gemini</code> / <code>codex</code>)
@@ -5837,7 +6021,7 @@ spec-cli-simplification.md</code>.</p>
   the rest of the fog→clarity system, a teal border/glow and a blinking
   cursor after the last command (respects <code>prefers-reduced-motion</code>).</li>
 </ul>
-<h3 id="fixed_64">Fixed<a class="anchor" href="#fixed_64" title="Link to this section">#</a></h3>
+<h3 id="fixed_65">Fixed<a class="anchor" href="#fixed_65" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard server: a client disconnecting mid-response no longer logs a
   traceback.</strong> <code>_send()</code>'s <code>wfile.write</code> is now guarded against
@@ -5871,7 +6055,7 @@ spec-cli-simplification.md</code>.</p>
   text embeds repo-derived symbol/table/resource names, untrusted input).
   Live-only, same as MCP console/Settings.</li>
 </ul>
-<h3 id="fixed_65">Fixed<a class="anchor" href="#fixed_65" title="Link to this section">#</a></h3>
+<h3 id="fixed_66">Fixed<a class="anchor" href="#fixed_66" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>deploymentdiagram</code>: a repo's own Python/JS/etc. module nodes no longer
   leak into the Terraform diagram.</strong> <code>kind="module"</code> isn't exclusive to HCL , 
@@ -5952,7 +6136,7 @@ spec-cli-simplification.md</code>.</p>
   (<code>--llm anthropic|openai|ollama|cli</code>) gates meaningfully. The note prints
   once, before generation starts, not per repo.</li>
 </ul>
-<h3 id="fixed_66">Fixed<a class="anchor" href="#fixed_66" title="Link to this section">#</a></h3>
+<h3 id="fixed_67">Fixed<a class="anchor" href="#fixed_67" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs house-style: em-dashes stripped from the remaining <code>docs/*.md</code>
   pages</strong> (<code>serve.md</code>, <code>cli-reference.md</code>, <code>index-code-graph.md</code>,
@@ -5961,7 +6145,7 @@ spec-cli-simplification.md</code>.</p>
   semicolons, commas, or parens per the surrounding sentence.</li>
 </ul>
 <h2 id="2511-2026-07-26">[2.51.1] - 2026-07-26<a class="anchor" href="#2511-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_67">Fixed<a class="anchor" href="#fixed_67" title="Link to this section">#</a></h3>
+<h3 id="fixed_68">Fixed<a class="anchor" href="#fixed_68" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A top-level unrecognized flag followed by a path-looking token no longer
   reports a confusing "Unknown command".</strong> <code>contextlake --work-d /tmp doctor</code>
@@ -5997,7 +6181,7 @@ spec-cli-simplification.md</code>.</p>
   <code>~/.contextlake/kb.toml</code> (languages, connectors, embedder/LLM settings) never
   leaks into the fleet billed as "fictional data, nothing local is read".</li>
 </ul>
-<h3 id="fixed_68">Fixed<a class="anchor" href="#fixed_68" title="Link to this section">#</a></h3>
+<h3 id="fixed_69">Fixed<a class="anchor" href="#fixed_69" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>index --workspace</code> no longer silently misattributes a corrupted nested
   <code>.git</code> to an unrelated ancestor repo.</strong> <code>git -C &lt;path&gt;</code> walks <em>up</em> the
@@ -6070,7 +6254,7 @@ spec-cli-simplification.md</code>.</p>
   JSON on a non-zero exit, so check <code>$?</code> deliberately rather than assuming
   0 means "ran" instead of "clean".</li>
 </ul>
-<h3 id="fixed_69">Fixed<a class="anchor" href="#fixed_69" title="Link to this section">#</a></h3>
+<h3 id="fixed_70">Fixed<a class="anchor" href="#fixed_70" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code> and <code>wiki</code> (both per-repo and <code>--namespaces</code>) silently reported a
   partial failure as a clean success.</strong> If even one repo/namespace out of a
@@ -6125,7 +6309,7 @@ spec-cli-simplification.md</code>.</p>
   names before upgrading past this release.</li>
 </ul>
 <h2 id="2482-2026-07-26">[2.48.2] - 2026-07-26<a class="anchor" href="#2482-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_70">Fixed<a class="anchor" href="#fixed_70" title="Link to this section">#</a></h3>
+<h3 id="fixed_71">Fixed<a class="anchor" href="#fixed_71" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The C4 diagram's namespace boundary tagging could mark a real edge as
@@ -6265,7 +6449,7 @@ spec-cli-simplification.md</code>.</p>
   <code>classify_error(...) == "project-deleted"</code> check (<code>core.py</code>).</li>
 </ul>
 <h2 id="2481-2026-07-26">[2.48.1] - 2026-07-26<a class="anchor" href="#2481-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_71">Fixed<a class="anchor" href="#fixed_71" title="Link to this section">#</a></h3>
+<h3 id="fixed_72">Fixed<a class="anchor" href="#fixed_72" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>statediagram</code> extraction (v2.48.0) could emit a false transition, not just an
   undercount.</strong> An independent review of the guard→assignment regex found five
@@ -6337,7 +6521,7 @@ spec-cli-simplification.md</code>.</p>
   repo-scoped architecture graph, curated wiki, and connector links, Wiki/Links only appear when the
   repo actually has one, never as a dead crumb for data that doesn't exist.</li>
 </ul>
-<h3 id="fixed_72">Fixed<a class="anchor" href="#fixed_72" title="Link to this section">#</a></h3>
+<h3 id="fixed_73">Fixed<a class="anchor" href="#fixed_73" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A deleted (or access-revoked) upstream GitLab project is a clean <code>update</code> skip, not an
   error.</strong> Previously bucketed into the generic error count alongside real failures; now
@@ -6418,7 +6602,7 @@ spec-cli-simplification.md</code>.</p>
   line. No new extraction was needed, every <code>calls</code> edge already carried its source
   line, so this is a renderer over data already collected, not a new parser pass.</li>
 </ul>
-<h3 id="fixed_73">Fixed<a class="anchor" href="#fixed_73" title="Link to this section">#</a></h3>
+<h3 id="fixed_74">Fixed<a class="anchor" href="#fixed_74" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs corrected a false claim that Devin reads the same repo-committed MCP config
   file as Windsurf.</strong> Devin's MCP connections are account/org-level (<code>mcp.devin.ai</code>,
@@ -6431,7 +6615,7 @@ spec-cli-simplification.md</code>.</p>
   match source order. References are now sorted by line before resolution.</li>
 </ul>
 <h2 id="2451-2026-07-25">[2.45.1] - 2026-07-25<a class="anchor" href="#2451-2026-07-25" title="Link to this section">#</a></h2>
-<h3 id="fixed_74">Fixed<a class="anchor" href="#fixed_74" title="Link to this section">#</a></h3>
+<h3 id="fixed_75">Fixed<a class="anchor" href="#fixed_75" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A local config file's <code>[llm]</code>/<code>[kb]</code>/<code>[embeddings]</code> table no longer wipes out
   sibling fields set globally.</strong> Those three tables are now deep-merged key-by-key
@@ -6456,7 +6640,7 @@ spec-cli-simplification.md</code>.</p>
   the space before their counts.</li>
 </ul>
 <h2 id="2450-2026-07-25">[2.45.0] - 2026-07-25<a class="anchor" href="#2450-2026-07-25" title="Link to this section">#</a></h2>
-<h3 id="fixed_75">Fixed<a class="anchor" href="#fixed_75" title="Link to this section">#</a></h3>
+<h3 id="fixed_76">Fixed<a class="anchor" href="#fixed_76" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>doctor</code> flags a missing wiki-LLM runtime.</strong> When the built-in wiki LLM is
   configured but <code>llama-cpp-python</code> isn't installed, <code>doctor</code> now reports
@@ -6520,7 +6704,7 @@ spec-cli-simplification.md</code>.</p>
   a bare "No matches"; a single-token symbol lookup stays quiet.</li>
 </ul>
 <h2 id="2420-2026-07-21">[2.42.0] - 2026-07-21<a class="anchor" href="#2420-2026-07-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_76">Fixed<a class="anchor" href="#fixed_76" title="Link to this section">#</a></h3>
+<h3 id="fixed_77">Fixed<a class="anchor" href="#fixed_77" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing config keys are now honored.</strong> <code>[kb] skip_generated</code>, <code>max_file_bytes</code>,
   and <code>index_workers</code> were documented but silently ignored (the loader read only
@@ -6637,7 +6821,7 @@ spec-cli-simplification.md</code>.</p>
   (extending and implementing base classes). The grammar (<code>tree-sitter-kotlin</code>) ships
   in the <code>[kb]</code> extra.</li>
 </ul>
-<h3 id="fixed_77">Fixed<a class="anchor" href="#fixed_77" title="Link to this section">#</a></h3>
+<h3 id="fixed_78">Fixed<a class="anchor" href="#fixed_78" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Tolerant wiki review-score parsing.</strong> The council reviewer now recovers a numeric
   score from prose or alternate-JSON review responses before abstaining, so capable
@@ -6721,7 +6905,7 @@ spec-cli-simplification.md</code>.</p>
   tells you the exact idempotent command to re-run once the connection is back, nothing
   is lost, the mirror just resumes.</li>
 </ul>
-<h3 id="fixed_78">Fixed<a class="anchor" href="#fixed_78" title="Link to this section">#</a></h3>
+<h3 id="fixed_79">Fixed<a class="anchor" href="#fixed_79" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Wiki reviews without a usable score now abstain instead of scoring zero.</strong> Small
   local models (e.g. the built-in 0.5B) sometimes return a review the council can't score
@@ -6765,7 +6949,7 @@ spec-cli-simplification.md</code>.</p>
   failed. Same fallback documented in QUICKSTART + the knowledge-layer model-providers
   section.</li>
 </ul>
-<h3 id="fixed_79">Fixed<a class="anchor" href="#fixed_79" title="Link to this section">#</a></h3>
+<h3 id="fixed_80">Fixed<a class="anchor" href="#fixed_80" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>find_callers</code> and <code>blast_radius</code> accept a bare symbol name.</strong> Agents call these
   MCP tools with a name (e.g. <code>ForecastService</code>), but they only accepted an internal
@@ -6785,7 +6969,7 @@ spec-cli-simplification.md</code>.</p>
 </ul>
 <h2 id="2332-2026-07-06">[2.33.2] - 2026-07-06<a class="anchor" href="#2332-2026-07-06" title="Link to this section">#</a></h2>
 <h2 id="2331-2026-07-06">[2.33.1] - 2026-07-06<a class="anchor" href="#2331-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="fixed_80">Fixed<a class="anchor" href="#fixed_80" title="Link to this section">#</a></h3>
+<h3 id="fixed_81">Fixed<a class="anchor" href="#fixed_81" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>init</code> now recommends the extra that matches your choice.</strong> If you enable
   semantic search during <code>contextlake init</code>, the "Next" hint recommends
@@ -6839,7 +7023,7 @@ spec-cli-simplification.md</code>.</p>
   facts, not a fuzzy search. (Surfaced by dogfooding <code>ask</code> on a real 800-node codebase,
   where inheritance questions previously fell through to semantic search.)</li>
 </ul>
-<h3 id="fixed_81">Fixed<a class="anchor" href="#fixed_81" title="Link to this section">#</a></h3>
+<h3 id="fixed_82">Fixed<a class="anchor" href="#fixed_82" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Text-format graph output is no longer log-polluted.</strong> Streaming a large graph to
   stdout as <code>--format json</code> / <code>dot</code> / <code>mermaid</code> / <code>classdiagram</code> could prepend a
@@ -6976,7 +7160,7 @@ spec-cli-simplification.md</code>.</p>
 <p>The product-review hardening release: an end-to-end review as a brand-new
 <code>pip install</code> user surfaced the gaps between the advertised experience and the
 real one; this release closes them.</p>
-<h3 id="fixed_82">Fixed<a class="anchor" href="#fixed_82" title="Link to this section">#</a></h3>
+<h3 id="fixed_83">Fixed<a class="anchor" href="#fixed_83" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>dashboard --sample</code> works from a pip install and under <code>--serve</code>.</strong> The demo-fleet
   fixture used to live at the repo root (absent from every wheel, so <code>--sample</code> crashed
@@ -7024,7 +7208,7 @@ real one; this release closes them.</p>
   classifier and keyword sets state the supported Python range and positioning.</li>
 </ul>
 <h2 id="2201-2026-07-01">[2.20.1] - 2026-07-01<a class="anchor" href="#2201-2026-07-01" title="Link to this section">#</a></h2>
-<h3 id="fixed_83">Fixed<a class="anchor" href="#fixed_83" title="Link to this section">#</a></h3>
+<h3 id="fixed_84">Fixed<a class="anchor" href="#fixed_84" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README doc links now resolve on the PyPI project page.</strong> They were relative
   (<code>docs/…​.md</code>), which 404s on PyPI (it renders the README but doesn't host the repo files);
@@ -7054,7 +7238,7 @@ real one; this release closes them.</p>
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.</li>
 </ul>
-<h3 id="fixed_84">Fixed<a class="anchor" href="#fixed_84" title="Link to this section">#</a></h3>
+<h3 id="fixed_85">Fixed<a class="anchor" href="#fixed_85" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>wiki</code> / <code>embed</code> / <code>connect &lt;repo&gt;</code> now scope to the named repo(s).</strong> The positional repo
   id was ignored, so these silently ran across the entire indexed fleet; an unknown id now
@@ -7079,7 +7263,7 @@ real one; this release closes them.</p>
   than a single repo, so the dashboard's sample mode reads like a real fleet.</li>
 </ul>
 <h2 id="2192-2026-06-28">[2.19.2] - 2026-06-28<a class="anchor" href="#2192-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_85">Fixed<a class="anchor" href="#fixed_85" title="Link to this section">#</a></h3>
+<h3 id="fixed_86">Fixed<a class="anchor" href="#fixed_86" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>impact &lt;symbol&gt;</code> no longer silently resolves an ambiguous name to the wrong repo.</strong>
   A bare name (e.g. <code>Node</code>, <code>Order</code>) was resolved via a full-text search and the top hit
@@ -7092,7 +7276,7 @@ real one; this release closes them.</p>
   identically.</li>
 </ul>
 <h2 id="2191-2026-06-28">[2.19.1] - 2026-06-28<a class="anchor" href="#2191-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_86">Fixed<a class="anchor" href="#fixed_86" title="Link to this section">#</a></h3>
+<h3 id="fixed_87">Fixed<a class="anchor" href="#fixed_87" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: the command palette (and the provenance drawer and pin chip) no longer render
   stuck-open.</strong> Their <code>[hidden]</code> attribute was being overridden by a CSS <code>display:</code> value, so
@@ -7248,7 +7432,7 @@ real one; this release closes them.</p>
   across the llm/ and embeddings/ providers and the connector, into one stdlib-only <code>kb/_util</code>. No
   behaviour change.</li>
 </ul>
-<h3 id="fixed_87">Fixed<a class="anchor" href="#fixed_87" title="Link to this section">#</a></h3>
+<h3 id="fixed_88">Fixed<a class="anchor" href="#fixed_88" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Safety gate now fails <em>closed</em> on an indeterminate git state.</strong> <code>has_uncommitted_changes</code> and the
   branch/HEAD reads in the sync core swallowed errors and returned a permissive default, so a failed,
@@ -7321,7 +7505,7 @@ real one; this release closes them.</p>
   <code>examples/fixtures/golden-queries.json</code>.</li>
 </ul>
 <h2 id="251-2026-06-26">[2.5.1] - 2026-06-26<a class="anchor" href="#251-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_88">Fixed<a class="anchor" href="#fixed_88" title="Link to this section">#</a></h3>
+<h3 id="fixed_89">Fixed<a class="anchor" href="#fixed_89" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README logo now renders on PyPI.</strong> The header glyph used a repo-relative <code>src</code>, which PyPI can't
   resolve (it doesn't host the repo files), so it showed as a broken image on the project page. Pointed
@@ -7479,7 +7663,7 @@ real one; this release closes them.</p>
   like the vendored cytoscape), so the source is lint/<code>node --check</code>-able. Output is still one
   self-contained offline HTML.</li>
 </ul>
-<h3 id="fixed_89">Fixed<a class="anchor" href="#fixed_89" title="Link to this section">#</a></h3>
+<h3 id="fixed_90">Fixed<a class="anchor" href="#fixed_90" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Truncation is now visible in the UI.</strong> A bounded subgraph that was clipped used to read as
   complete; a persistent status-bar banner now says "showing N of M, truncated" (honest counts only).</li>
@@ -7537,7 +7721,7 @@ real one; this release closes them.</p>
 </li>
 </ul>
 <h2 id="216-2026-06-23">[2.1.6] - 2026-06-23<a class="anchor" href="#216-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="fixed_90">Fixed<a class="anchor" href="#fixed_90" title="Link to this section">#</a></h3>
+<h3 id="fixed_91">Fixed<a class="anchor" href="#fixed_91" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
   had").</strong> Each node was refreshed in the full-text index with a per-row <code>DELETE FROM node_fts WHERE
@@ -7790,7 +7974,7 @@ real one; this release closes them.</p>
   model; only semantic search needs embeddings).</li>
 </ul>
 <h2 id="191-2026-06-21">[1.9.1] - 2026-06-21<a class="anchor" href="#191-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_91">Fixed<a class="anchor" href="#fixed_91" title="Link to this section">#</a></h3>
+<h3 id="fixed_92">Fixed<a class="anchor" href="#fixed_92" title="Link to this section">#</a></h3>
 <ul>
 <li><code>serve</code> over the stdio transport wrote human-facing log lines to stdout, which is
   the MCP JSON-RPC channel, corrupting the protocol stream (clients saw spurious
@@ -7863,7 +8047,7 @@ real one; this release closes them.</p>
   Runs alongside Atlassian sources under <code>connect</code>. Connector-agnostic helpers were
   extracted to a shared module so new connectors stay small.</li>
 </ul>
-<h3 id="fixed_92">Fixed<a class="anchor" href="#fixed_92" title="Link to this section">#</a></h3>
+<h3 id="fixed_93">Fixed<a class="anchor" href="#fixed_93" title="Link to this section">#</a></h3>
 <ul>
 <li><code>link_scrape</code> association rules expressed as a <code>patterns</code> list (as in the example
   config) were silently ignored; both a singular <code>pattern</code> and a <code>patterns</code> list
@@ -7908,7 +8092,7 @@ private data lives in the package.</p>
 <p>This release stabilizes the core and makes the tool installable. It repairs
 several regressions introduced by the earlier modularization and fixes a
 critical configuration bug.</p>
-<h3 id="fixed_93">Fixed<a class="anchor" href="#fixed_93" title="Link to this section">#</a></h3>
+<h3 id="fixed_94">Fixed<a class="anchor" href="#fixed_94" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Critical:</strong> repositories were keyed by their full <code>&lt;group&gt;/...</code> path while
   local clones mirror the tree <em>below</em> the group, so every repo was misreported
@@ -8014,28 +8198,29 @@ critical configuration bug.</p>
 <li><a href="#unreleased">[Unreleased]</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#changed">Changed</a></li>
+<li><a href="#fixed">Fixed</a></li>
 <li><a href="#security">Security</a></li>
 </ul>
 </li>
 <li><a href="#8130-2026-09-02">[8.13.0] - 2026-09-02</a><ul>
 <li><a href="#changed_1">Changed</a></li>
 <li><a href="#added_1">Added</a></li>
-<li><a href="#fixed">Fixed</a></li>
+<li><a href="#fixed_1">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#8120-2026-09-02">[8.12.0] - 2026-09-02</a><ul>
 <li><a href="#added_2">Added</a></li>
-<li><a href="#fixed_1">Fixed</a></li>
+<li><a href="#fixed_2">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#8110-2026-08-31">[8.11.0] - 2026-08-31</a><ul>
-<li><a href="#fixed_2">Fixed</a></li>
+<li><a href="#fixed_3">Fixed</a></li>
 <li><a href="#added_3">Added</a></li>
 <li><a href="#documentation">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#8101-2026-08-31">[8.10.1] - 2026-08-31</a><ul>
-<li><a href="#fixed_3">Fixed</a></li>
+<li><a href="#fixed_4">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#8100-2026-08-31">[8.10.0] - 2026-08-31</a><ul>
@@ -8046,7 +8231,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#890-2026-08-30">[8.9.0] - 2026-08-30</a><ul>
 <li><a href="#added_5">Added</a></li>
-<li><a href="#fixed_4">Fixed</a></li>
+<li><a href="#fixed_5">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#880-2026-08-27">[8.8.0] - 2026-08-27</a><ul>
@@ -8055,13 +8240,13 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#870-2026-08-25">[8.7.0] - 2026-08-25</a><ul>
-<li><a href="#fixed_5">Fixed</a></li>
+<li><a href="#fixed_6">Fixed</a></li>
 <li><a href="#migration">Migration</a></li>
 <li><a href="#added_7">Added</a></li>
 </ul>
 </li>
 <li><a href="#861-2026-08-24">[8.6.1] - 2026-08-24</a><ul>
-<li><a href="#fixed_6">Fixed</a></li>
+<li><a href="#fixed_7">Fixed</a></li>
 <li><a href="#changed_3">Changed</a></li>
 <li><a href="#internal">Internal</a></li>
 </ul>
@@ -8073,12 +8258,12 @@ critical configuration bug.</p>
 <li><a href="#850-2026-08-23">[8.5.0] - 2026-08-23</a><ul>
 <li><a href="#added_9">Added</a></li>
 <li><a href="#changed_4">Changed</a></li>
-<li><a href="#fixed_7">Fixed</a></li>
+<li><a href="#fixed_8">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#840-2026-08-23">[8.4.0] - 2026-08-23</a><ul>
 <li><a href="#added_10">Added</a></li>
-<li><a href="#fixed_8">Fixed</a></li>
+<li><a href="#fixed_9">Fixed</a></li>
 <li><a href="#changed_5">Changed</a></li>
 </ul>
 </li>
@@ -8089,9 +8274,9 @@ critical configuration bug.</p>
 </li>
 <li><a href="#820-2026-08-20">[8.2.0] - 2026-08-20</a><ul>
 <li><a href="#added_11">Added</a></li>
-<li><a href="#fixed_9">Fixed</a></li>
-<li><a href="#changed_7">Changed</a></li>
 <li><a href="#fixed_10">Fixed</a></li>
+<li><a href="#changed_7">Changed</a></li>
+<li><a href="#fixed_11">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#810-2026-08-20">[8.1.0] - 2026-08-20</a><ul>
@@ -8103,11 +8288,11 @@ critical configuration bug.</p>
 <li><a href="#the-milestone-this-closes">The milestone this closes</a></li>
 <li><a href="#added_13">Added</a></li>
 <li><a href="#changed_9">Changed</a></li>
-<li><a href="#fixed_11">Fixed</a></li>
+<li><a href="#fixed_12">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7320-2026-08-19">[7.32.0] - 2026-08-19</a><ul>
-<li><a href="#fixed_12">Fixed</a></li>
+<li><a href="#fixed_13">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7310-2026-08-18">[7.31.0] - 2026-08-18</a><ul>
@@ -8120,7 +8305,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#7290-2026-08-18">[7.29.0] - 2026-08-18</a><ul>
-<li><a href="#fixed_13">Fixed</a></li>
+<li><a href="#fixed_14">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7280-2026-08-18">[7.28.0] - 2026-08-18</a><ul>
@@ -8132,7 +8317,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#7260-2026-08-18">[7.26.0] - 2026-08-18</a><ul>
-<li><a href="#fixed_14">Fixed</a></li>
+<li><a href="#fixed_15">Fixed</a></li>
 <li><a href="#changed_11">Changed</a></li>
 </ul>
 </li>
@@ -8141,24 +8326,24 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#7240-2026-08-18">[7.24.0] - 2026-08-18</a><ul>
-<li><a href="#fixed_15">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#7230-2026-08-18">[7.23.0] - 2026-08-18</a><ul>
 <li><a href="#fixed_16">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#7220-2026-08-18">[7.22.0] - 2026-08-18</a><ul>
+<li><a href="#7230-2026-08-18">[7.23.0] - 2026-08-18</a><ul>
 <li><a href="#fixed_17">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#7210-2026-08-18">[7.21.0] - 2026-08-18</a><ul>
+<li><a href="#7220-2026-08-18">[7.22.0] - 2026-08-18</a><ul>
 <li><a href="#fixed_18">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#7210-2026-08-18">[7.21.0] - 2026-08-18</a><ul>
+<li><a href="#fixed_19">Fixed</a></li>
 <li><a href="#changed_12">Changed</a></li>
 </ul>
 </li>
 <li><a href="#7200-2026-08-18">[7.20.0] - 2026-08-18</a><ul>
-<li><a href="#fixed_19">Fixed</a></li>
+<li><a href="#fixed_20">Fixed</a></li>
 <li><a href="#added_19">Added</a></li>
 </ul>
 </li>
@@ -8181,21 +8366,21 @@ critical configuration bug.</p>
 </li>
 <li><a href="#7150-2026-08-18">[7.15.0] - 2026-08-18</a><ul>
 <li><a href="#added_24">Added</a></li>
-<li><a href="#fixed_20">Fixed</a></li>
+<li><a href="#fixed_21">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7140-2026-08-17">[7.14.0] - 2026-08-17</a><ul>
 <li><a href="#added_25">Added</a></li>
-<li><a href="#fixed_21">Fixed</a></li>
+<li><a href="#fixed_22">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7130-2026-08-17">[7.13.0] - 2026-08-17</a><ul>
 <li><a href="#added_26">Added</a></li>
-<li><a href="#fixed_22">Fixed</a></li>
+<li><a href="#fixed_23">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7121-2026-08-17">[7.12.1] - 2026-08-17</a><ul>
-<li><a href="#fixed_23">Fixed</a></li>
+<li><a href="#fixed_24">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#7120-2026-08-17">[7.12.0] - 2026-08-17</a><ul>
@@ -8204,8 +8389,8 @@ critical configuration bug.</p>
 </li>
 <li><a href="#7110-2026-08-17">[7.11.0] - 2026-08-17</a><ul>
 <li><a href="#added_28">Added</a></li>
-<li><a href="#fixed_24">Fixed</a></li>
 <li><a href="#fixed_25">Fixed</a></li>
+<li><a href="#fixed_26">Fixed</a></li>
 <li><a href="#added_29">Added</a></li>
 </ul>
 </li>
@@ -8217,45 +8402,45 @@ critical configuration bug.</p>
 <li><a href="#790-2026-08-16">[7.9.0] - 2026-08-16</a><ul>
 <li><a href="#re-index-your-existing-graphs-are-rebuilt-on-the-next-index">⚠ Re-index: your existing graphs are rebuilt on the next index</a></li>
 <li><a href="#added_31">Added</a></li>
-<li><a href="#fixed_26">Fixed</a></li>
+<li><a href="#fixed_27">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#780-2026-08-16">[7.8.0] - 2026-08-16</a><ul>
 <li><a href="#behaviour-change-search-results-come-back-in-a-different-order">⚠ Behaviour change: search results come back in a different order</a></li>
 <li><a href="#changed_15">Changed</a></li>
-<li><a href="#fixed_27">Fixed</a></li>
+<li><a href="#fixed_28">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#770-2026-08-16">[7.7.0] - 2026-08-16</a><ul>
 <li><a href="#changed_16">Changed</a></li>
 <li><a href="#added_32">Added</a></li>
-<li><a href="#fixed_28">Fixed</a></li>
+<li><a href="#fixed_29">Fixed</a></li>
 <li><a href="#verified-no-change-needed">Verified, no change needed</a></li>
 </ul>
 </li>
 <li><a href="#760-2026-08-15">[7.6.0] - 2026-08-15</a><ul>
 <li><a href="#behaviour-change-partial-failures-now-exit-non-zero">⚠ Behaviour change: partial failures now exit non-zero</a></li>
-<li><a href="#fixed_29">Fixed</a></li>
+<li><a href="#fixed_30">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#741-2026-08-15">[7.4.1] - 2026-08-15</a><ul>
-<li><a href="#fixed_30">Fixed</a></li>
 <li><a href="#fixed_31">Fixed</a></li>
+<li><a href="#fixed_32">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#740-2026-08-13">[7.4.0] - 2026-08-13</a><ul>
 <li><a href="#added_33">Added</a></li>
-<li><a href="#fixed_32">Fixed</a></li>
+<li><a href="#fixed_33">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#730-2026-08-13">[7.3.0] - 2026-08-13</a><ul>
 <li><a href="#added_34">Added</a></li>
-<li><a href="#fixed_33">Fixed</a></li>
+<li><a href="#fixed_34">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#721-2026-08-12">[7.2.1] - 2026-08-12</a><ul>
 <li><a href="#added_35">Added</a></li>
-<li><a href="#fixed_34">Fixed</a></li>
+<li><a href="#fixed_35">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#720-2026-08-12">[7.2.0] - 2026-08-12</a><ul>
@@ -8265,86 +8450,86 @@ critical configuration bug.</p>
 <li><a href="#710-2026-08-12">[7.1.0] - 2026-08-12</a><ul>
 <li><a href="#added_37">Added</a></li>
 <li><a href="#changed_17">Changed</a></li>
-<li><a href="#fixed_35">Fixed</a></li>
+<li><a href="#fixed_36">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#700-2026-08-12">[7.0.0] - 2026-08-12</a><ul>
 <li><a href="#added_38">Added</a></li>
 <li><a href="#changed_18">Changed</a></li>
-<li><a href="#fixed_36">Fixed</a></li>
+<li><a href="#fixed_37">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#670-2026-08-11">[6.7.0] - 2026-08-11</a><ul>
 <li><a href="#added_39">Added</a></li>
-<li><a href="#fixed_37">Fixed</a></li>
+<li><a href="#fixed_38">Fixed</a></li>
 <li><a href="#changed_19">Changed</a></li>
 </ul>
 </li>
 <li><a href="#660-2026-08-10">[6.6.0] - 2026-08-10</a><ul>
 <li><a href="#added_40">Added</a></li>
 <li><a href="#changed_20">Changed</a></li>
-<li><a href="#fixed_38">Fixed</a></li>
+<li><a href="#fixed_39">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#650-2026-08-07">[6.5.0] - 2026-08-07</a><ul>
 <li><a href="#changed_21">Changed</a></li>
-<li><a href="#fixed_39">Fixed</a></li>
+<li><a href="#fixed_40">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#640-2026-08-07">[6.4.0] - 2026-08-07</a><ul>
 <li><a href="#added_41">Added</a></li>
 <li><a href="#changed_22">Changed</a></li>
-<li><a href="#fixed_40">Fixed</a></li>
+<li><a href="#fixed_41">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#630-2026-08-07">[6.3.0] - 2026-08-07</a><ul>
 <li><a href="#added_42">Added</a></li>
-<li><a href="#fixed_41">Fixed</a></li>
+<li><a href="#fixed_42">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#620-2026-08-07">[6.2.0] - 2026-08-07</a><ul>
 <li><a href="#added_43">Added</a></li>
-<li><a href="#fixed_42">Fixed</a></li>
+<li><a href="#fixed_43">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#610-2026-08-06">[6.1.0] - 2026-08-06</a><ul>
 <li><a href="#added_44">Added</a></li>
 <li><a href="#changed_23">Changed</a></li>
-<li><a href="#fixed_43">Fixed</a></li>
+<li><a href="#fixed_44">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#600-2026-08-05">[6.0.0] - 2026-08-05</a><ul>
 <li><a href="#changed_24">Changed</a></li>
-<li><a href="#fixed_44">Fixed</a></li>
+<li><a href="#fixed_45">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#511-2026-08-04">[5.1.1] - 2026-08-04</a><ul>
-<li><a href="#fixed_45">Fixed</a></li>
+<li><a href="#fixed_46">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#510-2026-08-04">[5.1.0] - 2026-08-04</a><ul>
 <li><a href="#added_45">Added</a></li>
 <li><a href="#changed_25">Changed</a></li>
-<li><a href="#fixed_46">Fixed</a></li>
+<li><a href="#fixed_47">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#500-2026-08-04">[5.0.0] - 2026-08-04</a><ul>
 <li><a href="#security_1">Security</a></li>
 <li><a href="#added_46">Added</a></li>
 <li><a href="#changed_26">Changed</a></li>
-<li><a href="#fixed_47">Fixed</a></li>
+<li><a href="#fixed_48">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#400-2026-08-04">[4.0.0] - 2026-08-04</a><ul>
 <li><a href="#changed_27">Changed</a></li>
-<li><a href="#fixed_48">Fixed</a></li>
+<li><a href="#fixed_49">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#300-2026-08-03">[3.0.0] - 2026-08-03</a><ul>
 <li><a href="#added_47">Added</a></li>
 <li><a href="#changed_28">Changed</a></li>
 <li><a href="#removed">Removed</a></li>
-<li><a href="#fixed_49">Fixed</a></li>
+<li><a href="#fixed_50">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2670-2026-07-31">[2.67.0] - 2026-07-31</a><ul>
@@ -8353,11 +8538,11 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2660-2026-07-31">[2.66.0] - 2026-07-31</a><ul>
 <li><a href="#added_49">Added</a></li>
-<li><a href="#fixed_50">Fixed</a></li>
+<li><a href="#fixed_51">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2650-2026-07-31">[2.65.0] - 2026-07-31</a><ul>
-<li><a href="#fixed_51">Fixed</a></li>
+<li><a href="#fixed_52">Fixed</a></li>
 <li><a href="#added_50">Added</a></li>
 </ul>
 </li>
@@ -8370,7 +8555,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2621-2026-07-30">[2.62.1] - 2026-07-30</a><ul>
-<li><a href="#fixed_52">Fixed</a></li>
+<li><a href="#fixed_53">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2620-2026-07-30">[2.62.0] - 2026-07-30</a><ul>
@@ -8382,25 +8567,25 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2608-2026-07-30">[2.60.8] - 2026-07-30</a><ul>
-<li><a href="#fixed_53">Fixed</a></li>
+<li><a href="#fixed_54">Fixed</a></li>
 <li><a href="#added_55">Added</a></li>
 </ul>
 </li>
 <li><a href="#2607-2026-07-30">[2.60.7] - 2026-07-30</a><ul>
-<li><a href="#fixed_54">Fixed</a></li>
+<li><a href="#fixed_55">Fixed</a></li>
 <li><a href="#added_56">Added</a></li>
 </ul>
 </li>
 <li><a href="#2606-2026-07-29">[2.60.6] - 2026-07-29</a><ul>
-<li><a href="#fixed_55">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2605-2026-07-29">[2.60.5] - 2026-07-29</a><ul>
 <li><a href="#fixed_56">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#2604-2026-07-29">[2.60.4] - 2026-07-29</a><ul>
+<li><a href="#2605-2026-07-29">[2.60.5] - 2026-07-29</a><ul>
 <li><a href="#fixed_57">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2604-2026-07-29">[2.60.4] - 2026-07-29</a><ul>
+<li><a href="#fixed_58">Fixed</a></li>
 <li><a href="#added_57">Added</a></li>
 </ul>
 </li>
@@ -8409,11 +8594,11 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2602-2026-07-29">[2.60.2] - 2026-07-29</a><ul>
-<li><a href="#fixed_58">Fixed</a></li>
+<li><a href="#fixed_59">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2601-2026-07-29">[2.60.1] - 2026-07-29</a><ul>
-<li><a href="#fixed_59">Fixed</a></li>
+<li><a href="#fixed_60">Fixed</a></li>
 <li><a href="#documentation_1">Documentation</a></li>
 </ul>
 </li>
@@ -8423,7 +8608,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2591-2026-07-29">[2.59.1] - 2026-07-29</a><ul>
 <li><a href="#changed_29">Changed</a></li>
-<li><a href="#fixed_60">Fixed</a></li>
+<li><a href="#fixed_61">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2590-2026-07-29">[2.59.0] - 2026-07-29</a><ul>
@@ -8431,16 +8616,16 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2583-2026-07-29">[2.58.3] - 2026-07-29</a><ul>
-<li><a href="#fixed_61">Fixed</a></li>
+<li><a href="#fixed_62">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2582-2026-07-29">[2.58.2] - 2026-07-29</a><ul>
 <li><a href="#added_61">Added</a></li>
-<li><a href="#fixed_62">Fixed</a></li>
+<li><a href="#fixed_63">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2581-2026-07-28">[2.58.1] - 2026-07-28</a><ul>
-<li><a href="#fixed_63">Fixed</a></li>
+<li><a href="#fixed_64">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2580-2026-07-27">[2.58.0] - 2026-07-27</a><ul>
@@ -8453,12 +8638,12 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2560-2026-07-27">[2.56.0] - 2026-07-27</a><ul>
 <li><a href="#added_63">Added</a></li>
-<li><a href="#fixed_64">Fixed</a></li>
+<li><a href="#fixed_65">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2550-2026-07-27">[2.55.0] - 2026-07-27</a><ul>
 <li><a href="#added_64">Added</a></li>
-<li><a href="#fixed_65">Fixed</a></li>
+<li><a href="#fixed_66">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2540-2026-07-27">[2.54.0] - 2026-07-27</a><ul>
@@ -8471,21 +8656,21 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2520-2026-07-26">[2.52.0] - 2026-07-26</a><ul>
 <li><a href="#added_67">Added</a></li>
-<li><a href="#fixed_66">Fixed</a></li>
+<li><a href="#fixed_67">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2511-2026-07-26">[2.51.1] - 2026-07-26</a><ul>
-<li><a href="#fixed_67">Fixed</a></li>
+<li><a href="#fixed_68">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2510-2026-07-26">[2.51.0] - 2026-07-26</a><ul>
 <li><a href="#added_68">Added</a></li>
-<li><a href="#fixed_68">Fixed</a></li>
+<li><a href="#fixed_69">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2500-2026-07-26">[2.50.0] - 2026-07-26</a><ul>
 <li><a href="#added_69">Added</a></li>
-<li><a href="#fixed_69">Fixed</a></li>
+<li><a href="#fixed_70">Fixed</a></li>
 <li><a href="#changed_31">Changed</a></li>
 </ul>
 </li>
@@ -8494,16 +8679,16 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2482-2026-07-26">[2.48.2] - 2026-07-26</a><ul>
-<li><a href="#fixed_70">Fixed</a></li>
+<li><a href="#fixed_71">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2481-2026-07-26">[2.48.1] - 2026-07-26</a><ul>
-<li><a href="#fixed_71">Fixed</a></li>
+<li><a href="#fixed_72">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2480-2026-07-26">[2.48.0] - 2026-07-26</a><ul>
 <li><a href="#added_70">Added</a></li>
-<li><a href="#fixed_72">Fixed</a></li>
+<li><a href="#fixed_73">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2470-2026-07-25">[2.47.0] - 2026-07-25</a><ul>
@@ -8512,15 +8697,15 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2460-2026-07-25">[2.46.0] - 2026-07-25</a><ul>
 <li><a href="#added_71">Added</a></li>
-<li><a href="#fixed_73">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2451-2026-07-25">[2.45.1] - 2026-07-25</a><ul>
 <li><a href="#fixed_74">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#2450-2026-07-25">[2.45.0] - 2026-07-25</a><ul>
+<li><a href="#2451-2026-07-25">[2.45.1] - 2026-07-25</a><ul>
 <li><a href="#fixed_75">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2450-2026-07-25">[2.45.0] - 2026-07-25</a><ul>
+<li><a href="#fixed_76">Fixed</a></li>
 <li><a href="#changed_32">Changed</a></li>
 </ul>
 </li>
@@ -8535,7 +8720,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2420-2026-07-21">[2.42.0] - 2026-07-21</a><ul>
-<li><a href="#fixed_76">Fixed</a></li>
+<li><a href="#fixed_77">Fixed</a></li>
 <li><a href="#added_74">Added</a></li>
 </ul>
 </li>
@@ -8557,7 +8742,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2370-2026-07-08">[2.37.0] - 2026-07-08</a><ul>
 <li><a href="#added_79">Added</a></li>
-<li><a href="#fixed_77">Fixed</a></li>
+<li><a href="#fixed_78">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2360-2026-07-08">[2.36.0] - 2026-07-08</a><ul>
@@ -8568,20 +8753,20 @@ critical configuration bug.</p>
 <li><a href="#2350-2026-07-08">[2.35.0] - 2026-07-08</a><ul>
 <li><a href="#added_81">Added</a></li>
 <li><a href="#changed_35">Changed</a></li>
-<li><a href="#fixed_78">Fixed</a></li>
+<li><a href="#fixed_79">Fixed</a></li>
 <li><a href="#documentation_3">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2340-2026-07-07">[2.34.0] - 2026-07-07</a><ul>
 <li><a href="#added_82">Added</a></li>
 <li><a href="#changed_36">Changed</a></li>
-<li><a href="#fixed_79">Fixed</a></li>
+<li><a href="#fixed_80">Fixed</a></li>
 <li><a href="#documentation_4">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2332-2026-07-06">[2.33.2] - 2026-07-06</a></li>
 <li><a href="#2331-2026-07-06">[2.33.1] - 2026-07-06</a><ul>
-<li><a href="#fixed_80">Fixed</a></li>
+<li><a href="#fixed_81">Fixed</a></li>
 <li><a href="#documentation_5">Documentation</a></li>
 </ul>
 </li>
@@ -8589,7 +8774,7 @@ critical configuration bug.</p>
 <li><a href="#added_83">Added</a></li>
 <li><a href="#changed_37">Changed</a></li>
 <li><a href="#added_84">Added</a></li>
-<li><a href="#fixed_81">Fixed</a></li>
+<li><a href="#fixed_82">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2300-2026-07-06">[2.30.0] - 2026-07-06</a><ul>
@@ -8628,28 +8813,28 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
-<li><a href="#fixed_82">Fixed</a></li>
+<li><a href="#fixed_83">Fixed</a></li>
 <li><a href="#added_93">Added</a></li>
 <li><a href="#changed_41">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
-<li><a href="#fixed_83">Fixed</a></li>
+<li><a href="#fixed_84">Fixed</a></li>
 <li><a href="#added_94">Added</a></li>
 </ul>
 </li>
 <li><a href="#2200-2026-06-30">[2.20.0] - 2026-06-30</a><ul>
 <li><a href="#added_95">Added</a></li>
-<li><a href="#fixed_84">Fixed</a></li>
+<li><a href="#fixed_85">Fixed</a></li>
 <li><a href="#changed_42">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2192-2026-06-28">[2.19.2] - 2026-06-28</a><ul>
-<li><a href="#fixed_85">Fixed</a></li>
+<li><a href="#fixed_86">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2191-2026-06-28">[2.19.1] - 2026-06-28</a><ul>
-<li><a href="#fixed_86">Fixed</a></li>
+<li><a href="#fixed_87">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2190-2026-06-28">[2.19.0] - 2026-06-28</a><ul>
@@ -8700,7 +8885,7 @@ critical configuration bug.</p>
 <li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
 <li><a href="#added_105">Added</a></li>
 <li><a href="#changed_46">Changed</a></li>
-<li><a href="#fixed_87">Fixed</a></li>
+<li><a href="#fixed_88">Fixed</a></li>
 <li><a href="#security_2">Security</a></li>
 </ul>
 </li>
@@ -8718,7 +8903,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#251-2026-06-26">[2.5.1] - 2026-06-26</a><ul>
-<li><a href="#fixed_88">Fixed</a></li>
+<li><a href="#fixed_89">Fixed</a></li>
 <li><a href="#changed_47">Changed</a></li>
 </ul>
 </li>
@@ -8736,7 +8921,7 @@ critical configuration bug.</p>
 <li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
 <li><a href="#added_112">Added</a></li>
 <li><a href="#changed_50">Changed</a></li>
-<li><a href="#fixed_89">Fixed</a></li>
+<li><a href="#fixed_90">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
@@ -8744,7 +8929,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
-<li><a href="#fixed_90">Fixed</a></li>
+<li><a href="#fixed_91">Fixed</a></li>
 <li><a href="#added_114">Added</a></li>
 <li><a href="#changed_51">Changed</a></li>
 </ul>
@@ -8831,7 +9016,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
-<li><a href="#fixed_91">Fixed</a></li>
+<li><a href="#fixed_92">Fixed</a></li>
 <li><a href="#changed_63">Changed</a></li>
 </ul>
 </li>
@@ -8853,7 +9038,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
 <li><a href="#added_131">Added</a></li>
-<li><a href="#fixed_92">Fixed</a></li>
+<li><a href="#fixed_93">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
@@ -8861,7 +9046,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
-<li><a href="#fixed_93">Fixed</a></li>
+<li><a href="#fixed_94">Fixed</a></li>
 <li><a href="#added_133">Added</a></li>
 <li><a href="#changed_64">Changed</a></li>
 </ul>
@@ -8910,6 +9095,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=1c3e83ae"></script>
+<script defer src="cmdk.js?v=945ec8b9"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="MCP transports and limits · contextlake docs">
 <meta name="twitter:description" content="stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1c3e83ae">
-<link rel="stylesheet" href="tokens.css?v=1c3e83ae">
-<link rel="stylesheet" href="docs.css?v=1c3e83ae">
-<link rel="stylesheet" href="cmdk.css?v=1c3e83ae">
+<link rel="stylesheet" href="fonts.css?v=945ec8b9">
+<link rel="stylesheet" href="tokens.css?v=945ec8b9">
+<link rel="stylesheet" href="docs.css?v=945ec8b9">
+<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -143,11 +143,14 @@ for <em>after</em> the shutdown has already finished.</p>
 socket transports do not serve it to anyone who connects.</p>
 <h4 id="a-bearer-token-printed-once-to-stderr-at-startup">A bearer token, printed once to stderr at startup<a class="anchor" href="#a-bearer-token-printed-once-to-stderr-at-startup" title="Link to this section">#</a></h4>
 <div class="highlight"><pre><span></span><code>$ contextlake kb serve --transport http
-✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
   Bearer token: &lt;a fresh 43-character token&gt;
   Clients must send: Authorization: Bearer &lt;token&gt;
   Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+  That token is UNSCOPED and shared. Issue one key per client instead: contextlake kb keys create &lt;name&gt;
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
 </code></pre></div>
+<p>The credential comes first and the URL is last. The same step that decides the credential can
+refuse the start, so a run that refuses prints the refusal and never prints the URL.</p>
 <p>Every request needs <code>Authorization: Bearer &lt;token&gt;</code>; without it the server answers <code>401</code>. The
 token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
 process anywhere you did not put it.</p>
@@ -332,6 +335,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=1c3e83ae"></script>
+<script defer src="cmdk.js?v=945ec8b9"></script>
 </body>
 </html>
