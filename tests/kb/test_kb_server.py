@@ -1,6 +1,7 @@
 """MCP server round-trip tests using the in-memory client/server harness."""
 
 import asyncio
+import os
 from datetime import date
 
 import pytest
@@ -1053,7 +1054,7 @@ def test_run_server_streamable_http_passes_stateless_and_json_response(monkeypat
     assert kwargs["transport_security"].enable_dns_rebinding_protection is True
 
     (app, serve_kwargs), = served
-    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert isinstance(app, server_mod.KeyAuthMiddleware)
     assert serve_kwargs["host"] == "0.0.0.0" and serve_kwargs["port"] == 9999
 
 
@@ -1074,7 +1075,7 @@ def test_run_server_sse_passes_host_port_only(monkeypatch):
     assert kwargs["host"] == "0.0.0.0"
 
     (app, serve_kwargs), = served
-    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert isinstance(app, server_mod.KeyAuthMiddleware)
     assert serve_kwargs["host"] == "0.0.0.0" and serve_kwargs["port"] == 9999
 
 
@@ -1089,7 +1090,7 @@ def test_run_server_mints_a_token_when_the_caller_forgets_one(monkeypatch):
     server_mod.run_server(store=None, transport="streamable-http")
 
     (app, _), = served
-    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert isinstance(app, server_mod.KeyAuthMiddleware)
     assert len(app._token) >= 32
 
 
@@ -1531,3 +1532,395 @@ def test_graph_health_counts_repos_even_when_it_cannot_check_them(tmp_path):
         assert out["checked"] == 0 and out["stale"] == 0
     finally:
         s.close()
+
+
+# ==========================================================================
+# `kb serve` and the key file: three banner states, and the load-failure split
+# that keeps a broken file from becoming a downgrade.
+#
+# The banner constants below were recorded from the code BEFORE this story
+# touched it, on 2026-09-05: 3 lines when a token is minted, 2 when it comes
+# from the environment. A constant recorded afterwards proves nothing.
+#
+# Both are still those lines. What changed on 2026-09-05 is that a FIRST START
+# -- no key file, whichever of the two credentials it ends up with -- adds one
+# more line naming `kb keys`. Every refusal already named that command and the
+# one route a new operator walks did not, so the person who most needed a
+# scoped key was the only one never told the command exists. It is kept as its
+# own constant rather than folded into the two above, because the all-revoked
+# start below is NOT a first start and must not say it: that path already names
+# `kb keys create` for its own reason, and saying it twice in one banner is how
+# a line becomes boilerplate.
+# ==========================================================================
+MINTED_BANNER_LINES = 3
+ENV_BANNER_LINES = 2
+FIRST_START_HINT_LINES = 1
+_MINTED_BANNER = (
+    "  Bearer token: {token}\n"
+    "  Clients must send: Authorization: Bearer <token>\n"
+    "  Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.\n"
+)
+_ENV_BANNER = (
+    "  Bearer token: read from $CONTEXTLAKE_MCP_TOKEN\n"
+    "  Clients must send: Authorization: Bearer <token>\n"
+)
+_FIRST_START_HINT = (
+    "  That token is UNSCOPED and shared. Issue one key per client instead: "
+    "contextlake kb keys create <name>\n"
+)
+
+
+def _serve_config(tmp_path):
+    from types import SimpleNamespace
+
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n\n[embeddings]\nenabled = false\n')
+    return SimpleNamespace(config=str(cfg), transport="http", host=None, port=None)
+
+
+def _key_file_with(tmp_path, *, live: int = 1, revoked: int = 0):
+    """A real key file written by the real writer. Returns (path, plaintexts)."""
+    from contextlake.kb import keyfile
+    from contextlake.kb import keys as keys_mod
+
+    records, values = [], []
+    for index in range(live):
+        _record, value = keys_mod.create(records, f"live-{index}")
+        values.append(value)
+    for index in range(revoked):
+        record, _value = keys_mod.create(records, f"gone-{index}")
+        keys_mod.revoke(records, record)
+    path = tmp_path / "mcp-keys.json"
+    keyfile.write_document(path, [r.to_dict() for r in records])
+    return path, values
+
+
+def _absent_default_key_file(tmp_path, monkeypatch):
+    """Reach "there is no key file" through the DEFAULT tier, which is the only
+    absent row that may mint.
+
+    These three tests used to reach it with `--keys-file <a path that is not
+    there>`. That is now a refusal: naming a path says the keys live there, so
+    an empty one is a broken deployment (a container volume mount that did not
+    appear) and not a first start. The property each test pins -- the banner, the
+    env-token banner, `--keys-only` -- is about the first start, so the fixture
+    moves to the tier that means it.
+
+    Both tiers above the default are cut. Without that, tier 3 reads the
+    developer's own `~/.contextlake/kb.toml` and tier 2 reads their environment,
+    so the test would pass here and mean something else on another machine.
+    """
+    from contextlake.kb import config as kb_config
+    from contextlake.kb import keyfile
+
+    absent = tmp_path / "unnamed" / "mcp-keys.json"
+    monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(tmp_path / "no-global.toml"))
+    monkeypatch.setattr(keyfile, "default_keys_file", lambda: absent)
+    monkeypatch.delenv(keyfile.KEYS_FILE_ENV, raising=False)
+    return absent
+
+
+def _run_serve(args, monkeypatch, *, keys_file=None, keys_only=False, env=None):
+    """Drive cmd_serve with run_server stubbed. Returns (rc, captured kwargs)."""
+    from contextlake.kb import server as srv
+    from contextlake.kb.cmds import serve as serve_mod
+
+    captured: dict = {}
+    monkeypatch.setattr(srv, "run_server", lambda store, **kw: captured.update(kw))
+    monkeypatch.delenv(srv.TOKEN_ENV, raising=False)
+    if env is not None:
+        monkeypatch.setenv(srv.TOKEN_ENV, env)
+    args.keys_file = None if keys_file is None else str(keys_file)
+    args.keys_only = keys_only
+    return serve_mod.cmd_serve(args), captured
+
+
+def test_a_first_start_prints_the_minted_banner_then_names_kb_keys(tmp_path,
+                                                                   monkeypatch,
+                                                                   capsys):
+    """Property P5, on a loopback bind. `use_stderr()` runs on stdio only, so
+    on a network start `log()` writes to stdout and the prints below are the
+    only writers to stderr.
+
+    The three minted lines are unchanged. The fourth is the one route a new
+    operator walks learning that `kb keys` exists, and it comes last: the token
+    answers "how do I connect", and this answers "how do I stop sharing it".
+    """
+    args = _serve_config(tmp_path)
+    _absent_default_key_file(tmp_path, monkeypatch)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=None)
+
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert err.splitlines() == (_MINTED_BANNER.format(token=captured["token"])
+                                + _FIRST_START_HINT).splitlines()
+    assert len(err.splitlines()) == MINTED_BANNER_LINES + FIRST_START_HINT_LINES
+    assert captured["keyring"] is None
+    assert captured["token"]
+
+
+def test_a_first_start_on_a_pinned_token_also_names_kb_keys(tmp_path,
+                                                            monkeypatch,
+                                                            capsys):
+    """The two announced lines are unchanged, and the same fourth-line reasoning
+    applies: nothing was minted, but the credential is still one shared value
+    every caller uses, so the way to per-client keys is named here too."""
+    args = _serve_config(tmp_path)
+    _absent_default_key_file(tmp_path, monkeypatch)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=None,
+                              env="fake-pinned-value-for-a-test")
+
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert err.splitlines() == (_ENV_BANNER + _FIRST_START_HINT).splitlines()
+    assert len(err.splitlines()) == ENV_BANNER_LINES + FIRST_START_HINT_LINES
+    assert captured["token"] == "fake-pinned-value-for-a-test"
+    assert captured["keyring"] is None
+
+
+def test_a_key_file_with_live_keys_stops_offering_a_shared_token(tmp_path,
+                                                                 monkeypatch,
+                                                                 capsys):
+    path, _values = _key_file_with(tmp_path, live=2)
+    args = _serve_config(tmp_path)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path)
+
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert sum("Bearer token:" in line for line in err.splitlines()) == 0
+    assert sum("keys loaded from" in line for line in err.splitlines()) == 1
+    assert "2 keys loaded from" in err
+    assert str(path) in err
+    assert "No shared token" in err
+    # Suppression is real at the seam, not a config value: run_server receives
+    # None, so nothing downstream can re-mint from a falsy token.
+    assert captured["token"] is None
+    assert captured["keyring"] is not None
+
+
+def test_the_env_var_stays_live_beside_the_keys_and_says_what_it_costs(
+        tmp_path, monkeypatch, capsys):
+    path, _values = _key_file_with(tmp_path, live=1)
+    args = _serve_config(tmp_path)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path,
+                              env="fake-pinned-value-for-a-test")
+
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert sum("bypasses every per-key limit" in line
+               for line in err.splitlines()) == 1
+    assert "shared-token" in err
+    assert sum("keys loaded from" in line for line in err.splitlines()) == 1
+    # The banner must not claim there is no shared token while announcing one.
+    assert "No shared token" not in err
+    assert captured["token"] == "fake-pinned-value-for-a-test"
+    assert captured["keyring"] is not None
+    # The value itself is never echoed back: the operator already has it.
+    assert "fake-pinned-value-for-a-test" not in err
+
+
+def test_a_key_file_whose_keys_were_all_revoked_mints_and_says_so(tmp_path,
+                                                                  monkeypatch,
+                                                                  capsys):
+    """The last key was revoked. The server starts and mints, rather than
+    refusing the operator along with everyone else.
+
+    It no longer prints the absent-key-file banner and nothing else. Zero live
+    keys was one state routed to the mint path, and an EXPIRED file rode that
+    route with no operator action at all -- so the states are split, and the one
+    that still mints names itself first. `tests/kb/test_serve_keyring.py` holds
+    the expired half and the rest of the table.
+    """
+    path, _values = _key_file_with(tmp_path, live=0, revoked=2)
+    args = _serve_config(tmp_path)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path)
+
+    err = capsys.readouterr().err
+    lines = err.splitlines()
+    assert rc == 0
+    assert lines[-MINTED_BANNER_LINES:] == _MINTED_BANNER.format(
+        token=captured["token"]).splitlines()
+    assert len(lines) == MINTED_BANNER_LINES + 3
+    assert "REVOKED" in err and str(path) in err
+    assert captured["keyring"] is None
+
+
+def test_an_unparseable_key_file_exits_1_and_never_mints(tmp_path, monkeypatch,
+                                                         capsys):
+    """Absent means mint. Present and broken means exit 1. Folding the two into
+    one `try/except` ships the downgrade: anyone who can corrupt the file turns
+    a per-key deployment into one unscoped token printed on stderr."""
+    import os
+
+    from contextlake.kb import server as srv
+
+    path = tmp_path / "mcp-keys.json"
+    path.write_text("{not json at all")
+    os.chmod(path, 0o600)
+    args = _serve_config(tmp_path)
+
+    minted: list = []
+    monkeypatch.setattr(srv, "resolve_token",
+                        lambda: minted.append(1) or ("x", False))
+    monkeypatch.setattr(srv, "build_http_app",
+                        lambda *a, **k: pytest.fail("no socket may be built"))
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert str(path) in err
+    assert minted == []
+    assert captured == {}
+
+
+@pytest.mark.skipif(os.name != "posix", reason="os.chmod sets only the read-only flag")
+def test_a_group_readable_key_file_exits_1_and_names_its_mode(tmp_path,
+                                                              monkeypatch,
+                                                              capsys):
+    import os as _os
+
+    path, _values = _key_file_with(tmp_path, live=1)
+    _os.chmod(path, 0o640)
+    args = _serve_config(tmp_path)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert str(path) in err
+    assert "0640" in err
+    assert captured == {}
+
+
+@pytest.mark.skipif(os.name != "posix", reason="os.chmod sets only the read-only flag")
+def test_a_world_writable_parent_directory_exits_1_and_names_the_directory(
+        tmp_path, monkeypatch, capsys):
+    """Unlink and create are governed by the PARENT's write bit, not the file's
+    mode, so a 0600 file inside a 0777 directory is replaceable by any account
+    that can write there."""
+    import os as _os
+
+    parent = tmp_path / "keys"
+    parent.mkdir()
+    path, _values = _key_file_with(parent, live=1)
+    _os.chmod(parent, 0o777)
+    args = _serve_config(tmp_path)
+    try:
+        rc, captured = _run_serve(args, monkeypatch, keys_file=path)
+    finally:
+        _os.chmod(parent, 0o700)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert str(parent) in err
+    assert "0777" in err
+    assert captured == {}
+
+
+def test_keys_only_refuses_to_start_beside_the_env_var(tmp_path, monkeypatch,
+                                                       capsys):
+    path, _values = _key_file_with(tmp_path, live=1)
+    args = _serve_config(tmp_path)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path, keys_only=True,
+                              env="fake-pinned-value-for-a-test")
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "--keys-only" in err
+    assert "CONTEXTLAKE_MCP_TOKEN" in err
+    assert captured == {}
+    # Before the banner, so a refused start announces nothing at all.
+    assert sum("keys loaded from" in line for line in err.splitlines()) == 0
+
+    # The other direction, so this is not a flag that refuses everything: with
+    # the variable unset the same key file starts.
+    rc, captured = _run_serve(args, monkeypatch, keys_file=path, keys_only=True)
+    assert rc == 0
+    assert captured["token"] is None
+
+
+def test_keys_only_refuses_to_start_with_no_key_file(tmp_path, monkeypatch,
+                                                     capsys):
+    """A `--keys-only` server that mints a shared token is a flag doing the
+    opposite of what it says.
+
+    The refusal has to land BEFORE the banner. A refusal printed after it mints
+    a credential and puts it on the operator's terminal for a server that never
+    started, and the exit code alone cannot see that.
+    """
+    from contextlake.kb import server as srv
+
+    args = _serve_config(tmp_path)
+    minted: list = []
+    real = srv.resolve_token
+    monkeypatch.setattr(srv, "resolve_token",
+                        lambda: minted.append(1) or real())
+    _absent_default_key_file(tmp_path, monkeypatch)
+    rc, captured = _run_serve(args, monkeypatch, keys_file=None,
+                              keys_only=True)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "--keys-only" in err
+    assert captured == {}
+    assert minted == []
+    assert sum("Bearer token:" in line for line in err.splitlines()) == 0
+
+
+def test_stdio_never_reads_the_key_file(tmp_path, monkeypatch):
+    """Property P3, asserted on the keystore's own file accessor rather than by
+    listing a directory afterwards: 0 stat, 0 read, 0 permission check.
+
+    The positive control is in the same test. A counter wired to nothing reads
+    0 on both halves.
+    """
+    from contextlake.kb import keyfile
+    from contextlake.kb import server as srv
+
+    path, _values = _key_file_with(tmp_path, live=1)
+    args = _serve_config(tmp_path)
+    args.transport = "stdio"
+    monkeypatch.setattr(srv, "run_server", lambda store, **kw: None)
+    args.keys_file, args.keys_only = str(path), False
+
+    from contextlake.kb.cmds import serve as serve_mod
+
+    trace: list = []
+    keyfile.reset_counters(trace)
+    try:
+        assert serve_mod.cmd_serve(args) == 0
+        stdio_counts = keyfile.counters()
+        keyfile.reset_counters(trace)
+        args.transport = "http"
+        assert serve_mod.cmd_serve(args) == 0
+        network_counts = keyfile.counters()
+    finally:
+        keyfile.reset_counters()
+
+    assert stdio_counts == {"stat": 0, "read": 0}, stdio_counts
+    assert network_counts["stat"] >= 1, network_counts
+    assert network_counts["read"] == 1, network_counts
+
+
+def test_stdio_loads_no_keystore_module(tmp_path, monkeypatch):
+    """Property P2, which survives someone hoisting an import later: the three
+    constructors are patched to raise and an stdio start still completes."""
+    from contextlake.kb import keyfile
+    from contextlake.kb import server as srv
+    from contextlake.kb.cmds import serve as serve_mod
+
+    def refuse(*a, **k):
+        raise AssertionError("stdio must not build a keyring")
+
+    monkeypatch.setattr(keyfile.Keyring, "load", staticmethod(refuse))
+    # BOTH resolvers. `cmd_serve` calls the with-source form, so patching the
+    # short one alone would leave this guard passing on a symbol the serve path
+    # no longer touches.
+    monkeypatch.setattr(keyfile, "resolve_keys_file", refuse)
+    monkeypatch.setattr(keyfile, "resolve_keys_file_with_source", refuse)
+    monkeypatch.setattr(srv, "run_server", lambda store, **kw: None)
+
+    args = _serve_config(tmp_path)
+    args.transport = "stdio"
+    args.keys_file, args.keys_only = None, False
+    assert serve_mod.cmd_serve(args) == 0

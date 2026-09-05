@@ -240,17 +240,20 @@ separately.
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
   [Model providers](model-providers.md).
-- **`contextlake kb serve --transport http`/`sse` prints its bind URL** once it starts listening --
-  `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the same with an `/sse`
-  suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
+- **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
+  opens the socket -- `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the
+  same with an `/sse` suffix for `sse` -- so you don't have to guess the host/port/path before pointing
+  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
+  on your screen means a server that is coming up.
   Both URLs include the path because neither transport is served at the bare root. Note that probing
   the root will not tell you that: the bearer-token middleware wraps the whole app, so an
   unauthenticated request to any path, the root included, answers `401` rather than `404`.
   `stdio` transport has no address to report and stays quiet on that line.
-- **The network transports print their bearer token right under that URL, on stderr.** A socket that
+- **The network transports print their bearer token just above that URL, on stderr.** A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
   you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
+  discovered. It comes first because the credential is decided first: the same step can refuse the
+  start, and a refusal has to reach you before anything says the server is up. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
   disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
   it instead of echoing the value. `stdio` prints no token because it needs none. See
   [Serve](serving-over-mcp.md).

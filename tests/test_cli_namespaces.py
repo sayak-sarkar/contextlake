@@ -21,8 +21,11 @@ from contextlake.cli import (
 
 MOVED = sorted(_NAMESPACE_OF)
 TOP_LEVEL = ("version", "init", "completion", "bootstrap", "doctor")
-# `source` is the one moved command with a required positional.
-REQUIRED_ARGS = {"source": ["list"], "forget": ["some/repo"]}
+# `source` and `keys` are the moved commands with a required positional `action`;
+# `forget` takes a repo. MOVED is derived from `_NAMESPACE_OF`, so registering a
+# new verb with a required positional turns this parametrization red until its
+# argv lands here, which is how `keys` was caught.
+REQUIRED_ARGS = {"source": ["list"], "keys": ["list"], "forget": ["some/repo"]}
 
 
 def _resolve(argv):

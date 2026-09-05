@@ -15,6 +15,7 @@ from .hook import cmd_hook
 from .impact import cmd_impact
 from .index import cmd_index
 from .ingest import cmd_ingest
+from .keys_cmd import cmd_keys
 from .lint import cmd_lint
 from .owners import cmd_owners
 from .query import cmd_query
@@ -39,6 +40,13 @@ _EAGER_HANDLERS = {
     "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
     "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
     "refresh": cmd_refresh, "docs": cmd_docs,
+    # `keys` is EAGER, not lazy like `source`. The lazy branch exists for one
+    # reason: `source_cmd` reaches tomlkit, which would otherwise sit on every
+    # other kb command's startup path. `keys_cmd` reaches `kb/keyfile.py` and
+    # `kb/keys.py`, whose imports are json, hashlib, zlib, secrets and datetime
+    # -- all stdlib, all already loaded. There is nothing to keep off the
+    # startup path, so it goes here.
+    "keys": cmd_keys,
 }
 
 # Every verb `dispatch` accepts, including the lazily-imported one. This is what a consumer

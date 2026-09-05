@@ -6684,11 +6684,15 @@ socket transports do not serve it to anyone who connects.
 
 ```
 $ contextlake kb serve --transport http
-✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
   Bearer token: <a fresh 43-character token>
   Clients must send: Authorization: Bearer <token>
   Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+  That token is UNSCOPED and shared. Issue one key per client instead: contextlake kb keys create <name>
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
 ```
+
+The credential comes first and the URL is last. The same step that decides the credential can
+refuse the start, so a run that refuses prints the refusal and never prints the URL.
 
 Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
 token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
@@ -8010,12 +8014,125 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
+| `kb keys` | Create and manage the API keys that authenticate MCP callers: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
 `doctor --fix`'s own flags, and the two privilege tiers behind them, are on
 [Install and upgrade](installing.md#installing-what-is-missing).
+
+### `kb serve`: which key file, and whether it may mint
+
+Two flags decide whether a network start comes up shared, comes up per-key, or refuses.
+
+**`--keys-file PATH`** says where the keys live. Four tiers, highest wins:
+
+| Tier | Where it is set |
+| --- | --- |
+| `--keys-file PATH` | the command line |
+| `$CONTEXTLAKE_KEYS_FILE` | the environment |
+| `[serve] keys_file` | `~/.contextlake/kb.toml`, or the file passed to `--config` |
+| `~/.contextlake/mcp-keys.json` | nowhere. The default |
+
+Naming a path in any of the top three says the keys live there, so **an absent file at a
+named path is refused, exit 1**. It is not read as a first start. The case this stops: a
+container whose volume mount did not appear starts with the named path empty, and the server
+used to mint one unscoped shared token and print stderr that read like a fresh machine. Only
+the default tier, with nobody naming anything, may mint.
+
+A `[serve] keys_file` in a `.contextlake.kb.toml` found by walking up from the current
+directory is ignored, and the run says so on one line. That file sits inside a repository
+checkout, so anything it points at gets committed. Pass `--config <file>`, or set the key in
+`~/.contextlake/kb.toml`, to have it honoured.
+
+**`--keys-only`** refuses to start rather than mint an unscoped shared token. Use it where an
+open server is worse than no server. It refuses in two cases:
+
+- No key file with a live key was found. Minting is the thing the flag exists to prevent, so
+  the server exits `1` and names `contextlake kb keys create`.
+- `$CONTEXTLAKE_MCP_TOKEN` is set. That is one credential every caller shares, so per-key
+  revocation and attribution stop meaning anything. Unset the variable, or drop the flag.
+
+**Every refusal prints before the line that says the server is up.** A start that is going to
+refuse never prints `✓ MCP server on http://...`; the banner is the last thing written before
+the socket opens.
+
+### `kb keys`
+
+Every key is one caller's credential. The server checks the key on each request, so
+revoking one takes effect on the next request with no restart.
+
+```
+contextlake kb keys create alice-laptop --expires 90d
+contextlake kb keys list
+contextlake kb keys show k_4f2a91
+contextlake kb keys revoke k_4f2a91 --reason "laptop returned"
+contextlake kb keys rotate k_4f2a91 --overlap 24h
+printf '%s' "$KEY" | contextlake kb keys check
+contextlake kb keys prune --before 2026-01-01
+```
+
+**The key is shown once, and only once.** It is printed to standard error at creation and
+never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
+to print later. A key nobody wrote down is rotated, never recovered:
+`contextlake kb keys rotate <id>` issues a replacement and keeps the old one working for
+`--overlap` so the holder has time to swap.
+
+Three ways to capture it at creation:
+
+- Read it off the screen. This is the default.
+- `--print-key` writes the bare key to standard output for a pipe, e.g.
+  `contextlake kb keys create ci --print-key | pass insert -e contextlake`. It refuses a
+  terminal, because on one the key lands in the scrollback instead of a secret store.
+- `--out FILE` writes the key to a file at mode `0600`. The file is created with `O_EXCL`,
+  so an existing path is refused rather than overwritten.
+
+The key never reaches standard output on the default path and never reaches `--log-file`,
+which is a rotating file that outlives the process.
+
+**`check` reads the key from standard input only.** A key typed on a command line lands in
+shell history and shows in `ps` to every account on the machine, so
+`contextlake kb keys check <key>` is refused with exit 2. A terminal with nothing piped in
+is refused the same way, rather than waiting for end-of-file behind a blank screen. `check`
+opens no socket and sends no request: it compares the digest against the key file, which is
+what lets it answer when the server is the thing that is down. It reports what the record
+stores, not what a server would allow.
+
+**The checksum in a key is a typo filter, not a security control.** It catches a key
+mistyped or truncated in transit before a request is sent. It stops nobody from forging a
+key, which is the digest comparison's job.
+
+**The scope flags are recorded and enforced by nothing.** `--tools`, `--repos`,
+`--owners`, `--rate`, `--burst` and `--cost-budget` are written onto the key and rendered
+back by `create`, `list`, `show` and `check`. No code reads them. A key created with
+`--tools none --repos nothing-matches/*` gets the full tool list over MCP and can call
+every one of them on every indexed repository. Measured, not assumed: that key was
+presented to a live `kb serve --transport http --keys-only` server and `tools/list`
+answered with all 23 registered tools.
+
+So every surface that prints them says `(recorded, not enforced)` beside the values and
+carries three lines saying what that means. `show --json` and `list --json` carry
+`"policy_enforced": false` for the same reason. Do not hand out a key believing the scope
+limits it. Enforcement ships in a later release; `--rate` and `--cost-budget` are stored
+as typed and are not validated yet either.
+
+**`--client` prints the config snippet for the editor that will hold the key**
+(`claude-code`, `cursor`, `vscode`, `windsurf`, `zed`). Every snippet reads the key from a
+variable rather than inlining it, except Zed, whose `context_servers` documents no
+environment expansion for a header value. VS Code has the best handling of the five: it
+prompts once and keeps the value outside the config file. `claude-desktop` and `claude-web`
+are refused, each naming the route that does work.
+
+**Exit codes.** `0` on success, including `list` on a key file that does not exist yet. `1`
+on an id that is not in the file, on a key file that cannot be read, and on `check` of a
+key that is malformed, unknown, revoked or expired. `2` on a missing positional or a bad
+flag value. Note the asymmetry with `kb source remove`, which treats a missing name as a
+no-op at `0`: `revoke` on an unknown id fails, because an admin scripting a revocation
+reads the exit code and "I revoked nothing" must not read as success.
+
+No `kb keys` verb opens the store database, so every one of them runs on a machine with no
+index built. `kb keys list` is the first command to run after a server refuses to start.
 
 ## Exit codes
 
@@ -8282,17 +8399,20 @@ separately.
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
   [Model providers](model-providers.md).
-- **`contextlake kb serve --transport http`/`sse` prints its bind URL** once it starts listening --
-  `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the same with an `/sse`
-  suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
+- **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
+  opens the socket -- `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the
+  same with an `/sse` suffix for `sse` -- so you don't have to guess the host/port/path before pointing
+  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
+  on your screen means a server that is coming up.
   Both URLs include the path because neither transport is served at the bare root. Note that probing
   the root will not tell you that: the bearer-token middleware wraps the whole app, so an
   unauthenticated request to any path, the root included, answers `401` rather than `404`.
   `stdio` transport has no address to report and stays quiet on that line.
-- **The network transports print their bearer token right under that URL, on stderr.** A socket that
+- **The network transports print their bearer token just above that URL, on stderr.** A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
   you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
+  discovered. It comes first because the credential is decided first: the same step can refuse the
+  start, and a refusal has to reach you before anything says the server is up. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
   disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
   it instead of echoing the value. `stdio` prints no token because it needs none. See
   [Serve](serving-over-mcp.md).
@@ -8563,6 +8683,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`contextlake kb keys`, the command every key-file refusal already named.** Seven verbs:
+  `create`, `list`, `show`, `revoke`, `rotate`, `check` and `prune`.
+
+  `kb serve` refuses to start on several key-file states, and each refusal told the operator
+  to run `contextlake kb keys create <name>`. That command did not exist. A server that
+  refuses and names a way out the reader cannot take is worse than one that starts wrongly,
+  because the operator has nothing to do next. This is that command.
+
+  **The key is shown once.** It goes to standard error at creation and never appears again,
+  because the file stores a SHA-256 digest rather than the key. It is deliberately never sent
+  through the logger: the console handler always writes to stdout, a `--log-file` run adds a
+  5 MB rotating file with three backups that outlives the process, and the redactor rewrites
+  workspace paths and repo names, so it would scrub a key on neither. A lost key is rotated,
+  never recovered, and `rotate` keeps the old key working for `--overlap` so the holder can
+  swap without an outage.
+
+  Two other paths can carry the key out, and both are narrower than they look. `--print-key`
+  writes the bare key to stdout for a pipe and refuses a terminal, where it would land in the
+  scrollback instead of a secret store. `--out FILE` writes it at mode 0600, with the mode set
+  at creation rather than chmod-ed afterwards, and with `O_EXCL` so an existing path is
+  refused rather than overwritten.
+
+  `check` reads the key from standard input only. A key on a command line lands in shell
+  history and shows in `ps` to every account on the machine. A terminal with nothing piped
+  in is refused too, rather than waiting for end-of-file behind a blank screen: it does not
+  prompt, because a typed key lands in the scrollback. It opens no socket and sends no
+  request, which is what lets it answer when the server is the thing that is down, and it
+  says so rather than implying it verified anything against a server.
+
+  **No verb opens the store database.** Every one of them runs on a machine that has never
+  built an index, which is the machine an operator is on when a server has just refused to
+  start. `kb keys list` is the first command they run.
+
+  Two refusals split by verb rather than collapsed into one rule. A key file carrying group
+  or other bits, or sitting in a directory anyone can write to, is a policy fault: write
+  verbs refuse, and `list` warns and prints the table anyway, because blocking the operator
+  from seeing what exists is the wrong failure when `list` is how they diagnose the refusal
+  they just hit. A file that cannot be read at all is not that: nothing was read, so every
+  verb fails and names the path.
+
+  **The scope flags are recorded and enforced by nothing, and every surface says so.**
+  `--tools`, `--repos`, `--owners`, `--rate`, `--burst` and `--cost-budget` are written onto
+  the key and rendered back by `create`, `list`, `show` and `check`. No code reads them. A
+  key created with `--tools none --repos nothing-matches/*` was presented to a live
+  `kb serve --transport http --keys-only` server and `tools/list` answered with all 23
+  registered tools, one of which then ran and returned a result.
+
+  So the values print with `(recorded, not enforced)` beside them and three lines saying
+  what that means, `show --json` and `list --json` carry `"policy_enforced": false`, and an
+  unset axis reads `unset` rather than `none`, which read as a denial for the key a bare
+  `create` makes. Telling an operator their key is scoped when it is not is worse than not
+  offering the flags, because they hand the key out on that reading.
+
+  Scope is per tool, not per repository once it does work: a key allowed a tool will read
+  every indexed repo through it. `--rate` and `--cost-budget` are stored as typed and
+  validated by nobody, because their parser ships with the rate limiter. The `LAST USED`
+  column reads `never` until the usage file it reads from exists.
+
 - **Per-request identity on the network MCP transports, and the frame that will carry access
   control.** Groundwork only: nothing is enforced yet and nothing changes for a local run.
 
@@ -8697,6 +8875,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already writes a `base_url` line.
 
 ### Fixed
+
+- **`kb serve` printed a green success banner for a server that never started.** A network
+  start that was about to refuse printed
+
+  ```
+  ✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+    --keys-only refused: no key file with a live key was found ...
+  ```
+
+  and exited 1 with nothing listening. The banner sat above the block that reads the key file,
+  so all five key-file refusals printed second, and an operator reading their terminal top to
+  bottom saw a running server. A code comment on that block claimed the opposite, that every
+  refusal ran before any banner.
+
+  The two banner lines are printed last now, right before the server call, with nothing
+  between them that can return. A start that refuses prints no banner at all. The refusals
+  covered: a key file that cannot be trusted, `--keys-only` with `$CONTEXTLAKE_MCP_TOKEN` set,
+  a file this reader cannot account for, a file whose keys have all expired or that holds no
+  records, and `--keys-only` with no live key anywhere. The `--host` refusal already ran before
+  the banner and is unchanged. Output on a start that goes ahead is unchanged.
+
+- **`kb serve --keys-file` and `--keys-only` are documented.** They decide which key file a
+  network start reads and whether it may mint a shared token, and `docs/cli-reference.md`
+  described neither. It carries the four-tier resolution order now, why an absent file at a
+  named path is refused rather than read as a first start, and the two cases `--keys-only`
+  refuses.
+
+- **A first start named no way to stop using the shared token.** Every key-file refusal told
+  the operator to run `contextlake kb keys create <name>`. The one route a new operator walks,
+  a first start on a machine with no key file, printed the unscoped token and named nothing, so
+  the person who most needed a scoped key was the only one never told the command exists. That
+  start now adds one line saying the token is shared and naming `kb keys create`. The
+  all-revoked start, which already named it for its own reason, is unchanged and does not say
+  it twice.
+
+- **`[serve]` was reported as an unknown config table while the same run refused a start over
+  `[serve] keys_file`.** One `kb serve` run printed `config: unknown config table 'serve'
+  (ignored)` on stdout and `Key file refused: [serve] keys_file names ...` on stderr. The table
+  is known: `keyfile._serve_keys_file` opens the same TOML files and honours the value, which
+  is how the second line came to name it. The warning was the wrong line, and `serve` is in the
+  known-table set now. Keys inside the table are still not checked the way `[kb]` keys are.
+
+- **The reason written down for one fail-closed refusal was false.** A key file holding no
+  records is refused, and `kb/keyfile.py` justified that with "`kb keys prune` on a schedule
+  empties a file whose keys lapsed, so the calendar reaches this state too". Nothing schedules
+  `prune`; it runs when a person types it. The refusal is unchanged, because it never depended
+  on who emptied the file: a file holding no record admits nobody and reads on stderr like a
+  first start, so minting on it turns a deployment that asked for scoped keys into an open one.
+  The same false premise was restated in `kb/cmds/serve.py`'s table of zero-live states and in
+  a test docstring; all three are corrected, and a test now fails if the sentence returns to
+  any of them.
 
 - **`kb enrich` term selection: the cap is now spent on searchable symbols.** The term builder
   read `repo_brief`'s `top_symbols`, which ranks every node in a repo and then caps the result,

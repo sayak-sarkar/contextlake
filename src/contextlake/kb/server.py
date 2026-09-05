@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import secrets
+import sys
 import threading
 import time
 from collections import deque
@@ -189,7 +190,7 @@ class IdentityUnset(ToolError):
     body reads key B (correctly) and the ANSWER is delivered to connection A.
     The SDK has a guard for this (mcp/server/sse.py:261, a session is
     usable only by the credential that created it) and it is inert here because
-    it reads ``scope["user"]``, which ``BearerAuthMiddleware`` does not set.
+    it reads ``scope["user"]``, which ``KeyAuthMiddleware`` does not set.
     Measured and pinned by
     ``test_a_second_key_may_post_into_another_connections_sse_session``.
     """
@@ -2305,6 +2306,57 @@ def build_server(
     return mcp
 
 
+def refuse_key_shaped_token(token: str | None) -> None:
+    """Refuse a shared token shaped like a key this tool mints. Raises or returns.
+
+    Two separate failures, and both are silent without this.
+
+    A ``ctxlake_``-shaped value in ``CONTEXTLAKE_MCP_TOKEN`` NEVER
+    AUTHENTICATES once a key file exists. The gate classifies a presented value
+    by its shape first, so a key-shaped one goes to the keyring, resolves to no
+    record, and is refused as ``unknown`` -- it never reaches the shared-token
+    comparison. Meanwhile the startup banner says the variable "bypasses every
+    per-key limit and scope". The operator is told their token is live and
+    every request with it gets a 401.
+
+    Worse, if it ever DID reach that comparison: an operator who pastes a real
+    minted key into the variable (an easy mistake -- both go in the same place
+    in a client config) would give that key a second, UNSCOPED life that
+    ``kb keys revoke`` cannot end. Revocation reads the key file, and a value
+    in an environment variable is not in the key file. Falling through would
+    make a revoked key keep working, which is the one thing revocation is for.
+
+    So the answer to both is to refuse the configuration rather than pick a
+    side at request time. A shared token is for a value contextlake did not
+    mint; a value contextlake minted goes in the key file.
+
+    Raised at build time, and deliberately not silently corrected: minting a
+    replacement would leave the operator holding a value their clients send and
+    the server does not accept, which is the same failure one layer along.
+    """
+    if not token:
+        return
+    # Imported in the body, not at module scope, for the reason build_http_app
+    # states: local-first property P1 asserts no keystore module is in
+    # `sys.modules` after an stdio run. Every caller of this function is on the
+    # network path (run_server returns from its stdio branch first), so this
+    # import is never reached by stdio.
+    from . import keys as keys_module
+
+    if not token.startswith(keys_module.KEY_PREFIX):
+        return
+    raise ValueError(
+        f"${TOKEN_ENV} holds a value starting with "
+        f"'{keys_module.KEY_PREFIX}', which is the prefix of a key this tool "
+        "mints. That value can never authenticate: the gate routes anything "
+        "with that prefix to the key file, so it is refused as an unknown "
+        f"key and the shared-token check is never reached. Unset ${TOKEN_ENV} "
+        "and let clients send their own key (contextlake kb keys create), or "
+        "set it to a value contextlake did not mint. Do not paste a real key "
+        "into it: an environment variable is not in the key file, so "
+        "'contextlake kb keys revoke' could not take it back.")
+
+
 def resolve_token() -> tuple[str, bool]:
     """The bearer token for an HTTP-family transport, and whether it came from env.
 
@@ -2313,8 +2365,14 @@ def resolve_token() -> tuple[str, bool]:
     is treated as unset and a fresh token is minted rather than honoured: an env
     var a shell expanded to "" must not be the difference between a server only
     its operator can reach and one anybody can.
+
+    A key-shaped value is refused here as well as at build time, so the rule
+    reads the same in every configuration. Without that, ``CONTEXTLAKE_MCP_TOKEN``
+    would mean one thing with a key file present and another with it absent, and
+    creating a first key would silently stop an operator's pinned token working.
     """
     env = (os.environ.get(TOKEN_ENV) or "").strip()
+    refuse_key_shaped_token(env)
     return (env, True) if env else (secrets.token_urlsafe(32), False)
 
 
@@ -2359,30 +2417,269 @@ def transport_security(host: str) -> TransportSecuritySettings:
     )
 
 
+# The seven refusal classes, closed. A free-text reason string is how a class
+# name later reaches an operator line as attacker-controlled text, so the
+# vocabulary is fixed here and the reporter accepts nothing outside it.
+#
+# Each class exists because a different thing has to be done about it:
+# `no_header` is a client that never configured one, `wrong_scheme` is a client
+# sending Basic or a bare value, `malformed` and `bad_checksum` are a mistyped
+# or truncated key, `unknown` is a key this server never issued, `revoked` is a
+# key an admin withdrew, `expired` is one that lapsed on its own. Collapsing
+# them into one message on the OPERATOR side removes the whole reason for
+# reading the log.
+#
+# On the WIRE they are one response, byte for byte. The line drawn here, and
+# why: an unauthenticated caller learns only that the credential was not
+# accepted. Telling `unknown` from `revoked` apart on the wire is a working
+# oracle over the key space -- it says whether a key ever existed, and whether
+# a person's access was withdrawn, which is a fact about the operator's staff
+# changes rather than about the caller's own request. Telling `malformed` from
+# `unknown` apart says which prefixes and lengths this server accepts, which
+# turns an offline guess into a checked one. Neither is worth a better error
+# message for a caller who, by construction, holds nothing.
+REFUSAL_CLASSES = ("no_header", "wrong_scheme", "malformed", "bad_checksum",
+                   "unknown", "revoked", "expired")
+
+# The two classes a value can earn before anything on disk is touched.
+_FORMAT_REFUSALS = frozenset({"malformed", "bad_checksum"})
+
+
+def _classify_presented(presented: bytes, keys) -> str | None:
+    """Which refusal class this value has earned on its shape alone, or None.
+
+    ``None`` means "not one of this server's keys at all", which is what sends
+    a value on to the shared-token branch. ``"ok"`` means well-formed, and it
+    is the ONLY verdict that lets the request reach the filesystem.
+
+    It reads no file, calls no hash and holds no copy of the key format: the
+    length, the prefix and the alphabet all come from ``keys``, and
+    ``check_format`` is that module's own function. What is decided here is the
+    PARTITION of a failure into refusal classes, which is the gate's job -- a
+    bool cannot carry it, and ``malformed`` and ``bad_checksum`` need different
+    things done about them (a truncated paste against a mistyped character).
+
+    Bytes in, and a decode that cannot raise. ``Bearer tökén`` is what a hostile
+    client can put on the wire, and a strict decode here would surface it as a
+    500 rather than a 401 -- the same trap the shared-token comparison already
+    carries a comment about, one layer up.
+    """
+    try:
+        value = presented.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    if not value.startswith(keys.KEY_PREFIX):
+        return None
+    if keys.check_format(value):
+        return "ok"
+    body = value[len(keys.KEY_PREFIX):]
+    if len(value) != keys.KEY_LEN or not _key_alphabet(keys.ALPHABET) >= set(body):
+        return "malformed"
+    return "bad_checksum"
+
+
+@functools.lru_cache(maxsize=1)
+def _key_alphabet(alphabet: str) -> frozenset[str]:
+    """The alphabet as a set, built once rather than per refused request.
+
+    Same reasoning as the 401 body being a module constant: the refusal path is
+    the one a flood is designed to exercise, and the threat model's line is that
+    a header-shaped flood costs a header parse and nothing else. Rebuilding a
+    62-element set per malformed value is not nothing.
+    """
+    return frozenset(alphabet)
+
+# One body for every refusal, built once at import. A per-request json.dumps
+# would put an allocation on the one path a flood is designed to exercise.
+#
+# The text is the highest-value string here. Today's `{"error":"unauthorized"}`
+# sends a client that supports OAuth discovery into a flow this server will
+# never have: Zed starts the standard MCP OAuth handshake when a remote server
+# has no configured Authorization header, and Claude Code flags a server as
+# needing auth on a 401. So a user who simply forgot the header sees a failed
+# OAuth handshake and goes looking for an authorization endpoint that does not
+# exist. The body says what to send and says there is no OAuth flow here.
+_UNAUTHORIZED_BODY = (
+    b'{"error":"unauthorized","detail":"This server requires an API key. Send: '
+    b'Authorization: Bearer <key>. There is no OAuth flow here. Ask the '
+    b'operator for a key (contextlake kb keys create)."}'
+)
+
+
 async def _send_unauthorized(send) -> None:
-    body = b'{"error":"unauthorized"}'
+    """The one 401. Every refusal path calls this; nothing else sends a 401.
+
+    It takes no refusal class, deliberately. A parameter this function accepts
+    is a parameter somebody later renders into the body, and the seven classes
+    are byte-identical on the wire on purpose.
+    """
     await send({"type": "http.response.start", "status": 401, "headers": [
         (b"content-type", b"application/json"),
-        (b"content-length", str(len(body)).encode("ascii")),
+        (b"content-length", str(len(_UNAUTHORIZED_BODY)).encode("ascii")),
         # RFC 6750: name the scheme to retry with, without a realm -- there is
-        # no authorization server here, just a process-local shared secret.
+        # no authorization server here. No `resource_metadata` either: that
+        # field is RFC 9728 and advertising it points clients at metadata this
+        # server does not serve.
         (b"www-authenticate", b"Bearer"),
     ]})
-    await send({"type": "http.response.body", "body": body})
+    await send({"type": "http.response.body", "body": _UNAUTHORIZED_BODY})
 
 
-class BearerAuthMiddleware:
-    """ASGI gate requiring ``Authorization: Bearer <token>`` on every HTTP request.
+# The refusal line is BOUNDED, per class, per window. The refusal path is the
+# one a flood is designed to exercise -- that is this module's own stated
+# threat model, and it is the reason the 401 body is a module constant and the
+# alphabet is built once. An unbounded `print` per refused request undoes that:
+# a header-shaped flood then costs a write syscall each, it fills the
+# operator's terminal, and on a `--log-file` deployment it fills a disk.
+#
+# The cap is per CLASS so a flood of one class cannot hide a single line of
+# another, which is the whole reason the seven classes are separate.
+#
+# 20 and 60s, and where those come from: a real operator debugging a client
+# needs to see every attempt, and a misconfigured client retries a handful of
+# times, not twenty. Above 20 in a minute nothing is being debugged, it is a
+# flood, and a count is more use than the lines.
+REFUSAL_LOG_CAP = 20
+REFUSAL_LOG_WINDOW = 60.0
+
+
+class _RefusalLog:
+    """The bound on the refusal line. One counter per class, one time window.
+
+    No thread, no timer and no flush hook, on purpose: this runs inside the
+    request path, so the only clock it can read is the one a request brings.
+    That has a consequence worth naming rather than hiding -- the "N more"
+    summary is printed by the NEXT refusal of that class, so a flood that stops
+    dead leaves its final count unprinted. The line at the moment of crossing
+    is what keeps that from being silence: the operator learns a flood is
+    happening while it happens, and the number arrives with the next one.
+    """
+
+    def __init__(self, *, cap: int = REFUSAL_LOG_CAP,
+                 window: float = REFUSAL_LOG_WINDOW, clock=time.monotonic,
+                 stream=None) -> None:
+        self._cap = cap
+        self._window = window
+        self._clock = clock
+        self._stream = stream
+        # class -> [window start, lines emitted, lines suppressed]
+        self._state: dict[str, list] = {}
+        # A lock rather than a bare increment. The window read, the compare and
+        # the increment are three steps on shared state, and this module does
+        # not own the thread its app is driven from: an ASGI server is free to
+        # run it from a worker thread, and the test client already does. A lost
+        # increment would under-report a flood, which is the one number this
+        # class exists to produce. Uncontended it costs about 50 ns, against
+        # the write syscall it replaces on the same path.
+        self._lock = threading.Lock()
+
+    def _write(self, line: str) -> None:
+        print(line, file=self._stream or sys.stderr)
+
+    def report(self, refusal: str, *, key_id: str | None = None) -> None:
+        now = self._clock()
+        with self._lock:
+            row = self._state.get(refusal)
+            if row is None or now - row[0] >= self._window:
+                missed = row[2] if row else 0
+                self._state[refusal] = [now, 0, 0]
+                row = self._state[refusal]
+            else:
+                missed = 0
+            emitted = row[1]
+            if emitted < self._cap:
+                row[1] = emitted + 1
+                crossed = False
+            else:
+                row[2] += 1
+                crossed = row[2] == 1
+        # Outside the lock: a write syscall must not serialise the gate.
+        if missed:
+            self._write(f"  MCP auth refused: {refusal} x{missed} more, "
+                        f"suppressed in the last {self._window:.0f}s")
+        if emitted < self._cap:
+            where = f" key={key_id}" if key_id else ""
+            self._write(f"  MCP auth refused: {refusal}{where}")
+        elif crossed:
+            self._write(f"  MCP auth refused: {refusal} -- further lines "
+                        f"suppressed for {self._window:.0f}s")
+
+    def reset(self) -> None:
+        """Forget every window. For tests; nothing in the module calls it."""
+        with self._lock:
+            self._state.clear()
+
+
+_REFUSAL_LOG = _RefusalLog()
+
+
+def reset_refusal_log() -> None:
+    """Zero the refusal-line bound. For tests; nothing in the module calls it.
+
+    Module state outlives a test. Without this, whichever test floods first
+    changes the line count every later test in the process reads.
+    """
+    _REFUSAL_LOG.reset()
+
+
+def _report_refusal(refusal: str, *, key_id: str | None = None) -> None:
+    """Tell the OPERATOR which class the wire response does not carry.
+
+    Bounded per class per window by :class:`_RefusalLog`; see its docstring and
+    the constants above it for the numbers and for what the bound costs.
+
+    THE CONTENT RULE, which is the whole point of this function: never the
+    presented value, never a prefix or suffix of it, never its length, never
+    its hash. For `revoked` and `expired` the line names the key ID, which is
+    not a secret -- a digest matched a record this process already holds, so
+    the id is the server's own name for that record and never a caller's
+    string. For every other class the reporter receives nothing about the
+    presented value at all, so there is nothing to leak.
+
+    stderr through a bare `print`, following `cmds/serve.py:_announce_token`:
+    on a network start `log()` writes to stdout, which is pipeable output, and
+    to a rotating file when `--log-file` is set. The content rule above is what
+    protects the asset, so routing a line through `log()` later (the analytics
+    area does, for `revoked` and `expired`, carrying the key id) is allowed and
+    changes nothing here.
+
+    CALLED AFTER THE 401 HAS BEEN SENT, never before. The vocabulary guard
+    below raises, and a raise on the way IN unwound the request with no
+    response at all: the caller got a dropped connection instead of a 401, and
+    a client that retries a dropped connection retries forever. The refusal is
+    owed to the caller whatever this function thinks of the class name.
+    """
+    if refusal not in REFUSAL_CLASSES:
+        raise ValueError(f"not a refusal class: {refusal!r}")
+    _REFUSAL_LOG.report(refusal, key_id=key_id)
+
+
+class KeyAuthMiddleware:
+    """ASGI gate requiring ``Authorization: Bearer <key>`` on every HTTP request.
 
     Deliberately not the SDK's own auth hook. That one is OAuth-shaped:
     ``AuthSettings`` makes ``issuer_url`` a required field and ``MCPServer``
-    refuses a ``token_verifier`` without it, so routing one process-local shared
-    secret through it would mean advertising an authorization server that does
-    not exist. A shared secret is a middleware, so it is one.
+    refuses a ``token_verifier`` without it, so routing a locally-issued key
+    through it would mean advertising an authorization server that does not
+    exist. A local credential is a middleware, so it is one.
 
     Non-HTTP scopes pass straight through -- notably ``lifespan``, which is what
     starts the SDK's session manager; gating that would leave the app never
     started rather than merely unauthenticated.
+
+    WHY THE LOOKUP IS A DICT ON A DIGEST AND NOT AN ITERATION. Non-enumeration
+    is a property of the response, not of the lookup, but a loop that compares
+    entries and stops at the match makes the iteration count depend on the
+    match position, which is a timing channel. The keyring resolves one
+    SHA-256 digest through one dict lookup, so there is no loop to leak and
+    nothing to build a constant-time table for: the value looked up is already
+    non-invertible.
+
+    THE ORDER ON THE REQUEST PATH IS: format check, then
+    ``reload_if_changed()``, then ``resolve()``. The format check touches no
+    file, so a mistyped or hostile value that is not shaped like one of this
+    server's keys costs a header walk and nothing on disk. Only a value that
+    passes the format check reaches the filesystem.
 
     It also publishes WHO the caller is, for the life of the request, so a tool
     body can read it. That is unconditional on every request it admits, the
@@ -2390,23 +2687,45 @@ class BearerAuthMiddleware:
     body mean one thing only: the value was lost on the way there.
     """
 
-    def __init__(self, app, token: str, *, keyring=None) -> None:
+    # The keyring shape this gate calls. Checked at build time rather than per
+    # request: a keyring missing one of these would otherwise raise
+    # AttributeError inside the gate and turn every authenticated request into
+    # a 500 on the auth path.
+    KEYRING_METHODS = ("reload_if_changed", "resolve")
+
+    def __init__(self, app, token: str | None, *, keyring=None, keys=None) -> None:
         self.app = app
-        self._token = token.encode("utf-8")
+        # None means the shared-token branch DOES NOT EXIST. Not an empty
+        # string and not an unreachable value: a branch that exists and
+        # compares against something unguessable is one refactor away from
+        # comparing against something minted, and `token or resolve_token()[0]`
+        # is exactly that refactor. Suppression has to be the absence of the
+        # branch.
+        self._token = None if token is None else token.encode("utf-8")
         # A keyring, when one is supplied, resolves a presented value to the
-        # Principal it belongs to. One method, `resolve(presented: bytes) ->
-        # Principal | None`, so the real multi-key keyring drops in here without
-        # a second shape being invented for it. With no keyring the gate is the
-        # single shared token it has always been.
+        # record it belongs to. Two methods, listed in KEYRING_METHODS.
         self._keyring = keyring
+        # `contextlake.kb.keys`, supplied by build_http_app, which imports it
+        # inside its own body. Never imported at module scope: local-first
+        # property P1 asserts no keystore module is in `sys.modules` after an
+        # stdio run, and stdio never reaches build_http_app.
+        self._keys = keys
 
     async def __call__(self, scope, receive, send) -> None:
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
-        principal = self._principal(scope)
+        principal, refusal, key_id = self._authenticate(scope)
         if principal is None:
+            # THE 401 GOES OUT FIRST, and the operator line second. The
+            # reporter raises on a class outside the vocabulary, and with the
+            # two the other way round that raise unwound the request before any
+            # response was written: the caller got a dropped connection, not a
+            # refusal, and a client that retries a dropped connection retries
+            # forever. What the server owes the caller does not depend on
+            # whether the server can name its own reason.
             await _send_unauthorized(send)
+            _report_refusal(refusal, key_id=key_id)
             return
         # Every request this gate admits carries an identity from here on, the
         # shared token included. That is the precondition the tool wrapper's
@@ -2422,24 +2741,71 @@ class BearerAuthMiddleware:
         finally:
             _PRINCIPAL.reset(token)
 
-    def _principal(self, scope) -> Principal | None:
-        """The caller behind this request, or None to refuse it."""
+    def _authenticate(self, scope) -> tuple[Principal | None, str | None, str | None]:
+        """``(principal, refusal class, key id)``. A principal means admitted.
+
+        A refused request never carries a principal, whatever the class. In
+        particular a revoked or an expired key resolves to a record this server
+        owns and still returns None here, before any ``_PRINCIPAL.set``: a
+        downstream reader seeing an identity for a refused request is how a
+        refusal gets billed, recorded and scoped as though it had succeeded.
+        """
         for key, value in scope.get("headers") or ():
             if key.lower() != b"authorization":
                 continue
             scheme, _, presented = value.partition(b" ")
             # Compared as bytes end to end: hmac.compare_digest raises TypeError
             # on a str carrying non-ASCII, which would surface a hostile token
-            # as a 500 instead of a 401.
+            # as a 500 instead of a 401. Nothing on this path decodes, for the
+            # same reason -- a strict decode of `Bearer tökén` would put the
+            # same 500 back one layer up.
             if scheme.lower() != b"bearer":
-                return None
+                return None, "wrong_scheme", None
             presented = presented.strip()
             if self._keyring is not None:
-                return self._keyring.resolve(presented)
-            if hmac.compare_digest(presented, self._token):
-                return Principal(SHARED_TOKEN_KEY_ID)
-            return None
-        return None
+                shaped = _classify_presented(presented, self._keys)
+                if shaped in _FORMAT_REFUSALS:
+                    # Shaped like one of ours and wrong. No file touched.
+                    return None, shaped, None
+                if shaped == "ok":
+                    # The only place this gate reaches the filesystem, and only
+                    # for a value that already passed a file-free format check.
+                    # A revocation written between two requests takes effect on
+                    # the second one because of this line, with no restart.
+                    self._keyring.reload_if_changed()
+                    found = self._keyring.resolve(presented)
+                    if found is None:
+                        # The work a known key is about to pay, paid here so
+                        # the refusals cost the same. `resolve` returns as soon
+                        # as the digest lookup misses, so without this line an
+                        # unknown key skips one clock read and one
+                        # `KeyRecord.state()`. Measured, that made an EXPIRED
+                        # key's 401 4.27 us slower than an unknown key's and a
+                        # REVOKED key's 0.57 us faster -- three byte-identical
+                        # refusals an attacker could tell apart, which says
+                        # whether a presented key is in the operator's file.
+                        # The answer here is thrown away; the time it took is
+                        # the point. `keys` carries the measurement.
+                        self._keys.decoy_state()
+                        return None, "unknown", None
+                    record, state = found
+                    if state != "live":
+                        # `revoked` before `expired` is the keyring's ruling,
+                        # not a second decision here: the reason a
+                        # revoked-and-expired key stopped working is the
+                        # revocation, and that is what an audit has to say.
+                        return None, state, record.id
+                    return Principal(record.id), None, None
+                # `shaped is None`: not one of this server's keys at all. It
+                # falls to the shared token, and to `unknown` when there is no
+                # shared-token branch. Without that widening a value like
+                # `Bearer notakey` lands in NO class once suppression removes
+                # the branch, and the seven-class count is a lie.
+            if self._token is not None and hmac.compare_digest(presented, self._token):
+                return Principal(SHARED_TOKEN_KEY_ID), None, None
+            return None, "unknown", None
+        return None, "no_header", None
+
 
 
 class _QuietSseRejection:
@@ -2491,21 +2857,76 @@ class _QuietSseRejection:
 
 
 def build_http_app(
-    store: Store, *, transport: str, host: str, token: str,
+    store: Store, *, transport: str, host: str, token: str | None,
     embedder=None, vector_store=None, tool_concurrency: int | None = None,
     keyring=None, usage=None, now=time.monotonic,
 ):
-    """The token-gated, Origin-checked ASGI app for an HTTP-family transport.
+    """The key-gated, Origin-checked ASGI app for an HTTP-family transport.
 
     Split out of :func:`run_server` so the security properties are assertable
     without binding a socket: the SDK's ``run_streamable_http_async`` /
     ``run_sse_async`` go straight into ``uvicorn.Server.serve()``, so a test can
     never reach the app they build.
 
+    ``token`` and ``keyring`` are three states, not two, and the third is the
+    one a boolean loses:
+
+    ======================  =========================================
+    ``keyring``, ``token``  What the gate is
+    ======================  =========================================
+    None, a string          one shared token, filed under
+                            :data:`SHARED_TOKEN_KEY_ID`
+    a keyring, None         keys only. The shared-token branch does
+                            not exist at all
+    a keyring, a string     both live. The operator set
+                            ``CONTEXTLAKE_MCP_TOKEN`` deliberately,
+                            and its traffic is filed under
+                            :data:`SHARED_TOKEN_KEY_ID`
+    ======================  =========================================
+
+    ``token=None`` has to reach the gate as None. ``token or resolve_token()``
+    upstream cannot express "deliberately none": it hands the gate a freshly
+    minted value instead, and the property "there is no shared token" is then
+    false while every configuration-shaped test says it is true.
+
     sse is the legacy HTTP+SSE transport (superseded by streamable-http in the
     MCP spec, kept for older clients that only speak SSE -- see docs/serving-over-mcp.md);
     its ``/messages/`` POST endpoint is behind the same gate as ``/sse``.
     """
+    if token is None and keyring is None:
+        # No credential of any kind. Refused at build time rather than served:
+        # this is the invariant run_server's docstring states, and an
+        # unauthenticated socket is the one outcome no path may reach.
+        raise ValueError("build_http_app() needs a token, a keyring, or both. "
+                         "With neither there is nothing to authenticate with, "
+                         "and no code path may start an unauthenticated socket.")
+    # Every network start funnels through here, whatever set the token, so this
+    # is the one place the key-shaped-token rule cannot be walked around.
+    # `cmds/serve.py` reads the environment variable directly in its keyring
+    # branch rather than through resolve_token(), so a check only there would
+    # miss the configuration this defect was reported against.
+    refuse_key_shaped_token(token)
+    keys_module = None
+    if keyring is not None:
+        # Imported HERE, in the function body, not at module scope. Local-first
+        # property P1 asserts that no keystore module is in `sys.modules` after
+        # an stdio run, and stdio branches in run_server before it reaches this
+        # function. Same deferred-import habit `cmds/serve.py` already uses for
+        # `run_server` itself.
+        from . import keys as keys_module
+
+        # Checked once, at build time. A keyring missing one of these would
+        # otherwise raise AttributeError inside the gate and turn every
+        # authenticated request into a 500 on the auth path -- a per-request
+        # crash on the one path that must fail as 401 or not at all.
+        missing = [name for name in KeyAuthMiddleware.KEYRING_METHODS
+                   if not callable(getattr(keyring, name, None))]
+        if missing:
+            raise TypeError(
+                f"keyring is missing {', '.join(missing)}. The gate calls "
+                "reload_if_changed(), which re-reads the key file when it "
+                "moved, and resolve(presented), which returns (record, state) "
+                "or None. See contextlake.kb.keyfile.Keyring.")
     tool_concurrency = resolve_tool_concurrency(tool_concurrency)
     # networked=True unconditionally. It is not a parameter a caller can pass,
     # because there are several call sites and one that forgot it would be a
@@ -2526,8 +2947,8 @@ def build_http_app(
         app = server.streamable_http_app(
             stateless_http=True, json_response=True,
             transport_security=security, host=host)
-    return BearerAuthMiddleware(_ToolLimiterLifespan(app, tool_concurrency), token,
-                                keyring=keyring)
+    return KeyAuthMiddleware(_ToolLimiterLifespan(app, tool_concurrency), token,
+                             keyring=keyring, keys=keys_module)
 
 
 class _ToolLimiterLifespan:
@@ -2631,7 +3052,7 @@ def _interrupt_on_signal() -> None:
 def run_server(
     store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
     embedder=None, vector_store=None, token: str | None = None,
-    tool_concurrency: int | None = None,
+    tool_concurrency: int | None = None, keyring=None,
 ) -> None:
     """Build and run the MCP server (blocking).
 
@@ -2642,9 +3063,20 @@ def run_server(
 
     The HTTP-family transports build their app here instead of via ``.run()``,
     because ``.run()`` offers no seam to wrap the app in
-    :class:`BearerAuthMiddleware`. ``token`` should be supplied by the caller
-    (cmds/serve.py, which also prints it); a missing one is minted rather than
-    left off, so no code path can start an unauthenticated socket.
+    :class:`KeyAuthMiddleware`.
+
+    THE INVARIANT: no code path may start an unauthenticated socket. It is met
+    two ways now, not one. With a ``keyring``, the keyring IS the
+    authentication and ``token=None`` means the shared-token branch does not
+    exist. With no keyring, a missing token is minted rather than left off.
+
+    ``token or resolve_token()[0]`` used to sit at the call below and is gone,
+    because it cannot tell "the caller forgot" from "the caller suppressed it
+    deliberately". It handed the gate a freshly minted token on both, so
+    passing ``token=None`` to mean keyring-only produced a live second
+    credential that ``hmac.compare_digest`` accepted. Unguessable, so nothing
+    was immediately reachable through it, and the property "there is no shared
+    token" was false while every configuration-shaped test said it was true.
     """
     limit = resolve_tool_concurrency(tool_concurrency)
     if transport not in HTTP_TRANSPORTS:
@@ -2660,9 +3092,12 @@ def run_server(
     # uvicorn installs its own SIGTERM/SIGINT handlers and shuts down gracefully
     # on both (verified), so the signal work above is stdio-only -- double
     # handling here would break the shutdown that already works.
+    if token is None and keyring is None:
+        token = resolve_token()[0]
     app = build_http_app(
-        store, transport=transport, host=host, token=token or resolve_token()[0],
-        embedder=embedder, vector_store=vector_store, tool_concurrency=limit)
+        store, transport=transport, host=host, token=token,
+        embedder=embedder, vector_store=vector_store, tool_concurrency=limit,
+        keyring=keyring)
     # warning, not the SDK's INFO: cmds/serve.py already prints the one banner
     # line a user needs ("MCP server on http://host:port/path"), and uvicorn's
     # own startup banner plus per-request access log would bury the token line

@@ -111,7 +111,7 @@ _COMMAND_CATEGORIES = (
                                            "ingest", "enrich", "wiki", "docs", "lint",
                                            "forget", "eval")),
     (_KB_NS, "Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
-    (_KB_NS, "Serve to editors", ("serve", "steer", "hook", "refresh")),
+    (_KB_NS, "Serve to editors", ("serve", "keys", "steer", "hook", "refresh")),
 )
 
 # canonical command name -> the namespace it is typed under. Commands absent from
@@ -435,7 +435,7 @@ _KB_COMMANDS = frozenset({
     "index", "connect", "embed", "lint", "forget", "wiki", "docs", "steer", "serve",
     "query",
     "graph", "doctor", "eval", "owners", "impact", "ingest", "enrich", "dashboard", "hook",
-    "source", "refresh",
+    "source", "refresh", "keys",
 })
 
 # Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
@@ -1311,7 +1311,118 @@ to pin one across restarts. stdio needs no token. See docs/serving-over-mcp.md.
                    help="how many tool calls may run at once (default 2; also "
                         "$CONTEXTLAKE_MCP_TOOL_CONCURRENCY). Raising it past a few "
                         "slows the server down -- the tools contend on the store")
+    # Both of these were read by cmds/serve.py and resolved by kb/keyfile.py before
+    # they were registered here, so `getattr(args, ..., None)` was permanently None:
+    # --keys-file was named in live refusal messages as the way out of a refusal,
+    # and --keys-only guarded the one path that mints an unscoped token. A flag the
+    # code implements and argparse does not offer is a message that cannot be acted
+    # on and a guard that cannot be reached.
+    p.add_argument("--keys-file", dest="keys_file", default=_S, metavar="PATH",
+                   help="where the API keys live (also $CONTEXTLAKE_KEYS_FILE, then "
+                        "[serve] keys_file, then the default). Naming a path says keys "
+                        "live there, so an absent file at a named path is refused rather "
+                        "than treated as a first run")
+    p.add_argument("--keys-only", dest="keys_only", action="store_true", default=_S,
+                   help="refuse to start rather than mint an unscoped shared token. Use "
+                        "it where an open server would be worse than no server")
     _add_net(p)
+
+    p = command("keys", "create and manage the API keys that authenticate MCP callers",
+                epilog="""
+Examples:
+  contextlake kb keys create alice-laptop              print the key ONCE, then store its digest
+  contextlake kb keys create ci --expires 30d          an expiry the calendar will enforce
+  contextlake kb keys create bo --client vscode        also print that editor's config snippet
+  contextlake kb keys list                             the live keys, one row each
+  contextlake kb keys show k_4f2a91                    one key's scope, limits and expiry
+  contextlake kb keys revoke k_4f2a91                  stops working on the next request
+  contextlake kb keys rotate k_4f2a91 --overlap 24h    issue a replacement, retire the old one
+  printf '%s' "$KEY" | contextlake kb keys check       is this key live? reads STDIN only
+  contextlake kb keys prune --before 2026-01-01        drop records retired before that date
+
+The key itself is shown once, at creation, on STDERR, and is never stored: the
+file holds a digest. A key you did not write down is a key you rotate, not one
+you look up. None of these verbs opens the store database, so they all run on a
+machine with no index built.
+
+`check` reads the key from STDIN, never from the command line, because a key in
+argv lands in shell history and shows in `ps` to every account on this machine.
+
+Note the asymmetric exit code for a missing id: `revoke`, `show` and `rotate`
+all FAIL (exit 1) on an id that is not in the file, unlike `kb source remove`,
+which documents a missing name as a no-op at exit 0. An admin scripting a
+revocation reads the exit code, and "I revoked nothing" must never read as
+success.
+
+--tools/--repos/--owners/--rate/--burst/--cost-budget are recorded on the key
+and rendered back by create, list, show and check. NOTHING ENFORCES THEM. A key
+created with `--tools none --repos nothing-matches/*` gets the full tool list
+over MCP and can call every one of those tools on every indexed repository, so
+every surface prints "(recorded, not enforced)" beside the values and the two
+--json surfaces carry "policy_enforced": false. Do not hand out a key believing
+the scope limits it. --rate and --cost-budget are also stored as typed and are
+not validated in this release.
+                """)
+    # Spelled out rather than imported from kb.cmds.keys_cmd: the parser is built on
+    # every invocation, and importing the keystore to name these would put it on the
+    # startup path of `contextlake mirror`. Tests pin both tuples against
+    # keys_cmd.ACTIONS and keys_cmd.CLIENTS + REFUSED_CLIENTS, so they cannot drift.
+    p.add_argument("action",
+                   choices=("create", "list", "show", "revoke", "rotate", "check", "prune"),
+                   help="what to do")
+    p.add_argument("name", nargs="?", default=_S,
+                   help="the key name (create/rotate) or its id (show/revoke)")
+    p.add_argument("--client", default=_S,
+                   # claude-desktop and claude-web are named here on purpose. Left out,
+                   # an operator typing one gets argparse's bare "invalid choice", which
+                   # says neither why nor what to do instead; named, they reach the
+                   # handler, which refuses each with its reason and its route.
+                   choices=("claude-code", "cursor", "vscode", "windsurf", "zed",
+                            "claude-desktop", "claude-web"),
+                   help="create: also print this editor's config snippet for the key")
+    p.add_argument("--expires", default=_S, metavar="DURATION",
+                   help="when it lapses, e.g. 30d or 90d (default 90d; `never` to opt out)")
+    p.add_argument("--overlap", default=_S, metavar="DURATION",
+                   help="rotate: how long the old key keeps working (default 0)")
+    p.add_argument("--before", default=_S, metavar="YYYY-MM-DD",
+                   help="prune: drop records that stopped working before this date. "
+                        "Required, and typed as a date: prune deletes permanently, "
+                        "so the cutoff is never defaulted")
+    p.add_argument("--reason", default=_S, help="revoke: recorded against the key")
+    p.add_argument("--url", default=_S,
+                   help="the server URL to print in the client snippet")
+    p.add_argument("--tools", default=_S, metavar="GROUPS",
+                   # "may call" was a live claim: nothing reads this value. The
+                   # epilog says so once; these three say so where they are read.
+                   help="create: the tool groups this key is meant to call. Recorded "
+                        "on the key; nothing enforces it in this release")
+    p.add_argument("--repos", default=_S, metavar="GLOBS",
+                   help="create: the repo globs this key is meant to read. Recorded "
+                        "on the key; nothing enforces it in this release")
+    p.add_argument("--owners", default=_S, choices=("real", "pseudonymous", "hidden"),
+                   help="create: how much author identity this key is meant to see. "
+                        "Recorded on the key; nothing enforces it in this release")
+    p.add_argument("--rate", default=_S, metavar="RATE",
+                   help="create: a request rate, e.g. 60/min. Stored as typed and "
+                        "NOT validated in this release; its parser ships later")
+    p.add_argument("--burst", default=_S, metavar="N",
+                   help="create: how many requests may arrive at once, e.g. 20")
+    p.add_argument("--cost-budget", dest="cost_budget", default=_S, metavar="BUDGET",
+                   help="create: a compute budget, e.g. 30s/min. Stored as typed and "
+                        "NOT validated in this release; its parser ships later")
+    p.add_argument("--external", action="store_true", default=_S,
+                   help="the holder is outside your organisation; recorded on the key")
+    p.add_argument("--all", action="store_true", default=_S,
+                   help="list: include revoked and expired keys")
+    p.add_argument("--out", default=_S, metavar="PATH",
+                   help="create: write the KEY ITSELF to this file, at mode 0600. The "
+                        "file is created with O_EXCL, so an existing path is refused")
+    p.add_argument("--print-key", dest="print_key", action="store_true", default=_S,
+                   help="create: also write the key to stdout, for a script that "
+                        "will store it. Off by default: stdout is pipeable, so a key "
+                        "there lands wherever the pipe goes")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""

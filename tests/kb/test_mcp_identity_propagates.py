@@ -52,6 +52,7 @@ from pathlib import Path
 import pytest
 from mcp import Client
 
+from contextlake.kb import keys as keys_mod
 from contextlake.kb import server as server_mod
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
 from contextlake.kb.server import (
@@ -65,7 +66,15 @@ from contextlake.kb.store.sqlite_store import SqliteStore
 
 KEY_A = "key-alpha"
 KEY_B = "key-bravo"
-SHARED = "shared-secret-value"
+SHARED = "shared-secret-value"  # noqa: S105 - a synthetic value, not a secret
+
+# Real, well-formed keys, minted in memory per run and never written to any
+# tracked path. They have to be real: the gate classifies a presented value
+# against `keys.check_format` before it looks anything up, so a readable
+# placeholder would be refused as `unknown` and every assertion in this file
+# would be measuring the refusal path instead of the identity path.
+VALUE_A = keys_mod.mint()[0]
+VALUE_B = keys_mod.mint()[0]
 
 _JSON_HEADERS = {
     "Content-Type": "application/json",
@@ -117,19 +126,38 @@ class ProbeStore(SqliteStore):
         return super().stats()
 
 
-class FakeKeyring:
-    """The whole read shape the real multi-key keyring has to implement.
+class FakeRecord:
+    """What ``resolve`` hands back beside the state. Only ``id`` is read."""
 
-    One method. Fixed here so the key-store area does not invent a second one,
-    and so this test does not depend on a module that has not been written.
+    def __init__(self, key_id: str) -> None:
+        self.id = key_id
+
+
+class FakeKeyring:
+    """The two-method read shape the gate calls, over live keys only.
+
+    A fake here rather than a real ``keyfile.Keyring`` because this file is
+    about the IDENTITY hand-off, and it needs to pin the key id each request
+    carries to a readable constant. The real keyring draws its ids at random.
+    The refusal classes, the revoked and expired states and the live reload are
+    driven against the real keyring in ``test_key_auth_middleware.py``, whose
+    ``test_the_real_keyring_satisfies_the_shape_the_gate_calls`` is what stops
+    this fake and that class drifting apart.
     """
 
     def __init__(self, mapping: dict[str, str]) -> None:
-        self._by_value = {value.encode(): Principal(key_id)
-                          for key_id, value in mapping.items()}
+        self._by_value = {value: key_id for key_id, value in mapping.items()}
 
-    def resolve(self, presented: bytes) -> Principal | None:
-        return self._by_value.get(presented)
+    def reload_if_changed(self) -> bool:
+        return False
+
+    def resolve(self, presented: bytes):
+        try:
+            value = bytes(presented).decode("ascii")
+        except UnicodeDecodeError:
+            return None
+        key_id = self._by_value.get(value)
+        return None if key_id is None else (FakeRecord(key_id), "live")
 
 
 class CountingVar:
@@ -184,7 +212,7 @@ def probe_store(tmp_path):
 @pytest.fixture
 def two_key_app(probe_store):
     """The real ``build_http_app`` output, streamable-http, two live keys."""
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     return build_http_app(probe_store, transport="streamable-http",
                           host="127.0.0.1", token=SHARED, keyring=keyring)
 
@@ -304,7 +332,7 @@ def test_two_keys_reach_two_tool_bodies_as_two_different_ids(two_key_app,
     from starlette.testclient import TestClient
 
     with TestClient(two_key_app, base_url=LOOPBACK_BASE) as client:
-        for key in ("value-for-alpha", "value-for-bravo"):
+        for key in (VALUE_A, VALUE_B):
             auth = {**_JSON_HEADERS, "Authorization": f"Bearer {key}"}
             assert client.post("/mcp", json=_INITIALIZE,
                                headers=auth).status_code == 200
@@ -341,12 +369,12 @@ def test_the_tool_body_really_crossed_the_thread_hand_off(probe_store):
                 asgi_threads.add(threading.get_ident())
             await self.app(scope, receive, send)
 
-    keyring = FakeKeyring({KEY_A: "value-for-alpha"})
+    keyring = FakeKeyring({KEY_A: VALUE_A})
     app = RecordAsgiThread(build_http_app(
         probe_store, transport="streamable-http", host="127.0.0.1",
         token=SHARED, keyring=keyring))
 
-    auth = {**_JSON_HEADERS, "Authorization": "Bearer value-for-alpha"}
+    auth = {**_JSON_HEADERS, "Authorization": f"Bearer {VALUE_A}"}
     with TestClient(app, base_url=LOOPBACK_BASE) as client:
         client.post("/mcp", json=_INITIALIZE, headers=auth)
         assert client.post("/mcp", json=_call_stats(),
@@ -369,11 +397,11 @@ def test_the_tool_body_really_crossed_the_thread_hand_off(probe_store):
 # ==========================================================================
 @pytest.mark.timeout(120)
 def test_two_keys_reach_two_tool_bodies_over_sse(probe_store):
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     app = build_http_app(probe_store, transport="sse", host="127.0.0.1",
                          token=SHARED, keyring=keyring)
     with bound_server(app) as hostport:
-        for key in ("value-for-alpha", "value-for-bravo"):
+        for key in (VALUE_A, VALUE_B):
             session = SseSession(hostport, key)
             try:
                 session.handshake(key)
@@ -402,16 +430,16 @@ def test_two_sse_calls_on_one_stream_are_attributed_per_message(probe_store):
     stream's context won, both rows would read ``key-alpha`` and sse identity
     would be fixed at connect time, unable to see a key revoked mid-stream.
     """
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     app = build_http_app(probe_store, transport="sse", host="127.0.0.1",
                          token=SHARED, keyring=keyring)
     with bound_server(app) as hostport:
-        session = SseSession(hostport, "value-for-alpha")
+        session = SseSession(hostport, VALUE_A)
         try:
-            session.handshake("value-for-alpha")
-            assert session.post(_call_stats(2), "value-for-alpha") == 202
+            session.handshake(VALUE_A)
+            assert session.post(_call_stats(2), VALUE_A) == 202
             session.reply()
-            assert session.post(_call_stats(3), "value-for-bravo") == 202
+            assert session.post(_call_stats(3), VALUE_B) == 202
             session.reply()
         finally:
             session.close()
@@ -450,7 +478,7 @@ def test_two_concurrent_sse_connections_read_their_own_keys(probe_store):
     it. The result confirms that reading rather than discovering it.
     """
     probe_store.rendezvous = threading.Barrier(2)
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     app = build_http_app(probe_store, transport="sse", host="127.0.0.1",
                          token=SHARED, keyring=keyring, tool_concurrency=2)
     # Results come back to the main thread. An assertion raised inside a worker
@@ -469,7 +497,7 @@ def test_two_concurrent_sse_connections_read_their_own_keys(probe_store):
     with bound_server(app) as hostport:
         sessions = {}
         try:
-            for key in ("value-for-alpha", "value-for-bravo"):
+            for key in (VALUE_A, VALUE_B):
                 session = SseSession(hostport, key)
                 session.handshake(key)
                 sessions[key] = session
@@ -485,7 +513,7 @@ def test_two_concurrent_sse_connections_read_their_own_keys(probe_store):
                 session.close()
 
     assert failures == {}, failures
-    assert set(replies) == {"value-for-alpha", "value-for-bravo"}, list(replies)
+    assert set(replies) == {VALUE_A, VALUE_B}, list(replies)
     for key, reply in replies.items():
         # A broken barrier -- what a serialised run produces -- unwinds out of
         # the tool body and arrives as a JSON-RPC error, not as a bad status.
@@ -513,22 +541,22 @@ def test_a_second_key_may_post_into_another_connections_sse_session(probe_store)
     The SDK has a guard for this (``mcp/server/sse.py:261``, a session is
     usable only by the credential that created it) and it is INERT here: it
     compares ``authorization_context(scope["user"])``, and
-    ``BearerAuthMiddleware`` sets no ``scope["user"]``. This test pins today's
+    ``KeyAuthMiddleware`` sets no ``scope["user"]``. This test pins today's
     behaviour so the fix is a visible change, and names what closes it: a
     session id carried alongside the principal and checked at the boundary.
     Tracked in planning/tickets/epic-4-mcp-network-auth/S4.1-auth-identity-gate.md.
     """
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     app = build_http_app(probe_store, transport="sse", host="127.0.0.1",
                          token=SHARED, keyring=keyring)
     with bound_server(app) as hostport:
-        owner = SseSession(hostport, "value-for-alpha")
-        intruder = SseSession(hostport, "value-for-bravo")
+        owner = SseSession(hostport, VALUE_A)
+        intruder = SseSession(hostport, VALUE_B)
         try:
-            owner.handshake("value-for-alpha")
-            intruder.handshake("value-for-bravo")
+            owner.handshake(VALUE_A)
+            intruder.handshake(VALUE_B)
             # Key B's credential, key A's session endpoint.
-            assert owner.post(_call_stats(), "value-for-bravo") == 202
+            assert owner.post(_call_stats(), VALUE_B) == 202
             # The answer arrives on the OWNER's stream, which is the disclosure.
             reply = owner.reply()
         finally:
@@ -553,7 +581,7 @@ def test_overlapping_tool_bodies_read_their_own_keys(probe_store):
     and fails, rather than passing with two ids that never coexisted.
     """
     probe_store.rendezvous = threading.Barrier(2)
-    keyring = FakeKeyring({KEY_A: "value-for-alpha", KEY_B: "value-for-bravo"})
+    keyring = FakeKeyring({KEY_A: VALUE_A, KEY_B: VALUE_B})
     app = build_http_app(probe_store, transport="streamable-http",
                          host="127.0.0.1", token=SHARED, keyring=keyring,
                          tool_concurrency=2)
@@ -581,7 +609,7 @@ def test_overlapping_tool_bodies_read_their_own_keys(probe_store):
 
     with bound_server(app) as hostport:
         threads = [threading.Thread(target=call, args=(key,))
-                   for key in ("value-for-alpha", "value-for-bravo")]
+                   for key in (VALUE_A, VALUE_B)]
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -589,7 +617,7 @@ def test_overlapping_tool_bodies_read_their_own_keys(probe_store):
             assert not thread.is_alive(), "a request never finished"
 
     assert failures == {}, failures
-    assert set(answers) == {"value-for-alpha", "value-for-bravo"}, list(answers)
+    assert set(answers) == {VALUE_A, VALUE_B}, list(answers)
     for key, (status, body) in answers.items():
         assert status == 200, (key, status)
         # A broken barrier -- which is what a SERIALISED run produces -- unwinds
@@ -628,10 +656,10 @@ def test_a_refused_request_between_two_keys_does_not_leak_the_first(two_key_app,
     from starlette.testclient import TestClient
 
     with TestClient(two_key_app, base_url=LOOPBACK_BASE) as client:
-        for key in ("value-for-alpha", "value-for-bravo"):
+        for key in (VALUE_A, VALUE_B):
             auth = {**_JSON_HEADERS, "Authorization": f"Bearer {key}"}
             client.post("/mcp", json=_INITIALIZE, headers=auth)
-            if key == "value-for-bravo":
+            if key == VALUE_B:
                 refused = client.post("/mcp", json=_call_stats(),
                                       headers=_JSON_HEADERS)
                 assert refused.status_code == 401
@@ -653,7 +681,7 @@ def test_the_gate_sets_and_resets_once_per_admitted_request(two_key_app,
     counter = CountingVar(server_mod._PRINCIPAL)
     monkeypatch.setattr(server_mod, "_PRINCIPAL", counter)
 
-    auth = {**_JSON_HEADERS, "Authorization": "Bearer value-for-alpha"}
+    auth = {**_JSON_HEADERS, "Authorization": f"Bearer {VALUE_A}"}
     with TestClient(two_key_app, base_url=LOOPBACK_BASE) as client:
         assert client.post("/mcp", json=_INITIALIZE,
                            headers=auth).status_code == 200
@@ -856,7 +884,7 @@ def test_build_http_app_with_the_new_parameters_omitted_is_unchanged(probe_store
     app = build_http_app(probe_store, transport="streamable-http",
                          host="127.0.0.1", token=SHARED)
 
-    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert isinstance(app, server_mod.KeyAuthMiddleware)
     assert isinstance(app.app, server_mod._ToolLimiterLifespan)
     assert app._keyring is None
 
@@ -865,11 +893,13 @@ def test_build_http_app_with_the_new_parameters_omitted_is_unchanged(probe_store
     def scope(value: bytes) -> dict:
         return {"type": "http", "headers": [(b"authorization", value)]}
 
-    assert app._principal(scope(f"Bearer {SHARED}".encode())) == \
-        Principal(SHARED_TOKEN_KEY_ID)
-    assert app._principal(scope(b"Bearer wrong")) is None
-    assert app._principal(scope(f"Basic {SHARED}".encode())) is None
-    assert app._principal({"type": "http", "headers": []}) is None
+    assert app._authenticate(scope(f"Bearer {SHARED}".encode())) == \
+        (Principal(SHARED_TOKEN_KEY_ID), None, None)
+    assert app._authenticate(scope(b"Bearer wrong")) == (None, "unknown", None)
+    assert app._authenticate(scope(f"Basic {SHARED}".encode())) == \
+        (None, "wrong_scheme", None)
+    assert app._authenticate({"type": "http", "headers": []}) == \
+        (None, "no_header", None)
 
 
 # ==========================================================================

@@ -67,11 +67,15 @@ socket transports do not serve it to anyone who connects.
 
 ```
 $ contextlake kb serve --transport http
-✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
   Bearer token: <a fresh 43-character token>
   Clients must send: Authorization: Bearer <token>
   Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+  That token is UNSCOPED and shared. Issue one key per client instead: contextlake kb keys create <name>
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
 ```
+
+The credential comes first and the URL is last. The same step that decides the credential can
+refuse the start, so a run that refuses prints the refusal and never prints the URL.
 
 Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
 token goes to stderr only, never to stdout, never to the log file, so it does not outlive the

@@ -183,12 +183,125 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
+| `kb keys` | Create and manage the API keys that authenticate MCP callers: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
 `doctor --fix`'s own flags, and the two privilege tiers behind them, are on
 [Install and upgrade](installing.md#installing-what-is-missing).
+
+### `kb serve`: which key file, and whether it may mint
+
+Two flags decide whether a network start comes up shared, comes up per-key, or refuses.
+
+**`--keys-file PATH`** says where the keys live. Four tiers, highest wins:
+
+| Tier | Where it is set |
+| --- | --- |
+| `--keys-file PATH` | the command line |
+| `$CONTEXTLAKE_KEYS_FILE` | the environment |
+| `[serve] keys_file` | `~/.contextlake/kb.toml`, or the file passed to `--config` |
+| `~/.contextlake/mcp-keys.json` | nowhere. The default |
+
+Naming a path in any of the top three says the keys live there, so **an absent file at a
+named path is refused, exit 1**. It is not read as a first start. The case this stops: a
+container whose volume mount did not appear starts with the named path empty, and the server
+used to mint one unscoped shared token and print stderr that read like a fresh machine. Only
+the default tier, with nobody naming anything, may mint.
+
+A `[serve] keys_file` in a `.contextlake.kb.toml` found by walking up from the current
+directory is ignored, and the run says so on one line. That file sits inside a repository
+checkout, so anything it points at gets committed. Pass `--config <file>`, or set the key in
+`~/.contextlake/kb.toml`, to have it honoured.
+
+**`--keys-only`** refuses to start rather than mint an unscoped shared token. Use it where an
+open server is worse than no server. It refuses in two cases:
+
+- No key file with a live key was found. Minting is the thing the flag exists to prevent, so
+  the server exits `1` and names `contextlake kb keys create`.
+- `$CONTEXTLAKE_MCP_TOKEN` is set. That is one credential every caller shares, so per-key
+  revocation and attribution stop meaning anything. Unset the variable, or drop the flag.
+
+**Every refusal prints before the line that says the server is up.** A start that is going to
+refuse never prints `✓ MCP server on http://...`; the banner is the last thing written before
+the socket opens.
+
+### `kb keys`
+
+Every key is one caller's credential. The server checks the key on each request, so
+revoking one takes effect on the next request with no restart.
+
+```
+contextlake kb keys create alice-laptop --expires 90d
+contextlake kb keys list
+contextlake kb keys show k_4f2a91
+contextlake kb keys revoke k_4f2a91 --reason "laptop returned"
+contextlake kb keys rotate k_4f2a91 --overlap 24h
+printf '%s' "$KEY" | contextlake kb keys check
+contextlake kb keys prune --before 2026-01-01
+```
+
+**The key is shown once, and only once.** It is printed to standard error at creation and
+never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
+to print later. A key nobody wrote down is rotated, never recovered:
+`contextlake kb keys rotate <id>` issues a replacement and keeps the old one working for
+`--overlap` so the holder has time to swap.
+
+Three ways to capture it at creation:
+
+- Read it off the screen. This is the default.
+- `--print-key` writes the bare key to standard output for a pipe, e.g.
+  `contextlake kb keys create ci --print-key | pass insert -e contextlake`. It refuses a
+  terminal, because on one the key lands in the scrollback instead of a secret store.
+- `--out FILE` writes the key to a file at mode `0600`. The file is created with `O_EXCL`,
+  so an existing path is refused rather than overwritten.
+
+The key never reaches standard output on the default path and never reaches `--log-file`,
+which is a rotating file that outlives the process.
+
+**`check` reads the key from standard input only.** A key typed on a command line lands in
+shell history and shows in `ps` to every account on the machine, so
+`contextlake kb keys check <key>` is refused with exit 2. A terminal with nothing piped in
+is refused the same way, rather than waiting for end-of-file behind a blank screen. `check`
+opens no socket and sends no request: it compares the digest against the key file, which is
+what lets it answer when the server is the thing that is down. It reports what the record
+stores, not what a server would allow.
+
+**The checksum in a key is a typo filter, not a security control.** It catches a key
+mistyped or truncated in transit before a request is sent. It stops nobody from forging a
+key, which is the digest comparison's job.
+
+**The scope flags are recorded and enforced by nothing.** `--tools`, `--repos`,
+`--owners`, `--rate`, `--burst` and `--cost-budget` are written onto the key and rendered
+back by `create`, `list`, `show` and `check`. No code reads them. A key created with
+`--tools none --repos nothing-matches/*` gets the full tool list over MCP and can call
+every one of them on every indexed repository. Measured, not assumed: that key was
+presented to a live `kb serve --transport http --keys-only` server and `tools/list`
+answered with all 23 registered tools.
+
+So every surface that prints them says `(recorded, not enforced)` beside the values and
+carries three lines saying what that means. `show --json` and `list --json` carry
+`"policy_enforced": false` for the same reason. Do not hand out a key believing the scope
+limits it. Enforcement ships in a later release; `--rate` and `--cost-budget` are stored
+as typed and are not validated yet either.
+
+**`--client` prints the config snippet for the editor that will hold the key**
+(`claude-code`, `cursor`, `vscode`, `windsurf`, `zed`). Every snippet reads the key from a
+variable rather than inlining it, except Zed, whose `context_servers` documents no
+environment expansion for a header value. VS Code has the best handling of the five: it
+prompts once and keeps the value outside the config file. `claude-desktop` and `claude-web`
+are refused, each naming the route that does work.
+
+**Exit codes.** `0` on success, including `list` on a key file that does not exist yet. `1`
+on an id that is not in the file, on a key file that cannot be read, and on `check` of a
+key that is malformed, unknown, revoked or expired. `2` on a missing positional or a bad
+flag value. Note the asymmetry with `kb source remove`, which treats a missing name as a
+no-op at `0`: `revoke` on an unknown id fails, because an admin scripting a revocation
+reads the exit code and "I revoked nothing" must not read as success.
+
+No `kb keys` verb opens the store database, so every one of them runs on a machine with no
+index built. `kb keys list` is the first command to run after a server refuses to start.
 
 ## Exit codes
 

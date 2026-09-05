@@ -463,7 +463,16 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 _KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers",
             "anonymize"}
 ANONYMIZE_VALUES = ("never", "always")
-_TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
+# `serve` is here and has NO KbConfig field, which is the point. Its one key,
+# `keys_file`, is read by `keyfile._serve_keys_file`, which opens the same TOML
+# files itself and applies its own privileged-source gate, so the value never
+# passes through this merge. It was missing from the set, and one `kb serve`
+# run then printed "unknown config table 'serve' (ignored)" on stdout while
+# refusing the start over `[serve] keys_file` on stderr -- two lines, one run,
+# opposite claims about the same table. The table is known and the value is
+# honoured, so the warning was the wrong line. Keys INSIDE it are not checked
+# the way `_KB_KEYS` checks `[kb]`, so a typo there is still silent.
+_TABLES = {"kb", "embeddings", "llm", "sources", "rules", "serve"}
 # Tables of scalar fields, deep-merged key-by-key across the precedence chain (see
 # load_kb_config). sources/rules are list tables and stay wholesale-replaced by design.
 _SCALAR_TABLES = {"kb", "embeddings", "llm"}

@@ -248,6 +248,11 @@ _TOOL_COUNT_PATTERNS = [
     # blind spots and closing one does not close the other.
     (r"router plus (\d+) underlying tools", +1),
     (r"(\d+) of them always present", -1),
+    # docs/cli-reference.md's `kb keys` section, which reproduces a measured
+    # tools/list answer proving a scope-flagged key is not restricted. The count
+    # is the unconditional total, so offset 0. Added when the guard caught the
+    # claim shipping with no pattern beside it, which is the guard working.
+    (r"answered with all (\d+) registered tools", 0),
 ]
 
 
