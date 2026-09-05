@@ -33,6 +33,27 @@ import pytest
 from contextlake.kb import config as kb_config
 from contextlake.kb import keyfile
 
+
+def _unreadable_dir_hides(path) -> bool:
+    """Is the fixture's directory genuinely unreadable, on THIS Python?
+
+    `Path.exists()` answers a locked-out path differently by version: it returns
+    False on 3.14 and raises PermissionError on 3.10 to 3.13. An earlier version
+    of these tests asserted the False, passed on the dev venv and failed all four
+    knowledge-layer cells on CI.
+
+    Either answer proves what the fixture needs to establish: the directory
+    cannot be read. The thing under test is what `inspect_key_file` and
+    `Keyring.load` DO about it, and that is portable because the production code
+    catches OSError rather than reading a boolean.
+    """
+    try:
+        return path.exists() is False
+    except PermissionError:
+        return True
+
+
+
 POSIX_ONLY = pytest.mark.skipif(os.name != "posix",
                                 reason="mode bits mean nothing off POSIX")
 
@@ -1253,7 +1274,7 @@ def test_a_key_file_that_cannot_be_stat_ed_is_not_absent(tmp_path, keys):
     path = write_file(home / "mcp-keys.json", document([rec]), 0o600)
     os.chmod(home, 0o000)
     try:
-        assert path.exists() is False, "the fixture does not reproduce the swallow"
+        assert _unreadable_dir_hides(path), "the fixture does not lock the directory"
         state = keyfile.inspect_key_file(path)
         assert state.kind == keyfile.UNSTATTABLE
         with pytest.raises(keyfile.KeyFileError) as excinfo:
