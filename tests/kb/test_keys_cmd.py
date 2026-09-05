@@ -1100,3 +1100,63 @@ def test_the_scope_flag_help_does_not_promise_a_restriction():
         for claim in ("may call", "may read", "this key sees"):
             assert claim not in text, (
                 f"--{dest} help claims {claim!r}, which reads as a live grant")
+
+
+def test_json_actions_matches_the_handlers_that_build_a_json_document():
+    """`JSON_ACTIONS` is a hand-written set. Pin it to the code that emits JSON.
+
+    The refusal below reads this set, so a handler that gained JSON output and
+    was not added here would be refused while able to answer, and one that lost
+    it would go back to printing prose under `--json`. Neither shows up as a
+    failure anywhere else. `_cmd_list` and `_cmd_show` are the two that call
+    `json.dumps`; the assertion reads the source of every dispatched handler so
+    a new emitter cannot ship without joining the set.
+    """
+    import inspect
+
+    emits = {
+        name
+        for name, handler in keys_cmd._DISPATCH.items()
+        if "json.dumps" in inspect.getsource(handler)
+    }
+    assert emits == set(keys_cmd.JSON_ACTIONS)
+
+
+@pytest.mark.parametrize("verb", sorted(set(keys_cmd.ACTIONS) - keys_cmd.JSON_ACTIONS))
+def test_a_verb_with_no_json_output_refuses_the_flag(run, keys_file, verb):
+    """The defect: five verbs took `--json`, printed prose and exited 0.
+
+    `--json` is registered once on the `keys` parser because the verb is a
+    positional, so argparse accepts it on all seven. A script that asked for
+    JSON got log lines and a zero exit, with nothing in the result to tell it
+    apart from success. Exit 2, the usage code, not 1: the request was
+    malformed, the keystore was never touched.
+    """
+    args = {
+        "create": ("create", "someone"),
+        "revoke": ("revoke", "k_000000"),
+        "rotate": ("rotate", "k_000000"),
+        "prune": ("prune", "--before", "2030-01-01"),
+        "check": ("check",),
+    }[verb]
+    result = run(*args, "--json")
+    assert result.code == 2
+    assert "has no JSON output" in result.err
+    assert "list and show" in result.err
+
+
+@pytest.mark.parametrize("verb", sorted(keys_cmd.JSON_ACTIONS))
+def test_the_two_verbs_that_emit_json_still_do(run, keys_file, verb):
+    """The other half of the pair, so the refusal cannot be widened silently.
+
+    A guard that only ever rejects is one a blanket refusal would also pass.
+    """
+    run("create", "alice")
+    if verb == "show":
+        listed = json.loads(run("list", "--json").out)
+        argv = (verb, listed["keys"][0]["id"])
+    else:
+        argv = (verb,)
+    result = run(*argv, "--json")
+    assert result.code == 0
+    json.loads(result.out)

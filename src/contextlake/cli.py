@@ -1422,7 +1422,9 @@ not validated in this release.
                         "will store it. Off by default: stdout is pipeable, so a key "
                         "there lands wherever the pipe goes")
     p.add_argument("--json", action="store_true", default=_S,
-                   help="machine-readable JSON on stdout instead of formatted text")
+                   help="list, show: machine-readable JSON on stdout instead of "
+                        "formatted text. The other verbs refuse it rather than "
+                        "printing their ordinary lines and exiting 0")
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""

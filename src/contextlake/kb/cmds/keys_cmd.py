@@ -51,6 +51,14 @@ WRITE_ACTIONS = frozenset({"create", "revoke", "rotate", "prune"})
 READ_ACTIONS = frozenset({"list", "show", "check"})
 ACTIONS = tuple(sorted(WRITE_ACTIONS | READ_ACTIONS))
 
+# `--json` is registered once on the `keys` parser, because the verb is a
+# positional, so argparse accepts it on all seven. Only these two build a JSON
+# document; the rest write their ordinary log lines. A verb that took the flag,
+# printed prose and exited 0 gave a script no way to tell it apart from success,
+# so the verbs that cannot honour it now refuse it. `cmd_keys` reads this set,
+# and a test pins it to the handlers that actually call `json.dumps`.
+JSON_ACTIONS = frozenset({"list", "show"})
+
 # The five clients whose own current documentation was read on 2026-09-05 and
 # shown to accept a custom header on a remote MCP server. Each source is quoted
 # beside its block in `_client_block`. A client that is not on this list gets a
@@ -836,6 +844,17 @@ def cmd_keys(args) -> int:
         log(style.fail(f"unknown keys action: {action!r}"))
         return 2
     try:
+        if getattr(args, "json", False) and action not in JSON_ACTIONS:
+            # Same rule the two emitters follow: once `--json` is asked for,
+            # stdout carries the document and nothing else. A refusal logged to
+            # stdout would land inside a caller's `> out.json`.
+            use_stderr()
+            raise _BadUsage(
+                f"`kb keys {action}` has no JSON output. --json is honoured by "
+                f"{' and '.join(sorted(JSON_ACTIONS))}. Refusing rather than printing "
+                f"the ordinary lines and exiting 0, which would read as success to a "
+                f"script that asked for JSON."
+            )
         return handler(args)
     except _BadUsage as exc:
         log(style.fail(str(exc)))
