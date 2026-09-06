@@ -8729,6 +8729,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The graph's empty state named a flag that does not exist on the command the reader
+  is running.** "Widen the seed, raise `--max-nodes`, or clear filters" is right when the
+  page is rendered standalone by `kb graph`, and wrong inside the dashboard, where the same
+  template is embedded in an iframe and `kb dashboard` has no such flag: following the
+  advice answers `'--max-nodes' isn't a flag on 'dashboard'`. It now names the node cap
+  rather than a spelling that is correct on one of the two surfaces, which is the rule
+  `kb.languages` already follows at `parse.py:1467`.
+
 ## [9.1.0] - 2026-09-06
 
 ### Added
