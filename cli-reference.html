@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-06"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=16058730">
-<link rel="stylesheet" href="tokens.css?v=16058730">
-<link rel="stylesheet" href="docs.css?v=16058730">
-<link rel="stylesheet" href="cmdk.css?v=16058730">
+<link rel="stylesheet" href="fonts.css?v=726c2985">
+<link rel="stylesheet" href="tokens.css?v=726c2985">
+<link rel="stylesheet" href="docs.css?v=726c2985">
+<link rel="stylesheet" href="cmdk.css?v=726c2985">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -468,8 +468,12 @@ to print later. A key nobody wrote down is rotated, never recovered:
   <code>contextlake kb keys create ci --print-key | pass insert -e contextlake</code>. It refuses a
   terminal, because on one the key lands in the scrollback instead of a secret store.</li>
 <li><code>--out FILE</code> writes the key to a file at mode <code>0600</code>. The file is created with <code>O_EXCL</code>,
-  so an existing path is refused rather than overwritten.</li>
+  so an existing path is refused rather than overwritten. This is the route to prefer in a
+  script: it is the only one where the mode is set at creation rather than inherited from
+  the caller's umask.</li>
 </ul>
+<p><code>rotate</code> takes <code>--print-key</code> and <code>--out</code> too, with the same meaning. Its new key exists
+nowhere else either.</p>
 <p>The key never reaches standard output on the default path and never reaches <code>--log-file</code>,
 which is a rotating file that outlives the process.</p>
 <p><strong><code>check</code> reads the key from standard input only.</strong> A key typed on a command line lands in
@@ -490,7 +494,7 @@ every one of them on every indexed repository. Measured, not assumed: that key w
 presented to a live <code>kb serve --transport http --keys-only</code> server and <code>tools/list</code>
 answered with all 23 registered tools.</p>
 <p>So every surface that prints them says <code>(recorded, not enforced)</code> beside the values and
-carries three lines saying what that means. <code>show --json</code> and <code>list --json</code> carry
+carries three lines saying what that means. Every <code>--json</code> document carries
 <code>"policy_enforced": false</code> for the same reason. Do not hand out a key believing the scope
 limits it. Enforcement ships in a later release; <code>--rate</code> and <code>--cost-budget</code> are stored
 as typed and are not validated yet either.</p>
@@ -500,6 +504,74 @@ variable rather than inlining it, except Zed, whose <code>context_servers</code>
 environment expansion for a header value. VS Code has the best handling of the five: it
 prompts once and keeps the value outside the config file. <code>claude-desktop</code> and <code>claude-web</code>
 are refused, each naming the route that does work.</p>
+<h4 id="-json"><code>--json</code><a class="anchor" href="#-json" title="Link to this section">#</a></h4>
+<p>All seven verbs answer <code>--json</code>. <strong>Standard output carries the document and nothing else,
+on every exit path, failures included.</strong> Every human line, every permission warning and the
+plaintext key go to standard error, so <code>contextlake kb keys list --json &gt; out.json</code> always
+leaves a parseable file.</p>
+<table>
+<thead>
+<tr>
+<th>verb</th>
+<th>the document</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td>the new record, plus <code>key</code>, <code>key_shown_on</code>, <code>key_file</code>, <code>client</code>, <code>client_snippet</code></td>
+</tr>
+<tr>
+<td><code>list</code></td>
+<td><code>path</code>, <code>present</code>, <code>all</code>, the <code>live</code>/<code>revoked</code>/<code>expired</code> counts and <code>keys[]</code></td>
+</tr>
+<tr>
+<td><code>show</code></td>
+<td>the record, including <code>digest</code>, sorted by key</td>
+</tr>
+<tr>
+<td><code>revoke</code></td>
+<td>the record after the call, plus <code>changed</code></td>
+</tr>
+<tr>
+<td><code>rotate</code></td>
+<td><code>old</code>, <code>new</code>, <code>overlap</code>, <code>overlap_seconds</code>, plus the key fields <code>create</code> has</td>
+</tr>
+<tr>
+<td><code>prune</code></td>
+<td><code>before</code>, <code>removed</code>, <code>removed_keys[]</code>, <code>remaining</code></td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td><code>valid</code>, <code>reason</code>, and the matched record's <code>id</code>, <code>name</code>, <code>state</code>, <code>expires_at</code></td>
+</tr>
+</tbody>
+</table>
+<p>Four things a caller needs to know about the shapes:</p>
+<ul>
+<li><strong><code>changed</code> says whether the key file was written.</strong> <code>revoke</code> on a key somebody else
+  already revoked exits <code>0</code> and changes nothing, and so does <code>prune</code> that matched nothing.
+  The exit code is the same either way; <code>changed</code> is what separates them.</li>
+<li><strong><code>check</code> has <code>reason</code>, because the exit code cannot carry it.</strong> Malformed, unknown,
+  revoked and expired all exit <code>1</code>. <code>reason</code> is one of <code>malformed</code>, <code>unknown</code>, <code>revoked</code>,
+  <code>expired</code>, or <code>null</code> when <code>valid</code> is true. The document never echoes the presented key.</li>
+<li><strong>A failure is a document too</strong>, carrying <code>"error"</code> with a snake_case code:
+  <code>missing_argument</code>, <code>refused_client</code>, <code>print_key_on_tty</code>, <code>bad_expires</code>, <code>bad_overlap</code>,
+  <code>bad_before</code>, <code>out_file_exists</code>, <code>key_in_argv</code>, <code>stdin_is_tty</code> (all exit <code>2</code>),
+  <code>unknown_id</code> and <code>key_file_error</code> (exit <code>1</code>). <strong>Test <code>.error</code> first, and only when it is
+  absent test <code>.valid</code></strong>: an error out of <code>check</code> carries <code>valid: null</code>, because the
+  question was not answered, and reading it as <code>false</code> would report a live key as bad.</li>
+<li><strong>The key is not in the document by default.</strong> <code>create --json</code> and <code>rotate --json</code> emit
+  <code>"key": null</code> and <code>"key_shown_on": "stderr"</code>, because <code>&gt; out.json</code> would write a live
+  credential into a file at the caller's umask. Add <code>--print-key</code> to move the key into the
+  document's <code>key</code> field; that flag already refuses a terminal. <code>--out FILE</code> is the route
+  to prefer, and the document names the path in <code>key_file</code>.</li>
+</ul>
+<p><code>list</code> rows carry the record and five frozen display strings from the table:
+<code>tools</code>, <code>repos</code> and <code>rate</code> read <code>-</code> when unset, <code>expires</code> is a date, and <code>last_used</code> is
+always <code>-</code>. Read <code>policy</code> and <code>expires_at</code> instead. <code>last_used_at</code> is <code>null</code> in this
+release and <code>last_used_state</code> says why, because a null on its own cannot tell "never used"
+from "nothing measures it".</p>
 <p><strong>Exit codes.</strong> <code>0</code> on success, including <code>list</code> on a key file that does not exist yet. <code>1</code>
 on an id that is not in the file, on a key file that cannot be read, and on <code>check</code> of a
 key that is malformed, unknown, revoked or expired. <code>2</code> on a missing positional or a bad
@@ -574,6 +646,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=16058730"></script>
+<script defer src="cmdk.js?v=726c2985"></script>
 </body>
 </html>
