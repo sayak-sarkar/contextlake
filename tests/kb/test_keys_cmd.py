@@ -1004,15 +1004,46 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
     """A script reading `policy` gets no label out of a text line.
 
     `{"tools": "none"}` on its own says the opposite of the truth to anything
-    that renders it, so both JSON surfaces carry the flag as data.
+    that renders it, so every JSON surface carries the flag as data.
+
+    This walks ALL SEVEN, not the two that shipped it. Any document holding a
+    `policy` object needs the flag, and `create`, `rotate`, `revoke`, `prune`
+    and `check` all carry one now. When they started emitting JSON, two new
+    surfaces would have rendered policy values with no label and this test would
+    have stayed green over exactly the defect it names.
+
+    The argv is threaded through the run rather than tabulated, because `rotate`
+    changes the id every other verb needs.
     """
-    run("create", "alice", "--tools", "none", "--repos", "nothing-matches/*")
-    shown = json.loads(run("show", _only_id(keys_file), "--json").out)
+    key = KEY_RE.search(
+        run("create", "alice", "--tools", "none",
+            "--repos", "nothing-matches/*").err).group(0)
+    key_id = _only_id(keys_file)
+
+    created = json.loads(run("create", "bob", "--tools", "none", "--json").out)
+    assert created["policy"] == {"tools": "none"}
+
+    shown = json.loads(run("show", key_id, "--json").out)
     assert shown["policy"] == {"tools": "none", "repos": "nothing-matches/*"}
-    assert shown["policy_enforced"] is False
 
     listed = json.loads(run("list", "--json").out)
-    assert listed["policy_enforced"] is False
+    checked = json.loads(run("check", "--json", stdin=key).out)
+    assert checked["policy"] == {"tools": "none", "repos": "nothing-matches/*"}
+
+    rotated = json.loads(run("rotate", key_id, "--json").out)
+    revoked = json.loads(run("revoke", rotated["new"]["id"], "--json").out)
+    pruned = json.loads(run("prune", "--before", "2020-01-01", "--json").out)
+
+    documents = {"create": created, "show": shown, "list": listed,
+                 "check": checked, "rotate": rotated, "revoke": revoked,
+                 "prune": pruned}
+    assert set(documents) == set(_verbs()), (
+        "a verb grew a JSON document and this test did not walk it")
+    for verb, document in documents.items():
+        assert document["policy_enforced"] is False, (
+            f"`kb keys {verb} --json` renders a policy with no flag saying "
+            "nothing enforces it, so a dashboard built on it shows a scope "
+            "column that is wrong on every row")
 
 
 def test_the_label_is_pinned_to_the_server_enforcing_nothing(run, keys_file):
@@ -1102,61 +1133,459 @@ def test_the_scope_flag_help_does_not_promise_a_restriction():
                 f"--{dest} help claims {claim!r}, which reads as a live grant")
 
 
-def test_json_actions_matches_the_handlers_that_build_a_json_document():
-    """`JSON_ACTIONS` is a hand-written set. Pin it to the code that emits JSON.
+# ---------------------------------------------------------------------------
+# `--json` on all seven verbs
+# ---------------------------------------------------------------------------
 
-    The refusal below reads this set, so a handler that gained JSON output and
-    was not added here would be refused while able to answer, and one that lost
-    it would go back to printing prose under `--json`. Neither shows up as a
-    failure anywhere else. `_cmd_list` and `_cmd_show` are the two that call
-    `json.dumps`; the assertion reads the source of every dispatched handler so
-    a new emitter cannot ship without joining the set.
+
+@pytest.mark.parametrize("verb", sorted(_verbs()))
+def test_every_verb_writes_a_json_document_to_stdout(run, keys_file, verb):
+    """The defect this replaced: five verbs took `--json` and printed prose.
+
+    9.0.0 refused the flag on those five, which was honest and not the
+    destination. Now all seven answer it.
+
+    The EXIT CODE is deliberately not asserted here. `_args_for` gives `show`,
+    `revoke` and `rotate` a name where an id belongs, so those three land on
+    `unknown_id` at exit 1, and `check` reads the fixture's empty stdin and
+    lands on `malformed`, also 1. The invariant that holds across all seven is
+    the one under test: stdout parses, on every exit path.
+
+    `json.loads` over the WHOLE of stdout is what proves stdout carries the
+    document alone. One stray log line and it raises.
     """
-    import inspect
-
-    emits = {
-        name
-        for name, handler in keys_cmd._DISPATCH.items()
-        if "json.dumps" in inspect.getsource(handler)
-    }
-    assert emits == set(keys_cmd.JSON_ACTIONS)
+    result = run(*_args_for(verb), "--json")
+    document = json.loads(result.out)
+    assert isinstance(document, dict), (
+        f"`kb keys {verb} --json` did not write an object to stdout")
 
 
-@pytest.mark.parametrize("verb", sorted(set(keys_cmd.ACTIONS) - keys_cmd.JSON_ACTIONS))
-def test_a_verb_with_no_json_output_refuses_the_flag(run, keys_file, verb):
-    """The defect: five verbs took `--json`, printed prose and exited 0.
+@pytest.mark.parametrize("verb", sorted(_verbs()))
+def test_no_verb_writes_prose_to_stdout_under_json(run, keys_file, verb):
+    """The rule `use_stderr()` exists for, checked on the failure paths too.
 
-    `--json` is registered once on the `keys` parser because the verb is a
-    positional, so argparse accepts it on all seven. A script that asked for
-    JSON got log lines and a zero exit, with nothing in the result to tell it
-    apart from success. Exit 2, the usage code, not 1: the request was
-    malformed, the keystore was never touched.
+    `cmd_keys` hoists `use_stderr()` ahead of dispatch. Before that it was
+    called inside `_cmd_list` and `_cmd_show` only, and `_cmd_create` called it
+    AFTER its own two refusals, so `create --json --client claude-desktop` would
+    have put refusal prose inside a caller's `> out.json` with nothing red.
+
+    `raw_decode` rather than `json.loads`: `loads` raises on a TRAILING line but
+    the message names a decode error, and re-serialising to compare would pin
+    the key ORDER, which is not the claim. This reads one value and asserts what
+    is left is whitespace, so a line printed after the document fails on the
+    sentence that says so and a reordered document does not fail at all.
     """
-    args = {
-        "create": ("create", "someone"),
-        "revoke": ("revoke", "k_000000"),
-        "rotate": ("rotate", "k_000000"),
-        "prune": ("prune", "--before", "2030-01-01"),
-        "check": ("check",),
-    }[verb]
-    result = run(*args, "--json")
+    result = run(*_args_for(verb), "--json")
+    _document, end = json.JSONDecoder().raw_decode(result.out.lstrip())
+    assert result.out.lstrip()[end:].strip() == "", (
+        f"`kb keys {verb} --json` wrote something after the document on stdout")
+
+
+def test_create_json_refuses_a_client_without_writing_to_stdout(run, keys_file):
+    """The refusal `_cmd_create` raised BEFORE it routed `log()` to stderr.
+
+    `--client claude-desktop` is refused at the top of the handler.
+    `use_stderr()` used to sit twelve lines below that raise, so the refusal
+    sentence went to stdout, into the caller's redirect, and stayed there while
+    every existing test passed: none of them combined `--json` with a refusing
+    argv.
+    """
+    result = run("create", "alice", "--client", "claude-desktop", "--json")
     assert result.code == 2
-    assert "has no JSON output" in result.err
-    assert "list and show" in result.err
+    assert json.loads(result.out) == {
+        "error": "refused_client",
+        "client": "claude-desktop",
+        "clients": list(keys_cmd.CLIENTS),
+    }
+    assert "is refused" in result.err
 
 
-@pytest.mark.parametrize("verb", sorted(keys_cmd.JSON_ACTIONS))
-def test_the_two_verbs_that_emit_json_still_do(run, keys_file, verb):
-    """The other half of the pair, so the refusal cannot be widened silently.
+def test_the_error_document_carries_a_code_for_every_refusal(run, keys_file):
+    """Exit 2 says "malformed request" and nothing else. The code says which.
 
-    A guard that only ever rejects is one a blanket refusal would also pass.
+    A script that asked for machine-readable output and got prose cannot act on
+    the result, and that is as true of a failure as of a success. The house
+    answer is `{"error": "<snake_case_code>"}` on stdout, which `kb query`,
+    `kb owners`, `kb impact` and `kb eval` all already emit.
+    """
+    cases = {
+        ("show",): "missing_argument",
+        ("prune",): "missing_argument",
+        ("prune", "--before", "not-a-date"): "bad_before",
+        ("create", "alice", "--expires", "banana"): "bad_expires",
+        ("check", "ctxlake_something"): "key_in_argv",
+    }
+    # `rotate` reads --overlap and --expires through one `except ValueError`,
+    # and they raise the same type, so a bad --expires used to come back coded
+    # `bad_overlap` and send the operator to the flag they typed correctly.
+    run("create", "alice")
+    rotate_id = _only_id(keys_file)
+    cases[("rotate", rotate_id, "--overlap", "banana")] = "bad_overlap"
+    cases[("rotate", rotate_id, "--expires", "banana")] = "bad_expires"
+    for argv, code in cases.items():
+        result = run(*argv, "--json")
+        assert result.code == 2, argv
+        assert json.loads(result.out)["error"] == code, argv
+
+
+def test_the_key_in_argv_refusal_never_echoes_the_key(run, keys_file):
+    """The one place a house error document does NOT echo its target.
+
+    `kb owners --json` returns `{"error": "unknown_repo", "target": ...}`, and
+    copying that here would defeat the refusal: argv is refused BECAUSE a key
+    there lands in shell history and shows in `ps`, so writing it back into the
+    caller's redirect is the same leak by another route.
+    """
+    secret = "ctxlake_" + "a" * 49
+    result = run("check", secret, "--json")
+    _assert_capture_is_live(result.out, '"key_in_argv"', "check --json")
+    assert secret not in result.out
+    assert secret[:16] not in result.out
+
+
+def test_an_unknown_id_is_an_error_document_at_exit_1(run, keys_file):
+    """`show --json k_nope` used to print prose to stdout and emit NO document.
+
+    The not-found branch ran ahead of the `as_json` check in all three verbs.
+    Exit 1, not 2: the request was well formed and the id was resolvable in
+    principle, which is the same split `kb owners` uses for `unknown_repo`.
     """
     run("create", "alice")
-    if verb == "show":
-        listed = json.loads(run("list", "--json").out)
-        argv = (verb, listed["keys"][0]["id"])
-    else:
-        argv = (verb,)
-    result = run(*argv, "--json")
-    assert result.code == 0
-    json.loads(result.out)
+    for verb in ("show", "revoke", "rotate"):
+        result = run(verb, "k_nope00", "--json")
+        assert result.code == 1, verb
+        document = json.loads(result.out)
+        assert document["error"] == "unknown_id", verb
+        assert document["id"] == "k_nope00", verb
+        assert document["keys_file"] == str(keys_file), verb
+
+
+def test_the_created_key_is_not_in_the_json_document_by_default(run, keys_file):
+    """`create --json > provision.json` must not write a live key into that file.
+
+    `_open_key_file` does real work to stop a key landing in a 0644 file: the
+    mode is set at creation because the common 0022 umask would otherwise make
+    one. A redirect recreates that defect exactly, at the caller's umask, on the
+    normal way to consume a `--json` surface. So the key stays on stderr and the
+    document says where it went.
+    """
+    result = run("create", "alice", "--json")
+    document = json.loads(result.out)
+    _assert_capture_is_live(result.out, '"key_shown_on"', "create --json stdout")
+    assert document["key"] is None
+    assert document["key_shown_on"] == "stderr"
+    assert KEY_RE.findall(result.out) == [], (
+        "the plaintext key is in the JSON document on stdout, which is what a "
+        "caller redirects into a file at their own umask")
+    assert len(KEY_RE.findall(result.err)) == 1
+
+
+def test_print_key_moves_the_key_from_stderr_into_the_document(run, keys_file):
+    """The fd collision, resolved without a new refusal.
+
+    `--print-key` writes the bare key to stdout, and `--json` writes the
+    document there. Under `--json` there is one thing on stdout, so the flag
+    decides whether the key is INSIDE it instead of beside it, and the two stop
+    competing for the same descriptor.
+
+    The first run is the positive control for the second: same command, one flag
+    different, and it DOES put a key on stderr. Without it, "no key on stderr"
+    would pass over a capture that sees nothing.
+    """
+    plain = run("create", "alice", "--json")
+    assert len(KEY_RE.findall(plain.err)) == 1, (
+        "positive control failed: create --json put no key on stderr, so the "
+        "stderr assertion below would pass vacuously")
+
+    printed = run("create", "bob", "--json", "--print-key")
+    document = json.loads(printed.out)
+    assert document["key_shown_on"] == "stdout"
+    assert KEY_RE.fullmatch(document["key"] or "")
+    assert KEY_RE.findall(printed.err) == [], (
+        "--print-key put the key in the document AND on stderr, so the key is "
+        "in two places when the flag asked for one")
+
+
+def test_an_existing_out_path_is_refused_before_the_record_is_minted(run,
+                                                                     keys_file,
+                                                                     tmp_path):
+    """The verified defect: the record was persisted, then `--out` was refused.
+
+    `_save` used to run before `_write_key_file`, so `create --out <existing>`
+    minted the key, wrote the record to the key file, hit the O_EXCL refusal and
+    exited 2. The record was live in the file, its plaintext was gone forever,
+    and the command reported that nothing had worked.
+
+    The key file is asserted BEFORE the exit code. Exit 2 was already the
+    behaviour, so asserting it first would let this pass over the defect.
+    """
+    taken = tmp_path / "already-there.key"
+    taken.write_text("another file's contents\n")
+
+    result = run("create", "alice", "--out", str(taken))
+
+    assert not keys_file.exists(), (
+        "the key file was written before --out was refused, so a live record "
+        "exists whose plaintext was never shown to anybody")
+    assert taken.read_text() == "another file's contents\n"
+    assert result.code == 2
+
+
+def test_a_refused_expires_leaves_no_out_file_behind(run, keys_file, tmp_path):
+    """The other half of opening `--out` first: tidy up when nothing is minted.
+
+    The descriptor is opened before the key exists, so a later refusal has
+    already created an empty file. Leaving it makes the operator's retry fail on
+    O_EXCL for a reason their first run caused.
+    """
+    out = tmp_path / "never-written.key"
+    result = run("create", "alice", "--expires", "banana", "--out", str(out))
+    assert result.code == 2
+    assert not out.exists(), (
+        "the --out file was left behind by a create that minted nothing, so the "
+        "retry is refused on a file this command made")
+
+
+def test_revoke_json_separates_revoked_now_from_already_revoked(run, keys_file):
+    """Two outcomes, one exit code. `changed` is the only thing that splits them.
+
+    Both branches exit 0 and always have, so an offboarding script could not
+    tell "I revoked it" from "somebody else already had". The prose said so and
+    nothing else did.
+    """
+    run("create", "alice")
+    key_id = _only_id(keys_file)
+
+    first = json.loads(run("revoke", key_id, "--reason", "left", "--json").out)
+    assert first["changed"] is True
+    assert first["state"] == "revoked"
+    assert first["revoked_reason"] == "left"
+
+    second = json.loads(run("revoke", key_id, "--reason", "again", "--json").out)
+    assert second["changed"] is False
+    assert second["revoked_at"] == first["revoked_at"], (
+        "re-revoking rewrote the timestamp; the FIRST revocation is the audit "
+        "answer")
+    assert second["revoked_reason"] == "left"
+
+
+def test_prune_json_reports_what_it_removed(run, keys_file):
+    """`prune` exits 0 whether it removed forty records or none.
+
+    A scheduled cleanup logs the count, and parsing it out of "Pruned 2
+    record(s) that stopped working before ..." is what the document replaces.
+    """
+    nothing = json.loads(run("prune", "--before", "2020-01-01", "--json").out)
+    assert nothing["removed"] == 0
+    assert nothing["removed_keys"] == []
+    assert nothing["changed"] is False, (
+        "prune reported a write it did not make: the key file is untouched when "
+        "nothing matched")
+
+    run("create", "alice")
+    key_id = _only_id(keys_file)
+    run("revoke", key_id)
+    done = json.loads(run("prune", "--before", "2999-01-01", "--json").out)
+    assert done["removed"] == 1
+    assert [r["id"] for r in done["removed_keys"]] == [key_id]
+    assert done["remaining"] == 0
+    assert done["changed"] is True
+
+
+def test_check_json_names_which_of_the_four_failures_it_was(run, keys_file):
+    """Malformed, unknown, revoked and expired all exit 1. `reason` splits them.
+
+    A CI gate that warns on `expired` and fails on `revoked` cannot act on the
+    exit code, which is the same for all four.
+    """
+    created = run("create", "alice")
+    key = KEY_RE.search(created.err).group(0)
+    key_id = _only_id(keys_file)
+
+    valid = json.loads(run("check", "--json", stdin=key).out)
+    assert valid["valid"] is True
+    assert valid["reason"] is None
+    assert valid["id"] == key_id
+    assert valid["checked_locally"] is True
+
+    malformed = run("check", "--json", stdin="not-a-key")
+    assert malformed.code == 1
+    document = json.loads(malformed.out)
+    assert document["valid"] is False
+    assert document["reason"] == "malformed"
+    assert document["id"] is None and document["policy"] is None
+
+    # Minted through `keys_mod` against a throwaway list, so it carries a real
+    # checksum and no record in the file holds its digest. A hand-built string
+    # of the right LENGTH fails the checksum instead and reads as `malformed`,
+    # which would make this branch assert the previous one over again.
+    _stray, stray_key = keys_mod.create([], "not-in-the-file")
+    unknown = json.loads(run("check", "--json", stdin=stray_key).out)
+    assert unknown["reason"] == "unknown"
+
+    run("revoke", key_id)
+    revoked = run("check", "--json", stdin=key)
+    assert revoked.code == 1
+    assert json.loads(revoked.out)["reason"] == "revoked"
+
+
+def test_a_check_that_could_not_run_is_not_a_check_that_failed(run, keys_file):
+    """`valid: false` means the answer is no. It must not mean "I could not ask".
+
+    A key file this account cannot read makes `check` unable to answer, and
+    reporting `valid: false` there would tell a caller a live key is bad. The
+    error document carries `valid: null`, so the documented idiom holds: test
+    `.error` first, and only when it is absent test `.valid`.
+    """
+    keys_file.write_text("{ this is not json")
+    result = run("check", "--json", stdin="ctxlake_" + "0" * 49)
+    assert result.code == 1
+    document = json.loads(result.out)
+    assert document["error"] == "key_file_error"
+    assert document["valid"] is None
+    assert document["reason"] is None
+
+
+def test_rotate_json_carries_both_ids_and_the_resolved_overlap(run, keys_file):
+    """A rotation script needs both ids to schedule the follow-up revoke.
+
+    `overlap` is the RESOLVED value, not the typed one: the CLI passes no
+    default and `keys_mod.DEFAULT_OVERLAP` fills it in, so on the default path
+    what the operator typed (nothing) and what was applied (`7d`) differ.
+    """
+    run("create", "alice")
+    old_id = _only_id(keys_file)
+    document = json.loads(run("rotate", old_id, "--json").out)
+
+    assert document["old"]["id"] == old_id
+    assert document["old"]["rotated_to"] == document["new"]["id"]
+    assert document["new"]["rotated_from"] == old_id
+    assert document["overlap"] == keys_mod.DEFAULT_OVERLAP
+    assert document["overlap_seconds"] == 7 * 24 * 60 * 60
+    assert document["changed"] is True
+    assert document["key"] is None and document["key_shown_on"] == "stderr"
+
+
+def test_rotate_honours_out_and_print_key(run, keys_file, tmp_path):
+    """Both flags parsed on `rotate` and both were ignored, exiting 0.
+
+    They are declared once on the `keys` parser and the verb is a positional, so
+    argparse accepts them on all seven -- the same reason `--json` reached all
+    seven. Rotate is where it bit hardest: its new key exists nowhere else and
+    there was no machine route to it at all.
+    """
+    run("create", "alice")
+    out = tmp_path / "rotated.key"
+    document = json.loads(
+        run("rotate", _only_id(keys_file), "--json", "--out", str(out)).out)
+    assert document["key_file"] == str(out)
+    assert KEY_RE.fullmatch(out.read_text().strip())
+    assert stat.S_IMODE(out.stat().st_mode) == 0o600
+
+    printed = run("rotate", document["new"]["id"], "--json", "--print-key")
+    assert json.loads(printed.out)["key_shown_on"] == "stdout"
+    assert KEY_RE.fullmatch(json.loads(printed.out)["key"] or "")
+
+
+def test_the_list_document_keeps_every_field_9_0_0_shipped(run, keys_file):
+    """`list --json` is a published shape. Adding fields is fine; losing one is not.
+
+    `_row` is a DISPLAY function that feeds `_table`, and its column padding
+    leaked into the 9.0.0 document. Those five keys are now frozen display
+    strings, not data, and they are the first thing to remove at the next major
+    bump. Until then a caller reading `row["tools"] == "-"` keeps working, and
+    one written after this reads `row["policy"]` and `row["expires_at"]`.
+    """
+    run("create", "alice")
+    document = json.loads(run("list", "--json").out)
+    for field in ("path", "present", "policy_enforced", "live", "revoked",
+                  "expired", "keys"):
+        assert field in document, field
+    row = document["keys"][0]
+    for field in ("id", "name", "state", "tools", "repos", "rate", "expires",
+                  "last_used"):
+        assert field in row, field
+    assert row["tools"] == "-" and row["last_used"] == "-"
+
+    assert row["policy"] == {}
+    assert row["expires_at"].endswith("Z")
+    assert row["last_used_at"] is None
+    assert row["last_used_state"] == "not-recorded", (
+        "a null last_used_at means `never used` and `nothing measures it` at "
+        "once; the sibling is the only thing that separates them")
+    assert document["all"] is False
+    assert document["permission_ok"] is True
+    assert json.loads(run("list", "--all", "--json").out)["all"] is True
+
+
+def test_the_show_document_keeps_the_digest_and_gains_nothing_secret(run,
+                                                                     keys_file):
+    """`show --json` shipped `record.to_dict()`, digest included. It stays there.
+
+    The digest is not a credential: the secret is 256 uniform random bits, so a
+    SHA-256 of it has nothing to guess. It is still withheld from the text
+    surface and from every other JSON surface, because spreading a value one
+    surface deliberately hides needs a named reader and there is none.
+    """
+    created = run("create", "alice")
+    key = KEY_RE.search(created.err).group(0)
+    key_id = _only_id(keys_file)
+
+    shown = json.loads(run("show", key_id, "--json").out)
+    assert len(shown["digest"]) == 64
+    assert key not in run("show", key_id, "--json").out
+
+    listed = json.loads(run("list", "--json").out)
+    assert "digest" not in listed["keys"][0], (
+        "the digest spread from `show` into `list` by inheriting a shared "
+        "record builder; no reader asked for it")
+
+
+def test_the_permission_warnings_reach_a_json_caller(run, keys_file):
+    """Under `--json` the warnings go to stderr, which the caller is not reading.
+
+    `kb keys list` is the command an operator runs after a server refuses to
+    start, and a bad mask is often why it refused. A document that answers about
+    the key file while hiding what is wrong with it answers the wrong question.
+    """
+    run("create", "alice")
+    keys_file.chmod(0o644)
+    document = json.loads(run("list", "--json").out)
+    assert document["permission_ok"] is False
+    assert any("chmod 600" in line for line in document["permission_warnings"])
+    assert "0644" in "".join(document["permission_warnings"])
+
+
+def test_the_client_snippet_is_fields_and_not_only_rendered_lines(run, keys_file):
+    """The consumer writes `.vscode/mcp.json` itself. It needs values, not prose.
+
+    `lines` stays, unjoined, for a caller that wants to show the block. Beside
+    it are the three values a script actually writes: which header, what to put
+    in it, and which file it belongs in.
+    """
+    document = json.loads(run("create", "alice", "--client", "vscode",
+                              "--json").out)
+    snippet = document["client_snippet"]
+    assert document["client"] == "vscode"
+    assert snippet["header_name"] == "Authorization"
+    assert snippet["value_template"] == "Bearer ${input:contextlake-key}"
+    assert snippet["config_path"] == ".vscode/mcp.json"
+    assert snippet["url"] == "http://127.0.0.1:8765/mcp"
+    assert isinstance(snippet["lines"], list) and snippet["lines"]
+    assert json.loads(run("create", "bob", "--json").out)["client_snippet"] is None
+
+
+def test_every_client_with_a_block_has_machine_fields_too():
+    """A sixth client must not ship a rendered block and no fields.
+
+    `_client_block` branches on the client name with a fallback, so an unlisted
+    client would silently render Zed's block. `_CLIENT_FIELDS` is a dict, so the
+    same mistake is a KeyError at the point of use -- but only if the two are
+    pinned together.
+    """
+    assert set(keys_cmd._CLIENT_FIELDS) == set(keys_cmd.CLIENTS)
+    for client, (header, template, config_path) in keys_cmd._CLIENT_FIELDS.items():
+        assert header and template and config_path, client
+        assert not KEY_RE.search(template), (
+            f"the {client} value template carries something key-shaped; a "
+            "template holds a placeholder, never a credential")

@@ -24,6 +24,7 @@ import pkgutil
 import pytest
 
 import contextlake
+from contextlake.kb.cmds.keys_cmd import _Failure
 from contextlake.kb.lock import StoreBusy
 from contextlake.kb.mcp_client import McpToolError
 from contextlake.kb.parse import GrammarNotInstalled, RepoTooLarge
@@ -47,6 +48,13 @@ SAMPLES = {
     CircuitOpenError: (CircuitOpenError("example.test", 30.0), "retry_in"),
     StoreBusy: (StoreBusy({"pid": 4321, "command": "kb index"}), "holder"),
     RunBusy: (RunBusy({"pid": 4321, "job": "nightly"}), "holder"),
+    # `_BadUsage` and `_NotFound` inherit this __init__ unchanged, so discovery
+    # finds only the base and one sample covers all three.
+    _Failure: (
+        _Failure("unknown_id", "no key with id k_nope00", id="k_nope00",
+                 keys_file="/tmp/mcp-keys.json"),
+        "fields",
+    ),
 }
 
 

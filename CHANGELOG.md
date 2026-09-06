@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--json` on all seven `kb keys` verbs.** `create`, `revoke`, `rotate`, `prune` and
+  `check` now emit a document, joining `list` and `show`.
+
+  9.0.0 made those five refuse the flag at exit 2. That was the honest interim state: the
+  release before it let them take `--json`, print their ordinary log lines and exit 0, so a
+  script that asked for machine-readable output got prose and no error. Refusing was better
+  than lying about it, and answering is better than refusing.
+
+  Standard output carries the document and nothing else, on every exit path. A failure is a
+  document too, carrying `"error"` with a snake_case code, which is what `kb query`,
+  `kb owners`, `kb impact` and `kb eval` already do.
+
+  Three fields exist because an exit code could not carry the answer:
+
+  - `changed` on `revoke`, `rotate`, `prune` and `create` says whether the key file was
+    written. Revoking a key somebody else already revoked exits 0 and changes nothing,
+    which read the same to a script as revoking it.
+  - `reason` on `check` is one of `malformed`, `unknown`, `revoked` or `expired`. All four
+    exit 1, so a CI gate that warns on one and fails on another had nothing to read.
+  - `last_used_state` is `not-recorded` in this release. `last_used_at` is `null` for two
+    different reasons and the sibling is the only thing that separates them.
+
+  `create --json` and `rotate --json` keep the key on stderr and report
+  `"key_shown_on": "stderr"`. `--json > out.json` would otherwise write a live credential
+  into a file at the caller's umask. `--print-key` moves the key into the document's `key`
+  field, and it already refuses a terminal.
+
+- **`rotate` honours `--print-key` and `--out`.** Both flags parsed on `rotate` and both
+  were ignored, exiting 0. The new key exists nowhere else, so a rotation script had no
+  route to it but scraping stderr.
+
+### Fixed
+
+- **`kb keys create --out <existing path>` minted a key and lost it.** The record was
+  written to the key file, and only then was the `--out` path refused for already existing. The
+  command exited 2 saying nothing had worked while a live record sat in the file whose
+  plaintext had never been shown to anybody. The output file is now opened before the key
+  is minted, and removed again if the mint fails.
+
+- **`kb keys show --json` on an unknown id emitted no JSON.** The not-found branch ran
+  ahead of the `--json` check, so it printed prose to stdout and exited 1. It now emits
+  `{"error": "unknown_id", ...}` at the same exit code, as do `revoke` and `rotate`.
+
+- **`--overlap` help said "default 0".** The default is `7d`.
+
 ## [9.0.0] - 2026-09-06
 
 ### Added

@@ -255,7 +255,12 @@ Three ways to capture it at creation:
   `contextlake kb keys create ci --print-key | pass insert -e contextlake`. It refuses a
   terminal, because on one the key lands in the scrollback instead of a secret store.
 - `--out FILE` writes the key to a file at mode `0600`. The file is created with `O_EXCL`,
-  so an existing path is refused rather than overwritten.
+  so an existing path is refused rather than overwritten. This is the route to prefer in a
+  script: it is the only one where the mode is set at creation rather than inherited from
+  the caller's umask.
+
+`rotate` takes `--print-key` and `--out` too, with the same meaning. Its new key exists
+nowhere else either.
 
 The key never reaches standard output on the default path and never reaches `--log-file`,
 which is a rotating file that outlives the process.
@@ -281,7 +286,7 @@ presented to a live `kb serve --transport http --keys-only` server and `tools/li
 answered with all 23 registered tools.
 
 So every surface that prints them says `(recorded, not enforced)` beside the values and
-carries three lines saying what that means. `show --json` and `list --json` carry
+carries three lines saying what that means. Every `--json` document carries
 `"policy_enforced": false` for the same reason. Do not hand out a key believing the scope
 limits it. Enforcement ships in a later release; `--rate` and `--cost-budget` are stored
 as typed and are not validated yet either.
@@ -292,6 +297,49 @@ variable rather than inlining it, except Zed, whose `context_servers` documents 
 environment expansion for a header value. VS Code has the best handling of the five: it
 prompts once and keeps the value outside the config file. `claude-desktop` and `claude-web`
 are refused, each naming the route that does work.
+
+#### `--json`
+
+All seven verbs answer `--json`. **Standard output carries the document and nothing else,
+on every exit path, failures included.** Every human line, every permission warning and the
+plaintext key go to standard error, so `contextlake kb keys list --json > out.json` always
+leaves a parseable file.
+
+| verb | the document |
+|---|---|
+| `create` | the new record, plus `key`, `key_shown_on`, `key_file`, `client`, `client_snippet` |
+| `list` | `path`, `present`, `all`, the `live`/`revoked`/`expired` counts and `keys[]` |
+| `show` | the record, including `digest`, sorted by key |
+| `revoke` | the record after the call, plus `changed` |
+| `rotate` | `old`, `new`, `overlap`, `overlap_seconds`, plus the key fields `create` has |
+| `prune` | `before`, `removed`, `removed_keys[]`, `remaining` |
+| `check` | `valid`, `reason`, and the matched record's `id`, `name`, `state`, `expires_at` |
+
+Four things a caller needs to know about the shapes:
+
+- **`changed` says whether the key file was written.** `revoke` on a key somebody else
+  already revoked exits `0` and changes nothing, and so does `prune` that matched nothing.
+  The exit code is the same either way; `changed` is what separates them.
+- **`check` has `reason`, because the exit code cannot carry it.** Malformed, unknown,
+  revoked and expired all exit `1`. `reason` is one of `malformed`, `unknown`, `revoked`,
+  `expired`, or `null` when `valid` is true. The document never echoes the presented key.
+- **A failure is a document too**, carrying `"error"` with a snake_case code:
+  `missing_argument`, `refused_client`, `print_key_on_tty`, `bad_expires`, `bad_overlap`,
+  `bad_before`, `out_file_exists`, `key_in_argv`, `stdin_is_tty` (all exit `2`),
+  `unknown_id` and `key_file_error` (exit `1`). **Test `.error` first, and only when it is
+  absent test `.valid`**: an error out of `check` carries `valid: null`, because the
+  question was not answered, and reading it as `false` would report a live key as bad.
+- **The key is not in the document by default.** `create --json` and `rotate --json` emit
+  `"key": null` and `"key_shown_on": "stderr"`, because `> out.json` would write a live
+  credential into a file at the caller's umask. Add `--print-key` to move the key into the
+  document's `key` field; that flag already refuses a terminal. `--out FILE` is the route
+  to prefer, and the document names the path in `key_file`.
+
+`list` rows carry the record and five frozen display strings from the table:
+`tools`, `repos` and `rate` read `-` when unset, `expires` is a date, and `last_used` is
+always `-`. Read `policy` and `expires_at` instead. `last_used_at` is `null` in this
+release and `last_used_state` says why, because a null on its own cannot tell "never used"
+from "nothing measures it".
 
 **Exit codes.** `0` on success, including `list` on a key file that does not exist yet. `1`
 on an id that is not in the file, on a key file that cannot be read, and on `check` of a

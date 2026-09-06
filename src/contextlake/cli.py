@@ -1358,8 +1358,8 @@ success.
 and rendered back by create, list, show and check. NOTHING ENFORCES THEM. A key
 created with `--tools none --repos nothing-matches/*` gets the full tool list
 over MCP and can call every one of those tools on every indexed repository, so
-every surface prints "(recorded, not enforced)" beside the values and the two
---json surfaces carry "policy_enforced": false. Do not hand out a key believing
+every surface prints "(recorded, not enforced)" beside the values and every
+--json document carries "policy_enforced": false. Do not hand out a key believing
 the scope limits it. --rate and --cost-budget are also stored as typed and are
 not validated in this release.
                 """)
@@ -1383,7 +1383,7 @@ not validated in this release.
     p.add_argument("--expires", default=_S, metavar="DURATION",
                    help="when it lapses, e.g. 30d or 90d (default 90d; `never` to opt out)")
     p.add_argument("--overlap", default=_S, metavar="DURATION",
-                   help="rotate: how long the old key keeps working (default 0)")
+                   help="rotate: how long the old key keeps working (default 7d)")
     p.add_argument("--before", default=_S, metavar="YYYY-MM-DD",
                    help="prune: drop records that stopped working before this date. "
                         "Required, and typed as a date: prune deletes permanently, "
@@ -1415,16 +1415,18 @@ not validated in this release.
     p.add_argument("--all", action="store_true", default=_S,
                    help="list: include revoked and expired keys")
     p.add_argument("--out", default=_S, metavar="PATH",
-                   help="create: write the KEY ITSELF to this file, at mode 0600. The "
-                        "file is created with O_EXCL, so an existing path is refused")
+                   help="create/rotate: write the KEY ITSELF to this file, at mode "
+                        "0600. The file is created with O_EXCL, so an existing path "
+                        "is refused")
     p.add_argument("--print-key", dest="print_key", action="store_true", default=_S,
-                   help="create: also write the key to stdout, for a script that "
-                        "will store it. Off by default: stdout is pipeable, so a key "
-                        "there lands wherever the pipe goes")
+                   help="create/rotate: also write the key to stdout, for a script "
+                        "that will store it. Off by default: stdout is pipeable, so a "
+                        "key there lands wherever the pipe goes. With --json the key "
+                        "moves into the document's `key` field")
     p.add_argument("--json", action="store_true", default=_S,
-                   help="list, show: machine-readable JSON on stdout instead of "
-                        "formatted text. The other verbs refuse it rather than "
-                        "printing their ordinary lines and exiting 0")
+                   help="machine-readable JSON on stdout instead of formatted "
+                        "text, on all seven verbs. stdout carries the document "
+                        "on every exit, failures included; prose goes to stderr")
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""
