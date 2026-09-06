@@ -880,23 +880,50 @@ def test_prune_refuses_without_before_and_never_removes_a_live_record(run, keys_
 
 
 # ---------------------------------------------------------------------------
-# The policy is recorded and enforced by nothing, and every surface says so
+# Part of the policy is enforced and part is not, and every surface says which
 # ---------------------------------------------------------------------------
 #
-# MEASURED FIRST, on 2026-09-05, because a wording change with no measurement
-# behind it is a preference. A key created with `--tools none --repos
-# nothing-matches/*` was presented to a live `kb serve --transport http
-# --keys-only` server over HTTP. `tools/list` answered with all 23 registered
-# tools and `graph_stats` then ran and returned a result. `kb keys show` for
-# that key printed "grant expanded at 8.13.0. Tools added since are denied;
-# rotate to pick them up."
+# MEASURED TWICE, because a wording change with no measurement behind it is a
+# preference. Both runs used a key created `--tools none --repos
+# nothing-matches/*`, presented to a live `kb serve --transport http
+# --keys-only` server over HTTP.
 #
-# So the CLI told an operator their key was scoped while the server handed it
-# everything. That is worse than not offering the flags: someone hands the key
-# out on the CLI's reading.
+# 2026-09-05, before the tools axis was read: `tools/list` answered with all 23
+# registered tools and `graph_stats` then ran and returned a result. So the CLI
+# told an operator their key was scoped while the server handed it everything.
+#
+# 2026-09-06, after: `tools/list` answered with an empty list and `graph_stats`
+# was refused, naming the group that would grant it. The `repos` half is
+# unchanged and still binds nothing.
+#
+# THE LABEL IS THEREFORE PER AXIS. One label after all three scope axes claims
+# the same thing about all three, so enforcing `tools` alone with the old line
+# would have said `repos` and `owners` were live too, which is the same class of
+# false claim in the other direction.
+#
+# The assertions below anchor to the SCOPE LINE, never to the note alone. The
+# version before this one asserted both `_LABEL` and `_NOTE` against
+# `result.out + result.err`, and `_enforcement_note()`'s own first line
+# contained both strings, so the note satisfied both assertions on every verb
+# and the bracketed per-axis label was never independently checked. A test that
+# cannot see the thing it claims to pin is the defect it exists to catch.
 
 _LABEL = "recorded, not enforced"
-_NOTE = "enforces them"
+_ENFORCED_LABEL = "(enforced)"
+_NOTE = "This release enforces"
+
+
+def _scope_line_of(text: str) -> str:
+    """The rendered scope line, so an assertion cannot be satisfied by the note.
+
+    Returns "" when no surface in `text` rendered one, which is what lets the
+    walk below tell "this verb renders no policy" from "this verb renders one
+    with no label".
+    """
+    for line in text.splitlines():
+        if "tools=" in line:
+            return line
+    return ""
 
 
 def _policy_argv(verb: str, key_id: str) -> list[str]:
@@ -909,12 +936,15 @@ def _policy_argv(verb: str, key_id: str) -> list[str]:
             "prune": ["prune", "--before", "2020-01-01"]}[verb]
 
 
-def test_every_verb_that_renders_a_policy_says_nothing_enforces_it(run, keys_file):
+def test_every_verb_that_renders_a_policy_labels_each_axis(run, keys_file):
     """Driven by the parser's own verb list, so an eighth verb is covered too.
 
-    The two halves this pins are the same defect at two altitudes: the label
-    beside the values, and the sentence that says what the label means. A verb
-    that starts rendering a scope without them fails here rather than shipping.
+    Three halves, and the third is the one the previous version could not see:
+    the ENFORCED marker on the enforced axis, the NOT-ENFORCED marker on an
+    unenforced one, and the note that says what the markers mean. Asserting only
+    the not-enforced marker passes on a blanket label that lies about `tools`;
+    asserting only the enforced one passes on a blanket label that lies about
+    `repos`. Both markers on ONE rendered line is what pins the split.
 
     The key file is rebuilt before every verb so the mutating verbs cannot
     change what a later verb sees. `revoke` sorts before `check` in the
@@ -936,35 +966,123 @@ def test_every_verb_that_renders_a_policy_says_nothing_enforces_it(run, keys_fil
         if "tools=" not in text and "60/min" not in text and "acme/*" not in text:
             continue
         rendered.append(verb)
-        assert _LABEL in text, (
-            f"`kb keys {verb}` renders a policy value with no {_LABEL!r} beside "
-            "it, so an operator reads it as a live restriction")
         assert _NOTE in text, (
-            f"`kb keys {verb}` renders a policy and never says nothing enforces "
-            "it")
+            f"`kb keys {verb}` renders a policy and never says which axes are "
+            "enforced")
+        if verb == "list":
+            # The table has no room for a bracketed marker, so the note is the
+            # only place the split can reach that surface. Asserted here rather
+            # than skipped, so `list` cannot quietly become the verb with no
+            # statement at all.
+            assert _LABEL in text, "`kb keys list` lost the not-enforced clause"
+            continue
+        line = _scope_line_of(text)
+        assert line, f"`kb keys {verb}` renders a policy with no scope line"
+        assert f"tools=read  {_ENFORCED_LABEL}" in line, (
+            f"`kb keys {verb}` renders an ENFORCED tools axis with no "
+            f"{_ENFORCED_LABEL!r} beside it, so an operator reads a live "
+            f"restriction as inert and hands the key out: {line!r}")
+        assert f"repos=acme/*  ({_LABEL})" in line, (
+            f"`kb keys {verb}` renders an UNENFORCED repos axis without "
+            f"{_LABEL!r} beside it, so an operator reads it as a live "
+            f"restriction: {line!r}")
 
     assert sorted(rendered) == ["check", "create", "list", "show"], rendered
 
 
-def test_show_never_claims_a_tool_is_denied(run, keys_file):
-    """The wording gate. `show` used to print a live access-control claim.
+def test_an_unknown_tool_group_is_refused_at_create(run, keys_file):
+    """A typo must not be minted onto a key that then reads as scoped.
 
-    Verbatim, at `keys_cmd.py:567` before this change: "grant expanded at
-    8.13.0. Tools added since are denied; rotate to pick them up." Both halves
-    were false. `_policy` stores the raw string the operator typed and expands
-    nothing, and no code path denies a tool. If either sentence comes back, or
-    any other verb of denial, this fails.
+    `--tools grpah` stored the string verbatim and rendered it back, so
+    `kb keys show` printed a scope the server would expand to nothing. The key
+    then failed every call and the operator's only clue was a value that looked
+    right on the CLI.
+
+    Refused at CREATE and not at the request. The server does the opposite with
+    the same value in a hand-edited key file -- it denies rather than refusing --
+    because refusing there would answer a call the operator meant to narrow.
+    That asymmetry is deliberate and it is tested on the server side.
+    """
+    result = run("create", "alice", "--tools", "grpah")
+    assert result.code == 2, result.out + result.err
+    text = result.out + result.err
+    assert "grpah" in text and "graph" in text, text
+    assert not keys_file.exists() or not json.loads(keys_file.read_text())["keys"], (
+        "the key was minted anyway, so the refusal is cosmetic")
+
+    assert run("create", "alice", "--tools", "graph").code == 0
+
+
+@pytest.mark.parametrize("flag", ["tools", "repos"])
+def test_an_empty_scope_value_is_refused_rather_than_dropped(run, keys_file, flag):
+    """`--tools ""` and an unset `--tools` were indistinguishable in the record.
+
+    `_policy` drops a value that is `None` or `""`, so both stored nothing, and
+    `_scope_line` renders a missing axis as `unset`. Those are opposite
+    instructions now that the axis is live: unset grants every tool, and the
+    operator typing an empty string was narrowing.
+
+    The refusal is at the flag rather than by storing `""`, because a stored
+    empty string would render as `unset` while meaning deny, which is the same
+    collapse one layer down.
+    """
+    result = run("create", "alice", f"--{flag}", "")
+    assert result.code == 2, result.out + result.err
+    assert "empty value" in (result.out + result.err)
+
+
+def test_the_limits_line_keeps_the_label_the_scope_line_lost(run, keys_file):
+    """Rate, burst and cost_budget are still enforced by nothing.
+
+    The tools axis going live is the moment somebody deletes the label as
+    stale. Deleting it wholesale is a lie about the three limit axes, and an
+    operator who reads `60/min` with no qualifier hands out a key believing
+    something rate-limits it. Nothing does.
+    """
+    run("create", "alice", "--tools", "read", "--rate", "60/min", "--burst", "20",
+        "--cost-budget", "30s/min")
+    text = run("show", _only_id(keys_file)).out
+    limits = [line for line in text.splitlines() if "60/min" in line]
+    assert limits, text
+    assert f"({_LABEL})" in limits[0], (
+        f"the limits line lost {_LABEL!r} when the scope axes went live: "
+        f"{limits[0]!r}")
+    assert _ENFORCED_LABEL not in limits[0], (
+        "the limits line claims enforcement; no rate limiter exists in this "
+        f"release: {limits[0]!r}")
+
+
+def test_show_never_claims_the_unenforced_axes_restrict_anything(run, keys_file):
+    """The wording gate, narrowed to the axes that still bind nothing.
+
+    Verbatim, at `keys_cmd.py:567` in 8.13.0: "grant expanded at 8.13.0. Tools
+    added since are denied; rotate to pick them up." Both halves were false then
+    and the second half is TRUE NOW, so the ban cannot stay blanket: a test that
+    forbids the word "denied" outright would forbid the correct sentence about
+    the tools axis and push the next reader to weaken the label instead.
+
+    What is still forbidden is any claim of restriction attached to `repos`. It
+    is recorded and read by nothing, so an operator told their key is limited to
+    `acme/*` acts on a limit that does not exist.
+
+    "grant expanded" stays banned outright: `_policy` stores the raw string and
+    expands nothing at create, and `grants._expand` expands live per call, so
+    there is no expansion stamped on a record to talk about.
     """
     run("create", "alice", "--tools", "read", "--repos", "acme/*")
     text = (lambda r: r.out + r.err)(run("show", _only_id(keys_file)))
     _assert_capture_is_live(text, "acme/*", "kb keys show")
 
     lowered = text.lower()
-    for claim in ("denied", "denies", "may call", "may read", "cannot call",
-                  "restricted to", "grant expanded"):
-        assert claim not in lowered, (
-            f"`kb keys show` claims {claim!r}. Nothing enforces the policy, so "
-            "that sentence tells an operator their key is scoped when it is not")
+    assert "grant expanded" not in lowered, (
+        "`kb keys show` claims a grant was expanded onto the record. Groups are "
+        "expanded per call, so there is no stamped expansion to report")
+    scope = _scope_line_of(text).lower()
+    repos = scope.split("repos=", 1)[1].split("owners=", 1)[0]
+    for claim in ("enforced)", "may read", "restricted to", "cannot read"):
+        assert claim not in repos.replace(f"({_LABEL})", ""), (
+            f"the repos axis claims {claim!r}. Nothing reads `repos`, so that "
+            f"tells an operator their key is scoped when it is not: {repos!r}")
     assert _NOTE in text
 
 
@@ -1020,8 +1138,14 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
             "--repos", "nothing-matches/*").err).group(0)
     key_id = _only_id(keys_file)
 
-    created = json.loads(run("create", "bob", "--tools", "none", "--json").out)
-    assert created["policy"] == {"tools": "none"}
+    # bob records `repos` too, so every one of the seven documents below
+    # describes a key with an unenforced axis and every one reads False. Without
+    # it `create` alone would read True and the walk would need a per-verb
+    # expected value, which is re-deriving the thing being tested.
+    created = json.loads(
+        run("create", "bob", "--tools", "none",
+            "--repos", "nothing-matches/*", "--json").out)
+    assert created["policy"] == {"tools": "none", "repos": "nothing-matches/*"}
 
     shown = json.loads(run("show", key_id, "--json").out)
     assert shown["policy"] == {"tools": "none", "repos": "nothing-matches/*"}
@@ -1040,42 +1164,109 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
     assert set(documents) == set(_verbs()), (
         "a verb grew a JSON document and this test did not walk it")
     for verb, document in documents.items():
+        # EVERY key in this fixture records `repos`, which nothing enforces, so
+        # every document reads False. The value is derived now rather than
+        # written as a literal, and the two fixtures below are what make that a
+        # measurement instead of a coincidence: one key with only enforced axes
+        # reads True, and a key with no axes at all reads False.
         assert document["policy_enforced"] is False, (
-            f"`kb keys {verb} --json` renders a policy with no flag saying "
-            "nothing enforces it, so a dashboard built on it shows a scope "
-            "column that is wrong on every row")
+            f"`kb keys {verb} --json` claims the policy it renders is enforced. "
+            "`repos` is recorded and read by nothing, so a dashboard built on "
+            "it shows a scope column that is wrong on every row")
+    assert created["enforced_axes"] == ["tools"], created["enforced_axes"]
+    assert shown["enforced_axes"] == ["tools"], shown["enforced_axes"]
+    assert checked["enforced_axes"] == ["tools"], checked["enforced_axes"]
+    assert listed["keys"][0]["enforced_axes"] == ["tools"]
 
 
-def test_the_label_is_pinned_to_the_server_enforcing_nothing(run, keys_file):
-    """The precondition, so the label retires when it stops being true.
+def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(run, keys_file):
+    """The flag moves with the key. A literal False could not.
+
+    Three fixtures, because one proves nothing. A key scoped only on enforced
+    axes reads True; the same key with one unenforced axis added reads False;
+    a key with NO axes reads False, not a vacuous True.
+
+    The empty case is the one worth naming. `all()` over an empty set is True,
+    and the fact an operator needs from this field is "is anything limiting this
+    key". For `contextlake kb keys create alice` -- the default path, an empty
+    policy dict -- the answer is no: it can call every tool. A True there is an
+    absent value reading as a pass on the key most operators actually mint.
+    """
+    keys_file.unlink(missing_ok=True)
+    only_enforced = json.loads(
+        run("create", "a", "--tools", "read", "--owners", "real", "--json").out)
+    assert only_enforced["policy_enforced"] is True
+    assert only_enforced["enforced_axes"] == ["tools", "owners"]
+
+    mixed = json.loads(
+        run("create", "b", "--tools", "read", "--rate", "60/min", "--json").out)
+    assert mixed["policy_enforced"] is False, (
+        "a key recording `rate` reads as fully enforced; nothing rate-limits it")
+    assert mixed["enforced_axes"] == ["tools"]
+
+    bare = json.loads(run("create", "c", "--json").out)
+    assert bare["policy"] == {}
+    assert bare["enforced_axes"] == []
+    assert bare["policy_enforced"] is False, (
+        "a key with no policy at all reads as enforced. `all()` over nothing is "
+        "True and that is the wrong answer here: this key can call every tool")
+
+    # The document-level flag on a COLLECTION is the aggregate, and an empty
+    # collection is False for the same reason.
+    listed = json.loads(run("list", "--json").out)
+    assert listed["policy_enforced"] is False, (
+        "one unenforced key in the table and the document still claims the "
+        "whole table is enforced")
+    empty = json.loads(run("prune", "--before", "2020-01-01", "--json").out)
+    assert empty["removed"] == 0
+    assert empty["policy_enforced"] is False, (
+        "a document that rendered no key at all claims enforcement over nothing")
+
+
+def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
+    """The precondition, in the direction that keeps the wording honest.
 
     Every assertion above is about wording. This one reads the reason the
-    wording is right, and it is deliberately in the OTHER direction: it fails
-    when enforcement lands. Whoever ships S4.3-acl-2 gets a red test naming the
-    four surfaces whose wording has to change with it, rather than a CLI that
-    keeps saying "nothing enforces them" after something does.
+    wording is right. The version before it asserted the OPPOSITE -- that
+    `check_tool_grant` did not exist and `build_http_app` still read
+    `grant_source = None` -- and it was written to fail when enforcement landed,
+    which it did. This is its replacement, pointed the same way: it fails if the
+    CLI's claim and the gate's behaviour come apart in either direction.
 
-    `check_tool_grant` is the symbol the ANCHOR comment at `kb/server.py:1064`
-    reserves for the tool-axis check. `grant_source = None` at
-    `kb/server.py:2939` is what stops the keyring reaching the tool wrapper.
+    Three couplings, none of them a string match on prose:
+
+    1. `ENFORCED_AXES` is the one list. The CLI reads it, so an axis added there
+       with no rule behind it makes every surface claim something the gate does
+       not check.
+    2. Every axis named in it has a rule that can refuse. Asserted by calling
+       the check, not by reading the source: a rule that exists and never denies
+       is the write-with-no-consumer shape this whole frame exists to keep out.
+    3. Every axis NOT in it is still rendered with the not-enforced marker.
     """
-    import inspect
+    from contextlake.kb import grants
+    from contextlake.kb.server import GrantDenied, Principal
 
-    from contextlake.kb import server
+    assert grants.ENFORCED_AXES == ("tools", "owners"), (
+        "the enforced axes moved. Re-read _enforcement_note and _axis in "
+        "kb/cmds/keys_cmd.py: they render every axis from this list")
 
-    assert not hasattr(server, "check_tool_grant"), (
-        "kb/server.py has grown check_tool_grant, so the tool axis may now be "
-        "enforced. Re-read _enforcement_note in kb/cmds/keys_cmd.py: create, "
-        "list, show and check all print that nothing enforces the policy")
-    # A string match on another module's formatting, so read it in that order:
-    # check whether the line MOVED or was reformatted before concluding the
-    # behaviour changed. The `check_tool_grant` assertion above is the robust
-    # half; this one is the redundancy.
-    assert "grant_source = None" in inspect.getsource(server.build_http_app), (
-        "build_http_app no longer carries the literal `grant_source = None`. "
-        "This may be a reformat rather than a behaviour change: read the "
-        "function first. If the keyring now reaches the tool wrapper, re-read "
-        "_enforcement_note in kb/cmds/keys_cmd.py before this ships")
+    principal = Principal("k_test")
+    for axis, policy, tool in (
+            ("tools", {"tools": "none"}, "graph_stats"),
+            ("owners", {"owners": "hidden"}, "who_knows")):
+        assert axis in grants.ENFORCED_AXES
+        with pytest.raises(GrantDenied):
+            grants.check_tool_grant(principal, tool, policy)
+        # The positive control. Without it the refusal above passes for a check
+        # that denies everything, which is not enforcement either.
+        grants.check_tool_grant(principal, tool, {})
+
+    for axis in ("repos", "rate", "burst", "cost_budget"):
+        assert axis not in grants.ENFORCED_AXES
+
+    run("create", "alice", "--repos", "acme/*")
+    line = _scope_line_of(run("show", _only_id(keys_file)).out)
+    assert f"repos=acme/*  ({_LABEL})" in line, line
 
 
 def test_keys_check_refuses_a_terminal_instead_of_blocking(run, keys_file,
@@ -1124,13 +1315,28 @@ def test_the_scope_flag_help_does_not_promise_a_restriction():
     the page, which does not help a reader who skims the flag list.
     """
     helps = {a.dest: (a.help or "") for a in _keys_parser()._actions}
-    for dest in ("tools", "repos", "owners"):
+    # PER FLAG, because two of the three are enforced now. A blanket assertion
+    # either way is a wrong claim about one of them: `--repos` still binds
+    # nothing, and `--tools` now refuses a call outside its grant.
+    for dest in ("repos", "rate", "cost_budget"):
         text = helps[dest]
-        assert "nothing enforces it in this release" in text, (
+        assert ("nothing enforces it in this release" in text
+                or "NOT validated in this release" in text), (
             f"--{dest} does not say its value binds nothing: {text!r}")
-        for claim in ("may call", "may read", "this key sees"):
-            assert claim not in text, (
-                f"--{dest} help claims {claim!r}, which reads as a live grant")
+    for dest in ("tools", "owners"):
+        text = helps[dest]
+        assert "nothing enforces it in this release" not in text, (
+            f"--{dest} is enforced now and its help still says nothing reads "
+            f"it, so an operator skips a flag that would have scoped the key: "
+            f"{text!r}")
+        assert "nforced" in text, (
+            f"--{dest} never says its value is enforced: {text!r}")
+    # Only `--repos` still has to avoid the present-tense grant wording. For the
+    # two enforced flags "may call" is now the accurate description, and banning
+    # it there would push the next reader to weaken the help instead.
+    for claim in ("may read", "this key sees"):
+        assert claim not in helps["repos"], (
+            f"--repos help claims {claim!r}, which reads as a live grant")
 
 
 # ---------------------------------------------------------------------------

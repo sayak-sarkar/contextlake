@@ -1363,6 +1363,33 @@ class Keyring:
             return None
         return record, record.state(self._now())
 
+    def policy_for(self, key_id: str):
+        """The policy block of the record with this id, or ``None`` for no record.
+
+        ``None`` and ``{}`` are two different facts and the caller acts on them
+        in opposite directions, so they are never collapsed here. ``{}`` is a
+        record that exists and records no scope, which grants everything;
+        ``None`` is no such record, which grants nothing. A key revoked or pruned
+        between the gate admitting a request and the grant being read lands on
+        ``None``, and returning ``{}`` there would hand it a full grant for the
+        length of that request.
+
+        A COPY, never the record's own dict. The caller is the grant check, and a
+        check that can mutate the record it is reading is one edit away from
+        widening a key it was asked to narrow.
+
+        This iterates, and the reasons the LOOKUP does not (:meth:`resolve`) do
+        not apply. The value here is a key id this server minted and already
+        authenticated, not a secret a caller presented, so there is no match
+        position to leak; and the loop is bounded by the number of keys in the
+        file, which an unauthenticated caller cannot grow. The tool bodies it
+        runs beside are measured in tens of milliseconds.
+        """
+        for record in self._by_digest.values():
+            if record.id == key_id:
+                return dict(getattr(record, "policy", None) or {})
+        return None
+
     # -- what the caller asks about the file --
 
     @property

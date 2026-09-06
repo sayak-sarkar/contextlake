@@ -1354,14 +1354,19 @@ which documents a missing name as a no-op at exit 0. An admin scripting a
 revocation reads the exit code, and "I revoked nothing" must never read as
 success.
 
---tools/--repos/--owners/--rate/--burst/--cost-budget are recorded on the key
-and rendered back by create, list, show and check. NOTHING ENFORCES THEM. A key
-created with `--tools none --repos nothing-matches/*` gets the full tool list
-over MCP and can call every one of those tools on every indexed repository, so
-every surface prints "(recorded, not enforced)" beside the values and every
---json document carries "policy_enforced": false. Do not hand out a key believing
-the scope limits it. --rate and --cost-budget are also stored as typed and are
-not validated in this release.
+--tools/--repos/--owners/--rate/--burst/--cost-budget are recorded on the key and
+rendered back by create, list, show and check. TWO OF THEM ARE ENFORCED AND FOUR
+ARE NOT, and the marker beside each value says which. --tools and --owners are
+checked on every call a networked server serves: a key created `--tools none`
+sees an empty tool list and a call it makes is refused. --repos, --external,
+--rate, --burst and --cost-budget still bind nothing, so they print
+"(recorded, not enforced)"; a key reads every indexed repository at whatever rate
+it asks, whatever those say. Each --json document carries "policy_enforced" for
+what it renders and "enforced_axes" per key. --rate and --cost-budget are also
+stored as typed and are not validated in this release.
+
+Scoping is enforced on a NETWORKED server only. stdio serves one local user who
+already has the files, so nothing there reads a key or a policy.
                 """)
     # Spelled out rather than imported from kb.cmds.keys_cmd: the parser is built on
     # every invocation, and importing the keystore to name these would put it on the
@@ -1391,17 +1396,24 @@ not validated in this release.
     p.add_argument("--reason", default=_S, help="revoke: recorded against the key")
     p.add_argument("--url", default=_S,
                    help="the server URL to print in the client snippet")
+    # `--tools` and `--owners` are ENFORCED, so their help says what they do.
+    # `--repos` is not, so it keeps the sentence saying its value binds nothing.
+    # One wording for all three would be false about one of them either way.
     p.add_argument("--tools", default=_S, metavar="GROUPS",
-                   # "may call" was a live claim: nothing reads this value. The
-                   # epilog says so once; these three say so where they are read.
-                   help="create: the tool groups this key is meant to call. Recorded "
-                        "on the key; nothing enforces it in this release")
+                   help="create: the tool groups this key may call, comma-separated "
+                        "(all, read, none, graph, search, docs, stats, owners, "
+                        "semantic). Enforced over the network; a call outside the "
+                        "grant is refused")
     p.add_argument("--repos", default=_S, metavar="GLOBS",
                    help="create: the repo globs this key is meant to read. Recorded "
                         "on the key; nothing enforces it in this release")
     p.add_argument("--owners", default=_S, choices=("real", "pseudonymous", "hidden"),
-                   help="create: how much author identity this key is meant to see. "
-                        "Recorded on the key; nothing enforces it in this release")
+                   # `pseudonymous` REFUSES rather than pseudonymising. There is no
+                   # anonymiser on the network path, and serving real names to a key
+                   # that asked for pseudonyms is the fail-open this axis prevents.
+                   help="create: how much author identity this key may see. Enforced: "
+                        "`real` allows who_knows, and `pseudonymous` or `hidden` "
+                        "refuse it (and `ask`, which routes to it)")
     p.add_argument("--rate", default=_S, metavar="RATE",
                    help="create: a request rate, e.g. 60/min. Stored as typed and "
                         "NOT validated in this release; its parser ships later")

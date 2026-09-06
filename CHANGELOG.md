@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--tools` and `--owners` on a key are now enforced over the network.** They were
+  recorded and read by nothing. Measured on a live `kb serve --transport http
+  --keys-only` server: a key created `--tools none --repos nothing-matches/*` used to
+  get the full tool list and its calls all ran; the same key on the same server now
+  gets an empty tool list and a refusal that names the group which would grant the
+  call. `--repos`, `--external`, `--rate`, `--burst` and `--cost-budget` still bind
+  nothing and still print `(recorded, not enforced)`.
+
+  Enforced at three surfaces, because a gate on one is a gate the caller walks around
+  by using another: the tool wrapper, `tools/list`, and the `kb://stats` resource, which
+  answers the counts `graph_stats` answers and crosses no wrapper at all.
+
+  `--tools` takes comma-separated groups (`graph`, `search`, `docs`, `stats`, `owners`,
+  `semantic`) plus `all`, `read` and `none`. `read` is every group except `semantic`. A
+  group this server does not know is refused at `create`, so a typo cannot be minted
+  onto a key that then reads as scoped. In a hand-edited key file the same value is
+  denied rather than refused: it narrows the key and never widens it.
+
+  `ask` is refused unless every tool it routes to is granted. It calls eight siblings
+  directly, below the wrapper that checks a grant, so a key granted `ask` and denied
+  `blast_radius` would otherwise reach `blast_radius` through the impact route.
+
+  `--owners real` allows `who_knows`; `pseudonymous` and `hidden` refuse it, and refuse
+  `ask` with it. There is no anonymiser on the network path, so a key that asked for
+  pseudonyms gets no names rather than real ones.
+
+  **`--repos` is deliberately not enforced.** It cannot be decided from a call alone: a
+  node id does not carry the repository it came from, and `repo_dependencies`,
+  `repo_flow` and `repo_event_flow` take a required `repo` and return rows naming other
+  repositories. Correct scoping needs a filter inside the store.
+
+  stdio is unchanged, byte for byte. It reads no key, no policy and no identity, and it
+  loads no grant module.
+
+### Changed
+
+- **The `(recorded, not enforced)` label moved from per line to per axis.** One label
+  after all three scope axes claimed the same thing about all three, so enforcing
+  `tools` alone would have made the line say `repos` and `owners` were live too.
+  `kb keys show` now marks each axis on its own, and an unset axis carries no marker at
+  all, because it records no scope for a marker to qualify.
+
+- **`policy_enforced` in every `--json` document is derived rather than a fixed
+  `false`.** It answers whether every axis the document renders is enforced, so a key
+  scoped only on `--tools` reads `true` and the same key with `--rate` added reads
+  `false`. A key with no policy at all reads `false`, not a vacuous `true`: the fact an
+  operator needs is whether anything limits the key, and for the key a bare
+  `kb keys create alice` mints the answer is no. Each key also carries a new
+  `enforced_axes` list. The field is not removed and does not change type.
+
 ### Fixed
 
 - **The graph's empty state named a flag that does not exist on the command the reader

@@ -277,19 +277,50 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**The scope flags are recorded and enforced by nothing.** `--tools`, `--repos`,
-`--owners`, `--rate`, `--burst` and `--cost-budget` are written onto the key and rendered
-back by `create`, `list`, `show` and `check`. No code reads them. A key created with
-`--tools none --repos nothing-matches/*` gets the full tool list over MCP and can call
-every one of them on every indexed repository. Measured, not assumed: that key was
-presented to a live `kb serve --transport http --keys-only` server and `tools/list`
-answered with all 23 registered tools.
+**Two scope flags are enforced and four are not, and the marker beside each value says
+which.** `--tools` and `--owners` are read on every call a networked server serves.
+`--repos`, `--external`, `--rate`, `--burst` and `--cost-budget` are still written onto
+the key and read by nothing.
 
-So every surface that prints them says `(recorded, not enforced)` beside the values and
-carries three lines saying what that means. Every `--json` document carries
-`"policy_enforced": false` for the same reason. Do not hand out a key believing the scope
-limits it. Enforcement ships in a later release; `--rate` and `--cost-budget` are stored
-as typed and are not validated yet either.
+`--tools` takes a comma-separated list of groups: `graph`, `search`, `docs`, `stats`,
+`owners`, `semantic`, plus the reserved `all`, `read` and `none`. `read` covers every
+group except `semantic`. A group name this server does not know is refused at `create`,
+so a typo cannot be minted onto a key that then reads as scoped.
+
+Enforcement applies at three surfaces, because a gate on one is a gate the caller walks
+around by using another. `tools/list` shows a key only what it may call; a `tools/call`
+outside the grant is refused with a message naming the group that would allow it; and the
+`kb://stats` resource is gated with the `stats` group, since it answers the counts
+`graph_stats` answers.
+
+`ask` needs every tool it routes to. It dispatches to eight siblings by calling them
+directly, below the wrapper that checks a grant, so it is refused unless all eight are
+granted. `--tools read` covers them.
+
+`--owners real` allows `who_knows`. `--owners pseudonymous` and `--owners hidden` **refuse**
+it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
+so a key that asked for pseudonyms gets no names rather than real ones.
+
+**`--repos` still binds nothing.** A key created `--repos nothing-matches/*` reads every
+indexed repository. It cannot be enforced by a check on the call alone: a node id does not
+carry the repository it came from, and three tools that take a required `repo` return rows
+naming other repositories. Correct scoping needs a filter inside the store, which ships
+later.
+
+Measured on a live `kb serve --transport http --keys-only` server, not assumed. In the
+release before this one, a key created `--tools none --repos nothing-matches/*` was
+presented and `tools/list`
+answered with all 23 registered tools, after which `graph_stats` ran and returned a result.
+The same key on the same server now gets an empty tool list and a refusal on `graph_stats`.
+The `--repos` half is unchanged.
+
+Every surface that prints an unenforced axis says `(recorded, not enforced)` beside it and
+carries a note naming both halves. Each `--json` document carries `"policy_enforced"` for
+what it renders, and each key carries `"enforced_axes"`. `--rate` and `--cost-budget` are
+stored as typed and are not validated yet either.
+
+Scoping is a NETWORK control. stdio serves one local user who already has the files, so
+nothing on that transport reads a key or a policy.
 
 **`--client` prints the config snippet for the editor that will hold the key**
 (`claude-code`, `cursor`, `vscode`, `windsurf`, `zed`). Every snippet reads the key from a

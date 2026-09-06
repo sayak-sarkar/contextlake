@@ -41,7 +41,7 @@ from mcp.server.mcpserver import MCPServer
 # bare `Error executing tool <name>` with the text kept server-side. Raising ValueError for
 # a validation failure therefore stopped telling the caller WHAT was wrong -- silently, on
 # an `mcp>=2.0` floor that let 2.1.0 in.
-from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
@@ -137,6 +137,31 @@ class GrantDenied(ToolError):
     Nothing raises this yet. The access-control axes do, and they import this
     name rather than declaring a second class an ``except`` clause would miss.
     """
+
+
+def _grants():
+    """``kb.grants``, imported on first use and never at module scope.
+
+    Local-first property P1: an stdio run loads no grant model. `build_server`
+    reaches this only inside the `_networked` branches, and `build_http_app`
+    imports the module in its own body, the same deferred-import habit the
+    keystore modules already use here.
+    """
+    from . import grants
+
+    return grants
+
+
+def _resource_refusal(message: str) -> ResourceError:
+    """A refusal a RESOURCE read can carry, holding ``message`` verbatim.
+
+    ``MCPServer.read_resource`` re-raises a ``ResourceError`` untouched and
+    collapses every other exception into ``Error reading resource <uri>``, which
+    loses the reason exactly as a non-``ToolError`` does on the tool path. So the
+    resource gate decides with ``GrantDenied``, like every other axis, and
+    changes class only at this edge.
+    """
+    return ResourceError(message)
 
 
 class IdentityUnset(ToolError):
@@ -1012,12 +1037,17 @@ def build_server(
     # or a server whose identity propagation broke answers every tool unscoped
     # while every test in the suite passes.
     #
-    # `_networked` is the only switch that lands with the frame. The other five
-    # (_enforcing, _charging, _recording, _timed, _now) arrive with the story
-    # whose lines read them. Landed here they would be five assignments nothing
-    # references, which ruff F841 refuses, and they are the same
-    # write-with-no-consumer shape this frame is built to keep out.
+    # `_networked` landed with the frame. `_enforcing` arrives here with the
+    # access-control story that reads it. The other four (_charging, _recording,
+    # _timed, _now) still have no reader, so they are still absent: landed early
+    # they would be assignments nothing references, which ruff F841 refuses, and
+    # they are the same write-with-no-consumer shape this frame keeps out.
     _networked = networked
+    # `_enforcing` implies `_networked` is an ENFORCED invariant, not an
+    # assumption: the loop above refuses `grant_source` with `networked=False`.
+    # That is what lets the check below read `principal.key_id` with no None
+    # test, because the identity refusal above the anchor has already run.
+    _enforcing = grant_source is not None
 
     def bounded_tool(fn):
         @functools.wraps(fn)
@@ -1078,6 +1108,19 @@ def build_server(
                 # planning/tickets/epic-4-mcp-network-auth/
                 # S4.3-acl-3-ask-per-leg-and-drift-scan.md. Do not read this
                 # anchor as covering it.
+                #
+                # `grants._check_tools` closes the tools half of that at the one
+                # name it can see: `ask` is refused unless every leg it routes
+                # to is granted. That is coarser than per-leg checking and it is
+                # not a substitute for it.
+                #
+                # `principal` is the local captured above, never a second
+                # `current_principal()`. The reader is counted:
+                # `test_ask_dispatches_its_legs_below_the_guarded_wrapper`
+                # asserts exactly one read per `ask`, so a second call here
+                # turns that count into 2 and fails it for the wrong reason.
+                if _enforcing:
+                    grant_source.check(principal, fn.__name__)
                 with _tool_slots:
                     # ANCHOR (cost): the timer opens here, inside the slot, so a
                     # wait on another caller's slot is never billed as this
@@ -1086,9 +1129,14 @@ def build_server(
             except IdentityUnset:
                 outcome = "identity_unset"  # noqa: F841 - reader lands with the recorder
                 raise
-            # ANCHOR (access control): `except GrantDenied` goes here, above the
-            # catch-all, so a deliberate refusal is filed as a denial and not as
-            # a crash.
+            # ANCHOR (access control): above the catch-all, so a deliberate
+            # refusal is filed as a denial and not as a crash. It sits here
+            # rather than around the check itself because a refusal raised from
+            # inside a tool BODY has to land on the same clause; one `except`
+            # over the whole `try` is what makes the axes share a vocabulary.
+            except GrantDenied:
+                outcome = "denied"  # noqa: F841 - reader lands with the recorder
+                raise
             except BaseException:
                 # BaseException, not Exception, deliberately. A cancellation or a
                 # KeyboardInterrupt would otherwise skip this line and leave an
@@ -2297,11 +2345,87 @@ def build_server(
 
     @mcp.resource("kb://stats")
     def stats_resource() -> str:
+        # A RESOURCE READ IS NOT A TOOL CALL, so nothing here crosses `guarded`:
+        # no drift probe, no concurrency slot, no `IdentityUnset`, no
+        # `except GrantDenied`. The gate has to be written out here or the
+        # `stats` group is a gate a caller walks around by reading a URI instead
+        # of calling `graph_stats`, which answers the same counts.
+        #
+        # MEASURED 2026-09-06 against a bound socket with two live keys: the
+        # principal DOES reach this body, correct per key. The phase-0 identity
+        # measurement covered the synchronous tool path only, so this was not
+        # proven by it and is not assumed here.
+        if _networked:
+            principal = current_principal()
+            if principal is None:
+                _note_identity_fault("kb://stats")
+                raise _resource_refusal(_IDENTITY_UNSET_MESSAGE)
+            if _enforcing:
+                try:
+                    grant_source.check(principal, _grants().STATS_RESOURCE)
+                except GrantDenied as denied:
+                    # Re-raised as the SDK's resource error, and only at this
+                    # edge. `read_resource` passes a `ResourceError` message
+                    # through to the caller and collapses everything else to
+                    # "Error reading resource kb://stats", which loses the
+                    # reason the same way a non-ToolError does on the tool path.
+                    # One decision point, two transport shapes.
+                    raise _resource_refusal(str(denied)) from None
         st = store.stats()
         return json.dumps(
             {"repos": st.repos, "nodes": st.nodes, "edges": st.edges,
              "by_confidence": st.by_confidence}
         )
+
+    if _networked:
+        # THE CATALOGUE IS FILTERED, and it is installed under `_networked`
+        # rather than under `_enforcing`. The row that forces that is the
+        # unset-principal one: `tools/list` crosses no wrapper, so nothing
+        # raises `IdentityUnset` on its behalf, and a networked server whose
+        # identity propagation broke would otherwise hand its whole catalogue to
+        # a caller it cannot name while every tool refuses and every tool test
+        # passes. Installed under `_enforcing` that row would be unreachable on
+        # a token-only server, which is a server that has one.
+        #
+        # Empty is the honest answer to "what may you call" when the server
+        # cannot tell who is asking, and it is loud: a client with no tools
+        # stops, rather than working on for a while against a broken gate.
+        #
+        # stdio never installs this and never imports `grants`.
+        # BOTH catalogues, not just the tool one. `resources/list` advertises
+        # `kb://stats`, and leaving it unfiltered would tell a key holding
+        # `--tools docs` about a URI whose read is then refused -- the same
+        # turn-per-refusal cost the tool filter exists to avoid, on the surface
+        # a reader is least likely to check. Two names, one rule.
+        def _catalogue(original, label, name_of):
+            async def _filtered_catalogue():
+                entries = await original()
+                principal = current_principal()
+                if principal is None:
+                    _note_identity_fault(label)
+                    return []
+                if not _enforcing:
+                    return entries
+                allowed = set(grant_source.visible(
+                    principal, [name_of(entry) for entry in entries]))
+                return [entry for entry in entries if name_of(entry) in allowed]
+
+            # The closure's NAME is load-bearing beyond readability:
+            # `test_ask_dispatches_its_legs_below_the_guarded_wrapper`
+            # attributes each `current_principal()` read to the frame that
+            # made it, so a rename here turns that test red rather than
+            # letting a third reader appear unnoticed.
+            return _filtered_catalogue
+
+        # Assigned on the instance. `MCPServer._handle_list_tools` calls
+        # `self.list_tools()` and `_handle_list_resources` calls
+        # `self.list_resources()`, so the instance attribute wins over the class
+        # method; verified against mcp 2.1.0 by reading those handlers and by
+        # driving a bound socket, not inferred from the assignment working.
+        mcp.list_tools = _catalogue(
+            mcp.list_tools, "tools/list", lambda tool: tool.name)
+        mcp.list_resources = _catalogue(
+            mcp.list_resources, "resources/list", lambda res: str(res.uri))
 
     return mcp
 
@@ -2932,11 +3056,23 @@ def build_http_app(
     # because there are several call sites and one that forgot it would be a
     # socket serving unidentified traffic with every test still green.
     #
-    # grant_source is DERIVED here for the same reason, and today it derives to
-    # None: this server has no grant model yet, so passing the keyring through
-    # would put a value in the tool wrapper that nothing reads. The access-control
-    # story turns this line into the derivation from `keyring`.
-    grant_source = None
+    # grant_source is DERIVED here for the same reason: a parameter one of the
+    # several call sites forgot would be a socket serving unscoped traffic with
+    # every test still green.
+    #
+    # It derives to None on a TOKEN-ONLY server, and that is the honest state
+    # rather than a gap. The shared token has no key record and therefore no
+    # policy, so there is nothing to enforce and `_enforcing` is False. What
+    # still applies on that server is the catalogue filter's unset-principal
+    # row, which is why that filter installs under `networked` and not under
+    # `_enforcing`.
+    #
+    # Imported HERE, in the function body. Local-first property P1: stdio
+    # branches in run_server before it reaches this function, so an stdio run
+    # loads no grant model.
+    from . import grants as _grants_module
+
+    grant_source = _grants_module.make_grant_check(keyring)
     server = build_server(store, embedder=embedder, vector_store=vector_store,
                           tool_concurrency=tool_concurrency, networked=True,
                           grant_source=grant_source, usage=usage, now=now)

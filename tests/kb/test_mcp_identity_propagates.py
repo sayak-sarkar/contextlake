@@ -43,6 +43,7 @@ import asyncio
 import http.client
 import json
 import socket
+import sys
 import threading
 import time
 from contextlib import contextmanager
@@ -127,14 +128,21 @@ class ProbeStore(SqliteStore):
 
 
 class FakeRecord:
-    """What ``resolve`` hands back beside the state. Only ``id`` is read."""
+    """What ``resolve`` hands back beside the state, plus the policy block.
 
-    def __init__(self, key_id: str) -> None:
+    ``id`` is what the gate reads. ``policy`` is what the grant check reads back
+    through ``policy_for``, and it defaults to ``{}`` -- a record with no scope,
+    which grants every tool -- so every test in this file that is about the
+    IDENTITY hand-off keeps measuring that and not an access refusal.
+    """
+
+    def __init__(self, key_id: str, policy: dict | None = None) -> None:
         self.id = key_id
+        self.policy = policy or {}
 
 
 class FakeKeyring:
-    """The two-method read shape the gate calls, over live keys only.
+    """The read shape the gate and the grant check call, over live keys only.
 
     A fake here rather than a real ``keyfile.Keyring`` because this file is
     about the IDENTITY hand-off, and it needs to pin the key id each request
@@ -145,8 +153,10 @@ class FakeKeyring:
     this fake and that class drifting apart.
     """
 
-    def __init__(self, mapping: dict[str, str]) -> None:
+    def __init__(self, mapping: dict[str, str],
+                 policies: dict[str, dict] | None = None) -> None:
         self._by_value = {value: key_id for key_id, value in mapping.items()}
+        self._policies = policies or {}
 
     def reload_if_changed(self) -> bool:
         return False
@@ -157,7 +167,20 @@ class FakeKeyring:
         except UnicodeDecodeError:
             return None
         key_id = self._by_value.get(value)
-        return None if key_id is None else (FakeRecord(key_id), "live")
+        if key_id is None:
+            return None
+        return FakeRecord(key_id, self._policies.get(key_id)), "live"
+
+    def policy_for(self, key_id: str):
+        """The third method, read by the grant check rather than by the gate.
+
+        ``None`` for an id this keyring does not hold, never ``{}``: those are
+        opposite grants, and the real ``keyfile.Keyring.policy_for`` keeps them
+        apart for the same reason.
+        """
+        if key_id not in self._by_value.values():
+            return None
+        return dict(self._policies.get(key_id, {}))
 
 
 class CountingVar:
@@ -820,19 +843,33 @@ def test_ask_dispatches_its_legs_below_the_guarded_wrapper(probe_store,
     dispatched to, and a caller granted `ask` reaches the rest through it.
 
     Counting the ONE read `guarded` makes per call is how that is measured
-    from outside: the wrapper's identity read is the only thing in the frame
-    today, so a leg that had crossed the wrapper would add a second read. If a
-    later story wraps the legs, this test fails and sends the reader to the
-    anchor comment, which is the point of writing it down.
+    from outside: a leg that had crossed the wrapper would add a second read.
+    If a later story wraps the legs, this test fails and sends the reader to
+    the anchor comment, which is the point of writing it down.
+
+    THE READS ARE ATTRIBUTED TO THE FRAME THAT MADE THEM, and a bare global
+    count no longer does the job. `current_principal` had one caller when this
+    was written; the catalogue filter installed under `networked` is a second,
+    and the MCP client reads the catalogue around a `call_tool`. A global count
+    of 2 would then fail here while `guarded` was still entered once, which is
+    a red test for a thing that did not happen. The filter's own read is
+    asserted below rather than ignored, so this does not become a way to hide
+    a third caller. That assertion has already earned its place: it caught
+    the catalogue closure being renamed during a refactor, which is the same
+    signal a genuine new reader would give.
 
     "who calls ingest" routes to CALLERS, which calls `find_callers`, so the
     leg is really dispatched: a green run with an empty answer would prove
     nothing.
     """
     calls = []
+    by_frame = []
 
     def counted():
-        calls.append(1)
+        caller = sys._getframe(1).f_code.co_name
+        by_frame.append(caller)
+        if caller == "guarded":
+            calls.append(1)
         return Principal("key-ask")
 
     monkeypatch.setattr(server_mod, "current_principal", counted)
@@ -849,7 +886,11 @@ def test_ask_dispatches_its_legs_below_the_guarded_wrapper(probe_store,
     assert [n["id"] for n in result.structured_content["nodes"]] == ["a"], \
         result.structured_content
     # One entry into `guarded`, for `ask` itself. The leg did not cross it.
-    assert len(calls) == 1, len(calls)
+    assert len(calls) == 1, by_frame
+    # Every other read is the catalogue filter and nothing else. Without this,
+    # attributing by frame name above would silently stop counting any future
+    # caller that is neither, which is the hole the global count did not have.
+    assert set(by_frame) <= {"guarded", "_filtered_catalogue"}, by_frame
 
 
 # ==========================================================================

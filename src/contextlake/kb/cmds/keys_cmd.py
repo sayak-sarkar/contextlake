@@ -40,7 +40,7 @@ from typing import NamedTuple
 
 from ... import style
 from ...logging_setup import log, use_stderr
-from .. import keyfile
+from .. import grants, keyfile
 from .. import keys as keys_mod
 
 # The verbs, and the two groups the permission rules split on. The parser in
@@ -86,35 +86,46 @@ REFUSED_CLIENTS = ("claude-desktop", "claude-web")
 
 _DATE_FORMAT = "%Y-%m-%d"
 
-# THE POLICY IS RECORDED AND ENFORCED BY NOTHING, AND EVERY SURFACE SAYS SO.
+# PART OF THE POLICY IS ENFORCED NOW AND PART IS NOT, AND THE LABEL SAYS WHICH.
 #
-# `--tools`, `--repos` and `--owners` are stored on the record and rendered
-# back. No code reads them. `build_http_app` sets `grant_source = None`
-# (`kb/server.py:2939`) and the tool wrapper carries only the two ANCHOR
-# comments where the check will go (`kb/server.py:1064` and `:1089`).
+# `tools` and `owners` are read by `kb/grants.py` and checked on every call a
+# networked server serves. `repos`, `external`, `rate`, `burst` and
+# `cost_budget` are still stored and read by nothing.
 #
-# Measured on 2026-09-05, not reasoned about: a key created with
-# `--tools none --repos nothing-matches/*` was presented to a live
-# `kb serve --transport http --keys-only` server, and `tools/list` answered
-# with all 23 registered tools, after which `graph_stats` ran and returned a
-# result. The full transcript is on the S4.2.5 round-5 ticket.
+# The label used to be one clause covering all six axes, and that is now a LIE
+# IN BOTH DIRECTIONS. Blanket "recorded, not enforced" tells an operator their
+# `--tools none` key can still call everything, so they revoke a key that was
+# already safe; blanket "enforced" tells them `--rate 60/min` bounds a key that
+# nothing rate-limits, so they hand it out. So the marker goes per axis, and
+# which axes carry which marker is read from `grants.ENFORCED_AXES` rather than
+# retyped here. Two lists in two modules drift, and this drift shows up as the
+# CLI claiming an axis is live that the gate does not check.
 #
-# So a surface that renders the policy without `_NOT_ENFORCED` tells an
-# operator their key is scoped when it is not, and they hand it out on that
-# reading. That is worse than not offering the flags, which is why the label is
-# not optional and why a test walks every surface looking for it.
+# What the deferred axes cost, stated once so the note below can be short.
+# `repos` bounds which repositories a key may NAME, not which an answer may come
+# FROM, and it cannot be enforced correctly by a predicate: a node id does not
+# carry its repo (`grants.py`'s module docstring has the measurement). `external`
+# is a sentinel ruling on the repos axis, so it rides with it. Rate, burst and
+# cost_budget are the S4.4 rate-limit stories.
 #
-# The axes start working in two later stories: S4.3-acl-2 (tools), -4 (owners)
-# and -5 (repos) turn on the scope axes, and S4.4-ratelimit-1..4 turn on rate,
-# burst and cost_budget. The printed lines say "a later release" rather than
-# naming those ids, because a ticket id means nothing at an operator's
-# terminal.
 # One phrase, used two ways: in brackets beside a value, and as a clause in the
 # note. `list` renders its policy in table columns with no room for a bracketed
 # label, so the note is the only place the phrase can reach that surface, and a
 # test asserts the phrase on all four verbs. Two spellings would let `list` pass
 # the note assertion and fail the label one.
 _NOT_ENFORCED = "recorded, not enforced"
+_ENFORCED = "enforced"
+
+# Every axis `--tools`..`--cost-budget` can write, in the order an operator
+# meets them in `--help`. Derived against `grants.ENFORCED_AXES` rather than
+# split by hand into two lists, so an axis that starts being enforced moves
+# between the sentences by itself.
+_ALL_AXES = ("tools", "repos", "owners", "external", "rate", "burst",
+             "cost_budget")
+
+
+def _unenforced_axes() -> tuple[str, ...]:
+    return tuple(axis for axis in _ALL_AXES if axis not in grants.ENFORCED_AXES)
 
 
 def _enforcement_note() -> list[str]:
@@ -123,13 +134,30 @@ def _enforcement_note() -> list[str]:
     Returned rather than logged so `create`, `show`, `check` and `list` all emit
     the same bytes. Four copies of a sentence drift, and the one that drifts is
     the one nobody re-reads.
+
+    It is a statement about THE RELEASE, not about the key in front of it, so
+    `list` can print one copy under a table of many keys. That is also why the
+    unset clause is here: a bare `contextlake kb keys create alice` records no
+    axis at all, and "a call outside them is refused" on its own would read as a
+    restriction on a key that has none.
+
+    The unenforced half names what those axes cost in plain terms. Naming them
+    alone is not enough: an operator who reads "repos is recorded, not enforced"
+    beside `repos=acme/**` still has to work out that the key reads every other
+    repository, and that is the sentence they act on.
     """
     return [
-        f"  Scope and limits are {_NOT_ENFORCED}. Nothing in "
-        f"{_grant_version()} enforces them:",
-        "  this key can call every tool on every indexed repository, whatever "
-        "the scope says.",
-        "  Enforcement ships in a later release.",
+        f"  This release enforces {' and '.join(grants.ENFORCED_AXES)}: a value "
+        "recorded there is checked on every",
+        "  call, and an axis left unset records no scope and limits nothing.",
+        # The phrase is embedded VERBATIM and mid-sentence rather than
+        # sentence-cased. `list` renders its policy in table columns with no
+        # room for a bracketed marker, so this note is the only place the phrase
+        # reaches that surface, and a test asserts the one spelling on all four
+        # verbs. A capitalised copy is a second spelling.
+        f"  These are {_NOT_ENFORCED}: {', '.join(_unenforced_axes())}. So a "
+        "key reads every indexed",
+        "  repository, at whatever rate it asks, whatever those say.",
     ]
 
 
@@ -307,6 +335,36 @@ def _policy(args) -> dict:
             policy[flag] = value
     if getattr(args, "external", False):
         policy["external"] = True
+
+    # `--tools ""` and `--repos ""` are REFUSED here rather than dropped above.
+    # The drop is what the two lines above still do for every other axis, and it
+    # makes an empty value indistinguishable from an unset one -- which is the
+    # opposite instruction now that the tools axis is live. An unset axis grants
+    # every tool; the operator who typed an empty string was narrowing.
+    #
+    # The refusal happens at the flag, not by storing `""`: `_scope_line` renders
+    # `policy.get(axis) or 'unset'`, so a stored empty string would print `unset`
+    # while meaning deny, which is the same collapse one layer down.
+    for flag in ("tools", "repos"):
+        if getattr(args, flag, None) == "":
+            raise _BadUsage(
+                f"empty_{flag}",
+                f"--{flag} was given an empty value. Leave the flag off to "
+                f"record no {flag} scope, or pass a value. An empty string "
+                "cannot say which was meant.",
+                value="")
+
+    if "tools" in policy:
+        # Refused at CREATE, so a typo cannot be minted onto a key that then
+        # reads as scoped. This is deliberately NOT what the server does with an
+        # unrecognised group in a hand-edited key file: there it is denied, not
+        # refused, because refusing at the request would answer a call the
+        # operator meant to narrow.
+        try:
+            grants.validate_tools(policy["tools"])
+        except grants.GroupError as exc:
+            raise _BadUsage("unknown_tool_group", str(exc),
+                            value=policy["tools"]) from exc
     return policy
 
 
@@ -325,12 +383,37 @@ def _scope_line(record) -> str:
     for. It is not enforced either, which is what the label is for.
     """
     policy = record.policy or {}
-    parts = [f"tools={policy.get('tools') or 'unset'}",
-             f"repos={policy.get('repos') or 'unset'}",
-             f"owners={policy.get('owners') or 'unset'}"]
+    parts = [_axis(policy, "tools"), _axis(policy, "repos"),
+             _axis(policy, "owners")]
     if policy.get("external"):
-        parts.append("external=on")
-    return "  ".join(parts) + f"  ({_NOT_ENFORCED})"
+        parts.append(f"external=on  ({_NOT_ENFORCED})")
+    return "  ".join(parts)
+
+
+def _axis(policy, axis: str) -> str:
+    """One scope axis with the marker that belongs to THAT axis.
+
+    The marker is per axis, not per line. One label after all three read as a
+    claim about all three, so enforcing `tools` alone with the old line made it
+    say `repos` and `owners` were live too.
+
+    An UNSET axis carries no marker at all. It records no scope, so it makes no
+    claim for a marker to qualify, and `tools=unset (recorded, not enforced)`
+    would read as a restriction that is inert rather than as no restriction.
+    """
+    value = policy.get(axis)
+    if not value:
+        return f"{axis}=unset"
+    if axis not in grants.ENFORCED_AXES:
+        return f"{axis}={value}  ({_NOT_ENFORCED})"
+    if axis == "owners" and str(value).strip().casefold() != grants.OWNERS_REAL:
+        # The operator learns from `show` what they would otherwise learn from a
+        # failed call. This release has no anonymiser on the network path, so a
+        # key that asked for anything but real identity is REFUSED the identity
+        # tools rather than served real names, and `(enforced)` on its own would
+        # let an operator believe they are getting pseudonyms.
+        return f"{axis}={value}  ({_ENFORCED}: who_knows and ask are refused)"
+    return f"{axis}={value}  ({_ENFORCED})"
 
 
 def _limits_line(record) -> str:
@@ -467,7 +550,25 @@ def _json_record(record, now, *, digest: bool = False) -> dict:
     payload["state"] = record.state(now)
     payload["last_used_at"] = None
     payload["last_used_state"] = _LAST_USED_STATE
+    # PER RECORD, because `list` and `prune` render many and the answer differs
+    # between them. `policy_enforced` at the top of a document says whether
+    # everything that document shows is enforced; a caller rendering one row
+    # needs the answer for that row, and a document-level boolean cannot give it.
+    payload["enforced_axes"] = grants.enforced_axes(record.policy)
+    payload["policy_enforced"] = grants.policy_is_enforced(record.policy)
     return payload
+
+
+def _enforced_flag(policies) -> bool:
+    """The document-level ``policy_enforced``: is everything shown enforced?
+
+    ``all()`` over an EMPTY set is True, and that answer is wrong here: a `list`
+    with no keys, or a `prune` that removed none, would claim enforcement over
+    nothing and a dashboard would render a green column for an empty table. An
+    empty set means nothing shown is enforced, which is False.
+    """
+    policies = list(policies)
+    return bool(policies) and all(grants.policy_is_enforced(p) for p in policies)
 
 
 def _permission_block(loaded: _Loaded) -> dict:
@@ -744,7 +845,6 @@ def _cmd_create(args) -> int:
     now = datetime.now(timezone.utc)
     if as_json:
         payload = _json_record(record, now)
-        payload["policy_enforced"] = False
         payload.update(_key_channel(key, print_key=print_key, out_file=out_file))
         payload["changed"] = True
         payload["keys_file"] = str(path)
@@ -905,7 +1005,11 @@ def _cmd_list(args) -> int:
                    # directory, so a fresh check could report `present: true`
                    # beside an error saying the path is a directory.
                    "present": doc.present,
-                   "policy_enforced": False,
+                   # The aggregate over the rows this document renders. Each row
+                   # carries its own `policy_enforced` and `enforced_axes`,
+                   # which is the answer a caller rendering one row needs.
+                   "policy_enforced": _enforced_flag(
+                       by_id[row["id"]].policy for row in shown),
                    # Echoes `--all`, so a caller can tell a filtered list from a
                    # complete one. Without it, `live: 2` beside two rows and
                    # `live: 2` beside five rows read the same.
@@ -950,7 +1054,6 @@ def _cmd_show(args) -> int:
     now = datetime.now(timezone.utc)
     if as_json:
         payload = _json_record(record, now, digest=True)
-        payload["policy_enforced"] = False
         payload["keys_file"] = str(path)
         payload.update(_permission_block(loaded))
         _emit_json(payload, sort_keys=True)
@@ -1007,7 +1110,6 @@ def _cmd_revoke(args) -> int:
         _save(path, records)
     if as_json:
         payload = _json_record(record, datetime.now(timezone.utc))
-        payload["policy_enforced"] = False
         # THE FIELD THIS DOCUMENT EXISTS FOR. Both branches exit 0 and always
         # have, so "I revoked it" and "somebody else already had" are one exit
         # code, and the prose was the only thing that told them apart. On the
@@ -1084,7 +1186,12 @@ def _cmd_rotate(args) -> int:
                    # The house duration pair, `interval`/`interval_seconds` in
                    # `schedule/report.py:27-33`.
                    "overlap_seconds": keys_mod.parse_duration(overlap),
-                   "policy_enforced": False}
+                   # `rotate` copies the policy verbatim (`keys.py:673`), so
+                   # both records answer the same. The aggregate is taken over
+                   # both anyway, so a rotate that stops copying cannot leave
+                   # this describing only the old one.
+                   "policy_enforced": _enforced_flag(
+                       (record.policy, new_record.policy))}
         payload.update(_key_channel(key, print_key=print_key, out_file=out_file))
         payload["changed"] = True
         payload["keys_file"] = str(path)
@@ -1140,7 +1247,7 @@ def _cmd_prune(args) -> int:
                     "removed_keys": [_json_record(r, now) for r in removed],
                     "remaining": len(records),
                     "changed": bool(removed),
-                    "policy_enforced": False,
+                    "policy_enforced": _enforced_flag(r.policy for r in removed),
                     "keys_file": str(path)})
         return 0
     log(f"Pruned {len(removed)} record(s) that stopped working before {before}.")
@@ -1208,7 +1315,15 @@ def _cmd_check(args) -> int:
                             if record else None,
                    "expires_at": record.expires_at if record else None,
                    "policy": dict(record.policy or {}) if record else None,
-                   "policy_enforced": False,
+                   "enforced_axes": (grants.enforced_axes(record.policy)
+                                     if record else None),
+                   # False with NO record, and not null: on `malformed` and
+                   # `unknown` nothing is enforced because there is nothing to
+                   # enforce, and a null here would make a caller testing
+                   # `if not doc["policy_enforced"]` and one testing `is False`
+                   # disagree about the same answer.
+                   "policy_enforced": (grants.policy_is_enforced(record.policy)
+                                       if record else False),
                    "checked_locally": True,
                    "keys_file": str(path)}
         payload.update(_permission_block(loaded))
