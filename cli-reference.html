@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-06"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=726c2985">
-<link rel="stylesheet" href="tokens.css?v=726c2985">
-<link rel="stylesheet" href="docs.css?v=726c2985">
-<link rel="stylesheet" href="cmdk.css?v=726c2985">
+<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
+<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
+<link rel="stylesheet" href="docs.css?v=2dcd9aed">
+<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -378,11 +378,11 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>kb serve</code></td>
-<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>; the network transports print a bearer token and need <code>--allow-remote</code> for a non-loopback <code>--host</code>; <code>--keys-file</code> and <code>--keys-only</code> decide which key file is read and whether a shared token may be minted; <code>--tool-concurrency N</code> bounds how many tool calls run at once, default <code>2</code>)</td>
+<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>; the network transports print a bearer token and need <code>--allow-remote</code> for a non-loopback <code>--host</code>; <code>--keys-file</code> and <code>--keys-only</code> decide which key file is read and whether a shared token may be minted; <code>--no-usage</code> turns off the per-key call record; <code>--tool-concurrency N</code> bounds how many tool calls run at once, default <code>2</code>)</td>
 </tr>
 <tr>
 <td><code>kb keys</code></td>
-<td>Create and manage the API keys that authenticate MCP callers: <code>create</code>, <code>list</code>, <code>show</code>, <code>revoke</code>, <code>rotate</code>, <code>check</code>, <code>prune</code></td>
+<td>Create and manage the API keys that authenticate MCP callers, and read what they called: <code>create</code>, <code>list</code>, <code>show</code>, <code>revoke</code>, <code>rotate</code>, <code>check</code>, <code>prune</code>, <code>usage</code></td>
 </tr>
 <tr>
 <td><code>kb steer</code></td>
@@ -455,6 +455,7 @@ contextlake kb keys revoke k_4f2a91 --reason &quot;laptop returned&quot;
 contextlake kb keys rotate k_4f2a91 --overlap 24h
 printf &#39;%s&#39; &quot;$KEY&quot; | contextlake kb keys check
 contextlake kb keys prune --before 2026-01-01
+contextlake kb keys usage --since 24h
 </code></pre></div>
 <p><strong>The key is shown once, and only once.</strong> It is printed to standard error at creation and
 never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
@@ -486,18 +487,48 @@ stores, not what a server would allow.</p>
 <p><strong>The checksum in a key is a typo filter, not a security control.</strong> It catches a key
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.</p>
-<p><strong>The scope flags are recorded and enforced by nothing.</strong> <code>--tools</code>, <code>--repos</code>,
-<code>--owners</code>, <code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are written onto the key and rendered
-back by <code>create</code>, <code>list</code>, <code>show</code> and <code>check</code>. No code reads them. A key created with
-<code>--tools none --repos nothing-matches/*</code> gets the full tool list over MCP and can call
-every one of them on every indexed repository. Measured, not assumed: that key was
-presented to a live <code>kb serve --transport http --keys-only</code> server and <code>tools/list</code>
-answered with all 23 registered tools.</p>
-<p>So every surface that prints them says <code>(recorded, not enforced)</code> beside the values and
-carries three lines saying what that means. Every <code>--json</code> document carries
-<code>"policy_enforced": false</code> for the same reason. Do not hand out a key believing the scope
-limits it. Enforcement ships in a later release; <code>--rate</code> and <code>--cost-budget</code> are stored
-as typed and are not validated yet either.</p>
+<p><strong>Five key flags are enforced and two are not, and the marker beside each value says
+which.</strong> <code>--tools</code> and <code>--owners</code> are read on every call a networked server serves.
+<code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are checked at the gate, before a call reaches a
+tool. <code>--repos</code> and <code>--external</code> are still written onto the key and read by nothing.</p>
+<p><code>--tools</code> takes a comma-separated list of groups: <code>graph</code>, <code>search</code>, <code>docs</code>, <code>stats</code>,
+<code>owners</code>, <code>semantic</code>, plus the reserved <code>all</code>, <code>read</code> and <code>none</code>. <code>read</code> covers every
+group except <code>semantic</code>. A group name this server does not know is refused at <code>create</code>,
+so a typo cannot be minted onto a key that then reads as scoped.</p>
+<p>Enforcement applies at three surfaces, because a gate on one is a gate the caller walks
+around by using another. <code>tools/list</code> shows a key only what it may call; a <code>tools/call</code>
+outside the grant is refused with a message naming the group that would allow it; and the
+<code>kb://stats</code> resource is gated with the <code>stats</code> group, since it answers the counts
+<code>graph_stats</code> answers.</p>
+<p><code>ask</code> needs every tool it routes to. It dispatches to eight siblings by calling them
+directly, below the wrapper that checks a grant, so it is refused unless all eight are
+granted. <code>--tools read</code> covers them.</p>
+<p><code>--owners real</code> allows <code>who_knows</code>. <code>--owners pseudonymous</code> and <code>--owners hidden</code> <strong>refuse</strong>
+it, and refuse <code>ask</code> with it. There is no anonymiser on the network path in this release,
+so a key that asked for pseudonyms gets no names rather than real ones.</p>
+<p><strong><code>--repos</code> still binds nothing.</strong> A key created <code>--repos nothing-matches/*</code> reads every
+indexed repository. It cannot be enforced by a check on the call alone: a node id does not
+carry the repository it came from, and three tools that take a required <code>repo</code> return rows
+naming other repositories. Correct scoping needs a filter inside the store, which ships
+later.</p>
+<p>Measured on a live <code>kb serve --transport http --keys-only</code> server, not assumed. In the
+release before this one, a key created <code>--tools none --repos nothing-matches/*</code> was
+presented and <code>tools/list</code>
+answered with all 23 registered tools, after which <code>graph_stats</code> ran and returned a result.
+The same key on the same server now gets an empty tool list and a refusal on <code>graph_stats</code>.
+The <code>--repos</code> half is unchanged.</p>
+<p><strong><code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are enforced.</strong> A key over its quota gets <code>429</code>
+with a <code>Retry-After</code> header, refused at the gate before the request reaches any tool. Values
+are validated at the flag, so a typo cannot be minted onto a key, and again when a key file
+is loaded for serving. See <a href="mcp-transports#per-key-quotas">per-key quotas</a> for the
+formats, the <code>[serve]</code> defaults and what the quota deliberately does not do.</p>
+<p>Every surface that prints an unenforced axis says <code>(recorded, not enforced)</code> beside it and
+carries a note naming both halves. Each <code>--json</code> document carries <code>"policy_enforced"</code> for
+what it renders, and each key carries <code>"enforced_axes"</code>, the three <code>"effective_*"</code> quota
+values a running server will apply, and <code>"limits_source"</code> saying whether each came from the
+key, from <code>[serve]</code> in kb.toml, or from nowhere.</p>
+<p>Scoping is a NETWORK control. stdio serves one local user who already has the files, so
+nothing on that transport reads a key or a policy.</p>
 <p><strong><code>--client</code> prints the config snippet for the editor that will hold the key</strong>
 (<code>claude-code</code>, <code>cursor</code>, <code>vscode</code>, <code>windsurf</code>, <code>zed</code>). Every snippet reads the key from a
 variable rather than inlining it, except Zed, whose <code>context_servers</code> documents no
@@ -505,7 +536,7 @@ environment expansion for a header value. VS Code has the best handling of the f
 prompts once and keeps the value outside the config file. <code>claude-desktop</code> and <code>claude-web</code>
 are refused, each naming the route that does work.</p>
 <h4 id="-json"><code>--json</code><a class="anchor" href="#-json" title="Link to this section">#</a></h4>
-<p>All seven verbs answer <code>--json</code>. <strong>Standard output carries the document and nothing else,
+<p>All eight verbs answer <code>--json</code>. <strong>Standard output carries the document and nothing else,
 on every exit path, failures included.</strong> Every human line, every permission warning and the
 plaintext key go to standard error, so <code>contextlake kb keys list --json &gt; out.json</code> always
 leaves a parseable file.</p>
@@ -543,7 +574,11 @@ leaves a parseable file.</p>
 </tr>
 <tr>
 <td><code>check</code></td>
-<td><code>valid</code>, <code>reason</code>, and the matched record's <code>id</code>, <code>name</code>, <code>state</code>, <code>expires_at</code></td>
+<td><code>valid</code>, <code>reason</code>, <code>checked_locally</code>, the matched record's <code>id</code>, <code>name</code>, <code>state</code>, <code>expires_at</code> and <code>policy</code>, plus <code>enforced_axes</code>, <code>policy_enforced</code>, the <code>effective_*</code> quota values and <code>limits_source</code></td>
+</tr>
+<tr>
+<td><code>usage</code></td>
+<td><code>usage_file</code>, <code>present</code>, <code>readable</code>, <code>since</code>, <code>calls</code>, <code>measured</code>, <code>p50</code>, <code>p95</code>, <code>keys[]</code>, <code>tools[]</code>, <code>refusals[]</code>, <code>refused_total</code></td>
 </tr>
 </tbody>
 </table>
@@ -568,18 +603,31 @@ leaves a parseable file.</p>
   to prefer, and the document names the path in <code>key_file</code>.</li>
 </ul>
 <p><code>list</code> rows carry the record and five frozen display strings from the table:
-<code>tools</code>, <code>repos</code> and <code>rate</code> read <code>-</code> when unset, <code>expires</code> is a date, and <code>last_used</code> is
-always <code>-</code>. Read <code>policy</code> and <code>expires_at</code> instead. <code>last_used_at</code> is <code>null</code> in this
-release and <code>last_used_state</code> says why, because a null on its own cannot tell "never used"
-from "nothing measures it".</p>
-<p><strong>Exit codes.</strong> <code>0</code> on success, including <code>list</code> on a key file that does not exist yet. <code>1</code>
+<code>tools</code>, <code>repos</code> and <code>rate</code> read <code>-</code> when unset, <code>expires</code> is a date, and <code>last_used</code> is a
+date, <code>never</code> or <code>-</code>. Read <code>policy</code>, <code>expires_at</code> and <code>last_used_at</code> instead.
+<code>last_used_state</code> is the sibling that keeps a null from meaning two things: <code>not-recorded</code>
+(no usage file), <code>no-rows</code> (a file with no call for this key) or <code>measured</code>.</p>
+<p><strong>Exit codes.</strong> <code>0</code> on success, including <code>list</code> on a key file that does not exist yet, and
+including <code>usage</code> for a key that was issued and never used. <code>1</code>
 on an id that is not in the file, on a key file that cannot be read, and on <code>check</code> of a
 key that is malformed, unknown, revoked or expired. <code>2</code> on a missing positional or a bad
 flag value. Note the asymmetry with <code>kb source remove</code>, which treats a missing name as a
 no-op at <code>0</code>: <code>revoke</code> on an unknown id fails, because an admin scripting a revocation
 reads the exit code and "I revoked nothing" must not read as success.</p>
 <p>No <code>kb keys</code> verb opens the store database, so every one of them runs on a machine with no
-index built. <code>kb keys list</code> is the first command to run after a server refuses to start.</p>
+index built. <code>usage</code> and the <code>LAST USED</code> column read the usage file beside the store by
+path, which opens nothing. <code>kb keys list</code> is the first command to run after a server
+refuses to start.</p>
+<h4 id="kb-keys-usage"><code>kb keys usage</code><a class="anchor" href="#kb-keys-usage" title="Link to this section">#</a></h4>
+<p>What a networked server recorded: calls, errors, throttles and denials per key, calls per
+tool, the refused requests that never reached a tool, and P50/P95 tool time. <code>--since</code>
+takes <code>45s</code>, <code>30m</code>, <code>2h</code> or <code>7d</code>. An id narrows it to one key, and an id that is not in the
+key file exits <code>1</code> rather than reporting a quiet key.</p>
+<p>It sums the count each row stands for, so one line can be five hundred refused requests.
+Percentiles are nearest-rank over the calls that carry a duration; a refusal above the
+concurrency slot carries none and prints <code>-</code> rather than <code>0ms</code>. An <code>ask</code> counts once, as
+<code>ask</code>. The full shape of the record, what it never contains, and how to turn it off are on
+<a href="mcp-transports#what-the-server-records">Serving over the network</a>.</p>
 <h2 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h2>
 <p>Four: <code>0</code> nothing failed, <code>1</code> something did, <code>2</code> the invocation was wrong, <code>130</code> interrupted
 mid-job. The long-running servers are not in that last one: <code>Ctrl-C</code> is how you are told to stop
@@ -646,6 +694,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=726c2985"></script>
+<script defer src="cmdk.js?v=2dcd9aed"></script>
 </body>
 </html>
