@@ -1325,6 +1325,11 @@ to pin one across restarts. stdio needs no token. See docs/serving-over-mcp.md.
     p.add_argument("--keys-only", dest="keys_only", action="store_true", default=_S,
                    help="refuse to start rather than mint an unscoped shared token. Use "
                         "it where an open server would be worse than no server")
+    p.add_argument("--no-usage", dest="no_usage", action="store_true", default=_S,
+                   help="--transport http/sse: do not record which key called which "
+                        "tool. On by default; the file holds key ids, tool names, "
+                        "outcomes and durations, never query text. Read it with "
+                        "`contextlake kb keys usage`, or set [serve] usage = false")
     _add_net(p)
 
     p = command("keys", "create and manage the API keys that authenticate MCP callers",
@@ -1339,11 +1344,21 @@ Examples:
   contextlake kb keys rotate k_4f2a91 --overlap 24h    issue a replacement, retire the old one
   printf '%s' "$KEY" | contextlake kb keys check       is this key live? reads STDIN only
   contextlake kb keys prune --before 2026-01-01        drop records retired before that date
+  contextlake kb keys usage --since 24h                what each key called, and how long it took
 
 The key itself is shown once, at creation, on STDERR, and is never stored: the
 file holds a digest. A key you did not write down is a key you rotate, not one
 you look up. None of these verbs opens the store database, so they all run on a
-machine with no index built.
+machine with no index built. `usage` and the LAST USED column read the usage
+file beside the store BY PATH, which opens nothing.
+
+`usage` reports what a networked server recorded: calls, errors, throttles and
+denials per key, calls per tool, the refused requests that never reached a
+tool, and P50/P95 tool time. It sums the counts each row stands for, so one
+line can be five hundred refused requests. An `ask` counts once, as `ask`, so
+the eight tools it routes to are under-counted by that much. Nothing about the
+call is recorded beyond the key id, the tool name, the outcome and the
+duration: no query text, no repo, no path.
 
 `check` reads the key from STDIN, never from the command line, because a key in
 argv lands in shell history and shows in `ps` to every account on this machine.
@@ -1354,16 +1369,18 @@ which documents a missing name as a no-op at exit 0. An admin scripting a
 revocation reads the exit code, and "I revoked nothing" must never read as
 success.
 
---tools/--repos/--owners/--rate/--burst/--cost-budget are recorded on the key and
-rendered back by create, list, show and check. TWO OF THEM ARE ENFORCED AND FOUR
-ARE NOT, and the marker beside each value says which. --tools and --owners are
+--tools/--repos/--owners/--external/--rate/--burst/--cost-budget are recorded on
+the key and rendered back by create, list, show and check. FIVE OF THEM ARE
+ENFORCED AND TWO ARE NOT, and the marker beside each value says which. --tools and --owners are
 checked on every call a networked server serves: a key created `--tools none`
-sees an empty tool list and a call it makes is refused. --repos, --external,
---rate, --burst and --cost-budget still bind nothing, so they print
-"(recorded, not enforced)"; a key reads every indexed repository at whatever rate
-it asks, whatever those say. Each --json document carries "policy_enforced" for
-what it renders and "enforced_axes" per key. --rate and --cost-budget are also
-stored as typed and are not validated in this release.
+sees an empty tool list and a call it makes is refused. --rate and --burst bound
+how many requests the key may send, and --cost-budget how much tool time it may
+spend; over the quota the server answers 429 with a Retry-After. --repos and
+--external still bind nothing, so they print "(recorded, not enforced)"; a key
+reads every indexed repository whatever those say. Each --json document carries
+"policy_enforced" for what it renders and, per key, "enforced_axes", the three
+"effective_*" quota values the server will apply, and "limits_source" saying
+whether each came from the key, from [serve] in kb.toml, or from nowhere.
 
 Scoping is enforced on a NETWORKED server only. stdio serves one local user who
 already has the files, so nothing there reads a key or a policy.
@@ -1373,7 +1390,8 @@ already has the files, so nothing there reads a key or a policy.
     # startup path of `contextlake mirror`. Tests pin both tuples against
     # keys_cmd.ACTIONS and keys_cmd.CLIENTS + REFUSED_CLIENTS, so they cannot drift.
     p.add_argument("action",
-                   choices=("create", "list", "show", "revoke", "rotate", "check", "prune"),
+                   choices=("create", "list", "show", "revoke", "rotate", "check",
+                            "prune", "usage"),
                    help="what to do")
     p.add_argument("name", nargs="?", default=_S,
                    help="the key name (create/rotate) or its id (show/revoke)")
@@ -1394,6 +1412,8 @@ already has the files, so nothing there reads a key or a policy.
                         "Required, and typed as a date: prune deletes permanently, "
                         "so the cutoff is never defaulted")
     p.add_argument("--reason", default=_S, help="revoke: recorded against the key")
+    p.add_argument("--since", default=_S, metavar="DURATION",
+                   help="usage: only rows from the last 45s/30m/2h/7d")
     p.add_argument("--url", default=_S,
                    help="the server URL to print in the client snippet")
     # `--tools` and `--owners` are ENFORCED, so their help says what they do.
@@ -1415,13 +1435,19 @@ already has the files, so nothing there reads a key or a policy.
                         "`real` allows who_knows, and `pseudonymous` or `hidden` "
                         "refuse it (and `ask`, which routes to it)")
     p.add_argument("--rate", default=_S, metavar="RATE",
-                   help="create: a request rate, e.g. 60/min. Stored as typed and "
-                        "NOT validated in this release; its parser ships later")
+                   help="create: a request rate, e.g. 60/min, 5/sec, 200/hour. "
+                        "Enforced over the network; over it the server answers "
+                        "429. `none` opts this key out of [serve] default_rate")
     p.add_argument("--burst", default=_S, metavar="N",
-                   help="create: how many requests may arrive at once, e.g. 20")
+                   help="create: how many requests may arrive at once, e.g. 20 "
+                        "(the default, and the minimum is 4). Needs --rate: on "
+                        "its own it is the capacity of a bucket that does not "
+                        "exist")
     p.add_argument("--cost-budget", dest="cost_budget", default=_S, metavar="BUDGET",
-                   help="create: a compute budget, e.g. 30s/min. Stored as typed and "
-                        "NOT validated in this release; its parser ships later")
+                   help="create: tool time this key may spend, e.g. 30s/min. "
+                        "Enforced: each call is charged how long its body ran, "
+                        "so one `ask` is charged for all eight tools it routes "
+                        "to. `none` opts out of [serve] default_cost_budget")
     p.add_argument("--external", action="store_true", default=_S,
                    help="the holder is outside your organisation; recorded on the key")
     p.add_argument("--all", action="store_true", default=_S,
@@ -1437,7 +1463,7 @@ already has the files, so nothing there reads a key or a policy.
                         "moves into the document's `key` field")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted "
-                        "text, on all seven verbs. stdout carries the document "
+                        "text, on all eight verbs. stdout carries the document "
                         "on every exit, failures included; prose goes to stderr")
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",

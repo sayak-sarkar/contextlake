@@ -133,6 +133,158 @@ Devin's own MCP settings. What `contextlake kb steer` *does* give Devin (and any
 plain workspace context) is `AGENTS.md`: the portable part travels; the MCP wiring itself
 doesn't.
 
+## Per-key quotas
+
+A key can carry a request rate and a compute budget, and both are enforced on a networked
+server:
+
+```bash
+contextlake kb keys create ci --rate 60/min --burst 20 --cost-budget 30s/min
+```
+
+- **`--rate`** is how many requests the key may send: `60/min`, `5/sec`, `200/hour`.
+- **`--burst`** is how many may arrive at once. It defaults to 20, the minimum is 4, and it
+  needs a rate: on its own it is the capacity of a bucket that does not exist.
+- **`--cost-budget`** is tool time the key may spend, as a duration per period: `30s/min`.
+  Each call is charged how long its body ran, so one `ask` is charged for all eight tools it
+  routes to. A request count would price that call as one.
+- **`none`** on any of them means no limit on that axis, and beats a server default.
+
+Over the quota the server answers `429` with `Retry-After` in whole seconds and a JSON-RPC
+error naming the limit as you typed it:
+
+```
+HTTP/1.1 429 Too Many Requests
+content-type: application/json
+retry-after: 20
+
+{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"rate limit exceeded for this key: 3/min. retry in 20s"}}
+```
+
+The refusal happens at the gate, before the request reaches any tool, so `tools/list` and the
+`kb://stats` resource are bounded too. A key with no valid credential gets `401` and is never
+counted against any quota.
+
+### Defaults for every key
+
+Set them once in `~/.contextlake/kb.toml` (or a file you name with `--config`):
+
+```toml
+[serve]
+default_rate = "60/min"
+default_burst = "20"
+default_cost_budget = "30s/min"
+```
+
+**All three are unset out of the box**, so nothing starts limiting a key that worked before.
+The values above are a reasonable starting point, not what you get by default.
+
+A key's own value wins; where it names nothing, the default applies. `kb keys show` says which
+tier each value came from, so an inherited limit never reads as "unlimited":
+
+```
+limits   rate=unset -> 60/min from [serve] default_rate  (enforced) · burst=unset -> 20 built in  (enforced) · cost_budget=unset  (no limit)
+```
+
+`[serve]` is read only from `~/.contextlake/kb.toml` or a file you passed to `--config`. A
+`.contextlake.kb.toml` found by walking up from the current directory is ignored with one line
+saying so: that file sits inside a repository checkout, and a rate limit a checkout can rewrite
+is not a limit.
+
+**A shared token is bounded by `[serve] default_rate` and has no per-credential opt-out.** It
+has no key record, so there is nowhere to write `none` on it. Unsetting the default unlimits
+every key relying on it.
+
+### What the quota does not do
+
+- **It is not persisted.** Bucket state lives in the server process, so a restart refills every
+  quota. Restarting the server needs operator access, which is a larger grant than any key holds.
+- **It is not shared between processes.** Two `kb serve` processes behind one address give each
+  key twice its quota. contextlake serves one process by design.
+- **On the `sse` transport the message is lost and the session dies.** That client
+  (`mcp/client/sse.py`) raises for status inside its writer task and swallows it, so the stream
+  closes and the in-flight call never resolves; the next one reports a closed connection. If you
+  see "connection closed" on `sse`, check the quota. `http` (streamable-http) delivers the 429
+  and the session survives.
+
+## What the server records
+
+A network start writes one line per tool call to `<store_dir>/mcp-usage.jsonl`, and
+`contextlake kb keys usage` reads it back.
+
+```bash
+contextlake kb keys usage                 # every key, every tool
+contextlake kb keys usage --since 24h     # the last day
+contextlake kb keys usage k_4f2a91        # one key
+contextlake kb serve --transport http --no-usage   # record nothing
+```
+
+```
+Usage: 140 calls (140 timed)  /home/you/.contextlake/kb/mcp-usage.jsonl
+
+KEY       CALLS  ERR  THR  DENY    P50    P95
+k_4f2a91    120    0    0     0   75ms  142ms
+k_9c01de     20   20  500     0  423ms  843ms
+
+TOOL             CALLS
+ask                 55
+find_definition     52
+search_code         33
+
+Refused requests (never reached a tool)
+  throttled       500
+  unknown          30
+  identity_unset   12
+  total           545
+```
+
+**A row carries six fields and nothing else:** the minute, the key id, the tool name, the
+outcome, the tool time in whole milliseconds, and how many events the row stands for. No
+query text, no symbol, no repository, no file path, no client address, and nothing at all
+about the credential a refused caller presented. There is no field to put those in.
+
+**Read the counts, not the lines.** A row for traffic the server never admitted carries a
+count instead of one line each, so 500 refused requests are one line reading `500`. An
+unauthenticated flood would otherwise evict every real row inside a minute. Per-key calls
+(`ok`, `error`, `denied`) keep one row each, because a percentile needs the individual
+values.
+
+**Four things it deliberately does not measure:**
+
+- **`ask` counts once, as `ask`.** It routes to eight sibling tools below the wrapper that
+  writes these rows, so each of those eight is under-counted by however much `ask` sent it.
+- **`tools/list` and the handshake are not calls.** They cross no tool wrapper. So `CALLS`
+  counts tool calls and never HTTP requests. Those same requests can still be throttled,
+  which is why `THR` and `CALLS` are not two views of one number.
+- **`kb://stats` resource reads are not recorded.** That path crosses no wrapper either, and
+  the only name available there is a caller-supplied URI.
+- **stdio records nothing.** There is no caller to attribute a call to.
+
+**Retention.** The file grows to 22,000 rows and is then trimmed back to the newest 20,000,
+so the rewrite happens once per 2,000 rows rather than once per append. At about 105 bytes a
+row that is 2.3 MB at its largest. A key quiet for longer than that window reads `never` in
+`kb keys list`'s `LAST USED` column, which is why that column carries a note rather than
+standing alone. Rebuilding the store discards the file with it.
+
+**If the file cannot be written**, the server keeps serving and says so once on standard
+error, naming the path. Recording never fails a request, and a full disk drops the batch
+rather than growing the buffer; without the line an empty file would read as an idle server.
+
+**Turning it off, and tuning it:** `--no-usage` on the command line, or in
+`~/.contextlake/kb.toml` (or the file passed to `--config`):
+
+```toml
+[serve]
+usage = false            # record nothing
+usage_max_lines = 20000  # rows kept
+usage_flush_seconds = 10 # how often the buffer is written
+```
+
+Those keys are read from a config you NAMED only, the same gate `[serve] keys_file` and the
+quota defaults go through: a `.contextlake.kb.toml` found by walking up from the current
+directory sits inside a repository checkout, and a retention cap that checkout can rewrite
+is not a cap. A value the server cannot parse refuses the start and names the string.
+
 ## How many tool calls run at once
 
 ```bash

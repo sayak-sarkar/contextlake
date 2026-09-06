@@ -1,4 +1,4 @@
-"""`contextlake kb keys` -- create, list, show, revoke, rotate, check and prune API keys.
+"""`contextlake kb keys` -- issue, inspect, retire and account for the MCP API keys.
 
 Every refusal `kb serve` prints on the key-file states it will not start on names
 `contextlake kb keys create <name>`. Until this module landed that command did not
@@ -20,8 +20,9 @@ scrub neither. The key therefore goes through ``print(..., file=sys.stderr)``.
 constructs a ``SqliteStore``, runs ``check_schema`` and registers the store for
 observability. A machine that has never run ``kb index`` has none of that, and
 ``kb keys list`` is the first command an operator runs. Nothing here imports
-``_open_store``. The ``LAST USED`` column reads ``never`` in this phase; S4.5.4
-fills it from the JSONL usage file, read BY PATH, which opens no database.
+``_open_store``. ``LAST USED`` and the ``usage`` verb read the JSONL usage file
+BY PATH, from ``kb_config(args).store_path``, which resolves a directory and
+opens nothing.
 
 **A write verb refuses on a permission fault; ``list`` warns and carries on.**
 ``keyfile.enforce`` raises, ``keyfile.permission_report`` reports. Blocking the
@@ -35,7 +36,7 @@ import json
 import os
 import stat as stat_module
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import NamedTuple
 
 from ... import style
@@ -49,11 +50,11 @@ from .. import keys as keys_mod
 #
 # WRITE verbs refuse on a permission fault. READ verbs warn and carry on.
 WRITE_ACTIONS = frozenset({"create", "revoke", "rotate", "prune"})
-READ_ACTIONS = frozenset({"list", "show", "check"})
+READ_ACTIONS = frozenset({"list", "show", "check", "usage"})
 ACTIONS = tuple(sorted(WRITE_ACTIONS | READ_ACTIONS))
 
 # `--json` is registered once on the `keys` parser, because the verb is a
-# positional, so argparse accepts it on all seven. All seven now answer it.
+# positional, so argparse accepts it on all eight. All eight now answer it.
 #
 # 9.0.0 shipped two emitters and a refusal on the other five, because a verb
 # that took the flag, printed prose and exited 0 gave a script no way to tell
@@ -61,7 +62,7 @@ ACTIONS = tuple(sorted(WRITE_ACTIONS | READ_ACTIONS))
 # the destination: `JSON_ACTIONS` and the guard that read it are gone, and a
 # test runs every verb with `--json` and parses its stdout.
 #
-# Two rules hold across all seven, and both are enforced in `cmd_keys` rather
+# Two rules hold across all eight, and both are enforced in `cmd_keys` rather
 # than in the handlers, because a rule each handler has to remember is a rule a
 # ninth verb ships without:
 #
@@ -89,8 +90,9 @@ _DATE_FORMAT = "%Y-%m-%d"
 # PART OF THE POLICY IS ENFORCED NOW AND PART IS NOT, AND THE LABEL SAYS WHICH.
 #
 # `tools` and `owners` are read by `kb/grants.py` and checked on every call a
-# networked server serves. `repos`, `external`, `rate`, `burst` and
-# `cost_budget` are still stored and read by nothing.
+# networked server serves, and `rate`, `burst` and `cost_budget` are read by
+# `kb/ratelimit.py` at the gate. `repos` and `external` are still stored and
+# read by nothing.
 #
 # The label used to be one clause covering all six axes, and that is now a LIE
 # IN BOTH DIRECTIONS. Blanket "recorded, not enforced" tells an operator their
@@ -106,7 +108,7 @@ _DATE_FORMAT = "%Y-%m-%d"
 # FROM, and it cannot be enforced correctly by a predicate: a node id does not
 # carry its repo (`grants.py`'s module docstring has the measurement). `external`
 # is a sentinel ruling on the repos axis, so it rides with it. Rate, burst and
-# cost_budget are the S4.4 rate-limit stories.
+# cost_budget went live with the rate limiter and are no longer in that list.
 #
 # One phrase, used two ways: in brackets beside a value, and as a clause in the
 # note. `list` renders its policy in table columns with no room for a bracketed
@@ -128,6 +130,14 @@ def _unenforced_axes() -> tuple[str, ...]:
     return tuple(axis for axis in _ALL_AXES if axis not in grants.ENFORCED_AXES)
 
 
+def _and_list(names) -> str:
+    """``a, b and c``. Five axes joined by four "and"s read as one long word."""
+    names = list(names)
+    if len(names) < 2:
+        return "".join(names)
+    return f"{', '.join(names[:-1])} and {names[-1]}"
+
+
 def _enforcement_note() -> list[str]:
     """The three lines that go under every rendered policy, in every verb.
 
@@ -147,7 +157,7 @@ def _enforcement_note() -> list[str]:
     repository, and that is the sentence they act on.
     """
     return [
-        f"  This release enforces {' and '.join(grants.ENFORCED_AXES)}: a value "
+        f"  This release enforces {_and_list(grants.ENFORCED_AXES)}: a value "
         "recorded there is checked on every",
         "  call, and an axis left unset records no scope and limits nothing.",
         # The phrase is embedded VERBATIM and mid-sentence rather than
@@ -157,7 +167,7 @@ def _enforcement_note() -> list[str]:
         # verbs. A capitalised copy is a second spelling.
         f"  These are {_NOT_ENFORCED}: {', '.join(_unenforced_axes())}. So a "
         "key reads every indexed",
-        "  repository, at whatever rate it asks, whatever those say.",
+        "  repository, whatever those say.",
     ]
 
 
@@ -165,7 +175,7 @@ class _Failure(Exception):
     """A failure with a machine-readable code and the fields that describe it.
 
     The code is a REQUIRED first argument, never a defaulted one. There are ten
-    raise sites across the seven verbs, and a default would let an eleventh ship
+    raise sites across the eight verbs, and a default would let an eleventh ship
     `{"error": null}` with nothing failing.
 
     The sentence is not copied into the document as a `message` field. No house
@@ -318,15 +328,17 @@ def _unknown_id(key_id: str, path) -> str:
 
 
 def _policy(args) -> dict:
-    """The access-control and rate-limit block, stored as typed.
+    """The access-control and rate-limit block, stored as typed and VALIDATED.
 
-    Nothing here validates `--rate` or `--cost-budget`. `parse_duration`
-    (`schedule/recommend.py:38`) reads `90d` and `24h` and refuses `60/min` and
-    `30s/min`, and their parser, `parse_rate`, is phase 2's (S4.4.1). So this
-    phase stores the string and the help text says so. When `parse_rate` lands it
-    has to run over every stored value at keyring load and FAIL the load on a
-    value it refuses, the way an unparseable file already does. A garbage rate
-    quietly replaced by a default is an unlimited key that reads as limited.
+    `--rate`, `--burst` and `--cost-budget` are refused at the flag now, the way
+    `--tools` already is: a typo cannot be minted onto a key that then reads as
+    limited. The value is still STORED as typed, so `60/min` comes back out of
+    `kb keys show` spelled the way it went in.
+
+    The same parser runs over every stored value when a keyring is loaded for
+    serving, which is the half that matters: a garbage rate quietly replaced by
+    a default is an unlimited key that reads as limited, and a key file can be
+    hand-edited after creation.
     """
     policy = {}
     for flag in ("tools", "repos", "owners", "rate", "burst", "cost_budget"):
@@ -353,6 +365,29 @@ def _policy(args) -> dict:
                 f"record no {flag} scope, or pass a value. An empty string "
                 "cannot say which was meant.",
                 value="")
+
+    # Refused at CREATE, before anything is written. `--burst` with no `--rate`
+    # lands here too: a burst is the request bucket's capacity and there is no
+    # request bucket without a rate, so on its own it reads like a bound and
+    # binds nothing.
+    from .. import ratelimit
+
+    # One try per axis, so the failure code names the axis the parser refused
+    # rather than being recovered from the message text. Reading a class out of
+    # a string is a substring match deciding a classification, and the axis is
+    # already known here.
+    def _parsed(axis: str, parse):
+        try:
+            return parse(policy.get(axis))
+        except ValueError as exc:
+            raise _BadUsage(f"bad_{axis}", str(exc),
+                            value=str(policy.get(axis, ""))) from exc
+
+    rate = _parsed("rate", ratelimit.parse_rate)
+    # `--burst` is checked AGAINST the rate, so it runs second and the order is
+    # load-bearing rather than cosmetic.
+    _parsed("burst", lambda value: ratelimit.parse_burst(value, rate=rate))
+    _parsed("cost_budget", ratelimit.parse_cost_budget)
 
     if "tools" in policy:
         # Refused at CREATE, so a typo cannot be minted onto a key that then
@@ -416,25 +451,147 @@ def _axis(policy, axis: str) -> str:
     return f"{axis}={value}  ({_ENFORCED})"
 
 
-def _limits_line(record) -> str:
+def _serve_defaults(args):
+    """The parsed ``[serve]`` quota defaults, for rendering the effective value.
+
+    TOML ONLY. `kb keys` opens no store database on any verb, and this keeps
+    that: it reads the same privileged config files `[serve] keys_file` already
+    comes from, through the same provenance gate, and touches nothing else.
+
+    Warnings are dropped here, unlike at `kb serve`. An ignored local config is
+    worth one line when a socket is about to open; it is noise on every `kb keys
+    list`. An unparseable default falls back to "no default", which renders an
+    inheriting key as unlimited -- the server refuses to start on that value, so
+    the two surfaces disagree only about a configuration that cannot serve.
+    """
+    from .. import ratelimit
+
+    try:
+        table = keyfile.trusted_serve_table(getattr(args, "config", None),
+                                            lambda line: None)
+        return ratelimit.parse_serve_defaults(table)
+    except (ValueError, OSError):
+        return ratelimit.ServeDefaults()
+
+
+def _usage_file(args) -> str:
+    """The usage file this run reads.
+
+    Two paths, two resolvers, and they must not be collapsed. The USAGE file
+    sits beside the store, so it comes from ``kb_config(args).store_path``. The
+    KEY file comes from ``_keys_path``, which walks
+    ``$CONTEXTLAKE_KEYS_FILE`` then ``[serve] keys_file`` then the default.
+    Resolving the key file from the store directory finds nothing, and the
+    `usage` verb's exit codes then answer "no rows for this key" and "no such
+    key" on the same branch.
+
+    ``kb_config`` is imported here rather than at module scope: it lives beside
+    ``_open_store``, and this module's second rule is that nothing here reaches
+    for that.
+    """
+    from .. import usage as usage_mod
+    from ._common import kb_config
+
+    return usage_mod.usage_path(kb_config(args).store_path)
+
+
+def _last_used(args):
+    """The newest usage row per key. Never raises, and opens no database."""
+    from .. import usage as usage_mod
+
+    return usage_mod.LastUsed(_usage_file(args))
+
+
+# What each axis inherits from, spelled the way it appears in kb.toml. Rendered
+# into the line so an operator who reads "from [serve] default_rate" knows which
+# key to edit, rather than being told a number with no address.
+_LIMIT_CONFIG_KEYS = {"rate": "default_rate", "burst": "default_burst",
+                      "cost_budget": "default_cost_budget"}
+
+
+def _limits_line(record, defaults=None) -> str:
+    """The three quota axes, each with WHERE ITS VALUE CAME FROM.
+
+    The middle state is the one this function exists for. A key that names no
+    rate can still be limited by ``[serve] default_rate``, and the old line
+    printed a bare `unset` for it: an operator read that, believed the key was
+    unlimited, and handed it out while the server was limiting it. Rendering the
+    tier is what makes `unset` mean "unset AND unlimited" again.
+
+    ``none`` is rendered as the operator's own word, not as `unset`. They typed
+    a per-key opt-out and it beats the server default, which is the opposite
+    instruction from having said nothing.
+    """
+    from .. import ratelimit
+
     policy = record.policy or {}
-    rate = policy.get("rate")
-    burst = policy.get("burst")
-    cost = policy.get("cost_budget")
-    if not any((rate, burst, cost)):
-        # NOT "unset (the server's defaults apply)". There is no rate limiter in
-        # this release, so naming a default implies a limit regime that does not
-        # exist, and an operator reading it would believe an unlimited key is
-        # bounded by something.
-        return "unset"
-    parts = []
-    if rate:
-        parts.append(f"{rate}" + (f" (burst {burst})" if burst else ""))
-    elif burst:
-        parts.append(f"burst {burst}")
-    if cost:
-        parts.append(f"{cost} cost")
-    return " · ".join(parts) + f"  ({_NOT_ENFORCED})"
+    defaults = defaults or ratelimit.ServeDefaults()
+    limits = ratelimit.resolve_limits(policy, defaults)
+    return " · ".join(_limit_axis(policy, axis, limits) for axis in _LIMIT_CONFIG_KEYS)
+
+
+def _limit_axis(policy, axis: str, limits) -> str:
+    """One quota axis, its effective value and its tier."""
+    stored = policy.get(axis)
+    typed = str(stored).strip() if stored not in (None, "") else ""
+    effective = _effective_limit(limits, axis)
+    if axis == "burst" and limits.rate is None:
+        # A burst is the request bucket's capacity and there is no request
+        # bucket without a rate. Whatever its source, it binds nothing here.
+        shown = typed or "unset"
+        return f"{axis}={shown}  (inert: no rate in force)"
+    if typed.casefold() == "none":
+        return f"{axis}=none  ({_ENFORCED}: no limit, set on the key)"
+    if typed:
+        return f"{axis}={typed}  ({_ENFORCED})"
+    if effective is None:
+        return f"{axis}=unset  (no limit)"
+    if limits.sources.get(axis) == "config":
+        return (f"{axis}=unset -> {effective} from "
+                f"[serve] {_LIMIT_CONFIG_KEYS[axis]}  ({_ENFORCED})")
+    # A rate is in force and nobody named a burst anywhere.
+    return f"{axis}=unset -> {effective} built in  ({_ENFORCED})"
+
+
+def _effective_block(record, defaults) -> dict:
+    """The four resolved-quota fields, for a document that is not `_json_record`.
+
+    `check` builds its own payload and renders a record that may be None, so it
+    cannot reuse `_json_record`. Sharing this block is what keeps the two from
+    drifting into two spellings of the same four fields.
+    """
+    from .. import ratelimit
+
+    policy = record.policy if record else None
+    limits = ratelimit.resolve_limits(policy, defaults)
+    block = {f"effective_{axis}": _effective_limit(limits, axis)
+             for axis in _LIMIT_CONFIG_KEYS}
+    # With NO record there is nothing to inherit onto, so every tier reads
+    # `unset` rather than `config`. Same reasoning as `policy_enforced` being
+    # False and not null there: a caller must not read the server's default as
+    # a fact about a key that does not exist.
+    block["limits_source"] = (dict(limits.sources) if record else
+                              {axis: "unset" for axis in _LIMIT_CONFIG_KEYS})
+    if not record:
+        block = {key: None if key.startswith("effective_") else value
+                 for key, value in block.items()}
+    return block
+
+
+def _effective_limit(limits, axis: str) -> str | None:
+    """One resolved axis as a STRING, or None for no limit.
+
+    A string for all three, including ``burst``, so the four `--json` fields
+    that carry them have one type between them: a consumer that renders a value
+    beside its `limits_source` reads them the same way whichever axis it is on.
+    """
+    value = getattr(limits, axis)
+    if value is None:
+        return None
+    # `burst` is an int; `rate` and `cost_budget` are `Rate` objects carrying
+    # the operator's own spelling. Echoing `text` rather than re-rendering the
+    # number is what lets them grep their key config for `60/min` and find it.
+    return str(value) if axis == "burst" else value.text
 
 
 def _expiry_date(record) -> str:
@@ -444,23 +601,29 @@ def _expiry_date(record) -> str:
     return record.expires_at.split("T")[0]
 
 
-def _row(record, now):
+def _row(record, now, defaults=None, last_used=None):
     policy = record.policy or {}
+    # The EFFECTIVE rate, not the stored one. A key that names none can still be
+    # limited by `[serve] default_rate`, and a `-` in this column for a limited
+    # key is the same false reading `_limits_line` exists to stop, one surface
+    # over. `_limits_line` under the table says which tier it came from.
+    from .. import ratelimit
+
+    limits = ratelimit.resolve_limits(policy, defaults or ratelimit.ServeDefaults())
     return {
         "id": record.id,
         "name": record.name,
         "state": record.state(now),
         "tools": str(policy.get("tools") or "-"),
         "repos": str(policy.get("repos") or "-"),
-        "rate": str(policy.get("rate") or "-"),
+        "rate": _effective_limit(limits, "rate") or "-",
         "expires": _expiry_date(record),
-        # NOT `never`. Nothing records a use in this release, so `never` would be
-        # a claim about a key that may have been used seconds ago, and an operator
-        # reading the column would revoke the wrong key. `-` matches how an unset
-        # policy axis renders, and the note under the table says why.
-        # S4.5.4 fills this from the JSONL usage file, read by path from
-        # `kb_config(args).store_path`, which opens no database.
-        "last_used": "-",
+        # THREE STATES, not two: `-` when no usage file exists (nothing
+        # measures it), `never` when the file exists and holds no row for this
+        # key, and a date when it does. One null for all three is what has an
+        # operator revoke a key that is in daily use. `usage.LastUsed` owns the
+        # rule; the note under the table says what `never` does not mean.
+        "last_used": last_used.cell(record.id) if last_used else "-",
     }
 
 
@@ -507,13 +670,12 @@ def _file_note(path, doc) -> str:
 # The JSON documents
 # --------------------------------------------------------------------------
 
-# Nothing records a use in this release, so `last_used_at` is null for a reason
-# a caller cannot see: "never used" and "nothing measures it" are the same null.
+# `last_used_at` is null for two different reasons -- the key was never used,
+# and nothing measured it -- so it travels with a sibling enum saying which.
 # That is the defect `schedule/report.py:34-41` already fixed once, where
-# `floor_activity_seconds` was null for two different reasons, and the fix there
-# was a sibling enum rather than an overloaded null. This is that sibling.
-# S4.5.4 fills the pair from the JSONL usage file, read BY PATH, and the value
-# becomes `never` or `measured`.
+# `floor_activity_seconds` carried the same overloaded null. `usage.LastUsed`
+# holds the three values; this is the fallback for a caller that looked the
+# answer up nowhere.
 _LAST_USED_STATE = "not-recorded"
 
 
@@ -531,7 +693,8 @@ def _emit_json(payload: dict, *, sort_keys: bool = False) -> None:
     print(json.dumps(payload, indent=2, sort_keys=sort_keys))
 
 
-def _json_record(record, now, *, digest: bool = False) -> dict:
+def _json_record(record, now, *, digest: bool = False, defaults=None,
+                 last_used=None) -> dict:
     """One key as data. The same object in all seven documents.
 
     Every stamp is the ISO value as stored, never ``_expiry_date``'s truncated
@@ -548,14 +711,32 @@ def _json_record(record, now, *, digest: bool = False) -> dict:
     if not digest:
         payload.pop("digest", None)
     payload["state"] = record.state(now)
-    payload["last_used_at"] = None
-    payload["last_used_state"] = _LAST_USED_STATE
+    # The full minute stamp here, never the table's truncated date: the cell is
+    # a display string and this is data.
+    payload["last_used_at"] = last_used.at(record.id) if last_used else None
+    payload["last_used_state"] = (last_used.state(record.id) if last_used
+                                  else _LAST_USED_STATE)
     # PER RECORD, because `list` and `prune` render many and the answer differs
     # between them. `policy_enforced` at the top of a document says whether
     # everything that document shows is enforced; a caller rendering one row
     # needs the answer for that row, and a document-level boolean cannot give it.
     payload["enforced_axes"] = grants.enforced_axes(record.policy)
     payload["policy_enforced"] = grants.policy_is_enforced(record.policy)
+    # THE RESOLVED QUOTA, beside the stored one rather than instead of it.
+    # `policy` says what is written on the key; these say what the running
+    # server will actually apply, which differ whenever a `[serve]` default is
+    # set. A consumer that reads only `policy.rate` renders an inheriting key as
+    # unlimited, which is the same misreading the text line carried.
+    #
+    # All three effective values are strings or null, and `limits_source` maps
+    # each axis to `key`, `config` or `unset`. Three values, closed: a fourth
+    # would have to be added here and to the renderer together.
+    from .. import ratelimit
+
+    limits = ratelimit.resolve_limits(record.policy, defaults or ratelimit.ServeDefaults())
+    for axis in _LIMIT_CONFIG_KEYS:
+        payload[f"effective_{axis}"] = _effective_limit(limits, axis)
+    payload["limits_source"] = dict(limits.sources)
     return payload
 
 
@@ -843,8 +1024,10 @@ def _cmd_create(args) -> int:
         _write_key_fd(out_fd, key)
 
     now = datetime.now(timezone.utc)
+    defaults = _serve_defaults(args)
     if as_json:
-        payload = _json_record(record, now)
+        payload = _json_record(record, now, defaults=defaults,
+                               last_used=_last_used(args))
         payload.update(_key_channel(key, print_key=print_key, out_file=out_file))
         payload["changed"] = True
         payload["keys_file"] = str(path)
@@ -861,7 +1044,7 @@ def _cmd_create(args) -> int:
     log(f"Created key  {record.name}")
     for line in _block([("id", record.id),
                         ("scope", _scope_line(record)),
-                        ("limits", _limits_line(record)),
+                        ("limits", _limits_line(record, defaults)),
                         ("expires", _expiry_date(record))]):
         log(line)
     log("")
@@ -972,7 +1155,11 @@ def _cmd_list(args) -> int:
     loaded = _load(path, write=False)
     records, doc = loaded.records, loaded.doc
     now = datetime.now(timezone.utc)
-    rows = [_row(record, now) for record in records]
+    defaults = _serve_defaults(args)
+    # Read ONCE for the whole table, not once per row: the file is read by
+    # path, and a read per key would open it as many times as there are keys.
+    last_used = _last_used(args)
+    rows = [_row(record, now, defaults, last_used) for record in records]
     live = [r for r in rows if r["state"] == keys_mod.LIVE]
     revoked = [r for r in rows if r["state"] == keys_mod.REVOKED]
     expired = [r for r in rows if r["state"] == keys_mod.EXPIRED]
@@ -995,7 +1182,8 @@ def _cmd_list(args) -> int:
         by_id = {record.id: record for record in records}
         keys = []
         for row in shown:
-            entry = _json_record(by_id[row["id"]], now)
+            entry = _json_record(by_id[row["id"]], now, defaults=defaults,
+                                 last_used=last_used)
             entry.update(row)
             keys.append(entry)
         payload = {"path": str(path), "keys_file": str(path),
@@ -1033,9 +1221,21 @@ def _cmd_list(args) -> int:
     for line in _enforcement_note():
         log(line)
     # LAST USED is a fourth unlabelled column with the same problem and a worse
-    # failure mode: a stale-looking `-` invites an operator to revoke a key that
-    # is in daily use. Said here rather than in the cell, for the same reason.
-    log("  LAST USED is not recorded in this release, so every key reads `-`.")
+    # failure mode: a wrong reading invites an operator to revoke a key that is
+    # in daily use. Said here rather than in the cell, for the same reason.
+    #
+    # The `never` sentence is the load-bearing half. The usage file is capped,
+    # so a key quiet for longer than the retained window reads `never` too, and
+    # `never` alone would say "nobody has ever used this" about a key somebody
+    # used last month.
+    if not last_used.present:
+        log("  LAST USED reads `-` on every key: no usage file at this store "
+            "yet. A networked server writes one.")
+    else:
+        log("  LAST USED comes from the recorded usage. `never` means no row "
+            "for that key in the file, which a key quiet longer than the "
+            "retained window also reads as.")
+    log(style.dim("  Per-key detail: contextlake kb keys usage"))
     return 0
 
 
@@ -1052,8 +1252,10 @@ def _cmd_show(args) -> int:
         raise _NotFound("unknown_id", _unknown_id(key_id, path),
                         id=key_id, keys_file=str(path))
     now = datetime.now(timezone.utc)
+    defaults = _serve_defaults(args)
     if as_json:
-        payload = _json_record(record, now, digest=True)
+        payload = _json_record(record, now, digest=True, defaults=defaults,
+                               last_used=_last_used(args))
         payload["keys_file"] = str(path)
         payload.update(_permission_block(loaded))
         _emit_json(payload, sort_keys=True)
@@ -1063,7 +1265,7 @@ def _cmd_show(args) -> int:
              ("state", record.state(now)),
              ("expires", _expiry_date(record)),
              ("scope", _scope_line(record)),
-             ("limits", _limits_line(record)),
+             ("limits", _limits_line(record, defaults)),
              ("recorded by", f"contextlake {record.grant_version}"
                              if record.grant_version else "an unrecorded version")]
     if record.revoked_at:
@@ -1109,7 +1311,9 @@ def _cmd_revoke(args) -> int:
     if changed:
         _save(path, records)
     if as_json:
-        payload = _json_record(record, datetime.now(timezone.utc))
+        payload = _json_record(record, datetime.now(timezone.utc),
+                               defaults=_serve_defaults(args),
+                               last_used=_last_used(args))
         # THE FIELD THIS DOCUMENT EXISTS FOR. Both branches exit 0 and always
         # have, so "I revoked it" and "somebody else already had" are one exit
         # code, and the prose was the only thing that told them apart. On the
@@ -1180,8 +1384,12 @@ def _cmd_rotate(args) -> int:
 
     if as_json:
         now = datetime.now(timezone.utc)
-        payload = {"old": _json_record(record, now),
-                   "new": _json_record(new_record, now),
+        defaults = _serve_defaults(args)
+        last_used = _last_used(args)
+        payload = {"old": _json_record(record, now, defaults=defaults,
+                                       last_used=last_used),
+                   "new": _json_record(new_record, now, defaults=defaults,
+                                       last_used=last_used),
                    "overlap": overlap,
                    # The house duration pair, `interval`/`interval_seconds` in
                    # `schedule/report.py:27-33`.
@@ -1244,7 +1452,10 @@ def _cmd_prune(args) -> int:
         # deleted nothing and one that deleted forty both exit 0.
         _emit_json({"before": str(before),
                     "removed": len(removed),
-                    "removed_keys": [_json_record(r, now) for r in removed],
+                    "removed_keys": [_json_record(r, now,
+                                                  defaults=_serve_defaults(args),
+                                                  last_used=_last_used(args))
+                                     for r in removed],
                     "remaining": len(records),
                     "changed": bool(removed),
                     "policy_enforced": _enforced_flag(r.policy for r in removed),
@@ -1325,6 +1536,7 @@ def _cmd_check(args) -> int:
                    "policy_enforced": (grants.policy_is_enforced(record.policy)
                                        if record else False),
                    "checked_locally": True,
+                   **_effective_block(record, _serve_defaults(args)),
                    "keys_file": str(path)}
         payload.update(_permission_block(loaded))
         return payload
@@ -1360,7 +1572,7 @@ def _cmd_check(args) -> int:
         return 0
     log(style.ok(f"Valid   {record.name} ({record.id})"))
     log(f"  expires {_expiry_date(record)} · {_scope_line(record)}")
-    log(f"  limits  {_limits_line(record)}")
+    log(f"  limits  {_limits_line(record, _serve_defaults(args))}")
     log(_checked_note(path))
     for line in _enforcement_note():
         log(line)
@@ -1383,6 +1595,186 @@ def _checked_note(path) -> str:
             "above is what the record stores, not what a server answered.")
 
 
+def _usage_readable(path) -> bool:
+    """Whether the usage file can be opened at all.
+
+    `usage.read_rows` swallows OSError and answers `[]`, which is the right
+    answer for a file that does not exist and the WRONG report for one this
+    account cannot read: "nothing was recorded" and "I could not read what was
+    recorded" are two different things to tell an operator, and only one of
+    them is their configuration working.
+    """
+    try:
+        with open(path, encoding="utf-8"):
+            return True
+    except OSError:
+        return False
+
+
+def _since_cutoff(args):
+    """`--since` as an absolute time, or None.
+
+    `schedule.recommend.parse_duration` is the house parser: `45s`, `30m`,
+    `2h`, `7d`. A second one here would drift from it, and it already refuses
+    zero and negatives.
+    """
+    raw = getattr(args, "since", None)
+    if not raw:
+        return None
+    from ...schedule.recommend import parse_duration
+
+    try:
+        seconds = parse_duration(raw)
+    except ValueError as exc:
+        raise _BadUsage("bad_since", str(exc), value=raw, detail=str(exc)) from exc
+    return datetime.now(timezone.utc) - timedelta(seconds=float(seconds))
+
+
+def _num(value) -> str:
+    return f"{value:,}"
+
+
+def _ms(value) -> str:
+    """A duration cell. `-` when nothing was measured, never `0ms`.
+
+    `0ms` is a measurement, and printing it where there is none is the same
+    false reading the RATE column already carries a note about.
+    """
+    return "-" if value is None else f"{value}ms"
+
+
+def _grid(headers, rows, *, right=()) -> list[str]:
+    """One aligned block. Numeric columns right, so the digits line up."""
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(cell))
+
+    def line(cells):
+        out = []
+        for i, cell in enumerate(cells):
+            out.append(cell.rjust(widths[i]) if i in right else cell.ljust(widths[i]))
+        return "  ".join(out).rstrip()
+
+    return [line(headers)] + [line(row) for row in rows]
+
+
+def _cmd_usage(args) -> int:
+    """What the server recorded, per key and per tool.
+
+    IT OPENS NO DATABASE. Two files, both read by path: the usage JSONL beside
+    the store, and the key file, which is what separates "this key has no
+    recorded calls" (exit 0) from "there is no such key" (exit 1). Both produce
+    zero rows, and only the key file can tell them apart.
+    """
+    from .. import usage as usage_mod
+
+    as_json = bool(getattr(args, "json", False))
+    key_id = getattr(args, "name", None) or None
+    path = _usage_file(args)
+    since = _since_cutoff(args)
+    readable = _usage_readable(path)
+    rows = usage_mod.read_rows(path)
+    # Lines this reader could not score, which is the file's own answer to
+    # "nothing was recorded" versus "I could not read what was recorded". A row
+    # from a newer contextlake carrying an outcome this version does not know is
+    # dropped rather than mis-filed (see `usage._valid`), so the drop has to be
+    # said out loud or the totals under-report in silence.
+    unread = max(0, usage_mod.count_lines(path) - len(rows))
+
+    # THE KEY FILE IS READ ON EVERY RUN, not only when an id was given. An
+    # unreadable key file exits 1 on every other verb, and a `usage` that
+    # reported happily over one would be the verb where a broken keyring reads
+    # as healthy. With an id it also separates two answers that both produce
+    # zero rows: an id nobody issued is a failed request (exit 1), and an
+    # issued id with no traffic is a true zero (exit 0).
+    keys_file = _keys_path(args)
+    loaded = _load(keys_file, write=False)
+    if key_id is not None:
+        if _find(loaded.records, key_id) is None:
+            raise _NotFound("unknown_id", _unknown_id(key_id, keys_file),
+                            id=key_id, keys_file=str(keys_file))
+        rows = [r for r in rows if r.get("key") == key_id]
+
+    summary = usage_mod.summarize(rows, since=since)
+    if as_json:
+        _emit_json({"usage_file": path,
+                    "present": os.path.exists(path),
+                    "readable": readable,
+                    "id": key_id,
+                    "since": since.strftime(usage_mod.TS_FORMAT) if since else None,
+                    "unread_lines": unread,
+                    **summary})
+        return 0
+
+    if not readable and os.path.exists(path):
+        log(style.warn(f"{path} could not be read, so this is what was already "
+                       "recorded elsewhere, not the whole record."))
+    if unread:
+        log(style.warn(f"{unread} line(s) in {path} were skipped: truncated, or "
+                       "written by a newer contextlake. Every number below is "
+                       "short by whatever they held."))
+    if not summary["calls"] and not summary["refused_total"]:
+        if key_id is not None:
+            log(f"{key_id} has no recorded calls.")
+        elif not os.path.exists(path):
+            log("Nothing recorded yet. Usage is recorded by a networked server "
+                "(--transport http or sse), not on stdio.")
+            log(style.dim(f"  It would be written to {path}"))
+        else:
+            log(f"No rows in {path} for this window.")
+        return 0
+
+    where = f" since {since.strftime(usage_mod.TS_FORMAT)}" if since else ""
+    # The measured count is printed beside the call count, not folded into it.
+    # A full buffer counts the call and drops its duration, so the percentiles
+    # below are over a smaller population, and an operator reading
+    # "40,000 calls  P50 12ms" has no other way to see that.
+    log(f"Usage{where}: {_num(summary['calls'])} calls "
+        f"({_num(summary['measured'])} timed)  {path}")
+    log("")
+    if summary["keys"]:
+        rows_out = [(k["key"] or "-", _num(k["calls"]), _num(k["error"]),
+                     _num(k["throttled"]), _num(k["denied"]),
+                     _ms(k["p50"]), _ms(k["p95"]))
+                    for k in summary["keys"]]
+        for line in _grid(("KEY", "CALLS", "ERR", "THR", "DENY", "P50", "P95"),
+                          rows_out, right=(1, 2, 3, 4, 5, 6)):
+            log(line)
+        log("")
+    if summary["tools"]:
+        for line in _grid(("TOOL", "CALLS"),
+                          [(t["tool"], _num(t["calls"])) for t in summary["tools"]],
+                          right=(1,)):
+            log(line)
+        log("")
+        # `ask` routes to eight sibling tools by their bare names, below the
+        # wrapper that writes these rows, so one `ask` over the wire is one row
+        # named `ask`. Every tool it routes to is under-reported here by
+        # however much `ask` sent it.
+        log(style.dim("  One `ask` counts once, as `ask`. The eight tools it "
+                      "routes to are under-counted by that much."))
+        log("")
+    if summary["refusals"]:
+        log("Refused requests (never reached a tool)")
+        for line in _grid(("", ""),
+                          [(f"  {r['outcome']}", _num(r["n"]))
+                           for r in summary["refusals"]]
+                          + [("  total", _num(summary["refused_total"]))],
+                          right=(1,))[1:]:
+            log(line)
+        if any(r["outcome"] == "identity_unset" for r in summary["refusals"]):
+            # Not ordinary probing, and it reads like it in a list of refusal
+            # classes. This server accepted a credential at the socket and then
+            # lost it before the tool ran; every one of those calls answered
+            # nothing.
+            log(style.warn(
+                "identity_unset is a fault in this server, not a bad key: it "
+                "accepted a credential and then lost it before the tool ran. "
+                "Every one of those calls answered nothing."))
+    return 0
+
+
 _DISPATCH = {
     "create": _cmd_create,
     "list": _cmd_list,
@@ -1391,6 +1783,7 @@ _DISPATCH = {
     "rotate": _cmd_rotate,
     "check": _cmd_check,
     "prune": _cmd_prune,
+    "usage": _cmd_usage,
 }
 
 

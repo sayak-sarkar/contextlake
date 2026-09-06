@@ -926,7 +926,7 @@ def test_build_http_app_with_the_new_parameters_omitted_is_unchanged(probe_store
                          host="127.0.0.1", token=SHARED)
 
     assert isinstance(app, server_mod.KeyAuthMiddleware)
-    assert isinstance(app.app, server_mod._ToolLimiterLifespan)
+    assert isinstance(app.app, server_mod._ServerLifespan)
     assert app._keyring is None
 
     # With no keyring the gate is the single shared token it has always been,

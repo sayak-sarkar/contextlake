@@ -471,7 +471,12 @@ ANONYMIZE_VALUES = ("never", "always")
 # refusing the start over `[serve] keys_file` on stderr -- two lines, one run,
 # opposite claims about the same table. The table is known and the value is
 # honoured, so the warning was the wrong line. Keys INSIDE it are not checked
-# the way `_KB_KEYS` checks `[kb]`, so a typo there is still silent.
+# the way `_KB_KEYS` checks `[kb]`. `_serve_keys` closes that: the table carries
+# seven keys now, and a typo in any of them is a silent way to leave something
+# unbounded while an operator believes it is set -- `default_rat = "60/min"`
+# leaves every key unlimited, `usage_max_line = 1000` leaves the usage file
+# untrimmed. The set is `keyfile.SERVE_KEYS`, read lazily so importing config
+# does not pull the keystore onto the startup path of `contextlake mirror`.
 _TABLES = {"kb", "embeddings", "llm", "sources", "rules", "serve"}
 # Tables of scalar fields, deep-merged key-by-key across the precedence chain (see
 # load_kb_config). sources/rules are list tables and stay wholesale-replaced by design.
@@ -713,6 +718,18 @@ def _anonymize_value(raw) -> str:
     return "always"
 
 
+def _serve_keys() -> frozenset[str]:
+    """`keyfile.SERVE_KEYS`, imported at call time rather than at module scope.
+
+    `kb/keyfile.py` is the keystore, and importing it here would put it on the
+    startup path of every `contextlake mirror` run, which local-first property
+    P1 asserts against.
+    """
+    from .keyfile import SERVE_KEYS
+
+    return frozenset(SERVE_KEYS)
+
+
 def _warn_unknown_config(kb: dict, merged: dict) -> None:
     for k in kb:
         if k not in _KB_KEYS:
@@ -720,6 +737,13 @@ def _warn_unknown_config(kb: dict, merged: dict) -> None:
     for t in merged:
         if t not in _TABLES:
             log(f"config: unknown config table {t!r} (ignored)", level=logging.WARNING)
+    serve = merged.get("serve")
+    if isinstance(serve, dict):
+        known = _serve_keys()
+        for k in serve:
+            if k not in known:
+                log(f"config: unknown [serve] key {k!r} (ignored). Known: "
+                    f"{', '.join(sorted(known))}", level=logging.WARNING)
 
 
 def apply_llm_overrides(cfg: KbConfig, *, provider: str | None = None,

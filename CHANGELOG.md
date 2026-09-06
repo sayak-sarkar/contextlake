@@ -9,13 +9,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A networked server now records which key called which tool, and
+  `contextlake kb keys usage` reads it back.** `kb keys list`'s `LAST USED` column,
+  frozen at `-` since it shipped, is filled from the same file.
+
+  ```
+  Usage: 140 calls (140 timed)  /home/you/.contextlake/kb/mcp-usage.jsonl
+
+  KEY       CALLS  ERR  THR  DENY    P50    P95
+  k_4f2a91    120    0    0     0   75ms  142ms
+  k_9c01de     20   20  500     0  423ms  843ms
+
+  Refused requests (never reached a tool)
+    throttled       500
+    unknown          30
+    identity_unset   12
+    total           545
+  ```
+
+  **A row has six fields and there is nowhere to put a seventh:** the minute, the key id,
+  the tool name, the outcome, the tool time in whole milliseconds, and how many events the
+  row stands for. No query text, no symbol, no repository, no file path, no client address,
+  and nothing about the credential a refused caller presented. The recorder takes keyword
+  arguments only, with no free-text parameter and no `**kwargs`, so that is structural
+  rather than a sanitiser somebody has to remember to run.
+
+  **Counts, not lines, for traffic the server never admitted.** The eight refusal outcomes
+  and the identity fault are counted into one row per key, tool and minute; 500 refused
+  requests are one line reading `500`. An unauthenticated flood would otherwise evict every
+  real row inside a minute. Calls from an issued key keep one row each, because a
+  percentile needs the individual values.
+
+  **A refused call is recorded too.** The row is written in the tool wrapper's outer
+  `finally`, so a call refused by the tool grant, a call the rate limiter never admitted and
+  a call that raised are all in the file. Percentiles are nearest-rank; a refusal above the
+  concurrency slot carries no duration and prints `-` rather than `0ms`.
+
+  Rows buffer in memory and are written every ten seconds and on shutdown, so a tool call
+  does no disk I/O. The file grows to 22,000 rows and is then trimmed back to the newest
+  20,000, so the rewrite happens once per 2,000 rows instead of once per append. A line the
+  reader cannot score, from a truncated write or a newer contextlake, is skipped and
+  counted, and `kb keys usage` says how many rather than quietly reporting a short total.
+
+  Three things it deliberately does not measure, each stated on the surface that prints it:
+  one `ask` counts once, as `ask`, since it reaches its eight siblings below the wrapper;
+  `tools/list` and the handshake cross no wrapper, so `CALLS` counts tool calls and never
+  HTTP requests; and `kb://stats` resource reads are not recorded.
+
+  Off with `--no-usage` or `[serve] usage = false`. `[serve] usage_max_lines` and
+  `usage_flush_seconds` tune it, read only from a config you named, the same gate
+  `[serve] keys_file` and the quota defaults go through.
+
+  stdio is unchanged, byte for byte. It builds no recorder, reads no ContextVar and does not
+  load the usage module at all.
+
+- **`--rate`, `--burst` and `--cost-budget` on a key are now enforced over the
+  network.** They were recorded and read by nothing. Measured on a live
+  `kb serve --transport http --keys-only` server: a key created `--rate 3/min --burst 4`
+  answered four calls and then
+
+  ```
+  HTTP/1.1 429 Too Many Requests
+  content-type: application/json
+  retry-after: 20
+
+  {"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"rate limit exceeded for this key: 3/min. retry in 20s"}}
+  ```
+
+  Two buckets per key, filled lazily from two floats each. `--rate` and `--burst` bound
+  requests; `--cost-budget` bounds tool TIME, as a duration per period (`30s/min`), and
+  each call is charged how long its body ran. A duration rather than a count because a
+  count misprices `ask` by 8x: it is one request and eight tool bodies, since `ask`
+  reaches its siblings below the wrapper that could have counted them.
+
+  **The refusal is at the gate, before the request reaches any tool.** So it costs one
+  header parse rather than a worker thread, and it covers `tools/list` and the
+  `kb://stats` resource, which cross no tool wrapper at all. A caller with no valid key
+  gets `401` and is never counted against a quota: identity resolves first, which is
+  what keeps the bucket map keyed by ids this server minted rather than by anything a
+  caller can forge.
+
+  **Values are validated now.** `kb keys create --rate 60` is refused at the flag, naming
+  the string, so a typo cannot be minted onto a key that then reads as limited. The same
+  parser runs over every stored value when a key file is loaded for serving: a bad value
+  exits 1 before the socket binds, and a bad value introduced by a live edit is rejected
+  with one warning while the previous keyring keeps serving.
+
+  `none` on any axis means no limit there, and beats a server default. `--burst` needs
+  `--rate`: on its own it is the capacity of a bucket that does not exist. The minimum
+  burst is 4, because an MCP client spends three requests on the handshake before its
+  first tool call.
+
+  Not persisted and not shared between processes: a restart refills every quota, and two
+  server processes give each key twice its quota. On the `sse` transport the 429 message
+  is lost and the session closes, which is a defect in that client, not in this server.
+  `docs/mcp-transports.md` carries all three.
+
+  stdio is unchanged, byte for byte. It builds no limiter, opens no timer and does not
+  load the rate-limit module at all.
+
+- **`[serve] default_rate`, `default_burst` and `default_cost_budget` in `kb.toml`**, for
+  a quota that applies to every key that names none of its own. **All three are unset out
+  of the box**, so an upgrade starts limiting nobody. Read only from
+  `~/.contextlake/kb.toml` or a file passed to `--config`: a `.contextlake.kb.toml` found
+  by walking up from the current directory is ignored with one line saying so, because a
+  rate limit a repository checkout can rewrite is not a limit.
+
+  A shared token is bounded by `default_rate` and has no per-credential opt-out, since it
+  has no key record to write `none` on.
+
+- **Unknown keys in `[serve]` are warned about.** The table was known but its keys were
+  never checked the way `[kb]` keys are, so `default_rat = "60/min"` was a silent way to
+  leave every key unlimited. It now prints one line naming the key and the known set.
+
 - **`--tools` and `--owners` on a key are now enforced over the network.** They were
   recorded and read by nothing. Measured on a live `kb serve --transport http
   --keys-only` server: a key created `--tools none --repos nothing-matches/*` used to
   get the full tool list and its calls all ran; the same key on the same server now
   gets an empty tool list and a refusal that names the group which would grant the
-  call. `--repos`, `--external`, `--rate`, `--burst` and `--cost-budget` still bind
-  nothing and still print `(recorded, not enforced)`.
+  call. `--repos` and `--external` still bind nothing and still print
+  `(recorded, not enforced)`; `--rate`, `--burst` and `--cost-budget` went live in the
+  same release, below.
 
   Enforced at three surfaces, because a gate on one is a gate the caller walks around
   by using another: the tool wrapper, `tools/list`, and the `kb://stats` resource, which
@@ -51,10 +165,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb keys show` now marks each axis on its own, and an unset axis carries no marker at
   all, because it records no scope for a marker to qualify.
 
+- **`kb keys show` and `list` print the EFFECTIVE quota and where each value came
+  from.** The limits line used to read a bare `unset` for a key that named no rate. With
+  `[serve] default_rate` set, such a key is limited, and an operator reading `unset`
+  hands it out believing it is not. It now renders one of four states per axis:
+  `rate=60/min (enforced)`, `rate=unset -> 60/min from [serve] default_rate (enforced)`,
+  `rate=unset (no limit)`, or `rate=none (enforced: no limit, set on the key)`. The
+  `rate` column in `list` shows the effective value for the same reason.
+
+  Each per-record `--json` document gains `effective_rate`, `effective_burst`,
+  `effective_cost_budget` (strings or null) and `limits_source`, an object mapping each
+  of the three axes to `key`, `config` or `unset`. No field is removed and none changes
+  type.
+
 - **`policy_enforced` in every `--json` document is derived rather than a fixed
   `false`.** It answers whether every axis the document renders is enforced, so a key
-  scoped only on `--tools` reads `true` and the same key with `--rate` added reads
-  `false`. A key with no policy at all reads `false`, not a vacuous `true`: the fact an
+  scoped only on `--tools` reads `true` and the same key with `--repos` added reads
+  `false`. A `burst` recorded beside no rate does not count as enforced: it is the
+  capacity of a request bucket that does not exist, so listing it would make a key that
+  limits nothing read as limited. A key with no policy at all reads `false`, not a vacuous `true`: the fact an
   operator needs is whether anything limits the key, and for the key a bare
   `kb keys create alice` mints the answer is no. Each key also carries a new
   `enforced_axes` list. The field is not removed and does not change type.

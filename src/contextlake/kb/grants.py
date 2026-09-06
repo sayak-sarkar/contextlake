@@ -76,7 +76,7 @@ def _is_shared_token(key_id: str) -> bool:
 # label each axis, so "the CLI says enforced" and "the gate checks it" cannot
 # drift into disagreeing. Adding an axis here without adding its rule below
 # makes the CLI lie; the test that walks both is what stops that.
-ENFORCED_AXES = ("tools", "owners")
+ENFORCED_AXES = ("tools", "owners", "rate", "burst", "cost_budget")
 
 # The `kb://stats` resource, named here because it is gated like a tool but is
 # not one. It is in the `stats` group: what it discloses is the repo, node and
@@ -451,11 +451,24 @@ def enforced_axes(policy: Mapping[str, object] | None) -> list[str]:
 
     Per key rather than a flat server-wide list, so it composes with the derived
     `policy_enforced` boolean: a key with only `tools` set reads
-    `["tools"]`, and a key that also names a rate reads `["tools"]` with the
+    `["tools"]`, and a key that also names `repos` reads `["tools"]` with the
     boolean False, which is the pair a dashboard needs to render a scope column
     that is right on every row.
+
+    `burst` IS CONDITIONAL, and a flat membership test gets it wrong. A burst is
+    the request bucket's capacity, and there is no request bucket without a
+    rate, so a burst recorded beside no rate (or beside `none`) binds nothing.
+    Listed as enforced it would make `policy_enforced` True for a key that
+    limits nothing, which is the label lying in the direction this work exists
+    to stop. `parse_burst` refuses the combination at create time, so this only
+    fires for a hand-edited file.
     """
-    return [axis for axis in ENFORCED_AXES if (policy or {}).get(axis) is not None]
+    policy = policy or {}
+    axes = [axis for axis in ENFORCED_AXES if policy.get(axis) is not None]
+    rate = str(policy.get("rate") or "").strip().casefold()
+    if not rate or rate == "none":
+        axes = [axis for axis in axes if axis != "burst"]
+    return axes
 
 
 def policy_is_enforced(policy: Mapping[str, object] | None) -> bool:
@@ -470,4 +483,7 @@ def policy_is_enforced(policy: Mapping[str, object] | None) -> bool:
     recorded = list(policy or {})
     if not recorded:
         return False
-    return all(axis in ENFORCED_AXES for axis in recorded)
+    # Built on `enforced_axes` rather than on ENFORCED_AXES directly, so the two
+    # cannot disagree about one record. Read against the tuple, a key carrying
+    # `burst` and no rate would answer True here and `[]` there.
+    return set(recorded) <= set(enforced_axes(policy))

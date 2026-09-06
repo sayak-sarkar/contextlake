@@ -1568,6 +1568,18 @@ _FIRST_START_HINT = (
     "  That token is UNSCOPED and shared. Issue one key per client instead: "
     "contextlake kb keys create <name>\n"
 )
+# Printed once, on the start that CREATES the usage file, and after every
+# refusal above it, so it never describes a server that did not start. It is
+# two lines and not one because "a new file is being written about your
+# callers" and "here is how to read it" are two different things to do.
+USAGE_BANNER_LINES = 2
+
+
+def _usage_banner(tmp_path) -> str:
+    return (f"  Recording usage to {tmp_path / 'kb' / 'mcp-usage.jsonl'} (key "
+            "id, tool name, outcome and duration; no query text). Turn it off "
+            "with --no-usage.\n"
+            "  Read it back: contextlake kb keys usage\n")
 
 
 def _serve_config(tmp_path):
@@ -1654,8 +1666,10 @@ def test_a_first_start_prints_the_minted_banner_then_names_kb_keys(tmp_path,
     err = capsys.readouterr().err
     assert rc == 0
     assert err.splitlines() == (_MINTED_BANNER.format(token=captured["token"])
-                                + _FIRST_START_HINT).splitlines()
-    assert len(err.splitlines()) == MINTED_BANNER_LINES + FIRST_START_HINT_LINES
+                                + _FIRST_START_HINT
+                                + _usage_banner(tmp_path)).splitlines()
+    assert len(err.splitlines()) == (MINTED_BANNER_LINES + FIRST_START_HINT_LINES
+                                     + USAGE_BANNER_LINES)
     assert captured["keyring"] is None
     assert captured["token"]
 
@@ -1673,8 +1687,10 @@ def test_a_first_start_on_a_pinned_token_also_names_kb_keys(tmp_path,
 
     err = capsys.readouterr().err
     assert rc == 0
-    assert err.splitlines() == (_ENV_BANNER + _FIRST_START_HINT).splitlines()
-    assert len(err.splitlines()) == ENV_BANNER_LINES + FIRST_START_HINT_LINES
+    assert err.splitlines() == (_ENV_BANNER + _FIRST_START_HINT
+                                + _usage_banner(tmp_path)).splitlines()
+    assert len(err.splitlines()) == (ENV_BANNER_LINES + FIRST_START_HINT_LINES
+                                     + USAGE_BANNER_LINES)
     assert captured["token"] == "fake-pinned-value-for-a-test"
     assert captured["keyring"] is None
 
@@ -1739,9 +1755,14 @@ def test_a_key_file_whose_keys_were_all_revoked_mints_and_says_so(tmp_path,
     err = capsys.readouterr().err
     lines = err.splitlines()
     assert rc == 0
-    assert lines[-MINTED_BANNER_LINES:] == _MINTED_BANNER.format(
+    # The minted banner is still contiguous and still the last thing said about
+    # the credential; the usage banner follows it, so the slice is taken from
+    # where that ends rather than from the end of the output.
+    usage_at = len(lines) - USAGE_BANNER_LINES
+    assert lines[usage_at - MINTED_BANNER_LINES:usage_at] == _MINTED_BANNER.format(
         token=captured["token"]).splitlines()
-    assert len(lines) == MINTED_BANNER_LINES + 3
+    assert lines[usage_at:] == _usage_banner(tmp_path).splitlines()
+    assert len(lines) == MINTED_BANNER_LINES + USAGE_BANNER_LINES + 3
     assert "REVOKED" in err and str(path) in err
     assert captured["keyring"] is None
 

@@ -21,6 +21,7 @@ import functools
 import hmac
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -235,9 +236,14 @@ _IDENTITY_UNSET_MESSAGE = (
 # 2026-09-05. Nothing outside a test assertion ever read it, and this frame is
 # built to keep writes-with-no-consumer out, so inventing a consumer to justify
 # the write would invert its own rule. The count is worth having: it separates
-# one stuck client from a server answering nothing at all. It lands with the
-# usage recorder, which has a reader, in
-# planning/tickets/epic-4-mcp-network-auth/S4.5.1-analytics-recorder-and-row-schema.md.
+# one stuck client from a server answering nothing at all.
+#
+# THE COUNT HAS A READER NOW, and it is not this dict. Every refused call
+# writes an `identity_unset` usage row, so `contextlake kb keys usage` sums
+# them and prints the total in its refusals block. Two numbers, and they differ
+# by one: the summed `n` is how many calls the fault refused, and what this
+# flag used to count is that minus one, because the first report is the warning
+# line below. The row is the number an operator wants, so nothing counts here.
 _IDENTITY_FAULT = {"logged": False}
 
 
@@ -256,8 +262,8 @@ def _note_identity_fault(tool: str) -> None:
         "tool refuses until this is fixed. Usual cause: the MCP SDK stopped "
         "carrying the request context into the worker thread that runs a "
         "synchronous tool. Check the installed `mcp` version against the "
-        "supported range. Further reports are dropped; a count of them arrives "
-        "with usage recording.", tool)
+        "supported range. Further reports are dropped; every refused call is "
+        "counted, and `contextlake kb keys usage` prints the total.", tool)
 
 
 def _reset_identity_fault_log() -> None:
@@ -1037,17 +1043,31 @@ def build_server(
     # or a server whose identity propagation broke answers every tool unscoped
     # while every test in the suite passes.
     #
-    # `_networked` landed with the frame. `_enforcing` arrives here with the
-    # access-control story that reads it. The other four (_charging, _recording,
-    # _timed, _now) still have no reader, so they are still absent: landed early
-    # they would be assignments nothing references, which ruff F841 refuses, and
-    # they are the same write-with-no-consumer shape this frame keeps out.
+    # All six are declared now, and each names the line that reads it.
+    # `_networked` landed with the frame, `_enforcing` with access control,
+    # `_charging`/`_now` with the rate limiter, and `_recording`/`_timed` with
+    # the usage recorder. None of them is ever an assignment nothing
+    # references: that is the write-with-no-consumer shape this frame keeps
+    # out, and ruff F841 is what enforces it.
     _networked = networked
     # `_enforcing` implies `_networked` is an ENFORCED invariant, not an
     # assumption: the loop above refuses `grant_source` with `networked=False`.
     # That is what lets the check below read `principal.key_id` with no None
     # test, because the identity refusal above the anchor has already run.
     _enforcing = grant_source is not None
+    # `_charging` implies `_networked` by the same build-time refusal, which is
+    # what lets the charge below read `principal.key_id` with no None test.
+    _charging = limiter is not None
+    _now = now
+    # `_recording` implies `_networked` by the same build-time refusal. It is a
+    # build-time boolean for the reason the whole block is: a server whose
+    # identity propagation broke must still write the row that says so, and a
+    # ContextVar read cannot decide that.
+    _recording = usage is not None
+    # The timer's gate, naming BOTH its readers. The charge needs the elapsed
+    # value and so does the row's `ms`, so a server recording without a limiter
+    # still measures. Read twice below, inside the slot.
+    _timed = _charging or _recording
 
     def bounded_tool(fn):
         @functools.wraps(fn)
@@ -1069,11 +1089,12 @@ def build_server(
             # hoist them beside the switches above: the switches are shared by
             # every call, these three are not.
             #
-            # `outcome` and `ms` have NO READER YET. Their consumer is the usage
-            # recorder, which writes them from the outer `finally` below. Dated
-            # 2026-09-05: if that recorder has not landed, this is a write nobody
-            # consumes and it should be flagged, not left to read as finished.
-            outcome, ms, principal = "ok", None, None  # noqa: F841 - see above
+            # `outcome` and `ms` are read by the usage recorder, from the outer
+            # `finally` below. `ms` stays None on a call refused above the slot:
+            # the timer opens inside the slot, so an `identity_unset` or a
+            # tool-axis `denied` row carries no duration and no code decides
+            # that.
+            outcome, ms, principal = "ok", None, None
             try:
                 # One ContextVar read per wire call, and none at all on stdio.
                 if _networked:
@@ -1124,10 +1145,46 @@ def build_server(
                 with _tool_slots:
                     # ANCHOR (cost): the timer opens here, inside the slot, so a
                     # wait on another caller's slot is never billed as this
-                    # caller's work.
-                    return fn(*args, **kwargs)
+                    # caller's work. DEFAULT_TOOL_CONCURRENCY is 2, and eight
+                    # concurrent blast_radius calls measured 8,705 ms in
+                    # aggregate against 204 ms serialised (see the numbers above
+                    # `_tool_slots`), about 1,088 ms each under contention
+                    # against about 25 ms each alone. Timed outside the `with`,
+                    # a cheap graph_stats queued behind one of those is charged
+                    # seconds it did not spend, by a key that did not spend them.
+                    #
+                    # `principal` cannot be None here: `_charging` implies
+                    # `_networked` by the build-time refusal above, and an unset
+                    # principal was already refused with IdentityUnset before
+                    # the slot was taken.
+                    #
+                    # ANCHOR (analytics, duration): the gate is `_timed`, which
+                    # is `_charging or _recording`, so the same measurement
+                    # feeds the charge and the row's `ms`. One timer, and one
+                    # elapsed value: a second one added for the row would
+                    # measure a different window and the two numbers would
+                    # disagree about the same call.
+                    t0 = _now() if _timed else 0.0
+                    try:
+                        return fn(*args, **kwargs)
+                    finally:
+                        # A `finally`, so a tool that RAISES is still charged.
+                        # Without it a key spends unlimited compute by failing,
+                        # and a GrantDenied raised from inside a body -- which
+                        # took a slot and spent real time -- would be free.
+                        # No `try` around the charge itself: the never-raise
+                        # contract lives inside `Limiter.charge`, because a
+                        # raise here would land on the `except BaseException`
+                        # below and replace the tool's own return value.
+                        if _timed:
+                            elapsed = (_now() - t0) * 1000.0
+                            # Whole milliseconds. The row schema says int, and
+                            # a float there would render as `11.437291ms`.
+                            ms = round(elapsed)
+                            if _charging:
+                                limiter.charge(principal.key_id, elapsed)
             except IdentityUnset:
-                outcome = "identity_unset"  # noqa: F841 - reader lands with the recorder
+                outcome = "identity_unset"
                 raise
             # ANCHOR (access control): above the catch-all, so a deliberate
             # refusal is filed as a denial and not as a crash. It sits here
@@ -1135,18 +1192,33 @@ def build_server(
             # inside a tool BODY has to land on the same clause; one `except`
             # over the whole `try` is what makes the axes share a vocabulary.
             except GrantDenied:
-                outcome = "denied"  # noqa: F841 - reader lands with the recorder
+                outcome = "denied"
                 raise
             except BaseException:
                 # BaseException, not Exception, deliberately. A cancellation or a
                 # KeyboardInterrupt would otherwise skip this line and leave an
                 # `ok` outcome on a call that never returned one.
-                outcome = "error"  # noqa: F841 - reader lands with the recorder
+                outcome = "error"
                 raise
             finally:
                 _DRIFT_PROBE.reset(token)
-                # ANCHOR (analytics): the usage row is written here, in this same
-                # `finally`, which is what lets a refused call be recorded at all.
+                # ANCHOR (analytics): the usage row, written HERE and not beside
+                # the `return`, which is what records a call refused before the
+                # tool body ran and a call that raised. It runs during
+                # propagation on those paths, so `record()` swallows everything
+                # inside itself: a raise here would replace the tool's own
+                # exception, including the GrantDenied message a caller has to
+                # be able to read.
+                #
+                # `principal` is the local captured above, never a second
+                # `current_principal()`, for the reason written at the
+                # access-control anchor: a test counts the reads per `ask`.
+                #
+                # `n` is the recorder's. Nothing here counts.
+                if _recording:
+                    usage.record(tool=fn.__name__, outcome=outcome,
+                                 key=principal.key_id if principal else None,
+                                 ms=ms)
 
         mcp.add_tool(guarded)
         return fn
@@ -2351,6 +2423,14 @@ def build_server(
         # `stats` group is a gate a caller walks around by reading a URI instead
         # of calling `graph_stats`, which answers the same counts.
         #
+        # AND NO USAGE ROW, deliberately, not by omission. The row's `tool`
+        # field holds a name this process registered; the only name available
+        # here is the caller-supplied URI, which carries a repo id. Putting
+        # caller text in that field is the one thing the row's closed field set
+        # exists to prevent, so this surface stays unrecorded and
+        # `docs/mcp-transports.md` says so. A row bolted on here needs a
+        # different field, argued for on its own.
+        #
         # MEASURED 2026-09-06 against a bound socket with two live keys: the
         # principal DOES reach this body, correct per key. The phase-0 identity
         # measurement covered the synchronous tool path only, so this was not
@@ -2681,7 +2761,15 @@ class _RefusalLog:
 
     def __init__(self, *, cap: int = REFUSAL_LOG_CAP,
                  window: float = REFUSAL_LOG_WINDOW, clock=time.monotonic,
-                 stream=None) -> None:
+                 stream=None, label: str = "MCP auth refused") -> None:
+        # The label is a parameter because the rate limiter needs the same
+        # bound over a different vocabulary. A throttled caller is by
+        # definition sending a lot, so an unbounded line per refused request
+        # fills a `--log-file` disk exactly the way the auth flood does. What
+        # it must NOT do is join `REFUSAL_CLASSES`: those are the seven 401
+        # classes, a 429 is not one of them, and four analytics stories assert
+        # on that enumeration.
+        self._label = label
         self._cap = cap
         self._window = window
         self._clock = clock
@@ -2719,13 +2807,13 @@ class _RefusalLog:
                 crossed = row[2] == 1
         # Outside the lock: a write syscall must not serialise the gate.
         if missed:
-            self._write(f"  MCP auth refused: {refusal} x{missed} more, "
+            self._write(f"  {self._label}: {refusal} x{missed} more, "
                         f"suppressed in the last {self._window:.0f}s")
         if emitted < self._cap:
             where = f" key={key_id}" if key_id else ""
-            self._write(f"  MCP auth refused: {refusal}{where}")
+            self._write(f"  {self._label}: {refusal}{where}")
         elif crossed:
-            self._write(f"  MCP auth refused: {refusal} -- further lines "
+            self._write(f"  {self._label}: {refusal} -- further lines "
                         f"suppressed for {self._window:.0f}s")
 
     def reset(self) -> None:
@@ -2736,14 +2824,30 @@ class _RefusalLog:
 
 _REFUSAL_LOG = _RefusalLog()
 
+# The SAME bound over a SEPARATE vocabulary. A second instance rather than a
+# widened `REFUSAL_CLASSES`: a 429 is not a 401, the seven classes are the
+# byte-identical-on-the-wire set and four analytics stories enumerate them, so
+# adding an eighth member would move a tuple those stories read. The class is
+# already generic -- cap, window, clock, stream and now label are all
+# parameters -- so reuse costs one instance and no new machinery.
+_THROTTLE_LOG = _RefusalLog(label="MCP rate limit")
+
+# The two buckets a throttle can name. Its own tuple, on purpose: it must not be
+# reachable from `REFUSAL_CLASSES` and it must not grow into a third vocabulary
+# either, so the 429 body has exactly two sentences to pick between.
+THROTTLE_CLASSES = ("requests", "cost")
+
 
 def reset_refusal_log() -> None:
-    """Zero the refusal-line bound. For tests; nothing in the module calls it.
+    """Zero the refusal-line bounds. For tests; nothing in the module calls it.
 
     Module state outlives a test. Without this, whichever test floods first
-    changes the line count every later test in the process reads.
+    changes the line count every later test in the process reads. Both logs,
+    because both are module state and a caller asking for a clean slate means
+    the process, not one of them.
     """
     _REFUSAL_LOG.reset()
+    _THROTTLE_LOG.reset()
 
 
 def _report_refusal(refusal: str, *, key_id: str | None = None) -> None:
@@ -2776,6 +2880,82 @@ def _report_refusal(refusal: str, *, key_id: str | None = None) -> None:
     if refusal not in REFUSAL_CLASSES:
         raise ValueError(f"not a refusal class: {refusal!r}")
     _REFUSAL_LOG.report(refusal, key_id=key_id)
+
+
+def _report_throttle(key_id: str, which: str) -> None:
+    """Tell the OPERATOR that a key was rate limited, bounded per bucket.
+
+    The key id is named, and that is the same content rule
+    :func:`_report_refusal` already states: the id is this server's own name
+    for a record it already holds, matched from a digest, never a string the
+    caller presented. The presented value, its length and its hash stay out of
+    the line, exactly as there.
+
+    CALLED AFTER THE 429 HAS BEEN SENT, for the reason written on
+    :func:`_report_refusal`: the guard below raises, and a raise on the way in
+    unwinds the request with no response at all, so the caller gets a dropped
+    connection instead of a refusal it can act on.
+    """
+    if which not in THROTTLE_CLASSES:
+        raise ValueError(f"not a throttle class: {which!r}")
+    _THROTTLE_LOG.report(which, key_id=key_id)
+
+
+# The two sentences a 429 can carry, one per bucket. An operator has to be able
+# to tell "too many calls" from "too much time": they are fixed by different
+# flags, and one sentence covering both sends them to the wrong one.
+_THROTTLE_MESSAGES = {
+    "requests": "rate limit exceeded for this key: {limit}. retry in {wait}s",
+    "cost": "compute budget exceeded for this key: {limit}. retry in {wait}s",
+}
+
+
+async def _send_throttled(send, verdict) -> None:
+    """The one 429. Built to the shape :func:`_send_unauthorized` already uses.
+
+    THREE FIELDS DECIDE WHETHER THIS REACHES THE MODEL AT ALL, and each is its
+    own assertion in the tests:
+
+    * ``content-type: application/json`` exactly. The SDK client tests this
+      header before it parses anything (``mcp/client/streamable_http.py``), so
+      with ``text/plain`` the caller sees "Server returned an error response"
+      and the limit is invisible. A body-only test passes with it wrong.
+    * ``exclude_unset=True`` on the dump. Without it the model emits a trailing
+      ``"data":null``, which is 12 more bytes and a different ``content-length``.
+    * ``Retry-After`` as ``max(1, ceil(seconds))``. A bucket 0.2 tokens short at
+      one token a second yields 0.2, and ``int(0.2)`` is 0, which tells a proxy
+      to retry immediately. It is delta-SECONDS, so ``format_duration`` is the
+      wrong function here: it renders 120 as "2m".
+
+    ``id`` is null because this middleware reads no request body, so any other
+    value would be invented. No ``RateLimit`` or ``RateLimit-Policy`` header:
+    those are an Internet-Draft, and emitting them pins contextlake to a draft
+    spelling.
+
+    ON SSE THE MESSAGE IS LOST AND THE SESSION DIES, and that is documented
+    rather than engineered around. ``mcp/client/sse.py`` calls
+    ``raise_for_status()`` inside ``_send_message`` and swallows it, so the
+    writer task returns, the streams close and the in-flight call never
+    resolves. Special-casing the transport here would put a client bug inside
+    this server's security gate. ``docs/serving-over-mcp.md`` carries the
+    sentence so an operator reading "connection closed" looks at the quota.
+    """
+    from mcp.types import ErrorData, JSONRPCError
+
+    wait = max(1, math.ceil(verdict.retry_after_s))
+    message = _THROTTLE_MESSAGES[verdict.which].format(
+        limit=verdict.limit_text, wait=wait)
+    error = JSONRPCError(jsonrpc="2.0", id=None,
+                         error=ErrorData(code=-32000, message=message))
+    body = json.dumps(error.model_dump(by_alias=True, mode="json",
+                                       exclude_unset=True),
+                      separators=(",", ":")).encode("utf-8")
+    await send({"type": "http.response.start", "status": 429, "headers": [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode("ascii")),
+        (b"retry-after", str(wait).encode("ascii")),
+    ]})
+    await send({"type": "http.response.body", "body": body})
 
 
 class KeyAuthMiddleware:
@@ -2817,7 +2997,8 @@ class KeyAuthMiddleware:
     # a 500 on the auth path.
     KEYRING_METHODS = ("reload_if_changed", "resolve")
 
-    def __init__(self, app, token: str | None, *, keyring=None, keys=None) -> None:
+    def __init__(self, app, token: str | None, *, keyring=None, keys=None,
+                 limiter=None, usage=None) -> None:
         self.app = app
         # None means the shared-token branch DOES NOT EXIST. Not an empty
         # string and not an unreachable value: a branch that exists and
@@ -2834,6 +3015,17 @@ class KeyAuthMiddleware:
         # property P1 asserts no keystore module is in `sys.modules` after an
         # stdio run, and stdio never reaches build_http_app.
         self._keys = keys
+        # The quota, or None for a server where no key could carry one. Derived
+        # by build_http_app for the same reason `grant_source` is derived
+        # there: a parameter one of the several call sites forgot would be a
+        # socket serving unlimited traffic with every test still green.
+        self._limiter = limiter
+        # The usage recorder, or None. It is the ONE handle this gate has on
+        # analytics: the tool wrapper writes the rows for calls that reached a
+        # tool, and this writes the rows for the traffic that never did. Those
+        # requests cross no wrapper, so without a handle here every refusal and
+        # every throttle is invisible.
+        self._usage = usage
 
     async def __call__(self, scope, receive, send) -> None:
         if scope.get("type") != "http":
@@ -2850,7 +3042,51 @@ class KeyAuthMiddleware:
             # whether the server can name its own reason.
             await _send_unauthorized(send)
             _report_refusal(refusal, key_id=key_id)
+            # The row goes out with the operator line, AFTER the 401, for the
+            # reason written above it. `tool` is null: this request named no
+            # tool and never reached one. The row is COUNTED rather than kept
+            # per event -- see `usage.AGGREGATED` -- because nothing an
+            # operator set bounds how much unauthenticated traffic arrives.
+            self._record(refusal, key_id)
             return
+        # ADMISSION, and it is HERE rather than in the tool wrapper. A limiter
+        # inside `guarded` refuses after the body has been parsed, after the
+        # SDK has routed it and after the request has queued for a concurrency
+        # slot, so a flood holds worker threads while being refused. It also
+        # misses every surface that crosses no wrapper: the `kb://stats`
+        # resource, `tools/list`, and each of the eight bare legs `ask`
+        # dispatches to. A refusal here costs one header parse, one keyring
+        # lookup and two float operations.
+        #
+        # AFTER IDENTITY RESOLVES, deliberately. An unauthenticated request
+        # gets a 401 and allocates no bucket, so the limiter's map is keyed by
+        # ids this server minted and never by anything a caller controls, which
+        # is what keeps a forged-bearer flood from being memory growth. A
+        # revoked or expired key gets a 401 too, not a 429.
+        #
+        # No sleep and no retry loop. A quota that waits spends this server's
+        # own threads and turns a refusal into a slow success, which an agent
+        # cannot tell from a slow server.
+        #
+        # Charged once per HTTP request, for every method and path behind the
+        # gate. This middleware reads no body, so it cannot discount the
+        # handshake: a client spends three admissions before its first tool
+        # call. `docs/serving-over-mcp.md` prints that number.
+        if self._limiter is not None:
+            verdict = self._limiter.admit(principal.key_id)
+            if not verdict.admitted:
+                # The 429 first, the operator line second, for the reason
+                # written above the 401 and again on `_report_throttle`.
+                await _send_throttled(send, verdict)
+                _report_throttle(principal.key_id, verdict.which)
+                # One literal for both buckets. `verdict.which` says requests
+                # or cost, and it is the operator line's job to tell them
+                # apart: a row vocabulary that grew a member per bucket would
+                # be a third enumeration beside REFUSAL_CLASSES and
+                # THROTTLE_CLASSES, and the reader's THR column asks one
+                # question.
+                self._record("throttled", principal.key_id)
+                return
         # Every request this gate admits carries an identity from here on, the
         # shared token included. That is the precondition the tool wrapper's
         # refusal rests on: because this is unconditional, an unset principal
@@ -2864,6 +3100,17 @@ class KeyAuthMiddleware:
             await self.app(scope, receive, send)
         finally:
             _PRINCIPAL.reset(token)
+
+    def _record(self, outcome: str, key_id: str | None) -> None:
+        """One usage row for a request this gate refused, or nothing.
+
+        A refused request crosses no tool wrapper, so this is the only place
+        these rows can be written. `Recorder.record` swallows everything, so
+        this needs no guard of its own; the `is not None` test is the switch,
+        not a safety net.
+        """
+        if self._usage is not None:
+            self._usage.record(tool=None, outcome=outcome, key=key_id)
 
     def _authenticate(self, scope) -> tuple[Principal | None, str | None, str | None]:
         """``(principal, refusal class, key id)``. A principal means admitted.
@@ -2983,7 +3230,7 @@ class _QuietSseRejection:
 def build_http_app(
     store: Store, *, transport: str, host: str, token: str | None,
     embedder=None, vector_store=None, tool_concurrency: int | None = None,
-    keyring=None, usage=None, now=time.monotonic,
+    keyring=None, limits=None, usage=None, now=time.monotonic,
 ):
     """The key-gated, Origin-checked ASGI app for an HTTP-family transport.
 
@@ -3073,9 +3320,31 @@ def build_http_app(
     from . import grants as _grants_module
 
     grant_source = _grants_module.make_grant_check(keyring)
+
+    # The quota, derived on the same argument as `grant_source` above and
+    # imported in this body for the same local-first reason. `limits` carries
+    # the parsed `[serve]` defaults and nothing else: the per-key values are
+    # read live from the keyring on each request, so a key narrowed in the file
+    # takes effect on the next one with no restart and no invalidation window.
+    #
+    # `build_limiter` is the ONE seam a test patches. There is deliberately no
+    # `limiter=` parameter here: two production call sites reach this function,
+    # and one that forgot it would be a socket serving unlimited traffic.
+    from . import ratelimit as _ratelimit_module
+
+    limiter = _ratelimit_module.build_limiter(keyring, limits, now=now)
+    # `usage` is PASSED, not derived, and that asymmetry with `limiter` and
+    # `grant_source` above is deliberate. Those two are security controls: a
+    # call site that forgot one would be a socket serving unlimited or unscoped
+    # traffic with every test still green. A call site that forgets the
+    # recorder writes no telemetry, which is visible and harmless, and passing
+    # it keeps the test seam this function was split out to preserve -- the
+    # recorder needs a path, and a path resolved in here would put store layout
+    # inside the security gate's builder.
     server = build_server(store, embedder=embedder, vector_store=vector_store,
                           tool_concurrency=tool_concurrency, networked=True,
-                          grant_source=grant_source, usage=usage, now=now)
+                          grant_source=grant_source, limiter=limiter,
+                          usage=usage, now=now)
     security = transport_security(host)
     if transport == "sse":
         app = _QuietSseRejection(server.sse_app(transport_security=security, host=host))
@@ -3083,37 +3352,109 @@ def build_http_app(
         app = server.streamable_http_app(
             stateless_http=True, json_response=True,
             transport_security=security, host=host)
-    return KeyAuthMiddleware(_ToolLimiterLifespan(app, tool_concurrency), token,
-                             keyring=keyring, keys=keys_module)
+    return KeyAuthMiddleware(_ServerLifespan(app, tool_concurrency, usage=usage),
+                             token, keyring=keyring, keys=keys_module,
+                             limiter=limiter, usage=usage)
 
 
-class _ToolLimiterLifespan:
-    """Applies the tool-concurrency bound on ASGI lifespan startup.
+class _ServerLifespan:
+    """The two things that need the server's own event loop, on ASGI lifespan.
 
-    uvicorn owns the event loop for the HTTP transports, so there is no
-    ``anyio.run`` of ours to set the limiter in -- and the limiter is
-    run-scoped, so it has to be set inside that loop. Lifespan startup is the
-    first thing that runs there.
+    STARTUP applies the tool-concurrency bound. uvicorn owns the event loop for
+    the HTTP transports, so there is no ``anyio.run`` of ours to set the limiter
+    in, and the limiter is run-scoped, so it has to be set inside that loop.
+    Lifespan startup is the first thing that runs there.
+
+    SHUTDOWN stops the usage flush task and flushes what is left. Never
+    ``atexit``: ``cmds/serve.py``'s ``finally`` ends in ``os._exit(0)``, which
+    skips every ``atexit`` hook, so a last minute of rows would be lost on the
+    documented way to stop this server.
+
+    It was ``_ToolLimiterLifespan`` while it did one job. Renamed rather than
+    extended under the old name: a class called after one of its two jobs is
+    how the second one gets deleted by somebody tidying up.
 
     Wrapping rather than passing ``lifespan=`` to the SDK: that app already has
     a lifespan managing its session manager, and supplying one would replace it.
     """
 
-    def __init__(self, app, limit: int) -> None:
+    def __init__(self, app, limit: int, *, usage=None) -> None:
         self.app = app
         self.limit = limit
+        self.usage = usage
+        self._flusher = None
 
     async def __call__(self, scope, receive, send) -> None:
-        if scope.get("type") == "lifespan":
-            async def _receive():
-                message = await receive()
-                if message.get("type") == "lifespan.startup":
-                    apply_tool_limiter(self.limit)
-                return message
-
-            await self.app(scope, _receive, send)
+        if scope.get("type") != "lifespan":
+            await self.app(scope, receive, send)
             return
-        await self.app(scope, receive, send)
+
+        async def _receive():
+            message = await receive()
+            if message.get("type") == "lifespan.startup":
+                apply_tool_limiter(self.limit)
+                self._start_flusher()
+            return message
+
+        try:
+            await self.app(scope, _receive, send)
+        finally:
+            # AFTER the app returns on a lifespan scope, not inside `_receive`
+            # when the shutdown message arrives. At this point the app has torn
+            # down and no further tool call can land, so the flush cannot race
+            # a row being appended behind it. A `finally`, so a shutdown that
+            # raises still writes what was measured.
+            await self._stop_flusher()
+
+    def _start_flusher(self) -> None:
+        if self.usage is None or self._flusher is not None:
+            return
+        import asyncio
+
+        self._flusher = asyncio.ensure_future(self._flush_loop())
+
+    async def _flush_loop(self) -> None:
+        """Write the buffer out every `flush_seconds`. Cancelled at shutdown.
+
+        On the event loop, not in a worker thread. A normal flush is one append
+        of about 1 KB; the trim is bounded and fires once per TRIM_MARGIN rows.
+        `Recorder.flush` swallows everything, so this loop cannot die on a full
+        disk and leave the buffer growing.
+        """
+        import asyncio
+
+        while True:
+            await asyncio.sleep(self.usage.flush_seconds)
+            self.usage.flush()
+
+    async def _stop_flusher(self) -> None:
+        """Cancel the loop and write the last batch. Cannot fail the shutdown.
+
+        The whole body is guarded, not only the flush. This runs in the
+        lifespan's own `finally`, and an exception escaping here is an ASGI
+        lifespan failure: uvicorn reports STARTUP_FAILURE and the server does
+        not come up. `Recorder` already swallows everything, so the guard is
+        about the CONTRACT rather than about today's object: a recorder that
+        breaks must cost telemetry and nothing else.
+        """
+        import asyncio
+
+        task, self._flusher = self._flusher, None
+        try:
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    # Expected: this is the cancellation just requested.
+                    # Awaiting the task rather than dropping it is what stops
+                    # asyncio printing "Task was destroyed but it is pending"
+                    # on the way out, which reads as a crash on a clean stop.
+                    pass
+            if self.usage is not None:
+                self.usage.close()
+        except Exception as exc:  # noqa: BLE001 - see the docstring
+            _log.debug("usage shutdown ended with %r", exc)
 
 
 async def _run_stdio(server, limit: int) -> None:
@@ -3188,7 +3529,7 @@ def _interrupt_on_signal() -> None:
 def run_server(
     store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
     embedder=None, vector_store=None, token: str | None = None,
-    tool_concurrency: int | None = None, keyring=None,
+    tool_concurrency: int | None = None, keyring=None, limits=None, usage=None,
 ) -> None:
     """Build and run the MCP server (blocking).
 
@@ -3233,7 +3574,7 @@ def run_server(
     app = build_http_app(
         store, transport=transport, host=host, token=token,
         embedder=embedder, vector_store=vector_store, tool_concurrency=limit,
-        keyring=keyring)
+        keyring=keyring, limits=limits, usage=usage)
     # warning, not the SDK's INFO: cmds/serve.py already prints the one banner
     # line a user needs ("MCP server on http://host:port/path"), and uvicorn's
     # own startup banner plus per-request access log would bury the token line

@@ -183,8 +183,8 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
-| `kb keys` | Create and manage the API keys that authenticate MCP callers: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune` |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--no-usage` turns off the per-key call record; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
+| `kb keys` | Create and manage the API keys that authenticate MCP callers, and read what they called: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune`, `usage` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
@@ -240,6 +240,7 @@ contextlake kb keys revoke k_4f2a91 --reason "laptop returned"
 contextlake kb keys rotate k_4f2a91 --overlap 24h
 printf '%s' "$KEY" | contextlake kb keys check
 contextlake kb keys prune --before 2026-01-01
+contextlake kb keys usage --since 24h
 ```
 
 **The key is shown once, and only once.** It is printed to standard error at creation and
@@ -277,10 +278,10 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**Two scope flags are enforced and four are not, and the marker beside each value says
+**Five key flags are enforced and two are not, and the marker beside each value says
 which.** `--tools` and `--owners` are read on every call a networked server serves.
-`--repos`, `--external`, `--rate`, `--burst` and `--cost-budget` are still written onto
-the key and read by nothing.
+`--rate`, `--burst` and `--cost-budget` are checked at the gate, before a call reaches a
+tool. `--repos` and `--external` are still written onto the key and read by nothing.
 
 `--tools` takes a comma-separated list of groups: `graph`, `search`, `docs`, `stats`,
 `owners`, `semantic`, plus the reserved `all`, `read` and `none`. `read` covers every
@@ -314,10 +315,17 @@ answered with all 23 registered tools, after which `graph_stats` ran and returne
 The same key on the same server now gets an empty tool list and a refusal on `graph_stats`.
 The `--repos` half is unchanged.
 
+**`--rate`, `--burst` and `--cost-budget` are enforced.** A key over its quota gets `429`
+with a `Retry-After` header, refused at the gate before the request reaches any tool. Values
+are validated at the flag, so a typo cannot be minted onto a key, and again when a key file
+is loaded for serving. See [per-key quotas](mcp-transports.md#per-key-quotas) for the
+formats, the `[serve]` defaults and what the quota deliberately does not do.
+
 Every surface that prints an unenforced axis says `(recorded, not enforced)` beside it and
 carries a note naming both halves. Each `--json` document carries `"policy_enforced"` for
-what it renders, and each key carries `"enforced_axes"`. `--rate` and `--cost-budget` are
-stored as typed and are not validated yet either.
+what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
+values a running server will apply, and `"limits_source"` saying whether each came from the
+key, from `[serve]` in kb.toml, or from nowhere.
 
 Scoping is a NETWORK control. stdio serves one local user who already has the files, so
 nothing on that transport reads a key or a policy.
@@ -331,7 +339,7 @@ are refused, each naming the route that does work.
 
 #### `--json`
 
-All seven verbs answer `--json`. **Standard output carries the document and nothing else,
+All eight verbs answer `--json`. **Standard output carries the document and nothing else,
 on every exit path, failures included.** Every human line, every permission warning and the
 plaintext key go to standard error, so `contextlake kb keys list --json > out.json` always
 leaves a parseable file.
@@ -344,7 +352,8 @@ leaves a parseable file.
 | `revoke` | the record after the call, plus `changed` |
 | `rotate` | `old`, `new`, `overlap`, `overlap_seconds`, plus the key fields `create` has |
 | `prune` | `before`, `removed`, `removed_keys[]`, `remaining` |
-| `check` | `valid`, `reason`, and the matched record's `id`, `name`, `state`, `expires_at` |
+| `check` | `valid`, `reason`, `checked_locally`, the matched record's `id`, `name`, `state`, `expires_at` and `policy`, plus `enforced_axes`, `policy_enforced`, the `effective_*` quota values and `limits_source` |
+| `usage` | `usage_file`, `present`, `readable`, `since`, `calls`, `measured`, `p50`, `p95`, `keys[]`, `tools[]`, `refusals[]`, `refused_total` |
 
 Four things a caller needs to know about the shapes:
 
@@ -367,12 +376,13 @@ Four things a caller needs to know about the shapes:
   to prefer, and the document names the path in `key_file`.
 
 `list` rows carry the record and five frozen display strings from the table:
-`tools`, `repos` and `rate` read `-` when unset, `expires` is a date, and `last_used` is
-always `-`. Read `policy` and `expires_at` instead. `last_used_at` is `null` in this
-release and `last_used_state` says why, because a null on its own cannot tell "never used"
-from "nothing measures it".
+`tools`, `repos` and `rate` read `-` when unset, `expires` is a date, and `last_used` is a
+date, `never` or `-`. Read `policy`, `expires_at` and `last_used_at` instead.
+`last_used_state` is the sibling that keeps a null from meaning two things: `not-recorded`
+(no usage file), `no-rows` (a file with no call for this key) or `measured`.
 
-**Exit codes.** `0` on success, including `list` on a key file that does not exist yet. `1`
+**Exit codes.** `0` on success, including `list` on a key file that does not exist yet, and
+including `usage` for a key that was issued and never used. `1`
 on an id that is not in the file, on a key file that cannot be read, and on `check` of a
 key that is malformed, unknown, revoked or expired. `2` on a missing positional or a bad
 flag value. Note the asymmetry with `kb source remove`, which treats a missing name as a
@@ -380,7 +390,22 @@ no-op at `0`: `revoke` on an unknown id fails, because an admin scripting a revo
 reads the exit code and "I revoked nothing" must not read as success.
 
 No `kb keys` verb opens the store database, so every one of them runs on a machine with no
-index built. `kb keys list` is the first command to run after a server refuses to start.
+index built. `usage` and the `LAST USED` column read the usage file beside the store by
+path, which opens nothing. `kb keys list` is the first command to run after a server
+refuses to start.
+
+#### `kb keys usage`
+
+What a networked server recorded: calls, errors, throttles and denials per key, calls per
+tool, the refused requests that never reached a tool, and P50/P95 tool time. `--since`
+takes `45s`, `30m`, `2h` or `7d`. An id narrows it to one key, and an id that is not in the
+key file exits `1` rather than reporting a quiet key.
+
+It sums the count each row stands for, so one line can be five hundred refused requests.
+Percentiles are nearest-rank over the calls that carry a duration; a refusal above the
+concurrency slot carries none and prints `-` rather than `0ms`. An `ask` counts once, as
+`ask`. The full shape of the record, what it never contains, and how to turn it off are on
+[Serving over the network](mcp-transports.md#what-the-server-records).
 
 ## Exit codes
 

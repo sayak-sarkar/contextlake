@@ -242,7 +242,47 @@ def cmd_serve(args) -> int:
 
         token = None
         keyring = None
+        limits = None
+        recorder = None
+        usage_options = None
         if network:
+            # THE QUOTA DEFAULTS, resolved BEFORE the socket. A `[serve]` value
+            # this module will not parse exits 1 here with the offending string
+            # named, rather than raising inside a request and reaching a caller
+            # as a 500 with nothing in it that says which key to fix.
+            #
+            # Privileged provenance only, through the same gate `[serve]
+            # keys_file` already goes through: a `.contextlake.kb.toml` found by
+            # walking up from the cwd sits inside a repository checkout, and a
+            # rate limit a checkout can rewrite is not a limit.
+            from .. import keyfile, ratelimit
+            from .. import usage as usage_mod
+
+            # ONE READ of the `[serve]` table, shared by the quota defaults and
+            # the usage settings. Two reads would print the ignored-file
+            # warning twice for one start.
+            serve_table = keyfile.trusted_serve_table(
+                getattr(args, "config", None),
+                lambda line: print(f"  {line}", file=sys.stderr))
+            try:
+                limits = ratelimit.parse_serve_defaults(serve_table)
+            except ratelimit.LimitError as exc:
+                print(f"  Refusing to start: {exc}", file=sys.stderr)
+                print("  A quota default this server cannot parse would leave "
+                      "every key that relies on it unlimited while reading as "
+                      "limited. Fix the value or remove the key.",
+                      file=sys.stderr)
+                return 1
+            try:
+                usage_options = usage_mod.parse_serve_options(serve_table)
+            except usage_mod.UsageError as exc:
+                # Refused rather than defaulted, on the same argument as the
+                # quota values above: a retention cap this server cannot read
+                # would leave the file growing while an operator believes it is
+                # bounded.
+                print(f"  Refusing to start: {exc}", file=sys.stderr)
+                print("  Fix the value or remove the key.", file=sys.stderr)
+                return 1
             try:
                 keyring = _load_keyring(args)
             except KeyFileRefused as exc:
@@ -260,9 +300,8 @@ def cmd_serve(args) -> int:
             # run_server. A refusal that printed second put "MCP server on
             # http://..." on the terminal for a server that never started, and
             # one that drew a token first put a copy of a secret there too,
-            # bought for nothing.
-            from .. import keyfile
-
+            # bought for nothing. `keyfile` is already bound above, where the
+            # quota defaults were read out of the same trusted `[serve]` table.
             keys_only = bool(getattr(args, "keys_only", False))
             env_token = (os.environ.get(TOKEN_ENV) or "").strip()
             if keys_only and env_token:
@@ -420,6 +459,28 @@ def cmd_serve(args) -> int:
                     print(f"  ${TOKEN_ENV} is set and bypasses every per-key "
                           "limit and scope. Usage is attributed to "
                           '"shared-token".', file=sys.stderr)
+            # THE RECORDER, built here because this is where `store_dir` and
+            # the transport are both already known. It is built for the network
+            # transports and for no other reason: `network` is the switch, not
+            # whether a key file exists. A token-only deployment files its
+            # traffic under "shared-token", and that is traffic an operator
+            # needs to see.
+            if usage_options.enabled and not getattr(args, "no_usage", False):
+                usage_file = usage_mod.usage_path(store_dir)
+                first_run = not os.path.exists(usage_file)
+                recorder = usage_mod.Recorder(
+                    usage_file, flush_seconds=usage_options.flush_seconds,
+                    max_lines=usage_options.max_lines)
+                if first_run:
+                    # ONCE, on the start that creates the file, and on stderr
+                    # for the reason `_announce_token` gives. A line on every
+                    # start is a line an operator stops reading, and this one
+                    # says a new file is being written about their callers.
+                    print(f"  Recording usage to {usage_file} (key id, tool "
+                          "name, outcome and duration; no query text). Turn it "
+                          "off with --no-usage.", file=sys.stderr)
+                    print("  Read it back: contextlake kb keys usage",
+                          file=sys.stderr)
             if host not in LOOPBACK_HOSTS:
                 log(style.warn(
                     f"--allow-remote: bound to {host}, so anyone who can route here and "
@@ -460,7 +521,7 @@ def cmd_serve(args) -> int:
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store, token=token,
                    tool_concurrency=getattr(args, "tool_concurrency", None),
-                   keyring=keyring)
+                   keyring=keyring, limits=limits, usage=recorder)
         return 0
     except KeyboardInterrupt:
         # Ctrl-C is the documented way to stop this server (see the "Ctrl-C to

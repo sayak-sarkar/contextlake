@@ -25,6 +25,7 @@ import os
 import re
 import stat
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -524,20 +525,17 @@ def test_no_keys_verb_opens_the_store_database(run, keys_file, monkeypatch):
 
 
 def test_keys_list_works_with_no_usage_file_and_no_store(run, keys_file, tmp_path):
-    """Criterion 11, with one deviation from the ticket, recorded here.
+    """Criterion 11, and the FIRST of the column's three states.
 
-    A full table and exit 0, and every LAST USED cell reads `-`, NOT the `never`
-    the criterion asks for. Nothing records a use in this release, so `never` is
-    a claim about a key that may have been used seconds ago. An operator reading
-    the column to find dead keys would revoke a live one, and the table gave them
-    no way to know. `-` is what an unset policy axis already renders, and the note
-    under the table says the column is not recorded yet.
+    With no usage file at this store every LAST USED cell reads `-`, NOT
+    `never`. The two are different claims: `-` says nothing measured this, and
+    `never` says the record exists and holds no call for this key. One value
+    for both is what has an operator revoke a key that was used seconds ago.
+    The other two states are in `test_keys_list_last_used_three_states`.
 
-    The column is filled from the JSONL usage file by S4.5.4 in phase 3, read BY
-    PATH, which opens no database. If phase 3 ships without that fill task, the
-    column reads `-` forever and the operator never sees the unused key that
-    should be revoked, which is why the note names the release rather than
-    implying the value is a measurement.
+    It also holds the other half of criterion 11: a full table and exit 0 on a
+    machine with no store built, because this reads the usage file by path and
+    opens no database.
     """
     run("create", "alice")
     run("create", "bob")
@@ -552,7 +550,7 @@ def test_keys_list_works_with_no_usage_file_and_no_store(run, keys_file, tmp_pat
         assert row[column_at:].strip() == "-"
     # The cell alone cannot say why, so the note carries it. Without this the
     # placeholder is just an ambiguous dash.
-    assert "LAST USED is not recorded in this release" in result.out
+    assert "no usage file at this store" in result.out
 
 
 # ---------------------------------------------------------------------------
@@ -833,17 +831,47 @@ def test_a_bare_create_stores_an_empty_policy(run, keys_file):
     assert json.loads(keys_file.read_text())["keys"][0]["policy"] == {}
 
 
-def test_rate_and_cost_budget_are_stored_as_typed_and_not_validated(run, keys_file):
-    """Phase 1 stores the string. `parse_rate` is phase 2's (S4.4.1).
+def test_a_quota_flag_is_refused_at_create_and_the_good_one_is_stored_as_typed(
+        run, keys_file):
+    """The defect: a garbage rate minted onto a key that then reads as limited.
 
-    `parse_duration` (`schedule/recommend.py:38`) cannot read `60/min`, so there
-    is nothing here to validate with, and the help text says so. Phase 2 owes the
-    other half: when `parse_rate` lands it must run over every stored value at
-    keyring load and FAIL the load on one it refuses. A garbage rate quietly
-    replaced by a default is an unlimited key that reads as limited in `show`.
+    This test used to assert the OPPOSITE -- that `--rate not-a-rate` was
+    accepted -- because there was no parser to validate with. `parse_rate` now
+    exists, so a typo is refused at the flag the way `--tools` already is, and a
+    key can no longer be created carrying a rate the server will not honour.
+
+    The second half is the one a validator can break by over-reaching: the
+    ACCEPTED value is stored as the operator typed it, so `60/min` comes back out
+    of `kb keys show` spelled the way it went in and they can grep their own
+    config for it.
     """
-    assert run("create", "alice", "--rate", "not-a-rate").code == 0
-    assert json.loads(keys_file.read_text())["keys"][0]["policy"]["rate"] == "not-a-rate"
+    refused = run("create", "alice", "--rate", "not-a-rate")
+    assert refused.code != 0, refused.out + refused.err
+    assert "not-a-rate" in refused.out + refused.err, (
+        "the refusal does not name the offending string, so the operator "
+        "cannot see which value to correct")
+    # The file may not exist at all, which is the strongest form of "nothing was
+    # minted": the refusal happens before the key file is created.
+    assert not keys_file.exists() or not json.loads(keys_file.read_text())["keys"], (
+        "a key was minted despite the refusal")
+
+    assert run("create", "alice", "--rate", "60/min").code == 0
+    assert json.loads(keys_file.read_text())["keys"][0]["policy"]["rate"] == "60/min"
+
+
+def test_a_burst_with_no_rate_is_refused_at_create(run, keys_file):
+    """The defect: `--burst 20` alone reads like a bound and binds nothing.
+
+    A burst is the request bucket's capacity, and there is no request bucket
+    without a rate. Stored alone it renders in `show` and limits nothing, which
+    is the shape every label in this module exists to prevent.
+    """
+    refused = run("create", "alice", "--burst", "20")
+    assert refused.code != 0, refused.out + refused.err
+    assert "--rate" in refused.out + refused.err, (
+        "the refusal does not name the flag that would make the burst mean "
+        f"something: {refused.out + refused.err!r}")
+    assert not keys_file.exists() or not json.loads(keys_file.read_text())["keys"]
 
 
 # ---------------------------------------------------------------------------
@@ -933,7 +961,11 @@ def _policy_argv(verb: str, key_id: str) -> list[str]:
             "check": ["check"],
             "revoke": ["revoke", key_id],
             "rotate": ["rotate", key_id],
-            "prune": ["prune", "--before", "2020-01-01"]}[verb]
+            "prune": ["prune", "--before", "2020-01-01"],
+            # `usage` renders no policy, so the walk below skips it on its own
+            # output. It is listed here so the verb reaches the handler rather
+            # than dying at argparse, which would skip it for the wrong reason.
+            "usage": ["usage"]}[verb]
 
 
 def test_every_verb_that_renders_a_policy_labels_each_axis(run, keys_file):
@@ -1031,25 +1063,120 @@ def test_an_empty_scope_value_is_refused_rather_than_dropped(run, keys_file, fla
     assert "empty value" in (result.out + result.err)
 
 
-def test_the_limits_line_keeps_the_label_the_scope_line_lost(run, keys_file):
-    """Rate, burst and cost_budget are still enforced by nothing.
+def _limits_line_of(text: str) -> str:
+    for line in text.splitlines():
+        if "rate=" in line:
+            return line
+    return ""
 
-    The tools axis going live is the moment somebody deletes the label as
-    stale. Deleting it wholesale is a lie about the three limit axes, and an
-    operator who reads `60/min` with no qualifier hands out a key believing
-    something rate-limits it. Nothing does.
+
+def test_the_limits_line_names_the_tier_each_value_came_from(run, keys_file,
+                                                             tmp_path):
+    """The defect: a key limited by a server default that reads as `unset`.
+
+    This test used to assert the opposite -- that the whole line carried
+    `(recorded, not enforced)` -- because nothing read those axes. They are read
+    now, and the state that replaces the old lie is the MIDDLE one: a key that
+    names no rate can still be limited by `[serve] default_rate`, and an
+    operator who reads a bare `unset` beside it hands that key out believing it
+    is unlimited.
+
+    All four states, as full fragments, because three of them can be produced by
+    a renderer that never looks at the config at all.
     """
-    run("create", "alice", "--tools", "read", "--rate", "60/min", "--burst", "20",
-        "--cost-budget", "30s/min")
-    text = run("show", _only_id(keys_file)).out
-    limits = [line for line in text.splitlines() if "60/min" in line]
-    assert limits, text
-    assert f"({_LABEL})" in limits[0], (
-        f"the limits line lost {_LABEL!r} when the scope axes went live: "
-        f"{limits[0]!r}")
-    assert _ENFORCED_LABEL not in limits[0], (
-        "the limits line claims enforcement; no rate limiter exists in this "
-        f"release: {limits[0]!r}")
+    # 1. named on the key.
+    run("create", "alice", "--rate", "60/min")
+    line = _limits_line_of(run("show", _only_id(keys_file)).out)
+    assert f"rate=60/min  ({_ENFORCED_LABEL[1:-1]})" in line, line
+
+    # 2. nothing anywhere: unset AND unlimited.
+    assert "cost_budget=unset  (no limit)" in line, line
+
+    # 3. typed `none` on the key: the operator's own opt-out, which beats a
+    #    server default and must not render as `unset`.
+    keys_file.unlink(missing_ok=True)
+    run("create", "bob", "--rate", "none")
+    line = _limits_line_of(run("show", _only_id(keys_file)).out)
+    assert "rate=none  (enforced: no limit, set on the key)" in line, line
+
+    # 4. THE ONE THIS TEST EXISTS FOR: inherited from [serve].
+    config = tmp_path / "kb.toml"
+    config.write_text('[serve]\ndefault_rate = "5/sec"\n')
+    keys_file.unlink(missing_ok=True)
+    run("--config", str(config), "create", "carol")
+    line = _limits_line_of(run("--config", str(config), "show",
+                               _only_id(keys_file)).out)
+    assert "rate=unset -> 5/sec from [serve] default_rate  (enforced)" in line, (
+        f"a key inheriting the server default renders as though nothing limits "
+        f"it: {line!r}")
+
+
+def test_a_burst_beside_no_rate_is_not_reported_as_enforced(run, keys_file):
+    """The defect: a flat membership test calling an inert axis enforced.
+
+    A burst is the request bucket's capacity and there is no request bucket
+    without a rate, so a burst recorded alone binds nothing. Listed in
+    `enforced_axes` it would make `policy_enforced` True for a key that limits
+    nothing, which is the label lying in the direction this work exists to stop.
+
+    `--burst` alone is refused at CREATE, so the record is written by hand here.
+    That is the only way this state reaches a real file, and it is why the guard
+    is in `grants.enforced_axes` and not only at the flag.
+    """
+    from contextlake.kb import grants
+
+    assert grants.enforced_axes({"burst": "20"}) == [], (
+        "a burst with no rate is reported as enforced")
+    assert grants.policy_is_enforced({"burst": "20"}) is False
+    assert grants.enforced_axes({"rate": "none", "burst": "20"}) == ["rate"], (
+        "`rate = none` is no rate at all, so the burst beside it still binds "
+        "nothing")
+    # The positive control: beside a real rate the burst IS enforced, so the
+    # assertions above are not passing for a function that drops burst always.
+    assert grants.enforced_axes({"rate": "60/min", "burst": "20"}) == [
+        "rate", "burst"]
+
+
+def test_every_verb_carries_the_resolved_quota_fields(run, keys_file):
+    """The four public `--json` fields, on every per-record document.
+
+    `policy` says what is written on the key; these say what a running server
+    will apply. A consumer that reads only `policy.rate` renders a key
+    inheriting `[serve] default_rate` as unlimited.
+    """
+    created = json.loads(run("create", "alice", "--rate", "60/min",
+                             "--json").out)
+    key_id = created["id"]
+    key = KEY_RE.search(run("create", "bob", "--rate", "6/min").err).group(0)
+    shown = json.loads(run("show", key_id, "--json").out)
+    listed = json.loads(run("list", "--json").out)
+    checked = json.loads(run("check", "--json", stdin=key).out)
+    rotated = json.loads(run("rotate", key_id, "--json").out)
+    revoked = json.loads(run("revoke", rotated["new"]["id"], "--json").out)
+    pruned = json.loads(run("prune", "--before", "2020-01-01", "--json").out)
+
+    records = [created, shown, checked, rotated["old"], rotated["new"], revoked,
+               listed["keys"][0], *pruned["removed_keys"]]
+    assert set(_verbs()) == {"create", "list", "show", "revoke", "rotate",
+                             "check", "prune", "usage"}, (
+        "a verb was added and this walk did not grow with it")
+    # `usage` is named above and absent from the walk on purpose: its document
+    # is a summary of recorded calls and carries no key record, so there is no
+    # per-record quota block on it to check.
+    for document in records:
+        for field in ("effective_rate", "effective_burst",
+                      "effective_cost_budget", "limits_source"):
+            assert field in document, (field, sorted(document))
+        assert set(document["limits_source"]) == {"rate", "burst",
+                                                  "cost_budget"}
+        assert set(document["limits_source"].values()) <= {"key", "config",
+                                                           "unset"}
+    assert created["effective_rate"] == "60/min"
+    assert created["limits_source"]["rate"] == "key"
+    # The built-in burst is APPLIED and its tier stays `unset`: nobody chose it.
+    assert created["effective_burst"] == "20"
+    assert created["limits_source"]["burst"] == "unset"
+    assert created["effective_cost_budget"] is None
 
 
 def test_show_never_claims_the_unenforced_axes_restrict_anything(run, keys_file):
@@ -1161,7 +1288,11 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
     documents = {"create": created, "show": shown, "list": listed,
                  "check": checked, "rotate": rotated, "revoke": revoked,
                  "prune": pruned}
-    assert set(documents) == set(_verbs()), (
+    # `usage` emits a document with no `policy` object in it: it summarises
+    # recorded calls, not key records. Named in the subtraction rather than
+    # left out of the comparison, so a NINTH verb that does carry a policy
+    # still fails here.
+    assert set(documents) == set(_verbs()) - {"usage"}, (
         "a verb grew a JSON document and this test did not walk it")
     for verb, document in documents.items():
         # EVERY key in this fixture records `repos`, which nothing enforces, so
@@ -1198,11 +1329,20 @@ def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(run, keys_fi
     assert only_enforced["policy_enforced"] is True
     assert only_enforced["enforced_axes"] == ["tools", "owners"]
 
+    # `repos`, not `rate`: rate is enforced now, and the axis this fixture
+    # needs is one that is still recorded and read by nothing.
     mixed = json.loads(
-        run("create", "b", "--tools", "read", "--rate", "60/min", "--json").out)
+        run("create", "b", "--tools", "read", "--repos", "acme/*", "--json").out)
     assert mixed["policy_enforced"] is False, (
-        "a key recording `rate` reads as fully enforced; nothing rate-limits it")
+        "a key recording `repos` reads as fully enforced; nothing scopes it")
     assert mixed["enforced_axes"] == ["tools"]
+
+    # A rate IS enforced, so a key carrying only tools and a rate reads True.
+    # Without this the test above passes for a build where nothing is enforced.
+    quota = json.loads(
+        run("create", "d", "--tools", "read", "--rate", "60/min", "--json").out)
+    assert quota["policy_enforced"] is True, quota["enforced_axes"]
+    assert quota["enforced_axes"] == ["tools", "rate"]
 
     bare = json.loads(run("create", "c", "--json").out)
     assert bare["policy"] == {}
@@ -1246,11 +1386,17 @@ def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
     from contextlake.kb import grants
     from contextlake.kb.server import GrantDenied, Principal
 
-    assert grants.ENFORCED_AXES == ("tools", "owners"), (
+    assert grants.ENFORCED_AXES == ("tools", "owners", "rate", "burst",
+                                    "cost_budget"), (
         "the enforced axes moved. Re-read _enforcement_note and _axis in "
         "kb/cmds/keys_cmd.py: they render every axis from this list")
 
     principal = Principal("k_test")
+    # `rate`, `burst` and `cost_budget` are enforced by the QUOTA, not by
+    # `check_tool_grant`: the refusal is a 429 from the gate, above the tool
+    # wrapper, so there is no `GrantDenied` to raise here. They are walked in
+    # `test_the_quota_axes_refuse_through_the_limiter` instead, which calls the
+    # thing that actually enforces them.
     for axis, policy, tool in (
             ("tools", {"tools": "none"}, "graph_stats"),
             ("owners", {"owners": "hidden"}, "who_knows")):
@@ -1261,7 +1407,28 @@ def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
         # that denies everything, which is not enforcement either.
         grants.check_tool_grant(principal, tool, {})
 
-    for axis in ("repos", "rate", "burst", "cost_budget"):
+    # The QUOTA axes, walked through the thing that enforces them. The gate
+    # answers 429 above the tool wrapper, so nothing here raises GrantDenied,
+    # and asserting only on `check_tool_grant` would have let the label move
+    # with no limiter behind it.
+    from contextlake.kb import ratelimit
+
+    limits = ratelimit.resolve_limits(
+        {"rate": "2/min", "burst": "4", "cost_budget": "1s/min"},
+        ratelimit.ServeDefaults())
+    limiter = ratelimit.Limiter(lambda key_id: limits, now=lambda: 0.0)
+    for _ in range(4):
+        assert limiter.admit("k_test").admitted
+    refused = limiter.admit("k_test")
+    assert not refused.admitted and refused.which == "requests", refused
+    # The positive control: a key with no quota is never refused, so the
+    # refusal above is the policy and not a limiter that denies everything.
+    open_limiter = ratelimit.Limiter(lambda key_id: ratelimit.UNLIMITED,
+                                     now=lambda: 0.0)
+    for _ in range(50):
+        assert open_limiter.admit("k_test").admitted
+
+    for axis in ("repos", "external"):
         assert axis not in grants.ENFORCED_AXES
 
     run("create", "alice", "--repos", "acme/*")
@@ -1318,12 +1485,12 @@ def test_the_scope_flag_help_does_not_promise_a_restriction():
     # PER FLAG, because two of the three are enforced now. A blanket assertion
     # either way is a wrong claim about one of them: `--repos` still binds
     # nothing, and `--tools` now refuses a call outside its grant.
-    for dest in ("repos", "rate", "cost_budget"):
+    for dest in ("repos",):
         text = helps[dest]
         assert ("nothing enforces it in this release" in text
                 or "NOT validated in this release" in text), (
             f"--{dest} does not say its value binds nothing: {text!r}")
-    for dest in ("tools", "owners"):
+    for dest in ("tools", "owners", "rate", "cost_budget"):
         text = helps[dest]
         assert "nothing enforces it in this release" not in text, (
             f"--{dest} is enforced now and its help still says nothing reads "
@@ -1795,3 +1962,277 @@ def test_every_client_with_a_block_has_machine_fields_too():
         assert not KEY_RE.search(template), (
             f"the {client} value template carries something key-shaped; a "
             "template holds a placeholder, never a credential")
+
+
+# ---------------------------------------------------------------------------
+# `kb keys usage` -- the eighth verb, and the LAST USED column it fills
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def usage_store(tmp_path):
+    """A config naming a tmp store, and the usage path under it.
+
+    A REAL config, not a patched `_usage_file`. The two paths this verb reads
+    come from two different resolvers -- the usage file from the store, the key
+    file from `$CONTEXTLAKE_KEYS_FILE` -- and patching the resolver away is how
+    a test passes on a build that reads one path for both.
+    """
+    from contextlake.kb import usage
+
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+    return SimpleNamespace(config=str(cfg), path=store_dir / usage.FILENAME)
+
+
+def _write_usage(usage_store, rows):
+    usage_store.path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+
+def _row(outcome="ok", *, key="k_1", tool="search_code", ms=10, n=1,
+         ts="2026-09-07T10:00Z"):
+    return {"ts": ts, "key": key, "tool": tool, "outcome": outcome, "ms": ms,
+            "n": n}
+
+
+def test_usage_sums_n_and_never_counts_lines(run, keys_file, usage_store):
+    """One row standing for 500 refused requests reads 1 against a line
+    counter, which under-reports a flood by two orders of magnitude."""
+    _write_usage(usage_store, [_row("unknown", key=None, tool=None, ms=None,
+                                    n=500)])
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0
+    assert "500" in result.out
+    assert "total" in result.out
+
+
+def test_usage_percentiles_are_nearest_rank(run, keys_file, usage_store):
+    """A mean labelled P50 is a wrong number in a place nobody re-checks: the
+    mean of [10,10,10,10,1000] is 208, and neither column may read it."""
+    _write_usage(usage_store, [_row(ms=v) for v in (10, 10, 10, 10, 1000)])
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0
+    assert "10ms" in result.out and "1000ms" in result.out
+    assert "208" not in result.out
+
+
+def test_usage_prints_a_dash_where_nothing_was_measured(run, keys_file,
+                                                        usage_store):
+    """`0ms` is a measurement. Printing it where there is none says the calls
+    were instant rather than untimed."""
+    _write_usage(usage_store, [_row("denied", ms=None)])
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0
+    assert "0ms" not in result.out
+    header = next(line for line in result.out.splitlines() if "P50" in line)
+    row = next(line for line in result.out.splitlines() if "k_1" in line)
+    assert row[header.index("P50"):].strip().startswith("-")
+
+
+def test_usage_key_and_tool_totals_agree(run, keys_file, usage_store):
+    """Two views of one number disagreeing is how a report stops being read."""
+    _write_usage(usage_store, [_row(key=f"k_{i % 2}", tool=f"t{i % 3}")
+                               for i in range(12)])
+    result = run("usage", "--config", usage_store.config, "--json")
+    doc = json.loads(result.out)
+    assert sum(k["calls"] for k in doc["keys"]) == doc["calls"] == 12
+    assert sum(t["calls"] for t in doc["tools"]) == doc["calls"]
+
+
+def test_usage_json_and_text_report_the_same_totals(run, keys_file, usage_store):
+    """Two renderings computed twice disagree the first time one is fixed."""
+    _write_usage(usage_store, [_row(ms=i) for i in range(7)]
+                 + [_row("unknown", key=None, tool=None, ms=None, n=9)])
+    doc = json.loads(run("usage", "--config", usage_store.config, "--json").out)
+    text = run("usage", "--config", usage_store.config).out
+    assert doc["calls"] == 7 and doc["refused_total"] == 9
+    assert "7 calls" in text and "9" in text
+
+
+def test_usage_prints_identity_unset_and_says_what_it_means(run, keys_file,
+                                                            usage_store):
+    """The fail-closed fault reading as ordinary probing.
+
+    Four things: the class, its count, the total, and the cause line. Without
+    the cause line an operator reads it beside `unknown` and `malformed` and
+    concludes somebody is scanning them.
+    """
+    _write_usage(usage_store, [_row("identity_unset", key=None, ms=None, n=12),
+                               _row("unknown", key=None, tool=None, ms=None,
+                                    n=3)])
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0
+    assert "identity_unset" in result.out
+    assert "12" in result.out and "15" in result.out
+    assert "fault in this server" in result.out
+
+
+def test_usage_since_filters_rows(run, keys_file, usage_store):
+    """A `--since` that filters nothing. The two counts must DIFFER, or this
+    passes on a parser that hands back everything."""
+    _write_usage(usage_store, [_row(ts="2020-01-01T00:00Z"), _row()])
+    everything = json.loads(
+        run("usage", "--config", usage_store.config, "--json").out)
+    recent = json.loads(
+        run("usage", "--config", usage_store.config, "--since", "300d",
+            "--json").out)
+    assert everything["calls"] == 2
+    assert recent["calls"] == 1
+
+
+def test_usage_refuses_a_since_it_cannot_parse(run, keys_file, usage_store):
+    """Exit 2, the way argparse does. `60/min` is a rate and not a duration,
+    and the house parser already refuses it."""
+    result = run("usage", "--config", usage_store.config, "--since", "60/min")
+    assert result.code == 2
+    assert "60/min" in result.out + result.err
+
+
+def test_usage_exit_codes(run, keys_file, usage_store):
+    """Four cases, and rows 2 and 3 are separated by the KEY file.
+
+    Both produce zero usage rows. Only the key file can say whether the id was
+    ever issued, so resolving both paths from the store directory answers them
+    on the same branch and a typo in an id reads as a quiet key.
+    """
+    # 1. no id, nothing recorded.
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0 and "Nothing recorded" in result.out
+
+    run("create", "alice")
+    key_id = _only_id(keys_file)
+
+    # 2. an id that IS in the key file, with no rows for it.
+    _write_usage(usage_store, [_row(key="k_someoneelse")])
+    result = run("usage", key_id, "--config", usage_store.config)
+    assert result.code == 0, result.out + result.err
+    assert "no recorded calls" in result.out
+
+    # 3. an id that is NOT in the key file, against a key file that EXISTS and
+    #    holds a different id, so the exit 1 proves the file was read.
+    result = run("usage", "k_notreal", "--config", usage_store.config)
+    assert result.code == 1
+    assert "k_notreal" in result.out + result.err
+
+    # 4. an unreadable usage file: what could be read, plus a line saying so.
+    usage_store.path.chmod(0o000)
+    try:
+        result = run("usage", "--config", usage_store.config)
+    finally:
+        usage_store.path.chmod(0o600)
+    if os.geteuid() != 0:
+        assert result.code == 0
+        assert "could not be read" in result.out + result.err
+
+
+def test_usage_says_how_many_lines_it_could_not_read(run, keys_file, usage_store):
+    """A short total reported as the whole record.
+
+    A row from a newer contextlake carrying a thirteenth outcome is DROPPED
+    rather than mis-filed as a successful call, so the drop has to be said out
+    loud. Both halves: the number is right, and a clean file says nothing.
+    """
+    usage_store.path.write_text(
+        json.dumps(_row()) + "\n"
+        + json.dumps(_row(outcome="teleported")) + "\n"
+        + '{"ts": "2026-09-07T10:0\n')
+    result = run("usage", "--config", usage_store.config)
+    assert result.code == 0
+    assert "2 line(s)" in result.out
+    doc = json.loads(run("usage", "--config", usage_store.config, "--json").out)
+    assert doc["unread_lines"] == 2 and doc["calls"] == 1
+
+    _write_usage(usage_store, [_row()])
+    assert "line(s)" not in run("usage", "--config", usage_store.config).out
+    assert json.loads(
+        run("usage", "--config", usage_store.config, "--json").out
+    )["unread_lines"] == 0
+
+
+def test_usage_output_holds_no_key_material(run, keys_file, usage_store):
+    """A verb that reads a file about credentials must not print one."""
+    created = run("create", "alice")
+    _assert_capture_is_live(created.err, "ctxlake_", "create's stderr")
+    _write_usage(usage_store, [_row(key=_only_id(keys_file))])
+    for argv in (["usage"], ["usage", "--json"]):
+        result = run(*argv, "--config", usage_store.config)
+        assert not KEY_RE.search(result.out + result.err)
+
+
+def test_usage_opens_no_store_database(run, keys_file, usage_store, monkeypatch):
+    """The verb reads the store DIRECTORY, never the database in it.
+
+    `_open_store` is patched to raise, so a build that reaches it fails rather
+    than working on this developer's machine and failing on one with no index.
+    """
+    from contextlake.kb.cmds import _common
+
+    monkeypatch.setattr(_common, "_open_store",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("opened the store")))
+    _write_usage(usage_store, [_row()])
+    assert run("usage", "--config", usage_store.config).code == 0
+    assert run("list", "--config", usage_store.config).code == 0
+
+
+def test_keys_list_last_used_has_three_states(run, keys_file, usage_store):
+    """The overloaded null, on the surface an operator actually reads.
+
+    `-` with no file, `never` with a file and no row for that key, and a date
+    with a row. One value for all three has an operator revoke a key that was
+    used seconds ago.
+    """
+    run("create", "alice")
+    run("create", "bob")
+    ids = sorted(json.loads(keys_file.read_text())["keys"], key=lambda r: r["name"])
+    alice, bob = ids[0]["id"], ids[1]["id"]
+
+    def _cells(result):
+        # Keyed by ID, not by name: `log()` prefixes every line with a
+        # timestamp, so a positional split lands on the clock and BOTH rows
+        # collapse onto one dict entry. That reads as a pass.
+        header = next(line for line in result.out.splitlines()
+                      if "LAST USED" in line)
+        at = header.index("LAST USED")
+        rows = {}
+        for line in result.out.splitlines():
+            for key_id in (alice, bob):
+                if key_id in line:
+                    rows[key_id] = line[at:].strip()
+        return rows
+
+    absent = _cells(run("list", "--config", usage_store.config))
+    assert absent == {alice: "-", bob: "-"}
+
+    _write_usage(usage_store, [_row(key=alice, ts="2026-09-07T10:00Z")])
+    cells = _cells(run("list", "--config", usage_store.config))
+    assert cells[alice] == "2026-09-07"
+    assert cells[bob] == "never"
+
+    document = json.loads(run("list", "--config", usage_store.config,
+                              "--json").out)
+    states = {k["name"]: (k["last_used_state"], k["last_used_at"])
+              for k in document["keys"]}
+    assert states["alice"] == ("measured", "2026-09-07T10:00Z")
+    assert states["bob"] == ("no-rows", None)
+
+
+def test_keys_list_says_what_never_does_not_mean(run, keys_file, usage_store):
+    """The failure the note prevents: revoking a key that is in daily use.
+
+    The usage file is capped, so a key quiet longer than the retained window
+    reads `never` too, and `never` on its own says nobody has ever used it.
+    """
+    run("create", "alice")
+    _write_usage(usage_store, [_row(key="k_other")])
+    out = run("list", "--config", usage_store.config).out
+    assert "retained window" in out
+
+
+def test_keys_verb_count_is_eight(run):
+    """Read off the built parser, never a literal. A ninth verb that parses and
+    dispatches nowhere is what the pin exists to catch."""
+    assert len(_verbs()) == 8
+    assert "usage" in _verbs()

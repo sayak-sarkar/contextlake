@@ -437,39 +437,71 @@ def _read_toml(path) -> dict:
         return {}
 
 
-def _serve_keys_file(config_path: str | None, warn) -> str | None:
-    """``[serve] keys_file`` from a config file the user NAMED, or None.
+# The `[serve]` keys this module will read out of a privileged config. Named
+# here rather than hardcoded at each read: `keys_file`, the three quota
+# defaults and the three usage settings all go through one gate, so a key added
+# later cannot forget it. `config._SERVE_KEYS` warns on anything outside this
+# set, which is what makes `usage_max_line = 1` a warned line rather than a
+# silent way to leave a file untrimmed.
+#
+# The usage three are spelled out here rather than imported from `kb.usage`:
+# this module is the keystore and it is on `kb keys`'s startup path, and the
+# names are pinned to `usage.SERVE_KEYS` by a test.
+SERVE_KEYS = ("keys_file", "default_rate", "default_burst", "default_cost_budget",
+              "usage", "usage_max_lines", "usage_flush_seconds")
+
+
+def trusted_serve_table(config_path: str | None, warn) -> dict:
+    """The ``[serve]`` table from a config file the user NAMED, or ``{}``.
 
     Privileged provenance only: the global ``~/.contextlake/kb.toml`` or an
     explicit ``--config``. A ``.contextlake.kb.toml`` found by walking up from the
     cwd is designed to sit inside a repository checkout, so a key file it named
-    would be committed, and a file found by directory search must never be able to
-    mint an identity. When one tries, this returns None and says so on one line.
+    would be committed and a rate limit it named could be rewritten by whatever
+    is checked out. A file found by directory search must never be able to mint
+    an identity or to widen a quota. When one tries, this ignores it and says so
+    on one line.
 
     Provenance is decided by ``trust.is_privileged_source``, which is the same
     gate ``[llm] command`` and ``[[sources]] token_env`` already go through.
+
+    ONE READER FOR THE WHOLE TABLE, not one function per key. The first version
+    of this hardcoded ``keys_file`` at both reads, and the quota defaults would
+    have needed a sibling carrying its own copy of the gate and the warning --
+    which is the hand-copied-twin shape ``embeddings.store._repo_scope`` and
+    ``cmds.forget._partitions`` already demonstrate the cost of.
     """
     from . import config as kb_config
     from . import trust
 
     local = kb_config.find_ancestor_config(kb_config.LOCAL_CONFIG)
     if local and not trust.is_privileged_source(local, config_path):
-        if _read_toml(local).get("serve", {}).get("keys_file"):
+        ignored = sorted(k for k in _read_toml(local).get("serve", {})
+                         if k in SERVE_KEYS)
+        if ignored:
             warn(
-                f"IGNORED [serve] keys_file in {local}: that file was found by "
-                "walking up from the current directory, not named by you, so it "
-                "sits inside a repository checkout and anything it points at gets "
-                "committed. Using the default key file instead. Pass --config "
-                f"{local} or set the key in ~/.contextlake/kb.toml to have it "
-                "honoured."
+                f"IGNORED [serve] {', '.join(ignored)} in {local}: that file was "
+                "found by walking up from the current directory, not named by "
+                "you, so it sits inside a repository checkout and anything it "
+                "sets can be rewritten by whatever is checked out there. Using "
+                f"the defaults instead. Pass --config {local} or set these in "
+                "~/.contextlake/kb.toml to have them honoured."
             )
-    for candidate in (config_path, kb_config.GLOBAL_CONFIG):
+    merged: dict = {}
+    # Global first, then --config, so an explicitly named file wins key by key.
+    for candidate in (kb_config.GLOBAL_CONFIG, config_path):
         if not candidate or not trust.is_privileged_source(candidate, config_path):
             continue
-        value = _read_toml(candidate).get("serve", {}).get("keys_file")
-        if value:
-            return str(value)
-    return None
+        table = _read_toml(candidate).get("serve", {})
+        if isinstance(table, dict):
+            merged.update(table)
+    return merged
+
+
+def _serve_keys_file(config_path: str | None, warn) -> str | None:
+    """``[serve] keys_file`` from a config file the user NAMED, or None."""
+    value = trusted_serve_table(config_path, warn).get("keys_file")
+    return str(value) if value else None
 
 
 def resolve_keys_file_with_source(cli_path=None, *, env=None, config_path=None,
@@ -1143,6 +1175,42 @@ class Keyring:
         ring._adopt(load_document(ring.path, state=state, check_permissions=False))
         return ring
 
+    def _guard_quotas(self, table) -> None:
+        """Refuse a document carrying a rate this server cannot parse.
+
+        HERE, IN THE SERVE-SIDE OBJECT, and not in ``load_document``. The `kb
+        keys` verbs read documents through that function to RENDER them, and a
+        hand-edited `rate = "60"` has to stay readable there or an operator
+        cannot see the value they need to correct.
+
+        It behaves differently at the two moments, and that is the point:
+
+        * at ``load``, the exception reaches ``cmd_serve`` and the start exits 1
+          before the socket binds, naming the key and the string. A server that
+          starts with an unparseable rate is a key that reads as limited and is
+          not;
+        * at ``reload_if_changed``, the caller's ``except`` keeps the LAST GOOD
+          snapshot and warns once. A hand-edited typo must not take down every
+          live key on a running server, and the previous file is the last state
+          an operator successfully validated.
+
+        THE BUILT TABLE, not ``doc.keys``. A document's ``keys`` are raw dicts,
+        so ``getattr(entry, "policy", None)`` on one is always ``None`` and this
+        guard would run over every record and refuse nothing.
+
+        Imported in the body: ``kb/ratelimit.py`` must stay off the import graph
+        of an stdio run and of `contextlake mirror`.
+        """
+        from . import ratelimit
+
+        for record in table.values():
+            try:
+                ratelimit.validate_policy(getattr(record, "policy", None))
+            except ValueError as exc:
+                raise KeyFileError(
+                    f"key {record.id} carries a quota this server cannot "
+                    f"parse: {exc}") from None
+
     def _adopt(self, doc: KeyFileDocument) -> None:
         """Install a parsed document, or raise and leave the old one in place.
 
@@ -1158,6 +1226,7 @@ class Keyring:
         """
         table = self._build(doc)
         self._guard_revocations(table)
+        self._guard_quotas(table)
         self._by_digest = table
         self._present = doc.present
         self._stamp = doc.stamp
