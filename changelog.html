@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Changelog · contextlake docs">
 <meta name="twitter:description" content="Release history for contextlake.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-06"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=945ec8b9">
-<link rel="stylesheet" href="tokens.css?v=945ec8b9">
-<link rel="stylesheet" href="docs.css?v=945ec8b9">
-<link rel="stylesheet" href="cmdk.css?v=945ec8b9">
+<link rel="stylesheet" href="fonts.css?v=16058730">
+<link rel="stylesheet" href="tokens.css?v=16058730">
+<link rel="stylesheet" href="docs.css?v=16058730">
+<link rel="stylesheet" href="cmdk.css?v=16058730">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -52,6 +52,7 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="900-2026-09-06">[9.0.0] - 2026-09-06<a class="anchor" href="#900-2026-09-06" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake kb keys</code>, the command every key-file refusal already named.</strong> Seven verbs:
@@ -224,8 +225,21 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
   already writes a <code>base_url</code> line.</p>
 <h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
 <ul>
-<li><strong><code>kb serve</code> printed a green success banner for a server that never started.</strong> A network
-  start that was about to refuse printed</li>
+<li>
+<p><strong>Five <code>kb keys</code> verbs accepted <code>--json</code>, printed prose and exited 0.</strong> The flag is declared
+  once on the <code>keys</code> parser, because the verb is a positional, so argparse accepted it on all
+  seven. Only <code>list</code> and <code>show</code> build a JSON document. The other five wrote their ordinary log
+  lines and exited zero, so a script that asked for machine-readable output got prose with
+  nothing in the result to tell it apart from success. <code>create</code>, <code>check</code>, <code>rotate</code>, <code>revoke</code> and
+  <code>prune</code> now refuse the flag and name the two that honour it, exiting 2, the usage code, without
+  touching the keystore. The refusal goes to stderr, following the rule the two emitters already
+  keep: once <code>--json</code> is asked for, stdout carries the document and nothing else, so a refusal
+  cannot land inside a caller's <code>&gt; out.json</code>.</p>
+</li>
+<li>
+<p><strong><code>kb serve</code> printed a green success banner for a server that never started.</strong> A network
+  start that was about to refuse printed</p>
+</li>
 </ul>
 <div class="highlight"><pre><span></span><code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
   --keys-only refused: no key file with a live key was found ...
@@ -8195,7 +8209,8 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a><ul>
+<li><a href="#unreleased">[Unreleased]</a></li>
+<li><a href="#900-2026-09-06">[9.0.0] - 2026-09-06</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#changed">Changed</a></li>
 <li><a href="#fixed">Fixed</a></li>
@@ -9095,6 +9110,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=945ec8b9"></script>
+<script defer src="cmdk.js?v=16058730"></script>
 </body>
 </html>

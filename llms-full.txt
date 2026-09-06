@@ -8681,6 +8681,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0] - 2026-09-06
+
 ### Added
 
 - **`contextlake kb keys`, the command every key-file refusal already named.** Seven verbs:
@@ -8875,6 +8877,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already writes a `base_url` line.
 
 ### Fixed
+
+- **Five `kb keys` verbs accepted `--json`, printed prose and exited 0.** The flag is declared
+  once on the `keys` parser, because the verb is a positional, so argparse accepted it on all
+  seven. Only `list` and `show` build a JSON document. The other five wrote their ordinary log
+  lines and exited zero, so a script that asked for machine-readable output got prose with
+  nothing in the result to tell it apart from success. `create`, `check`, `rotate`, `revoke` and
+  `prune` now refuse the flag and name the two that honour it, exiting 2, the usage code, without
+  touching the keystore. The refusal goes to stderr, following the rule the two emitters already
+  keep: once `--json` is asked for, stdout carries the document and nothing else, so a refusal
+  cannot land inside a caller's `> out.json`.
 
 - **`kb serve` printed a green success banner for a server that never started.** A network
   start that was about to refuse printed
