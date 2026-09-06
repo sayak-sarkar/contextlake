@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0] - 2026-09-06
+
 ### Added
 
 - **`--json` on all seven `kb keys` verbs.** `create`, `revoke`, `rotate`, `prune` and
@@ -47,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command exited 2 saying nothing had worked while a live record sat in the file whose
   plaintext had never been shown to anybody. The output file is now opened before the key
   is minted, and removed again if the mint fails.
+
+  **If you ran that command on 9.0.0, look at `kb keys list`.** An orphaned record is
+  indistinguishable from a key you hold: same `live` state, same empty `LAST USED`, and no
+  field on the record says whether the key ever reached anybody. Find the records matching
+  the names you tried to create, and `kb keys revoke` them. Each retry of the failing
+  command minted another one, so there may be more than one per name.
 
 - **`kb keys show --json` on an unknown id emitted no JSON.** The not-found branch ran
   ahead of the `--json` check, so it printed prose to stdout and exited 1. It now emits
