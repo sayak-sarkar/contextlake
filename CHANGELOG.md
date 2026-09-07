@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`[kb] max_repo_memory` warned that it was ignored while it was being applied.**
+  `_KB_KEYS` did not list the key, so `_warn_unknown_config` printed
+  `unknown [kb] key 'max_repo_memory' (ignored)` on a run where `load_kb_config`
+  honoured the value. The warning is the dangerous direction of wrong: the setting
+  bounds the estimated peak memory of one repository, and an operator who sets it on a
+  machine that has been crashed by memory exhaustion was told it did nothing. Found by
+  setting it, watching an index reach 14 GB of 15, and checking whether the guard had
+  been dropped. A test now reads the loader's own `kb.get(...)` calls and fails if any
+  key it reads is missing from the allow list, so the next one cannot ship as a
+  contradiction either.
+
 ## [9.2.0] - 2026-09-07
 
 ### Added

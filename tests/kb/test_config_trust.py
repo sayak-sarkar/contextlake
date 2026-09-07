@@ -1394,3 +1394,29 @@ def test_the_source_refusals_do_not_all_claim_the_key_runs_a_program(
     assert not any("run a program" in m for m in said.values())
     # Attacker-controlled text, never echoed back into a log line.
     assert not any("attacker.example.invalid" in m for m in lines)
+
+
+def test_every_kb_key_the_loader_reads_is_in_the_allow_list():
+    """A key read from `[kb]` but absent from `_KB_KEYS` warns while it applies.
+
+    `max_repo_memory` was that key. `load_kb_config` honoured the value and
+    `_warn_unknown_config` printed "unknown [kb] key 'max_repo_memory'
+    (ignored)" in the same run, so an operator setting a memory bound on a box
+    that has been crashed by memory exhaustion was told the bound did nothing.
+    The dangerous direction is that one: a guard reported as ignored gets
+    raised or abandoned.
+
+    Driven off the source rather than a literal list, so a key added to the
+    loader without a matching entry fails here instead of shipping as a
+    contradiction. The comment above `_KB_KEYS` records the same defect for the
+    `[serve]` TABLE; this pins the KEYS.
+    """
+    import pathlib
+    import re
+
+    src = pathlib.Path(kbcfg.__file__).read_text(encoding="utf-8")
+    read = set(re.findall(r'kb\.get\("([a-z_]+)"', src))
+    unlisted = sorted(read - kbcfg._KB_KEYS)
+    assert not unlisted, (
+        f"load_kb_config reads {unlisted} from [kb] but _KB_KEYS does not list "
+        "them, so each warns 'unknown (ignored)' while its value is applied")

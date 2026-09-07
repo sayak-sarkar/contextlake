@@ -460,8 +460,8 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 # The keys that live under [kb]; the other KbConfig fields come from their own
 # top-level tables. A key/table outside these is warned (a silent-ignore, like a
 # `store` typo for `store_dir`, is how a whole run lands in the wrong place).
-_KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers",
-            "anonymize"}
+_KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "max_repo_memory",
+            "index_workers", "anonymize"}
 ANONYMIZE_VALUES = ("never", "always")
 # `serve` is here and has NO KbConfig field, which is the point. Its one key,
 # `keys_file`, is read by `keyfile._serve_keys_file`, which opens the same TOML
