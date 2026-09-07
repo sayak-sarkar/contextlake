@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.2.1] - 2026-09-08
+
 ### Fixed
 
 - **`[kb] max_repo_memory` warned that it was ignored while it was being applied.**
