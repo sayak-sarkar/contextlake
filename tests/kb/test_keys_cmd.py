@@ -1003,10 +1003,18 @@ def test_every_verb_that_renders_a_policy_labels_each_axis(run, keys_file):
             "enforced")
         if verb == "list":
             # The table has no room for a bracketed marker, so the note is the
-            # only place the split can reach that surface. Asserted here rather
-            # than skipped, so `list` cannot quietly become the verb with no
-            # statement at all.
-            assert _LABEL in text, "`kb keys list` lost the not-enforced clause"
+            # only place the split can reach that surface. As of 9.3.0 every axis
+            # is enforced, so there is nothing for that clause to name and it is
+            # correctly absent -- printing it with an empty list is the defect
+            # `test_the_note_omits_the_unenforced_clause_when_there_is_none`
+            # pins. The clause's presence when an axis IS unenforced is covered
+            # by the same test, which forces that state.
+            from contextlake.kb.cmds.keys_cmd import _unenforced_axes
+
+            if _unenforced_axes():
+                assert _LABEL in text, (
+                    "`kb keys list` lost the not-enforced clause while axes are "
+                    "still unenforced")
             continue
         line = _scope_line_of(text)
         assert line, f"`kb keys {verb}` renders a policy with no scope line"
@@ -1014,12 +1022,86 @@ def test_every_verb_that_renders_a_policy_labels_each_axis(run, keys_file):
             f"`kb keys {verb}` renders an ENFORCED tools axis with no "
             f"{_ENFORCED_LABEL!r} beside it, so an operator reads a live "
             f"restriction as inert and hands the key out: {line!r}")
-        assert f"repos=acme/*  ({_LABEL})" in line, (
-            f"`kb keys {verb}` renders an UNENFORCED repos axis without "
-            f"{_LABEL!r} beside it, so an operator reads it as a live "
-            f"restriction: {line!r}")
+        # `repos` became ENFORCED in 9.3.0, so this line asserts the enforced
+        # marker where it used to assert the other one. The not-enforced half of
+        # the split is kept live by
+        # `test_the_not_enforced_marker_still_works_when_an_axis_is_not`, which
+        # forces a divergence rather than relying on one existing: every axis is
+        # enforced today, so an assertion that merely looked for the marker
+        # somewhere would pass on a build that had lost the machinery entirely.
+        assert f"repos=acme/*  {_ENFORCED_LABEL}" in line, (
+            f"`kb keys {verb}` renders an ENFORCED repos axis with no "
+            f"{_ENFORCED_LABEL!r} beside it: {line!r}")
 
     assert sorted(rendered) == ["check", "create", "list", "show"], rendered
+
+
+def test_the_note_omits_the_unenforced_clause_when_there_is_none(
+        run, keys_file, monkeypatch):
+    """The clause must not render with an empty list.
+
+    Verbatim, on a real `kb keys create` run at the moment `repos` became enforced:
+    `These are recorded, not enforced: . So a key reads every indexed repository,
+    whatever those say.` -- an empty list followed by a sentence telling the operator
+    their key is unscoped, printed on a run where the key WAS scoped.
+
+    Every existing test asserted the phrase was PRESENT, so none of them could see
+    it. Found by minting a key and reading the output.
+    """
+    from contextlake.kb.cmds.keys_cmd import _unenforced_axes
+
+    # Today: nothing unenforced, so the clause is absent and no empty list is printed.
+    assert not _unenforced_axes()
+    created = run("create", "alice", "--tools", "read", "--repos", "acme/*")
+    text = created.out + created.err
+    assert f"{_LABEL}:" not in text, (
+        "the not-enforced clause rendered with nothing to name: " +
+        next((ln for ln in text.splitlines() if _LABEL in ln), ""))
+    # The enforced half still renders, so the note did not vanish entirely.
+    assert _NOTE in text
+
+    # And with an axis genuinely unenforced the clause comes back, naming it.
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "repos"))
+    keys_file.unlink(missing_ok=True)
+    text = (lambda r: r.out + r.err)(run("create", "bob", "--tools", "read"))
+    assert f"{_LABEL}: repos" in text, (
+        "with `repos` unenforced the clause did not name it, so the note is not "
+        "derived from ENFORCED_AXES")
+
+
+def test_the_not_enforced_marker_still_works_when_an_axis_is_not(
+        run, keys_file, monkeypatch):
+    """The not-enforced label, exercised by FORCING an unenforced axis.
+
+    Every axis in `_ALL_AXES` is enforced as of 9.3.0, so there is no longer a
+    natural example to point at. Deleting the assertion would leave the label's
+    machinery untested and a later axis would ship claiming enforcement it does
+    not have -- which is the exact failure this family of tests was built for.
+
+    So the divergence is manufactured: drop `repos` from `ENFORCED_AXES` and
+    require the renderer to notice. If this fails while the test above passes,
+    the renderer has stopped reading `ENFORCED_AXES` and is hardcoding the
+    marker.
+    """
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "repos"))
+
+    keys_file.unlink(missing_ok=True)
+    created = run("create", "alice", "--tools", "read", "--repos", "acme/*")
+    line = _scope_line_of(created.out + created.err)
+    assert f"repos=acme/*  ({_LABEL})" in line, (
+        f"with `repos` removed from ENFORCED_AXES the renderer still called it "
+        f"enforced, so the marker is not derived from that tuple: {line!r}")
+    # And the axis that IS still enforced keeps its own marker, so this proves a
+    # per-axis split rather than a blanket flip.
+    assert f"tools=read  {_ENFORCED_LABEL}" in line, line
 
 
 def test_an_unknown_tool_group_is_refused_at_create(run, keys_file):
@@ -1179,22 +1261,27 @@ def test_every_verb_carries_the_resolved_quota_fields(run, keys_file):
     assert created["effective_cost_budget"] is None
 
 
-def test_show_never_claims_the_unenforced_axes_restrict_anything(run, keys_file):
-    """The wording gate, narrowed to the axes that still bind nothing.
+def test_show_never_claims_the_unenforced_axes_restrict_anything(
+        run, keys_file, monkeypatch):
+    """The wording gate: no axis may claim a restriction it does not apply.
 
     Verbatim, at `keys_cmd.py:567` in 8.13.0: "grant expanded at 8.13.0. Tools
-    added since are denied; rotate to pick them up." Both halves were false then
-    and the second half is TRUE NOW, so the ban cannot stay blanket: a test that
-    forbids the word "denied" outright would forbid the correct sentence about
-    the tools axis and push the next reader to weaken the label instead.
+    added since are denied; rotate to pick them up." Both halves were false then,
+    so the ban cannot be blanket: forbidding the word "denied" outright would
+    forbid the correct sentence about an axis that really does deny, and push the
+    next reader to weaken the label instead.
 
-    What is still forbidden is any claim of restriction attached to `repos`. It
-    is recorded and read by nothing, so an operator told their key is limited to
-    `acme/*` acts on a limit that does not exist.
+    THE DIRECTION FLIPPED FOR `repos` IN 9.3.0. It is enforced now, by
+    `ScopedStore`, so `(enforced)` beside it is the true statement and the old
+    version of this test forbade it. What the test still pins is that the wording
+    tracks the enforcement, which it checks in BOTH directions: enforced axes say
+    so, and an axis outside `ENFORCED_AXES` says the opposite. The second half is
+    manufactured, because every axis is enforced today and an assertion with
+    nothing to point at is not a guard.
 
-    "grant expanded" stays banned outright: `_policy` stores the raw string and
-    expands nothing at create, and `grants._expand` expands live per call, so
-    there is no expansion stamped on a record to talk about.
+    "grant expanded" stays banned outright, unchanged: `_policy` stores the raw
+    string and expands nothing at create, and `grants._expand` expands live per
+    call, so there is no expansion stamped on a record to talk about.
     """
     run("create", "alice", "--tools", "read", "--repos", "acme/*")
     text = (lambda r: r.out + r.err)(run("show", _only_id(keys_file)))
@@ -1206,11 +1293,28 @@ def test_show_never_claims_the_unenforced_axes_restrict_anything(run, keys_file)
         "expanded per call, so there is no stamped expansion to report")
     scope = _scope_line_of(text).lower()
     repos = scope.split("repos=", 1)[1].split("owners=", 1)[0]
+    assert _LABEL not in repos, (
+        f"the repos axis is enforced and still carries {_LABEL!r}, so an operator "
+        f"reads a live restriction as inert and hands the key out: {repos!r}")
+    assert "enforced)" in repos, repos
+    assert _NOTE in text
+
+    # The other direction. With `repos` outside ENFORCED_AXES the same line must
+    # carry the not-enforced label and must NOT claim a restriction, which is the
+    # sentence the original defect shipped.
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "repos"))
+    keys_file.unlink(missing_ok=True)
+    run("create", "alice", "--tools", "read", "--repos", "acme/*")
+    text = (lambda r: r.out + r.err)(run("show", _only_id(keys_file)))
+    repos = _scope_line_of(text).lower().split("repos=", 1)[1].split("owners=", 1)[0]
     for claim in ("enforced)", "may read", "restricted to", "cannot read"):
         assert claim not in repos.replace(f"({_LABEL})", ""), (
-            f"the repos axis claims {claim!r}. Nothing reads `repos`, so that "
-            f"tells an operator their key is scoped when it is not: {repos!r}")
-    assert _NOTE in text
+            f"with `repos` outside ENFORCED_AXES the axis still claims {claim!r}, "
+            f"so the wording is a constant rather than a reading: {repos!r}")
 
 
 def test_an_unset_scope_axis_does_not_read_as_a_restriction(run, keys_file):
@@ -1245,7 +1349,7 @@ def test_an_unset_scope_axis_does_not_read_as_a_restriction(run, keys_file):
     assert " -  " in listed or listed.rstrip().endswith(" -"), listed
 
 
-def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
+def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file, monkeypatch):
     """A script reading `policy` gets no label out of a text line.
 
     `{"tools": "none"}` on its own says the opposite of the truth to anything
@@ -1260,6 +1364,18 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
     The argv is threaded through the run rather than tabulated, because `rotate`
     changes the id every other verb needs.
     """
+    # `repos` IS enforced as of 9.3.0, so this fixture no longer has a naturally
+    # unenforced axis to build on -- every axis is enforced. The walk below is about
+    # whether EVERY verb carries a DERIVED flag, not about which axes happen to be
+    # live, so the divergence is manufactured and the walk is kept intact. Without
+    # this the test would have to expect True everywhere, and a build that hardcoded
+    # True would pass it.
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "repos"))
+
     key = KEY_RE.search(
         run("create", "alice", "--tools", "none",
             "--repos", "nothing-matches/*").err).group(0)
@@ -1301,16 +1417,18 @@ def test_the_json_surfaces_carry_the_not_enforced_flag(run, keys_file):
         # measurement instead of a coincidence: one key with only enforced axes
         # reads True, and a key with no axes at all reads False.
         assert document["policy_enforced"] is False, (
-            f"`kb keys {verb} --json` claims the policy it renders is enforced. "
-            "`repos` is recorded and read by nothing, so a dashboard built on "
-            "it shows a scope column that is wrong on every row")
+            f"`kb keys {verb} --json` claims the policy it renders is enforced "
+            "while `repos` is outside ENFORCED_AXES, so the flag is a constant "
+            "rather than a reading of the record: a dashboard built on it shows a "
+            "scope column that is wrong on every row")
     assert created["enforced_axes"] == ["tools"], created["enforced_axes"]
     assert shown["enforced_axes"] == ["tools"], shown["enforced_axes"]
     assert checked["enforced_axes"] == ["tools"], checked["enforced_axes"]
     assert listed["keys"][0]["enforced_axes"] == ["tools"]
 
 
-def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(run, keys_file):
+def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(
+        run, keys_file, monkeypatch):
     """The flag moves with the key. A literal False could not.
 
     Three fixtures, because one proves nothing. A key scoped only on enforced
@@ -1329,13 +1447,36 @@ def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(run, keys_fi
     assert only_enforced["policy_enforced"] is True
     assert only_enforced["enforced_axes"] == ["tools", "owners"]
 
-    # `repos`, not `rate`: rate is enforced now, and the axis this fixture
-    # needs is one that is still recorded and read by nothing.
+    # A key carrying `repos` reads True as of 9.3.0, because the store filter
+    # behind it is real. This assertion moved with the enforcement.
+    scoped = json.loads(
+        run("create", "b", "--tools", "read", "--repos", "acme/*", "--json").out)
+    assert scoped["policy_enforced"] is True, scoped["enforced_axes"]
+    assert scoped["enforced_axes"] == ["tools", "repos"]
+
+    # The False case now has to be MANUFACTURED, and it still has to exist. Every
+    # axis is enforced today, so a fixture that merely looked for a False would have
+    # nothing to point at, and deleting it would leave the flag's derivation untested
+    # until some later axis shipped claiming enforcement it did not have.
+    #
+    # Dropping `repos` from the tuple must flip the same key to False. If it does
+    # not, the flag is no longer derived from `ENFORCED_AXES` and every surface that
+    # renders it is repeating a constant.
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "repos"))
+    keys_file.unlink(missing_ok=True)
     mixed = json.loads(
         run("create", "b", "--tools", "read", "--repos", "acme/*", "--json").out)
     assert mixed["policy_enforced"] is False, (
-        "a key recording `repos` reads as fully enforced; nothing scopes it")
+        "with `repos` removed from ENFORCED_AXES a key recording it still reads "
+        "as fully enforced, so the flag is not derived from that tuple")
     assert mixed["enforced_axes"] == ["tools"]
+    monkeypatch.undo()
+    keys_file.unlink(missing_ok=True)
+    run("create", "a", "--tools", "read", "--owners", "real", "--json")
 
     # A rate IS enforced, so a key carrying only tools and a rate reads True.
     # Without this the test above passes for a build where nothing is enforced.
@@ -1386,8 +1527,8 @@ def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
     from contextlake.kb import grants
     from contextlake.kb.server import GrantDenied, Principal
 
-    assert grants.ENFORCED_AXES == ("tools", "owners", "rate", "burst",
-                                    "cost_budget"), (
+    assert grants.ENFORCED_AXES == ("tools", "repos", "external", "owners",
+                                    "rate", "burst", "cost_budget"), (
         "the enforced axes moved. Re-read _enforcement_note and _axis in "
         "kb/cmds/keys_cmd.py: they render every axis from this list")
 
@@ -1428,12 +1569,70 @@ def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
     for _ in range(50):
         assert open_limiter.admit("k_test").admitted
 
-    for axis in ("repos", "external"):
-        assert axis not in grants.ENFORCED_AXES
+    # The STORE axes, walked through the thing that enforces them. `repos` and
+    # `external` are not decided by `check_tool_grant` at all: the refusal is a
+    # filtered read inside `ScopedStore`, below the tool wrapper, so a key denied a
+    # repository gets an empty answer rather than an exception. Asserting only on
+    # `check_tool_grant` would let the label move with no filter behind it, which is
+    # the same gap the quota block above closes for the rate axes.
+    from contextlake.kb.scoped_store import (
+        ScopedStore,
+        open_request_scope,
+        reset_request_scope,
+    )
 
+    class _Node:
+        def __init__(self, repo):
+            self.repo = repo
+
+    class _FakeStore:
+        path = "/nowhere"
+
+        def __init__(self):
+            self.nodes = {"in": _Node("acme/api"), "out": _Node("other/api")}
+
+        def get_node(self, node_id):
+            return self.nodes.get(node_id)
+
+        def list_partitions(self):
+            return ["acme/api", "other/api", "(external)"]
+
+    for axis in ("repos", "external"):
+        assert axis in grants.ENFORCED_AXES
+    scoped = ScopedStore(_FakeStore(),
+                         lambda: grants.repo_scope_of({"repos": "acme/*"}))
+    token = open_request_scope()
+    try:
+        assert scoped.get_node("in") is not None
+        # The refusal: a node in a repository this key was not granted.
+        assert scoped.get_node("out") is None
+        # `external` rides alongside and is off unless granted.
+        assert "(external)" not in scoped.visible_partitions()
+    finally:
+        reset_request_scope(token)
+
+    # The positive controls, both directions. Without them the refusals above pass
+    # for a filter that denies everything, and for an `external` flag nothing reads.
+    unscoped = ScopedStore(_FakeStore(), lambda: ([], False))
+    token = open_request_scope()
+    try:
+        assert unscoped.get_node("out") is not None
+    finally:
+        reset_request_scope(token)
+
+    with_external = ScopedStore(
+        _FakeStore(),
+        lambda: grants.repo_scope_of({"repos": "acme/*", "external": True}))
+    token = open_request_scope()
+    try:
+        assert "(external)" in with_external.visible_partitions()
+    finally:
+        reset_request_scope(token)
+
+    # And the CLI now calls it enforced, because it reads ENFORCED_AXES.
     run("create", "alice", "--repos", "acme/*")
     line = _scope_line_of(run("show", _only_id(keys_file)).out)
-    assert f"repos=acme/*  ({_LABEL})" in line, line
+    assert f"repos=acme/*  {_ENFORCED_LABEL}" in line, line
 
 
 def test_keys_check_refuses_a_terminal_instead_of_blocking(run, keys_file,

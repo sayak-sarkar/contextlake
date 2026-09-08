@@ -48,6 +48,8 @@ from pydantic import BaseModel, Field
 
 from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
+from .scoped_store import open_request_scope as _open_request_scope
+from .scoped_store import reset_request_scope as _reset_request_scope
 from .security import sanitize_label
 from .store.base import Store
 from .store.drift import Cited, DriftProbe
@@ -1085,6 +1087,12 @@ def build_server(
             # before the tool body ran. Hoisting a check above this set needs a
             # second `try` or loses that row.
             token = _DRIFT_PROBE.set(DriftProbe(store))
+            # The repo-scope memo, same lifetime and same `finally` as the probe
+            # above: both are only sound for the instant one request is answered.
+            # It memoises one verdict per partition id and one list per request,
+            # so a traversal resolving thousands of nodes runs the glob per
+            # distinct repository rather than per node.
+            scope_token = _open_request_scope()
             # outcome, ms and principal are per-CALL locals in this frame. Do not
             # hoist them beside the switches above: the switches are shared by
             # every call, these three are not.
@@ -1202,6 +1210,7 @@ def build_server(
                 raise
             finally:
                 _DRIFT_PROBE.reset(token)
+                _reset_request_scope(scope_token)
                 # ANCHOR (analytics): the usage row, written HERE and not beside
                 # the `return`, which is what records a call refused before the
                 # tool body ran and a call that raised. It runs during
@@ -1666,6 +1675,30 @@ def build_server(
                 heads[rid] = r.head_commit
         return stamped.group(1) != cluster_fingerprint({"heads": heads})
 
+    def _may_read_repo(repo: str) -> bool:
+        """Whether the caller may read ``repo``, for the tools that go to DISK.
+
+        Five tool bodies resolve a path from ``store.path`` and open a file, so no
+        forwarded store method ever sees the request and `ScopedStore` cannot filter
+        it. They ask here instead, and a bare `Store` has no `allows_repo`, so stdio
+        and the dashboard are unaffected: the answer there is always True.
+
+        Measured over a real HTTP server on 2026-09-08: `get_repo_brief` returned the
+        denied repository's own brief with `found=true` to a key scoped elsewhere,
+        while `search_code` on the same key was correctly filtered. This closes that.
+        """
+        check = getattr(store, "allows_repo", None)
+        return True if check is None else bool(check(repo))
+
+    def _fleet_readable() -> bool:
+        """Whether the caller may read a FLEET-wide document.
+
+        These have no repo argument to check, so a scoped caller is refused outright
+        rather than served a document about repositories it cannot even list.
+        """
+        scoped = getattr(store, "is_scoped", None)
+        return True if scoped is None else not scoped()
+
     @bounded_tool
     def get_wiki(repo: str) -> WikiOut:
         """The generated LLM-wiki page for a repo, or a namespace's cluster page.
@@ -1682,6 +1715,12 @@ def build_server(
         so ``wiki_commit``/``current_commit`` stay null on that kind while
         ``stale`` still means what it says.
         """
+        if not _may_read_repo(repo):
+            # `found=False`, the same answer a repo that is not indexed gets. A
+            # distinct refusal here would confirm the repository exists, which is
+            # the fact the scope is hiding.
+            return WikiOut(repo=repo, found=False, stale=False,
+                           wiki_commit=None, current_commit=None, markdown="")
         sp = getattr(store, "path", None)
         wiki_dir = Path(sp).parent / "wiki" if sp else None
         slug = repo.replace("/", "__")
@@ -1744,6 +1783,12 @@ def build_server(
                 note=(f"{wanted!r} is not a kind this server generates. The kinds are "
                       f"'api' (the reference) and 'design' (the design notes). Nothing was "
                       f"looked up, so this is not evidence that {repo} has no such page."))
+        if not _may_read_repo(repo):
+            # Same shape as an ungenerated page: a distinct refusal would confirm
+            # the repository exists, which is what the scope hides.
+            return GeneratedDocOut(repo=repo, kind=kind, found=False, stale=False,
+                                   doc_commit=None, current_commit=None,
+                                   markdown="")
         sp = getattr(store, "path", None)
         slug = repo.replace("/", "__")
         doc_file = Path(sp).parent / "docs" / wanted / (slug + ".md") if sp else None
@@ -1807,6 +1852,11 @@ def build_server(
             (r.id, getattr(r, "head_commit", None), store.get_repo_parser_version(r.id))
             for r in repos) if repos else None
 
+        if not _fleet_readable():
+            # No repo argument to check, so a scoped caller is refused the whole
+            # document rather than served prose about repositories it cannot list.
+            return FleetDocOut(found=False, stale=False, doc_fingerprint=None,
+                               current_fingerprint=None, repo_count=0, markdown="")
         sp = getattr(store, "path", None)
         doc_file = Path(sp).parent / "docs" / "fleet" / "design.md" if sp else None
         if not doc_file or not doc_file.exists():
@@ -1868,6 +1918,8 @@ def build_server(
         packages, and a file sample. ``found=False`` if the repo has no indexed shard.
         """
         from .wiki.generate import repo_brief
+        if not _may_read_repo(repo):
+            return RepoBriefOut(repo=repo, found=False)
         sp = getattr(store, "path", None)
         # store=None: this tool's output (RepoBriefOut) doesn't surface
         # readme_excerpt, so skip the filesystem read that field would trigger.
@@ -1903,22 +1955,37 @@ def build_server(
         # the same reason and to the same floor as `_budget`: zero is a legitimate
         # "give me nothing", so it is the floor, not one.
         limit = max(limit, 0)
-        counts = {}
-        if include_stats:
-            counts = dict(store.conn.execute(
-                "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
-        rows = store.conn.execute(
-            "SELECT repo_id, default_branch, head_commit, indexed_at FROM repos "
-            "ORDER BY repo_id LIMIT ?", (limit + 1,)).fetchall()
-        truncated = len(rows) > limit
-        repos = [RepoSummaryOut(
-            id=sanitize_label(r["repo_id"]),
-            default_branch=r["default_branch"],
-            head_commit=sanitize_label(r["head_commit"]) if r["head_commit"] else None,
-            indexed_at=r["indexed_at"],
-            node_count=int(counts.get(r["repo_id"], 0)) if include_stats else None,
-        ) for r in rows[:limit]]
-        total = store.conn.execute("SELECT COUNT(*) FROM repos").fetchone()[0]
+        # OFF `store.conn`, DELIBERATELY. This used to run three raw statements
+        # against the connection, which a scoping proxy forwards -- so a key scoped
+        # to one repository received the whole fleet from the orientation tool an
+        # agent reaches for first. Measured over a real HTTP server on 2026-09-08:
+        # both repositories came back to a key granted one of them, while
+        # `search_code` on the same key was correctly filtered, because that one
+        # goes through a covered method and this one did not.
+        #
+        # Every read below is a `Store` method the proxy covers, so `total`,
+        # `truncated` and the page are all computed over the SAME filtered set. A
+        # `total` taken from the store while the page is filtered is the shape where
+        # a caller cannot see a repository but is told how many exist.
+        all_repos = sorted(store.list_repos(), key=lambda r: r.id)
+        total = len(all_repos)
+        truncated = total > limit
+        page = all_repos[:limit]
+        repos = []
+        for r in page:
+            node_count = None
+            if include_stats:
+                # `repo_counts` is the protocol method added for exactly this: the
+                # only other route to a per-repo count is raw SQL.
+                node_count = store.repo_counts(r.id)[0]
+            repos.append(RepoSummaryOut(
+                id=sanitize_label(r.id),
+                default_branch=getattr(r, "default_branch", None),
+                head_commit=(sanitize_label(r.head_commit)
+                             if getattr(r, "head_commit", None) else None),
+                indexed_at=store.get_repo_indexed_at(r.id),
+                node_count=node_count,
+            ))
         return ReposOut(total=total, truncated=truncated, repos=repos)
 
     @bounded_tool
@@ -1968,6 +2035,16 @@ def build_server(
         stale repository and cannot clear any of those.
         """
         from .commands import lint_result
+
+        # SCOPE-EXEMPT: scoped through the store, not by a gate.
+        # `lint_result` walks `store.list_repos()`, which the proxy filters, so every
+        # count and every named repo below is already computed over the visible set.
+        # Measured over a real HTTP server on 2026-09-08: a key granted one of two
+        # repositories reads `repos: 1`, an unscoped key reads `repos: 2`. Adding
+        # `_fleet_readable()` here would refuse the tool outright and lose that
+        # correct scoped answer, which is why this is an exemption and not an
+        # oversight. `test_every_tool_that_reads_the_store_path_is_gated` reads this
+        # marker, so the exemption is visible rather than silent.
         sp = getattr(store, "path", None)
         res = lint_result(store, Path(sp).parent) if sp else {
             # A pathless store has no local HEAD to read and no shard to open, so
@@ -3341,6 +3418,25 @@ def build_http_app(
     # it keeps the test seam this function was split out to preserve -- the
     # recorder needs a path, and a path resolved in here would put store layout
     # inside the security gate's builder.
+    # THE REPO AXIS. Constructed here and only here: stdio and the in-process
+    # dashboard chat get the bare store, so their traversals stay unwrapped. A
+    # traversal is thousands of small round trips (see the note at the top of this
+    # module), and a per-call grant resolution on a path with no key at all would be
+    # paid every one of those times for nothing.
+    #
+    # One proxy over one store, not one server per key: `_tool_slots` is created
+    # inside `build_server`, so N servers would mean N independent concurrency bounds
+    # and the global bound fragments. The scope is resolved per CALL instead, from the
+    # identity ContextVar through `grant_source.repo_scope`.
+    #
+    # `grant_source is None` means a token-only server with no key records, so there
+    # are no scopes to apply and the bare store is the honest thing to serve.
+    if grant_source is not None:
+        from .scoped_store import ScopedStore
+
+        store = ScopedStore(
+            store, lambda: grant_source.repo_scope(current_principal()))
+
     server = build_server(store, embedder=embedder, vector_store=vector_store,
                           tool_concurrency=tool_concurrency, networked=True,
                           grant_source=grant_source, limiter=limiter,

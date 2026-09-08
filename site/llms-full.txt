@@ -8937,6 +8937,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The `repos` and `external` key scopes are enforced.** They were recorded and read
+  by nothing, so a key carrying `repos = "acme/**"` read every indexed repository and
+  every surface said so. Enforcement is a store-layer filter (`kb/scoped_store.py`),
+  not a predicate over tool names: a node id does not carry its repo (the repo is
+  inside a SHA-256 digest, and `normalize_id` collapses `/` to `_`), so the repo is
+  resolved by looking the node up. **Every axis a key can carry is now enforced**, and
+  the "recorded, not enforced" clause is omitted rather than printed with an empty list.
+  - Matching is segment-wise: `*` within a path segment, `**` across segments, never
+    `startswith`. A prefix test would grant a scope for `acme/api` read access to
+    `acme/api-v2`.
+  - An edge is returned only when BOTH endpoints are visible. A file node's id is its
+    repo id followed by a path inside it, so a one-sided filter hands a denied
+    repository's name and a path within it to any caller asking about a shared node
+    both repositories import.
+  - `list_repos` no longer runs raw SQL through the store connection. Its page, its
+    `total` and its `truncated` flag are all computed over the filtered set, so a
+    caller is never told how many repositories exist that it cannot see.
+  - The five tools that read generated files from disk (`get_wiki`,
+    `get_generated_doc`, `get_repo_brief`, `get_fleet_doc`, `graph_health`) ask
+    whether the caller may read the repository first. They resolve a path and open a
+    file, so no store method sees the request: measured over a real HTTP server,
+    `get_repo_brief` returned the denied repository's own brief while `search_code` on
+    the same key was correctly filtered.
+  - `(shared)` and `(packages)` stay visible to every key or imports break.
+    `(external)` needs the `external` grant. `(system)` needs `**`, because its
+    presence discloses that some indexed repository calls an unindexed target.
+  - stdio and the dashboard are unaffected: the proxy is built only for the HTTP
+    transport, and the local paths get the bare store.
+
 ### Changed
 
 - **BREAKING (local behaviour): `kb forget <repo>` now deletes the repo's wiki

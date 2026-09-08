@@ -562,7 +562,7 @@ def test_kb_keys_does_not_load_the_mcp_server(tmp_path):
         "import sys; import contextlake.kb.cmds.keys_cmd as k;"
         "import contextlake.kb.grants as g;"
         "assert g.ENFORCED_AXES == "
-        "('tools', 'owners', 'rate', 'burst', 'cost_budget');"
+        "('tools', 'repos', 'external', 'owners', 'rate', 'burst', 'cost_budget');"
         "print('server' if 'contextlake.kb.server' in sys.modules else '-',"
         "      'mcp' if 'mcp' in sys.modules else '-')"
     )

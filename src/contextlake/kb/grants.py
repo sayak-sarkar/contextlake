@@ -25,17 +25,20 @@ not ``external``, not ``rate``, ``burst`` or ``cost_budget``. :data:`ENFORCED_AX
 is the single statement of that, read by ``kb keys`` so the CLI cannot claim an
 axis is live that this module does not check.
 
-``repos`` is deferred, and the reason is a fact about the data rather than a
-preference. A node id does not carry its repo: ``parse.symbol_id`` puts the repo
-inside a SHA-256 digest, and ``make_id(repo_id, rel_path)`` runs
-``ids.normalize_id``, which collapses ``/`` to ``_``, so ``team/api`` and
-``team_api`` are indistinguishable in an id. A predicate cannot recover a repo
-from a node id, and a prefix test on one is an unanchored string match deciding
-an authorization question. Worse, three tools READ bounded and are not:
-``repo_dependencies``, ``repo_flow`` and ``repo_event_flow`` take a required
-``repo`` and return ``RepoEdgeOut`` rows whose ``src`` and ``dst`` are repo ids,
-and ``_repo_side`` keeps a row when EITHER side matches. Correct row-level
-scoping needs a store-layer filter, which is S4.3-acl-5.
+``repos`` and ``external`` ARE enforced as of 9.3.0, and NOT by this module. The
+reason they took a separate story is a fact about the data: a node id does not
+carry its repo. ``parse.symbol_id`` puts the repo inside a SHA-256 digest, and
+``make_id(repo_id, rel_path)`` runs ``ids.normalize_id``, which collapses ``/``
+to ``_``, so ``team/api`` and ``team_api`` are indistinguishable in an id. A
+predicate over a node id cannot recover a repo from it, and a prefix test on one
+is an unanchored string match deciding an authorization question.
+
+So the repo axis is enforced at the STORE, by ``kb/scoped_store.ScopedStore``,
+which resolves each node's repo by looking the node up rather than by parsing its
+id. This module supplies the SCOPE that proxy applies -- see
+:meth:`GrantCheck.repo_scope` -- and keeps deciding the tool axis. Two mechanisms
+because there are two questions: "may this key call this tool" is answerable from
+a name, and "may this key see this row" is not.
 """
 
 from __future__ import annotations
@@ -76,7 +79,8 @@ def _is_shared_token(key_id: str) -> bool:
 # label each axis, so "the CLI says enforced" and "the gate checks it" cannot
 # drift into disagreeing. Adding an axis here without adding its rule below
 # makes the CLI lie; the test that walks both is what stops that.
-ENFORCED_AXES = ("tools", "owners", "rate", "burst", "cost_budget")
+ENFORCED_AXES = ("tools", "repos", "external", "owners", "rate", "burst",
+                 "cost_budget")
 
 # The `kb://stats` resource, named here because it is gated like a tool but is
 # not one. It is in the `stats` group: what it discloses is the repo, node and
@@ -244,6 +248,33 @@ def _expand(value: str) -> frozenset[str]:
     return frozenset(granted)
 
 
+def parse_repos(value: str) -> list[str]:
+    """The ``--repos`` string as the pattern list the store filter applies.
+
+    Comma-separated, whitespace stripped, empty parts dropped. NOT case-folded,
+    unlike :func:`parse_tools`: a tool name is a fixed identifier this module owns,
+    while a repo id comes from a forge that may well be case-sensitive, and folding
+    it here would make ``Team/API`` and ``team/api`` the same scope on a host where
+    they are two repositories.
+    """
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def repo_scope_of(policy: Mapping[str, object] | None) -> tuple[list[str], bool]:
+    """``(patterns, external)`` from a policy block.
+
+    An ABSENT ``repos`` axis yields ``[]``, which every reader treats as unscoped.
+    That is the same reading :func:`_check_tools` gives an absent tools axis, and it
+    is why ``kb keys`` refuses ``--repos ""``: an empty string stored on the record
+    would arrive here indistinguishable from an unset axis while the operator who
+    typed it was narrowing to nothing.
+    """
+    policy = policy or {}
+    raw = policy.get("repos")
+    patterns = parse_repos(str(raw)) if raw not in (None, "") else []
+    return patterns, bool(policy.get("external"))
+
+
 def _check_tools(policy: Mapping[str, object], tool_name: str) -> None:
     """The tools axis. An ABSENT axis is not a scope and grants everything."""
     value = policy.get("tools")
@@ -406,6 +437,22 @@ class GrantCheck:
         if principal is not None and not _is_shared_token(principal.key_id):
             policy = self._policy(principal)
         check_tool_grant(principal, tool_name, policy)
+
+    def repo_scope(self, principal: Principal | None) -> tuple[list[str], bool]:
+        """``(patterns, external)`` for this principal, for ``ScopedStore``.
+
+        ``None`` principal yields ``([], False)``, which reads as unscoped -- and
+        that is SAFE here only because ``ScopedStore`` never asks this for an
+        unidentified caller: ``guarded`` raises ``IdentityUnset`` above the anchor,
+        and the proxy's own ``_patterns`` denies when this returns nothing to a
+        direct call. The shared token has no record and so no scope, matching what
+        the tool axis already does with it.
+        """
+        if principal is None:
+            return [], False
+        if _is_shared_token(principal.key_id):
+            return [], False
+        return repo_scope_of(self._policy(principal))
 
     def visible(self, principal: Principal | None,
                 names: Iterable[str]) -> list[str]:

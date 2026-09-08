@@ -155,20 +155,34 @@ def _enforcement_note() -> list[str]:
     alone is not enough: an operator who reads "repos is recorded, not enforced"
     beside `repos=acme/**` still has to work out that the key reads every other
     repository, and that is the sentence they act on.
+
+    THAT HALF IS OMITTED WHEN THERE IS NOTHING TO NAME, which is the state as of
+    9.3.0: every axis is enforced. It used to render unconditionally and printed
+    `These are recorded, not enforced: . So a key reads every indexed repository,
+    whatever those say.` -- an empty list followed by a sentence saying the key is
+    unscoped, on a run where the key WAS scoped. An operator reading that would
+    hand out a key believing its scope inert. Found by minting a key and reading
+    the output, not by a test: every test asserted the phrase was PRESENT, and the
+    defect was that it was present with nothing in it.
     """
-    return [
+    lines = [
         f"  This release enforces {_and_list(grants.ENFORCED_AXES)}: a value "
         "recorded there is checked on every",
         "  call, and an axis left unset records no scope and limits nothing.",
+    ]
+    unenforced = _unenforced_axes()
+    if unenforced:
         # The phrase is embedded VERBATIM and mid-sentence rather than
         # sentence-cased. `list` renders its policy in table columns with no
         # room for a bracketed marker, so this note is the only place the phrase
         # reaches that surface, and a test asserts the one spelling on all four
         # verbs. A capitalised copy is a second spelling.
-        f"  These are {_NOT_ENFORCED}: {', '.join(_unenforced_axes())}. So a "
-        "key reads every indexed",
-        "  repository, whatever those say.",
-    ]
+        lines += [
+            f"  These are {_NOT_ENFORCED}: {', '.join(unenforced)}. So a "
+            "key reads every indexed",
+            "  repository, whatever those say.",
+        ]
+    return lines
 
 
 class _Failure(Exception):
