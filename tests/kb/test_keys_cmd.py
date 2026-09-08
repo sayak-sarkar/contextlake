@@ -1474,9 +1474,13 @@ def test_the_enforced_flag_is_derived_from_the_axes_the_key_records(
         "with `repos` removed from ENFORCED_AXES a key recording it still reads "
         "as fully enforced, so the flag is not derived from that tuple")
     assert mixed["enforced_axes"] == ["tools"]
-    monkeypatch.undo()
-    keys_file.unlink(missing_ok=True)
-    run("create", "a", "--tools", "read", "--owners", "real", "--json")
+    # NO `monkeypatch.undo()` HERE. It reverts every operation on this test's
+    # monkeypatch, and the `keys_file` fixture uses the same one to point
+    # $CONTEXTLAKE_KEYS_FILE at tmp_path -- so an undo silently re-aims every
+    # later `run("create", ...)` at the operator's REAL key file. Measured: it
+    # wrote 19 records each named `a`, `c` and `d` into
+    # ~/.contextlake/mcp-keys.json. pytest undoes the patch at teardown anyway,
+    # so the call bought nothing and cost that.
 
     # A rate IS enforced, so a key carrying only tools and a rate reads True.
     # Without this the test above passes for a build where nothing is enforced.
