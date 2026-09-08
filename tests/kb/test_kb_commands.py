@@ -697,7 +697,11 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
                             "parser_stale", "empty", "unreadable", "shard",
                             "stale_repos", "empty_repos", "shard_repos",
                             "unreadable_repos", "parser_stale_repos",
-                            "dangling_sample"}
+                            "dangling_sample",
+                            # 9.3.0: partitions holding vectors with no nodes
+                            # behind them. Unreachable content, reported because
+                            # nothing else names it.
+                            "orphan_vectors", "orphan_vector_partitions"}
     # Neither stale nor unreadable: telling the reader to re-run index, or to
     # re-clone something that was never cloned, is advice that cannot work.
     assert payload["stale"] == 0 and payload["empty"] == 0

@@ -22,8 +22,16 @@ from .atlassian import (
 
 
 def connect_partition(repo_id: str) -> str:
-    """Store partition holding a repo's connector output."""
-    return f"@connect:{repo_id}"
+    """Store partition holding a repo's connector output.
+
+    The prefix lives in ``kb/scope.py``, which is also what decides whether a
+    partition id is inside a scope. Two copies of the same string, one that builds
+    ids and one that recognises them, is how ``@wiki:`` came to be written by the
+    wiki command and invisible to every reader of it.
+    """
+    from ..scope import CONNECT_PREFIX
+
+    return f"{CONNECT_PREFIX}{repo_id}"
 
 
 def _num(extra: dict, key: str, default, cast):

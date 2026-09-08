@@ -44,29 +44,27 @@ def _norm(vec) -> float:
 
 
 def _repo_scope(repo_id: str) -> list[str]:
-    """Expand a ``repo=`` filter to the repo's own shard plus its linked
-    connector/enrichment partitions.
+    """Expand a ``repo=`` filter to the repo's own shard plus its linked partitions.
 
-    ``connect``/``enrich`` deliberately write into separate ``@connect:<repo>``/
-    ``@enrich:<repo>`` partitions (see connectors/orchestrate.py, connectors/enrich.py)
-    so re-indexing a repo's code never clobbers connector output and vice versa.
-    That isolation is a *write*-side concern; it must not leak into *search* --
-    a caller filtering by repo id expects everything the repo's graph node links
-    to, not just the literal code shard. Imported lazily to keep the connectors'
-    (heavier) dependency chain out of every basic vector-store import; both
-    ``connect_partition``/``enrich_partition`` are pure string formatting with no
-    further imports of their own, so this only ever pulls in their defining
-    modules. Falls back to the literal repo id alone if that import fails (e.g. a
-    partial install without the connectors' own optional deps), so a broken
-    environment degrades to the old exact-match behavior instead of crashing
-    every repo-scoped search."""
-    try:
-        from ..connectors.enrich import enrich_partition
-        from ..connectors.orchestrate import connect_partition
-    except ImportError:
-        return [repo_id]
+    Delegates to :func:`contextlake.kb.scope.repo_partitions`, which is the ONE copy.
+    This function and ``cmds.forget._partitions`` were two hand-maintained copies that
+    returned three entries each and both omitted ``@wiki:<repo>``, so a repo-scoped
+    search never saw the repo's own wiki prose.
 
-    return [repo_id, connect_partition(repo_id), enrich_partition(repo_id)]
+    BEHAVIOUR CHANGE, 9.3.0: the ``@wiki:<repo>`` partition is now in scope, so
+    ``semantic_search`` and ``hybrid_search`` return wiki-section hits for a
+    ``repo=``-filtered query where they previously returned none. That is a widening
+    on the local (stdio) path with no key involved, taken deliberately rather than
+    confined to the authorization path, and it is in the changelog.
+
+    NOT the whole story for a scoped caller. This returns the FIXED partitions a repo
+    owns; the ``@wiki:<repo>::<module>`` family is open-ended and has to be discovered
+    from the store. A caller that needs those (the access-control path) goes through
+    ``scope.partitions_in_scope`` over ``Store.list_partitions()`` instead.
+    """
+    from ..scope import repo_partitions
+
+    return repo_partitions(repo_id)
 
 
 class VectorStore:
@@ -131,6 +129,22 @@ class VectorStore:
     def count_repo(self, repo_id: str) -> int:
         return self.conn.execute(
             "SELECT COUNT(*) FROM embeddings WHERE repo_id=?", (repo_id,)).fetchone()[0]
+
+    def list_partitions(self) -> list[str]:
+        """Every partition id holding a vector here.
+
+        DIAGNOSTIC ONLY. It exists so `kb lint` can compare this against the graph
+        store's own partitions and name any that hold vectors and no nodes -- content
+        nothing can reach, because every scope is computed from the NODES table. It is
+        not a scoping input: see `kb/scope.py` for why the allow-list is derived from
+        the graph store instead.
+
+        Cheap here (`idx_emb_repo` covers it) and NOT cheap on the ANN backend, which
+        is a virtual table. Do not call either per request.
+        """
+        rows = self.conn.execute(
+            "SELECT DISTINCT repo_id FROM embeddings ORDER BY repo_id").fetchall()
+        return [r[0] for r in rows]
 
     def count(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
@@ -273,6 +287,21 @@ class SqliteVecStore:
             return 0
         return self.conn.execute(
             "SELECT COUNT(*) FROM vec_items WHERE repo_id=?", (repo_id,)).fetchone()[0]
+
+    def list_partitions(self) -> list[str]:
+        """Every partition id holding a vector here. DIAGNOSTIC ONLY, and SLOW.
+
+        `vec_items` is a vec0 VIRTUAL table, so it takes no user index and this is a
+        full scan. Measured 2026-09-08 on one shape of 100,000 rows over 4,000
+        partitions: 427.6 ms, against 4.4 ms for the same question asked of the graph
+        store's `nodes` table through its covering index. That is why scoping reads
+        the graph store and this exists only for `kb lint`'s orphan check.
+        """
+        if not self._has_table:
+            return []
+        rows = self.conn.execute(
+            "SELECT DISTINCT repo_id FROM vec_items ORDER BY repo_id").fetchall()
+        return [r[0] for r in rows]
 
     def count(self) -> int:
         if not self._has_table:

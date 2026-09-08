@@ -72,11 +72,19 @@ def test_search_repo_filter_includes_connect_and_enrich_partitions(tmp_path):
         s.close()
 
 
-def test_search_repo_filter_degrades_to_exact_match_if_connectors_unimportable(
-    tmp_path, monkeypatch
-):
-    """A partial install missing the connectors' own optional deps must degrade
-    repo-scoped search to the old exact-match behavior, not crash it outright."""
+def test_search_repo_filter_needs_no_connector_import(tmp_path, monkeypatch):
+    """Repo-scoped search must NOT narrow itself when the connectors cannot import.
+
+    This asserted the opposite until 9.3.0. `_repo_scope` imported
+    `connect_partition`/`enrich_partition` from the connectors package and fell back
+    to the literal repo id on ImportError, so a partial install silently dropped the
+    connector and enrichment partitions from every repo-scoped search -- narrower
+    results, no warning, and indistinguishable from a repo that genuinely had none.
+
+    Partition ids are now built from constants in `kb/scope.py`, which imports
+    nothing optional, so there is no import left to fail. The connectors build their
+    ids from those same constants, so the one-spelling property still holds.
+    """
     real_import = builtins.__import__
 
     def _boom(name, *a, **k):
@@ -90,9 +98,11 @@ def test_search_repo_filter_degrades_to_exact_match_if_connectors_unimportable(
         s.upsert([
             ("code_node", "team/api", [1.0, 0.0]),
             ("connect_node", "@connect:team/api", [1.0, 0.0]),
+            ("wiki_node", "@wiki:team/api", [1.0, 0.0]),
         ])
         hits = {h[0] for h in s.search([1.0, 0.0], k=10, repo="team/api")}
-        assert hits == {"code_node"}  # degraded: no connector-partition widening
+        # All three, including the wiki partition neither old copy ever returned.
+        assert hits == {"code_node", "connect_node", "wiki_node"}
     finally:
         s.close()
 

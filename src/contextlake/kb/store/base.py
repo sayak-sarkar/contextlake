@@ -97,6 +97,35 @@ class Store(ABC):
     def stats(self) -> Stats: ...
 
     @abstractmethod
+    def list_partitions(self) -> list[str]:
+        """Every ``repo_id`` that owns nodes, whether or not it has a ``repos`` row.
+
+        On the protocol rather than only on the concrete class because scoping reads
+        it: a scope covers an open-ended family (``@wiki:<repo>::<module>`` is one
+        partition per module), so the only way to turn a scope into the concrete id
+        list both vector backends need for ``repo_id IN (?,...)`` is to intersect the
+        scope predicate with the partitions that actually exist. See ``kb/scope.py``.
+
+        ABSTRACT, not a concrete default. A backend that cannot enumerate its
+        partitions cannot be scoped, and the safe answer there is "this backend does
+        not satisfy the interface" at construction, not an empty list at request time
+        that reads as a clean deny while serving nothing.
+        """
+
+    @abstractmethod
+    def repo_counts(self, repo_id: str) -> tuple[int, int]:
+        """``(nodes, edges)`` stored under exactly ``repo_id``, the literal partition.
+
+        Matches ``clear_repo``/``delete_repo``, so a caller that reports these numbers
+        and then deletes reports what it deleted. Connector partitions are counted by
+        asking for them by name.
+
+        On the protocol because ``list_repos`` and the scoped ``stats()`` both need a
+        per-repo count over a FILTERED set, and the only other route to one is raw SQL
+        through ``.conn``, which a scoping proxy must not forward.
+        """
+
+    @abstractmethod
     def clear_repo(self, repo_id: str) -> None:
         """Remove all nodes/edges for a repo (for a clean re-index). Leaves the
         ``repos`` row itself in place -- use :meth:`delete_repo` to drop that too."""

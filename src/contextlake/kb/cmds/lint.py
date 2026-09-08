@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
 from pathlib import Path
@@ -13,6 +14,7 @@ from ._common import (
     _git_commit_state,
     _git_head,
     _open_store,
+    kb_config,
 )
 
 _lint_cache: dict[str, tuple] = {}
@@ -197,6 +199,50 @@ def lint_result(store, store_dir) -> dict:
     return result
 
 
+def orphan_vector_partitions(store, store_dir, cfg) -> list[str]:
+    """Partitions holding vectors with no nodes behind them.
+
+    Content in this state is UNREACHABLE and nothing else reports it. Every repo
+    scope is computed from the graph store's own partitions (``kb/scope.py`` derives
+    the allow-list from ``Store.list_partitions()``, which reads the ``nodes`` table),
+    so a partition absent from there is absent from every scope, whether or not it
+    still holds vectors. It answers no query and appears in no listing.
+
+    ``kb forget`` produced exactly this shape until 9.3.0: it cleared nodes first and
+    vectors last, so an interrupted run left the vectors stranded. The order is
+    reversed now, which stops NEW ones; this names the ones already there.
+
+    DELIBERATELY NOT IN :func:`lint_result`. That function is cached and the dashboard
+    calls it on every request, and this check scans the vector store: on the ANN
+    backend that is a virtual-table scan measured at 427.6 ms over 4,000 partitions.
+    A per-request cost like that is a regression, so this is a CLI-only check.
+
+    Returns the orphaned partition ids. An empty list means either "none" or "no
+    vector store", and those are distinguished by the caller, not folded together
+    here: a missing vector store cannot answer the question and must not read as a
+    clean result.
+    """
+    if not cfg.embeddings.enabled:
+        return []
+    vec_path = store_dir / "embeddings.sqlite"
+    if not vec_path.exists():
+        return []
+    from ..embeddings.store import build_vector_store
+
+    vec = None
+    try:
+        vec = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
+        vector_parts = set(vec.list_partitions())
+    except Exception:  # noqa: BLE001 - a diagnostic must not fail the command it runs in
+        return []
+    finally:
+        if vec is not None:
+            with contextlib.suppress(Exception):
+                vec.close()
+    node_parts = set(store.list_partitions())
+    return sorted(vector_parts - node_parts)
+
+
 def cmd_lint(args) -> int:
     """Graph-health checks: stale repos (HEAD moved), repos built by an older
     parser, and dangling edges.
@@ -228,12 +274,22 @@ def cmd_lint(args) -> int:
                                   "shard": 0,
                                   "stale_repos": [], "empty_repos": [],
                                   "shard_repos": [], "unreadable_repos": [],
-                                  "parser_stale_repos": [], "dangling_sample": []},
+                                  "parser_stale_repos": [], "dangling_sample": [],
+                                  "orphan_vectors": 0,
+                                  "orphan_vector_partitions": []},
                                  indent=2))
                 return 0
             log("Nothing indexed yet — run index first.")
             return 0
         res = lint_result(store, store_dir)
+        # Computed here rather than inside `lint_result` so the dashboard's
+        # per-request call does not pay for a vector-store scan. See the function's
+        # own docstring for the measured cost.
+        orphans = orphan_vector_partitions(store, store_dir, kb_config(args))
+        res = dict(res, orphan_vectors=len(orphans), orphan_vector_partitions=orphans)
+        # Advisory, like parser-staleness: the content is unreachable rather than
+        # wrong, `kb embed` rebuilds it, and failing the exit code for it would turn
+        # an upgrade into a red gate for every pipeline that runs lint.
         clean = res["dangling"] == 0 and res["stale"] == 0 and res["unreadable"] == 0
         if as_json:
             print(json.dumps(res, indent=2))
@@ -254,6 +310,11 @@ def cmd_lint(args) -> int:
         for rid in res["parser_stale_repos"]:
             log(f"  parser-stale: {rid} (built by an older parser — `contextlake kb "
                 f"index` rebuilds it; not counted in this command's exit code)")
+        for part in res["orphan_vector_partitions"]:
+            log(f"  orphan vectors: {part} (vectors with no nodes behind them, "
+                f"so nothing can reach them -- `contextlake kb embed` rebuilds "
+                f"them, or `contextlake kb forget` removes them; not counted in "
+                f"this command's exit code)")
         for d in res["dangling_sample"]:
             log(f"  dangling: {d['repo']}: {d['src']} -{d['relation']}-> {d['dst']}")
         if res["dangling"] > 20:
@@ -266,9 +327,11 @@ def cmd_lint(args) -> int:
         empty_note = f", {res['empty']} empty" if res["empty"] else ""
         shard_note = f", {res['shard']} shard-imported" if res["shard"] else ""
         unreadable_note = f", {res['unreadable']} unreadable" if res["unreadable"] else ""
+        orphan_note = (f", {res['orphan_vectors']} partition(s) with orphaned vectors"
+                       if res["orphan_vectors"] else "")
         log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
             f"{res['dangling']} dangling, {res['stale']} stale"
-            f"{unreadable_note}{empty_note}{shard_note}{parser_note}")
+            f"{unreadable_note}{empty_note}{shard_note}{parser_note}{orphan_note}")
         return 0 if clean else 1
     finally:
         store.close()

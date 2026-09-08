@@ -27,8 +27,14 @@ def _wiki_partition(repo_id: str) -> str:
     composite module key (``f"{repo}::{module_prefix}"``, see
     ``_module_page_plan``) or a cluster page's namespace prefix are equally
     safe to pass in.
+
+    Prefix from ``kb/scope.py``, which is also what recognises these ids when a
+    scope is applied. One constant, so a writer and a reader of the same partition
+    family cannot disagree about its spelling.
     """
-    return f"@wiki:{repo_id}"
+    from ..scope import WIKI_PREFIX
+
+    return f"{WIKI_PREFIX}{repo_id}"
 
 
 def _wiki_section_nodes(repo_id: str, page: str, filename: str, *,
@@ -252,7 +258,9 @@ def _module_partition_head(repo_id: str) -> str:
     """The ``@wiki:{repo}::`` key prefix every module partition of ``repo_id``
     starts with (the whole-repo page's own key is ``@wiki:{repo}``, without the
     ``::``, so it can never be matched by this)."""
-    return f"{_wiki_partition(repo_id)}::"
+    from ..scope import MODULE_SEP
+
+    return f"{_wiki_partition(repo_id)}{MODULE_SEP}"
 
 
 def _existing_module_partitions(store, repo_id: str) -> dict[str, str | None]:

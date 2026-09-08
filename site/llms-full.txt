@@ -8937,6 +8937,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (local behaviour): `kb forget <repo>` now deletes the repo's wiki
+  partitions too.** It removed the code shard, `@connect:<repo>` and `@enrich:<repo>`
+  and left `@wiki:<repo>` and every `@wiki:<repo>::<module>` page partition in the
+  store forever, still answering queries under a repo id that no longer resolves. The
+  module partitions cannot be constructed from the repo id (one per qualifying module,
+  discovered from the store), which is why they were missed.
+- **A repo-scoped semantic search now returns the repo's own wiki prose.**
+  `semantic_search` and `hybrid_search` with a `repo=` filter expanded to the code
+  shard plus the two connector partitions and omitted `@wiki:` entirely, so the one
+  place a repo's own generated explanation lives was invisible to a query scoped to
+  that repo. This widens results on the local path with no key involved.
+- **Partition ids are built from one set of constants.** `kb/scope.py` now owns
+  `@connect:`, `@enrich:`, `@wiki:` and the `::` module separator, and
+  `connect_partition`, `enrich_partition` and `_wiki_partition` build from them. There
+  were three builders and two expanders, and the two expanders both omitted `@wiki:`,
+  which is how a partition family came to be written by one command and invisible to
+  every reader of it.
+- **`kb forget` clears vectors before nodes.** It was the other way round, so a run
+  interrupted between the two left vectors with no nodes behind them: unreachable,
+  because every scope is computed from the nodes table, and unreported. The reverse
+  order leaves nodes with no vectors, which the next `kb embed` repairs.
+- **The repo-scoped expansion no longer degrades on a partial install.** It imported
+  the connectors' partition helpers and fell back to the literal repo id alone on
+  `ImportError`, silently narrowing every repo-scoped search on an install missing an
+  optional dependency. Partition ids are string formatting over constants; there is
+  nothing left to fail.
+
+### Added
+
+- **`kb lint` reports partitions holding vectors with no nodes.** Content in that state
+  is unreachable and nothing else named it. Advisory: it does not change the exit code,
+  and `kb embed` rebuilds it. Deliberately not in the shared `lint_result`, which the
+  dashboard calls on every request, because the check scans the vector store: on the
+  ANN backend that is a virtual-table scan measured at 427.6 ms over 4,000 partitions.
+- **`Store.list_partitions()` and `Store.repo_counts()` are on the protocol.** Both
+  were concrete-class methods. Scoping reads the first (an allow-list has to be
+  intersected with the partitions that actually exist) and the second is the only route
+  to a per-repo count that does not go through raw SQL.
+
 ## [9.2.1] - 2026-09-08
 
 ### Fixed

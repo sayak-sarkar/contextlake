@@ -61,23 +61,37 @@ def _wiki_pages(wiki_dir, repo_id: str) -> list:
     return found
 
 
-def _partitions(repo_id: str) -> list[str]:
-    """Every store partition a repo owns: its code shard and its connector shards.
+def _partitions(repo_id: str, store=None) -> list[str]:
+    """Every store partition a repo owns: its shard, connector shards, and wiki pages.
 
-    ``connect``/``enrich`` write into ``@connect:<repo>``/``@enrich:<repo>`` on
-    purpose, so re-indexing code never clobbers connector output. That isolation is
-    a write-side concern, and ``clear_repo``/``delete_repo`` match on the literal id
-    alone -- so removing only the literal partition leaves the connector nodes,
-    edges and vectors behind, still answering queries under a repo id that no longer
-    resolves. Mirrors ``embeddings.store._repo_scope``, which expands the same way
-    for search, and degrades to the literal id if the connectors are not installed.
+    ``clear_repo``/``delete_repo`` match on the literal id alone, so removing only the
+    literal partition leaves the other partitions behind, still answering queries under
+    a repo id that no longer resolves.
+
+    BEHAVIOUR CHANGE, 9.3.0. This used to return three entries and omit ``@wiki:``
+    entirely, so ``kb forget <repo>`` left the repo's wiki partition (and every
+    ``@wiki:<repo>::<module>`` page partition) in the store forever. It now removes
+    them. That widens what a destructive command deletes, which is why it is a
+    changelog entry rather than a silent fix.
+
+    ``store`` is optional so the fixed list stays answerable with no store (the
+    caller that only needs partition NAMES). When it is passed, the open-ended
+    ``@wiki:<repo>::<module>`` family is discovered from the store as well -- those
+    ids cannot be constructed from the repo id, only recognised.
     """
+    from ..scope import module_partitions_of, repo_partitions
+
+    parts = repo_partitions(repo_id)
+    if store is None:
+        return parts
     try:
-        from ..connectors.enrich import enrich_partition
-        from ..connectors.orchestrate import connect_partition
-    except ImportError:
-        return [repo_id]
-    return [repo_id, connect_partition(repo_id), enrich_partition(repo_id)]
+        known = store.list_partitions()
+    except Exception:  # noqa: BLE001 - a store that cannot enumerate still forgets
+        # Degrades to the fixed list: fewer partitions deleted, never more. The
+        # module pages are then left behind, which is the pre-9.3.0 behaviour and
+        # is recoverable; deleting something unnamed would not be.
+        return parts
+    return parts + module_partitions_of(known, repo_id)
 
 
 def _disk_artifacts(store_dir, parts: list[str], repo_id: str) -> list:
@@ -190,7 +204,10 @@ def cmd_forget(args) -> int:
         store.close()
         return 1
     try:
-        parts = _partitions(repo_id)
+        # `store` is passed so the open-ended `@wiki:<repo>::<module>` family is
+        # discovered too. It has to come from the store: those ids are recognisable
+        # but not constructible from the repo id alone.
+        parts = _partitions(repo_id, store)
         counts = [store.repo_counts(p) for p in parts]
         nodes = sum(n for n, _ in counts)
         edges = sum(e for _, e in counts)
@@ -257,13 +274,28 @@ def cmd_forget(args) -> int:
         # Declared before the first thing that can fail to remove, so the wiki pages and
         # the disk artefacts below both record into one list and one check decides.
         survived: list[str] = []
-        store.delete_repo(repo_id)
-        for part in parts[1:]:
-            store.clear_repo(part)
+        # VECTORS FIRST, NODES SECOND. The order matters only when the run is
+        # interrupted between the two, and then it decides which of two damaged
+        # states the store is left in:
+        #
+        #   nodes cleared first  -> vectors with no nodes. Nothing enumerates them
+        #                           (every scope is computed from `list_partitions`,
+        #                           which reads the NODES table), so the content is
+        #                           unreachable and no command reports it.
+        #   vectors cleared first -> nodes with no vectors. `embeddings/index.py`
+        #                           clears the partition and re-embeds on the next
+        #                           index run, so it repairs itself, and until then
+        #                           it is a missing semantic hit rather than silence.
+        #
+        # Both are damage; only one is recoverable and visible. This was the other
+        # way round until 9.3.0.
         if vec is not None:
             for part in parts:
                 vec.clear_repo(part)
             vec.close()
+        store.delete_repo(repo_id)
+        for part in parts[1:]:
+            store.clear_repo(part)
         # Verified, not assumed. The summary counts these as removed, and an unlink that
         # silently did nothing (a read-only directory, a file held open) made the count a
         # claim rather than a measurement -- the same gap the byte figure below was already

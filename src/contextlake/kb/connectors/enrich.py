@@ -25,8 +25,14 @@ from .text_match import link_documents_to_symbols
 
 
 def enrich_partition(repo_id: str) -> str:
-    """Store partition holding a repo's query-driven enrichment documents."""
-    return f"@enrich:{repo_id}"
+    """Store partition holding a repo's query-driven enrichment documents.
+
+    Prefix from ``kb/scope.py`` -- see :func:`connect_partition` for why the builder
+    and the recogniser share one constant.
+    """
+    from ..scope import ENRICH_PREFIX
+
+    return f"{ENRICH_PREFIX}{repo_id}"
 
 
 def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
