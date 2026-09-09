@@ -118,6 +118,27 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     """
     nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     part = _wiki_partition(repo_id)
+    # Sweep the vectors alongside the nodes. Section ids are per-INDEX
+    # (`@wiki:<repo>:<i>`) and a document is one node but one-or-more vectors keyed by
+    # `chunk_key(node.id, i)`, so a page that loses its last section, or whose text
+    # shrinks to fewer chunks, leaves keys the new page never writes. `INSERT OR REPLACE`
+    # only reaches the keys it is given, so those rows survive their node and answer
+    # searches about text the page no longer contains. `ingest.py` sweeps for exactly
+    # this and `_embed_documents` came from there; the sweep did not come with it.
+    # The ORDER of the two clears is immaterial here, because both are rewritten a few
+    # lines below. Do not copy this ordering elsewhere as a convention: there is none.
+    # `connect.py` and `forget.py` sweep vectors first, `ingest.py` and `enrich.py`
+    # sweep nodes first, and each has its own reason. Order matters only where nothing
+    # is rewritten afterwards, and there the vectors go first, so an interruption leaves
+    # nodes without vectors (which `kb embed` repairs) instead of vectors without nodes
+    # (which answer searches and which `kb lint` can only see for a whole empty
+    # partition).
+    #
+    # Placed ABOVE the early return: an empty page produces no nodes, and returning
+    # there without this would strand every vector the previous page wrote, not only
+    # the tail.
+    if vs is not None:
+        vs.clear_repo(part)
     store.clear_repo(part)
     if not nodes:
         return 0
@@ -327,13 +348,19 @@ def _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id: str,
         page = ((store_dir / cited_file) if cited_file
                 else _module_page_file(wiki_dir, repo_id, prefix))
         page.unlink(missing_ok=True)
+        # Vectors BEFORE nodes, and here the order is load-bearing rather than a
+        # convention: this is a prune, so nothing rewrites either side afterwards and
+        # an interruption between the two is permanent. Cleared the other way round it
+        # leaves vectors with no nodes, which still answer semantic searches about a
+        # module that no longer qualifies. This way it leaves nodes with no vectors,
+        # which `kb embed` rebuilds. Same reasoning as `forget.py`'s clear order.
+        if vs is not None:
+            vs.clear_repo(part)
         store.clear_repo(part)
         try:
             shard_path(store_dir, part).unlink(missing_ok=True)
         except ValueError:      # unusable as a path -- nothing was ever written there
             pass
-        if vs is not None:
-            vs.clear_repo(part)
         removed += 1
         log(f"  {repo_id}: pruned the wiki page for `{prefix}`, "
             "which is no longer a qualifying module", inline=True)

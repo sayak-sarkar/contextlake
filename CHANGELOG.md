@@ -79,6 +79,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intersected with the partitions that actually exist) and the second is the only route
   to a per-repo count that does not go through raw SQL.
 
+### Fixed
+
+- **Rewriting a wiki page sweeps that page's vectors.** It cleared the page's graph
+  partition and re-embedded the new sections without touching the old vectors. Section
+  nodes are keyed by index (`@wiki:<repo>:<i>`) and a document is one node but
+  one-or-more vectors keyed by `chunk_key(node.id, i)`, and the write is
+  `INSERT OR REPLACE`, which reaches only the keys it is given. So a page that lost its
+  last section, or whose text shrank to fewer chunks, kept the keys the new page never
+  wrote: rows that outlived their node and still answered semantic searches about text
+  the page no longer contained. An emptied page stranded every vector it had written,
+  because no nodes means an early return right after the graph clear. `kb lint`'s
+  orphan-vector check does not report this one: the partition still holds the surviving
+  sections' nodes, so it is not empty. `ingest.py` sweeps for the same failure and
+  `_embed_documents` came from there; the sweep did not come with it.
+- **Pruning an orphaned module wiki page clears its vectors before its nodes.** It was
+  the other way round. That path is a prune, so nothing rewrites either side after it
+  and an interruption between the two was permanent: vectors with no nodes, still
+  answering searches about a module that no longer qualifies. The reverse order leaves
+  nodes with no vectors, which `kb embed` rebuilds. Same reasoning as `kb forget`'s
+  clear order. Note there is no single ordering convention across the five sweep sites:
+  it is load-bearing only where nothing is rewritten afterwards.
+
 ## [9.2.1] - 2026-09-08
 
 ### Fixed
