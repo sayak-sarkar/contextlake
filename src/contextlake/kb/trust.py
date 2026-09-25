@@ -207,7 +207,13 @@ REFUSE_DISCOVERED_CREDENTIAL_PROVIDER = True
 # reader of the other three hunting an exec that is not there.
 SOURCE_ARGV_KEYS = frozenset({"command", "args", "mcp_command"})
 SOURCE_EGRESS_KEYS = frozenset({"mcp", "token_env"})
-SOURCE_AUTH_KEYS = frozenset({"auth_dir"})
+# `auth` and `user` join `auth_dir` here rather than being left ungated. Neither is a
+# secret, and that is the point: they decide how the secret named by `token_env` is
+# PRESENTED, so a discovered file could flip a bearer token into the username half of a
+# Basic pair and send it somewhere it was never meant to go. `token_env` is already
+# gated one line above; gating only the secret's NAME and not the scheme that spends it
+# would be a read/write pair with one half done.
+SOURCE_AUTH_KEYS = frozenset({"auth_dir", "auth", "user"})
 PRIVILEGED_SOURCE_KEYS = SOURCE_ARGV_KEYS | SOURCE_EGRESS_KEYS | SOURCE_AUTH_KEYS
 
 # `scopes` is strengthen-only rather than gated, matching what kb/config.py

@@ -1,12 +1,14 @@
 """Built-in source: ingest documents from a JSON HTTP API.
 
-Standard library only (``urllib`` + ``json``). Auth, when needed, is a **bearer token
-read from an environment variable** named in config (``token_env``) — the secret itself
-never lives in the config file.
+Standard library only (``urllib`` + ``json``). Auth, when needed, reads its secret from
+an environment variable named in config (``token_env``) — the secret itself never lives in
+the config file. Two schemes: a bearer token (the default) and HTTP Basic, which is what
+Atlassian Cloud, Jira and Confluence require of an API token.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -68,7 +70,13 @@ class ApiSource(FetchFailures):
       - ``items``: dotted path to the list of records (default: the top-level value)
       - ``id_field`` / ``title_field`` / ``text_field``: record keys (default
         ``id`` / ``title`` / ``text``); a record without text is skipped
-      - ``token_env``: name of an env var holding a bearer token (optional)
+      - ``token_env``: name of an env var holding the secret (optional)
+      - ``auth``: ``bearer`` (default) or ``basic``. ``basic`` sends
+        ``Authorization: Basic base64(user:secret)``, which is the only scheme Atlassian
+        Cloud accepts for an API token -- a bearer header there returns 401 with a body
+        that does not say why
+      - ``user``: the username half for ``auth="basic"`` (for Atlassian, the account
+        email). Not a secret on its own, so it may live in config; the token may not
       - ``timeout``: seconds (default 20)
       - ``next_field``: dotted path to the NEXT-PAGE URL or cursor in the response
         (e.g. ``next``, ``meta.next_cursor``). Optional.
@@ -85,13 +93,18 @@ class ApiSource(FetchFailures):
 
     def __init__(self, url=None, items=None, id_field="id", title_field="title",
                  text_field="text", token_env=None, timeout=20,
-                 next_field=None, max_pages=50, **_):
+                 next_field=None, max_pages=50, auth=None, user=None, **_):
         self.url = url
         self.items = items
         self.id_field = id_field
         self.title_field = title_field
         self.text_field = text_field
         self.token_env = token_env
+        # Normalised here rather than at each use: a config file may carry any casing,
+        # and an unknown value falls back to bearer (the prior behaviour) rather than
+        # inventing a scheme.
+        self.auth = (auth or "bearer").strip().lower()
+        self.user = user
         self.timeout = int(timeout)
         self.next_field = next_field
         # A cap, not a target. An API that always returns a `next` link would otherwise
@@ -101,11 +114,34 @@ class ApiSource(FetchFailures):
         self.hit_page_cap = False
 
     def _headers(self):
+        """Request headers, with the Authorization one built from the configured scheme.
+
+        A configured-but-unbuildable credential is REPORTED, not dropped in silence. The
+        old code added no header when the env var was unset, so the request went out
+        anonymous and the API answered 401 or an empty list -- which reaches the operator
+        as `0 documents` from a source that looks configured. That is the same
+        indistinguishable-empty failure `FetchFailures` exists for, one layer earlier.
+        """
         headers = {"User-Agent": "contextlake-ingest", "Accept": "application/json"}
-        if self.token_env:
-            token = os.environ.get(self.token_env)
-            if token:
-                headers["Authorization"] = f"Bearer {token}"
+        if not self.token_env:
+            return headers
+        token = os.environ.get(self.token_env)
+        if not token:
+            log(f"  source auth: ${self.token_env} is unset or empty, so the request "
+                f"goes out UNAUTHENTICATED and may return 0 documents")
+            return headers
+        if self.auth == "basic":
+            # Atlassian Cloud accepts an API token only this way. `user` is the account
+            # email there. Without it the pair is meaningless, so say so rather than
+            # sending `base64(":token")`, which 401s with no hint of the cause.
+            if not self.user:
+                log('  source auth: auth="basic" needs `user` (for Atlassian, the '
+                    "account email); sending no Authorization header")
+                return headers
+            pair = base64.b64encode(f"{self.user}:{token}".encode()).decode("ascii")
+            headers["Authorization"] = f"Basic {pair}"
+        else:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
 
     def _fetch_one(self, url) -> tuple[object, str | None]:

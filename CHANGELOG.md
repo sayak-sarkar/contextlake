@@ -110,6 +110,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents and success. The coercion helper now lives beside the config reader both paths
   share, and reads through it, so a plain dict and a `SourceCfg` both work.
 
+### Added
+
+- **The `api` source can authenticate with HTTP Basic, not only Bearer.** Set
+  `auth = "basic"` and `user = "<account email>"`; the secret still comes from the env var
+  named by `token_env` and never lives in config. Atlassian Cloud, Jira and Confluence
+  accept an API token ONLY this way, and a bearer header there returns 401 with a body
+  that does not say why, so the source reached the operator as `0 documents` while looking
+  correctly configured. `auth` and `user` are privileged keys alongside `token_env`: a
+  discovered config may not set them, because together they decide where a secret goes and
+  how it is spent.
+- **A configured credential that cannot be built is reported instead of dropped.** An unset
+  `token_env`, or `auth = "basic"` with no `user`, previously added no header at all, so
+  the request went out anonymous and the empty result was indistinguishable from an empty
+  source. Both now say so on the log.
+
 ## [9.2.1] - 2026-09-08
 
 ### Fixed

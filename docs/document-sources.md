@@ -198,8 +198,8 @@ name = "changelog"
 urls = ["https://example.com/changelog", "https://example.com/roadmap"]
 ```
 
-An **`api`** source ships built-in too: GET a JSON endpoint and map its records to documents, with any
-bearer token read from an env var (never the config file):
+An **`api`** source ships built-in too: GET a JSON endpoint and map its records to documents, with the
+secret read from an env var (never the config file):
 
 ```toml
 [[sources]]
@@ -208,8 +208,38 @@ name = "tickets"
 url = "https://api.example.com/v1/articles"
 items = "data.articles"        # dotted path to the record list
 text_field = "body"            # which key holds the document text
-token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
+token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 ```
+
+**Two auth schemes.** `auth = "bearer"` is the default and sends
+`Authorization: Bearer <secret>`. `auth = "basic"` sends
+`Authorization: Basic base64(user:secret)`, which is what an API token needs on Atlassian
+Cloud, Jira and Confluence:
+
+```toml
+[[sources]]
+type = "api"
+name = "issues"
+url = "https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated"
+items = "issues"
+id_field = "key"
+title_field = "key"
+text_field = "fields.summary"
+auth = "basic"
+user = "you@example.com"        # the account email; not a secret, so config is fine
+token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environment
+```
+
+Create the token under **Account settings → Security → API tokens** in your Atlassian
+profile, then export it as `ATLASSIAN_API_TOKEN`. A bearer header against Atlassian Cloud
+returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
+than a preference.
+
+> [!NOTE]
+> `auth`, `user` and `token_env` are privileged keys: a config file contextlake *discovered*
+> by walking up from the working directory may not set them, because together they decide
+> where a secret is sent and how it is spent. Name the config explicitly with `--config` to
+> use them.
 
 A **`graphql`** source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way `api` maps a REST response:
