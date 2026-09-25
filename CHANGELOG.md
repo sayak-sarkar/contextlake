@@ -101,6 +101,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clear order. Note there is no single ordering convention across the five sweep sites:
   it is load-bearing only where nothing is rewritten afterwards.
 
+- **A numeric source option set with `--set` works on `kb enrich`, not only `kb connect`.**
+  `--set timeout=900` stores TOML's `timeout = "900"`, because `--set` keeps every value as
+  the string it was typed as (coercing anything that looks numeric would rewrite
+  identifier-shaped values such as group and channel ids). The connect path coerced that
+  on read; the enrich path did not, so the string reached `asyncio.wait_for` and raised
+  `TypeError` on every call. `search_source` catches that, so the run reported zero
+  documents and success. The coercion helper now lives beside the config reader both paths
+  share, and reads through it, so a plain dict and a `SourceCfg` both work.
+
 ## [9.2.1] - 2026-09-08
 
 ### Fixed

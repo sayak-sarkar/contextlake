@@ -20,7 +20,7 @@ from ..resilience import note_unavailable
 from ..sources.base import Document
 from ..store.shards import GraphShard, write_shard
 from ..wiki.generate import repo_brief
-from .mcp_query import _cfg_get, _normalize, mcp_tool_query
+from .mcp_query import _cfg_get, _normalize, _num, mcp_tool_query
 from .text_match import link_documents_to_symbols
 
 
@@ -85,7 +85,9 @@ def _atlassian_search(cfg, terms: list[str], *, timeout: float | None = None) ->
         _cfg_get(cfg, "name", "enrich"),
         mcp_url=_cfg_get(cfg, "mcp") or DEFAULT_MCP_URL,
         auth_dir=_cfg_get(cfg, "auth_dir"),
-        timeout=timeout if timeout is not None else _cfg_get(cfg, "timeout", 120),
+        # Coerced, not read raw: `--set timeout=900` stores a STRING, and a string
+        # reaches `asyncio.wait_for` and raises on every call. See `_num`.
+        timeout=timeout if timeout is not None else _num(cfg, "timeout", 120, float),
     )
     result = connector.search(" ".join(terms))
     docs = _normalize(result, "atlassian")

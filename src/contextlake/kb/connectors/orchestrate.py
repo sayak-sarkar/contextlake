@@ -19,6 +19,7 @@ from .atlassian import (
     external_node,
     host_of,
 )
+from .mcp_query import _num
 
 
 def connect_partition(repo_id: str) -> str:
@@ -33,29 +34,6 @@ def connect_partition(repo_id: str) -> str:
 
     return f"{CONNECT_PREFIX}{repo_id}"
 
-
-def _num(extra: dict, key: str, default, cast):
-    """A numeric connector option, coerced from however it was written.
-
-    Read-side rather than write-side on purpose. ``--set KEY=VALUE`` is a plain
-    string split, so ``--set timeout=3`` stores TOML's ``timeout = "3"``, and a
-    hand-edited config can carry the same quoting -- coercing only in ``--set``
-    would fix one of those and leave the other. Coercing every ``--set`` value
-    that merely *looks* numeric is worse still: it would silently rewrite
-    identifier-shaped values (numeric group ids, channel ids) into integers.
-
-    Untyped it was a real outage: ``subprocess.run(timeout="3")`` raises
-    ``TypeError`` on every call, so zero requests were made and the run still
-    reported success. A value that cannot be a number is reported and the
-    default used, rather than left to fail once per call.
-    """
-    value = extra.get(key, default)
-    try:
-        return cast(value)
-    except (TypeError, ValueError):
-        from ...logging_setup import log
-        log(f"  source option {key}={value!r} is not a number; using {default}")
-        return default
 
 
 def build_atlassian(src) -> AtlassianConnector:

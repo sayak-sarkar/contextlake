@@ -47,6 +47,39 @@ def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
     return getattr(cfg, key, default)
 
 
+def _num(cfg: Any, key: str, default, cast):
+    """A numeric connector option, coerced from however it was written.
+
+    Read-side rather than write-side on purpose. ``--set KEY=VALUE`` is a plain
+    string split, so ``--set timeout=3`` stores TOML's ``timeout = "3"``, and a
+    hand-edited config can carry the same quoting -- coercing only in ``--set``
+    would fix one of those and leave the other. Coercing every ``--set`` value
+    that merely *looks* numeric is worse still: it would silently rewrite
+    identifier-shaped values (numeric group ids, channel ids) into integers.
+
+    Untyped it was a real outage: ``subprocess.run(timeout="3")`` raises
+    ``TypeError`` on every call, so zero requests were made and the run still
+    reported success. A value that cannot be a number is reported and the
+    default used, rather than left to fail once per call.
+
+    It lives HERE, beside ``_cfg_get``, because the same option is read on two
+    paths and only one of them coerced it. ``orchestrate.build_atlassian`` used
+    this; ``enrich._atlassian_search`` read the value raw, so a config written by
+    the documented ``--set timeout=900`` worked on `kb connect` and raised on
+    `kb enrich` -- and ``search_source`` catches that through ``note_unavailable``,
+    so the enrich run reported zero documents and success. Reads ``cfg`` through
+    ``_cfg_get`` so a plain dict and a ``SourceCfg`` both work: the two callers
+    disagree on which they hold, and that disagreement is what split them before.
+    """
+    value = _cfg_get(cfg, key, default)
+    try:
+        return cast(value)
+    except (TypeError, ValueError):
+        from ...logging_setup import log
+        log(f"  source option {key}={value!r} is not a number; using {default}")
+        return default
+
+
 def _first_str(d: dict, keys: tuple[str, ...]) -> str:
     for k in keys:
         v = d.get(k)

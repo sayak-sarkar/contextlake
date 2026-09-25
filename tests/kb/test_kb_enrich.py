@@ -436,3 +436,60 @@ def test_build_terms_is_bounded_by_the_briefs_own_symbol_cap(tmp_path):
     terms = build_terms(tmp_path, REPO, max_terms=100)
     assert len(terms) == _TERM_SYMBOL_CAP + 1  # the repo name plus the capped symbols
     assert len(set(terms)) == len(terms)       # and every one of them distinct
+
+
+def test_a_string_timeout_from_set_reaches_the_connector_as_a_number(monkeypatch):
+    """`--set timeout=900` writes TOML's `timeout = "900"`, and enrich read it raw.
+
+    `_parse_set_flags` stores every `--set` value as a string on purpose (a CLI string
+    carries no type, and coercing anything that looks numeric would rewrite
+    identifier-shaped values like group and channel ids). So the coercion is read-side,
+    and `_num` did it for the connect path only. This path did not: the string
+    went to `AtlassianConnector`, which hands it to `asyncio.wait_for`, which raises
+    `TypeError: '<=' not supported between instances of 'str' and 'int'`.
+
+    `search_source` catches that through `note_unavailable`, so the run reported zero
+    documents and SUCCESS. That is the same silent-success outage `_num`'s own docstring
+    records for `subprocess.run(timeout="3")`, in the sibling this fix reaches.
+    """
+    seen = {}
+
+    class _Stub:
+        def __init__(self, *a, **k):
+            seen.update(k)
+
+        def search(self, query):
+            return []
+
+    import contextlake.kb.connectors.atlassian as atlassian_mod
+    monkeypatch.setattr(atlassian_mod, "AtlassianConnector", _Stub)
+
+    search_source(SourceCfg(type="atlassian", name="site-a", timeout="900"), ["Reading"])
+
+    assert isinstance(seen.get("timeout"), (int, float)), (
+        f"connector received timeout={seen.get('timeout')!r}; a str reaches "
+        "asyncio.wait_for and raises, and search_source swallows it as 'no documents'")
+    assert seen["timeout"] == 900
+
+
+def test_an_unusable_timeout_falls_back_instead_of_failing_every_call(monkeypatch):
+    """A value that cannot be a number is reported and the default used.
+
+    Matching `_num`'s contract: failing once, loudly, at construction beats raising on
+    every call inside a handler that turns the raise into an empty result.
+    """
+    seen = {}
+
+    class _Stub:
+        def __init__(self, *a, **k):
+            seen.update(k)
+
+        def search(self, query):
+            return []
+
+    import contextlake.kb.connectors.atlassian as atlassian_mod
+    monkeypatch.setattr(atlassian_mod, "AtlassianConnector", _Stub)
+
+    search_source(SourceCfg(type="atlassian", name="site-a", timeout="soon"), ["Reading"])
+
+    assert seen.get("timeout") == 120
