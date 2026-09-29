@@ -9070,6 +9070,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents and success. The coercion helper now lives beside the config reader both paths
   share, and reads through it, so a plain dict and a `SourceCfg` both work.
 
+### Fixed
+
+- **A scoped key's verdict could be answered from a freed proxy's cache.** The
+  per-request scope memo was keyed on `id(proxy)`, and CPython recycles the address of a
+  freed object, so a `ScopedStore` constructed after another was garbage collected could
+  read the dead one's cached scope. Measured on the affected build: 1988 collisions in
+  2000 trials. The observable symptom was a proxy holding NO principal reporting
+  `is_scoped() == False`, which is the verdict deciding whether the fleet-wide readers
+  (`get_fleet_doc`, `graph_health`) refuse a caller. The memo is now keyed on the proxy
+  object, which cannot collide. Production ran one proxy per server held by a live
+  reference, so no deployment could reach the second-proxy condition; the mechanism was
+  unsound regardless.
+
 ### Added
 
 - **The `api` source can authenticate with HTTP Basic, not only Bearer.** Set

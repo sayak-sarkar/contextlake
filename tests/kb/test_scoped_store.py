@@ -351,3 +351,62 @@ def test_allows_repo_and_is_scoped_answer_for_the_proxy(request_scope):
     assert _scoped(patterns=()).is_scoped() is False
     # And no principal at all is treated as scoped, so the fleet readers refuse it.
     assert ScopedStore(_FakeStore(), lambda: None).is_scoped() is True
+
+
+def test_a_freed_proxys_verdict_never_reaches_a_new_one(request_scope):
+    """The per-request memo must not be keyed on `id(owner)`.
+
+    CPython recycles the address of a freed object, so a memo keyed on `id()` hands a
+    newly constructed proxy the cached scope of a DEAD one. Measured on the keyed-by-id
+    build: 1988 collisions in 2000 trials, with a proxy holding NO principal reporting
+    `is_scoped() == False` -- the verdict that decides whether the fleet-wide readers
+    (`get_fleet_doc`, `graph_health`) refuse a caller.
+
+    It reached the suite as a 1-in-8 flake under `--cov`, because coverage shifts the
+    allocation pattern that decides whether an address is reused. Seven clean runs and
+    one failure is what a single-shot assertion buys against this; the loop below makes
+    it deterministic, because the collision is near-certain once per allocate/free pair
+    rather than rare.
+
+    The loop is the test. A single pass reproduces the id-keyed bug only by luck.
+    """
+    bad_fresh = bad_doomed = 0
+    for _ in range(200):
+        # An UNSCOPED principal caches `((), False)`, then dies, freeing its address.
+        doomed = _scoped(patterns=())
+        if doomed.is_scoped() is not False:
+            bad_doomed += 1
+        del doomed
+
+        # NO principal at all. Must read as scoped, so the fleet readers refuse it.
+        fresh = ScopedStore(_FakeStore(), lambda: None)
+        if fresh.is_scoped() is not True:
+            bad_fresh += 1
+        del fresh
+
+    # COUNTED, never asserted inside the loop. The collision runs in both directions --
+    # a freed `fresh` corrupts the next `doomed` as readily as the reverse -- and a bare
+    # assert on the first one aborts on whichever fires first, so the reader is shown
+    # half the mechanism and the count below never renders.
+    assert (bad_doomed, bad_fresh) == (0, 0), (
+        f"cross-talk between proxies: {bad_fresh}/200 no-principal proxies reported "
+        f"themselves UNSCOPED (which opens the fleet-wide readers) and {bad_doomed}/200 "
+        "unscoped proxies reported themselves scoped")
+
+
+def test_two_live_proxies_in_one_request_keep_separate_verdicts(request_scope):
+    """The property the memo key exists for, asserted on proxies held alive.
+
+    Separate from the test above on purpose: that one covers a DEAD proxy's entry being
+    reused, this one covers two LIVE proxies sharing one. A flat per-request dict fails
+    this; keying by id passes it and fails the other.
+    """
+    narrow = _scoped(patterns=("acme/**",))
+    wide = _scoped(patterns=())
+
+    assert narrow.allows_repo("acme/api") is True
+    assert narrow.allows_repo("other/api") is False
+    assert wide.allows_repo("other/api") is True, (
+        "the second proxy answered with the first one's scope")
+    assert narrow.is_scoped() is True
+    assert wide.is_scoped() is False

@@ -29,6 +29,7 @@ Do not "fix" that by hiding ``conn`` without doing the rewrite first.
 from __future__ import annotations
 
 from contextvars import ContextVar
+from weakref import WeakKeyDictionary
 
 from .scope import owns_partition, partitions_in_scope
 
@@ -41,7 +42,8 @@ from .scope import owns_partition, partitions_in_scope
 # verdicts answer another principal's question, and the two memos below are keyed by
 # partition id and node id, NEITHER of which carries the principal. That is the shape
 # where a scoped key reads another key's results and every test still passes.
-_SCOPE_MEMO: ContextVar[dict | None] = ContextVar("contextlake_scope_memo", default=None)
+_SCOPE_MEMO: ContextVar[WeakKeyDictionary | None] = ContextVar(
+    "contextlake_scope_memo", default=None)
 
 
 def open_request_scope():
@@ -51,7 +53,7 @@ def open_request_scope():
     resets the drift probe. Both are per-request caches that are only sound for the
     instant one request is answered.
     """
-    return _SCOPE_MEMO.set({})
+    return _SCOPE_MEMO.set(WeakKeyDictionary())
 
 
 def reset_request_scope(token) -> None:
@@ -61,11 +63,27 @@ def reset_request_scope(token) -> None:
 def _memo(owner) -> dict:
     """This proxy's slice of the current request's memo.
 
-    KEYED BY PROXY INSTANCE, not shared across the request. There is one
+    KEYED BY THE PROXY OBJECT, not shared across the request. There is one
     ``ScopedStore`` per server today, so a single flat dict worked -- until a second
     proxy existed in one request, which read the FIRST one's cached scope and
     answered with it. A test constructing two proxies in one request found it; in
     production the second proxy does not exist yet, so nothing would have.
+
+    THE KEY IS THE OBJECT, NOT ``id(owner)``, and the difference is a real defect
+    rather than a style choice. CPython recycles the address of a freed object, so a
+    proxy constructed after another is garbage collected can be handed the dead one's
+    memo entry. Measured: 1988 collisions in 2000 trials, and the observable symptom
+    was a proxy holding NO principal reporting ``is_scoped() == False``, which is the
+    verdict deciding whether the fleet-wide readers refuse a caller. It reached the
+    suite as a 1-in-8 flake under ``--cov``, because coverage shifts the allocation
+    pattern that decides whether the address is reused.
+
+    Keying on the object cannot collide: two live objects are distinct keys, and a
+    dead one's entry goes with it. A ``WeakKeyDictionary`` rather than a plain dict
+    so the memo never keeps a proxy (and through it a store) alive: a plain dict
+    would also be correct here, because ``bounded_tool`` resets the scope in a
+    ``finally`` that catches ``BaseException``, but that is a fact about a caller
+    two modules away, and a cache should not depend on one.
 
     A throwaway when there is no request, rather than a shared fallback: a direct
     call outside a request must not write into state a later request reads.
@@ -73,7 +91,7 @@ def _memo(owner) -> dict:
     memo = _SCOPE_MEMO.get()
     if memo is None:
         return {}
-    return memo.setdefault(id(owner), {})
+    return memo.setdefault(owner, {})
 
 
 class ScopedStore:
