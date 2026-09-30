@@ -376,9 +376,23 @@ def test_a_refusal_row_holds_nothing_about_the_presented_value(tmp_path, recorde
     with redirect_stderr(buf):
         _drive(gate, authorization=b"Bearer " + presented.encode("ascii"))
 
-    text = "".join(json.dumps(row) for row in _rows(recorder))
-    for needle in (presented, presented[:12], presented[8:20], str(len(presented))):
+    rows = _rows(recorder)
+    text = "".join(json.dumps(row) for row in rows)
+    # The SUBSTRING scan covers only needles long enough to be unambiguous.
+    for needle in (presented, presented[:12], presented[8:20]):
         assert needle not in text, needle
+
+    # The LENGTH is checked against each field's VALUE, never by scanning the text.
+    # It was a substring needle until 2026-09-30: `len(presented)` is 57, so the scan
+    # matched the `:57` minute of the row's own timestamp and the test failed on CI
+    # roughly one run in sixty. A two-character numeric needle cannot be scanned for --
+    # it collides with timestamps, counts and ids. Comparing field values says the
+    # thing the test means ("no field carries the credential's length") and cannot
+    # collide with a neighbouring field.
+    for row in rows:
+        for field, value in row.items():
+            assert value != len(presented), (field, value)
+            assert str(value) != str(len(presented)), (field, value)
 
     recorder.record(tool=presented, outcome="ok", key="k_1", ms=1)
     assert presented in "".join(json.dumps(r) for r in _rows(recorder))
