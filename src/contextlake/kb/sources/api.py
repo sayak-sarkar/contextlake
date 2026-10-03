@@ -117,6 +117,10 @@ class ApiSource(FetchFailures):
     else following RFC 8288) and an explicit ``next_field`` cursor. Nothing is guessed:
     an API that paginates by some other convention reads one page exactly as before, and
     the page count is reported either way so a truncated ingest is visible.
+
+    A next link is resolved against the page that named it, so relative links work. It must
+    then be ``http(s)``: a ``file:`` link is refused, recorded in ``failures``, and the pages
+    already read are kept. The ``Authorization`` header goes only to the configured origin.
     """
 
     def __init__(self, url=None, items=None, id_field="id", title_field="title",
@@ -202,10 +206,25 @@ class ApiSource(FetchFailures):
             return payload
         merged = list(_records_of(payload, self.items))
         seen = {self.url}
+        page_url = self.url
         while nxt and self.pages_read < self.max_pages:
+            # Three steps, in this order. A `next` link is response data, so it gets the
+            # checks the configured URL got. (1) Resolve it against the page that NAMED it:
+            # `/p2`, `?page=2` and `b` mean something only there. (2) Run the scheme check
+            # on the result. Checked first, a relative link has no scheme and is refused;
+            # an absolute `file:` link is refused either way. (3) `_fetch_one` then decides
+            # the credential from the resolved URL's origin.
+            nxt = urllib.parse.urljoin(page_url, nxt)
+            if not url_is_fetchable(nxt, source="api source"):
+                self._record_failure(
+                    nxt, ValueError("next page URL is not http(s); pagination stopped"),
+                    what="api source")
+                nxt = None             # stopped on purpose, so not reported as the page cap
+                break
             if nxt in seen:            # a self-referential `next` is a real API bug
                 break
             seen.add(nxt)
+            page_url = nxt
             page, nxt = self._fetch_one(nxt)
             self.pages_read += 1
             merged.extend(_records_of(page, self.items))
