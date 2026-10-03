@@ -77,7 +77,8 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
-> guaranteed-generic demo fleet).
+> guaranteed-generic demo fleet). `--anonymize` does not hide the code itself: symbol
+> names, their docstrings, and the headings of wiki sections in search results still show.
 
 ### Making it the default on this machine
 

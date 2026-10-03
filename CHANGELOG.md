@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`--anonymize` now withholds the wiki from the static export and from Chat.**
+  - `kb dashboard --site --anonymize` dropped the wiki from `data.json` and still wrote
+    every wiki page in full to `graph/wiki-<slug>.html`. It now writes no wiki page and
+    no link to one, and deletes the wiki pages an earlier plain export left in the same
+    folder.
+  - Under `--serve --anonymize`, Chat answered with a repo's wiki text and its real owner
+    names, which the wiki and owners panels withhold. With `--llm-chat` it also sent them
+    to the LLM provider. Chat now drops the wiki text and shows the owners panel's
+    pseudonyms.
+  - Still shown, as before: symbol names and docstrings, and wiki section headings in
+    search results. `docs/using-the-dashboard.md` now says so.
+
 ### Fixed
 
 - **A stdio MCP server now starts when the process swapped its stderr before loading the

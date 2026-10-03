@@ -577,7 +577,8 @@ def _match_repo(repo_id: str, patterns: list[str]) -> bool:
 def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                repo_max_nodes: int = 500, overview_layout: str = "concentric",
                repo_layout: str = "cose", repos: list[str] | None = None,
-               cdn: bool = False, log=lambda _m: None) -> Path:
+               cdn: bool = False, anonymize: bool = False,
+               log=lambda _m: None) -> Path:
     """Emit a folder of cross-linked, offline HTML pages sharing one set of assets.
 
     Writes ``index.html`` + ``overview.html`` + one ``repo-<slug>.html`` per repo
@@ -596,9 +597,18 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     It is opt-in and off by default because it costs the export its offline
     guarantee. ``app.css``/``app.js`` are contextlake's own and stay local either
     way -- they are not on any CDN.
+
+    ``anonymize=True`` leaves the wiki out of the folder: no ``wiki-<slug>.html`` page,
+    no "Read the wiki" link on a graph page, no wiki link on the index. A wiki page is
+    prose, and prose can carry author names and internal URLs, so it is withheld the
+    same way the dashboard's README and wiki routes withhold it. Wiki pages an earlier
+    plain export left in this folder are deleted, since the folder is written in place.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    if anonymize:
+        for stale in out.glob("wiki-*.html"):
+            stale.unlink()
     assets = ("app.css", "app.js") if cdn else (*_LIB_FILES, "app.css", "app.js")
     for name in assets:
         (out / name).write_text(_read_static_raw(name), encoding="utf-8")
@@ -617,7 +627,10 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     # loop meant each page saw only the repos written before it, so the same node
     # got the affordance on one page and not on another. Statting first is the fix.
     sp = getattr(store, "path", None)
-    wiki_dir = (Path(sp).parent / "wiki") if sp else None
+    # Anonymised, no wiki is discovered at all. Leaving the map filled and skipping only
+    # the page write would keep a link on every graph page and on the index that points
+    # at a file that is not there.
+    wiki_dir = (Path(sp).parent / "wiki") if sp and not anonymize else None
     wiki_srcs: dict[str, Path] = {}
     wiki_pages: dict[str, str] = {}
     if wiki_dir:

@@ -133,7 +133,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     prose; that path costs real time/tokens, so it's opt-in at server-start
     time (never per-request) and its own requests carry the same per-process
     token mutations use, to stop a page other than this dashboard from
-    silently triggering paid calls.
+    silently triggering paid calls. With ``anonymize`` the chat answer withholds
+    wiki prose and pseudonymises owners before it reaches the browser or the LLM.
     """
     from .. import visualize as viz
 
@@ -616,7 +617,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         try:
             result = kbchat.chat_answer(
                 req, question, llm=chat_llm, embedder=chat_embedder,
-                vector_store=chat_vector_store)
+                vector_store=chat_vector_store, anonymize=anonymize)
             return 200, _json_bytes(result)
         finally:
             if req is not store:

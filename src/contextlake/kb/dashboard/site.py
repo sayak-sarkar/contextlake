@@ -16,7 +16,9 @@ scrubs. Therefore:
   showcase build;
 * a real-store build WITHOUT ``--anonymize`` still works locally but prints a loud
   "do not publish unscrubbed" warning;
-* ``anonymize=True`` hashes author identities and strips external link URLs.
+* ``anonymize=True`` hashes author identities, strips external link URLs, and leaves the
+  wiki pages out of ``graph/`` (the rendered pages carry the same prose the snapshot
+  drops).
 """
 
 from __future__ import annotations
@@ -259,7 +261,8 @@ def _refuse_foreign_dir(out: Path) -> None:
             f"or previously-exported directory, or move those files aside first.")
 
 
-def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos) -> None:
+def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos, *,
+          anonymize: bool = False) -> None:
     """Write the snapshot global (data.js) + data.json, the SPA shell + assets, the graph site."""
     from .. import visualize as viz
 
@@ -293,7 +296,8 @@ def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos) -> None:
 
     # The architecture pages reuse the existing offline cytoscape site (cdn=False,
     # sibling assets, no live server) — iframed by the SPA.
-    viz.build_site(store, out / "graph", repos=_patterns(repos), log=log)
+    viz.build_site(store, out / "graph", repos=_patterns(repos), anonymize=anonymize,
+                   log=log)
 
 
 def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = False,
@@ -312,7 +316,7 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
         try:
             snapshot = _snapshot(store, tmp, repos=repos, anonymize=anonymize,
                                  group_depth=group_depth)
-            _emit(out, store, tmp, snapshot, repos)
+            _emit(out, store, tmp, snapshot, repos, anonymize=anonymize)
         finally:
             store.close()
             shutil.rmtree(tmp, ignore_errors=True)
@@ -336,7 +340,7 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
         check_schema(store)
         snapshot = _snapshot(store, store_dir, repos=repos, anonymize=anonymize,
                              group_depth=group_depth)
-        _emit(out, store, store_dir, snapshot, repos)
+        _emit(out, store, store_dir, snapshot, repos, anonymize=anonymize)
     finally:
         store.close()
     return out

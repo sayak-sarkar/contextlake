@@ -1904,7 +1904,8 @@
       });
     } else if (s.wiki && s.wiki.found) {
       if (s.wiki.stale) box.appendChild(h("p", { class: "cl-muted" }, "STALE -- the code changed since this was generated."));
-      box.appendChild(h("pre", { class: "cl-snippet" }, s.wiki.markdown || ""));
+      // Empty under --anonymize: the answer's note says the text is withheld.
+      if (s.wiki.markdown) box.appendChild(h("pre", { class: "cl-snippet" }, s.wiki.markdown));
     } else if (s.brief && s.brief.found) {
       box.appendChild(h("pre", { class: "cl-snippet" }, JSON.stringify(s.brief, null, 2)));
     } else {
