@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import sys
 from collections.abc import Sequence
 from typing import Any, NamedTuple
 
@@ -124,6 +125,22 @@ async def _call_in_session(session, tool, arguments, timeout) -> Any:
     return _parse_result(res, tool)
 
 
+def _server_errlog():
+    """Where a spawned server's stderr goes: ours, decided per call.
+
+    ``stdio_client`` defaults ``errlog`` to ``sys.stderr`` as it was when the mcp
+    module was first imported. A process that imported it while stderr was an
+    in-memory stream (io.StringIO, a test runner's capture) kept it, and every later
+    spawn failed with the bare word ``fileno``. The child needs a real file
+    descriptor, so a stderr without one falls back to the interpreter's original.
+    """
+    try:
+        sys.stderr.fileno()
+        return sys.stderr
+    except (AttributeError, OSError, ValueError):   # io.UnsupportedOperation is both
+        return sys.__stderr__
+
+
 def _spawn_env(env: dict | None) -> dict[str, str] | None:
     """The overrides for a stdio spawn, normalised. Never an ambient snapshot.
 
@@ -162,7 +179,7 @@ async def _acall(command, args, tool, arguments, timeout, env, url=None):
 
     params = StdioServerParameters(
         command=command, args=list(args or ()), env=_spawn_env(env))
-    async with stdio_client(params) as (read, write):
+    async with stdio_client(params, errlog=_server_errlog()) as (read, write):
         async with ClientSession(read, write) as session:
             return await _call_in_session(session, tool, arguments, timeout)
 
@@ -204,7 +221,7 @@ async def _alist(command, args, timeout, env, url=None) -> ToolList:
 
     params = StdioServerParameters(
         command=command, args=list(args or ()), env=_spawn_env(env))
-    async with stdio_client(params) as (read, write):
+    async with stdio_client(params, errlog=_server_errlog()) as (read, write):
         async with ClientSession(read, write) as session:
             return await _list_in_session(session, timeout)
 

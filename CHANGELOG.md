@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A stdio MCP server now starts when the process swapped its stderr before loading the
+  client.** The MCP library picks the server's stderr when it is first imported, not
+  when a call is made. A process that imported it while `sys.stderr` was an in-memory
+  stream with no file descriptor (an `io.StringIO`, or pytest's output capture) failed
+  every stdio connector call and every `mcp` document source with the one-word error
+  `fileno`. A stderr redirected to a real file was not affected. contextlake now picks
+  the stream per call, and falls back to the interpreter's original stderr when the
+  current one has no file descriptor.
+
 ## [9.3.0] - 2026-10-03
 
 ### Security

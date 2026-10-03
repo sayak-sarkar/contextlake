@@ -64,8 +64,10 @@ class McpSource(FetchFailures):
 
         from mcp.client.stdio import StdioServerParameters, stdio_client
 
+        from ..mcp_client import _server_errlog
+
         params = StdioServerParameters(command=self.command, args=self.args, env=self.env)
-        async with stdio_client(params) as (read, write):
+        async with stdio_client(params, errlog=_server_errlog()) as (read, write):
             return await self._read_all(ClientSession, read, write,
                                         on_failure=self._record_failure)
 
