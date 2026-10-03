@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .. import style
 from ..logging_setup import log
+from .paths import read_repo_file
 
 _DOC_SUFFIXES = {".md", ".txt", ".rst", ".adoc"}
 
@@ -65,16 +66,18 @@ def scrape_links(repo_path: str, patterns: list[str], max_files: int = 500) -> l
         return []
     found: set[str] = set()
     scanned = 0
-    for f in sorted(Path(repo_path).rglob("*")):
+    root = Path(repo_path)
+    for f in sorted(root.rglob("*")):
         if scanned >= max_files:
             break
         if not f.is_file() or f.suffix.lower() not in _DOC_SUFFIXES:
             continue
         scanned += 1
-        try:
-            text = f.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
+        # The clone is untrusted, and a doc can be a symlink to a file anywhere on the
+        # machine. `read_repo_file` reads only a path that resolves inside the clone.
+        got = read_repo_file(root, [f.relative_to(root).as_posix()])
+        if got is None:
             continue
         for rx in compiled:
-            found.update(m.group(0) for m in rx.finditer(text))
+            found.update(m.group(0) for m in rx.finditer(got[1]))
     return sorted(found)

@@ -45,6 +45,7 @@ from .model import (
     Node,
     Provenance,
 )
+from .paths import read_repo_file
 from .proc import mask_embedded_sql
 from .sql import parse_sql
 from .store.shards import GraphShard
@@ -86,13 +87,12 @@ _IGNORE_FILE = ".contextlakeignore"
 
 
 def load_ignore_patterns(root: Path) -> list[str]:
-    f = root / _IGNORE_FILE
-    if not f.is_file():
+    # The clone is untrusted: a `.contextlakeignore` can be a symlink to a file elsewhere on
+    # the machine. `read_repo_file` reads it only if it resolves inside the clone.
+    got = read_repo_file(root, [_IGNORE_FILE])
+    if got is None:
         return []
-    try:
-        lines = f.read_text(encoding="utf-8", errors="ignore").splitlines()
-    except OSError:
-        return []
+    lines = got[1].splitlines()
     return [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#")]
 
 
