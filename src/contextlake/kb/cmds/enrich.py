@@ -77,6 +77,11 @@ def cmd_enrich(args) -> int:
             # than the run planned, and six missing pages read the same as a repo
             # that had none.
             enriched = nothing_returned = unattached = failed = skipped = 0
+            # A sixth bucket for the repos whose sources could not be reached. Their
+            # stored results were left alone, so they are neither "nothing returned"
+            # (a source answered empty and the partition was cleared) nor "failed" (a
+            # store or shard write raised).
+            kept = 0
             for repo_id, _path in targets:
                 try:
                     counts = run_enrich_repo(store, store_dir, cfg, repo_id,
@@ -96,6 +101,10 @@ def cmd_enrich(args) -> int:
                     skipped += 1
                     log(f"  {repo_id}: skipped (no graph shard to build terms from, "
                         f"so nothing was searched for; run index first)", inline=True)
+                elif counts.unavailable:
+                    kept += 1
+                    log(f"  {style.warn(repo_id)}: {counts.unavailable} source(s) "
+                        f"unavailable, kept the previous results", inline=True)
                 elif not counts.documents:
                     nothing_returned += 1
                     log(f"  {repo_id}: {counts.terms} term(s), nothing returned",
@@ -122,7 +131,7 @@ def cmd_enrich(args) -> int:
             buckets_line = (f"  {planned} repo(s) planned: {enriched} enriched, "
                             f"{nothing_returned} nothing returned, {unattached} "
                             f"returned but unattached, {failed} failed, "
-                            f"{skipped} skipped")
+                            f"{skipped} skipped, {kept} kept previous results")
             degraded = degraded_calls() - degraded_before
             if degraded:
                 log(style.warn(
@@ -147,12 +156,12 @@ def cmd_enrich(args) -> int:
                     f"symbols (returned, unattached). That is the correct result when "
                     f"the documents discuss the repo in prose. Check the repo is "
                     f"indexed and that its symbol names appear in the text.")
-            # Partial degradation with results still exits 0, which is `kb connect`'s
-            # existing rule and is deliberately copied rather than tightened: two sibling
-            # commands giving different verdicts for the same event is the defect this
-            # whole batch is about, and a stricter rule invented here would recreate it.
-            kind = "warn" if (degraded or failed) else "ok"
-            word = "incomplete" if (degraded or failed) else "complete"
+            # Partial degradation with results is a failed run too, the verdict `kb ingest`
+            # gives a failed source and `kb connect` now gives alike (see the end of this
+            # function). It used to exit 0 here, so one repo's outage hid behind another
+            # repo's documents.
+            kind = "warn" if (degraded or failed or kept) else "ok"
+            word = "incomplete" if (degraded or failed or kept) else "complete"
             # Both numbers, never one instead of the other: documents stored answers
             # "did the sources have anything", edges to code answers "can a question
             # about the code reach it".
@@ -163,6 +172,18 @@ def cmd_enrich(args) -> int:
             if planned and failed == planned:
                 log(style.warn(f"Enrich failed for all {planned} repo(s): "
                                f"nothing was stored"))
+                return 1
+            if degraded or kept:
+                log("  Nothing was silently dropped: each unavailable source is logged "
+                    "above, and the repos listed there kept their previous results.")
+                # Same escape hatch as `kb ingest`, and the position has to be shown: the
+                # flag is a PRE-command global, so `kb enrich --exit-zero-on-partial` is
+                # rejected by argparse with exit 2.
+                if getattr(args, "exit_zero_on_partial", False):
+                    log(style.dim("  Exiting 0 (--exit-zero-on-partial)."))
+                    return 0
+                log("  For a scheduled run that should tolerate this:")
+                log("    contextlake --exit-zero-on-partial kb enrich")
                 return 1
             return 0
         finally:

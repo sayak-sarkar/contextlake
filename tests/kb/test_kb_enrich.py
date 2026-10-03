@@ -7,6 +7,7 @@ from datetime import date
 import contextlake.kb.connectors.enrich as enrich
 from contextlake.kb.config import KbConfig, SourceCfg
 from contextlake.kb.connectors.enrich import (
+    EnrichCounts,
     build_terms,
     enrich_partition,
     run_enrich_repo,
@@ -285,7 +286,7 @@ def test_enrich_repo_no_terms_returns_zero_without_touching_store(tmp_path):
     store = _store(store_dir)
     try:
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
-        assert run_enrich_repo(store, store_dir, cfg, "group/missing") == (0, 0, 0)
+        assert run_enrich_repo(store, store_dir, cfg, "group/missing") == EnrichCounts(0, 0, 0)
         assert read_shard(store_dir, enrich_partition("group/missing")) is None
     finally:
         store.close()

@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from ..model import Node
-from ..resilience import note_unavailable
+from ..resilience import degraded_calls, note_unavailable
 from ..sources.base import Document
 from ..store.shards import GraphShard, write_shard
 from ..wiki.generate import repo_brief
@@ -110,6 +110,10 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
     :func:`resilience.note_unavailable`), because "found nothing" and "never
     answered" are otherwise the same empty list. Repeated failures trip the
     per-server breaker inside :func:`mcp_client.call_tool`.
+
+    The return value cannot tell those two apart. A caller that must (one that is about
+    to replace stored results with this answer) reads :func:`resilience.degraded_calls`
+    before and after the call: it rises when a failure was written off.
     """
     try:
         if _cfg_get(cfg, "tool"):
@@ -141,11 +145,18 @@ class EnrichCounts(NamedTuple):
     whole-word with ``min_name_len=3``, and
     :func:`link_documents_to_symbols` skips the repo-level fallback for a
     document that matched no symbol.
+
+    ``unavailable`` is how many sources could not be reached for this repo. When it is
+    not zero the repo's stored partition was left as it was, and ``documents``
+    and ``edges`` are zero because nothing was stored. That is a different state from
+    ``documents == 0`` with ``unavailable == 0``, where every source answered and had
+    nothing, and the partition was cleared.
     """
 
     terms: int
     documents: int
     edges: int
+    unavailable: int = 0
 
 
 def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
@@ -166,9 +177,17 @@ def run_enrich_repo(
     edge straight to it rather than only existing as an isolated node -- the
     partition used to be written with ``edges=[]`` unconditionally.
 
+    A source that answers with no documents clears the partition: that is a real
+    answer. A source that could not be reached is not an answer. If any source fails
+    for this repo, nothing is written (graph nodes, edges, shard, vectors) and the
+    previous results stay as they were, because one outage must not replace a good
+    partition with an empty one. The healthy sources' fresh results are dropped with
+    it, since the partition is one unit and a failed source's share of the old one
+    cannot be told apart from the rest.
+
     Returns :class:`EnrichCounts`: terms tried, documents stored, and edges
-    attached to this repo's code. All three are zero when the repo has no shard
-    to build terms from.
+    attached to this repo's code. The first three are zero when the repo has no shard
+    to build terms from. ``unavailable`` counts the sources that failed.
     """
     terms = build_terms(store_dir, repo_id)
     if not terms:
@@ -178,15 +197,26 @@ def run_enrich_repo(
     seen: set[str] = set()
     nodes: list[Node] = []
     texts: list[str] = []
+    unavailable = 0
     for src in cfg.sources:
         if _cfg_get(src, "enabled", True) is False:
             continue
-        for doc in search_source(src, terms):
+        # `search_source` never raises, and answers [] both for "nothing found" and for
+        # "could not be reached". Only the counter `note_unavailable` bumps tells them
+        # apart, so it is read around this one call.
+        degraded_before = degraded_calls()
+        found = search_source(src, terms)
+        if degraded_calls() > degraded_before:
+            unavailable += 1
+            continue
+        for doc in found:
             if doc.id in seen:
                 continue
             seen.add(doc.id)
             nodes.append(_document_node(part, doc, _cfg_get(src, "type")))
             texts.append(doc.text)
+    if unavailable:
+        return EnrichCounts(len(terms), 0, 0, unavailable)
 
     # An enrichment result is, by construction, a document about THIS repo -- so
     # link each one to the symbols of it the result actually names. The edges are
@@ -199,9 +229,10 @@ def run_enrich_repo(
     store.upsert_edges(part, edges)
     write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=edges))
 
-    # Clear this partition's stale vectors unconditionally (mirroring the graph
-    # store.clear_repo above) -- a source that stops returning a doc a prior run
-    # embedded, or returns none at all, would otherwise leave orphaned vectors.
+    # Clear this partition's stale vectors whenever the partition was rewritten (mirroring
+    # the graph store.clear_repo above, and reached only when every source answered). A
+    # source that stops returning a doc a prior run embedded, or returns none at all,
+    # would otherwise leave orphaned vectors.
     if vector_store is not None:
         vector_store.clear_repo(part)
     if embedder and vector_store and nodes:

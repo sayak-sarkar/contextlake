@@ -38,6 +38,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`kb forget` removes the module wiki pages of a repo whose id holds `@` or `:`.** It
   named those pages differently from the wiki writer, so the module pages of a
   remote-less repo (`name@<commit>`) or a host with a port stayed on disk.
+- **`kb embed` no longer calls a partly embedded repo up to date.** After `--limit`, or a
+  run whose embedder failed or was interrupted, the next plain `kb embed` said "already
+  up to date" while the repo held a few of its vectors, so semantic search missed most of
+  it. A repo is now marked current only after a complete pass, and the next run re-embeds
+  it.
+- **An unreachable source no longer empties a repo's `kb connect` or `kb enrich`
+  results.** A source that failed answered like one with nothing to say, so one outage
+  replaced the repo's previous links, nodes and vectors with nothing, and the run exited
+  0 when another repo had results. Now a repo whose source failed keeps its previous
+  results, the run names it, and it exits 1 unless `contextlake --exit-zero-on-partial`
+  is given, the rule `kb ingest` already follows. A source that answers with no results
+  still clears them. One failed source keeps the whole repo's previous results, so the
+  other sources' new results for that repo wait for the next complete run.
+- **A shard file is never seen half-written.** It was written in place, so a reader could
+  read a truncated file and a crash could leave one behind. It is now written to a
+  temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,
+  edges) is now one transaction, so another reader no longer sees the repo empty, or with
+  nodes and no edges, part way through.
 
 ## [9.4.0] - 2026-10-03
 

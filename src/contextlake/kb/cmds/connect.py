@@ -56,7 +56,43 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
     return branch_key, link_patterns
 
 
-def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
+class _StagedVectors:
+    """Holds one repo's vector writes until every source for that repo has answered.
+
+    The enrichers embed their own nodes while they run, and a pass that is going to
+    replace a partition has to sweep that partition's old vectors before those writes
+    land (sweeping afterwards would delete them). But whether the partition may be
+    replaced at all is only known once every source has answered: if one of them was
+    unreachable, the previous partition must stay, and the sweep is the one step that
+    cannot be undone. So the enrichers are handed this object in place of the vector
+    store. ``upsert`` is held back; ``flush`` then sweeps and writes in the order the
+    old code produced, and ``discard`` drops what was held. Everything else passes
+    through to the real store.
+    """
+
+    def __init__(self, real) -> None:
+        self._real = real
+        self._held: list = []
+
+    def upsert(self, items) -> int:
+        rows = list(items)
+        self._held.extend(rows)
+        return len(rows)
+
+    def discard(self) -> None:
+        self._held = []
+
+    def flush(self, part: str) -> None:
+        rows, self._held = self._held, []
+        self._real.clear_repo(part)
+        if rows:
+            self._real.upsert(rows)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+def _build_enrichers(sources, store, *, embedder=None, vector_store=None, dropped=None):
     """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
     that return ``(nodes, edges)``. Atlassian sources discover their sites up front
     and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
@@ -65,6 +101,11 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
     message-mentioned symbols to existing code nodes. ``embedder``/``vector_store``
     are threaded through to those same three sources so the connector nodes they
     build become embeddable, same as ``enrich``'s own documents.
+
+    A source that cannot be built (Atlassian site discovery failed, or it sees no
+    site) is dropped from the result. When ``dropped`` is a list, the name of each such
+    source is appended to it, so the caller can tell "this source was never asked"
+    from "this source has nothing to say".
     Returns ``(enrichers, names)``."""
     from ..connectors.orchestrate import (
         build_atlassian,
@@ -87,6 +128,8 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
                 sites = conn.discover_sites()
             except Exception as e:  # noqa: BLE001 - a dead source must not abort the run
                 log(f"  source {s.name!r}: site discovery failed — {e}")
+                if dropped is not None:
+                    dropped.append(s.name)
                 continue
             if not sites:
                 # Reached and authorized, yet no site is visible. Say what to check,
@@ -97,6 +140,8 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
                 log("    skipping it. If those scopes lack read:jira-work or "
                     "read:page:confluence, clear the cached grant and re-authorize, "
                     "or set `scopes` on the source.")
+                if dropped is not None:
+                    dropped.append(s.name)
                 continue
             log(f"  source {s.name!r} (atlassian): {len(sites)} site(s) reachable")
             enrichers.append(
@@ -202,8 +247,13 @@ def cmd_connect(args) -> int:
                     chunk_size=cfg.embeddings.vector_chunk_size,
                 )
 
+        # The enrichers get a stand-in that holds their vector writes back, so a repo
+        # whose partition ends up kept (a source was unreachable) never had its old
+        # vectors swept. See `_StagedVectors` and the flush in `_one_repo`.
+        staged = _StagedVectors(vector_store) if vector_store is not None else None
+        dropped: list[str] = []
         enrichers, names = _build_enrichers(
-            sources, store, embedder=embedder, vector_store=vector_store)
+            sources, store, embedder=embedder, vector_store=staged, dropped=dropped)
         if not enrichers:
             log("No usable connector sources; nothing to connect")
             return 1
@@ -226,10 +276,13 @@ def cmd_connect(args) -> int:
             total_edges = 0
             attempts = src_failed = 0
             repo_failed = 0
+            # Repos whose previous partition was left alone because a source was
+            # unreachable (it raised, or its call was written off as unavailable).
+            kept = 0
 
             def _one_repo(repo_id: str, path: str) -> int:
                 """Enrich one repo; returns the number of edges stored for it."""
-                nonlocal attempts, src_failed
+                nonlocal attempts, src_failed, kept
 
                 keys = extract_issue_keys(path, branch_key) if branch_key else []
                 links = scrape_links(path, link_patterns) if link_patterns else []
@@ -237,27 +290,58 @@ def cmd_connect(args) -> int:
                 if not keys and not links and not symbol_keys and not has_gitlab:
                     return 0  # GitLab sources fetch by repo, so don't skip when one exists
                 part = connect_partition(repo_id)
+                if dropped:
+                    # A source that could not be built is as unavailable as one that
+                    # failed mid-run, and its links are part of this partition. Writing
+                    # the partition from the sources that remain would delete them.
+                    kept += 1
+                    log(f"  {repo_id}: kept the previous links, source(s) "
+                        f"{', '.join(map(repr, dropped))} unavailable", inline=True)
+                    return 0
                 # Connector nodes are embedded by the enrichers themselves (see
                 # orchestrate._embed_connector_nodes), so the stale-vector sweep has
-                # to happen BEFORE they run -- clearing alongside the graph's own
-                # `store.clear_repo(part)` below would delete the vectors this pass
-                # just wrote. Same guard placement as that call: only a repo whose
-                # partition is about to be rewritten gets swept.
-                if vector_store is not None:
-                    vector_store.clear_repo(part)
+                # to happen BEFORE their writes land. Clearing alongside the graph's
+                # own `store.clear_repo(part)` below would delete the vectors this pass
+                # just wrote. The enrichers write through `staged`, which holds those
+                # writes back: the sweep itself waits until every source has answered
+                # (it cannot be undone, and a repo with an unreachable source keeps
+                # its old vectors), then runs before the held writes are applied.
+                if staged is not None:
+                    staged.discard()
                 merged_nodes, merged_edges = {}, {}
+                failed_sources: list[str] = []
                 for name, enrich in zip(names, enrichers, strict=True):
                     attempts += 1
+                    # Connector methods do not raise: a dead source returns nothing and
+                    # logs why through `note_unavailable`, which bumps this counter. An
+                    # empty answer and an unreachable source look the same otherwise.
+                    degraded_mark = degraded_calls()
                     try:
                         nodes, edges = enrich(repo_id, keys, links, symbol_keys)
                     except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
                         log(f"  {repo_id}: source {name!r} failed ({e})", inline=True)
                         src_failed += 1
+                        failed_sources.append(name)
                         continue
+                    if degraded_calls() > degraded_mark:
+                        failed_sources.append(name)
                     for n in nodes:
                         merged_nodes[n.id] = n
                     for ed in edges:
                         merged_edges[(ed.src, ed.dst, ed.relation)] = ed
+                if failed_sources:
+                    # One partition holds every source's links, so a source that did not
+                    # answer leaves the whole previous partition standing: a partial
+                    # rewrite would drop that source's share of it and read as "nothing
+                    # to link". An EMPTY answer is not this case, and clears below.
+                    if staged is not None:
+                        staged.discard()
+                    kept += 1
+                    log(f"  {repo_id}: kept the previous links, source(s) "
+                        f"{', '.join(map(repr, failed_sources))} unavailable", inline=True)
+                    return 0
+                if staged is not None:
+                    staged.flush(part)
                 store.clear_repo(part)
                 store.upsert_nodes(part, list(merged_nodes.values()))
                 store.upsert_edges(part, list(merged_edges.values()))
@@ -274,10 +358,11 @@ def cmd_connect(args) -> int:
                 # run before the other nineteen were reached. That is exactly how
                 # one commit carrying a non-UTF-8 byte killed a 20-repo fleet.
                 #
-                # A repo that throws mid-body has already had its vectors swept
-                # (see the clear_repo note above) and keeps its previous graph
-                # edges until the next run -- incomplete either way, and the exit
-                # code below says so rather than leaving it silent.
+                # A repo that throws before the flush in `_one_repo` keeps both its
+                # vectors and its graph edges. One that throws after it has had its
+                # vectors rewritten and keeps its previous graph edges until the next
+                # run. Incomplete either way, and the exit code below says so
+                # rather than leaving it silent.
                 try:
                     total_edges += _one_repo(repo_id, path)
                 except Exception as e:  # noqa: BLE001 - reported per repo, never aborts the run
@@ -295,8 +380,12 @@ def cmd_connect(args) -> int:
             store.prune_orphan_nodes(EXTERNAL_REPO)
             degraded = degraded_calls() - degraded_before
             log(style.summary_line(
-                "ok" if not (degraded or repo_failed) else "warn",
+                "ok" if not (degraded or repo_failed or kept) else "warn",
                 f"Connect complete: {total_edges} external link(s) stored"))
+            if kept:
+                log(style.warn(
+                    f"{kept} of {len(targets)} repo(s) kept their previous links because a "
+                    "source was unavailable (reasons logged above)."))
             if repo_failed:
                 log(style.warn(
                     f"{repo_failed} of {len(targets)} repo(s) failed and were skipped; "
@@ -316,6 +405,19 @@ def cmd_connect(args) -> int:
             # here, and exiting 0 made them indistinguishable from a clean run
             # over a repo with no open work.
             if degraded and not total_edges:
+                return 1
+            # A source that could not be reached is a failure of the run even when
+            # other repos got links: those links hide the outage, and the repos that
+            # kept their previous partition are not the graph this run was asked to
+            # build. Same verdict, and the same escape hatch, as `kb ingest` gives a
+            # failed source. The flag is a PRE-command global (`contextlake
+            # --exit-zero-on-partial kb connect`).
+            if (kept or degraded) and not repo_failed:
+                if getattr(args, "exit_zero_on_partial", False):
+                    log(style.dim("  Exiting 0 (--exit-zero-on-partial)."))
+                    return 0
+                log("  For a scheduled run that should tolerate this:")
+                log("    contextlake --exit-zero-on-partial kb connect")
                 return 1
             # A skipped repository is missing knowledge, so the run is not clean --
             # same verdict `kb index` gives a workspace where one repo failed to
