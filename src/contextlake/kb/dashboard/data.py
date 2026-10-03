@@ -44,7 +44,7 @@ from pathlib import Path
 
 from ..model import EXTERNAL_LINK_RELATIONS
 from ..ownership import anon_author
-from ..paths import within
+from ..paths import read_repo_file, within
 from ..security import sanitize_label
 
 
@@ -259,11 +259,11 @@ def _readme_html(store, repo_id: str) -> str | None:
     r = store.get_repo(repo_id)
     base = Path(r.path) if r and getattr(r, "path", None) else None
     if base and base.is_dir():
-        for name in ("README.md", "README.rst", "README.txt", "README", "readme.md"):
-            f = base / name
-            if f.is_file():
-                raw = f.read_text(encoding="utf-8", errors="replace")
-                return _md_to_html(sanitize_label(raw, max_len=200_000))
+        # Containment-checked: this panel rendered a symlinked README's target verbatim.
+        hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
+                                    "readme.md"))
+        if hit:
+            return _md_to_html(sanitize_label(hit[1], max_len=200_000))
     return None
 
 

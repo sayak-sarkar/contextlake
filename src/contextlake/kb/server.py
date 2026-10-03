@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 
 from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
+from .paths import read_repo_file
 from .scoped_store import open_request_scope as _open_request_scope
 from .scoped_store import reset_request_scope as _reset_request_scope
 from .security import sanitize_label
@@ -1946,12 +1947,15 @@ def build_server(
         r = store.get_repo(repo)
         base = Path(r.path) if r and getattr(r, "path", None) else None
         if base and base.is_dir():
-            for name in ("README.md", "README.rst", "README.txt", "README", "readme.md"):
-                f = base / name
-                if f.is_file():
-                    raw = f.read_text(encoding="utf-8", errors="replace")
-                    return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,
-                                     markdown=sanitize_label(raw, max_len=200_000))
+            # `read_repo_file`, not `base / name` + `is_file()` + `read_text()`: those follow
+            # symlinks, so a README.md committed as a link to a file outside the clone (on an
+            # HTTP server, `/proc/self/environ`) was returned to a key scoped to one repo.
+            hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
+                                        "readme.md"))
+            if hit:
+                name, raw = hit
+                return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,
+                                 markdown=sanitize_label(raw, max_len=200_000))
         return ReadmeOut(repo=sanitize_label(repo), found=False, path=None, markdown="")
 
     @bounded_tool

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from ..embeddings.index import EMBEDDABLE_KINDS
 from ..model import PER_SITE_RELATIONS
+from ..paths import read_repo_file
 from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from ..store.shards import (
     read_shard,
@@ -232,11 +233,10 @@ def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None
     base = Path(r.path) if r and getattr(r, "path", None) else None
     if not base or not base.is_dir():
         return None
-    for name in ("README.md", "README.rst", "README.txt", "README", "readme.md"):
-        f = base / name
-        if f.is_file():
-            return f.read_text(encoding="utf-8", errors="replace")[:max_chars]
-    return None
+    # Containment-checked: a README symlinked to a file outside the clone must not be quoted
+    # into a wiki page and an LLM prompt (see `read_repo_file`).
+    hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README", "readme.md"))
+    return hit[1][:max_chars] if hit else None
 
 
 # Share of a ranked list the per-kind floors may claim between them. Two, matching

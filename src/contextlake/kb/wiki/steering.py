@@ -27,6 +27,7 @@ import logging
 from pathlib import Path
 
 from ...logging_setup import log
+from ..paths import read_repo_file
 
 #: Relative to the repository root. A directory rather than a bare dotfile so a repository can
 #: grow sibling contextlake config without a second convention.
@@ -55,18 +56,19 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
     if not repo_path:
         return empty
     path = steering_file(repo_path)
-    try:
-        if not path.is_file():
-            return empty
-        raw = path.read_bytes()
-    except OSError:
+    # Containment-checked: `wiki.toml` is a file in an untrusted clone, so a symlink to a file
+    # outside it must not have its target's `notes` quoted into a page. Read as text with the
+    # same replacement decode this function applied to the bytes before.
+    hit = read_repo_file(Path(repo_path), ["/".join(STEERING_PATH)])
+    if hit is None:
         return empty
+    text = hit[1]
     try:
         import tomllib
     except ModuleNotFoundError:  # pragma: no cover - 3.10 only
         import tomli as tomllib
     try:
-        data = tomllib.loads(raw.decode("utf-8", "replace"))
+        data = tomllib.loads(text)
     except Exception as e:  # noqa: BLE001 - a broken file costs itself, not the run
         log(f"wiki: ignoring {path} -- it is not readable TOML ({type(e).__name__}: {e}). "
             f"The page is generated without it.", level=logging.WARNING)

@@ -13,7 +13,11 @@ how a shared security check earns its own module rather than a copy.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from pathlib import Path
+
+from ..logging_setup import log
 
 
 def within(base: Path, candidate: Path) -> bool:
@@ -31,3 +35,43 @@ def within(base: Path, candidate: Path) -> bool:
         return candidate.resolve().is_relative_to(base.resolve())
     except (OSError, ValueError):
         return False
+
+
+def read_repo_file(base: Path, names: Iterable[str]) -> tuple[str, str] | None:
+    """``(name, text)`` of the first of ``names`` that is a regular file INSIDE ``base``.
+
+    ``base`` is a mirrored clone, so everything under it is untrusted: anyone who can commit
+    to the repository can commit a symlink. The four readers of a clone's own files
+    (``get_readme`` over MCP, the wiki generator's README excerpt, the dashboard's README
+    panel and the wiki steering file) each did ``f = base / name; if f.is_file():
+    f.read_text()`` and nothing else. ``is_file`` and ``read_text`` both FOLLOW symlinks, so
+    a ``README.md`` linking to ``/proc/self/environ`` returned the server's environment to
+    a key scoped to one repository, and a link to any readable file did the same on the wiki
+    and dashboard paths. The wiki path then wrote the target into pages and LLM prompts.
+
+    A candidate whose resolved path is not inside the resolved ``base`` is skipped, not
+    raised on: the next name is still tried, so a hostile ``README.md`` does not hide a real
+    ``README.rst``. A symlink that stays inside the clone is read normally, and so is a
+    symlinked ``base`` (a clone reached through a link), because both sides are resolved.
+    ``name`` may carry a sub-path (``.contextlake/wiki.toml``); a symlinked directory that
+    escapes fails the same check, because the whole resolved path is compared.
+
+    The RESOLVED path is read, not ``base / name``, so the file checked is the file opened:
+    re-following the link at read time would leave a window for it to be swapped after the
+    check. Never raises: an unreadable candidate is skipped like a missing one.
+    """
+    for name in names:
+        candidate = base / name
+        try:
+            resolved = candidate.resolve()
+            if not within(base, resolved):
+                if candidate.is_symlink() or candidate.exists():
+                    log(f"refused {name!r} under {base}: it resolves outside the clone",
+                        level=logging.WARNING)
+                continue
+            if not resolved.is_file():
+                continue
+            return name, resolved.read_text(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            continue
+    return None
