@@ -9057,6 +9057,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.4.0] - 2026-10-03
 
+### Upgrading from 9.3.0
+
+Two changes can make a run that worked on 9.3.0 behave differently:
+
+- A `.contextlake.ini` found by walking up from the current directory may no longer set
+  `gitlab_host`, `api_base`, `token_env` or `gitlab_token_env`. Each is ignored with a
+  warning, and when no file you chose sets the same key, the forge token is off for that
+  run. Move those keys to `~/.contextlake.ini`, or pass `--config`.
+- `mirror clone` and `mirror sync` exit 1 when a non-empty directory with no `.git` sits
+  where a repository would be cloned. 9.3.0 deleted that directory and cloned over it. Move
+  the directory aside. An unattended sync (cron, or a systemd unit with `OnFailure=`)
+  sees a failed run.
+
 ### Security
 
 - **`--anonymize` now withholds the wiki from the static export and from Chat.**
@@ -9067,7 +9080,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Under `--serve --anonymize`, Chat answered with a repo's wiki text and its real owner
     names, which the wiki and owners panels withhold. With `--llm-chat` it also sent them
     to the LLM provider. Chat now drops the wiki text and shows the owners panel's
-    pseudonyms.
+    pseudonyms. Chat keeps the answer's fields by name, so a field added to it later is
+    withheld until someone decides it is safe.
   - Still shown, as before: symbol names and docstrings, and wiki section headings in
     search results. `docs/using-the-dashboard.md` now says so.
 - **A `.contextlake.ini` found by walking up can no longer choose where the forge token
