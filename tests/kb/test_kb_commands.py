@@ -701,7 +701,11 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
                             # 9.3.0: partitions holding vectors with no nodes
                             # behind them. Unreachable content, reported because
                             # nothing else names it.
-                            "orphan_vectors", "orphan_vector_partitions"}
+                            "orphan_vectors", "orphan_vector_partitions",
+                            # file nodes that stand for more than one file (a known
+                            # id limitation). Advisory, CLI only.
+                            "shared_file_nodes", "shared_file_node_repos",
+                            "shared_file_nodes_sample"}
     # Neither stale nor unreadable: telling the reader to re-run index, or to
     # re-clone something that was never cloned, is advice that cannot work.
     assert payload["stale"] == 0 and payload["empty"] == 0
@@ -711,6 +715,7 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     # reported and deliberately kept out of the exit code.
     assert payload["parser_stale"] == 1
     assert payload["parser_stale_repos"] == payload["shard_repos"]
+    assert payload["shared_file_nodes"] == 0 and payload["shared_file_nodes_sample"] == []
 
     # Now make the store genuinely unclean, and --json must say so in its exit code.
     ws = tmp_path / "ws"

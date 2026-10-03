@@ -222,6 +222,8 @@ run, so they pick up parser fixes.
 - the same **older-parser** repos doctor reports, so the two commands never disagree
 - **orphan vectors**, where the semantic store holds vectors for a partition that has no nodes
   in the graph (see below)
+- **shared file nodes**, where several files in the store share one file node (see
+  [Shared file nodes](#shared-file-nodes))
 
 Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
 it cannot read.
@@ -260,6 +262,50 @@ either of them:
   be behind. Also advisory, for the same reason.
 - **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
+
+### Shared file nodes
+
+Every file in the graph has a node. Its id is built from the repo id and the file path. The id
+builder lowercases the text and turns every run of punctuation into one `_`. So these names get
+the same id:
+
+- `a-b.py`, `a_b.py` and `A_B.py` in one repo
+- `pkg/__main__.py` and `pkg/main.py`
+- `numpy/_core/records.py` and `numpy/core/records.py`
+- the repos `grp/a-b` and `grp/a/b`, for a file with the same path in both
+
+The store keeps one row per id. The files share one file node, so all but one of them are
+missing from the graph as files. The symbols inside every file are still indexed. They hang off
+the one shared node.
+
+`kb lint` names each such node, with the repo and every path it can see:
+
+```text
+  shared file node: <repo>: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (known id limitation, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command's exit code)
+```
+
+When two repos share the node, the line says `across repos` and puts the repo in front of each
+path. The summary line ends with `N shared file node(s)`.
+
+This is a known limitation of the id scheme. The check reports it and changes nothing. It does
+not affect the exit code. Re-indexing does not clear it. Renaming a file so that its name differs
+by more than case and punctuation, then re-indexing, takes that file out of the report.
+
+The check is a lower bound. The tables keep a trace of a file only through its node row and its
+`contains` edges. A colliding file that has no definitions, and is not the file the node row
+names, leaves no trace, so lint cannot see it.
+
+It runs in the CLI only, like the orphan-vector check. It reads SQLite, and the dashboard's lint
+view answers from a cache of the shards. On a synthetic store of 700,000 nodes and 1.7 million
+edges it took 0.45 s.
+
+`kb lint --json` carries three fields for it, on every run:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `shared_file_nodes` | number or null | how many file nodes stand for more than one file; `0` when there are none; `null` when the check could not run |
+| `shared_file_node_repos` | list of strings | every repo that shares a node, sorted; `[]` when there are none |
+| `shared_file_nodes_sample` | list of objects | the first 20 findings. Each has `node` (the id), `repos`, `cross_repo` (true when more than one repo shares it) and `files` (a list of `{repo, path}`) |
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
 

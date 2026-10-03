@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`kb lint` reports files that share one graph node.** A file's node id folds case and
+  punctuation, so `a-b.py`, `a_b.py` and `A_B.py` in one repo, or `_utils.py` and
+  `utils.py`, become one node, and all but one of those files are missing from the graph.
+  Repos such as `grp/a-b` and `grp/a/b` can share nodes the same way. `kb lint` now names
+  each such node, its repo and the files behind it, with `--json` fields
+  `shared_file_nodes`, `shared_file_node_repos` and `shared_file_nodes_sample`. It is
+  advisory and does not change the exit code. The ids themselves are unchanged; see
+  "Shared file nodes" in `docs/indexing-the-code-graph.md`.
+
 ### Fixed
 
 - **`schedule install` on cron no longer replaces your whole crontab when it cannot read

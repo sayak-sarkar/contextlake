@@ -243,6 +243,105 @@ def orphan_vector_partitions(store, store_dir, cfg) -> list[str]:
     return sorted(vector_parts - node_parts)
 
 
+# Evidence for one file node is a set of (repo, path) pairs: the node row's own
+# (repo_id, file), and the (repo_id, source_file) of every `contains` edge whose `src` is
+# the node. One pair means one file stands behind the node. More than one means several
+# files were folded into it. The pair is joined with char(31) so the comparison happens
+# inside SQLite and only the flagged nodes come back to Python.
+#
+# Plan on a store of 700k nodes and 1.7M edges: SEARCH nodes USING ix_nodes_kind, SEARCH
+# edges USING ix_edges_src, USE TEMP B-TREE FOR GROUP BY. No full scan of `edges`.
+# Only `contains` is read, on purpose: connector edges can have a file node as `src` with
+# a source_file that names a URL, and a pair built from those would read as a collision.
+_PAIR = "e.repo_id || char(31) || e.source_file"
+_SHARED_FILE_NODES_SQL = f"""
+    SELECT n.node_id, n.repo_id, n.file
+    FROM nodes n JOIN edges e ON e.src = n.node_id
+    WHERE n.kind = 'file' AND e.relation = 'contains' AND e.source_file IS NOT NULL
+    GROUP BY n.node_id
+    HAVING MIN({_PAIR}) != MAX({_PAIR})
+        OR (n.file IS NOT NULL AND MIN({_PAIR}) != n.repo_id || char(31) || n.file)
+"""  # noqa: S608 - the only interpolated text is the constant above, no user input
+_SQL_IN_CHUNK = 500  # stay under SQLite's bound-variable limit
+SHARED_FILE_NODES_DOC = "docs/indexing-the-code-graph.md#shared-file-nodes"
+_SHARED_SAMPLE = 20       # findings echoed in --json and in the text output
+_SHARED_PATHS_SHOWN = 10  # paths named on one text line
+
+
+def shared_file_nodes(store) -> list[dict] | None:
+    """File nodes that stand for more than one file. ``None`` means "could not check".
+
+    File node ids are ``make_id(repo_id, rel_path)``, and ``make_id`` casefolds and folds
+    every run of non-word characters to ``_``. So ``a-b.py``, ``a_b.py`` and ``A_B.py``
+    in one repo get ONE node id, and so do the repos ``grp/a-b`` and ``grp/a/b``. The
+    store keeps one row per id, so one of the files is missing from the graph, and the
+    symbols of every file still hang off the one node. This is a known id limitation.
+    This function only reports it. It changes no id and fixes nothing.
+
+    One entry per node: ``node`` (the id), ``repos`` (sorted), ``cross_repo`` (more than
+    one repo is involved) and ``files`` (sorted ``{"repo", "path"}`` dicts, every file
+    the rows show).
+
+    A LOWER BOUND, not a census. The tables hold a trace of a file only through its
+    node row and its ``contains`` edges. A colliding file that has no definitions, and
+    is not the file the node row names, left nothing behind and is not reported.
+
+    Not part of :func:`lint_result`: that function is cached on a shard fingerprint and
+    answers the dashboard and the MCP ``graph_health`` tool on every request, and this
+    reads SQLite. Like :func:`orphan_vector_partitions` it runs in the CLI only. It stays
+    out of the exit code too: a user cannot clear it without renaming files, and failing
+    on it would turn a green CI gate red on upgrade.
+
+    ``None`` is returned when the store has no ``conn`` or SQLite refuses the query. It
+    is not folded into ``[]``, which would read as "checked, none found".
+    """
+    conn = getattr(store, "conn", None)
+    if conn is None:
+        return None
+    try:
+        flagged = conn.execute(_SHARED_FILE_NODES_SQL).fetchall()
+        pairs: dict[str, set[tuple[str, str]]] = {}
+        for r in flagged:
+            pairs[r[0]] = {(r[1], r[2])} if r[2] is not None and r[1] is not None else set()
+        ids = list(pairs)
+        for i in range(0, len(ids), _SQL_IN_CHUNK):
+            chunk = ids[i:i + _SQL_IN_CHUNK]
+            rows = conn.execute(
+                "SELECT DISTINCT src, repo_id, source_file FROM edges "  # noqa: S608 - placeholders only; values bound
+                f"WHERE src IN ({','.join('?' * len(chunk))}) "
+                "AND relation = 'contains' AND source_file IS NOT NULL AND repo_id IS NOT NULL",
+                chunk,
+            ).fetchall()
+            for src, repo, path in rows:
+                pairs[src].add((repo, path))
+    except Exception:  # noqa: BLE001 - a diagnostic must not fail the command it runs in
+        return None
+    found = []
+    for node_id, files in pairs.items():
+        if len(files) < 2:
+            continue
+        repos = sorted({repo for repo, _ in files})
+        found.append({"node": node_id, "repos": repos, "cross_repo": len(repos) > 1,
+                      "files": [{"repo": repo, "path": path} for repo, path in sorted(files)]})
+    return sorted(found, key=lambda f: (f["repos"], f["node"]))
+
+
+def _shared_file_node_line(f: dict) -> str:
+    """One plain-words line for one finding."""
+    files = f["files"]
+    named = [(x["path"] if not f["cross_repo"] else f"{x['repo']}:{x['path']}")
+             for x in files]
+    shown = ", ".join(named[:_SHARED_PATHS_SHOWN])
+    if len(named) > _SHARED_PATHS_SHOWN:
+        shown += f", and {len(named) - _SHARED_PATHS_SHOWN} more"
+    missing = len(files) - 1
+    verb = "is" if missing == 1 else "are"
+    where = "across repos" if f["cross_repo"] else f["repos"][0]
+    return (f"  shared file node: {where}: {shown} share one node, so {missing} of them "
+            f"{verb} missing from the graph (known id limitation, see "
+            f"{SHARED_FILE_NODES_DOC}; not counted in this command's exit code)")
+
+
 def cmd_lint(args) -> int:
     """Graph-health checks: stale repos (HEAD moved), repos built by an older
     parser, and dangling edges.
@@ -260,6 +359,8 @@ def cmd_lint(args) -> int:
     treatment: named, explained, and not counted against the exit code. Nothing a
     reader can do clears them, so failing on them would only train people to stop
     reading the exit code.
+
+    Shared file nodes (see :func:`shared_file_nodes`) are advisory in the same way.
     """
     as_json = getattr(args, "json", False)
     if as_json:
@@ -276,7 +377,10 @@ def cmd_lint(args) -> int:
                                   "shard_repos": [], "unreadable_repos": [],
                                   "parser_stale_repos": [], "dangling_sample": [],
                                   "orphan_vectors": 0,
-                                  "orphan_vector_partitions": []},
+                                  "orphan_vector_partitions": [],
+                                  "shared_file_nodes": 0,
+                                  "shared_file_node_repos": [],
+                                  "shared_file_nodes_sample": []},
                                  indent=2))
                 return 0
             log("Nothing indexed yet — run index first.")
@@ -287,6 +391,13 @@ def cmd_lint(args) -> int:
         # own docstring for the measured cost.
         orphans = orphan_vector_partitions(store, store_dir, kb_config(args))
         res = dict(res, orphan_vectors=len(orphans), orphan_vector_partitions=orphans)
+        # Same split as the orphan check: SQLite-backed, so CLI only. `None` is "could
+        # not check", reported as null and never as 0.
+        shared = shared_file_nodes(store)
+        res = dict(res,
+                   shared_file_nodes=None if shared is None else len(shared),
+                   shared_file_node_repos=sorted({r for f in shared or () for r in f["repos"]}),
+                   shared_file_nodes_sample=(shared or [])[:_SHARED_SAMPLE])
         # Advisory, like parser-staleness: the content is unreachable rather than
         # wrong, `kb embed` rebuilds it, and failing the exit code for it would turn
         # an upgrade into a red gate for every pipeline that runs lint.
@@ -319,6 +430,12 @@ def cmd_lint(args) -> int:
             log(f"  dangling: {d['repo']}: {d['src']} -{d['relation']}-> {d['dst']}")
         if res["dangling"] > 20:
             log(f"  … and {res['dangling'] - 20} more dangling edge(s)")
+        if shared is None:
+            log("  shared file nodes: could not be checked (the store did not answer)")
+        for f in res["shared_file_nodes_sample"]:
+            log(_shared_file_node_line(f))
+        if (res["shared_file_nodes"] or 0) > _SHARED_SAMPLE:
+            log(f"  … and {res['shared_file_nodes'] - _SHARED_SAMPLE} more shared file node(s)")
         # The glyph tracks the exit code, never the advisory count: a ⚠ over a 0
         # exit reads as a broken command.
         glyph = style.ok() if clean else style.warn()
@@ -329,9 +446,12 @@ def cmd_lint(args) -> int:
         unreadable_note = f", {res['unreadable']} unreadable" if res["unreadable"] else ""
         orphan_note = (f", {res['orphan_vectors']} partition(s) with orphaned vectors"
                        if res["orphan_vectors"] else "")
+        shared_note = (f", {res['shared_file_nodes']} shared file node(s)"
+                       if res["shared_file_nodes"] else "")
         log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
             f"{res['dangling']} dangling, {res['stale']} stale"
-            f"{unreadable_note}{empty_note}{shard_note}{parser_note}{orphan_note}")
+            f"{unreadable_note}{empty_note}{shard_note}{parser_note}{orphan_note}"
+            f"{shared_note}")
         return 0 if clean else 1
     finally:
         store.close()
