@@ -66,7 +66,8 @@ CASES = {
 
 def _header_for(url, env, cwd):
     """What git would send as http.extraHeader for ``url`` under ``env``, or None."""
-    run_env = {**env, "GIT_CONFIG_NOSYSTEM": "1"}
+    # No system or global config: a developer's own `http.<url>.extraHeader` would answer.
+    run_env = {**env, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
     res = subprocess.run(["git", "config", "--get-urlmatch", "http.extraHeader", url],
                          cwd=cwd, env=run_env, capture_output=True, text=True)
     return res.stdout.strip() if res.returncode == 0 else None
