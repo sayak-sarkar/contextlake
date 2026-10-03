@@ -1396,6 +1396,47 @@ def test_the_source_refusals_do_not_all_claim_the_key_runs_a_program(
     assert not any("attacker.example.invalid" in m for m in lines)
 
 
+def test_the_auth_and_user_refusals_name_the_key_that_was_dropped(
+        tmp_path, monkeypatch, egress_env, gls_logs):
+    """`auth` and `user` routed to the `auth_dir` sentence, so a file that set only
+    `auth = "basic"` and `user = ...` was told its `auth_dir` was ignored and that an
+    OAuth refresh token directory was the problem. Neither key was in the file. The keys
+    are dropped correctly; the message sent the reader to one that was not there.
+
+    The assertions are on the VALUE that differs: the key named after `[[sources]]`, and
+    the absence of the other key's vocabulary."""
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=(
+        '[[sources]]\n'
+        'type = "api"\n'
+        'name = "tracker"\n'
+        'url = "https://tracker.example.com/issues.json"\n'
+        'auth = "basic"\n'
+        'user = "person@example.com"\n'
+    )))
+    kbcfg._WARNED_UNTRUSTED.clear()
+    gls_logs.set_level(logging.WARNING)
+
+    src = load_kb_config().sources[0]
+
+    lines = [r.getMessage() for r in gls_logs.records if r.levelno >= logging.WARNING]
+    assert lines, "the capture is empty, so the assertions below would be vacuous"
+    # Dropped, as before: the security behaviour is unchanged.
+    assert "auth" not in (src.model_extra or {})
+    assert "user" not in (src.model_extra or {})
+    said = {key: [m for m in lines if f"[[sources]] {key} from" in m]
+            for key in ("auth", "user")}
+    assert len(said["auth"]) == 1 and len(said["user"]) == 1, said
+    assert "scheme" in said["auth"][0], said["auth"][0]
+    assert "username" in said["user"][0], said["user"][0]
+    for key, msgs in said.items():
+        assert "auth_dir" not in msgs[0], (
+            f"the {key} warning names a key that is not in the file: {msgs[0]!r}")
+        assert "OAuth refresh token" not in msgs[0], msgs[0]
+    # `auth_dir` keeps its own sentence when it IS the key dropped.
+    assert not any("[[sources]] auth_dir" in m for m in lines)
+
+
 def test_every_kb_key_the_loader_reads_is_in_the_allow_list():
     """A key read from `[kb]` but absent from `_KB_KEYS` warns while it applies.
 

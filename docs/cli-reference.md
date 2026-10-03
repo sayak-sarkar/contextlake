@@ -182,7 +182,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
-| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
+| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser and partitions holding vectors with no nodes. `--json` adds `orphan_vectors` (a count) and `orphan_vector_partitions` (the ids); see [Health and maintenance](indexing-the-code-graph.md#health-and-maintenance) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--no-usage` turns off the per-key call record; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb keys` | Create and manage the API keys that authenticate MCP callers, and read what they called: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune`, `usage` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -278,10 +278,12 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**Five key flags are enforced and two are not, and the marker beside each value says
-which.** `--tools` and `--owners` are read on every call a networked server serves.
-`--rate`, `--burst` and `--cost-budget` are checked at the gate, before a call reaches a
-tool. `--repos` and `--external` are still written onto the key and read by nothing.
+**All seven key flags are enforced, and the marker beside each value says so.** `--tools`
+and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
+`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos` and
+`--external` are applied inside the store, so they filter what a call can read. The list
+of enforced axes is `ENFORCED_AXES` in `kb/grants.py`, and `kb keys --help` and every
+`kb keys` surface read it, so the help text and the markers follow it.
 
 `--tools` takes a comma-separated list of groups: `graph`, `search`, `docs`, `stats`,
 `owners`, `semantic`, plus the reserved `all`, `read` and `none`. `read` covers every
@@ -302,18 +304,26 @@ granted. `--tools read` covers them.
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
 so a key that asked for pseudonyms gets no names rather than real ones.
 
-**`--repos` still binds nothing.** A key created `--repos nothing-matches/*` reads every
-indexed repository. It cannot be enforced by a check on the call alone: a node id does not
-carry the repository it came from, and three tools that take a required `repo` return rows
-naming other repositories. Correct scoping needs a filter inside the store, which ships
-later.
+**`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
+repositories that match one of its globs. Search, graph, repo-list and stats answers leave
+the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
+refuses a scoped key, since it has no repo argument to check. A node id does not carry the
+repository it came from, so the filter runs inside the store and not on the call.
 
-Measured on a live `kb serve --transport http --keys-only` server, not assumed. In the
-release before this one, a key created `--tools none --repos nothing-matches/*` was
-presented and `tools/list`
-answered with all 23 registered tools, after which `graph_stats` ran and returned a result.
-The same key on the same server now gets an empty tool list and a refusal on `graph_stats`.
-The `--repos` half is unchanged.
+**`--external` GRANTS access.** It is not a label. On a key that has `--repos`,
+connector-fetched content that belongs to no repository (issues, designs and similar items)
+is hidden unless the key was created with `--external`. That content can be more sensitive
+than code, so add the flag only for a holder you would trust with it.
+
+A key with no `--repos` is not limited by `--external` in search and graph answers: those
+reads skip the filter for an unscoped key, so the content can appear there with or without
+the flag. `get_node` does apply the flag.
+
+Measured on a live `kb serve --transport http --keys-only` server, not assumed. In an
+earlier release, a key created `--tools none --repos nothing-matches/*` was presented and
+`tools/list` answered with all 23 registered tools, after which `graph_stats` ran and
+returned a result. The same key on the same server now gets an empty tool list and a
+refusal on `graph_stats`.
 
 **`--rate`, `--burst` and `--cost-budget` are enforced.** A key over its quota gets `429`
 with a `Retry-After` header, refused at the gate before the request reaches any tool. Values
@@ -321,9 +331,11 @@ are validated at the flag, so a typo cannot be minted onto a key, and again when
 is loaded for serving. See [per-key quotas](mcp-transports.md#per-key-quotas) for the
 formats, the `[serve]` defaults and what the quota deliberately does not do.
 
-Every surface that prints an unenforced axis says `(recorded, not enforced)` beside it and
-carries a note naming both halves. Each `--json` document carries `"policy_enforced"` for
-what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
+`create`, `show` and `check` print `(enforced)` beside each value. `list` has no room for
+a marker, so it carries a note instead. An axis that a release did not enforce would print
+`(recorded, not enforced)` there, and the note would name it.
+
+Each `--json` document carries `"policy_enforced"` for what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
 values a running server will apply, and `"limits_source"` saying whether each came from the
 key, from `[serve]` in kb.toml, or from nowhere.
 

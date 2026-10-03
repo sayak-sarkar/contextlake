@@ -543,8 +543,14 @@ def _drop_untrusted_keys(table: str, values, source: str):
             # mcp_command and of nothing else here.
             if key in SOURCE_EGRESS_KEYS:
                 _warn_untrusted_egress(f"[[sources]] {key}", source)
-            elif key in SOURCE_AUTH_KEYS:
+            elif key == "auth_dir":
                 _warn_untrusted_auth_dir(source)
+            elif key in SOURCE_AUTH_KEYS:
+                # `auth` and `user` used to land on the `auth_dir` sentence above, so a
+                # file that set only those two was told its `auth_dir` was ignored.
+                # The keys were dropped correctly and the message named one that was
+                # not in the file.
+                _warn_untrusted_credential_scheme(key, source)
             elif key == SCOPE_KEY:
                 _warn_untrusted_scopes(source)
             else:
@@ -656,6 +662,30 @@ def _warn_untrusted_auth_dir(source: str) -> None:
     log(f"config: ignoring [[sources]] auth_dir from {source} -- a config file found by "
         "walking up from the current directory may not choose the directory the OAuth "
         "refresh token is written to. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+_CREDENTIAL_SCHEME_WHAT = {
+    "auth": "the scheme the credential named by `token_env` is sent with",
+    "user": "the username that credential is paired with",
+}
+
+
+def _warn_untrusted_credential_scheme(key: str, source: str) -> None:
+    """The refusal for ``[[sources]] auth`` and ``user``, which name the key dropped.
+
+    Neither is a secret. Together with `token_env` they decide how the secret is
+    PRESENTED, so a discovered file could turn a bearer token into half of a Basic pair
+    and send it somewhere it was never meant to go (see trust.py)."""
+    what = f"[[sources]] {key}"
+    dedup = (str(Path(expand_path(source)).resolve()) if source else "", what)
+    if dedup in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(dedup)
+    log(f"config: ignoring {what} from {source} -- a config file found by walking up "
+        f"from the current directory may not choose {_CREDENTIAL_SCHEME_WHAT[key]}. "
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
         "meant this file. See SECURITY.md, 'Workspace trust'.",
         level=logging.WARNING)

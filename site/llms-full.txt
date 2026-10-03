@@ -599,8 +599,9 @@ classes of setting are therefore honoured only from a file you named with `--con
 own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
 `provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
 request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
-holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth_dir`, the
-directory an OAuth refresh token is written to).
+holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`,
+which choose how that credential is sent, and `auth_dir`, the directory an OAuth refresh token is
+written to).
 
 The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
@@ -2125,7 +2126,8 @@ you pass to `--config`:
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
-| `[[sources]] token_env` | the env var read for an api/graphql source's bearer token |
+| `[[sources]] token_env` | the env var read for an api/graphql source's token |
+| `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the env var read for the credential sent to that host |
@@ -2177,7 +2179,7 @@ That last point changes what `contextlake kb source add ... --local` can scope. 
 document source still works from a local file over its `url`; its `command` has to live in the
 global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
-`token_env` and `auth_dir` on any source.
+`token_env`, `auth`, `user` and `auth_dir` on any source.
 
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
 `.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
@@ -2486,9 +2488,33 @@ run, so they pick up parser fixes.
 - **stale repos**, where HEAD moved since they were indexed
 - **dangling edges**, where an edge's endpoint node is missing
 - the same **older-parser** repos doctor reports, so the two commands never disagree
+- **orphan vectors**, where the semantic store holds vectors for a partition that has no nodes
+  in the graph (see below)
 
 Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
 it cannot read.
+
+The orphan-vector check is advisory too. For each partition that has vectors and no nodes, lint
+prints a line:
+
+```text
+  orphan vectors: <partition> (vectors with no nodes behind them, so nothing can reach them -- ...)
+```
+
+and the summary line ends with `N partition(s) with orphaned vectors`. Run `contextlake kb embed`
+to rebuild them, or `contextlake kb forget` to remove them. Before 9.3.0 an interrupted
+`kb forget` could leave this state. The check does not affect the exit code.
+
+It runs only when `[embeddings]` is enabled and the vector store exists. Otherwise it reports
+none. It also runs in the CLI only: the dashboard's lint view does not include it, because the scan
+reads the vector store.
+
+`kb lint --json` carries two fields for it, on every run:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `orphan_vectors` | number | how many partitions have vectors and no nodes; `0` when there are none |
+| `orphan_vector_partitions` | list of strings | the partition ids, sorted; `[]` when there are none |
 
 The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
 upgrading to a build with a new parser could turn a green CI gate red on its own.
@@ -3415,6 +3441,13 @@ items = "data.articles"        # dotted path to the record list
 text_field = "body"            # which key holds the document text
 token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 ```
+
+`id_field`, `title_field` and `text_field` take a plain key or a dotted path into the record,
+such as `fields.summary`. A record with no text at that path is skipped.
+
+**The credential stays on one host.** The `Authorization` header goes only to the origin
+(scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
+origin is still followed, but without the header. A redirect within the same origin keeps it.
 
 **Two auth schemes.** `auth = "bearer"` is the default and sends
 `Authorization: Bearer <secret>`. `auth = "basic"` sends
@@ -8195,7 +8228,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
-| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
+| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser and partitions holding vectors with no nodes. `--json` adds `orphan_vectors` (a count) and `orphan_vector_partitions` (the ids); see [Health and maintenance](indexing-the-code-graph.md#health-and-maintenance) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--no-usage` turns off the per-key call record; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb keys` | Create and manage the API keys that authenticate MCP callers, and read what they called: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune`, `usage` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -8291,10 +8324,12 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**Five key flags are enforced and two are not, and the marker beside each value says
-which.** `--tools` and `--owners` are read on every call a networked server serves.
-`--rate`, `--burst` and `--cost-budget` are checked at the gate, before a call reaches a
-tool. `--repos` and `--external` are still written onto the key and read by nothing.
+**All seven key flags are enforced, and the marker beside each value says so.** `--tools`
+and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
+`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos` and
+`--external` are applied inside the store, so they filter what a call can read. The list
+of enforced axes is `ENFORCED_AXES` in `kb/grants.py`, and `kb keys --help` and every
+`kb keys` surface read it, so the help text and the markers follow it.
 
 `--tools` takes a comma-separated list of groups: `graph`, `search`, `docs`, `stats`,
 `owners`, `semantic`, plus the reserved `all`, `read` and `none`. `read` covers every
@@ -8315,18 +8350,26 @@ granted. `--tools read` covers them.
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
 so a key that asked for pseudonyms gets no names rather than real ones.
 
-**`--repos` still binds nothing.** A key created `--repos nothing-matches/*` reads every
-indexed repository. It cannot be enforced by a check on the call alone: a node id does not
-carry the repository it came from, and three tools that take a required `repo` return rows
-naming other repositories. Correct scoping needs a filter inside the store, which ships
-later.
+**`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
+repositories that match one of its globs. Search, graph, repo-list and stats answers leave
+the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
+refuses a scoped key, since it has no repo argument to check. A node id does not carry the
+repository it came from, so the filter runs inside the store and not on the call.
 
-Measured on a live `kb serve --transport http --keys-only` server, not assumed. In the
-release before this one, a key created `--tools none --repos nothing-matches/*` was
-presented and `tools/list`
-answered with all 23 registered tools, after which `graph_stats` ran and returned a result.
-The same key on the same server now gets an empty tool list and a refusal on `graph_stats`.
-The `--repos` half is unchanged.
+**`--external` GRANTS access.** It is not a label. On a key that has `--repos`,
+connector-fetched content that belongs to no repository (issues, designs and similar items)
+is hidden unless the key was created with `--external`. That content can be more sensitive
+than code, so add the flag only for a holder you would trust with it.
+
+A key with no `--repos` is not limited by `--external` in search and graph answers: those
+reads skip the filter for an unscoped key, so the content can appear there with or without
+the flag. `get_node` does apply the flag.
+
+Measured on a live `kb serve --transport http --keys-only` server, not assumed. In an
+earlier release, a key created `--tools none --repos nothing-matches/*` was presented and
+`tools/list` answered with all 23 registered tools, after which `graph_stats` ran and
+returned a result. The same key on the same server now gets an empty tool list and a
+refusal on `graph_stats`.
 
 **`--rate`, `--burst` and `--cost-budget` are enforced.** A key over its quota gets `429`
 with a `Retry-After` header, refused at the gate before the request reaches any tool. Values
@@ -8334,9 +8377,11 @@ are validated at the flag, so a typo cannot be minted onto a key, and again when
 is loaded for serving. See [per-key quotas](mcp-transports.md#per-key-quotas) for the
 formats, the `[serve]` defaults and what the quota deliberately does not do.
 
-Every surface that prints an unenforced axis says `(recorded, not enforced)` beside it and
-carries a note naming both halves. Each `--json` document carries `"policy_enforced"` for
-what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
+`create`, `show` and `check` print `(enforced)` beside each value. `list` has no room for
+a marker, so it carries a note instead. An axis that a release did not enforce would print
+`(recorded, not enforced)` there, and the note would name it.
+
+Each `--json` document carries `"policy_enforced"` for what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
 values a running server will apply, and `"limits_source"` saying whether each came from the
 key, from `[serve]` in kb.toml, or from nowhere.
 
@@ -8967,6 +9012,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **A file in a mirrored clone can no longer reach outside it.** Four readers of a
+  clone's own files followed symlinks: `get_readme` over MCP, the wiki generator's
+  README excerpt, the dashboard README panel and the wiki steering file. A `README.md`
+  linked to `/proc/self/environ` returned the server's environment, which holds
+  `CONTEXTLAKE_MCP_TOKEN` when the operator pins it there, so the holder of a key scoped
+  to one repository who could commit a link to it obtained the full-scope token. All four
+  now refuse a file whose resolved path leaves the clone. Symlink loops return not-found.
+- **Repository scopes are enforced on every road, not only through the store proxy.**
+  The scope released above had gaps a 2026-10-03 audit found:
+  - `repo_dependencies`, `repo_flow` and `repo_event_flow` build edges with raw SQL the
+    proxy cannot see, and returned denied repositories' names. An edge now comes back
+    only when the caller may read both ends.
+  - `get_wiki` and `get_generated_doc` checked the caller's string, then opened a file
+    named by an encoding that is not one-to-one, so `team/x__y` opened a denied
+    `team/x/y` page and a namespace opened a cluster page narrating denied members.
+    The gate now resolves who owns the file.
+  - A key record removed mid-request read as unscoped. It now denies.
+  - Keys with no repo scope, and the shared token, were over-denied: a node visible in
+    `search_code` came back null from `get_node`, and `semantic_search` blamed a stale
+    embedding store. They now see everything, as documented.
+  - `test_scope_over_the_wire.py` drives every registered tool over a real socket with a
+    scoped key, an unscoped key and the shared token. It failed on 13 tools before these
+    fixes.
+- **A source credential stays on its own origin.** The `api` and `graphql` sources sent
+  `Authorization` through urllib, which re-sends it on a redirect, so an open redirect on
+  the API host received the token. A cross-origin redirect or next-page link is still
+  followed, without the header.
+
 ### Added
 
 - **The `repos` and `external` key scopes are enforced.** They were recorded and read
@@ -8974,8 +9049,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every surface said so. Enforcement is a store-layer filter (`kb/scoped_store.py`),
   not a predicate over tool names: a node id does not carry its repo (the repo is
   inside a SHA-256 digest, and `normalize_id` collapses `/` to `_`), so the repo is
-  resolved by looking the node up. **Every axis a key can carry is now enforced**, and
-  the "recorded, not enforced" clause is omitted rather than printed with an empty list.
+  resolved by looking the node up. Every axis a key can carry is now enforced, with two
+  known limits stated rather than hidden: tools that read raw SQL through the store
+  connection are gated in their own bodies (a tool written later against that
+  connection is unscoped unless it does the same, and `test_scope_over_the_wire.py`
+  turns red when one does), and the vector-store path is not yet covered by that
+  socket-level test. The "recorded, not enforced" clause is omitted rather than
+  printed with an empty list.
   - Matching is segment-wise: `*` within a path segment, `**` across segments, never
     `startswith`. A prefix test would grant a scope for `acme/api` read access to
     `acme/api-v2`.
@@ -9041,6 +9121,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`list_repos` no longer scans every edge once per repository.** `edges` had no index on
+  `repo_id`. On a 200-repo, 600k-edge store: 2.9 s before, 0.012 s after. Existing stores
+  gain the index on their next open.
+- **A scoped search finds a term whose best match sits in a repository it cannot read.**
+  It used to filter after the store's limit, so `ask` said "No indexed symbol matches".
+  It now widens the search, bounded at 10,000 rows so a common term cannot load the whole
+  match set; past the bound it fails closed and logs it.
+- **The `api` source reads dotted field paths.** `text_field = "fields.summary"`, the
+  documented Atlassian example, ingested 0 documents.
+- **`--external` and `--repos` help says what is enforced.** It said "recorded, not
+  enforced", and in this release `--external` grants access. A discovered-config warning
+  now names the key it actually dropped. `SECURITY.md` and the configuration page list
+  the `auth` and `user` privileged source keys, and the orphan-vector lint advisory is
+  documented.
 - **Rewriting a wiki page sweeps that page's vectors.** It cleared the page's graph
   partition and re-embedded the new sections without touching the old vectors. Section
   nodes are keyed by index (`@wiki:<repo>:<i>`) and a document is one node but

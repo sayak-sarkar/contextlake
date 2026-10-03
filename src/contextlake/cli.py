@@ -775,6 +775,71 @@ def schedule_actions():
     return ACTIONS
 
 
+# The seven policy flags `kb keys create` writes, in `--help` order. Spelled out here for
+# the reason the verb tuples below are: the parser is built on every invocation, and
+# `kb.cmds.keys_cmd` is the keystore. `kb.grants` is different. It imports only the standard
+# library, so `ENFORCED_AXES` is READ from it below rather than copied, and the help text
+# for an axis cannot say "nothing enforces it" while the gate enforces it. That is what
+# `--repos`, `--external` and the epilog did for a release after 9.3.0. A test pins
+# this tuple against `keys_cmd._ALL_AXES`.
+_KEY_POLICY_AXES = ("tools", "repos", "owners", "external", "rate", "burst",
+                    "cost_budget")
+
+
+def _keys_axis_help(axis, enforced, recorded):
+    """The help for one policy flag: ``enforced`` if the gate enforces ``axis``, else
+    ``recorded``. Decided by `grants.ENFORCED_AXES`, the same constant `kb keys show`
+    labels each value from."""
+    from .kb.grants import ENFORCED_AXES
+
+    return enforced if axis in ENFORCED_AXES else recorded
+
+
+def _keys_policy_epilog():
+    """The epilog paragraph on which policy flags are enforced, derived from
+    `grants.ENFORCED_AXES`. See `_KEY_POLICY_AXES` for why it is derived."""
+    from .kb.grants import ENFORCED_AXES
+
+    def flag(axis):
+        return "--" + axis.replace("_", "-")
+
+    live = [a for a in _KEY_POLICY_AXES if a in ENFORCED_AXES]
+    dead = [a for a in _KEY_POLICY_AXES if a not in ENFORCED_AXES]
+    out = [f"{'/'.join(flag(a) for a in _KEY_POLICY_AXES)} are recorded on the key",
+           "and rendered back by create, list, show and check."]
+    if dead:
+        out.append(f"{len(live)} of the {len(_KEY_POLICY_AXES)} are enforced. "
+                   f"{', '.join(flag(a) for a in dead)} print \"(recorded, not "
+                   "enforced)\": a server reads nothing from them.")
+    else:
+        out.append(f"All {len(_KEY_POLICY_AXES)} are enforced, and the marker beside "
+                   "each value says so.")
+    out.append(
+        "--tools and --owners are checked on every call a networked server serves: a "
+        "key created `--tools none` sees an empty tool list and a call it makes is "
+        "refused. --rate and --burst bound how many requests the key may send, and "
+        "--cost-budget how much tool time it may spend; over the quota the server "
+        "answers 429 with a Retry-After.")
+    if "repos" in ENFORCED_AXES:
+        out.append(
+            "--repos limits the key to the repositories its globs match. Search, graph, "
+            "repo-list and stats answers leave the others out, and a tool that reads a "
+            "whole-fleet document refuses the key.")
+    else:
+        out.append("--repos is recorded only: a key reads every indexed repository "
+                   "whatever it says.")
+    if "external" in ENFORCED_AXES:
+        out.append(
+            "--external GRANTS access. On a key that has --repos, it lets the key read "
+            "connector-fetched content that belongs to no repository, such as issues "
+            "and designs. Without it that key cannot, so set it only for a holder you "
+            "would trust with that content. On a key with no --repos the flag does not "
+            "hide that content from search and graph answers.")
+    else:
+        out.append("--external is recorded only: it changes nothing the key can read.")
+    return "\n" + textwrap.fill(" ".join(out), 79) + "\n"
+
+
 def build_parser():
     """Build the argument parser. Kept separate from main() so it is testable."""
     # The flag registry is a process-wide cache of a fixed parser shape; drop it
@@ -1369,18 +1434,11 @@ which documents a missing name as a no-op at exit 0. An admin scripting a
 revocation reads the exit code, and "I revoked nothing" must never read as
 success.
 
---tools/--repos/--owners/--external/--rate/--burst/--cost-budget are recorded on
-the key and rendered back by create, list, show and check. FIVE OF THEM ARE
-ENFORCED AND TWO ARE NOT, and the marker beside each value says which. --tools and --owners are
-checked on every call a networked server serves: a key created `--tools none`
-sees an empty tool list and a call it makes is refused. --rate and --burst bound
-how many requests the key may send, and --cost-budget how much tool time it may
-spend; over the quota the server answers 429 with a Retry-After. --repos and
---external still bind nothing, so they print "(recorded, not enforced)"; a key
-reads every indexed repository whatever those say. Each --json document carries
-"policy_enforced" for what it renders and, per key, "enforced_axes", the three
-"effective_*" quota values the server will apply, and "limits_source" saying
-whether each came from the key, from [serve] in kb.toml, or from nowhere.
+""" + _keys_policy_epilog() + """
+Each --json document carries "policy_enforced" for what it renders and, per
+key, "enforced_axes", the three "effective_*" quota values the server will
+apply, and "limits_source" saying whether each came from the key, from [serve]
+in kb.toml, or from nowhere.
 
 Scoping is enforced on a NETWORKED server only. stdio serves one local user who
 already has the files, so nothing there reads a key or a policy.
@@ -1416,17 +1474,23 @@ already has the files, so nothing there reads a key or a policy.
                    help="usage: only rows from the last 45s/30m/2h/7d")
     p.add_argument("--url", default=_S,
                    help="the server URL to print in the client snippet")
-    # `--tools` and `--owners` are ENFORCED, so their help says what they do.
-    # `--repos` is not, so it keeps the sentence saying its value binds nothing.
-    # One wording for all three would be false about one of them either way.
+    # Every policy flag is ENFORCED, so each help says what it does. `--repos` and
+    # `--external` read `grants.ENFORCED_AXES` through `_keys_axis_help`, so they
+    # follow it if an axis ever stops being enforced. Their text said "nothing enforces
+    # it" for a release after that was false.
     p.add_argument("--tools", default=_S, metavar="GROUPS",
                    help="create: the tool groups this key may call, comma-separated "
                         "(all, read, none, graph, search, docs, stats, owners, "
                         "semantic). Enforced over the network; a call outside the "
                         "grant is refused")
     p.add_argument("--repos", default=_S, metavar="GLOBS",
-                   help="create: the repo globs this key is meant to read. Recorded "
-                        "on the key; nothing enforces it in this release")
+                   help=_keys_axis_help(
+                       "repos",
+                       "create: the repo globs this key may read, comma-separated. "
+                       "Enforced over the network; answers leave out every other "
+                       "repository",
+                       "create: the repo globs this key is meant to read. Recorded "
+                       "on the key; nothing enforces it in this release"))
     p.add_argument("--owners", default=_S, choices=("real", "pseudonymous", "hidden"),
                    # `pseudonymous` REFUSES rather than pseudonymising. There is no
                    # anonymiser on the network path, and serving real names to a key
@@ -1449,7 +1513,14 @@ already has the files, so nothing there reads a key or a policy.
                         "so one `ask` is charged for all eight tools it routes "
                         "to. `none` opts out of [serve] default_cost_budget")
     p.add_argument("--external", action="store_true", default=_S,
-                   help="the holder is outside your organisation; recorded on the key")
+                   help=_keys_axis_help(
+                       "external",
+                       "create: let a key that has --repos also read connector-fetched "
+                       "content that belongs to no repository, such as issues and "
+                       "designs. This GRANTS access: that key cannot read it without "
+                       "the flag. Enforced over the network",
+                       "create: mark the holder as outside your organisation. "
+                       "Recorded on the key; nothing enforces it in this release"))
     p.add_argument("--all", action="store_true", default=_S,
                    help="list: include revoked and expired keys")
     p.add_argument("--out", default=_S, metavar="PATH",

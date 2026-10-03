@@ -1675,38 +1675,148 @@ def test_keys_check_refuses_a_terminal_instead_of_blocking(run, keys_file,
     assert 'printf \'%s\' "$KEY" | contextlake kb keys check' in text
 
 
-def test_the_scope_flag_help_does_not_promise_a_restriction():
-    """`--help` is a surface too, and it read as a live grant.
+def test_the_scope_flag_help_matches_what_is_enforced():
+    """`--help` is a surface too. Its text for `--repos` and `--external` was a release stale.
 
-    Verbatim before this change: `--tools` said "the tool groups this key may
-    call", `--repos` "the repo globs this key may read", and `--owners` "how
-    much author identity this key sees". All three are present tense and all
-    three are false. The epilog said "nothing enforces them yet" further down
-    the page, which does not help a reader who skims the flag list.
+    Verbatim before this change: `--repos` said "nothing enforces it in this release",
+    `--external` said "recorded on the key", and the epilog said both "still bind
+    nothing". `grants.ENFORCED_AXES` has listed both since 9.3.0. The worst of the three
+    was `--external`: it GRANTS the key connector-fetched content, and its help described
+    a label. An operator tagging a contractor's key `--external` as bookkeeping handed it
+    that content.
+
+    The text is now derived from `grants.ENFORCED_AXES`, so the second half of this test
+    moves an axis out of that tuple and requires the help to follow. A test that only read
+    today's wording would pass on a build that had hardcoded the new sentence, and the
+    next axis to change state would drift the same way.
     """
     helps = {a.dest: (a.help or "") for a in _keys_parser()._actions}
-    # PER FLAG, because two of the three are enforced now. A blanket assertion
-    # either way is a wrong claim about one of them: `--repos` still binds
-    # nothing, and `--tools` now refuses a call outside its grant.
-    for dest in ("repos",):
-        text = helps[dest]
-        assert ("nothing enforces it in this release" in text
-                or "NOT validated in this release" in text), (
-            f"--{dest} does not say its value binds nothing: {text!r}")
-    for dest in ("tools", "owners", "rate", "cost_budget"):
+    for dest in ("repos", "external", "tools", "owners", "rate", "cost_budget"):
         text = helps[dest]
         assert "nothing enforces it in this release" not in text, (
-            f"--{dest} is enforced now and its help still says nothing reads "
-            f"it, so an operator skips a flag that would have scoped the key: "
-            f"{text!r}")
-        assert "nforced" in text, (
-            f"--{dest} never says its value is enforced: {text!r}")
-    # Only `--repos` still has to avoid the present-tense grant wording. For the
-    # two enforced flags "may call" is now the accurate description, and banning
-    # it there would push the next reader to weaken the help instead.
-    for claim in ("may read", "this key sees"):
-        assert claim not in helps["repos"], (
-            f"--repos help claims {claim!r}, which reads as a live grant")
+            f"--{dest} is enforced and its help says nothing reads it: {text!r}")
+        assert "nforced" in text, f"--{dest} never says its value is enforced: {text!r}"
+    # `--external` must say what it does, which is to grant.
+    assert "GRANTS" in helps["external"], helps["external"]
+    assert "connector" in helps["external"], helps["external"]
+    assert "outside your organisation" not in helps["external"], (
+        "the old label-only description of --external is back")
+
+    epilog = " ".join((_keys_parser().epilog or "").split())   # one line, wrap-proof
+    assert "still bind nothing" not in epilog, "the epilog still says repos/external bind nothing"
+    assert "recorded, not enforced" not in epilog, (
+        "every axis is enforced, so the epilog must not print the not-enforced marker")
+    assert "--external GRANTS" in epilog, "the epilog does not say that --external grants access"
+
+
+def test_the_scope_flag_help_follows_enforced_axes(monkeypatch):
+    """Derivation check: drop `repos` and `external` from `ENFORCED_AXES` and the help
+    and epilog must say so. Fails if the text is hardcoded."""
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a not in ("repos", "external")))
+    helps = {a.dest: (a.help or "") for a in _keys_parser()._actions}
+
+    for dest in ("repos", "external"):
+        assert "nothing enforces it in this release" in helps[dest], helps[dest]
+    assert "GRANTS" not in helps["external"], helps["external"]
+    # The enforced flags are untouched by the change.
+    assert "nothing enforces it in this release" not in helps["tools"]
+
+    epilog = " ".join((_keys_parser().epilog or "").split())
+    assert "recorded, not enforced" in epilog
+    assert "--external GRANTS" not in epilog
+
+
+def test_the_epilog_names_every_flag_it_classifies():
+    """The epilog repeats the flag list that `keys_cmd._ALL_AXES` holds. The parser is built
+    on every invocation, so cli.py cannot import keys_cmd to share it; this pins the copy."""
+    from contextlake.kb.cmds.keys_cmd import _ALL_AXES
+
+    assert cli._KEY_POLICY_AXES == _ALL_AXES, (
+        "cli.py's copy of the policy axes drifted from keys_cmd._ALL_AXES")
+    epilog = " ".join((_keys_parser().epilog or "").split())
+    for axis in _ALL_AXES:
+        assert "--" + axis.replace("_", "-") in epilog, axis
+
+
+def test_external_hides_connector_content_from_a_repo_scoped_key():
+    """The claim the `--external` help makes, run through the store the server uses.
+
+    The help says a key that has `--repos` cannot read connector-fetched content (the
+    `(external)` sentinel) unless it carries `--external`. Both directions, through
+    `search` and `get_node`, so a filter that hides everything or nothing fails one row.
+
+    NOT asserted for a key with no `--repos`: `ScopedStore.search` returns the store's
+    rows unfiltered for an unscoped key, so `(external)` nodes appear there with or
+    without the flag while `get_node` hides them. The help and docs say so. That
+    asymmetry is in `kb/scoped_store.py`, not in the CLI text.
+    """
+    from contextlake.kb import grants
+    from contextlake.kb.scoped_store import (
+        ScopedStore,
+        open_request_scope,
+        reset_request_scope,
+    )
+
+    class _Node:
+        def __init__(self, repo):
+            self.repo = repo
+
+    class _Store:
+        path = "/nowhere"
+
+        def __init__(self):
+            self.nodes = {"ext": _Node("(external)"), "code": _Node("acme/api")}
+
+        def get_node(self, node_id):
+            return self.nodes.get(node_id)
+
+        def search(self, query, kind=None, repo=None, limit=20):
+            return list(self.nodes.values())
+
+    def seen(policy):
+        scoped = ScopedStore(_Store(), lambda: grants.repo_scope_of(policy))
+        token = open_request_scope()
+        try:
+            found = [n.repo for n in scoped.search("q")]
+            return "(external)" in found, scoped.get_node("ext") is not None, \
+                "acme/api" in found
+        finally:
+            reset_request_scope(token)
+
+    assert seen({"repos": "acme/*"}) == (False, False, True)
+    assert seen({"repos": "acme/*", "external": True}) == (True, True, True)
+
+
+def test_show_labels_an_external_key_as_enforced(run, keys_file):
+    """FAILS before this change: `_scope_line` hardcoded `external=on  (recorded, not
+    enforced)` while the note under it said the release enforces `external`."""
+    run("create", "contractor", "--tools", "read", "--external")
+    key_id = _only_id(keys_file)
+
+    for result in (run("show", key_id),):
+        text = result.out + result.err
+        line = next((ln for ln in text.splitlines() if "external=" in ln), "")
+        assert line, f"no scope line named external: {text!r}"
+        assert f"external=on  {_ENFORCED_LABEL}" in line, line
+        assert _LABEL not in line, line
+
+
+def test_the_external_marker_follows_enforced_axes(run, keys_file, monkeypatch):
+    """With `external` removed from `ENFORCED_AXES` the scope line says it is not
+    enforced: the marker is read from the constant, not typed beside the value."""
+    from contextlake.kb import grants
+
+    monkeypatch.setattr(
+        grants, "ENFORCED_AXES",
+        tuple(a for a in grants.ENFORCED_AXES if a != "external"))
+    run("create", "contractor", "--tools", "read", "--external")
+    text = (lambda r: r.out + r.err)(run("show", _only_id(keys_file)))
+    line = next((ln for ln in text.splitlines() if "external=" in ln), "")
+    assert f"external=on  ({_LABEL})" in line, line
 
 
 # ---------------------------------------------------------------------------

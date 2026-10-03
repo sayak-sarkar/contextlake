@@ -220,9 +220,33 @@ run, so they pick up parser fixes.
 - **stale repos**, where HEAD moved since they were indexed
 - **dangling edges**, where an edge's endpoint node is missing
 - the same **older-parser** repos doctor reports, so the two commands never disagree
+- **orphan vectors**, where the semantic store holds vectors for a partition that has no nodes
+  in the graph (see below)
 
 Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
 it cannot read.
+
+The orphan-vector check is advisory too. For each partition that has vectors and no nodes, lint
+prints a line:
+
+```text
+  orphan vectors: <partition> (vectors with no nodes behind them, so nothing can reach them -- ...)
+```
+
+and the summary line ends with `N partition(s) with orphaned vectors`. Run `contextlake kb embed`
+to rebuild them, or `contextlake kb forget` to remove them. Before 9.3.0 an interrupted
+`kb forget` could leave this state. The check does not affect the exit code.
+
+It runs only when `[embeddings]` is enabled and the vector store exists. Otherwise it reports
+none. It also runs in the CLI only: the dashboard's lint view does not include it, because the scan
+reads the vector store.
+
+`kb lint --json` carries two fields for it, on every run:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `orphan_vectors` | number | how many partitions have vectors and no nodes; `0` when there are none |
+| `orphan_vector_partitions` | list of strings | the partition ids, sorted; `[]` when there are none |
 
 The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
 upgrading to a build with a new parser could turn a green CI gate red on its own.

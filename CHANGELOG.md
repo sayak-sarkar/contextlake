@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **A file in a mirrored clone can no longer reach outside it.** Four readers of a
+  clone's own files followed symlinks: `get_readme` over MCP, the wiki generator's
+  README excerpt, the dashboard README panel and the wiki steering file. A `README.md`
+  linked to `/proc/self/environ` returned the server's environment, which holds
+  `CONTEXTLAKE_MCP_TOKEN` when the operator pins it there, so the holder of a key scoped
+  to one repository who could commit a link to it obtained the full-scope token. All four
+  now refuse a file whose resolved path leaves the clone. Symlink loops return not-found.
+- **Repository scopes are enforced on every road, not only through the store proxy.**
+  The scope released above had gaps a 2026-10-03 audit found:
+  - `repo_dependencies`, `repo_flow` and `repo_event_flow` build edges with raw SQL the
+    proxy cannot see, and returned denied repositories' names. An edge now comes back
+    only when the caller may read both ends.
+  - `get_wiki` and `get_generated_doc` checked the caller's string, then opened a file
+    named by an encoding that is not one-to-one, so `team/x__y` opened a denied
+    `team/x/y` page and a namespace opened a cluster page narrating denied members.
+    The gate now resolves who owns the file.
+  - A key record removed mid-request read as unscoped. It now denies.
+  - Keys with no repo scope, and the shared token, were over-denied: a node visible in
+    `search_code` came back null from `get_node`, and `semantic_search` blamed a stale
+    embedding store. They now see everything, as documented.
+  - `test_scope_over_the_wire.py` drives every registered tool over a real socket with a
+    scoped key, an unscoped key and the shared token. It failed on 13 tools before these
+    fixes.
+- **A source credential stays on its own origin.** The `api` and `graphql` sources sent
+  `Authorization` through urllib, which re-sends it on a redirect, so an open redirect on
+  the API host received the token. A cross-origin redirect or next-page link is still
+  followed, without the header.
+
 ### Added
 
 - **The `repos` and `external` key scopes are enforced.** They were recorded and read
@@ -14,8 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every surface said so. Enforcement is a store-layer filter (`kb/scoped_store.py`),
   not a predicate over tool names: a node id does not carry its repo (the repo is
   inside a SHA-256 digest, and `normalize_id` collapses `/` to `_`), so the repo is
-  resolved by looking the node up. **Every axis a key can carry is now enforced**, and
-  the "recorded, not enforced" clause is omitted rather than printed with an empty list.
+  resolved by looking the node up. Every axis a key can carry is now enforced, with two
+  known limits stated rather than hidden: tools that read raw SQL through the store
+  connection are gated in their own bodies (a tool written later against that
+  connection is unscoped unless it does the same, and `test_scope_over_the_wire.py`
+  turns red when one does), and the vector-store path is not yet covered by that
+  socket-level test. The "recorded, not enforced" clause is omitted rather than
+  printed with an empty list.
   - Matching is segment-wise: `*` within a path segment, `**` across segments, never
     `startswith`. A prefix test would grant a scope for `acme/api` read access to
     `acme/api-v2`.
@@ -81,6 +116,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`list_repos` no longer scans every edge once per repository.** `edges` had no index on
+  `repo_id`. On a 200-repo, 600k-edge store: 2.9 s before, 0.012 s after. Existing stores
+  gain the index on their next open.
+- **A scoped search finds a term whose best match sits in a repository it cannot read.**
+  It used to filter after the store's limit, so `ask` said "No indexed symbol matches".
+  It now widens the search, bounded at 10,000 rows so a common term cannot load the whole
+  match set; past the bound it fails closed and logs it.
+- **The `api` source reads dotted field paths.** `text_field = "fields.summary"`, the
+  documented Atlassian example, ingested 0 documents.
+- **`--external` and `--repos` help says what is enforced.** It said "recorded, not
+  enforced", and in this release `--external` grants access. A discovered-config warning
+  now names the key it actually dropped. `SECURITY.md` and the configuration page list
+  the `auth` and `user` privileged source keys, and the orphan-vector lint advisory is
+  documented.
 - **Rewriting a wiki page sweeps that page's vectors.** It cleared the page's graph
   partition and re-embedded the new sections without touching the old vectors. Section
   nodes are keyed by index (`@wiki:<repo>:<i>`) and a document is one node but

@@ -90,11 +90,14 @@ _DATE_FORMAT = "%Y-%m-%d"
 # PART OF THE POLICY IS ENFORCED NOW AND PART IS NOT, AND THE LABEL SAYS WHICH.
 #
 # `tools` and `owners` are read by `kb/grants.py` and checked on every call a
-# networked server serves, and `rate`, `burst` and `cost_budget` are read by
-# `kb/ratelimit.py` at the gate. `repos` and `external` are still stored and
-# read by nothing.
+# networked server serves, `rate`, `burst` and `cost_budget` are read by
+# `kb/ratelimit.py` at the gate, and `repos` and `external` are applied by
+# `kb/scoped_store.py` (as of 9.3.0 all seven are in `grants.ENFORCED_AXES`).
+# This comment said "`repos` and `external` are still stored and read by
+# nothing" for a release after that stopped being true, and the help text, the
+# epilog, `docs/cli-reference.md` and `_scope_line` all said it with it.
 #
-# The label used to be one clause covering all six axes, and that is now a LIE
+# The label used to be one clause covering all six axes, and that was a LIE
 # IN BOTH DIRECTIONS. Blanket "recorded, not enforced" tells an operator their
 # `--tools none` key can still call everything, so they revoke a key that was
 # already safe; blanket "enforced" tells them `--rate 60/min` bounds a key that
@@ -103,12 +106,13 @@ _DATE_FORMAT = "%Y-%m-%d"
 # retyped here. Two lists in two modules drift, and this drift shows up as the
 # CLI claiming an axis is live that the gate does not check.
 #
-# What the deferred axes cost, stated once so the note below can be short.
-# `repos` bounds which repositories a key may NAME, not which an answer may come
-# FROM, and it cannot be enforced correctly by a predicate: a node id does not
-# carry its repo (`grants.py`'s module docstring has the measurement). `external`
-# is a sentinel ruling on the repos axis, so it rides with it. Rate, burst and
-# cost_budget went live with the rate limiter and are no longer in that list.
+# Why `repos` took a separate mechanism, kept because it explains where the
+# enforcement lives: it cannot be enforced correctly by a predicate on a call,
+# because a node id does not carry its repo (`grants.py`'s module docstring has
+# the measurement), so it is applied at the store. `external` is a sentinel
+# ruling on the same axis, so it rides with it, and it GRANTS: the `(external)`
+# partition (connector-fetched issues, wikis, designs) is hidden from a key
+# unless that flag is set.
 #
 # One phrase, used two ways: in brackets beside a value, and as a clause in the
 # note. `list` renders its policy in table columns with no room for a bracketed
@@ -418,7 +422,7 @@ def _policy(args) -> dict:
 
 
 def _scope_line(record) -> str:
-    """The three scope axes as stored, with the label that says they are inert.
+    """The scope axes as stored, each with the marker that belongs to it.
 
     An UNSET axis reads `unset`, never `none` and never `default`. It used to
     read `tools=none  repos=none  owners=default`, so a bare
@@ -429,13 +433,20 @@ def _scope_line(record) -> str:
 
     `tools=none` still prints when the operator TYPED `--tools none`: that is
     their own word echoed back, and suppressing it would lose what they asked
-    for. It is not enforced either, which is what the label is for.
+    for.
+
+    `external` is printed only when it is on, since it is a switch and `external=unset`
+    would read as a missing setting. Its marker comes from `_axis` like the others. It
+    used to be typed here as `(recorded, not enforced)`, a release after `external`
+    started granting the key connector-fetched content, so `kb keys show` printed
+    "not enforced" directly above a note saying the release enforces it. The same
+    release fixed `_enforcement_note` and missed this line.
     """
     policy = record.policy or {}
     parts = [_axis(policy, "tools"), _axis(policy, "repos"),
              _axis(policy, "owners")]
     if policy.get("external"):
-        parts.append(f"external=on  ({_NOT_ENFORCED})")
+        parts.append(_axis(policy, "external"))
     return "  ".join(parts)
 
 
@@ -453,6 +464,8 @@ def _axis(policy, axis: str) -> str:
     value = policy.get(axis)
     if not value:
         return f"{axis}=unset"
+    if value is True:
+        value = "on"        # `external` is a switch; "external=True" is Python leaking
     if axis not in grants.ENFORCED_AXES:
         return f"{axis}={value}  ({_NOT_ENFORCED})"
     if axis == "owners" and str(value).strip().casefold() != grants.OWNERS_REAL:
@@ -1601,9 +1614,8 @@ def _checked_note(path) -> str:
     rendered back, not an answer about what the server would allow.
 
     That is a different claim from `_enforcement_note`, and both lines print.
-    This one says THIS COMMAND asked nobody. That one says NOTHING ENFORCES the
-    policy, which stays true however the question is asked, including of a
-    running server.
+    This one says THIS COMMAND asked nobody. That one says which axes a running
+    server enforces, which is a fact about the release and not about this call.
     """
     return (f"Checked locally against {path}. No request was made, and the scope "
             "above is what the record stores, not what a server answered.")

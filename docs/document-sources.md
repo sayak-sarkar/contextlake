@@ -211,6 +211,13 @@ text_field = "body"            # which key holds the document text
 token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 ```
 
+`id_field`, `title_field` and `text_field` take a plain key or a dotted path into the record,
+such as `fields.summary`. A record with no text at that path is skipped.
+
+**The credential stays on one host.** The `Authorization` header goes only to the origin
+(scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
+origin is still followed, but without the header. A redirect within the same origin keeps it.
+
 **Two auth schemes.** `auth = "bearer"` is the default and sends
 `Authorization: Bearer <secret>`. `auth = "basic"` sends
 `Authorization: Basic base64(user:secret)`, which is what an API token needs on Atlassian

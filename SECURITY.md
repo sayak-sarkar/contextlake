@@ -69,7 +69,8 @@ environment variable holds that request's credential:
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
-| `[[sources]] token_env` | the environment variable read for an api/graphql source's bearer token |
+| `[[sources]] token_env` | the environment variable read for an api/graphql source's token |
+| `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host every prompt, or every chunk of indexed code, is posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the environment variable read for the credential sent to that host |
@@ -82,7 +83,9 @@ endpoint and a secret to send to it are the same capability arriving in two piec
 enough to point the default configuration at a host of the file author's choosing.
 `api_key_env` and `[[sources]] token_env` each name any variable in your environment,
 and the client puts that value into an `Authorization` (or `x-api-key`) header on the
-request it sends to that host. `[[sources]] auth_dir` chooses where `mcp-remote`
+request it sends to that host. `[[sources]] auth` and `user` are not secrets, but they
+decide how the `token_env` value is sent: a file that set `auth = "basic"` could turn a
+bearer token into half of a `user:token` pair. They are gated with it. `[[sources]] auth_dir` chooses where `mcp-remote`
 writes the OAuth refresh token it obtains, so an honest endpoint and honest scopes
 still hand a refreshable grant to a path the file picked. `kb connect` is a
 `bootstrap` stage, so no opt-in stands between a clone and the connector half of that.
