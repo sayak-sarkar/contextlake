@@ -19,6 +19,8 @@ Writing a plugin (third-party package)::
 from __future__ import annotations
 
 import logging
+import urllib.parse
+import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
@@ -58,6 +60,62 @@ def url_is_fetchable(url: str, *, source: str) -> bool:
         f"local files or other non-network resources. Skipping this URL.",
         level=logging.WARNING)
     return False
+
+
+# The opener every HTTP source uses. It lives here, not in one source, so that
+# a credential-bearing source cannot be written without it: the redirect guard was
+# first added to the `api` source alone, and `graphql` -- which sends the same
+# bearer header through the same urllib -- kept forwarding it to any origin a
+# redirect named. A fix applied to one sibling and not the other is the defect
+# class this project keeps re-learning.
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    """``(scheme, host, port)`` of ``url``, lower-cased, with the default port filled in,
+    so ``http://h`` and ``http://H:80/x`` compare equal."""
+    parts = urllib.parse.urlsplit(url)
+    scheme = (parts.scheme or "").lower()
+    try:
+        port = parts.port or _DEFAULT_PORTS.get(scheme)
+    except ValueError:      # a malformed port is its own origin, never a match
+        port = -1
+    return scheme, (parts.hostname or "").lower(), port
+
+
+def _same_origin(a: str, b: str) -> bool:
+    """True when both URLs share scheme, host and port: the unit a credential may travel in."""
+    return _origin(a) == _origin(b)
+
+
+class _OriginGuardedRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow redirects, but drop `Authorization` when the target is a different origin.
+
+    urllib builds the redirected request from the original's headers, so the credential
+    went wherever a ``Location`` pointed. An open redirect on the API host, or a
+    compromised endpoint, then received the token (for ``auth="basic"`` on Atlassian that
+    is an account-wide ``email:token``). A same-origin redirect keeps the header, because
+    APIs do redirect within their own host and that request still needs to authenticate.
+    One handler covers both schemes, since the check is on the header name.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and not _same_origin(req.full_url, new.full_url):
+            # `headers` keys are stored capitalised (`Authorization`) by `Request`.
+            new.headers.pop("Authorization", None)
+            new.unredirected_hdrs.pop("Authorization", None)
+            log(f"api source: a redirect left {_origin(req.full_url)[1]} for "
+                f"{_origin(new.full_url)[1]}; the Authorization header was not sent there",
+                level=logging.WARNING)
+        return new
+
+
+# Built once: an opener carries no per-request state, and `urlopen` builds a default one
+# per call anyway. Same proxy and HTTPS handling as `urlopen`; only the redirect handler
+# differs.
+_OPENER = urllib.request.build_opener(_OriginGuardedRedirect)
 
 
 @dataclass

@@ -15,7 +15,7 @@ import urllib.request
 
 from ...logging_setup import log
 from .api import _dig
-from .base import Document, FetchFailures, url_is_fetchable
+from .base import _OPENER, Document, FetchFailures, url_is_fetchable
 
 
 def _has_next_page(obj, _depth: int = 0) -> bool:
@@ -74,7 +74,9 @@ class GraphQLSource(FetchFailures):
                 headers["Authorization"] = f"Bearer {token}"
         body = json.dumps({"query": self.query, "variables": self.variables}).encode("utf-8")
         req = urllib.request.Request(self.url, data=body, headers=headers, method="POST")  # noqa: S310 - URL from trusted config
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
+        # The shared opener, not `urlopen`: urlopen follows a redirect WITH the bearer
+        # header, so an open redirect on the API host received the token. See base.py.
+        with _OPENER.open(req, timeout=self.timeout) as resp:  # noqa: S310
             charset = resp.headers.get_content_charset() or "utf-8"
             return json.loads(resp.read().decode(charset, errors="replace"))
 

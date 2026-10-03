@@ -962,7 +962,12 @@ def test_an_api_probe_that_read_nothing_names_the_record_keys_a_web_one_lacks(
         dialled.append(req.full_url if hasattr(req, "full_url") else str(req))
         return _FakeResponse("[]")
 
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    # The api source opens through its own opener (it carries the cross-origin
+    # redirect guard), so `urllib.request.urlopen` is no longer on its path.
+    from contextlake.kb.sources import api as api_source
+
+    monkeypatch.setattr(api_source._OPENER, "open",
+                        lambda req, data=None, timeout=None: fake_urlopen(req, timeout))
     ok, detail = source_cmd.verify_source(
         SourceCfg(type="api", name="tickets", url="http://api.example.net/v1/tickets"))
     assert ok is False, "an api probe that read no record reported as a pass"

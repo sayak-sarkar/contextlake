@@ -12,10 +12,11 @@ import base64
 import json
 import logging
 import os
+import urllib.parse
 import urllib.request
 
 from ...logging_setup import log
-from .base import Document, FetchFailures, url_is_fetchable
+from .base import _OPENER, Document, FetchFailures, _same_origin, url_is_fetchable
 
 
 def _dig(obj, path: str):
@@ -27,6 +28,32 @@ def _dig(obj, path: str):
         else:
             return None
     return cur
+
+
+def _field(rec: dict, path: str, default=None):
+    """One record field by name or dotted path, or ``default`` when it is absent.
+
+    ``id_field`` / ``title_field`` / ``text_field`` used to be a flat ``rec.get(name)``.
+    Only ``items`` and ``next_field`` went through `_dig`, so the documented Atlassian
+    example (``text_field = "fields.summary"``) looked up a key no Jira record has,
+    skipped every record as textless and reported zero documents with no error. A literal
+    key is tried first, so a record that really has a key named ``fields.summary`` (the
+    only thing the flat lookup could read) keeps working. Only then is the name read as a
+    path. A present key holding None is still returned as None, as `dict.get` did; only
+    an absent path returns ``default``. `_dig` cannot be reused for that, because it
+    returns None for both cases.
+    """
+    if path in rec:
+        return rec[path]
+    cur = rec
+    for key in path.split("."):
+        if isinstance(cur, dict) and key in cur:
+            cur = cur[key]
+        else:
+            return default
+    return cur
+
+
 
 
 def _records_of(payload, items: str | None) -> list:
@@ -68,8 +95,9 @@ class ApiSource(FetchFailures):
     Config (``[[sources]] type="api"``):
       - ``url`` (required)
       - ``items``: dotted path to the list of records (default: the top-level value)
-      - ``id_field`` / ``title_field`` / ``text_field``: record keys (default
-        ``id`` / ``title`` / ``text``); a record without text is skipped
+      - ``id_field`` / ``title_field`` / ``text_field``: record keys or dotted paths
+        into a record, e.g. ``fields.summary`` (default ``id`` / ``title`` / ``text``);
+        a record without text is skipped
       - ``token_env``: name of an env var holding the secret (optional)
       - ``auth``: ``bearer`` (default) or ``basic``. ``basic`` sends
         ``Authorization: Basic base64(user:secret)``, which is the only scheme Atlassian
@@ -146,8 +174,16 @@ class ApiSource(FetchFailures):
 
     def _fetch_one(self, url) -> tuple[object, str | None]:
         """One page: ``(payload, next_url_or_cursor)``."""
-        req = urllib.request.Request(url, headers=self._headers())  # noqa: S310 - URL from trusted config
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
+        headers = self._headers()
+        if "Authorization" in headers and not _same_origin(self.url, url):
+            # A `next` URL comes from the response body or a `Link` header, so a
+            # compromised endpoint can name any host. The redirect handler cannot see
+            # this hop: it is a fresh request, not a redirect.
+            del headers["Authorization"]
+            log(f"api source: the next page {url} is a different origin from {self.url}; "
+                f"the Authorization header was not sent there", level=logging.WARNING)
+        req = urllib.request.Request(url, headers=headers)  # noqa: S310 - URL from trusted config
+        with _OPENER.open(req, timeout=self.timeout) as resp:
             charset = resp.headers.get_content_charset() or "utf-8"
             payload = json.loads(resp.read().decode(charset, errors="replace"))
             nxt = _next_from_link_header(resp.headers.get("Link"))
@@ -201,9 +237,9 @@ class ApiSource(FetchFailures):
         for i, rec in enumerate(records):
             if not isinstance(rec, dict):
                 continue
-            text = rec.get(self.text_field)
+            text = _field(rec, self.text_field)
             if not text:
                 continue
-            rid = str(rec.get(self.id_field, i))
-            yield Document(id=rid, title=str(rec.get(self.title_field) or rid),
+            rid = str(_field(rec, self.id_field, i))
+            yield Document(id=rid, title=str(_field(rec, self.title_field) or rid),
                            text=str(text), uri=self.url, attrs={"index": i})

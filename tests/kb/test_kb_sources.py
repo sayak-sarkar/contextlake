@@ -133,7 +133,9 @@ def test_api_source_uses_token_env_for_auth(monkeypatch):
         return _Resp()
 
     monkeypatch.setenv("MY_TOKEN", "sekret")
-    monkeypatch.setattr(api.urllib.request, "urlopen", fake_urlopen)
+    # The source opens through `_OPENER` (it carries the redirect guard), not `urlopen`.
+    monkeypatch.setattr(api._OPENER, "open",
+                        lambda req, data=None, timeout=None: fake_urlopen(req, timeout))
     docs = list(api.ApiSource(url="https://api/x", token_env="MY_TOKEN").iter_documents())
     assert docs and docs[0].id == "a"
     assert captured["auth"] == "Bearer sekret"   # pulled from the env var, not config
@@ -201,7 +203,9 @@ def test_graphql_source_uses_token_env_and_posts_query(monkeypatch):
         return _Resp()
 
     monkeypatch.setenv("MY_TOKEN", "sekret")
-    monkeypatch.setattr(graphql.urllib.request, "urlopen", fake_urlopen)
+    # The shared guarded opener, not `urlopen`: the source no longer calls urlopen, so a
+    # patch there intercepted nothing and the test made a real request to `api`.
+    monkeypatch.setattr(graphql._OPENER, "open", fake_urlopen)
     docs = list(graphql.GraphQLSource(
         url="https://api/graphql", query="{ x }", variables={"n": 1},
         token_env="MY_TOKEN").iter_documents())
