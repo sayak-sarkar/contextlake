@@ -9094,6 +9094,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MAILTO=""`, which cron applies to every line below it. The block now sets no MAILTO,
   and the contextlake job line ends in `>/dev/null 2>&1` instead. Installing again
   removes the old `MAILTO=""` line.
+- **A `wiki.toml` `pages` list now survives a wiki run with an LLM.** The LLM stage planned
+  the module pages again without the list, then pruned the pages the structural stage had
+  just written for it, with their partitions and vectors. Both stages now use one plan. A
+  list longer than 20 is no longer cut short. With a list, a run keeps only the module
+  pages it names, generated ones included: the list is the complete set.
+- **`kb steer` no longer replaces an MCP config it cannot parse.** A `.vscode/mcp.json` or
+  another MCP file holding a comment or a trailing comma was replaced by one holding only
+  contextlake's entry, and the run said the other servers were kept. Now the file is left
+  as it is, a warning says where it did not parse and what to do, and the closing line
+  names it. The rest of the steering is still written, and the exit code stays 0.
+- **`kb forget` removes the module wiki pages of a repo whose id holds `@` or `:`.** It
+  named those pages differently from the wiki writer, so the module pages of a
+  remote-less repo (`name@<commit>`) or a host with a port stayed on disk.
 
 ## [9.4.0] - 2026-10-03
 

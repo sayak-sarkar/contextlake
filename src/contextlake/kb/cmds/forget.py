@@ -39,19 +39,27 @@ from ._common import _guard_store, _open_store, kb_config
 def _wiki_pages(wiki_dir, repo_id: str) -> list:
     """Every wiki file belonging to ``repo_id``: whole-repo page and module pages.
 
-    Both names are composed here from the same sanitization the writers use
-    (``repo_id.replace("/", "__")``) rather than by globbing a prefix. A prefix
-    glob is wrong: repo ``team/app`` sanitizes to ``team__app``, and so does the
-    module page of repo ``team`` for module ``app`` -- and ``team__app*`` would
-    also sweep up the unrelated repo ``team/appendix``. Module pages live under
-    ``_modules/`` (see ``wiki._module_page_file``), which is what keeps the two
-    namespaces apart on disk, so each is matched in its own directory.
+    Both names come from the wiki writers' own naming, not from a copy of the rule here.
+    The whole-repo page is named by ``repo_slug`` and a module page by ``_safe_name``,
+    which folds every character that is not a word character, ``.`` or ``-`` to ``_``. A
+    copy of ``repo_id.replace("/", "__")`` matched the whole-repo page but not the module
+    pages of an id holding ``@`` (a remote-less repo is ``name@<commit>``) or ``:`` (a host
+    with a port), so ``forget`` left those module pages on disk.
+
+    Module pages are matched by a prefix glob, which is wrong without care: repo
+    ``team/app`` sanitizes to ``team__app``, and ``team__app*`` would also sweep up the
+    unrelated repo ``team/appendix``. The glob therefore ends the repo part with the
+    ``__`` separator. Module pages live under ``_modules/`` (see
+    ``wiki._module_page_file``), which keeps them apart from whole-repo pages on disk, so
+    each kind is matched in its own directory.
     """
+    from ..visualize import repo_slug
+    from .wiki import _safe_name
+
     if not wiki_dir.is_dir():
         return []
-    safe = repo_id.replace("/", "__")
     found = []
-    whole = wiki_dir / f"{safe}.md"
+    whole = wiki_dir / f"{repo_slug(repo_id)}.md"
     if whole.is_file():
         found.append(whole)
     modules = wiki_dir / "_modules"
@@ -59,9 +67,11 @@ def _wiki_pages(wiki_dir, repo_id: str) -> list:
         # A module page is "<repo>__<module>.md", so the repo's own pages are
         # exactly those prefixed with "<repo>__". The trailing separator is what
         # stops repo "team/app" from claiming repo "team/appendix"'s pages.
-        # `glob.escape`: the id is data, not a pattern. An id containing `*` or `[` matched
-        # the module pages of other repos, and `forget` then deleted them.
-        found += sorted(p for p in modules.glob(f"{glob.escape(safe)}__*.md")
+        # `glob.escape`: the id is data, not a pattern. `_safe_name` already folds the
+        # glob characters to `_`, so this is the second layer. It was the only one when an
+        # id containing `*` or `[` matched the module pages of other repos and `forget`
+        # deleted them.
+        found += sorted(p for p in modules.glob(f"{glob.escape(_safe_name(repo_id))}__*.md")
                         if p.is_file())
     return found
 

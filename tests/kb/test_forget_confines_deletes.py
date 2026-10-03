@@ -185,13 +185,25 @@ def test_a_history_dir_that_is_a_symlink_out_of_the_store_is_not_listed(world):
 def test_a_glob_character_in_an_id_does_not_sweep_other_repos_wiki_pages(tmp_path):
     """`_wiki_pages` globs `<id>__*.md` in `_modules/`. An id containing `*` made the glob
     match the pages of every other repo on that host. They are regenerable, but they are
-    not this repo's."""
-    modules = tmp_path / "wiki" / "_modules"
-    modules.mkdir(parents=True)
-    (modules / "host__other__mod.md").write_text("other")
-    (modules / "host__*__mod.md").write_text("own")
-    got = {p.name for p in _wiki_pages(tmp_path / "wiki", "host/*")}
-    assert got == {"host__*__mod.md"}, got
+    not this repo's.
+
+    The pages are named by the wiki writer, not by hand. This test once wrote
+    `host__*__mod.md`, a name the writer cannot produce: `_safe_name` folds `*` to `_`, so
+    the real page for `host/*` is `host_____mod.md`. A hand-written name that the writer
+    never makes passes or fails for reasons unrelated to what `forget` will meet on disk.
+    Since the writer folds glob characters, `glob.escape` is now the second layer, and no
+    id reaches it holding one.
+    """
+    from contextlake.kb.cmds.wiki import _module_page_file
+
+    wiki = tmp_path / "wiki"
+    own = _module_page_file(wiki, "host/*", "mod")
+    other = _module_page_file(wiki, "host/other", "mod")
+    own.parent.mkdir(parents=True)
+    other.write_text("other")
+    own.write_text("own")
+    got = {p.name for p in _wiki_pages(wiki, "host/*")}
+    assert got == {own.name}, got
 
 
 # --- the new helper -------------------------------------------------------------------
