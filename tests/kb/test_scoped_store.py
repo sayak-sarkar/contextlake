@@ -410,3 +410,77 @@ def test_two_live_proxies_in_one_request_keep_separate_verdicts(request_scope):
         "the second proxy answered with the first one's scope")
     assert narrow.is_scoped() is True
     assert wide.is_scoped() is False
+
+
+class _EndlessDeniedStore(_FakeStore):
+    """A store whose every search fills the page with rows the caller cannot read.
+
+    Models a common term whose matches all sit in denied repositories: no round ever
+    comes back short, so only a bound on the growth stops the loop.
+
+    It refuses an oversized `limit` BEFORE building the page. The first version of
+    this fake built `limit` rows and then counted calls, so with the bound removed it
+    spent its time allocating millions of rows, never reached its call guard, and the
+    run ended in a TIMEOUT rather than a failure: a test guarding a bound must not
+    itself allocate in proportion to the thing it bounds. Refusing first makes a
+    missing bound fail in a few rounds, with at most a few hundred rows built.
+    """
+
+    REFUSE_ABOVE = 1_000
+
+    def __init__(self):
+        super().__init__()
+        self.asked: list[int] = []
+
+    def search(self, query, kind=None, repo=None, limit=20):
+        self.asked.append(limit)
+        if limit > self.REFUSE_ABOVE:
+            raise AssertionError(
+                f"search grew past {self.REFUSE_ABOVE} rows: asked {self.asked}")
+        return [_Node(f"d{i}", "other/api") for i in range(limit)]
+
+
+def test_scoped_search_is_bounded_when_every_match_is_denied(request_scope, monkeypatch,
+                                                              gls_logs):
+    """A caller-chosen term must not make the server load every match in the store.
+
+    The first R07 fix grew the limit with no bound, reasoning that a larger LIMIT
+    costs only the rows it materialises. But the store scores every match on every
+    round (ORDER BY bm25) and `.fetchall()`s the round, and the caller picks the term,
+    so a scoped key could drive the whole match set into memory.
+
+    The answer is empty either way here (nothing is readable), so the assertion is on
+    the WORK done: the largest page asked for, and the number of rounds.
+    """
+    import contextlake.kb.scoped_store as ss
+
+    monkeypatch.setattr(ss, "_SCOPED_SEARCH_CEILING", 64)
+    store = _EndlessDeniedStore()
+
+    assert _scoped(store=store).search("common", limit=1) == []
+
+    assert max(store.asked) == 64, store.asked          # never past the ceiling
+    assert len(store.asked) <= 5, store.asked           # 1, 4, 16, 64: then it stops
+    assert gls_logs.text, "captured nothing, so the next assertion is vacuous"
+    assert "stopped at 64 rows" in gls_logs.text
+
+
+def test_scoped_search_still_finds_a_readable_match_below_the_ceiling(request_scope,
+                                                                       monkeypatch):
+    """Positive control: the bound must not cost the R07 fix itself.
+
+    The single best match is denied and the first readable one ranks 20th, which a
+    plain `limit=1` query would miss. Under a ceiling well above 20 it is found.
+    """
+    import contextlake.kb.scoped_store as ss
+
+    monkeypatch.setattr(ss, "_SCOPED_SEARCH_CEILING", 64)
+
+    class _ReadableAt20(_FakeStore):
+        def search(self, query, kind=None, repo=None, limit=20):
+            rows = [_Node(f"d{i}", "other/api") for i in range(19)]
+            rows.append(_Node("hit", "acme/api"))
+            return rows[:limit]
+
+    hits = _scoped(store=_ReadableAt20()).search("term", limit=1)
+    assert [n.id for n in hits] == ["hit"]

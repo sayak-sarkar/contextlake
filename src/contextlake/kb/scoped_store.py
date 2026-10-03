@@ -19,15 +19,24 @@ WHAT IS AND IS NOT CLOSED HERE, stated because the gap is real and dated:
 * NOT closed: ``.conn`` is still forwarded. Three tools (``repo_dependencies``,
   ``repo_flow``, ``repo_event_flow``) reach raw SQL through ``arch/resolve.py``, so
   hiding it turns every one of those calls into an ``AttributeError``. They are filtered
-  at the tool bodies instead, which scopes what a caller receives; what remains open is
-  NEW code written against ``.conn``, which is a review concern rather than a live hole.
-  Closing it means rewriting ``arch/resolve.py`` off ``.conn``, which is S4.3.6.
+  at the tool bodies instead (``server._readable_repo_edges``): an edge comes back only
+  when the caller may read BOTH endpoint repositories, and a denied ``repo`` argument
+  returns nothing. What remains open is NEW code written against ``.conn``;
+  ``tests/kb/test_scope_over_the_wire.py`` drives every registered tool with a scoped
+  key, so such a tool turns that file red. Closing it means rewriting
+  ``arch/resolve.py`` off ``.conn``, which is S4.3.6.
+
+  THIS PARAGRAPH WAS FALSE in the release that introduced it. It said the three tools
+  were filtered at their bodies, and no filter existed: a key scoped to one glob
+  received every denied repository's name and its package, HTTP and event relations.
+  The proxy cannot see that road, and no test drove it with a scoped key.
 
 Do not "fix" that by hiding ``conn`` without doing the rewrite first.
 """
 
 from __future__ import annotations
 
+import logging
 from contextvars import ContextVar
 from weakref import WeakKeyDictionary
 
@@ -42,6 +51,11 @@ from .scope import owns_partition, partitions_in_scope
 # verdicts answer another principal's question, and the two memos below are keyed by
 # partition id and node id, NEITHER of which carries the principal. That is the shape
 # where a scoped key reads another key's results and every test still passes.
+# The most rows a scoped search materialises while looking for readable ones.
+# See `ScopedStore.search`: unbounded, a caller-chosen term drove the store to score
+# and load every match. Far above any real top-k (callers ask for 1 to 50).
+_SCOPED_SEARCH_CEILING = 10_000
+
 _SCOPE_MEMO: ContextVar[WeakKeyDictionary | None] = ContextVar(
     "contextlake_scope_memo", default=None)
 
@@ -115,9 +129,12 @@ class ScopedStore:
 
         THREE STATES, and collapsing any two of them is a security bug:
 
-        * ``None`` -- there is no principal. DENY EVERYTHING. Unreachable through
-          ``guarded``, which raises ``IdentityUnset`` above the anchor before any
-          tool body runs, so this exists for a direct construction.
+        * ``None`` -- there is no principal, or its key record is gone. DENY
+          EVERYTHING. No principal is unreachable through ``guarded``, which raises
+          ``IdentityUnset`` above the anchor. A record removed between the grant
+          check and the first store read IS reachable, and
+          ``GrantCheck.repo_scope`` returns ``None`` for it; it used to return
+          ``([], False)``, which landed in the allow-everything state below.
         * ``((), external)`` -- a principal with NO repo scope on its key. Allow
           every repository. An absent axis is not a scope, the same reading
           ``grants._check_tools`` gives an absent ``tools`` axis.
@@ -188,6 +205,54 @@ class ScopedStore:
         """
         return self._allows(repo_id)
 
+    def allows_page_of(self, repo_id: str) -> bool:
+        """PUBLIC. Whether this caller may read the per-repo PAGE ``repo_id`` names.
+
+        For the tools that open ``<dir>/<repo_id with "/" as "__">.md`` (the wiki
+        and the generated docs). ``allows_repo`` answers about the STRING the caller
+        sent, and the file is named by an encoding that is not one-to-one, so the
+        string and the file's owner can differ:
+
+        * ``*`` matches inside one segment, so a scope ``team/*`` admits
+          ``team/x__y``, whose file is the one written for the denied ``team/x/y``.
+        * An admitted id without ``__`` can name the file of a denied repository
+          whose id has one: ``team/y`` and ``team__y`` both encode to ``team__y.md``.
+        * A namespace the scope admits falls through to its CLUSTER page, which
+          narrates every member of the namespace, denied ones included.
+
+        So the gate resolves who owns the file from the REAL store, below this
+        proxy (through it, a denied owner is invisible and the collision would be
+        missed), and allows only when ``repo_id`` is itself an indexed repository
+        and EVERY id that encodes to the same file is readable. A ``__`` in the
+        argument is refused outright for a scoped caller, and a namespace is not an
+        indexed repository, so a cluster page never reaches a scoped caller: it
+        spans repositories, and a scope is a statement about single ones.
+
+        An unscoped caller is answered ``True`` without a lookup, matching every
+        other early return in this class. No principal is ``False``.
+        """
+        scope = self._scope()
+        if scope is None:
+            return False
+        if not scope[0]:
+            return True
+        if "__" in repo_id or not self._allows(repo_id):
+            return False
+        # The encoding `get_wiki` and `get_generated_doc` open the file by:
+        # `visualize.html_render.repo_slug`, the one the page writers use. IMPORTED,
+        # not copied. A copy is a second definition of the boundary this gate
+        # protects, and it drifts the day either one changes. The cost that made the
+        # first version copy it (that module pulls in the visualize package) is
+        # avoided by importing here, inside the one branch that needs it: a scoped
+        # caller asking for a page.
+        from .visualize.html_render import repo_slug
+        slug = repo_slug(repo_id)
+        known = {r.id for r in self._store.list_repos()}
+        known.update(p for p in self._store.list_partitions()
+                     if not p.startswith(("@", "(")))
+        owners = {rid for rid in known if repo_slug(rid) == slug}
+        return repo_id in owners and all(self._allows(rid) for rid in owners)
+
     def is_scoped(self) -> bool:
         """Whether ANY repo scope applies to this caller.
 
@@ -218,7 +283,9 @@ class ScopedStore:
     def conn(self):
         """STILL FORWARDED, and this is the one hole in this class. See the module
         docstring: hiding it breaks three tools until ``arch/resolve.py`` is rewritten
-        off raw SQL. Those three are filtered at their tool bodies instead."""
+        off raw SQL. Those three are filtered at their tool bodies instead, by
+        ``server._readable_repo_edges`` (this line said so before that filter
+        existed)."""
         return self._store.conn
 
     def close(self) -> None:
@@ -247,8 +314,58 @@ class ScopedStore:
                 and self._node_visible(self._store.get_node(e.dst))]
 
     def search(self, query: str, kind=None, repo=None, limit: int = 20):
-        return self._filter_nodes(
-            self._store.search(query, kind, repo, limit), repo)
+        """The best ``limit`` rows THIS CALLER may read, not the best ``limit`` rows
+        filtered afterwards.
+
+        It used to pass ``limit`` to the store and filter the result. The relevance
+        floor (``relevance.term_anchors``) probes each term with ``limit=1``, so when
+        the single best match in the whole store sat in a denied repository, the
+        filter emptied the one row and a scoped key was told the term is not in the
+        graph while its own repositories held it: ``semantic_search`` answered empty
+        with no note, and ``ask`` said "No indexed symbol matches".
+
+        So a scoped caller re-queries with a growing limit until it has ``limit``
+        visible rows or the store returns fewer rows than were asked for, which
+        means every match has been seen.
+
+        THE GROWTH IS BOUNDED at ``_SCOPED_SEARCH_CEILING`` rows. The version that
+        first fixed this had no bound and said none was needed, on the grounds that
+        a larger ``LIMIT`` costs only the rows it materialises. That was wrong twice.
+        The store sorts with ``ORDER BY bm25(...)``, so EVERY round scores every
+        match, and ``.fetchall()`` then materialises the whole round. And the caller
+        chooses the term: a scoped key searching a common word whose matches all sit
+        in repositories it cannot read drove the rounds until the entire match set
+        was in memory, on a store with hundreds of thousands of nodes. A key holder
+        could exhaust the server.
+
+        The ceiling brings the original defect back only for a term with more than
+        that many better-ranked matches in denied repositories ahead of the first
+        readable one, and it fails CLOSED: the term reads as absent, nothing leaks.
+        It is logged when reached, so the loss is not silent. The real fix pushes the
+        scope into the SQL as ``repo_id IN (visible_partitions())``, so the store
+        returns only readable rows in one round; that changes the ``Store`` protocol
+        and is tracked separately.
+        """
+        if self._unscoped():
+            return self._store.search(query, kind, repo, limit)
+        if repo and not self._allows(repo):
+            return []
+        if limit <= 0:
+            return self._filter_nodes(
+                self._store.search(query, kind, repo, limit), repo)
+        ask = limit
+        while True:
+            rows = self._store.search(query, kind, repo, ask)
+            kept = self._filter_nodes(rows, repo)
+            if len(kept) >= limit or len(rows) < ask:
+                return kept[:limit]
+            if ask >= _SCOPED_SEARCH_CEILING:
+                from ..logging_setup import log
+                log(f"scoped search for {query!r} stopped at {ask} rows with "
+                    f"{len(kept)} readable; later matches were not examined",
+                    level=logging.WARNING)
+                return kept[:limit]
+            ask = min(ask * 4, _SCOPED_SEARCH_CEILING)
 
     def nodes_by_name(self, name: str, kind=None, repo=None):
         return self._filter_nodes(self._store.nodes_by_name(name, kind, repo), repo)

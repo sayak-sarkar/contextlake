@@ -39,6 +39,16 @@ id. This module supplies the SCOPE that proxy applies -- see
 :meth:`GrantCheck.repo_scope` -- and keeps deciding the tool axis. Two mechanisms
 because there are two questions: "may this key call this tool" is answerable from
 a name, and "may this key see this row" is not.
+
+THE PROXY DOES NOT SEE EVERY ROAD, and the tools that bypass it are gated in their
+own bodies in ``kb/server.py``: ``repo_dependencies``, ``repo_flow`` and
+``repo_event_flow`` build their edges with raw SQL through ``.conn``
+(``arch/resolve.py``) and drop any edge with an endpoint the caller may not read;
+the disk readers resolve the repository that owns the file they serve. Until
+``arch/resolve.py`` is rewritten off ``.conn`` (S4.3.6), a new tool written against
+``.conn`` is unscoped unless its body does the same. ``tests/kb/
+test_scope_over_the_wire.py`` drives every registered tool over a socket with a
+scoped key, so such a tool turns that file red.
 """
 
 from __future__ import annotations
@@ -438,21 +448,40 @@ class GrantCheck:
             policy = self._policy(principal)
         check_tool_grant(principal, tool_name, policy)
 
-    def repo_scope(self, principal: Principal | None) -> tuple[list[str], bool]:
-        """``(patterns, external)`` for this principal, for ``ScopedStore``.
+    def repo_scope(self, principal: Principal | None
+                   ) -> tuple[list[str], bool] | None:
+        """``(patterns, external)`` for this principal, for ``ScopedStore``, or
+        ``None`` for "deny everything".
 
-        ``None`` principal yields ``([], False)``, which reads as unscoped -- and
-        that is SAFE here only because ``ScopedStore`` never asks this for an
-        unidentified caller: ``guarded`` raises ``IdentityUnset`` above the anchor,
-        and the proxy's own ``_patterns`` denies when this returns nothing to a
-        direct call. The shared token has no record and so no scope, matching what
-        the tool axis already does with it.
+        THREE ANSWERS, matching the proxy's three states (``ScopedStore._scope``):
+
+        * ``None`` -- no principal, or a key whose record is GONE. Deny all.
+        * ``([], external)`` -- a live record with no repo scope, or the shared
+          token, which has no record and so no scope (the tool axis reads it the
+          same way). Allow every repository.
+        * ``([patterns...], external)`` -- scoped.
+
+        A missing record used to return ``([], False)`` through
+        ``repo_scope_of(None)``, which the proxy reads as "allow every repository".
+        So a key revoked and pruned (or hand-deleted) between ``check()`` admitting
+        the request and the first store call read the whole fleet for that
+        request, while the tool axis, which reads the same record, refused it in
+        the same case (:func:`check_tool_grant` treats ``None`` as no grant). The
+        deny-all branch in the proxy was unreachable in production, and the test
+        covering it passed ``lambda: None``, a value this method never returned.
+        The old docstring named a ``_patterns`` denial in the proxy as the
+        backstop; no such method exists.
         """
         if principal is None:
-            return [], False
+            # Unreachable through `guarded`, which raises `IdentityUnset` above the
+            # anchor. Denied rather than read as unscoped for a direct call.
+            return None
         if _is_shared_token(principal.key_id):
             return [], False
-        return repo_scope_of(self._policy(principal))
+        policy = self._policy(principal)
+        if policy is None:
+            return None
+        return repo_scope_of(policy)
 
     def visible(self, principal: Principal | None,
                 names: Iterable[str]) -> list[str]:

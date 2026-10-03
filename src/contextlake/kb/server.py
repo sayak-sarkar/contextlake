@@ -1541,6 +1541,31 @@ def build_server(
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated)
 
+    def _readable_repo_edges(rows: list[dict], repo: str, direction: str) -> list[dict]:
+        """The repo->repo edges touching ``repo`` that this caller may read, for the
+        three flow tools ONLY.
+
+        Those tools build their rows with raw SQL through ``store.conn``
+        (``arch/resolve.py``), which no ``ScopedStore`` method sees, so the proxy
+        cannot filter them and this does. Before it existed, a key scoped to one glob
+        received the name of every denied repository on the far end of an edge, and a
+        denied repository passed as ``repo`` returned its whole neighbourhood beside
+        ``found=false``, while ``scoped_store.py`` said these tools were filtered.
+
+        BOTH endpoints are checked, for the reason ``ScopedStore.neighbors`` gives: an
+        edge from a readable repo to a denied one hands over the denied repo's id in
+        plain text. A denied ``repo`` argument returns nothing at all, so the answer
+        matches a repository that is not indexed. Every caller counts ``total`` and
+        ``truncated`` AFTER this, so neither discloses how many edges were dropped.
+        On a bare store (stdio, the dashboard) ``_may_read_repo`` is always True and
+        this is ``_repo_side`` unchanged.
+        """
+        side = _repo_side(rows, repo, direction)  # validates `direction` first
+        if not _may_read_repo(repo):
+            return []
+        return [e for e in side
+                if _may_read_repo(e["src"]) and _may_read_repo(e["dst"])]
+
     @bounded_tool
     def repo_dependencies(repo: str, direction: Direction = "both",
                           limit: int = 50) -> RepoEdgesOut:
@@ -1554,7 +1579,7 @@ def build_server(
         not read as "this repo depends on nothing".
         """
         from .arch.resolve import repo_dependency_edges
-        rows = _repo_side(repo_dependency_edges(store), repo, direction)
+        rows = _readable_repo_edges(repo_dependency_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated,
@@ -1576,7 +1601,7 @@ def build_server(
         ``found=False`` when no repo with that id is indexed.
         """
         from .arch.resolve import repo_http_flow_edges
-        rows = _repo_side(repo_http_flow_edges(store), repo, direction)
+        rows = _readable_repo_edges(repo_http_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated,
@@ -1598,7 +1623,7 @@ def build_server(
         ``found=False`` when no repo with that id is indexed.
         """
         from .arch.resolve import repo_event_flow_edges
-        rows = _repo_side(repo_event_flow_edges(store), repo, direction)
+        rows = _readable_repo_edges(repo_event_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated,
@@ -1690,6 +1715,23 @@ def build_server(
         check = getattr(store, "allows_repo", None)
         return True if check is None else bool(check(repo))
 
+    def _may_read_page_of(repo: str) -> bool:
+        """Whether the caller may read the per-repo PAGE ``repo`` names on disk, for
+        ``get_wiki`` and ``get_generated_doc`` only.
+
+        ``_may_read_repo(repo)`` alone asked about the caller's STRING, and these
+        two tools then opened ``<repo with "/" as "__">.md``. That encoding is not
+        one-to-one, so the file served could belong to a repository the caller was
+        never granted: under scope ``team/*``, ``team/x__y`` opened the page of the
+        denied ``team/x/y``, ``team/y`` opened the page of a denied ``team__y``, and
+        an admitted namespace fell through to its cluster page narrating denied
+        members. The proxy resolves the file's real owners below the scope
+        (``ScopedStore.allows_page_of``). A bare store has no such method, so stdio
+        and the dashboard are unchanged.
+        """
+        check = getattr(store, "allows_page_of", None)
+        return True if check is None else bool(check(repo))
+
     def _fleet_readable() -> bool:
         """Whether the caller may read a FLEET-wide document.
 
@@ -1715,10 +1757,11 @@ def build_server(
         so ``wiki_commit``/``current_commit`` stay null on that kind while
         ``stale`` still means what it says.
         """
-        if not _may_read_repo(repo):
+        if not _may_read_repo(repo) or not _may_read_page_of(repo):
             # `found=False`, the same answer a repo that is not indexed gets. A
             # distinct refusal here would confirm the repository exists, which is
-            # the fact the scope is hiding.
+            # the fact the scope is hiding. The second check is about the FILE,
+            # not the string: see `_may_read_page_of`.
             return WikiOut(repo=repo, found=False, stale=False,
                            wiki_commit=None, current_commit=None, markdown="")
         sp = getattr(store, "path", None)
@@ -1783,9 +1826,10 @@ def build_server(
                 note=(f"{wanted!r} is not a kind this server generates. The kinds are "
                       f"'api' (the reference) and 'design' (the design notes). Nothing was "
                       f"looked up, so this is not evidence that {repo} has no such page."))
-        if not _may_read_repo(repo):
+        if not _may_read_repo(repo) or not _may_read_page_of(repo):
             # Same shape as an ungenerated page: a distinct refusal would confirm
-            # the repository exists, which is what the scope hides.
+            # the repository exists, which is what the scope hides. The second
+            # check is about the FILE's owner, not the string: `_may_read_page_of`.
             return GeneratedDocOut(repo=repo, kind=kind, found=False, stale=False,
                                    doc_commit=None, current_commit=None,
                                    markdown="")

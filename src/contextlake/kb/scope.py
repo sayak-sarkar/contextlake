@@ -216,7 +216,14 @@ def sentinel_visible(sentinel: str, patterns: Iterable[str], *,
     keeps its own label rather than being folded into the patterns, because
     "may see third-party connector content" and "may see repository X" are
     different questions an operator answers separately.
+
+    An EMPTY ``patterns`` is a caller with no repo scope, and it sees every
+    sentinel, exactly as :func:`owns_partition` rules for it. These rulings are
+    what a SCOPE narrows to; with no scope there is nothing to narrow.
     """
+    patterns = list(patterns)
+    if not patterns:
+        return True
     if sentinel in ALWAYS_VISIBLE_SENTINELS:
         return True
     if sentinel in EXTERNAL_SENTINELS:
@@ -239,15 +246,27 @@ def owns_partition(partition_id: str, patterns: Iterable[str], *,
     same reading ``grants._check_tools`` gives an absent axis: "nobody wrote a
     scope" is not "scope to nothing", and collapsing the two would stop every key
     issued before the axis existed.
+
+    THE EMPTY-PATTERNS RETURN COMES FIRST, above the sentinel and ``@ingest:``
+    rulings. It used to sit below them, so a caller with no scope was denied
+    ``(external)``, ``(system)`` and every ``@ingest:`` partition here, while the
+    proxy's early returns (``ScopedStore._unscoped``) served the same rows to the
+    same caller from ``search`` and ``list_repos``. On a keyring server the
+    default key and the shared token then saw a node in ``search_code`` and got
+    ``null`` from ``get_node`` on its id, ``semantic_search`` dropped those hits
+    and blamed a stale embedding store, and ``get_repo_links`` returned nothing.
+    The early returns are the documented rule; this predicate now agrees with
+    them. "No principal" is a different state and is denied by the proxy before
+    this function is reached (``ScopedStore._scope`` returns ``None``).
     """
     patterns = list(patterns)
+    if not patterns:
+        return True
     if partition_id.startswith("("):
         return sentinel_visible(partition_id, patterns, external=external)
     owner = partition_repo(partition_id)
     if owner is None:
         return False  # `@ingest:` and anything unrecognised: denied, never guessed
-    if not patterns:
-        return True
     return any(match_repo(p, owner) for p in patterns)
 
 
