@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.4.0] - 2026-10-03
+
 ### Security
 
 - **`--anonymize` now withholds the wiki from the static export and from Chat.**
@@ -52,10 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `kb index` wrote snapshots into the store root, and `team/../other` overwrote repo
     `other`'s shard. With such a row already in the store, the next `kb index` migrated
     it and deleted the whole store.
-  - Now every path built from an id refuses it. `kb index` names the repo, does not index
-    it, and carries on; reads treat it as not found; `kb forget` removes the rows and
-    leaves files it cannot attribute. `kb ingest` refuses a source name of that shape, and
-    the dashboard's Sync and Add buttons refuse to index such a repo.
+  - Now the shard and history paths refuse such an id. `kb index` names the repo,
+    does not index it, and carries on; reads treat it as not found; `kb forget` removes
+    the rows and leaves files it cannot attribute. `kb ingest` refuses a source name of
+    that shape, and the dashboard's Sync and Add buttons refuse to index such a repo.
 - **A clone's doc files and `.contextlakeignore` no longer follow symlinks out of the
   clone.** These were the two readers 9.3.0 listed as still open.
 - **`api` source pagination checks each `next` link the way it checks the first URL.**
