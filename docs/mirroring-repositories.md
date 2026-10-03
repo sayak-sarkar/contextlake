@@ -193,12 +193,26 @@ How each repo is cloned, with `clone_method = auto` (the default):
 1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
    `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into `ps` output or `.git/config`.
+   in the URL, so it cannot leak into `ps` output or `.git/config`. The header is scoped to the
+   forge's own host (`https://gitlab.com/`, your `gitlab_host`, `https://github.com/`, and so on),
+   so git sends it there and nowhere else. `update` and `branches` use the same scoped header, so
+   a clone in the workspace whose remote is on another host never receives your forge token.
 2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
    is a GitLab-only path.
 3. **Otherwise**: plain `git clone` over HTTPS.
 
 Set `clone_method = git` or `clone_method = glab` to force one path.
+
+A project whose path would land outside the work directory is skipped, with
+`Refused: this forge path is not inside the work directory` on its line. That covers an absolute
+path, a path with `..` in it, a path that resolves to the work directory itself, and one that
+passes through a symlink to somewhere else. The check runs before anything on disk is touched.
+
+Clone never deletes a non-empty directory that has no `.git`. If one already sits where a
+repository would go, that repository is reported as failed with
+`<path> exists, is not a git repository and is not empty, so it was left alone; move it aside to clone here`,
+in a dry run too. An empty directory there (an interrupted clone can leave one) is removed and
+cloned into while `clean_corrupted` is on.
 
 ### `mirror update`: update existing repositories
 

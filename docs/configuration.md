@@ -175,6 +175,34 @@ global file, or be reached with `--config`. A **connector** source (`atlassian`,
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
 `token_env`, `auth`, `user` and `auth_dir` on any source.
 
+### The mirror config, `.contextlake.ini`
+
+The same rule covers the mirror keys that decide where the forge token goes. A discovered
+`.contextlake.ini` may not set them. They are honoured only from `~/.contextlake.ini` or from a path
+you pass to `--config`:
+
+| Key | Reaches |
+| --- | --- |
+| `gitlab_host` | the GitLab host that gets the REST call, and git's token header on clone and fetch |
+| `api_base` | the same host for GitHub, Bitbucket and Gitea |
+| `token_env`, `gitlab_token_env` | the env var whose value is sent to that host as the token |
+
+Before this gate, a `.contextlake.ini` inside a cloned repository could set `gitlab_host` to its own
+server and `token_env` to any variable in your environment, and the next `mirror fetch` run from
+inside that tree sent the variable's value there.
+
+A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
+the file. If nothing you chose sets that key instead (the global file, `--config`, or the
+`GITLAB_HOST` env var for `gitlab_host`), the forge token is also off for that run, and a second
+warning says so. Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant
+for your own instance would fall back to `gitlab.com`, and your token would go there. With the token
+off, GitLab enumeration uses `glab` and its own login, other platforms see public repositories only,
+and clone and fetch run without the token.
+
+`work_dir`, `gitlab_group` and `platform` keep working from a local file. They are all that
+`contextlake init --local` writes. To clear the warning, delete the keys from the file it names and
+set them in `~/.contextlake.ini` (or export `GITLAB_HOST`), or pass `--config` naming that file.
+
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
 `.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
@@ -188,10 +216,10 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `platform` | Platform to mirror: `gitlab`, `github`, `bitbucket`, `gitea` (+ `codeberg`/`forgejo` flavors) | `gitlab` | `github` |
 | `group` | The group / org / workspace / owner to mirror (`gitlab_group` is its alias) | none | `your-org` |
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
-| `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
-| `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN` | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
-| `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it | `gitlab.com` | `gitlab.example.com` |
+| `token_env` | Env var holding the platform token. Global config or `--config` only (see [Workspace trust](#workspace-trust)) | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
+| `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN`. Global config or `--config` only | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
+| `api_base` | REST endpoint for self-hosted / enterprise instances. Global config or `--config` only | per platform | `https://github.example.com/api/v3` |
+| `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it. Global config or `--config` only | `gitlab.com` | `gitlab.example.com` |
 | `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](mirroring-repositories.md)) | none, meaning every repository | `team/*,shared-libs` |
 | `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
 | `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
@@ -204,7 +232,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch_timeout` | Branch operation timeout (seconds) | `30` | `60` |
 | `pull_timeout` | Pull operation timeout (seconds) | `60` | `120` |
 | `max_workers` | Maximum parallel workers | `8` | `4` |
-| `clean_corrupted` | Auto-remove corrupted directories | `true` | `false` |
+| `clean_corrupted` | Before a clone, remove an empty directory an interrupted clone left at the destination. A non-empty directory with no `.git` is never removed: clone reports it as an error and leaves it alone | `true` | `false` |
 | `max_retries` | Maximum retry attempts for failed operations | `3` | `5` |
 | `backoff_initial` | Initial backoff time in seconds | `1` | `2` |
 | `backoff_max` | Maximum backoff time in seconds | `30` | `60` |

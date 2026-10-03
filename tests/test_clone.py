@@ -65,7 +65,8 @@ def test_clone_with_token_uses_native_git_and_keeps_the_secret_off_argv(
     assert seen["cmd"][:2] == ["git", "clone"]
     assert "glpat-secret" not in " ".join(seen["cmd"])
     env = seen["env"]
-    assert env is not None and env["GIT_CONFIG_KEY_0"] == "http.extraHeader"
+    # Scoped to the forge (tests/test_git_token_scope.py asks git what it matches).
+    assert env is not None and env["GIT_CONFIG_KEY_0"] == "http.https://gitlab.com/.extraHeader"
     assert "Authorization: Basic" in env["GIT_CONFIG_VALUE_0"]
     assert env["GIT_CONFIG_COUNT"] == "1"
 
@@ -75,9 +76,9 @@ def test_clone_token_env_offsets_past_existing_git_config_entries(monkeypatch):
     monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
     monkeypatch.setenv("GIT_CONFIG_KEY_0", "user.name")
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "Someone")
-    env = core._git_token_env("tok")
+    env = core._git_token_env("tok", "oauth2", "https://gitlab.com/")
     assert env["GIT_CONFIG_KEY_0"] == "user.name"          # untouched
-    assert env["GIT_CONFIG_KEY_1"] == "http.extraHeader"   # appended
+    assert env["GIT_CONFIG_KEY_1"] == "http.https://gitlab.com/.extraHeader"   # appended
     assert env["GIT_CONFIG_COUNT"] == "2"
 
 
@@ -87,7 +88,8 @@ def test_clone_uses_each_platforms_basic_auth_username(monkeypatch):
     for platform, user in (("gitlab", "oauth2"), ("github", "x-access-token"),
                            ("bitbucket", "x-token-auth"), ("gitea", "oauth2")):
         cmd, env = core._build_clone_cmd("g/p", "http://x/p.git", "/tmp/p", "auto",
-                                         token="tok", platform=platform)
+                                         token="tok", platform=platform,
+                                         scope="http://x/")
         assert cmd[:2] == ["git", "clone"]
         header = env["GIT_CONFIG_VALUE_0"].split("Basic ")[1]
         assert base64.b64decode(header).decode() == f"{user}:tok", platform
@@ -106,14 +108,15 @@ def test_clone_glab_fallback_is_gitlab_only(monkeypatch):
 
 
 def test_corrupted_dir_cleaned_and_recloned(tmp_path, base_config, fake_subprocess):
+    # Only an EMPTY leftover is cleaned. A non-empty directory with no .git is never
+    # removed; tests/test_clone_never_deletes_data.py covers that side.
     corrupt = tmp_path / "g" / "p"
     corrupt.mkdir(parents=True)
-    (corrupt / "junk.txt").write_text("not a repo")
     status, _, _ = clone_repository(
         "g/p", "grp/g/p", "http", "ssh", str(tmp_path), _cfg(base_config, clean_corrupted="true")
     )
     assert status == "ok"
-    assert not (corrupt / "junk.txt").exists()  # cleaned
+    assert not corrupt.exists()  # cleaned (the fake clone does not recreate it)
 
 
 def test_corrupted_dir_errors_when_clean_disabled(tmp_path, base_config, fake_subprocess):

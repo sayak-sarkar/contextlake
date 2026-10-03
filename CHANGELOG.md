@@ -20,6 +20,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     pseudonyms.
   - Still shown, as before: symbol names and docstrings, and wiki section headings in
     search results. `docs/using-the-dashboard.md` now says so.
+- **A `.contextlake.ini` found by walking up can no longer choose where the forge token
+  goes.** A file planted in a cloned repository could set `gitlab_host` and `token_env`,
+  and a mirror command run inside that tree sent the named variable's value to the named
+  host. `gitlab_host`, `api_base`, `token_env` and `gitlab_token_env` are now honoured only
+  from `~/.contextlake.ini` or `--config`, the rule `kb.toml` already follows. From a
+  discovered file each is ignored with a warning naming the key and the file. If no file
+  you chose sets the same key (or `GITLAB_HOST` for the host), the forge token is off for
+  that run, rather than going to the public host or the standard variable. Affected: a
+  project-local `.contextlake.ini` that sets one of those four keys. Move them to
+  `~/.contextlake.ini`, or pass `--config`.
+- **The forge token reaches only the forge.** git received it as a bare
+  `http.extraHeader`, which matches every URL, so `mirror update` and `mirror branches`
+  sent it to the host of every clone in the workspace, including third-party ones. It is
+  now `http.<forge origin>.extraHeader`.
+- **Clone stays inside `work_dir`, and never deletes a non-empty directory that has no
+  `.git`.**
+  - A forge project path holding `..`, an absolute path, or one naming `work_dir` itself
+    made clone delete and replace a directory outside the workspace. Such a path is now
+    skipped with a reason.
+  - Clone deleted any directory at a project path that had no `.git`, as "corrupted". With
+    a planted `work_dir`, that reached the user's own folders; a project path naming a
+    folder that holds other clones deleted those clones. Now only an empty directory is
+    removed. A non-empty one is reported as `exists, is not a git repository and is not
+    empty, so it was left alone`, and that repository counts as failed, so `mirror clone`
+    and `mirror sync` exit 1 where the directory used to be replaced.
 
 ### Fixed
 

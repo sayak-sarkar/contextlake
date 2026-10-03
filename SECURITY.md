@@ -74,6 +74,8 @@ environment variable holds that request's credential:
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host every prompt, or every chunk of indexed code, is posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the environment variable read for the credential sent to that host |
+| `.contextlake.ini`: `gitlab_host`, `api_base` | the forge host the mirror's API calls and git fetches send the forge token to |
+| `.contextlake.ini`: `token_env`, `gitlab_token_env` | the environment variable read for that forge token |
 
 The first three rows run a program. The rest are gated for a different reason: an
 endpoint and a secret to send to it are the same capability arriving in two pieces.
@@ -128,6 +130,14 @@ The cost is that an honest project-local `[llm]` or `[embeddings]` block naming 
 with `--config`. A privileged provider is trusted with its own defaults, so a global
 `provider = "openai"` still builds when a discovered file's `api_key_env` is refused. `builtin` and
 `ollama` tiers are never switched off this way: they send no credential.
+
+**The mirror config, `.contextlake.ini`, has the same gate.** From a discovered
+`.contextlake.ini`, the four mirror keys in the table are dropped with a warning naming the key
+and the file. When a dropped key has no replacement in `~/.contextlake.ini`, `--config`, or (for
+the host) `GITLAB_HOST`, the forge token is off for that run, rather than falling back to the
+platform's public host or its standard variable. `work_dir`, `gitlab_group` and `platform` still
+apply from a discovered file. Two limits hold whatever any config says: git sends the token header
+only to the forge's own origin, and clone never deletes a non-empty directory that has no `.git`.
 
 Two keys are gated by **direction** rather than outright, because one way round is an
 honest thing for a project-local file to do.

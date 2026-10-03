@@ -19,7 +19,7 @@ from datetime import datetime
 from functools import partial
 
 from . import observability, style
-from .config import get_cache_paths
+from .config import FORGE_TOKEN_REFUSED, get_cache_paths
 from .logging_setup import log
 from .safety import check_repository_safety, is_safe_branch, restore_stash, stash_changes
 
@@ -386,10 +386,16 @@ def platform_label(config) -> str:
 
 def _platform_token(config):
     """The API token for the configured platform, from ``token_env`` (config) or
-    the platform's default env var. None when unset; read only here, never logged."""
+    the platform's default env var. None when unset; read only here, never logged.
+
+    Also None when load_config switched the token off for the run (see
+    config.FORGE_TOKEN_REFUSED): a discovered config file had a host or token
+    key refused, and the default left in its place was never chosen."""
     name = platform_name(config)
     if name == "gitlab":
         return _gitlab_token(config)
+    if config.get(FORGE_TOKEN_REFUSED):
+        return None
     env_name = config.get("token_env") or PLATFORM_DEFAULTS[name]["token_env"]
     return os.environ.get(env_name) or None
 
@@ -412,8 +418,12 @@ def _gitlab_token(config):
     """The GitLab API token from the configured env var (default GITLAB_TOKEN).
 
     Returns None when unset -- callers then fall back to the ``glab`` CLI, which
-    carries its own auth. Read only here; never logged.
+    carries its own auth. Read only here; never logged. Also None when the token
+    is off for the run (see :func:`_platform_token`). ``fetch_gitlab_projects``
+    calls this directly, so the check lives here as well as there.
     """
+    if config.get(FORGE_TOKEN_REFUSED):
+        return None
     env_name = config.get("gitlab_token_env") or config.get("token_env") or "GITLAB_TOKEN"
     return os.environ.get(env_name) or os.environ.get("GITLAB_TOKEN") or None
 
@@ -425,6 +435,32 @@ def _gitlab_api_base(config):
     if host.startswith(("http://", "https://")):
         return host
     return f"https://{host}"
+
+
+# The platforms whose REST API sits on its own `api.` host while git is served from
+# the bare one: api.github.com and github.com, api.bitbucket.org and bitbucket.org
+# (PLATFORM_DEFAULTS above). GitLab and Gitea serve both from one host, so a
+# leading `api.` there is part of the real hostname and is kept.
+_API_SUBDOMAIN_PLATFORMS = frozenset({"github", "bitbucket"})
+
+
+def _forge_git_origin(config):
+    """``scheme://host[:port]/`` that serves the forge's git-over-HTTPS, from config.
+
+    The scope of the token header (see :func:`_git_token_env`). Derived from the
+    same setting that picks the REST host, so ``GITLAB_HOST`` still wins for
+    GitLab. Only scheme, host and port are kept: GitHub Enterprise's API lives at
+    ``https://host/api/v3`` while its clone URLs are ``https://host/owner/repo``.
+
+    A wrong answer here fails closed. git then sends no header, so a private
+    clone or fetch fails with an auth error rather than the token going anywhere.
+    """
+    parts = urllib.parse.urlsplit(_platform_api_base(config))
+    host = parts.hostname or ""
+    if platform_name(config) in _API_SUBDOMAIN_PLATFORMS and host.startswith("api."):
+        host = host[len("api."):]
+    netloc = f"{host}:{parts.port}" if parts.port else host
+    return f"{parts.scheme}://{netloc}/"
 
 
 def _projects_endpoint(group_enc, per_page, page):
@@ -642,6 +678,10 @@ def fetch_gitlab_projects(gitlab_group, config):
     per_page = PLATFORM_DEFAULTS[platform]["per_page"]
     timeout = int(config.get("network_timeout", 30))
 
+    # Why this run has no token, for the glab lines below. "No GITLAB_TOKEN set"
+    # is false when the variable is set and load_config switched the token off.
+    no_token = ("the forge token is off for this run" if config.get(FORGE_TOKEN_REFUSED)
+                else "no GITLAB_TOKEN set")
     if platform == "gitlab":
         group_enc = urllib.parse.quote(gitlab_group, safe="")
         token = _gitlab_token(config)
@@ -651,7 +691,8 @@ def fetch_gitlab_projects(gitlab_group, config):
             fetch_page = partial(_fetch_projects_page_http,
                                  base, group_enc, token, per_page, timeout)
         else:
-            log("No GITLAB_TOKEN set -- enumerating via the 'glab' CLI (its own auth)")
+            log(f"{no_token[:1].upper()}{no_token[1:]} -- enumerating via the 'glab' CLI "
+                "(its own auth)")
             fetch_page = partial(_fetch_projects_page_glab, group_enc, per_page)
     else:
         token = _platform_token(config)
@@ -678,11 +719,11 @@ def fetch_gitlab_projects(gitlab_group, config):
             # longer report a forge this run never called -- a github config
             # that 404'd used to say it "could not enumerate GitLab projects".
             if isinstance(e, FileNotFoundError) and fetch_page.func is _fetch_projects_page_glab:
-                log("ERROR: 'glab' not found and no GITLAB_TOKEN set. Set GITLAB_TOKEN "
+                log(f"ERROR: 'glab' not found and {no_token}. Set GITLAB_TOKEN "
                     "(a read_api token), or install the GitLab CLI and run 'glab auth login'.")
                 raise FetchError(
-                    f"could not enumerate {label} projects: 'glab' not found and no "
-                    "GITLAB_TOKEN set (existing caches left untouched)") from e
+                    f"could not enumerate {label} projects: 'glab' not found and "
+                    f"{no_token} (existing caches left untouched)") from e
             log(f"Error fetching projects (page {page}): {e}")
             raise FetchError(
                 f"could not enumerate {label} projects (failed on page {page}: {e}); "
@@ -1018,45 +1059,92 @@ def is_valid_git_repo(full_path):
 # Clone
 # ---------------------------------------------------------------------------
 
-def _git_token_env(token, username="oauth2"):
+def _git_token_env(token, username, scope):
     """A child env that authenticates git-over-HTTPS with a platform token.
 
-    The credential travels as an ``http.extraHeader`` config entry injected via
-    the ``GIT_CONFIG_*`` environment (offset past any entries the user already
+    The credential travels as an ``http.<scope>.extraHeader`` config entry injected
+    via the ``GIT_CONFIG_*`` environment (offset past any entries the user already
     set) — never on the command line (visible in ``ps``), never in the clone
     URL (git would persist it into ``.git/config``). ``username`` is the
     basic-auth user the platform expects alongside a token (oauth2 for
     GitLab/Gitea, x-access-token for GitHub, x-token-auth for Bitbucket).
+
+    ``scope`` is the forge's URL (:func:`_forge_git_origin`). git matches it
+    against each request URL, so the header goes to that origin and nowhere
+    else. The bare ``http.extraHeader`` matched every URL. ``update`` and
+    ``branches`` run over every clone in the workspace, so the origin of a
+    third-party clone, or a second remote that ``fetch --all`` reaches, got the
+    token. It is required, with no default, so a new caller cannot fall back to
+    the bare key.
     """
+    if not scope:
+        raise ValueError("the token header needs the forge URL to scope it to")
     env = os.environ.copy()
     try:
         count = int(env.get("GIT_CONFIG_COUNT", "0"))
     except ValueError:
         count = 0
     basic = base64.b64encode(f"{username}:{token}".encode()).decode()
-    env[f"GIT_CONFIG_KEY_{count}"] = "http.extraHeader"
+    env[f"GIT_CONFIG_KEY_{count}"] = f"http.{scope}.extraHeader"
     env[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {basic}"
     env["GIT_CONFIG_COUNT"] = str(count + 1)
     return env
 
 
 def _build_clone_cmd(project_path, http_url, full_path, method, token=None,
-                     platform="gitlab"):
+                     platform="gitlab", scope=None):
     """Choose the clone command (and child env) for one repository.
 
     ``auto`` prefers, in order: native ``git`` with token auth (no platform CLI
     needed, and git tolerates slow corporate DNS that trips glab's short dial
     timeout) -> ``glab`` when installed (GitLab only; its own auth) -> plain
     ``git`` over HTTPS (public repos / an ambient credential helper).
+
+    ``scope`` is the forge URL the token header is limited to; it is required
+    whenever ``token`` is set (see :func:`_git_token_env`).
     """
     if token and method in ("auto", "git"):
         user = PLATFORM_DEFAULTS.get(platform, PLATFORM_DEFAULTS["gitlab"])["clone_user"]
-        return ["git", "clone", http_url, full_path], _git_token_env(token, user)
+        return ["git", "clone", http_url, full_path], _git_token_env(token, user, scope)
     use_glab = method == "glab" or (
         method == "auto" and platform == "gitlab" and shutil.which("glab") is not None)
     if use_glab and project_path:
         return ["glab", "repo", "clone", project_path, full_path], None
     return ["git", "clone", http_url, full_path], None
+
+
+def _is_empty_dir(path):
+    """A real directory (not a symlink) with nothing in it. Unreadable counts as
+    not empty, so the caller leaves it alone."""
+    try:
+        return os.path.isdir(path) and not os.path.islink(path) and not os.listdir(path)
+    except OSError:
+        return False
+
+
+def _remove_clone_leftover(path):
+    """Remove what a failed or interrupted clone left at ``path``, and nothing else.
+
+    git writes ``.git`` before anything else, so a clone that died leaves either an
+    empty directory or one with ``.git`` at its top. Only those two are removed.
+    ``clone_repository`` has already returned for any directory that was there
+    before the call, so what this can see is this call's own clone. A non-empty
+    directory with no ``.git`` is not that, and is left alone. It can appear
+    during the call: a clone of ``team/api`` running in the same run creates
+    ``team/`` around its own clone while this call is cloning ``team``, and
+    removing ``team/`` deleted that clone.
+    """
+    if os.path.islink(path):
+        return
+    if _is_empty_dir(path):
+        # rmdir, not rmtree: if something landed in it since the check, this fails
+        # rather than delete it.
+        try:
+            os.rmdir(path)
+        except OSError:
+            pass
+    elif is_valid_git_repo(path):
+        shutil.rmtree(path, ignore_errors=True)
 
 
 def _clone_once(clone_cmd, timeout, env=None, dest=None):
@@ -1068,10 +1156,11 @@ def _clone_once(clone_cmd, timeout, env=None, dest=None):
     every retry died instantly on "destination path already exists" instead of
     actually retrying. That made ``max_retries`` dead for precisely the failures
     it exists for, and replaced the real first error with a misleading one. Each
-    attempt now starts from the same state the first one did.
+    attempt now starts from the same state the first one did. Only a clone's own
+    leftover is cleared (see :func:`_remove_clone_leftover`).
     """
-    if dest and os.path.exists(dest):
-        shutil.rmtree(dest, ignore_errors=True)
+    if dest:
+        _remove_clone_leftover(dest)
     result = subprocess.run(clone_cmd, capture_output=True, text=True, errors="replace",
                             timeout=timeout, env=env)
     if result.returncode != 0:
@@ -1079,27 +1168,63 @@ def _clone_once(clone_cmd, timeout, env=None, dest=None):
     return result
 
 
+def _outside_work_dir(work_dir, local_path):
+    """True when ``local_path`` does not name a directory strictly below ``work_dir``.
+
+    ``local_path`` comes from the forge's project list, and ``to_local_path``
+    only strips the group prefix. So ``grp/../x`` becomes ``../x``, an absolute
+    path stays absolute, and ``grp/`` or ``grp/.`` becomes work_dir itself.
+    ``clone_repository`` creates, clones into and may remove the directory at
+    that destination, so none of these may reach it. Both sides are ``realpath``-ed, so a
+    symlink inside an existing clone cannot lead out either. The cost: a
+    directory under work_dir that the user symlinked elsewhere is refused too.
+    """
+    root = os.path.realpath(work_dir)
+    target = os.path.realpath(os.path.join(work_dir, local_path))
+    try:
+        return target == root or os.path.commonpath([root, target]) != root
+    except ValueError:  # different drives on Windows
+        return True
+
+
 def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
     """Clone one repository, with corruption cleanup, retry/backoff and dry-run.
 
     ``local_path`` is the destination (group-relative); ``gitlab_path`` is the
     full ``<group>/...`` project path that ``glab`` needs to resolve the repo.
+    A ``local_path`` that resolves outside ``work_dir`` is refused before any
+    filesystem action (see :func:`_outside_work_dir`).
     """
+    if _outside_work_dir(work_dir, local_path):
+        return ("skip", local_path,
+                "Refused: this forge path is not inside the work directory")
     full_path = os.path.join(work_dir, local_path)
     clone_timeout = _int(config, "clone_timeout", "300")
     clean_corrupted = _is_truthy(config, "clean_corrupted", "true")
     dry_run = _is_truthy(config, "dry_run")
     method = config.get("clone_method", "auto")
 
-    # Existing directory: skip if a valid clone, otherwise clean it (if allowed).
+    # Existing directory: skip if a valid clone. Otherwise only an EMPTY one may be
+    # removed, which is what an interrupted clone leaves when it dies before git
+    # writes .git. A non-empty directory with no .git is never removed, dry run or
+    # not: it is the user's data, or a parent holding other clones (a forge path
+    # `grp/team` over local clones `team/api` and `team/web`), and removing it
+    # deleted all of them.
     if os.path.exists(full_path):
         if is_valid_git_repo(full_path):
             return ("skip", local_path, "Already exists")
+        if not _is_empty_dir(full_path):
+            return ("error", local_path,
+                    f"{full_path} exists, is not a git repository and is not empty, so it "
+                    "was left alone; move it aside to clone here")
         if not clean_corrupted:
             return ("error", local_path, "Exists but not a git repo (use --clean-corrupted)")
         if dry_run:
-            return ("dry-run", local_path, "Would clean corrupted dir and clone")
-        shutil.rmtree(full_path, ignore_errors=True)
+            return ("dry-run", local_path, "Would remove the empty directory and clone")
+        try:
+            os.rmdir(full_path)  # rmdir, not rmtree: it fails rather than delete content
+        except OSError as e:
+            return ("error", local_path, f"could not remove the empty directory: {e}")
 
     if dry_run:
         return ("dry-run", local_path, "Would clone")
@@ -1107,7 +1232,8 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     clone_cmd, clone_env = _build_clone_cmd(gitlab_path, http, full_path, method,
                                             token=_platform_token(config),
-                                            platform=platform_name(config))
+                                            platform=platform_name(config),
+                                            scope=_forge_git_origin(config))
 
     try:
         retry_with_backoff(
@@ -1118,10 +1244,10 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
         )
         return ("ok", local_path, "Cloned")
     except subprocess.TimeoutExpired:
-        shutil.rmtree(full_path, ignore_errors=True)
+        _remove_clone_leftover(full_path)
         return ("error", local_path, "Timeout")
     except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
-        shutil.rmtree(full_path, ignore_errors=True)
+        _remove_clone_leftover(full_path)
         return ("error", local_path, str(e)[:200])
 
 
@@ -1158,7 +1284,7 @@ def _git_auth_env(config):
         return None
     name = platform_name(config)
     user = PLATFORM_DEFAULTS.get(name, PLATFORM_DEFAULTS["gitlab"])["clone_user"]
-    return _git_token_env(token, user)
+    return _git_token_env(token, user, _forge_git_origin(config))
 
 
 def _run_git(args, cwd, timeout, env=None):

@@ -664,9 +664,10 @@ def _add_mirror(p, hidden=False):
             action._advanced_help = real_help
 
     add_advanced("--clean-corrupted", action="store_true", dest="clean_corrupted",
-        help="remove corrupted/incomplete directories before cloning (default: true)")
+        help="remove an empty leftover directory at a clone destination before cloning "
+             "(default: true); a non-empty one with no .git is never removed")
     add_advanced("--no-clean-corrupted", action="store_false", dest="clean_corrupted",
-        help="do not remove corrupted/incomplete directories (fail instead)")
+        help="do not remove an empty leftover directory (fail instead)")
     add_advanced("--max-retries", type=_RETRIES,
         help="total attempts for a failed operation (1 = try once, no retry)")
     add_advanced("--backoff-initial", type=float, help="initial backoff time in seconds")

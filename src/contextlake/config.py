@@ -4,6 +4,7 @@ Configuration loading for contextlake
 
 import configparser
 import hashlib
+import logging
 import os
 import re
 
@@ -168,15 +169,88 @@ def find_ancestor_config(filename, start=None):
         directory = parent
 
 
-def _merge(config, path):
-    """Merge an INI file's ``[contextlake]`` section into config, if present."""
+# The mirror keys that decide which host receives the forge token, or which
+# environment variable is read for it. core._gitlab_api_base reads gitlab_host,
+# core._platform_api_base reads api_base, and core._gitlab_token and
+# core._platform_token read gitlab_token_env and token_env. The REST client sends
+# that variable's value to that host (as PRIVATE-TOKEN for GitLab, Authorization
+# for the others), and git sends it to the same host on clone and fetch.
+#
+# A .contextlake.ini found by walking up from the current directory can arrive
+# inside a cloned repository, so it could name any variable in the environment
+# and a host to send it to. These keys are honoured only from the global
+# ~/.contextlake.ini or a file passed to --config. It is the rule kb/trust.py
+# applies to kb.toml's base_url and api_key_env.
+#
+# `platform` stays ungated. Each platform's built-in host and token variable are
+# fixed, so it moves between the forges' own hosts and never names a new one.
+# work_dir, gitlab_group and platform are what an honest project-local file sets,
+# and all that `contextlake init --local` writes.
+FORGE_CREDENTIAL_KEYS = ('gitlab_host', 'api_base', 'token_env', 'gitlab_token_env')
+
+# Set in the merged config when a refused key leaves a built-in default in its
+# place. core reads it and sends no forge token for the run. Dropping the key is
+# not enough on its own: a refused `gitlab_host = gitlab.corp` falls back to
+# gitlab.com, so the token meant for gitlab.corp goes to gitlab.com, and a refused
+# `token_env = PROJECT_TOKEN` falls back to GITLAB_TOKEN, a broader secret.
+# kb/trust.py switches an LLM tier off for the same reason. A refused key that the
+# global file or --config also sets falls back to that value instead, which the
+# user chose, so it leaves the token on.
+FORGE_TOKEN_REFUSED = '_forge_token_refused'  # noqa: S105 - a config key name, not a secret
+
+
+def _read_section(path):
+    """An INI file's ``[contextlake]`` section as a dict, or ``{}`` if absent.
+
+    Includes ``[DEFAULT]`` keys, as configparser's section view does, so a gated
+    key cannot slip past the gate by sitting under ``[DEFAULT]``. configparser
+    lowercases key names, so ``GITLAB_HOST = ...`` is the same key too.
+    """
     if not path or not os.path.exists(path):
-        return
+        return {}
     parser = configparser.ConfigParser()
     parser.read(path)
+    values = {}
     for section in SECTIONS:
         if section in parser:
-            config.update(parser[section])
+            values.update(parser[section])
+    return values
+
+
+def _same_file(a, b):
+    """Whether two config paths name the same file.
+
+    Both sides get ``~``/``$VAR`` expansion and ``realpath``. ``CONFIG_FILE`` is
+    absolute, the discovered path is absolute, and ``--config`` is whatever the
+    user typed, so a raw string compare would miss a real match.
+    """
+    if not a or not b:
+        return False
+    return os.path.realpath(expand_path(a)) == os.path.realpath(expand_path(b))
+
+
+def _warn_untrusted_forge_key(key, source):
+    """Report one refused key by name and file. Never the value: it is text the
+    file's author chose, and it can name a secret's variable."""
+    hint = (" The GITLAB_HOST environment variable also sets the host."
+            if key == 'gitlab_host' else "")
+    log(f"config: ignoring {key} from {source} -- a config file found by walking up "
+        "from the current directory may not choose which host receives the forge "
+        "token, or which environment variable holds it. "
+        f"Set it in {CONFIG_FILE} instead, or pass `--config {source}` to say you "
+        f"meant this file.{hint}", level=logging.WARNING)
+
+
+def _warn_forge_token_off(keys, source):
+    """Report that the run sends no forge token, and what turns it back on."""
+    names = ', '.join(keys)
+    that, its = ("that key", "its") if len(keys) == 1 else ("those keys", "their")
+    log(f"config: the forge token is off for this run. {source} set {names}, and no "
+        f"file you chose sets {that} instead, so a built-in default would take {its} "
+        "place: the platform's public host, or its standard token variable. Clones "
+        f"and fetches run without the token. To use it here, delete {that} from "
+        f"{source} and set {that} in {CONFIG_FILE}, or pass `--config {source}`.",
+        level=logging.WARNING)
 
 
 def load_config(config_path=None, cli_group=None):
@@ -195,6 +269,12 @@ def load_config(config_path=None, cli_group=None):
     legitimately optional and keep silently no-op'ing when absent. ``ConfigError``
     is shared with ``kb.load_kb_config``, which applies the identical guard to
     kb.toml.
+
+    The discovered local file may not set :data:`FORGE_CREDENTIAL_KEYS`. They
+    are dropped with a warning naming the key and the file, unless that file is
+    also the global one or the ``--config`` one. When a dropped key leaves a
+    built-in default in its place, :data:`FORGE_TOKEN_REFUSED` is set and the
+    run sends no forge token.
     """
     if config_path and not os.path.exists(expand_path(config_path)):
         raise ConfigError(
@@ -206,9 +286,32 @@ def load_config(config_path=None, cli_group=None):
         )
     config = DEFAULT_CONFIG.copy()
     local_config_file = find_ancestor_config(LOCAL_CONFIG_FILE)
-    _merge(config, CONFIG_FILE)               # global (~/.contextlake.ini)
-    _merge(config, local_config_file)         # nearest ancestor's local config
-    _merge(config, config_path)               # explicit --config path
+    global_values = _read_section(CONFIG_FILE)
+    local_values = _read_section(local_config_file)
+    explicit_values = _read_section(config_path)
+    # Provenance gate. Run from the home directory, the ancestor walk finds
+    # ~/.contextlake.ini itself, and `--config ./.contextlake.ini` names the
+    # discovered file. Both are files the user chose, so both keep every key.
+    refused = []
+    if not (_same_file(local_config_file, CONFIG_FILE)
+            or _same_file(local_config_file, config_path)):
+        refused = [k for k in FORGE_CREDENTIAL_KEYS if k in local_values]
+        for key in refused:
+            del local_values[key]
+            _warn_untrusted_forge_key(key, local_config_file)
+    config.update(global_values)              # global (~/.contextlake.ini)
+    config.update(local_values)               # nearest ancestor's local config
+    config.update(explicit_values)            # explicit --config path
+
+    # Set only here, never from a file.
+    config.pop(FORGE_TOKEN_REFUSED, None)
+    chosen = set(global_values) | set(explicit_values)
+    if os.environ.get('GITLAB_HOST'):
+        chosen.add('gitlab_host')  # the env var wins over every file (core._gitlab_api_base)
+    defaulted = [k for k in refused if k not in chosen]
+    if defaulted:
+        config[FORGE_TOKEN_REFUSED] = ','.join(defaulted)
+        _warn_forge_token_off(defaulted, local_config_file)
 
     # INI/CLI values are stored verbatim, so a `work_dir = ~/repos` would
     # otherwise be treated as a literal "~" directory. Expand here.
