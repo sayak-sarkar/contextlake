@@ -325,6 +325,13 @@ def test_broken_plugin_is_skipped_not_fatal(monkeypatch):
     assert "broken" not in found and "files" in found  # discovery survived
 
 
+# These tests are about document nodes and edges, not vectors. With embeddings on (the
+# default), a machine with model2vec downloads a model from the Hub on every one of
+# them; CI has no model2vec and skips. See conftest.py. The embed branch has its own
+# test with a fake embedder: test_kb_ingest_embeds.py.
+_EMBEDDINGS_OFF = "[embeddings]\nenabled = false\n"
+
+
 def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))   # isolate from any real ~/.contextlake
     docs_dir = tmp_path / "docs"
@@ -332,7 +339,7 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     (docs_dir / "guide.md").write_text("# Guide\nstep one\n")
     (docs_dir / "faq.md").write_text("# FAQ\nq and a\n")
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
 
     with pytest.raises(SystemExit) as e:
         main(["kb", "ingest", "--path", str(docs_dir), "--config", str(cfg)])
@@ -375,7 +382,7 @@ def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, capsys
     (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     (docs_dir / "offsite.md").write_text("Lunch is at noon.\n")
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
@@ -407,7 +414,7 @@ def test_cmd_ingest_without_a_target_repo_writes_no_edges(tmp_path, monkeypatch)
     docs_dir.mkdir()
     (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
@@ -425,7 +432,7 @@ def test_cmd_ingest_source_config_can_name_its_target_repo(tmp_path, monkeypatch
     (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
-        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}'
         '[[sources]]\ntype = "files"\nname = "docs"\n'
         f'path = "{docs_dir}"\nfor_repo = "team/api"\n'
     )
@@ -445,7 +452,7 @@ def test_cmd_ingest_unknown_target_repo_warns_and_links_nothing(tmp_path, capsys
     docs_dir.mkdir()
     (docs_dir / "runbook.md").write_text("If readSensor fails, check the gateway logs.\n")
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
@@ -466,7 +473,7 @@ def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):
     (docs_dir / "guide.md").write_text("# Guide\nstep one\n")
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
-        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}'
         '[[sources]]\ntype = "files"\nname = "docs"\n'
         f'path = "{docs_dir}"\nenabled = false\n'
     )

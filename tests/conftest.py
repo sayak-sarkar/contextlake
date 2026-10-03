@@ -6,12 +6,25 @@ programmable stub, and ``no_sleep`` makes retry/backoff instant.
 """
 
 import logging
+import os
 import subprocess
 import types
 
 import pytest
 
 from contextlake import core, observability
+
+# No test reaches the Hugging Face Hub. Set at conftest import, not in a fixture:
+# huggingface_hub reads HF_HUB_OFFLINE ONCE, into a module constant, when it is first
+# imported, so a value set after that import is a no-op that still reads "1".
+# `test_no_test_reaches_the_model_hub.py` asks the library, not the environment.
+#
+# The dev machine has model2vec and CI does not. `provider = "auto"` picks the built-in
+# embedder wherever model2vec imports, and `_isolated_home` gives every test an empty
+# model cache, so on the dev machine every `kb ingest` test downloaded a model. A
+# network failure failed six of them at once (flake #17). Offline, a test that needs
+# the Hub fails on every run and names the Hub, instead of on one run in eight.
+os.environ["HF_HUB_OFFLINE"] = "1"
 
 
 @pytest.fixture

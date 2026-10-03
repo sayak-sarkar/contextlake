@@ -29,8 +29,11 @@ def _printed(capsys) -> str:
 
 
 def _config(tmp_path, body: str):
+    # Embeddings off: these tests are about which sources run. With embeddings on, a
+    # machine with model2vec downloads a model from the Hub. See conftest.py.
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n' + body)
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+                   '[embeddings]\nenabled = false\n' + body)
     return cfg
 
 

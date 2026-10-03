@@ -7,12 +7,15 @@ blocks all outbound network at the socket layer and asserts the offline commands
 succeed — so a regression that sneaks a network call into the offline path is caught.
 """
 
+import importlib.util
 import socket
 from pathlib import Path
 
 import pytest
 
 from contextlake.cli import main
+from contextlake.kb import embeddings
+from contextlake.kb.embeddings.store import build_vector_store
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "examples" / "fixtures" / "sample-graph.json"
@@ -51,12 +54,39 @@ def test_core_commands_run_with_network_blocked(tmp_path, no_network):
     assert _run(["kb", "lint", "--config", str(cfg)]) in (0, 1)
 
 
-def test_embed_offline_is_a_graceful_noop(tmp_path, no_network):
-    # embeddings are opt-in/off by default; with no embedder the command degrades to a
-    # clean no-op (exit 0) rather than reaching out — never a hard failure offline.
+def test_embed_offline_with_no_embedder_is_a_graceful_noop(tmp_path, no_network,
+                                                          monkeypatch):
+    # With no embedder the command degrades to a clean no-op (exit 0) rather than
+    # reaching out. Pinned to "no engine installed", CI's state: left to the machine,
+    # a machine with model2vec took the builtin branch instead, which needs the model
+    # and passed only if an earlier test in the same process had downloaded it.
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a, **k: (
+        None if name in ("model2vec", "fastembed") else real_find_spec(name, *a, **k)))
     cfg = _cfg(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     assert _run(["kb", "embed", "--config", str(cfg)]) == 0
+
+
+def test_embed_with_a_ready_embedder_runs_offline(tmp_path, no_network, monkeypatch):
+    # docs/internals.md: once the model is cached, embedding is offline too. A fake
+    # stands in for the cached model, so this proves `kb embed` adds no network call
+    # of its own around the embedder.
+    class _Ready:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[1.0, float(i)] for i, _ in enumerate(texts)]
+
+    monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: _Ready())
+    cfg = _cfg(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "embed", "--config", str(cfg)]) == 0
+    vs = build_vector_store(tmp_path / "kb" / "embeddings.sqlite")
+    try:
+        assert vs.count_repo("demo/app") > 0, "the embedder ran, so vectors must exist"
+    finally:
+        vs.close()
 
 
 def test_connect_degrades_not_fails_offline(tmp_path, no_network):

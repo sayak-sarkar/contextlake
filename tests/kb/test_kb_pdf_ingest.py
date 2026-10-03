@@ -29,6 +29,10 @@ needs_pypdf = pytest.mark.skipif(
     importlib.util.find_spec("pypdf") is None,
     reason="reading a PDF's text layer needs the kb-pdf extra (pypdf)")
 
+# The end-to-end test checks full-text search, not vectors. With embeddings on, a
+# machine with model2vec downloads a model from the Hub for it. See conftest.py.
+_EMBEDDINGS_OFF = "[embeddings]\nenabled = false\n"
+
 
 def _write_pdf(path, pages, title=None):
     """Write a minimal PDF whose pages hold `pages` text. `""` means *no* text layer.
@@ -111,7 +115,7 @@ def test_an_ingested_pdf_is_searchable(tmp_path, monkeypatch):
     _write_pdf(docs_dir / "adr.pdf", ["we chose quorum writes for the ledger"],
                title="ADR 7 quorum writes")
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
 
     with pytest.raises(SystemExit) as e:
         main(["kb", "ingest", "--path", str(docs_dir), "--config", str(cfg)])
