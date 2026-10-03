@@ -33,7 +33,12 @@ def within(base: Path, candidate: Path) -> bool:
     """
     try:
         return candidate.resolve().is_relative_to(base.resolve())
-    except (OSError, ValueError):
+    # RuntimeError too: on Python 3.10, 3.11 and 3.12, ``resolve()`` raises it -- not
+    # OSError -- for a symlink LOOP ("Symlink loop from ..."); 3.13 stopped. A clone is
+    # untrusted and a loop is one commit away, so this raised out of every caller on the
+    # three older versions while passing on the newer ones the code was written on. A
+    # loop cannot be resolved, so by this function's own rule it is not inside anything.
+    except (OSError, ValueError, RuntimeError):
         return False
 
 
@@ -72,6 +77,9 @@ def read_repo_file(base: Path, names: Iterable[str]) -> tuple[str, str] | None:
             if not resolved.is_file():
                 continue
             return name, resolved.read_text(encoding="utf-8", errors="replace")
-        except (OSError, ValueError):
+        # RuntimeError for the symlink loop ``resolve()`` raises on 3.10 to 3.12 (see
+        # ``within``). Missed at first because it was written and checked on 3.14, where a
+        # loop resolves quietly; CI's 3.10 and 3.11 cells failed on the loop test.
+        except (OSError, ValueError, RuntimeError):
             continue
     return None
