@@ -227,7 +227,12 @@ def _module_page_plan(store, repo_id: str, node_count: int,
             log(f"  {repo_id}: wiki.toml names {len(missing)} module(s) the graph does not "
                 f"hold, ignored: {', '.join(missing[:5])}", level=logging.WARNING)
         if chosen:
-            return chosen[:_MAX_MODULE_PAGES_PER_REPO], True
+            # The WHOLE list, not its first `_MAX_MODULE_PAGES_PER_REPO` names. That cap
+            # bounds how many pages one run GENERATES, and `_select_module_pages` applies
+            # it by rotating through the tail. Cutting the plan too meant the names past 20
+            # never got a page, and `_prune_orphan_module_pages` (which must see the full
+            # list) deleted the pages they already had.
+            return chosen, True
         # Every name was unknown. Falling through to the heuristic rather than returning
         # nothing: the file was wrong, and answering a wrong file with no pages at all would
         # let one typo silently delete a repository's whole module set.
@@ -486,23 +491,29 @@ def _wanted_repo_ids(args) -> set[str]:
 
 
 def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
-                      embedder=None, vs=None) -> tuple[int, dict, dict]:
+                      embedder=None, vs=None) -> tuple[int, dict, dict, dict]:
     """Write every repository's structural page and its module pages, unconditionally.
 
     Runs BEFORE the LLM is built and regardless of whether one is configured, because
     that is the point: a generated page needs a backend, and a user without one used to
     get nothing at all out of `kb wiki`.
 
-    Returns ``(pages written, briefs, pages)``, both dicts keyed by
-    ``(repo_id, path_prefix)``. The PAGES are handed back because the generated path needs
-    the structural document for that exact scope as its prompt, and it must be the text
-    this stage rendered rather than whatever is on disk: once a generated page exists, the
-    file at that path holds prose, so re-reading it would feed the model its own last
-    output as though it were the graph. Handing the briefs back is not an optimisation detail:
-    every brief here is built with the SAME arguments the generated path would use, so
-    that path reuses them instead of building a second, identical one. A test asserts
-    each page's brief is built exactly once, and it caught this stage doubling the count
-    the moment it was added.
+    Returns ``(pages written, briefs, pages, plans)``. ``briefs`` and ``pages`` are dicts
+    keyed by ``(repo_id, path_prefix)``. The PAGES are handed back because the generated
+    path needs the structural document for that exact scope as its prompt, and it must be
+    the text this stage rendered rather than whatever is on disk: once a generated page
+    exists, the file at that path holds prose, so re-reading it would feed the model its
+    own last output as though it were the graph. Handing the briefs back is not an
+    optimisation detail: every brief here is built with the SAME arguments the generated
+    path would use, so that path reuses them instead of building a second, identical one.
+    A test asserts each page's brief is built exactly once, and it caught this stage
+    doubling the count the moment it was added.
+
+    ``plans`` is ``{repo_id: (modules, may_prune)}``, the `_module_page_plan` answer that
+    includes the repository's `wiki.toml` `pages`. The generated path takes it as it is
+    and does not plan again. It used to recompute the plan without the steering file and
+    then prune every stored module page that plan did not hold, so a run with an LLM
+    deleted the pages the structural stage had written for the file's own list.
 
     Not gated on ``--force``. These pages are deterministic and derived from the shard, so
     regenerating costs milliseconds and always leaves the page agreeing with the graph.
@@ -523,6 +534,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     written = 0
     briefs: dict[tuple[str, str | None], dict] = {}
     pages: dict[tuple[str, str | None], str] = {}
+    plans: dict[str, tuple[list[dict], bool]] = {}
     # The positional repo filter, honoured HERE. This stage took `args` and never read it,
     # so `kb wiki <repo>` rewrote every repository's structural page -- and because the
     # local-first path returns right after this stage when no LLM is configured, the
@@ -557,8 +569,13 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
             # the forge's boilerplate README as the project's architecture.
             continue
         steering = read_wiki_steering(_repo_paths.get(repo_id))
-        modules, _prune = _module_page_plan(store, repo_id, len(shard.nodes),
-                                            override=steering["pages"])
+        modules, may_prune = _module_page_plan(store, repo_id, len(shard.nodes),
+                                               override=steering["pages"])
+        # Recorded before the brief checks below can `continue`, so every repository
+        # that was planned keeps its plan for the generated path. `may_prune` travels
+        # with the modules: `([], False)` means the index is not answering, and the
+        # generated path must still refuse to prune on it.
+        plans[repo_id] = (modules, may_prune)
         brief = repo_brief(store_dir, repo_id, store=store,
                            subsystem_modules=modules or None)
         if brief is None or not brief.get("coverage_total"):
@@ -618,7 +635,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
                                       mod_file.relative_to(wiki_dir).as_posix(),
                                       scoped.get("head"), embedder, vs,
                                       cfg.embeddings.batch_size, source_repo=repo_id)
-    return written, briefs, pages
+    return written, briefs, pages, plans
 
 
 def no_llm_message(llm_cfg, is_offline: bool) -> str:
@@ -671,6 +688,7 @@ def cmd_wiki(args) -> int:
         repo_brief,
         subsystem_names,
     )
+    from ..wiki.steering import read_wiki_steering
     from ..wiki.validate import replacement_gate, structural_gate
 
     store, store_dir = _open_store(args)
@@ -737,8 +755,9 @@ def cmd_wiki(args) -> int:
 
         structural_briefs: dict = {}
         structural_pages: dict = {}
+        structural_plans: dict = {}
         if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):
-            n, structural_briefs, structural_pages = _structural_stage(
+            n, structural_briefs, structural_pages, structural_plans = _structural_stage(
                 store, store_dir, args, cfg, wiki_dir, embedder=embedder, vs=vs)
             if n:
                 log(f"Wrote {n} structural page(s) → {wiki_dir}")
@@ -1112,7 +1131,7 @@ def cmd_wiki(args) -> int:
             _log_rejection(label, gate)
             return "rejected"
 
-        for repo_id, _ in targets:
+        for repo_id, repo_path in targets:
             # Freshness check first, off the cheap shard-only head_commit --
             # repo_brief(..., store=store) below also runs setup_signals'
             # live-checkout scan, which a skipped (unchanged) repo shouldn't pay for.
@@ -1121,12 +1140,23 @@ def cmd_wiki(args) -> int:
                 progress.advance(repo_id)
                 continue
             node_count = len(shard.nodes)
-            # Computed here (once, before the whole-repo page) rather than
-            # after it, so the whole-repo page can name its subsystem pages
-            # (Task 16) -- reused below for the module-page loop too, so this
-            # is still exactly one `repo_modules()` query per repo per run,
-            # not two.
-            modules, may_prune = _module_page_plan(store, repo_id, node_count)
+            # The plan the structural stage already made, NOT a second one. That stage
+            # plans with the repository's `wiki.toml` `pages`; this path used to plan
+            # without them and then prune against its own plan, which deleted every page
+            # the file had asked for in the same run that wrote them. One plan means the
+            # pages written, the pages generated and the pages kept are the same set.
+            #
+            # Planned here only when the structural stage had nothing for this repo: an
+            # empty shard (it skips those), or a `--workspace`/`--source` target. Those
+            # read the steering file from the target's own path, the same input the stage
+            # uses. Still one `repo_modules()` query per repo per run.
+            plan = structural_plans.get(repo_id)
+            if plan is None:
+                plan = _module_page_plan(store, repo_id, node_count,
+                                         override=read_wiki_steering(repo_path)["pages"])
+            # Reused below for the module-page loop too, and computed before the
+            # whole-repo page so that page can name its subsystem pages (Task 16).
+            modules, may_prune = plan
             # Before selecting or naming anything: drop pages for modules that
             # no longer qualify, so the overview below can't name a subsystem
             # page this run is about to delete. Skipped when the empty module
