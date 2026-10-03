@@ -7,6 +7,7 @@ import logging
 from ... import style
 from ...logging_setup import log
 from ..connectors.text_match import link_documents_to_symbols, symbol_nodes_for_repo
+from ..paths import is_plain_id
 from ..store.shards import GraphShard, write_shard
 from ._common import (
     _guard_store,
@@ -191,6 +192,13 @@ def cmd_ingest(args) -> int:
                     failed += 1
                     continue
                 repo_id = f"@ingest:{name}"
+                if not is_plain_id(repo_id):
+                    # The name becomes a path under the store. Checked before the fetch, so
+                    # nothing is stored for a name `write_shard` would refuse at the end.
+                    log(f"  {name}: refused, a source name may not hold a '.' or '..' "
+                        "segment or be a path", inline=True)
+                    failed += 1
+                    continue
                 nodes, texts = [], []
                 try:
                     for doc in src.iter_documents():

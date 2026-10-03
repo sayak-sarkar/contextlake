@@ -28,9 +28,11 @@ pseudo-repo wants the space back, and was told the repo had been removed.
 from __future__ import annotations
 
 import difflib
+import glob
 
 from ... import style
 from ...logging_setup import log
+from ..paths import is_plain_id, strictly_within
 from ._common import _guard_store, _open_store, kb_config
 
 
@@ -57,7 +59,10 @@ def _wiki_pages(wiki_dir, repo_id: str) -> list:
         # A module page is "<repo>__<module>.md", so the repo's own pages are
         # exactly those prefixed with "<repo>__". The trailing separator is what
         # stops repo "team/app" from claiming repo "team/appendix"'s pages.
-        found += sorted(p for p in modules.glob(f"{safe}__*.md") if p.is_file())
+        # `glob.escape`: the id is data, not a pattern. An id containing `*` or `[` matched
+        # the module pages of other repos, and `forget` then deleted them.
+        found += sorted(p for p in modules.glob(f"{glob.escape(safe)}__*.md")
+                        if p.is_file())
     return found
 
 
@@ -104,13 +109,27 @@ def _disk_artifacts(store_dir, parts: list[str], repo_id: str) -> list:
     nothing, which defeats the case this command was written for: a store bloated by a
     mis-index, where reclaiming the space is the entire point.
 
-    ``shard_path`` rejects an id that would escape ``graph/``; the history directory is
-    derived from that validated path rather than joined again, so both go through one
-    check instead of two that could disagree.
+    Every path returned here is later deleted, so every path is checked here.
+    ``shard_path`` rejects an id that would escape ``graph/``, but it only looks at the
+    shard: it appends ``.json`` to the last segment, so ``h/../..`` passes it. The history
+    directory was joined from the raw id with no check. ``evil.example/../..`` resolved to
+    the store root, ``../..`` to the directory above the store, and an absolute id (a
+    ``file:///dir`` remote gives one) to ``dir`` itself.
+
+    Two rules, applied to the shards and the history directory:
+    - An id with a ``.`` or ``..`` segment, or an absolute id, owns no file
+      (``paths.is_plain_id``). ``team/../other`` is repo ``other``'s shard and history, and a
+      containment test alone cannot tell them apart. ``shard_path`` applies the rule to the
+      shards; the history directory is joined here, so it is checked here.
+    - The history directory must resolve strictly inside ``history/``, never to it.
+
+    A refused path is left out of the list, so it is not counted as space to reclaim. A
+    refused history directory that exists is also named in a warning.
     """
     from ..store.shards import shard_path
 
     found = []
+    refused = []
     for part in parts:
         try:
             p = shard_path(store_dir, part)
@@ -118,9 +137,17 @@ def _disk_artifacts(store_dir, parts: list[str], repo_id: str) -> list:
             continue  # a path-escaping id owns no file we are willing to touch
         if p.is_file():
             found.append(p)
-    hist = store_dir / "history" / repo_id
+    hist_root = store_dir / "history"
+    hist = hist_root / repo_id
     if hist.is_dir():
-        found.append(hist)
+        if is_plain_id(repo_id) and strictly_within(hist_root, hist):
+            found.append(hist)
+        else:
+            refused.append(str(hist))
+    if refused:
+        log(style.warn(
+            f"  not removing files for {repo_id!r}: its id points outside its own "
+            f"directory ({', '.join(refused[:3])}). Those files stay on disk."))
     return found
 
 

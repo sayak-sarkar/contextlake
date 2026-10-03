@@ -182,9 +182,14 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             f"they hold is not the one this build produces.")
 
     def _persist(repo_id, path, head, shard):
-        store.upsert_repo(Repo(id=repo_id, path=path))
+        # Files first, row second. `write_shard` refuses an id that names no path of its own
+        # (a `..` segment or an absolute id, which a clone's remote URL can give), and the
+        # row used to be registered before it did: a refused repo then sat in the store as a
+        # zero-node ghost. The row has to exist before `reindex_shard`, which loads the
+        # nodes under it.
         write_shard(store_dir, shard)
         archive_shard(store_dir, shard)
+        store.upsert_repo(Repo(id=repo_id, path=path))
         reindex_shard(store, store_dir, repo_id)
         # Stamp from the shard, never from PARSER_VERSION: the row then mirrors
         # the file that was actually written, so the two cannot drift.
@@ -627,9 +632,16 @@ def _resolve_source_by_id(store, source: str) -> tuple[str, Path] | None:
 
 
 def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
+    # Same order as `_persist`, for the same reason. A refusal is reported by name and ends
+    # this one repo with a non-zero code; it used to escape as an unhandled error from the
+    # command, after the row had already been registered.
+    try:
+        write_shard(store_dir, shard)
+        archive_shard(store_dir, shard)
+    except ValueError as e:
+        log(f"  {style.fail(repo_id)}: refused, not indexed: {e}")
+        return 1
     store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
-    write_shard(store_dir, shard)
-    archive_shard(store_dir, shard)
     reindex_shard(store, store_dir, repo_id)
     mark_repo_indexed(store, repo_id, head, shard.parser_version)
     st = store.stats()

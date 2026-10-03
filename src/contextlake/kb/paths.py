@@ -15,9 +15,35 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from ..logging_setup import log
+
+
+def has_dot_segment(name: str) -> bool:
+    """True if ``name`` has a ``.`` or ``..`` path segment (``/`` or ``\\`` separated)."""
+    return any(seg in (".", "..") for seg in name.replace("\\", "/").split("/"))
+
+
+def is_plain_id(repo_id: str) -> bool:
+    """True if ``repo_id``, joined under a store directory, names exactly one path in it.
+
+    A repo id is the normalized remote URL of a clone, and a remote URL is whatever the
+    clone's owner wrote. ``normalize_remote_url`` keeps ``..`` segments, and a ``file:///dir``
+    remote gives the absolute id ``/dir``. Joined under ``graph/`` or ``history/``:
+    - ``evil.example/../..`` resolves to the store root,
+    - ``team/../other`` is repo ``other``'s own path, so the two ids share one file,
+    - ``/dir`` replaces the base entirely (``pathlib`` drops everything left of an absolute
+      segment).
+
+    A containment test alone cannot tell the alias from the real id, because both resolve
+    inside the store. This rule can. Every store path built from an id goes through it.
+    """
+    if has_dot_segment(repo_id) or repo_id.startswith(("/", "\\")):
+        return False
+    win = PureWindowsPath(repo_id)
+    # `C:x` is not absolute, but on Windows `store / "C:x"` switches to drive C:.
+    return not (PurePosixPath(repo_id).is_absolute() or win.is_absolute() or win.drive)
 
 
 def within(base: Path, candidate: Path) -> bool:
@@ -83,3 +109,21 @@ def read_repo_file(base: Path, names: Iterable[str]) -> tuple[str, str] | None:
         except (OSError, ValueError, RuntimeError):
             continue
     return None
+
+
+def strictly_within(base: Path, candidate: Path) -> bool:
+    """True if ``candidate`` resolves to a path inside ``base`` and is not ``base`` itself.
+
+    ``within`` counts ``base`` as inside itself. That is right for a read, where ``base`` is
+    the thing meant. It is wrong for a delete under a root: ``history/x/..`` resolves to
+    ``history``, and ``rmtree`` on it would remove the history of every repo. Use this
+    before removing anything named by an id or a path that came from outside.
+
+    Fails closed like ``within``: a path that cannot be resolved is not inside anything.
+    """
+    if not within(base, candidate):
+        return False
+    try:
+        return candidate.resolve() != base.resolve()
+    except (OSError, ValueError, RuntimeError):
+        return False

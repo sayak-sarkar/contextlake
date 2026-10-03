@@ -9,6 +9,7 @@ from ... import style
 from ...logging_setup import log
 from ..config import apply_llm_overrides
 from ..connectors.text_match import link_documents_to_symbols
+from ..paths import is_plain_id
 from ..store.shards import GraphShard, read_shard, shard_path, write_shard
 from ._common import (
     _connect_targets,
@@ -116,8 +117,13 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     the dashboard's ``_links_for``), and a wiki page is contextlake's own output,
     not a third-party cross-link like a Jira issue or a Figma frame.
     """
-    nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     part = _wiki_partition(repo_id)
+    if not is_plain_id(part):
+        # An id an older version indexed with a `..` segment. Checked before the clears
+        # below, so the refusal leaves the partition as it was.
+        log(f"  wiki: {repo_id!r} is not a plain repo id, so its page is not stored")
+        return 0
+    nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     # Sweep the vectors alongside the nodes. Section ids are per-INDEX
     # (`@wiki:<repo>:<i>`) and a document is one node but one-or-more vectors keyed by
     # `chunk_key(node.id, i)`, so a page that loses its last section, or whose text

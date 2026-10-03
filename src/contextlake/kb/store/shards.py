@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from ...logging_setup import log
 from ..model import Edge, Node
+from ..paths import is_plain_id
 from .base import Store
 
 # Soft per-shard size warning; a single repo should never approach this.
@@ -136,7 +137,15 @@ def shard_path(store_dir: str | Path, repo_id: str) -> Path:
     untrusted caller (e.g. an MCP tool argument), so reject any value that would escape
     the ``graph/`` directory (``..`` traversal, absolute paths) rather than reading an
     arbitrary file off disk.
+
+    The containment test below is not enough on its own. ``.json`` is appended to the LAST
+    segment, so ``team/../other`` resolves to ``graph/other.json`` and passes it: that is repo
+    ``other``'s shard, so the alias could write over it (``write_shard``) and read it
+    (``read_shard``, with an id an MCP client sends). An id with a ``.`` or ``..`` segment, or
+    an absolute id, is refused first. See ``paths.is_plain_id``.
     """
+    if not is_plain_id(repo_id):
+        raise ValueError(f"invalid repo id (path escape or dot segment): {repo_id!r}")
     base = (Path(store_dir) / "graph").resolve()
     p = (base / f"{repo_id}.json").resolve()
     if p != base and base not in p.parents:
@@ -272,8 +281,26 @@ def peek_parser_version(store_dir: str | Path, repo_id: str) -> str | None:
 
 # --- bi-temporal history: snapshot each indexed shard by commit ------------
 
+def history_dir(store_dir: str | Path, repo_id: str) -> Path:
+    """The directory holding a repo's snapshots, ``history/<repo_id>``.
+
+    Raises ValueError for an id that does not name one path under ``history/``, by the same
+    rule as :func:`shard_path`. This was a bare join of the raw id: ``evil.example/../..``
+    wrote ``<commit>.json`` into the store root, and an absolute id (a ``file:///dir`` remote
+    gives one) pointed at ``dir`` itself.
+    """
+    if not is_plain_id(repo_id):
+        raise ValueError(f"invalid repo id (path escape or dot segment): {repo_id!r}")
+    return Path(store_dir) / "history" / repo_id
+
+
 def history_path(store_dir: str | Path, repo_id: str, commit: str) -> Path:
-    return Path(store_dir) / "history" / repo_id / f"{commit}.json"
+    """``history/<repo_id>/<commit>.json``. Raises ValueError for a refused id (see
+    :func:`history_dir`) or for a ``commit`` that is itself a path. ``kb query --as-of`` hands
+    a user string here, and ``../../graph/x`` is not a commit."""
+    if not commit or commit in (".", "..") or "/" in commit or "\\" in commit:
+        raise ValueError(f"invalid commit (path escape): {commit!r}")
+    return history_dir(store_dir, repo_id) / f"{commit}.json"
 
 
 def archive_shard(store_dir: str | Path, shard: GraphShard) -> Path | None:
@@ -307,8 +334,12 @@ def archive_shard(store_dir: str | Path, shard: GraphShard) -> Path | None:
 
 def read_shard_at(store_dir: str | Path, repo_id: str, commit: str) -> GraphShard | None:
     """The repo's snapshot at ``commit`` (from history, or the current shard if it
-    is at that commit), or None if that commit was never indexed."""
-    p = history_path(store_dir, repo_id, commit)
+    is at that commit), or None if that commit was never indexed. A refused id or commit
+    is "never indexed", not an error: the caller may have taken it from a request."""
+    try:
+        p = history_path(store_dir, repo_id, commit)
+    except ValueError:
+        return None
     if p.exists():
         return GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
     current = read_shard(store_dir, repo_id)
@@ -318,7 +349,10 @@ def read_shard_at(store_dir: str | Path, repo_id: str, commit: str) -> GraphShar
 
 
 def list_indexed_commits(store_dir: str | Path, repo_id: str) -> list[str]:
-    d = Path(store_dir) / "history" / repo_id
+    try:
+        d = history_dir(store_dir, repo_id)
+    except ValueError:
+        return []
     return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
 
 

@@ -45,6 +45,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     removed. A non-empty one is reported as `exists, is not a git repository and is not
     empty, so it was left alone`, and that repository counts as failed, so `mirror clone`
     and `mirror sync` exit 1 where the directory used to be replaced.
+- **A repo id with a `..` segment or an absolute path can no longer reach outside its own
+  files.** A repo id comes from a clone's remote URL, so its owner chooses it.
+  - `kb forget` on such an id deleted the store root, the directory above the store, or
+    the directory an absolute id named.
+  - `kb index` wrote snapshots into the store root, and `team/../other` overwrote repo
+    `other`'s shard. With such a row already in the store, the next `kb index` migrated
+    it and deleted the whole store.
+  - Now every path built from an id refuses it. `kb index` names the repo, does not index
+    it, and carries on; reads treat it as not found; `kb forget` removes the rows and
+    leaves files it cannot attribute. `kb ingest` refuses a source name of that shape, and
+    the dashboard's Sync and Add buttons refuse to index such a repo.
+- **A clone's doc files and `.contextlakeignore` no longer follow symlinks out of the
+  clone.** These were the two readers 9.3.0 listed as still open.
+- **`api` source pagination checks each `next` link the way it checks the first URL.**
+  A link is resolved against the page that named it, so relative links now work. A
+  `file:` or other non-http link is refused and recorded, and the pages already read are
+  kept. The credential still goes only to the configured origin.
+- **The git post-commit hook quotes every value it writes.** `$(...)` or backticks in a
+  repo path or repo id ran as a command on every commit. Run `kb hook install` again to
+  update a hook installed by an earlier version.
 
 ### Fixed
 

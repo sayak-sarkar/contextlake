@@ -24,6 +24,8 @@ import sys
 import time
 from pathlib import Path
 
+from ..paths import is_plain_id
+
 _SAFE_NAME_RX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
@@ -122,6 +124,8 @@ def sync_repo(store, store_dir, repo_id: str) -> dict:
     from ..cmds._common import _git_head
     from ..state import needs_reindex
 
+    if not is_plain_id(repo_id):
+        return {"ok": False, "error": f"not a plain repo id, so it is not reindexed: {repo_id}"}
     repo = store.get_repo(repo_id)
     if repo is None or not repo.path:
         return {"ok": False, "error": f"unknown repo: {repo_id}"}
@@ -197,6 +201,10 @@ def add_repo(store, store_dir, workspace, url: str) -> dict:
     from ..parse import index_repo_dir  # lazy: tree-sitter
     from ..repo_identity import resolve_repo_id
     repo_id = resolve_repo_id(str(dest))
+    if not is_plain_id(repo_id):
+        # The clone's remote gives an id with a `..` segment or a path. Cloned, not indexed.
+        return {"ok": False, "error": f"cloned to {dest}, not indexed: its remote gives "
+                                     f"the id {repo_id!r}, which is not a plain name"}
     head = _git_head(dest)
     shard = index_repo_dir(str(dest), repo_id, head_commit=head,
                        **_parse_opts(store_dir))
