@@ -11,14 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **A file in a mirrored clone can no longer reach outside it.** Four readers of a
+- **A clone's README and steering file can no longer reach outside the clone.** Four readers of a
   clone's own files followed symlinks: `get_readme` over MCP, the wiki generator's
   README excerpt, the dashboard README panel and the wiki steering file. A `README.md`
   linked to `/proc/self/environ` returned the server's environment, which holds
   `CONTEXTLAKE_MCP_TOKEN` when the operator pins it there, so the holder of a key scoped
   to one repository who could commit a link to it obtained the full-scope token. All four
   now refuse a file whose resolved path leaves the clone. Symlink loops return not-found.
-- **Repository scopes are enforced on every road, not only through the store proxy.**
+  Two other in-clone readers still follow links and are next: a pass that scrapes link
+  patterns from doc files, and the `.contextlakeignore` reader. Neither returns file
+  content to an MCP caller.
+- **Repository scopes now hold on the roads that bypassed the store proxy.**
   The scope released above had gaps a 2026-10-03 audit found:
   - `repo_dependencies`, `repo_flow` and `repo_event_flow` build edges with raw SQL the
     proxy cannot see, and returned denied repositories' names. An edge now comes back
@@ -34,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `test_scope_over_the_wire.py` drives every registered tool over a real socket with a
     scoped key, an unscoped key and the shared token. It failed on 13 tools before these
     fixes.
+  - Still open: a tool written later against the raw store connection is unscoped unless
+    its body filters, as the three flow tools now do (that test turns red when one does
+    not); and the vector-store path is not yet driven by that test.
 - **A source credential stays on its own origin.** The `api` and `graphql` sources sent
   `Authorization` through urllib, which re-sends it on a redirect, so an open redirect on
   the API host received the token. A cross-origin redirect or next-page link is still
