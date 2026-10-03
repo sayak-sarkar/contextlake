@@ -167,6 +167,15 @@ because a note with no reader is the same silent pass it was added to stop: the
 string existed for a full round with nothing printing it, while this docstring
 asserted a caller that did not exist.
 
+**Two writers, one file.** :func:`write_document` is atomic, and it is not enough
+on its own. Every ``kb keys`` write verb reads the file, edits the records in
+memory and replaces the file, so two verbs that overlap both start from the same
+bytes and the second replace discards the first. A ``create`` that loaded the file
+before a ``revoke`` and saved after it writes the revoked key back as live, and the
+next ``kb serve`` start serves it. :func:`write_lock` serialises the whole
+read-edit-replace: the caller holds it from before :func:`load_document` until after
+:func:`write_document`. Readers never take it, because the replace is atomic.
+
 The STATE half of the path rule is NOT POSIX-gated. A dangling symlink is not a
 mode-bit question, so symlink, irregular and unstattable are refused on every
 platform, and only the masks and the owner check are skipped.
@@ -212,9 +221,12 @@ from __future__ import annotations
 import errno
 import json
 import logging
+import math
 import os
 import secrets
 import stat as stat_module
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1065,6 +1077,198 @@ def _fsync_dir(directory) -> None:
         os.fsync(fd)
     except OSError:
         pass
+    finally:
+        os.close(fd)
+
+
+# --- the write lock --------------------------------------------------------
+
+LOCK_SUFFIX = ".lock"
+
+# How long a write verb waits for another writer. A holder keeps the lock for one
+# read, one edit and one fsync-ed replace, which is milliseconds, so a holder still
+# there after this long is stuck. The caller is told and exits instead of waiting.
+LOCK_TIMEOUT = 10.0
+LOCK_POLL = 0.05
+
+
+class KeyFileBusy(KeyFileError):
+    """Another process held the write lock for the whole wait. Nothing was changed.
+
+    A :class:`KeyFileError`, so ``cmd_keys`` turns it into exit 1 with the
+    ``key_file_error`` code that is already documented.
+    """
+
+
+def lock_path(path) -> Path:
+    """The lock file for a key file: ``<name>.lock``, in the same directory."""
+    path = Path(path)
+    return path.with_name(path.name + LOCK_SUFFIX)
+
+
+def _try_lock_posix(fd: int) -> bool:
+    """Take the lock without waiting. False when another holder has it.
+
+    ``flock`` and not ``lockf``. A ``flock`` belongs to the open file description,
+    so two descriptors conflict even inside one process, which is what makes two
+    threads exclude each other. ``lockf`` takes POSIX record locks, which belong to
+    the PROCESS and never conflict with themselves. The kernel drops either kind
+    when the holder exits, so a crashed writer leaves nothing to clean up.
+    """
+    import fcntl
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
+
+
+def _try_lock_windows(fd: int) -> bool:
+    """The same on Windows: one byte at offset 0, ``LK_NBLCK``, no waiting.
+
+    ``LK_LOCK`` is not used: it retries ten times a second apart and then fails,
+    which would put a second wait of its own inside :data:`LOCK_TIMEOUT`. A
+    locking violation arrives as ``EACCES`` (``EDEADLOCK`` is what ``LK_LOCK``
+    reports after its retries), and any other error is a real fault.
+    """
+    import msvcrt
+
+    os.lseek(fd, 0, os.SEEK_SET)
+    try:
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    except OSError as exc:
+        if exc.errno in (errno.EACCES, getattr(errno, "EDEADLOCK", errno.EACCES)):
+            return False
+        raise
+    return True
+
+
+def _unlock_posix(fd: int) -> None:
+    import fcntl
+
+    fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _unlock_windows(fd: int) -> None:
+    import msvcrt
+
+    os.lseek(fd, 0, os.SEEK_SET)
+    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+
+
+# `fcntl` does not exist on Windows and `msvcrt` does not exist elsewhere, so each
+# is imported inside the function that needs it and never at module level.
+_IS_WINDOWS = os.name == "nt"
+_try_lock = _try_lock_windows if _IS_WINDOWS else _try_lock_posix
+_unlock = _unlock_windows if _IS_WINDOWS else _unlock_posix
+
+
+def _open_lock_file(lock: Path) -> int:
+    """Open the lock file at 0600, created if missing, never followed if a link.
+
+    ``O_NOFOLLOW`` so a symlink at the lock path is refused: ``O_CREAT`` through a
+    dangling link would create its target. No ``O_EXCL``, because the file stays on
+    disk between writers. The mode is given at creation, as for the key file.
+
+    A file already there is checked through the descriptor: it must be a regular
+    file, owned by this account (or root), and carry no group or other bits. The
+    lock holds no secret, but a lock file another account can open is a lock that
+    account can hold forever.
+    """
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(lock, flags, FILE_MODE)
+    except OSError as exc:
+        raise KeyFileError(
+            f"cannot open the key file's lock {lock}: {exc}. It is opened without "
+            "following symlinks, so a link at that path is refused."
+        ) from exc
+    try:
+        st = os.fstat(fd)
+        if not stat_module.S_ISREG(st.st_mode):
+            raise KeyFileError(
+                f"the key file's lock {lock} is not a regular file. Refusing to "
+                "use it."
+            )
+        if POSIX:
+            fault = _owner_fault("the key file's lock", lock, st.st_uid)
+            if fault:
+                raise KeyFileError(fault)
+            if st.st_mode & FILE_MASK:
+                os.fchmod(fd, FILE_MODE)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+@contextmanager
+def write_lock(path, *, timeout: float | None = None):
+    """Hold the key file's write lock for the body of a ``with`` block.
+
+    A write verb takes it BEFORE it loads the file and drops it AFTER
+    :func:`write_document` returns. Taking it around the write alone leaves the
+    lost update in place: both verbs would still have read the same bytes.
+
+    The lock is a sibling file, ``<name>.lock``, opened at 0600 and kept on disk
+    after release. Deleting it would let one writer lock the old inode while a
+    second creates and locks a new one.
+
+    The checks run in the order :func:`write_document` runs them: :func:`enforce`
+    first, so no lock file is created in a directory the key file itself would be
+    refused in, then :func:`_make_parents` for a directory that is not there yet.
+    :func:`_open_lock_file` checks the lock file itself.
+
+    Waits up to ``timeout`` seconds (:data:`LOCK_TIMEOUT` when None, read at call
+    time) and then raises :class:`KeyFileBusy`. ``CONTEXTLAKE_ALLOW_CONCURRENT``,
+    which lets a second writer past the store's lock, does not apply here: this
+    guards the file that decides who may call the server.
+
+    This is an OS lock and not the pid file ``kb/lock.py`` uses, for three reasons.
+    That one refuses at once and cannot wait. It treats a second thread in the same
+    process as the holder and lets it through. And two processes can both judge a
+    stale pid dead and both reclaim it.
+    """
+    path = Path(path)
+    limit = LOCK_TIMEOUT if timeout is None else timeout
+    # The wait is counted in polls and reads no clock, so a change to the system
+    # clock cannot stretch it or cut it short. The module reads no monotonic clock
+    # at all, and a test pins that for the keyring's expiry clock (`_default_now`).
+    polls = max(0, math.ceil(limit / LOCK_POLL))
+    enforce(path)
+    _make_parents(path.parent)
+    lock = lock_path(path)
+    fd = _open_lock_file(lock)
+    try:
+        polled = 0
+        while True:
+            try:
+                got = _try_lock(fd)
+            except OSError as exc:
+                raise KeyFileError(
+                    f"cannot lock {lock}: {exc}. This filesystem may not support "
+                    "file locks. Point $CONTEXTLAKE_KEYS_FILE at a local path."
+                ) from exc
+            if got:
+                break
+            if polled >= polls:
+                raise KeyFileBusy(
+                    f"another process is writing the key file {path}. Its lock, "
+                    f"{lock}, was still held after {limit:g} seconds. Nothing was "
+                    "changed. Retry when that command has finished. The lock is "
+                    "released when its holder exits, so there is no stale lock to "
+                    "delete."
+                )
+            polled += 1
+            time.sleep(LOCK_POLL)
+        try:
+            yield
+        finally:
+            try:
+                _unlock(fd)
+            except OSError:
+                pass  # closing the descriptor below drops the lock either way
     finally:
         os.close(fd)
 

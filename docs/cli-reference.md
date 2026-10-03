@@ -260,6 +260,13 @@ Three ways to capture it at creation:
   script: it is the only one where the mode is set at creation rather than inherited from
   the caller's umask.
 
+**Write verbs take turns.** `create`, `revoke`, `rotate` and `prune` each hold a lock,
+`<key file>.lock` beside the key file at mode `0600`, from reading the file until writing
+it. A second write verb waits up to 10 seconds for the first, then exits `1` with
+`key_file_error` and changes nothing. Without the lock, a `create` overlapping a `revoke`
+wrote the revoked key back as live. The lock is released when its holder exits, so there is
+never a stale one to delete. The lock file stays on disk.
+
 `rotate` takes `--print-key` and `--out` too, with the same meaning. Its new key exists
 nowhere else either.
 

@@ -78,6 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vendored checkout, and the scan read every `.git` and `node_modules` directory. It now
   stops at each clone and skips both. `status`, `clone` and `audit` counts drop nested
   checkouts. `mirror verify` still reports a repository nested in another, once, as nested.
+- **Two overlapping `kb keys` commands can no longer bring a revoked key back.** Each write
+  verb read the key file, edited it and replaced it, so a `create` that read the file
+  before a `revoke` and wrote after it saved the revoked key as live, and the next
+  `kb serve` start accepted it. `create`, `revoke`, `rotate` and `prune` now hold a lock
+  (`<key file>.lock`, mode `0600`) for the whole read and write. A second one waits up to
+  10 seconds, then exits 1 with `key_file_error` and changes nothing. A filesystem that
+  cannot lock files now refuses these commands, and the message says to point
+  `$CONTEXTLAKE_KEYS_FILE` at a local path.
 
 ## [9.4.0] - 2026-10-03
 

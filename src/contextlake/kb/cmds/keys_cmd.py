@@ -313,6 +313,10 @@ def _load(path, *, write: bool) -> _Loaded:
 def _save(path, records) -> None:
     """Write the key file back. 0600 at creation, parent tightened to 0700.
 
+    The caller holds `keyfile.write_lock(path)` from before its `_load` to after
+    this returns. Without it two verbs read the same bytes and the second save
+    discards the first verb's change.
+
     `keyfile.write_document` owns every byte of this: the temp sibling with the
     mode set at creation, the fsync before the rename, the atomic replace. Not
     `open(path, "w")`, which creates at the umask default and leaves a
@@ -1021,32 +1025,36 @@ def _cmd_create(args) -> int:
     print_key = _print_key_wanted(args)
 
     path = _keys_path(args)
-    loaded = _load(path, write=True)
-    records = loaded.records
-
     out_file = getattr(args, "out", None)
-    # The descriptor is opened BEFORE the record is minted, and this ordering is
-    # the whole point of the call. `_save` used to run first, so
-    # `create --out <existing path>` persisted a live record and THEN hit the
-    # O_EXCL refusal: the record was in the file, its plaintext was gone
-    # forever, and the command exited 2 saying nothing had worked.
-    out_fd = _open_key_file(out_file) if out_file else None
-    try:
+    # The lock is taken before the load and before `--out` is opened, so a busy
+    # lock refuses with no `--out` file created, and it is held until the save
+    # returns so no other verb's change can fall between the load and the save.
+    with keyfile.write_lock(path):
+        loaded = _load(path, write=True)
+        records = loaded.records
+
+        # The descriptor is opened BEFORE the record is minted, and this ordering
+        # is the whole point of the call. `_save` used to run first, so
+        # `create --out <existing path>` persisted a live record and THEN hit the
+        # O_EXCL refusal: the record was in the file, its plaintext was gone
+        # forever, and the command exited 2 saying nothing had worked.
+        out_fd = _open_key_file(out_file) if out_file else None
         try:
-            record, key = keys_mod.create(
-                records, name, expires=getattr(args, "expires", None),
-                policy=_policy(args), grant_version=_grant_version())
-        except ValueError as exc:
-            raise _BadUsage("bad_expires", str(exc),
-                            value=getattr(args, "expires", None),
-                            detail=str(exc)) from exc
-        _save(path, records)
-    except BaseException:
-        # Nothing was minted, so the empty file this call created is a file the
-        # operator never asked for, and leaving it makes the retry fail on
-        # O_EXCL for a reason the first run caused.
-        _discard_key_file(out_fd, out_file)
-        raise
+            try:
+                record, key = keys_mod.create(
+                    records, name, expires=getattr(args, "expires", None),
+                    policy=_policy(args), grant_version=_grant_version())
+            except ValueError as exc:
+                raise _BadUsage("bad_expires", str(exc),
+                                value=getattr(args, "expires", None),
+                                detail=str(exc)) from exc
+            _save(path, records)
+        except BaseException:
+            # Nothing was minted, so the empty file this call created is a file
+            # the operator never asked for, and leaving it makes the retry fail
+            # on O_EXCL for a reason the first run caused.
+            _discard_key_file(out_fd, out_file)
+            raise
     if out_fd is not None:
         _write_key_fd(out_fd, key)
 
@@ -1325,18 +1333,20 @@ def _cmd_revoke(args) -> int:
     as_json = bool(getattr(args, "json", False))
     key_id = _require_name(args, "revoke")
     path = _keys_path(args)
-    records = _load(path, write=True).records
-    record = _find(records, key_id)
-    if record is None:
-        # Exit 1, NOT the exit 0 no-op `kb source remove` documents
-        # (`cli.py:1116-1117`, `source_cmd.py:256`). An admin scripting a
-        # revocation reads the exit code, and "I revoked nothing" must never
-        # read as success.
-        raise _NotFound("unknown_id", _unknown_id(key_id, path),
-                        id=key_id, keys_file=str(path))
-    changed = keys_mod.revoke(records, record, reason=getattr(args, "reason", None))
-    if changed:
-        _save(path, records)
+    with keyfile.write_lock(path):
+        records = _load(path, write=True).records
+        record = _find(records, key_id)
+        if record is None:
+            # Exit 1, NOT the exit 0 no-op `kb source remove` documents
+            # (`cli.py:1116-1117`, `source_cmd.py:256`). An admin scripting a
+            # revocation reads the exit code, and "I revoked nothing" must never
+            # read as success.
+            raise _NotFound("unknown_id", _unknown_id(key_id, path),
+                            id=key_id, keys_file=str(path))
+        changed = keys_mod.revoke(records, record,
+                                  reason=getattr(args, "reason", None))
+        if changed:
+            _save(path, records)
     if as_json:
         payload = _json_record(record, datetime.now(timezone.utc),
                                defaults=_serve_defaults(args),
@@ -1371,41 +1381,43 @@ def _cmd_rotate(args) -> int:
     # and there was no machine route to it at all.
     print_key = _print_key_wanted(args)
     path = _keys_path(args)
-    records = _load(path, write=True).records
-    record = _find(records, key_id)
-    if record is None:
-        raise _NotFound("unknown_id", _unknown_id(key_id, path),
-                        id=key_id, keys_file=str(path))
-    # Resolved here, not read back from `args`: the CLI default is absent and
-    # `keys_mod.DEFAULT_OVERLAP` fills it in, so what the operator typed and
-    # what was applied differ on the default path.
-    overlap = getattr(args, "overlap", None) or keys_mod.DEFAULT_OVERLAP
-    # Parsed here as well as inside `keys_mod.rotate`, which reads `--overlap`
-    # first and `--expires` second and raises the same ValueError for both. One
-    # `except` around the call cannot say which flag was wrong, so a bad
-    # `--expires` would come back coded `bad_overlap` and send the operator to
-    # the flag they typed correctly. The re-parse costs one regex.
-    try:
-        keys_mod.parse_duration(overlap)
-    except ValueError as exc:
-        raise _BadUsage("bad_overlap", str(exc), value=overlap,
-                        detail=str(exc)) from exc
     out_file = getattr(args, "out", None)
-    out_fd = _open_key_file(out_file) if out_file else None
-    try:
+    # Locked before the load and before `--out` is opened. See `_cmd_create`.
+    with keyfile.write_lock(path):
+        records = _load(path, write=True).records
+        record = _find(records, key_id)
+        if record is None:
+            raise _NotFound("unknown_id", _unknown_id(key_id, path),
+                            id=key_id, keys_file=str(path))
+        # Resolved here, not read back from `args`: the CLI default is absent and
+        # `keys_mod.DEFAULT_OVERLAP` fills it in, so what the operator typed and
+        # what was applied differ on the default path.
+        overlap = getattr(args, "overlap", None) or keys_mod.DEFAULT_OVERLAP
+        # Parsed here as well as inside `keys_mod.rotate`, which reads `--overlap`
+        # first and `--expires` second and raises the same ValueError for both.
+        # One `except` around the call cannot say which flag was wrong, so a bad
+        # `--expires` would come back coded `bad_overlap` and send the operator to
+        # the flag they typed correctly. The re-parse costs one regex.
         try:
-            new_record, key = keys_mod.rotate(
-                records, record, overlap=overlap,
-                expires=getattr(args, "expires", None))
+            keys_mod.parse_duration(overlap)
         except ValueError as exc:
-            # `--overlap` was parsed above, so what is left is `--expires`.
-            raise _BadUsage("bad_expires", str(exc),
-                            value=getattr(args, "expires", None),
+            raise _BadUsage("bad_overlap", str(exc), value=overlap,
                             detail=str(exc)) from exc
-        _save(path, records)
-    except BaseException:
-        _discard_key_file(out_fd, out_file)
-        raise
+        out_fd = _open_key_file(out_file) if out_file else None
+        try:
+            try:
+                new_record, key = keys_mod.rotate(
+                    records, record, overlap=overlap,
+                    expires=getattr(args, "expires", None))
+            except ValueError as exc:
+                # `--overlap` was parsed above, so what is left is `--expires`.
+                raise _BadUsage("bad_expires", str(exc),
+                                value=getattr(args, "expires", None),
+                                detail=str(exc)) from exc
+            _save(path, records)
+        except BaseException:
+            _discard_key_file(out_fd, out_file)
+            raise
     if out_fd is not None:
         _write_key_fd(out_fd, key)
 
@@ -1467,10 +1479,11 @@ def _cmd_prune(args) -> int:
                         f"--before {before!r} is not a date: use YYYY-MM-DD.",
                         value=str(before)) from exc
     path = _keys_path(args)
-    records = _load(path, write=True).records
-    removed = keys_mod.prune(records, cutoff)
-    if removed:
-        _save(path, records)
+    with keyfile.write_lock(path):
+        records = _load(path, write=True).records
+        removed = keys_mod.prune(records, cutoff)
+        if removed:
+            _save(path, records)
     if as_json:
         now = datetime.now(timezone.utc)
         # `removed` is the count and `removed_keys` its list, the house pair
