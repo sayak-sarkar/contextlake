@@ -8,7 +8,10 @@ single-global-graph size ceiling that a monolithic graph would hit at scale).
 
 from __future__ import annotations
 
+import contextlib
+import os
 import re
+import secrets
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -154,14 +157,66 @@ def shard_path(store_dir: str | Path, repo_id: str) -> Path:
 
 
 def write_shard(store_dir: str | Path, shard: GraphShard) -> Path:
+    """Write ``shard`` so that a reader sees the old file or the new one, never a part.
+
+    The file used to be written in place: ``write_text`` truncates first, so a reader that
+    opened it mid-write got a truncated document, and a crash left that document as the
+    repo's source of truth. The bytes now go to a temp sibling and replace the shard in
+    one rename. Same recipe as ``keyfile.write_document``, except the mode: a shard was
+    never owner-only, so the temp file takes the default mode (0666 minus the umask),
+    which is what ``write_text`` gave it.
+    """
     p = shard_path(store_dir, shard.repo)
     p.parent.mkdir(parents=True, exist_ok=True)
-    data = shard.model_dump_json(indent=2)
-    p.write_text(data, encoding="utf-8")
-    if len(data.encode("utf-8")) > _SHARD_WARN_BYTES:
+    raw = shard.model_dump_json(indent=2).encode("utf-8")
+    _write_atomic(p, raw)
+    if len(raw) > _SHARD_WARN_BYTES:
         log(f"WARNING: shard for {shard.repo} exceeds {_SHARD_WARN_BYTES // (1024 * 1024)} MiB")
     _cache_evict(str(p))  # this process's own view must never read back stale
     return p
+
+
+def _write_atomic(path: Path, raw: bytes) -> None:
+    """Replace ``path`` with ``raw``: a temp sibling, fsync, then ``os.replace``.
+
+    The temp name carries 16 random hex characters and does not end in ``.json``, so it
+    cannot be pre-created and no glob over the shard files picks it up. ``O_EXCL`` refuses
+    an existing entry and ``O_NOFOLLOW`` refuses a symlink. The data is fsynced BEFORE the
+    rename: the rename is atomic against a crash, but without the fsync a power loss can
+    make it durable ahead of the bytes and leave a shard of zeros. A failure of any step
+    removes the temp file and re-raises, with the old shard untouched.
+    """
+    tmp = path.with_name(f"{path.name}.{secrets.token_hex(8)}.tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(tmp, flags, 0o666)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(raw)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    _fsync_dir(path.parent)
+
+
+def _fsync_dir(directory: Path) -> None:
+    """Make the rename itself durable. Best effort and never fatal: a directory cannot be
+    opened for fsync on Windows, and the data fsync above is the one that is not optional."""
+    try:
+        fd = os.open(directory, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
 
 
 def read_shard_with_identity(
@@ -357,11 +412,20 @@ def list_indexed_commits(store_dir: str | Path, repo_id: str) -> list[str]:
 
 
 def reindex_shard(store: Store, store_dir: str | Path, repo_id: str) -> bool:
-    """Load a repo's shard and (re)index it into the store. Returns False if absent."""
+    """Load a repo's shard and (re)index it into the store. Returns False if absent.
+
+    The clear and both upserts run in ONE transaction. As three commits, a reader on
+    another connection saw the repo with 0 nodes, then with its nodes and no edges, and a
+    failure between the steps left that state in the store. A store without a
+    ``transaction`` method (a test fake, another ``Store``) gets the same three calls with
+    no atomicity.
+    """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return False
-    store.clear_repo(repo_id)
-    store.upsert_nodes(repo_id, shard.nodes)
-    store.upsert_edges(repo_id, shard.edges)
+    transaction = getattr(store, "transaction", None)
+    with transaction() if transaction is not None else contextlib.nullcontext():
+        store.clear_repo(repo_id)
+        store.upsert_nodes(repo_id, shard.nodes)
+        store.upsert_edges(repo_id, shard.edges)
     return True

@@ -7,6 +7,7 @@ can be dropped and rebuilt at any time.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -103,6 +104,23 @@ def _fts_query(text: str) -> str:
     """
     tokens = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE).split()
     return " ".join(f'"{t}"*' for t in tokens)
+
+
+class _DeferredCommit:
+    """The thread's connection with ``commit()`` held back, for ``SqliteStore.transaction``.
+
+    Every other attribute is the real connection's, so the store's own write methods run
+    unchanged inside the block and only their commits are skipped.
+    """
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def commit(self) -> None:
+        return None
+
+    def __getattr__(self, name: str):
+        return getattr(self._conn, name)
 
 
 class SqliteStore(Store):
@@ -203,6 +221,40 @@ class SqliteStore(Store):
     def close(self) -> None:
         self.conn.commit()
         self.conn.close()
+
+    @contextlib.contextmanager
+    def transaction(self):
+        """Run every write in the block as one commit, or none of them.
+
+        Each write method here commits on its own. A caller that chains several (clear a
+        repo, then its nodes, then its edges) lets a reader on another connection see every
+        step in between, and a failure part way leaves the half-built state behind. Inside
+        this block the calling thread's connection ignores ``commit()``. The block commits
+        once when it ends cleanly and rolls everything back when it raises. WAL mode keeps
+        other connections on the old state until that commit.
+
+        Nested blocks join the outer one, which alone commits or rolls back. The effect is
+        per thread, like ``conn``. The write lock is held from the first write until the
+        commit, so put only the writes in the block.
+        """
+        conn = self.conn
+        if isinstance(conn, _DeferredCommit):
+            yield
+            return
+        conn.commit()  # a rollback below must not discard work from before the block
+        self._local.conn = _DeferredCommit(conn)
+        try:
+            yield
+        except BaseException:
+            self._local.conn = conn
+            conn.rollback()
+            raise
+        self._local.conn = conn
+        try:
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
 
     # -- repos ----------------------------------------------------------------
     def upsert_repo(self, repo: Repo) -> None:
