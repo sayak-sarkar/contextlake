@@ -248,9 +248,11 @@ def test_a_failed_write_raises_oserror_not_calledprocesserror(monkeypatch):
     degrade path never runs and the command crashes instead."""
     import subprocess as sp
 
+    # Bytes, as the real call returns them: the crontab is read and written
+    # without text mode so no byte of it changes on the way through.
     monkeypatch.setattr(
         cron.subprocess, "run",
-        lambda *a, **k: sp.CompletedProcess(a[0] if a else [], 1, "", "permission denied"))
+        lambda *a, **k: sp.CompletedProcess(a[0] if a else [], 1, b"", b"permission denied"))
     with pytest.raises(OSError, match="permission denied"):
         cron._write_crontab("some text\n")
 

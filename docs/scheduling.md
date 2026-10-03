@@ -66,6 +66,27 @@ resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
 hand. Force a specific platform with `--platform systemd` or `--platform cron`.
 
+### How the cron adapter edits your crontab
+
+`crontab -` replaces the whole crontab, so the cron adapter guards what it writes:
+
+- Only the lines between `# >>> contextlake (<name>) >>>` and `# <<< contextlake (<name>) <<<`
+  change. Every other byte comes back as it was. The one addition: a last line with no newline
+  gains one, because cron treats a crontab whose last line has no newline as broken.
+- Before each write, a copy of the crontab as it was is saved to `crontab-backups/` under the
+  cache root (`~/.cache/contextlake/`, or `$XDG_CACHE_HOME/contextlake/` when that is set). The
+  path is printed. Only you can read the file. If the copy cannot be saved, nothing is written.
+- If `crontab -l` fails for any reason other than "no crontab for <user>", the crontab is not
+  changed and the error is printed. `install` then prints the crontab line so you can add it by
+  hand. `uninstall` still removes the job record.
+- If a `# >>> contextlake (<name>) >>>` line has no matching end line, the crontab is not changed
+  and the error names the line. Fix it with `crontab -e`, then run `install` again. `uninstall`
+  still removes the job record, so `schedule list` then reports the block as an orphaned unit
+  until you delete it with `crontab -e`.
+- The job's line sends its own output to `/dev/null`, so cron mails nothing for it. Earlier
+  versions wrote `MAILTO=""` into the block instead, which cron also applied to every line below
+  it. Running `install` again removes that line.
+
 The default job runs `contextlake bootstrap` on most cycles, and switches to
 `contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
 re-embedded) once `schedule_full_every` has passed since the last successful full run.

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`schedule install` on cron no longer replaces your whole crontab when it cannot read
+  it.** Any failed `crontab -l` was read as an empty crontab, so a permission error or a
+  transient failure followed by a successful write left only contextlake's block, and
+  every other job was gone with no copy. Now only cron's own "no crontab for <user>"
+  message counts as empty. Any other read failure refuses the write and names the error.
+  Before each write, the crontab as read is saved to
+  `~/.cache/contextlake/crontab-backups/`, readable by you only, and the log names the
+  file. If the copy cannot be saved, nothing is written.
+- **A cron install keeps every other crontab line byte for byte.** Lines after a
+  contextlake BEGIN marker with no END were deleted; now install and uninstall refuse and
+  name the line to fix. Non-UTF-8 bytes and `\r\n` line ends were rewritten; now they
+  come back as they were.
+- **Your later cron jobs get their failure mail again.** The contextlake block set
+  `MAILTO=""`, which cron applies to every line below it. The block now sets no MAILTO,
+  and the contextlake job line ends in `>/dev/null 2>&1` instead. Installing again
+  removes the old `MAILTO=""` line.
+
 ## [9.4.0] - 2026-10-03
 
 ### Upgrading from 9.3.0
