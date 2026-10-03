@@ -9,6 +9,7 @@ import logging
 import os
 import subprocess
 import types
+from pathlib import Path
 
 import pytest
 
@@ -25,6 +26,9 @@ from contextlake import core, observability
 # network failure failed six of them at once (flake #17). Offline, a test that needs
 # the Hub fails on every run and names the Hub, instead of on one run in eight.
 os.environ["HF_HUB_OFFLINE"] = "1"
+
+# The operator's real key file, resolved before any fixture moves HOME.
+_REAL_KEYS_FILE = Path(os.path.expanduser("~/.contextlake/mcp-keys.json"))
 
 
 @pytest.fixture
@@ -160,6 +164,32 @@ def _isolated_home(tmp_path, monkeypatch):
     # back out to the real machine. Clear it here so the backstop actually is one;
     # a test that wants a specific value still sets it in its own body.
     monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+
+
+def _size_and_mtime(path):
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return st.st_size, st.st_mtime_ns
+
+
+@pytest.fixture(autouse=True)
+def _real_keys_file_untouched():
+    """Fail the test that writes to the operator's real key file.
+
+    Flake #17 included 3 key records leaking into ``~/.contextlake/mcp-keys.json``,
+    seen once and not reproduced since. ``_isolated_home`` should make that
+    impossible, and the mechanism is still unknown, so this names the test the next
+    time it happens. A stat, read-only. It also fires if someone runs ``kb keys`` in
+    another terminal during the run.
+    """
+    before = _size_and_mtime(_REAL_KEYS_FILE)
+    yield
+    after = _size_and_mtime(_REAL_KEYS_FILE)
+    assert after == before, (
+        f"{_REAL_KEYS_FILE} changed during this test (size, mtime_ns: {before} -> "
+        f"{after}). A test wrote to the real key file, or `kb keys` ran elsewhere.")
 
 
 @pytest.fixture(autouse=True)
