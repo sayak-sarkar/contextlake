@@ -153,6 +153,9 @@ def cmd_embed(args) -> int:
                         progress.advance(repo_id)
                         continue
                     if limit is None:
+                        # `embed_repo` withdrew both markers before it replaced this
+                        # repo's vectors, so they are recorded again here and only
+                        # here: a pass that was partial or died never reaches this line.
                         set_embedded_head(vs, repo_id, head)
                         # Stamped together with the head, and only on a complete pass:
                         # a partial (`--limit`) run must not claim the repo is fully

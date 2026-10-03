@@ -11,6 +11,7 @@ from __future__ import annotations
 from .._util import chunks
 from ..kinds import KIND_REGISTRY
 from ..store.shards import read_shard
+from .store import set_embedded_head, set_embedded_parser_version
 
 # Version of everything a stored vector depends on. Bumping it marks every stored
 # vector stale (the next embed re-runs the fleet once, intentionally).
@@ -106,7 +107,11 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
     """Embed a repo's semantically-meaningful nodes into ``vector_store``.
 
     ``kinds`` defaults to :data:`EMBEDDABLE_KINDS` (definitions + endpoints); pass an
-    explicit set to override. Returns the number embedded."""
+    explicit set to override. Returns the number embedded.
+
+    Once it starts replacing a repo's vectors it also clears that repo's head and parser
+    markers, and it never sets them. A caller that wants the incremental skip records
+    them after this returns for a COMPLETE pass (no ``limit``, no exception)."""
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return 0
@@ -130,6 +135,16 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
         # An empty shard still falls through and clears, which is right: a repo
         # that lost all its nodes should lose its vectors.
         return 0
+    # The head and parser markers `kb embed` skips on say "every embeddable node of this
+    # repo is embedded at this commit". The clear below makes that false, and the pass can
+    # stop early: `--limit`, an embedder that dies, Ctrl-C. Left in place, the old
+    # markers made the next plain run print "already up to date" over a few vectors.
+    # So the claim is withdrawn here, and the caller makes it again only after a
+    # complete pass (cmds/embed.py). The markers go BEFORE the vectors: a crash
+    # between the two steps then costs one re-embed, where the reverse order would
+    # leave markers standing over vectors that are gone.
+    set_embedded_head(vector_store, repo_id, None)
+    set_embedded_parser_version(vector_store, repo_id, None)
     vector_store.clear_repo(repo_id)
     total = 0
     for batch in chunks(nodes, max(1, batch_size)):
