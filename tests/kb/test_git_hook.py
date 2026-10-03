@@ -1,4 +1,5 @@
 """Tests for the git post-commit re-index hook (kb/git_hook.py) and `hook` verb."""
+import shlex
 import subprocess
 
 import pytest
@@ -17,7 +18,8 @@ def test_install_creates_executable_hook(tmp_path):
     hook = tmp_path / ".git" / "hooks" / "post-commit"
     assert hook.exists()
     body = hook.read_text()
-    assert 'index' in body and '--repo "team/app"' in body
+    # `shlex.quote` leaves a shell-safe word bare; it adds quotes only when one is needed.
+    assert 'index' in body and "--repo team/app" in body
     assert git_hook.is_installed(str(tmp_path))
 
 
@@ -153,7 +155,8 @@ def test_hook_install_warns_on_unresolved_repo_id(tmp_path, monkeypatch, gls_log
     raw = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "Could not resolve this repo's stored id" in raw
     hook = repo / ".git" / "hooks" / "post-commit"
-    assert f'--repo "{repo.name}"' in hook.read_text()  # fell back to the dir name, as before
+    # fell back to the dir name, as before
+    assert f"--repo {shlex.quote(repo.name)}" in hook.read_text()
 
 
 def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch, gls_logs):

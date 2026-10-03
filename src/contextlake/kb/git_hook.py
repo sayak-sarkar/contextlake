@@ -9,6 +9,7 @@ config, store, and canonical repo id and does the logging.
 """
 from __future__ import annotations
 
+import shlex
 import stat
 from pathlib import Path
 
@@ -63,7 +64,12 @@ def _block(repo_path: str, repo_id: str, config: str | None) -> str:
     """
     from ..launcher import launch_command
 
-    cfg = f' --config "{config}"' if config else ""
+    # `shlex.quote` on every value that is not ours. Double quotes were here before, and
+    # inside them the shell still runs `$(...)`, backticks and `$VAR`. The repo path is a
+    # directory name and the repo id comes from a remote URL, so either can carry them, and
+    # the hook runs on every commit with the user's rights. `launch_command()` is already
+    # quoted; `cmds/refresh.py` quotes its copy of this command the same way.
+    cfg = f" --config {shlex.quote(config)}" if config else ""
     return (
         f"{MARK_BEGIN}\n"
         "# Re-index this repository into the contextlake knowledge store after each\n"
@@ -71,7 +77,8 @@ def _block(repo_path: str, repo_id: str, config: str | None) -> str:
         "#   contextlake kb hook install / uninstall  — do not hand-edit.\n"
         f'# Errors land in $(git rev-parse --git-dir)/{HOOK_LOG_NAME}.\n'
         f'_cl_log="$(git rev-parse --git-dir)/{HOOK_LOG_NAME}"\n'
-        f'( {launch_command()}{cfg} kb index "{repo_path}" --repo "{repo_id}" '
+        f"( {launch_command()}{cfg} kb index {shlex.quote(repo_path)} "
+        f"--repo {shlex.quote(repo_id)} "
         '>>"$_cl_log" 2>&1 & ) </dev/null\n'
         f"{MARK_END}\n"
     )
