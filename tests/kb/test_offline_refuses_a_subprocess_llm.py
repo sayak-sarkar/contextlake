@@ -60,13 +60,13 @@ def test_the_uppercase_spelling_is_refused_too(offline_env):
     assert build_llm(LlmCfg(enabled=True, provider="CLI")) is None
 
 
-def test_the_refusal_names_the_provider_and_the_flag(offline_env, caplog):
+def test_the_refusal_names_the_provider_and_the_flag(offline_env, gls_logs):
     """The refusal line is the only thing that connects "no prose was written" to its
     cause, so its content is part of the fix."""
     import logging
-    with caplog.at_level(logging.INFO, logger="contextlake"):
+    with gls_logs.at_level(logging.INFO, logger="contextlake"):
         assert build_llm(LlmCfg(enabled=True, provider="cli")) is None
-    text = "\n".join(r.getMessage() for r in caplog.records)
+    text = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "cli llm provider" in text
     assert "--offline" in text
     assert netguard.OFFLINE_ENV in text
@@ -275,7 +275,7 @@ def test_the_wiki_message_does_not_suggest_openai_during_an_offline_run():
     assert "builtin" in tier_off and "ollama" in tier_off
 
 
-def test_cmd_wiki_hands_the_message_the_real_offline_state(tmp_path, monkeypatch, caplog):
+def test_cmd_wiki_hands_the_message_the_real_offline_state(tmp_path, monkeypatch, gls_logs):
     """The WIRING, which the three message tests above do not reach.
 
     They call `no_llm_message` directly, so the call site is free to hand it any value.
@@ -303,9 +303,9 @@ def test_cmd_wiki_hands_the_message_the_real_offline_state(tmp_path, monkeypatch
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
                    '[llm]\nenabled = true\nprovider = "cli"\n')
 
-    with caplog.at_level(logging.INFO, logger="contextlake"):
+    with gls_logs.at_level(logging.INFO, logger="contextlake"):
         assert cmd_wiki(Namespace(config=str(cfg))) == 0
-    text = "\n".join(r.getMessage() for r in caplog.records)
+    text = "\n".join(r.getMessage() for r in gls_logs.records)
 
     # Proves the capture saw the branch at all, before the negative assertion below.
     assert "Offline mode refused the cli LLM provider" in text, text

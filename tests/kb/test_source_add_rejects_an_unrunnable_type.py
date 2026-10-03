@@ -31,16 +31,16 @@ def test_an_unknown_type_is_refused_and_nothing_is_written(tmp_path):
     assert not cfg.exists(), "a refused add must not leave a config entry behind"
 
 
-def test_the_refusal_names_what_this_build_can_actually_run(tmp_path, caplog):
+def test_the_refusal_names_what_this_build_can_actually_run(tmp_path, gls_logs):
     """Captured at the logging seam, not on stdout.
 
     The first version of this test read `capsys` and saw an empty string, because the
     CLI writes through `logging_setup.log`. It would have passed on a build that
     printed nothing at all, which is why the emptiness assertion below stays.
     """
-    with caplog.at_level("INFO", logger="contextlake"):
+    with gls_logs.at_level("INFO", logger="contextlake"):
         source_cmd.cmd_source_add(_args(tmp_path, type="totally-bogus-type", name="bad"))
-    text = caplog.text
+    text = gls_logs.text
     assert text.strip(), "the capture must see something, or this test proves nothing"
     assert "totally-bogus-type" in text
     for known in ("files", "web"):

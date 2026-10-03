@@ -88,10 +88,10 @@ def test_forget_removes_the_repo_and_its_connector_partitions(store_dir, capsys)
         store.close()
 
 
-def test_dry_run_reports_but_removes_nothing(store_dir, caplog):
+def test_dry_run_reports_but_removes_nothing(store_dir, gls_logs):
     db = store_dir / "index.sqlite"
     _seed(db, "team/app")
-    with caplog.at_level("INFO"):
+    with gls_logs.at_level("INFO"):
         assert cmd_forget(_args(store_dir.parent, "team/app", dry_run=True)) == 0
     store = SqliteStore(db)
     try:
@@ -101,7 +101,7 @@ def test_dry_run_reports_but_removes_nothing(store_dir, caplog):
         assert store.repo_counts("@connect:team/app") == (3, 1)
     finally:
         store.close()
-    assert "dry run" in caplog.text.lower()
+    assert "dry run" in gls_logs.text.lower()
 
 
 def test_an_unknown_repo_is_an_error_not_a_silent_success(store_dir):
@@ -175,14 +175,14 @@ def test_dry_run_leaves_the_files_alone(store_dir):
     assert (store_dir / "history" / "team/app" / "deadbeef.json").exists()
 
 
-def test_forget_reports_the_space_it_reclaimed(store_dir, caplog):
+def test_forget_reports_the_space_it_reclaimed(store_dir, gls_logs):
     _seed(store_dir / "index.sqlite", "team/app")
     _seed_files(store_dir, "team/app", size=200_000)
-    with caplog.at_level("INFO"):
+    with gls_logs.at_level("INFO"):
         assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
     # 4 files x 200 KB: reported in KB/MB, not as a raw byte count nobody reads.
-    assert "on disk" in caplog.text
-    assert "MB" in caplog.text or "KB" in caplog.text
+    assert "on disk" in gls_logs.text
+    assert "MB" in gls_logs.text or "KB" in gls_logs.text
 
 
 def test_forget_works_on_a_store_that_has_no_files_yet(store_dir):
@@ -349,15 +349,15 @@ def test_dry_run_prunes_no_shared_nodes(store_dir):
         store.close()
 
 
-def test_forget_reports_the_shared_nodes_it_pruned(store_dir, caplog):
+def test_forget_reports_the_shared_nodes_it_pruned(store_dir, gls_logs):
     """Reported on its own line, never folded into the node count: that figure is
     what the repo owned, and a shared node never belonged to it."""
     db = store_dir / "index.sqlite"
     _seed_sharing(db, "team/app", {"pkg:npm:left-pad": "(packages)",
                                    "mod:py:os.path": "(shared)"})
-    with caplog.at_level("INFO"):
+    with gls_logs.at_level("INFO"):
         assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
-    assert "pruned 2 shared node(s)" in caplog.text
+    assert "pruned 2 shared node(s)" in gls_logs.text
     # The repo itself owned exactly one node, its file; the two shared nodes are
     # counted apart from it rather than inflating what it is said to have held.
-    assert "1 node(s)" in caplog.text
+    assert "1 node(s)" in gls_logs.text

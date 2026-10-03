@@ -505,19 +505,19 @@ def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):
 _CANARY = "SECRET-CANARY-LINE"
 
 
-def test_web_source_refuses_file_urls(tmp_path, caplog):
+def test_web_source_refuses_file_urls(tmp_path, gls_logs):
     import contextlake.kb.sources.web as web
 
     secret = tmp_path / "secret.txt"
     secret.write_text(f"<body>{_CANARY}</body>\n", encoding="utf-8")
 
-    with caplog.at_level("WARNING"):
+    with gls_logs.at_level("WARNING"):
         docs = list(web.WebSource(url=secret.as_uri()).iter_documents())
 
     assert docs == []
     assert _CANARY not in str([d.text for d in docs])
     # and it says so -- a silent skip would look identical to an empty page
-    assert "refusing to fetch" in caplog.text
+    assert "refusing to fetch" in gls_logs.text
 
 
 def test_web_source_refuses_other_non_network_schemes(tmp_path):
