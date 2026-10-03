@@ -82,7 +82,10 @@ def test_deleted_upstream_branch_auto_switches_to_a_new_one(
 ):
     """A branch deleted upstream (renamed/merged/superseded) is not just reported
     for the user to fix by hand -- update_repository auto-reselects and switches
-    to the most-active remaining branch, same selection `branches` would make."""
+    to the most-active remaining branch, same selection `branches` would make.
+
+    Nothing is unpushed and no stash is held, which is what lets the switch
+    happen (see test_update_reselect_guard.py for the cases that stay)."""
     _safe(monkeypatch)
     foreach = "origin/main|2026-06-10 12:00:00 +0000|abc0"
 
@@ -96,6 +99,8 @@ def test_deleted_upstream_branch_auto_switches_to_a_new_one(
             return FakeCompleted(returncode=1, stderr="fatal: couldn't find remote ref feature/gone")  # noqa: E501
         if "for-each-ref" in cmd:
             return FakeCompleted(stdout=foreach)
+        if "--remotes=origin" in cmd:
+            return FakeCompleted(stdout="0")  # nothing unpushed
         if "rev-list" in cmd:
             return FakeCompleted(stdout="10")
         return FakeCompleted()

@@ -229,6 +229,13 @@ This command:
 - Skips a repo on a detached HEAD, there is no branch to fast-forward
 - Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand
 - Reports repositories that are already up to date
+- When the branch it tracks is no longer on `origin` (merged and deleted, or renamed), switches
+  to the most active remaining branch, the same choice `mirror branches` makes. It stays on
+  the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
+  when git cannot say whether it does, or while `--auto-stash` holds your edits for it
+- Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
+  and anything under `node_modules` are part of that clone, and are not fetched or switched.
+  `mirror verify` still reports a repository nested in another one
 
 ### `mirror branches`: switch to most active branches
 

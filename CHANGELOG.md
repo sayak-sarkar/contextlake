@@ -56,6 +56,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,
   edges) is now one transaction, so another reader no longer sees the repo empty, or with
   nodes and no edges, part way through.
+- **`mirror update` no longer moves you off a branch that holds unpushed work.** When the
+  tracked branch was gone from `origin`, update switched to the most active branch, even
+  when the branch had local commits or `--auto-stash` was holding edits for it, and the
+  stash then landed on the other branch. Now update stays on the branch, and says why,
+  when it has commits no `origin` branch has, when git cannot tell, or while an auto-stash
+  is held. A branch merged and deleted upstream with nothing local still switches.
+- **Mirror commands no longer treat a checkout inside a clone as a mirror repo.** The repo
+  scan walked into every clone, so `update` and `branches` fetched and could switch a
+  vendored checkout, and the scan read every `.git` and `node_modules` directory. It now
+  stops at each clone and skips both. `status`, `clone` and `audit` counts drop nested
+  checkouts. `mirror verify` still reports a repository nested in another, once, as nested.
 
 ## [9.4.0] - 2026-10-03
 

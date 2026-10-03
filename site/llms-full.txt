@@ -1721,6 +1721,13 @@ This command:
 - Skips a repo on a detached HEAD, there is no branch to fast-forward
 - Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand
 - Reports repositories that are already up to date
+- When the branch it tracks is no longer on `origin` (merged and deleted, or renamed), switches
+  to the most active remaining branch, the same choice `mirror branches` makes. It stays on
+  the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
+  when git cannot say whether it does, or while `--auto-stash` holds your edits for it
+- Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
+  and anything under `node_modules` are part of that clone, and are not fetched or switched.
+  `mirror verify` still reports a repository nested in another one
 
 ### `mirror branches`: switch to most active branches
 
@@ -9125,6 +9132,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,
   edges) is now one transaction, so another reader no longer sees the repo empty, or with
   nodes and no edges, part way through.
+- **`mirror update` no longer moves you off a branch that holds unpushed work.** When the
+  tracked branch was gone from `origin`, update switched to the most active branch, even
+  when the branch had local commits or `--auto-stash` was holding edits for it, and the
+  stash then landed on the other branch. Now update stays on the branch, and says why,
+  when it has commits no `origin` branch has, when git cannot tell, or while an auto-stash
+  is held. A branch merged and deleted upstream with nothing local still switches.
+- **Mirror commands no longer treat a checkout inside a clone as a mirror repo.** The repo
+  scan walked into every clone, so `update` and `branches` fetched and could switch a
+  vendored checkout, and the scan read every `.git` and `node_modules` directory. It now
+  stops at each clone and skips both. `status`, `clone` and `audit` counts drop nested
+  checkouts. `mirror verify` still reports a repository nested in another, once, as nested.
 
 ## [9.4.0] - 2026-10-03
 

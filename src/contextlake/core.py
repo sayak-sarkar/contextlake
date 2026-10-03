@@ -1000,12 +1000,41 @@ def load_gitlab_projects(config, gitlab_group, allow_fetch=True):
     return fetch_gitlab_projects(gitlab_group, config)
 
 
-def get_local_repos(work_dir):
-    """Return repo paths (relative to work_dir) for every directory with a .git."""
+# Directories the repo walk never enters. `.git` is a repo's own storage.
+# `node_modules` holds installed packages, and some carry a `.git` of their own.
+# Neither holds a mirror repo.
+_WALK_SKIP_DIRS = frozenset({".git", "node_modules"})
+
+
+def get_local_repos(work_dir, include_nested=False):
+    """Return repo paths (relative to work_dir) for every directory with a .git.
+
+    A directory with a ``.git`` directory is one repo, and the walk stops there.
+    A checkout inside it (a vendored copy, a dependency cloned by hand) is part of
+    that repo and belongs to its owner, so ``update`` and ``branches`` must not
+    fetch it or move its branch.
+
+    ``include_nested=True`` keeps walking below each repo. Only ``verify`` wants
+    that, because reporting a repo inside another repo is its job. It still skips
+    ``.git`` and ``node_modules``.
+
+    The work directory itself is never a stopping point. If it holds a ``.git``
+    it is listed as ``.``, and the walk goes on into the clones below it.
+
+    Submodules are not listed in either mode. A submodule has a ``.git`` file, not
+    a ``.git`` directory, so it never matched. With the default walk the contents
+    of a repo, submodule checkouts included, are no longer visited at all.
+    """
+    top = os.fspath(work_dir)
     local_repos = []
-    for root, dirs, _files in os.walk(work_dir):
-        if ".git" in dirs:
-            local_repos.append(os.path.relpath(root, work_dir))
+    for root, dirs, _files in os.walk(top):
+        is_repo = ".git" in dirs
+        if is_repo:
+            local_repos.append(os.path.relpath(root, top))
+        if is_repo and not include_nested and root != top:
+            dirs[:] = []
+        else:
+            dirs[:] = [d for d in dirs if d not in _WALK_SKIP_DIRS]
     # This and load_gitlab_projects() are the two places that know the fleet's
     # names, so they are where log redaction learns them (see
     # observability.add_repo_names). Cheap: a set union, with nothing compiled
@@ -1014,7 +1043,7 @@ def get_local_repos(work_dir):
     return local_repos
 
 
-def filtered_local_repos(work_dir, config):
+def filtered_local_repos(work_dir, config, include_nested=False):
     """Local repo paths, narrowed by ``--repos``/``repo_filter``.
 
     ``fetch`` applies the filter to the project cache, so ``clone`` inherits it;
@@ -1029,7 +1058,7 @@ def filtered_local_repos(work_dir, config):
     consult), so that one spelling is passed as both of
     :func:`match_repo_filter`'s arguments.
     """
-    repos = get_local_repos(work_dir)
+    repos = get_local_repos(work_dir, include_nested=include_nested)
     patterns = repo_filter_patterns(config)
     if not patterns:
         return repos
@@ -1371,7 +1400,7 @@ def update_repository(local_path, work_dir, config):
         log(f"{style.yellow('⚠')} {style.cyan(local_path)}: {stash_msg}")
 
     try:
-        result = _update_synced(local_path, full_path, config)
+        result = _update_synced(local_path, full_path, config, stashed=bool(stash_sha))
     finally:
         # In the finally so a Ctrl-C between here and the return still puts the
         # user's work back -- an interrupted run must not be the one that leaves
@@ -1388,13 +1417,16 @@ def update_repository(local_path, work_dir, config):
     return result
 
 
-def _update_synced(local_path, full_path, config):
+def _update_synced(local_path, full_path, config, stashed=False):
     """The fetch/fast-forward itself, once the tree is known safe to touch.
 
     Split out of ``update_repository`` so the auto-stash restore wraps every exit
     path of this half, including the error ones -- a stash must come back whether
     the update succeeded, failed, or timed out. Total by construction: every
     failure is a returned tuple, never an exception.
+
+    ``stashed`` is True while the caller holds an auto-stash. The branch must not
+    change in that case, because the stash is popped onto whatever is checked out.
     """
     fetch_timeout = _int(config, "fetch_timeout", "60")
     pull_timeout = _int(config, "pull_timeout", "60")
@@ -1438,7 +1470,8 @@ def _update_synced(local_path, full_path, config):
                 # merged, or superseded by another default, never something a
                 # human needs to triage by hand. Auto-reselect instead of just
                 # telling the user to run `branches` themselves.
-                return _reselect_branch_after_deletion(full_path, local_path, current, config)
+                return _reselect_branch_after_deletion(
+                    full_path, local_path, current, config, stashed=stashed)
             if reason == "project-deleted":
                 return ("skip", local_path,
                         "Upstream project not found (deleted or access revoked) "
@@ -1570,17 +1603,43 @@ def _collect_branch_info(full_path, branch_timeout):
     return branch_info
 
 
-def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, config):
-    """The branch `update_repository` was tracking no longer exists on origin
-    (renamed, merged, or superseded by another default) -- auto-pick a new
-    most-active branch and switch to it, the same selection `branches` uses,
-    rather than leaving the repo stuck reporting the same dead branch on every
-    future run.
+def _unpushed_commit_count(full_path, timeout):
+    """Commits on HEAD that no origin branch has, or None when git cannot say.
 
-    ``check_repository_safety`` already confirmed the repo is safe to touch
-    before the caller reached this fetch, so the checkout below isn't gated
-    on a working-branch-protection check: the tracked branch is definitionally
-    gone, there's nothing left to protect by staying on it.
+    None is the fail-closed value: the caller reads it as "may have unpushed work".
+    """
+    res = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD", "--not", "--remotes=origin"],
+        capture_output=True, text=True, errors="replace", cwd=full_path, timeout=timeout,
+    )
+    out = (res.stdout or "").strip()
+    if res.returncode != 0 or not out.isdigit():
+        return None
+    return int(out)
+
+
+def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, config,
+                                    stashed=False):
+    """The branch `update_repository` was tracking is not on origin (renamed,
+    merged, or superseded by another default) -- auto-pick a new most-active
+    branch and switch to it, the same selection `branches` uses, rather than
+    leaving the repo stuck reporting the same dead branch on every future run.
+
+    "Not on origin" also describes a branch that was never pushed, so the repo
+    stays on its branch, as a skip, when moving off it would strand work:
+
+    - it has commits that no origin branch has (fails closed if git cannot say);
+    - ``stashed`` is True. The caller pops its auto-stash onto whatever is checked
+      out, so a switch would carry the user's edits to a different branch.
+
+    Switching loses no commits, but the work would no longer be where the user
+    left it.
+
+    The name-based protection (``safe_branches``, ``protect_working_branches``) is
+    `branches`' rule and is not applied here. The branch this repo tracked is often
+    one the mirror picked itself as the most active, and once it is merged and
+    deleted upstream, staying on it would leave the repo on a dead branch on every
+    run. The two checks above are what decide whether moving would strand work.
     """
     fetch_timeout = _int(config, "fetch_timeout", "60")
     branch_timeout = _int(config, "branch_timeout", "30")
@@ -1598,6 +1657,18 @@ def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, confi
                 "run branches to pick one manually)")
     if not branch_info:
         return ("skip", local_path, f"{prefix} (no other branches found on origin)")
+
+    stay = f"Branch {deleted_branch} is not on origin, left in place"
+    try:
+        unpushed = _unpushed_commit_count(full_path, branch_timeout)
+    except subprocess.TimeoutExpired:
+        unpushed = None
+    if unpushed is None:
+        return ("skip", local_path, f"{stay} (could not check for unpushed commits)")
+    if unpushed:
+        return ("skip", local_path, f"{stay} ({unpushed} commit(s) not on any origin branch)")
+    if stashed:
+        return ("skip", local_path, f"{stay} (your auto-stashed edits belong to it)")
 
     new_branch, pin_missing = resolve_target_branch(
         branch_info, strategy, config.get("branch", ""))
@@ -2124,7 +2195,12 @@ def verify_structure(work_dir, config, gitlab_group):
     # inside this group's working tree is precisely the corruption this check
     # exists to catch, and scoping it here would make `verify --group A` blind to
     # exactly the case that most needs reporting.
-    nested = find_nested_repos(all_local)
+    #
+    # Its own walk, with include_nested: the default walk stops at each repo, so a
+    # repo inside another repo is never listed and this check could not find one.
+    # The counts above use the default walk, as `status` does, so a nested repo is
+    # reported here once and is not also an Extra repository.
+    nested = find_nested_repos(filtered_local_repos(work_dir, config, include_nested=True))
 
     for line in _verify_summary(len(valid), len(missing), len(extra), len(invalid),
                                 len(nested), foreign):
