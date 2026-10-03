@@ -181,17 +181,34 @@ def cmd_steer(args) -> int:
             + (f"({skipped} skill file(s) kept -- foreign or locally edited, "
                "use --force to overwrite)" if skipped else "written"))
 
+        # MCP files this run refused to touch, named in the closing line and in the
+        # exit code. Declared before the merges so each one can record into it.
+        refused: list[str] = []
+
         def _merge_mcp_entry(rel: str, wrapper_key: str) -> None:
             """Merge our server entry into an MCP config file under `wrapper_key`,
-            preserving any other servers the user already has configured there."""
+            preserving any other servers the user already has configured there.
+
+            A file that is not valid JSON is left unchanged. The merge used to
+            carry on with an empty dict, which replaced a hand-edited file (a comment or
+            a trailing comma is enough to make it unparseable) with one holding only our
+            entry, and then reported that other servers were kept. Same rule as
+            `_merge_session_hook` below, and the same reason."""
             path = out / rel
             data = {}
             if path.exists():
                 try:
                     parsed = _json.loads(path.read_text())
                     data = parsed if isinstance(parsed, dict) else {}
-                except _json.JSONDecodeError:
-                    data = {}
+                except _json.JSONDecodeError as e:
+                    log(style.warn(
+                        f"  {rel} is not valid JSON ({e.msg}, line {e.lineno}, column "
+                        f"{e.colno}), so it was left as it is and the contextlake-kb MCP "
+                        "server was not added. contextlake reads it as plain JSON, which "
+                        "has no comments and no trailing commas. Remove those and re-run "
+                        "`contextlake kb steer`, or add the server by hand."))
+                    refused.append(rel)
+                    return
             if not isinstance(data.get(wrapper_key), dict):
                 data[wrapper_key] = {}
             data[wrapper_key]["contextlake-kb"] = mcp_server_entry(config_path)
@@ -252,6 +269,15 @@ def cmd_steer(args) -> int:
 
         _merge_session_hook()
 
+        if refused:
+            # Says what was written and what was not. Exit 0, like this command's
+            # other refusals (settings.json, a malformed marker): `bootstrap` runs
+            # steer as its last stage, and an MCP file with a comment in it would
+            # otherwise turn every scheduled bootstrap red until someone edits it.
+            log(style.summary_line(
+                "warn", f"Steering written to {out}, except {', '.join(refused)} "
+                        "(not changed, see above)."))
+            return 0
         log(f"{style.ok()} Steering written to {out} (existing files enhanced, not replaced)")
         return 0
     finally:
