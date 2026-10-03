@@ -35,6 +35,11 @@ _WIKI_WITHHELD_NOTE = (
     "A wiki page exists for this repo, but its text is withheld because this dashboard "
     "was started with --anonymize. Only whether the page exists and whether it is stale "
     "is shown.")
+# The fields of `ask`'s answer (`kb.server.AskOut`) that carry no prose and no names:
+# routing facts, code nodes (docstrings included, which --anonymize does not hide), the
+# blast radius, and the repo brief (counts, languages, symbols, packages, file paths).
+_PASSES_AS_IS = frozenset({"question", "route", "target", "note", "answered", "nodes",
+                           "blast", "brief", "truncated"})
 _OWNERS_WITHHELD_GAP = (
     "owner names are withheld because this dashboard was started with --anonymize and "
     "no pseudonym could be derived for this repo")
@@ -85,15 +90,19 @@ def _withhold(store, structured: Any) -> Any:
         # Not the shape the scrub knows. Pass nothing on; do not pass it through.
         return {"route": "withheld", "answered": False,
                 "note": "the answer could not be anonymised, so it is withheld"}
-    out = dict(structured)
-    wiki = out.get("wiki")
+    # Kept by name, not removed by name: a field `ask` gains later is withheld until it
+    # is listed here, rather than passed on because nobody thought to remove it.
+    out = {k: v for k, v in structured.items() if k in _PASSES_AS_IS}
+    wiki = structured.get("wiki")
     if wiki:
         out["wiki"] = {**wiki, "markdown": ""}
         if wiki.get("found"):
             out["note"] = _WIKI_WITHHELD_NOTE
-    owners = out.get("owners")
+    owners = structured.get("owners")
     if owners and owners.get("owners"):
         out["owners"] = _pseudonymous(store, owners)
+    elif owners is not None:
+        out["owners"] = owners          # no names in it to replace
     return out
 
 

@@ -513,3 +513,19 @@ def test_an_answer_of_an_unknown_shape_is_withheld_not_passed_through(tmp_path):
         assert AUTHOR not in json.dumps(out) and SENTINEL not in json.dumps(out)
     finally:
         store.close()
+
+
+def test_every_ask_field_is_kept_or_scrubbed_by_name():
+    """`_withhold` keeps fields by name. A field `ask` gains fails this until someone
+    decides whether it may pass as it is, needs a scrub, or is dropped."""
+    from contextlake.kb.dashboard.chat import _PASSES_AS_IS
+    from contextlake.kb.server import AskOut
+
+    assert set(AskOut.model_fields) == _PASSES_AS_IS | {"wiki", "owners"}
+
+
+def test_a_field_the_scrub_does_not_know_is_withheld():
+    got = _withhold(None, {"route": "search", "question": "q", "note": "n",
+                           "new_prose_field": SENTINEL})
+    assert "new_prose_field" not in got
+    assert got["route"] == "search" and got["note"] == "n"
