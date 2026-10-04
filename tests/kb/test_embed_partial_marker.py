@@ -133,11 +133,16 @@ def test_a_limited_run_does_not_leave_the_repo_marked_current(
     assert _stored(store_dir) == N_NODES
 
     assert _run(cfg, emb, monkeypatch, limit=2) == 0
-    assert _stored(store_dir) == 2, "setup: --limit replaces the repo's vectors with 2"
+    # A limited pass overwrites its slice and deletes nothing (it used to cut the repo
+    # to 2 vectors), but it still withdraws the "complete at this head" claim.
+    assert _stored(store_dir) == N_NODES
+    assert _head_marker(store_dir) is None
 
+    before = emb.batches
     assert _run(cfg, emb, monkeypatch) == 0
-    # LOAD-BEARING: before the fix this stayed 2, because the plain run found the old
-    # head marker and said "already up to date".
+    # LOAD-BEARING: before the marker fix the plain run found the old head marker, said
+    # "already up to date" and embedded nothing.
+    assert emb.batches > before, "the plain run skipped a repo a limited run left partial"
     assert _stored(store_dir) == N_NODES
 
 
@@ -153,9 +158,14 @@ def test_an_interrupted_force_run_does_not_leave_the_repo_marked_current(
     dying = _Embedder()
     dying.die_on_batch = 2
     assert _run(cfg, dying, monkeypatch, force=True) == 1  # every attempted repo failed
-    assert _stored(store_dir) == 2, "setup: batch 1 was written before the embedder died"
+    # The failed pass keeps every vector it did not reach. It used to clear the repo first
+    # and leave only batch 1: 6,048 vectors down to 0 when an embedder failed early.
+    assert _stored(store_dir) == N_NODES
+    assert _head_marker(store_dir) is None
 
+    before = emb.batches
     assert _run(cfg, emb, monkeypatch) == 0
+    assert emb.batches > before, "the plain run skipped the repo the failed pass left"
     assert _stored(store_dir) == N_NODES
 
 
@@ -174,9 +184,12 @@ def test_a_keyboard_interrupt_mid_force_run_does_not_leave_the_repo_marked_curre
     dying.die_with = KeyboardInterrupt
     with pytest.raises(KeyboardInterrupt):
         _run(cfg, dying, monkeypatch, force=True)
-    assert _stored(store_dir) == 2
+    assert _stored(store_dir) == N_NODES
+    assert _head_marker(store_dir) is None
 
+    before = emb.batches
     assert _run(cfg, emb, monkeypatch) == 0
+    assert emb.batches > before
     assert _stored(store_dir) == N_NODES
 
 
@@ -236,20 +249,20 @@ def test_embed_repo_clears_both_markers_on_a_limited_run(tmp_path):
         vs.close()
 
 
-def test_embed_repo_clears_the_markers_before_it_clears_the_vectors(tmp_path):
+def test_embed_repo_clears_the_markers_before_it_writes_a_vector(tmp_path):
     """Order matters. A crash between the two steps must leave a repo that gets
-    re-embedded, never markers that claim a vector set that is no longer there."""
+    re-embedded, never markers that claim a vector set that has changed."""
     write_shard(tmp_path, GraphShard(
         repo="r", head_commit="h1", parser_version="p1", nodes=_nodes(), edges=[]))
 
-    class _DiesWhileClearing(VectorStore):
-        def clear_repo(self, repo_id):
+    class _DiesOnFirstWrite(VectorStore):
+        def upsert(self, items):
             raise OSError("disk went away")
 
     seed = VectorStore(tmp_path / "e.sqlite")
     seed.upsert((n.id, "r", [1.0, 1.0]) for n in _nodes())
     seed.close()
-    vs = _DiesWhileClearing(tmp_path / "e.sqlite")
+    vs = _DiesOnFirstWrite(tmp_path / "e.sqlite")
     set_embedded_head(vs, "r", "h1")
     set_embedded_parser_version(vs, "r", "p1")
     try:
@@ -273,5 +286,20 @@ def test_embed_repo_leaves_the_markers_alone_when_it_touches_no_vectors(tmp_path
         assert embed_repo(tmp_path, vs, _Embedder(), "r") == 0
         assert get_embedded_head(vs, "r") == "h1"
         assert get_embedded_parser_version(vs, "r") == "p1"
+    finally:
+        vs.close()
+
+
+def test_a_complete_pass_sweeps_the_vectors_of_nodes_that_are_gone(tmp_path):
+    """The sweep half of write-then-sweep: a node the shard no longer holds loses its
+    vector once a complete pass has written every node that remains."""
+    write_shard(tmp_path, GraphShard(
+        repo="r", head_commit="h1", parser_version="p1", nodes=_nodes(), edges=[]))
+    vs = VectorStore(tmp_path / "e.sqlite")
+    try:
+        vs.upsert([("deleted_fn", "r", [1.0, 1.0]), ("other_repo_fn", "q", [1.0, 1.0])])
+        assert embed_repo(tmp_path, vs, _Embedder(), "r", batch_size=2) == N_NODES
+        assert vs.count_repo("r") == N_NODES          # "deleted_fn" swept
+        assert vs.count_repo("q") == 1                # another repo untouched
     finally:
         vs.close()

@@ -249,3 +249,16 @@ def test_connect_staging_two_sources_writes_one_partition(tmp_path):
         assert real.count_repo("@connect:r") == 2
     finally:
         real.close()
+
+
+@pytest.mark.parametrize("backend", ["brute", pytest.param("sqlite-vec", marks=requires_vec)])
+def test_delete_except_keeps_the_written_ids_and_other_repos(tmp_path, backend):
+    vs = build_vector_store(tmp_path / "e.sqlite", backend=backend)
+    try:
+        vs.upsert([("a", "r", [1.0, 0.0]), ("b", "r", [0.0, 1.0]), ("c", "r", [0.6, 0.8]),
+                   ("x", "q", [1.0, 0.0])])
+        assert vs.delete_except("r", {"a", "c"}) == 1
+        assert vs.count_repo("r") == 2 and vs.count_repo("q") == 1
+        assert {i for i, _ in vs.search([0.0, 1.0], k=5, repo="r")} == {"a", "c"}
+    finally:
+        vs.close()

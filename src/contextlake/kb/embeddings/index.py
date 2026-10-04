@@ -136,21 +136,31 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
         # that lost all its nodes should lose its vectors.
         return 0
     # The head and parser markers `kb embed` skips on say "every embeddable node of this
-    # repo is embedded at this commit". The clear below makes that false, and the pass can
-    # stop early: `--limit`, an embedder that dies, Ctrl-C. Left in place, the old
-    # markers made the next plain run print "already up to date" over a few vectors.
+    # repo is embedded at this commit". The writes below make that false until they are
+    # all done, and the pass can stop early: `--limit`, an embedder that dies, Ctrl-C.
+    # Left in place, the old markers made the next plain run print "already up to date".
     # So the claim is withdrawn here, and the caller makes it again only after a
     # complete pass (cmds/embed.py). The markers go BEFORE the vectors: a crash
     # between the two steps then costs one re-embed, where the reverse order would
-    # leave markers standing over vectors that are gone.
+    # leave markers standing over vectors that changed.
     set_embedded_head(vector_store, repo_id, None)
     set_embedded_parser_version(vector_store, repo_id, None)
-    vector_store.clear_repo(repo_id)
+    # Write first, sweep last. Each batch overwrites its nodes' rows in place; the rows of
+    # nodes that are gone are deleted in one commit, and only after every batch landed.
+    # This used to clear the repo first, so a failed or interrupted pass left it with the
+    # few vectors written before the stop (6,048 -> 0 on an embedder that failed early),
+    # and a reader saw it at 0, 8, 16 ... during a healthy pass. A pass that stops early
+    # now leaves the rows it did not reach as they were.
     total = 0
+    written: set[str] = set()
     for batch in chunks(nodes, max(1, batch_size)):
         vectors = embedder.embed([node_text(n) for n in batch])
         vector_store.upsert(
             (n.id, repo_id, v) for n, v in zip(batch, vectors, strict=True)
         )
+        written.update(n.id for n in batch)
         total += len(batch)
+    if limit is None:
+        # A `--limit` pass embedded a slice on purpose; the rest is not stale.
+        vector_store.delete_except(repo_id, written)
     return total

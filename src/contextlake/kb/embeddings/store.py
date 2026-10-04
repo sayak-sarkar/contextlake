@@ -126,6 +126,20 @@ class VectorStore:
         self.conn.execute("DELETE FROM embeddings WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
+    def delete_except(self, repo_id: str, keep) -> int:
+        """Delete ``repo_id``'s rows whose node id is not in ``keep``, in one commit.
+
+        The sweep half of a replace that writes first: a pass overwrites each node's row
+        in place and calls this only once it has written them all, so a pass that stops
+        early leaves the repo's other rows where they were instead of leaving it empty.
+        """
+        keep = set(keep)
+        gone = [(nid, repo_id) for (nid,) in self.conn.execute(
+            "SELECT node_id FROM embeddings WHERE repo_id=?", (repo_id,)) if nid not in keep]
+        self.conn.executemany("DELETE FROM embeddings WHERE node_id=? AND repo_id=?", gone)
+        self.conn.commit()
+        return len(gone)
+
     def count_repo(self, repo_id: str) -> int:
         return self.conn.execute(
             "SELECT COUNT(*) FROM embeddings WHERE repo_id=?", (repo_id,)).fetchone()[0]
@@ -286,6 +300,18 @@ class SqliteVecStore:
             return
         self.conn.execute("DELETE FROM vec_items WHERE repo_id=?", (repo_id,))
         self.conn.commit()
+
+    def delete_except(self, repo_id: str, keep) -> int:
+        """Delete ``repo_id``'s rows whose node id is not in ``keep``, in one commit. See
+        ``VectorStore.delete_except``."""
+        if not self._has_table:
+            return 0
+        keep = set(keep)
+        gone = [(nid,) for (nid,) in self.conn.execute(
+            "SELECT node_id FROM vec_items WHERE repo_id=?", (repo_id,)) if nid not in keep]
+        self.conn.executemany("DELETE FROM vec_items WHERE node_id=?", gone)
+        self.conn.commit()
+        return len(gone)
 
     def count_repo(self, repo_id: str) -> int:
         if not self._has_table:
