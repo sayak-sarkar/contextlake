@@ -60,7 +60,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. Connector link titles and ADR bodies are not removed yet: see the caution below. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -79,6 +79,14 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
 > guaranteed-generic demo fleet). `--anonymize` does not hide the code itself: symbol
 > names, their docstrings, and the headings of wiki sections in search results still show.
+
+> [!CAUTION]
+> **What `--anonymize` does not remove yet.** Two kinds of text get through it in 9.8.1:
+> a connector link's title and name (a ticket's or merge request's title, and the external
+> host its name is built from), and the body of an architecture decision record (which can
+> name the people who made the decision). Until a release notes this as fixed, do not share an
+> anonymized export or screen from a store that has connector sources or ADRs. Use
+> `--sample` for a demo.
 
 ### Making it the default on this machine
 
