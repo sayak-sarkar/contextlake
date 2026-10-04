@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.6.0] - 2026-10-04
+
 ### Upgrading from 9.5.0
 
 - On Windows, run `contextlake kb index --force` once. Architecture decision records and
@@ -36,8 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the repo with the operating system's separator, and every reader after it expects `/`.
   On Windows, architecture decision records and any `package.json`, `pyproject.toml` or
   other manifest below the repo root produced no nodes or dependency edges, and nested
-  files carried backslashes in their names. Paths are now built with `/` on every
-  system, so a Windows index matches a Linux one.
+  files carried backslashes in their names. Paths in the code graph are now built with
+  `/` on every system, so its nodes match a Linux index. Tested with a simulated Windows
+  path on Linux. Ingested documents still name their paths with the system separator.
 - **Indexing a header with thousands of `#define` lines no longer takes minutes.** The
   parser rebuilt the set of every node id once per member symbol, so 16,000 defines took
   7.8 seconds and a 5.9 MB generated header would have taken about 25 minutes. It now
@@ -58,10 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   With 20,000 symbols, one 40 KB document took 8.4 seconds; it now takes 0.01, with the
   same matches in the same order. Names that hold `$`, `.` or `::` keep the old pattern
   and run it only when their words appear in the text.
-- **`--dry-run` no longer runs commands for real.** Placed before a `kb` verb it was
-  accepted and ignored, so `contextlake --dry-run kb index` wrote the store and
-  `bootstrap --dry-run` indexed, embedded and could call a paid LLM. See "Upgrading from
-  9.5.0" for what happens now.
+- **`--dry-run` before a `kb` command or `bootstrap` no longer runs it for real.** Placed
+  before a `kb` verb it was accepted and ignored, so `contextlake --dry-run kb index`
+  wrote the store and `bootstrap --dry-run` indexed, embedded and could call a paid LLM.
+  See "Upgrading from 9.5.0" for what happens now. `mirror fetch`, `audit` and `sync`
+  still write their project cache, audit report and history row under `--dry-run`.
 
 ## [9.5.0] - 2026-10-04
 
