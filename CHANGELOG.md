@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`--anonymize` now removes connector item text and document bodies on every surface.**
+  9.8.1 disclosed that a connector link's title and name and an ADR body survived it. One
+  rewrite now runs where data leaves for the client: on every JSON response the dashboard
+  server sends (chat included), on every graph payload (pages, neighbours, diagrams), and on
+  the `--site` snapshot. Connector items become their kind and a short code, with their title,
+  summary, URL and text dropped; document kinds lose their body. The code is keyed per export
+  and per server start, so labels match nothing outside it, and an anonymized connector item
+  does not open. A test drives every read route and reads every exported file, with a control
+  run that must find each planted value. `--allow-mutations` is now refused with
+  `--anonymize`, because those actions stream logs that name connector items.
+
 ### Fixed
 
 - **Output no longer breaks on a console that cannot show its symbols.** A pipe on Windows
