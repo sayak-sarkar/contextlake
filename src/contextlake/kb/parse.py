@@ -1259,6 +1259,11 @@ def parse_source(
     # Members, macros, typedefs, enum constants and file-scope variables. Emitted after
     # the definition pass so `def_node_to_id` is populated and each one can be contained
     # by the class or namespace it actually sits in rather than by the file.
+    #
+    # The ids already emitted are kept in a set that grows with `nodes`. Rebuilding that
+    # set for every member made the pass quadratic: 8,000 `#define` lines took 1.9 s and
+    # 16,000 took 8.0 s.
+    seen_ids = {n.id for n in nodes}
     for m_kind, m_name_node, m_container in _member_symbols(tree, lang):
         m_name = m_name_node.text.decode("utf-8", "replace")
         if not m_name:
@@ -1292,7 +1297,7 @@ def parse_source(
                         else None)
         m_id = symbol_id(repo_id, m_kind, m_qualified, file_scope=m_file_scope,
                          name=m_name, lang=lang)
-        if m_id in {n.id for n in nodes}:
+        if m_id in seen_ids:
             continue
         m_attrs: dict = {"linkage": "internal"} if m_internal else {}
         # The declaration as written, for the kinds where it carries the information: a
@@ -1310,6 +1315,7 @@ def parse_source(
             file=rel_path, line_start=m_line, line_end=m_container.end_point[0] + 1,
             lang=lang, attrs=m_attrs,
         ))
+        seen_ids.add(m_id)
         # Contained by the nearest enclosing definition (a class for a data member, a
         # namespace for a file-scope variable), falling back to the file.
         m_parent = m_enclosing[0] if m_enclosing else None
@@ -2537,6 +2543,24 @@ def _ignored(rel: str, patterns: list[str]) -> bool:
     return bool(patterns) and match_ignore(rel, patterns)
 
 
+def _rel_posix(path: Path, root: Path) -> str:
+    """``path`` relative to ``root``, always ``/``-separated.
+
+    Every walker that has a ``Path`` builds the repository-relative path here.
+    ``str()`` of a Windows path uses backslashes, and everything downstream
+    (``is_adr_path``, ``parse_manifest``, node ids, the ``file`` attribute) reads the
+    path as POSIX. Building it any other way hid every ADR and every manifest below
+    the repository root on Windows. It also put backslashes in the ``file`` attribute
+    and the qualified name of every nested file, and gave each symbol keyed on its file
+    (Python, JavaScript and others) a different id than on Linux. File node ids already
+    matched, because ``make_id`` turns separators into underscores. On Linux this equals
+    ``str(path.relative_to(root))``, so no existing id changes. ``_count_files`` makes the
+    same string from one ``relpath`` per directory instead, because it only needs names
+    and a ``Path`` per file is 6x slower.
+    """
+    return path.relative_to(root).as_posix()
+
+
 def _oversize(fpath: Path, kind: str, max_file_bytes: int) -> bool:
     """Whether a file exceeds the size limit, decided by stat alone (never a read).
 
@@ -2628,7 +2652,7 @@ def _walk_source_files(
             # ADR/decision-record markdown (docs/adr/, decisions/, ...) is
             # recognised by relative path, not by name, so rel is built for every
             # candidate before anything is classified or skipped.
-            rel = str(fpath.relative_to(root))
+            rel = _rel_posix(fpath, root)
             sf = _select_file(fpath, rel, fn, allowed_exts=allowed_exts,
                               allowed_names=allowed_names,
                               index_hcl=index_hcl, index_sql=index_sql, ignore=ignore,
@@ -3083,8 +3107,8 @@ def estimate_repo_cost(
                        and not _ignored(f"{relbase}/{d}".lstrip("/"), ignore)]
         for fn in filenames:
             fpath = Path(dirpath) / fn
-            rel = str(fpath.relative_to(root))
-            if _ignored(rel.replace(os.sep, "/"), ignore):
+            rel = _rel_posix(fpath, root)
+            if _ignored(rel, ignore):
                 continue
             ext = fpath.suffix.lower()
             kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
@@ -3285,8 +3309,12 @@ def _count_files(base: Path, *, stop_at_repos: bool, limit: int | None) -> int:
             dirnames[:] = []
             continue
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        # One `relpath` per directory, not per file: a `Path` per file measured 10.1 us
+        # against 1.5 us for `os.path.relpath`, and this loop only needs the name.
+        relbase = os.path.relpath(dirpath, base).replace(os.sep, "/")
+        prefix = "" if relbase == "." else f"{relbase}/"
         for fn in filenames:
-            if is_indexable_name(fn, os.path.relpath(os.path.join(dirpath, fn), base)):
+            if is_indexable_name(fn, prefix + fn):
                 n += 1
                 if limit is not None and n >= limit:
                     return n

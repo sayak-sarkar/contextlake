@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading from 9.5.0
+
+- On Windows, run `contextlake kb index --force` once. Architecture decision records and
+  manifests below a repo's root were missing from the graph there, and a repo is only
+  re-indexed when its commit moves. Nothing changes on Linux or macOS.
+
+### Fixed
+
+- **Windows indexes ADRs and nested manifests.** The parser built each file's path inside
+  the repo with the operating system's separator, and every reader after it expects `/`.
+  On Windows, architecture decision records and any `package.json`, `pyproject.toml` or
+  other manifest below the repo root produced no nodes or dependency edges, and nested
+  files carried backslashes in their names. Paths are now built with `/` on every
+  system, so a Windows index matches a Linux one.
+- **Indexing a header with thousands of `#define` lines no longer takes minutes.** The
+  parser rebuilt the set of every node id once per member symbol, so 16,000 defines took
+  7.8 seconds and a 5.9 MB generated header would have taken about 25 minutes. It now
+  keeps the set as it goes: 0.24 seconds and 4.9 seconds. The output is unchanged.
+
 ## [9.5.0] - 2026-10-04
 
 ### Upgrading from 9.4.0
