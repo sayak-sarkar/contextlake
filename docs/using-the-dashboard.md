@@ -87,11 +87,17 @@ contextlake kb dashboard --serve --open         # live, against your store; open
   came from), and every connector item's title, summary and URL.
 - **Replaced:** author identities become `Contributor a1b2`, and each connector item (a ticket,
   a merge request, a design, a page, a message) becomes its kind and a short code, such as
-  `issue 9cb5`. The code comes from a key made fresh for every export and every server start, so
-  labels never match across two of them. An anonymized connector item does not open.
+  `issue 9cb5`.
+- **Web addresses:** every web address in any text the dashboard shows becomes `url-` and a
+  short code, docstrings included. A document with no title is named by its address, so it
+  shows that code.
+- **The codes** come from a key made fresh for every export and every server start, so they
+  never match across two of them. An anonymized connector item does not open, and neither
+  does a document whose id holds an address.
 - **Still shows:** repository ids (which name the forge host), symbol names and their
-  docstrings, file paths inside your repositories, the headings of wiki sections, and the
-  titles of documents and decision records (their node names).
+  docstrings (with any web address in them replaced), file paths inside your repositories,
+  the headings of wiki sections, and the titles of documents and decision records (their
+  node names).
 
 With `--llm-chat`, the prompt sent to your provider is built from the anonymized result, so the
 provider sees the codes, never a connector item's title or a decision record's body. The question

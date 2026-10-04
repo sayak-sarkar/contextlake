@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`--anonymize` now replaces every web address, including the address an ingested or
+  enriched document came from.** 9.8.2 said that address was removed. It was removed from the
+  document's `file` field only. A page with no title is named by its address, and the id of a
+  document fetched from the web or an MCP tool holds it, so the address still showed in search
+  results, neighbours, graph labels, Mermaid diagrams, chat, the `--llm-chat` prompt and the
+  `--site` export. Measured on 9.8.0 and 9.8.2. Every `scheme://` address in any text the
+  dashboard sends now becomes `url-` and a short code from the same per-run key, so the ids
+  that hold one still join their links. A web address inside a docstring is replaced too.
+
 ### Fixed
 
 - **`kb connect` no longer empties a repo's connector vectors when writing them fails.** The
