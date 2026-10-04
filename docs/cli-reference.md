@@ -73,6 +73,14 @@ Two more look similar and are not:
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
 
+`--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
+`doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
+flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`), and
+the message names the commands that do take it. `bootstrap --dry-run` prints the stages a real run
+would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
+cache, metrics or history file is written (a `--log-file` you ask for still is). `mirror sync
+--dry-run` previews what the mirror stages would change.
+
 ### What `--offline` covers, and what it does not
 
 It blocks at the socket, inside this process. Every client here inherits the block: `urllib`,
@@ -141,7 +149,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch. `--dry-run` prints the stage list and runs none of it |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |

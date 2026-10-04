@@ -195,12 +195,14 @@ The knowledge-layer build commands get a page each:
 **Two more look global and are not:**
 
 - `--dry-run`, which previews without changing anything, belongs to the 8 `mirror` commands plus
-  `bootstrap`, `doctor` and `kb forget`.
+  `bootstrap`, `doctor` and `kb forget`. On `bootstrap` it prints the stages a real run would
+  perform and runs none of them.
 - `--version` belongs to the bare `contextlake` only. `contextlake version` is the form that
   works everywhere.
 
-Pass either somewhere it does not exist, and the command exits `2` and names the commands that do
-take it.
+Pass either to a command that does not take it, and the command exits `2`, runs nothing, and names
+the commands that do take it. That holds in every position: `contextlake --dry-run kb index`,
+`contextlake kb --dry-run index` and `contextlake kb index --dry-run` all refuse.
 
 Output is colourised on a TTY and plain when piped. Set `NO_COLOR` to force it off.
 

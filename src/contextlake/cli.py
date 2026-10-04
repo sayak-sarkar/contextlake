@@ -1091,6 +1091,12 @@ Examples:
   contextlake bootstrap --workspace ~/src     index this directory instead of work_dir
                 """)
     _add_mirror(p)
+    # `_add_mirror` words --dry-run for the mirror verbs. On bootstrap it prints the stage
+    # list and runs none of it, which is not the same promise.
+    for action in p._actions:
+        if action.dest == "dry_run" and action.help is not _S:
+            action.help = ("print the stages this run would perform, and run none of them "
+                           "(no mirror, audit, index or model call)")
     _add_report(p, no_audit=True)
     p.add_argument("--kb-config", dest="kb_config", default=_S,
                    help="knowledge-layer config (kb.toml), separate from the sync INI")
@@ -1946,6 +1952,32 @@ def _needs_group(args):
     return True
 
 
+def _dry_run_refusal(parser, args):
+    """The text to refuse with when ``--dry-run`` reached a command that ignores it.
+
+    The root and both namespace parsers take ``--dry-run`` ahead of the verb (the mirror
+    verbs need that spelling), so `contextlake --dry-run kb index` parsed cleanly and
+    then ran for real: the flag is only read by the commands whose own parser declares
+    it. After the verb the leaf parser already rejects it with exit 2. This closes the
+    other two positions, and it reads the supporting commands off the parsers, so a
+    command that gains the flag is covered without editing a list here.
+
+    Returns None when the flag was not given or the command honours it.
+    """
+    if getattr(args, "dry_run", None) is not True:
+        return None
+    from . import style
+
+    takers = {c for c, flags in parser._flags_by_command().items() if "--dry-run" in flags}
+    if args.command in takers:
+        return None
+    name = _qualified(args.command)
+    lines = [style.fail(f"'--dry-run' isn't a flag on {name!r}, so nothing was run."), "",
+             f"It's used by: {', '.join(sorted(_qualified(c) for c in takers))}.", "",
+             f"Run 'contextlake {name} --help' to see its own flags."]
+    return "\n".join(lines) + "\n"
+
+
 def _group_is_usable(group):
     """Whether a resolved group names a real group rather than nothing at all or
     the shipped placeholder."""
@@ -2080,6 +2112,98 @@ def _store_has_repos(kb_args) -> bool:
         return True
 
 
+def _is_dry_run(config) -> bool:
+    """Whether the resolved config asks for a dry run (``--dry-run`` or ``dry_run = true``)."""
+    return str(config.get("dry_run", "false")).lower() == "true"
+
+
+def _bootstrap_stages(args, kb):
+    """The knowledge-layer stages a bootstrap runs, in order, as ``(title, function)``.
+
+    One list for both the real run and `--dry-run`'s plan, so the plan cannot drift from
+    what the run does. Building it runs nothing.
+    """
+    stages = [("Index the code graph", kb.cmd_index)]
+    if not getattr(args, "no_connect", False):
+        stages.append(("Connect knowledge sources", kb.cmd_connect))
+    if not getattr(args, "no_embed", False):
+        stages.append(("Build semantic vectors", kb.cmd_embed))
+    if not getattr(args, "no_enrich", False):
+        stages.append(("Enrich from connected sources", kb.cmd_enrich))
+    if not getattr(args, "no_wiki", False):
+        stages.append(("Generate the curated wiki", kb.cmd_wiki))
+    if not getattr(args, "no_diagrams", False):
+        # Architecture drawings are one of the six outputs this product promises, and
+        # bootstrap -- the "one command from nothing to a wired workspace" -- never
+        # produced one. `cmd_graph` already reports its own node/edge counts, so an
+        # empty diagram announces itself rather than looking finished.
+        stages.append(("Draw the architecture", _diagram_stage(kb)))
+    if not getattr(args, "no_docs", False):
+        # The cheapest of the promised outputs: model-free by default, no network, one pass
+        # over shards already on disk. Leaving it out of the one command that goes "from
+        # nothing to a wired workspace" would mean the output nobody has to configure is
+        # the one nobody gets by default.
+        #
+        # Kept as its own stage even though `cmd_index` now writes the same two documents:
+        # this is the stage that honours bootstrap's `--llm`, and the index stage is
+        # switched off in `_bootstrap` so the two cannot both write. It also writes the
+        # whole-store fleet page, which the index deliberately does not.
+        stages.append(("Write the API reference", kb.cmd_docs))
+    stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
+    return stages
+
+
+# The `--no-<stage>` switches, for the plan's "skipped by flags" line.
+_BOOTSTRAP_SKIP_FLAGS = ("no_sync", "no_audit", "no_connect", "no_embed", "no_enrich",
+                         "no_wiki", "no_diagrams", "no_docs")
+
+
+def _bootstrap_plan(args, config, work_dir):
+    """`bootstrap --dry-run`: list the stages a real run would perform, and run none.
+
+    The flag used to reach only the mirror stage. The knowledge-layer stages never read
+    it, so a "preview" wrote the store and the wiki stage could call a paid model. A
+    plan is the honest preview here: what a real run clones depends on the forge, and
+    what it indexes depends on what was cloned, so neither can be shown in advance.
+    `mirror sync --dry-run` previews the mirror stages on their own.
+
+    Touches no network, no store and no model. Returns the exit code.
+    """
+    from . import style
+
+    log("")
+    log(style.header("Bootstrap plan (dry run)"))
+    log("DRY RUN: bootstrap ran none of these stages.")
+    steps = []
+    offline = netguard.offline(args)
+    if not getattr(args, "no_sync", False) and not offline:
+        steps.append(f"{_mirror_stage_label(config)}: fetch, clone, update, branches, verify")
+    if not getattr(args, "no_audit", False):
+        steps.append("Audit repositories (health & age)")
+    try:
+        from .kb import commands as kb
+    except ImportError:
+        kb = None
+    if kb is not None:
+        steps.extend(title for title, _fn in _bootstrap_stages(args, kb))
+    for number, step in enumerate(steps, 1):
+        log(f"  {number}. {step}")
+    if offline and not getattr(args, "no_sync", False):
+        log("  The mirror would be skipped: offline mode.")
+    if kb is None:
+        log("  The knowledge-layer stages would be skipped: the [kb] extra is not "
+            f"installed for {sys.executable}.")
+    skipped = [f"--{flag.replace('_', '-')}" for flag in _BOOTSTRAP_SKIP_FLAGS
+               if getattr(args, flag, False)]
+    if skipped:
+        log(f"  Skipped by flags: {', '.join(skipped)}.")
+    workspace = expand_path(args.workspace) if getattr(args, "workspace", None) else work_dir
+    log(f"  Workspace: {workspace}")
+    log("  To preview what the mirror stages would change: contextlake mirror sync --dry-run")
+    log("  To run these stages: the same command without --dry-run.")
+    return 0
+
+
 def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     """One-command turnkey setup: mirror repos, build the knowledge layer, and write
     editor steering. Optional/unconfigured stages are skipped; a failing stage warns
@@ -2122,6 +2246,10 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
             return 2
 
+    # After the validation above, so a dry run refuses what a real run would refuse, and
+    # before anything runs: the plan must not mirror, audit, index or build a model.
+    if _is_dry_run(config):
+        return _bootstrap_plan(args, config, work_dir)
 
     from . import style
 
@@ -2227,38 +2355,12 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     # in `failures` and the final summary, and the stage list that
     # `tests/kb/test_kb_bootstrap.py` reads out of this file by AST.
     #
-    # Set unconditionally because the stage-list conditions below read `args`, not
-    # `kb_args`, so this is right whether or not the user passed --no-docs: with the flag,
-    # neither stage runs; without it, only the docs stage does.
+    # Set unconditionally because the stage-list conditions (`_bootstrap_stages`) read
+    # `args`, not `kb_args`, so this is right whether or not the user passed --no-docs:
+    # with the flag, neither stage runs; without it, only the docs stage does.
     kb_args.no_docs = True
 
-    stages = [("Index the code graph", kb.cmd_index)]
-    if not getattr(args, "no_connect", False):
-        stages.append(("Connect knowledge sources", kb.cmd_connect))
-    if not getattr(args, "no_embed", False):
-        stages.append(("Build semantic vectors", kb.cmd_embed))
-    if not getattr(args, "no_enrich", False):
-        stages.append(("Enrich from connected sources", kb.cmd_enrich))
-    if not getattr(args, "no_wiki", False):
-        stages.append(("Generate the curated wiki", kb.cmd_wiki))
-    if not getattr(args, "no_diagrams", False):
-        # Architecture drawings are one of the six outputs this product promises, and
-        # bootstrap -- the "one command from nothing to a wired workspace" -- never
-        # produced one. `cmd_graph` already reports its own node/edge counts, so an
-        # empty diagram announces itself rather than looking finished.
-        stages.append(("Draw the architecture", _diagram_stage(kb)))
-    if not getattr(args, "no_docs", False):
-        # The cheapest of the promised outputs: model-free by default, no network, one pass
-        # over shards already on disk. Leaving it out of the one command that goes "from
-        # nothing to a wired workspace" would mean the output nobody has to configure is
-        # the one nobody gets by default.
-        #
-        # Kept as its own stage even though `cmd_index` now writes the same two documents:
-        # this is the stage that honours bootstrap's `--llm`, and the index stage is
-        # switched off above so the two cannot both write. It also writes the whole-store
-        # fleet page, which the index deliberately does not.
-        stages.append(("Write the API reference", kb.cmd_docs))
-    stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
+    stages = _bootstrap_stages(args, kb)
 
     for title, fn in stages:
         _stage(title)
@@ -2375,6 +2477,16 @@ class _RunMetrics:
         self.kind = kind if kind in ("incremental", "full") else "incremental"
         self.job = job or None
 
+    def discard(self):
+        """Write nothing when the run ends.
+
+        For a run that did no work. A metrics file would stamp it as a successful run
+        (the "last success" gauge), and a history row would pull the scheduler's
+        measured duration towards zero.
+        """
+        self.path = None
+        self.history_path = None
+
     def write(self, exit_code):
         if self.path:
             try:
@@ -2489,6 +2601,12 @@ def _run(argv, metrics):
     _resolve_command(args, parser)
     args.command = _ALIASES.get(args.command, args.command)
 
+    # Before anything else runs, `version` included: a flag that is accepted and then
+    # ignored turns a preview into a real run.
+    refusal = _dry_run_refusal(parser, args)
+    if refusal:
+        parser.exit(2, refusal)
+
     # Same output `--version` prints (parser.prog is "contextlake"), just also
     # reachable as a subcommand.
     if args.command == "version":
@@ -2547,7 +2665,10 @@ def _run(argv, metrics):
     # own clearly-delimited line either way, never conflated with the error
     # that follows. Not worth threading this through every dispatch branch
     # for that narrow a case.
-    if args.command not in ("init", "completion"):
+    #
+    # Skipped under --dry-run too: registering completion edits a shell dotfile, and a
+    # preview must not write one.
+    if args.command not in ("init", "completion") and getattr(args, "dry_run", None) is not True:
         from .init_cmd import maybe_auto_register_completion
         maybe_auto_register_completion(quiet=args.quiet)
 
@@ -2703,6 +2824,12 @@ def _run(argv, metrics):
         log(f"{platform_label(config)} group: {gitlab_group}")
     except Exception:  # noqa: BLE001 - an unknown platform is reported by fetch itself
         log(f"Group: {gitlab_group}")
+    # A bootstrap dry run only prints its plan, so it exits here, ahead of the steps
+    # below that write: `get_cache_paths` creates the cache directory, and the run
+    # history and metrics file would each record a no-op as a finished run.
+    if args.command == "bootstrap" and _is_dry_run(config):
+        metrics.discard()
+        sys.exit(_bootstrap(args, config, work_dir, gitlab_group, metrics=metrics) or 0)
     cache_file, _ = get_cache_paths(config)
     # A manual `mirror sync` is a real measurement of what a scheduled sync
     # would cost, so it counts. Skipped if a scheduled parent already named the

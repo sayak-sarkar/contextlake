@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - For a repo that holds SQL schemas, run `contextlake kb index --force <repo>` once: table
   and view names are now read correctly (see Fixed), and an unchanged repo is not
   re-indexed on its own.
+- `--dry-run` (or `-n`) placed before a command that does not support it now exits 2 and
+  runs nothing, where it used to be accepted and the command ran for real. Eleven commands
+  support it: `bootstrap`, `doctor`, `kb forget` and the eight `mirror` verbs that preview.
+- `bootstrap --dry-run`, or `dry_run = true` in the mirror config, now prints the stages
+  bootstrap would run and runs none of them. It used to preview the mirror stages and then
+  index, embed and write the wiki for real.
+
+### Added
+
+- **Graph tools say how sure each connection is.** `find_callers`, `find_callees`,
+  `find_dependents`, `shortest_path` and the `ask` routes built on them return each node
+  with the `confidence` of the edge that reached it (`EXTRACTED`, `INFERRED` or
+  `AMBIGUOUS`), so a guessed call site no longer looks like a parsed one. The field is
+  new and optional; a node from a lookup or a search has none.
 
 ### Fixed
 
@@ -40,6 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now takes 0.87. The HTTP, event, state, data and web extractors had the same cost; the
   state extractor also rescanned the file for every transition (8.3 seconds to 0.05 on
   0.8 MB). Line numbers are unchanged.
+- **Linking documents to code no longer compiles a pattern per symbol per document.**
+  With 20,000 symbols, one 40 KB document took 8.4 seconds; it now takes 0.01, with the
+  same matches in the same order. Names that hold `$`, `.` or `::` keep the old pattern
+  and run it only when their words appear in the text.
+- **`--dry-run` no longer runs commands for real.** Placed before a `kb` verb it was
+  accepted and ignored, so `contextlake --dry-run kb index` wrote the store and
+  `bootstrap --dry-run` indexed, embedded and could call a paid LLM. See "Upgrading from
+  9.5.0" for what happens now.
 
 ## [9.5.0] - 2026-10-04
 

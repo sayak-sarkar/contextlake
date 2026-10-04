@@ -207,12 +207,14 @@ The knowledge-layer build commands get a page each:
 **Two more look global and are not:**
 
 - `--dry-run`, which previews without changing anything, belongs to the 8 `mirror` commands plus
-  `bootstrap`, `doctor` and `kb forget`.
+  `bootstrap`, `doctor` and `kb forget`. On `bootstrap` it prints the stages a real run would
+  perform and runs none of them.
 - `--version` belongs to the bare `contextlake` only. `contextlake version` is the form that
   works everywhere.
 
-Pass either somewhere it does not exist, and the command exits `2` and names the commands that do
-take it.
+Pass either to a command that does not take it, and the command exits `2`, runs nothing, and names
+the commands that do take it. That holds in every position: `contextlake --dry-run kb index`,
+`contextlake kb --dry-run index` and `contextlake kb index --dry-run` all refuse.
 
 Output is colourised on a TTY and plain when piped. Set `NO_COLOR` to force it off.
 
@@ -6620,6 +6622,17 @@ it as a node without edges; `find_definition` says whether a name is absent enti
 excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
 all, and carries `total`/`truncated` like its siblings.
 
+**A node reached through an edge says how far to trust that edge.** `find_callers`,
+`find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
+subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
+or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
+line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
+line before relying on it. The field is `null` where the tool names no single edge that reached
+the node: `get_node`, `find_definition`, the searches (`search_code`, `semantic_search`, and
+`hybrid_search`, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
+the first node of a path. `null` does not mean `EXTRACTED`. Clients that ignore the field keep
+working.
+
 `get_generated_doc` returns what `kb docs` wrote:
 
 - `kind="api"` for the reference, with its real call sites
@@ -8251,6 +8264,14 @@ Two more look similar and are not:
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
 
+`--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
+`doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
+flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`), and
+the message names the commands that do take it. `bootstrap --dry-run` prints the stages a real run
+would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
+cache, metrics or history file is written (a `--log-file` you ask for still is). `mirror sync
+--dry-run` previews what the mirror stages would change.
+
 ### What `--offline` covers, and what it does not
 
 It blocks at the socket, inside this process. Every client here inherits the block: `urllib`,
@@ -8319,7 +8340,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch. `--dry-run` prints the stage list and runs none of it |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
@@ -8904,7 +8925,7 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 | --- | --- | --- |
 | `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
 | `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
-| `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag, a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
+| `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag (including `--dry-run` on a command that does not take it), a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
 | `130` | `Ctrl-C` on a command that was still working | Interrupted at any point, including during `init`. Not the long-running servers, see below |
 
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
@@ -9159,6 +9180,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - For a repo that holds SQL schemas, run `contextlake kb index --force <repo>` once: table
   and view names are now read correctly (see Fixed), and an unchanged repo is not
   re-indexed on its own.
+- `--dry-run` (or `-n`) placed before a command that does not support it now exits 2 and
+  runs nothing, where it used to be accepted and the command ran for real. Eleven commands
+  support it: `bootstrap`, `doctor`, `kb forget` and the eight `mirror` verbs that preview.
+- `bootstrap --dry-run`, or `dry_run = true` in the mirror config, now prints the stages
+  bootstrap would run and runs none of them. It used to preview the mirror stages and then
+  index, embed and write the wiki for real.
+
+### Added
+
+- **Graph tools say how sure each connection is.** `find_callers`, `find_callees`,
+  `find_dependents`, `shortest_path` and the `ask` routes built on them return each node
+  with the `confidence` of the edge that reached it (`EXTRACTED`, `INFERRED` or
+  `AMBIGUOUS`), so a guessed call site no longer looks like a parsed one. The field is
+  new and optional; a node from a lookup or a search has none.
 
 ### Fixed
 
@@ -9184,6 +9219,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now takes 0.87. The HTTP, event, state, data and web extractors had the same cost; the
   state extractor also rescanned the file for every transition (8.3 seconds to 0.05 on
   0.8 MB). Line numbers are unchanged.
+- **Linking documents to code no longer compiles a pattern per symbol per document.**
+  With 20,000 symbols, one 40 KB document took 8.4 seconds; it now takes 0.01, with the
+  same matches in the same order. Names that hold `$`, `.` or `::` keep the old pattern
+  and run it only when their words appear in the text.
+- **`--dry-run` no longer runs commands for real.** Placed before a `kb` verb it was
+  accepted and ignored, so `contextlake --dry-run kb index` wrote the store and
+  `bootstrap --dry-run` indexed, embedded and could call a paid LLM. See "Upgrading from
+  9.5.0" for what happens now.
 
 ## [9.5.0] - 2026-10-04
 
