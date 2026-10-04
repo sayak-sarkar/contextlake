@@ -196,3 +196,28 @@ def test_enrich_clears_vectors_before_the_shard_and_the_rows(tmp_path, monkeypat
     finally:
         store.close()
     assert order == ["vectors", "shard", "rows"], order
+
+
+# --- kb wiki ------------------------------------------------------------------------------
+
+def test_a_wiki_page_replace_that_fails_keeps_the_old_partition(tmp_path, monkeypatch):
+    """`kb wiki --force` replaced a page's `@wiki` partition in three commits: a reader saw
+    it at 0 rows, then nodes with no edges, and an interrupt between them left a module
+    page's partition gone until the next run."""
+    from contextlake.kb.cmds.wiki import _store_wiki_partition
+
+    db = tmp_path / "index.sqlite"
+    store = SqliteStore(db)
+    try:
+        check_schema(store)
+        page_v1 = "# app\n\n## Overview\nThe first version.\n\n## Usage\nRun it.\n"
+        _store_wiki_partition(store, tmp_path, REPO, page_v1, "app.md", "h1")
+        before = _ids(db, f"@wiki:{REPO}")
+        assert before, "setup: the first page wrote no sections"
+        monkeypatch.setattr(SqliteStore, "upsert_edges", _boom)
+        page_v2 = "# app\n\n## Overview\nThe second version.\n"
+        with pytest.raises(RuntimeError):
+            _store_wiki_partition(store, tmp_path, REPO, page_v2, "app.md", "h2")
+    finally:
+        store.close()
+    assert _ids(db, f"@wiki:{REPO}") == before

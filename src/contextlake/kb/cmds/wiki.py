@@ -10,7 +10,7 @@ from ...logging_setup import log
 from ..config import apply_llm_overrides
 from ..connectors.text_match import link_documents_to_symbols
 from ..paths import is_plain_id
-from ..store.shards import GraphShard, read_shard, shard_path, write_shard
+from ..store.shards import GraphShard, read_shard, shard_path, store_partition, write_shard
 from ._common import (
     _connect_targets,
     _guard_store,
@@ -145,15 +145,19 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     # the tail.
     if vs is not None:
         vs.clear_repo(part)
-    store.clear_repo(part)
     if not nodes:
+        store.clear_repo(part)
         return 0
+    # Edges first: they link to the CODE partitions, so computing them reads nothing this
+    # replace is about to change. Then the shard, then the graph rows in ONE transaction
+    # (`store_partition`). As three commits, a reader saw the partition at 0 rows, then
+    # nodes with no edges, and an interrupt between them left a module page's partition
+    # gone until the next run.
     edges = link_documents_to_symbols(store, source_repo or repo_id, nodes, texts,
                                       "documented_by", "wiki", repo_fallback=False)
-    store.upsert_nodes(part, nodes)
-    store.upsert_edges(part, edges)
     write_shard(store_dir, GraphShard(repo=part, head_commit=head or "wiki",
                                       nodes=nodes, edges=edges))
+    store_partition(store, part, nodes, edges)
     if embedder is not None and vs is not None:
         # Unpacked: `_embed_documents` reports (documents, vectors, early-stop reason).
         # Documents and vectors stopped being the same number when chunking landed -- one
