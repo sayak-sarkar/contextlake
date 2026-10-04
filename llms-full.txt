@@ -6244,7 +6244,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. Connector link titles and ADR bodies are not removed yet: see the caution below. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -6263,6 +6263,14 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
 > guaranteed-generic demo fleet). `--anonymize` does not hide the code itself: symbol
 > names, their docstrings, and the headings of wiki sections in search results still show.
+
+> [!CAUTION]
+> **What `--anonymize` does not remove yet.** Two kinds of text get through it in 9.8.1:
+> a connector link's title and name (a ticket's or merge request's title, and the external
+> host its name is built from), and the body of an architecture decision record (which can
+> name the people who made the decision). Until a release notes this as fixed, do not share an
+> anonymized export or screen from a store that has connector sources or ADRs. Use
+> `--sample` for a demo.
 
 ### Making it the default on this machine
 
@@ -9326,6 +9334,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [9.8.1] - 2026-10-05
+
+### Security
+
+- **Known gap: `--anonymize` leaves two kinds of text in place.** A connector link's title and
+  name (a ticket's or merge request's title, and the external host its name is built from)
+  and the body of an architecture decision record (which can name its deciders) are served on
+  `kb dashboard --serve --anonymize` and written by `--site --anonymize`. Measured on 9.8.0
+  and on 9.2.1. The dashboard guide now says so; until a release notes it as fixed, do not
+  share an anonymized export or screen from a store with connector sources or ADRs.
+
+### Fixed
+
+- **`contextlake init` writes a `kb.toml` that parses on Windows.** It put the store path in
+  a TOML string without escaping it. `init --local` on Windows builds `C:\Users\...`, where
+  `\U` is an invalid escape, so every `kb` command then failed to read the config `init` had
+  just written. A path typed at the prompt with a backslash or a `"` broke it the same way on
+  any platform. The path is now escaped.
+- **`kb connect`'s help says its arguments are repos.** It said "only run these named
+  sources", but the arguments have always filtered repos: `kb connect zendesk` matched no
+  repo and exited 0 with "No repos to enrich". Running a subset of sources is not offered,
+  because each repo's connector partition is replaced with every source's results.
+- **A command `kb index` prints for you to run pastes into a Windows shell.** It quoted the
+  path the POSIX way, which wraps any path with a backslash in single quotes; `cmd.exe` keeps
+  those as part of the argument. On Windows it now quotes the way Windows shells read.
+- **`mirror audit --dry-run` writes no report.** It wrote `repo_audit.json` and `.csv` like a
+  real run; a dry run now prints the summary and says the report was not written.
+- **`schedule list` and `status` name a job store they cannot read.** Read quietly as empty,
+  a damaged `schedule-jobs.json` made `list` call every installed job an orphan and advise
+  recreating its record. They now say which file cannot be read, while the commands that
+  would change it keep refusing until it is repaired.
 
 ## [9.8.0] - 2026-10-04
 
