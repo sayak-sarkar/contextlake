@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.8.2] - 2026-10-05
+
 ### Security
 
 - **`--anonymize` now removes connector item text and document bodies on every surface.**
