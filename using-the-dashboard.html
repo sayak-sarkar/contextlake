@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4c17c565">
-<link rel="stylesheet" href="tokens.css?v=4c17c565">
-<link rel="stylesheet" href="docs.css?v=4c17c565">
-<link rel="stylesheet" href="cmdk.css?v=4c17c565">
+<link rel="stylesheet" href="fonts.css?v=aa95bcb9">
+<link rel="stylesheet" href="tokens.css?v=aa95bcb9">
+<link rel="stylesheet" href="docs.css?v=aa95bcb9">
+<link rel="stylesheet" href="cmdk.css?v=aa95bcb9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -115,7 +115,7 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--anonymize</code></td>
-<td>Hash author identities, drop external URLs and README/wiki prose. Works on <strong>both</strong> <code>--site</code> and <code>--serve</code>. Connector link titles and ADR bodies are not removed yet: see the caution below.</td>
+<td>Hash author identities, drop external URLs and README/wiki prose, and replace connector items with neutral labels. Works on <strong>both</strong> <code>--site</code> and <code>--serve</code>. See below for what still shows.</td>
 </tr>
 <tr>
 <td><code>--open</code></td>
@@ -160,15 +160,24 @@ identities, drops external URLs + README/wiki prose) or <strong><code>--sample</
 guaranteed-generic demo fleet). <code>--anonymize</code> does not hide the code itself: symbol
 names, their docstrings, and the headings of wiki sections in search results still show.</p>
 </div>
-<div class="admonition caution">
-<p class="admonition-title">Caution</p>
-<p><strong>What <code>--anonymize</code> does not remove yet.</strong> Two kinds of text get through it in 9.8.1:
-a connector link's title and name (a ticket's or merge request's title, and the external
-host its name is built from), and the body of an architecture decision record (which can
-name the people who made the decision). Until a release notes this as fixed, do not share an
-anonymized export or screen from a store that has connector sources or ADRs. Use
-<code>--sample</code> for a demo.</p>
-</div>
+<h3 id="what-anonymize-changes-and-what-still-shows">What <code>--anonymize</code> changes, and what still shows<a class="anchor" href="#what-anonymize-changes-and-what-still-shows" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Removed:</strong> README and wiki prose, the body of an architecture decision record or an
+  ingested document, external URLs (including the address an ingested or enriched document
+  came from), and every connector item's title, summary and URL.</li>
+<li><strong>Replaced:</strong> author identities become <code>Contributor a1b2</code>, and each connector item (a ticket,
+  a merge request, a design, a page, a message) becomes its kind and a short code, such as
+  <code>issue 9cb5</code>. The code comes from a key made fresh for every export and every server start, so
+  labels never match across two of them. An anonymized connector item does not open.</li>
+<li><strong>Still shows:</strong> repository ids (which name the forge host), symbol names and their
+  docstrings, file paths inside your repositories, the headings of wiki sections, and the
+  titles of documents and decision records (their node names).</li>
+</ul>
+<p>With <code>--llm-chat</code>, the prompt sent to your provider is built from the anonymized result, so the
+provider sees the codes, never a connector item's title or a decision record's body. The question
+you type is sent as you typed it.</p>
+<p><code>--allow-mutations</code> is refused with <code>--anonymize</code>: the actions it adds stream run logs that name
+connector items.</p>
 <h3 id="making-it-the-default-on-this-machine">Making it the default on this machine<a class="anchor" href="#making-it-the-default-on-this-machine" title="Link to this section">#</a></h3>
 <p><code>--anonymize</code> covers one invocation. To make it the standing answer, set it once:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.contextlake/kb.toml</span>
@@ -526,6 +535,7 @@ configured <code>[llm]</code> provider -- everything else stays local).</p>
 <ul>
 <li><a href="#1-get-some-data-in-or-dont">1. Get some data in (or don't)</a></li>
 <li><a href="#2-launch-it">2. Launch it</a><ul>
+<li><a href="#what-anonymize-changes-and-what-still-shows">What --anonymize changes, and what still shows</a></li>
 <li><a href="#making-it-the-default-on-this-machine">Making it the default on this machine</a></li>
 </ul>
 </li>
@@ -615,6 +625,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=4c17c565"></script>
+<script defer src="cmdk.js?v=aa95bcb9"></script>
 </body>
 </html>
