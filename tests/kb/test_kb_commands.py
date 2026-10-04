@@ -289,12 +289,14 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
 
 def test_doctor_warns_when_builtin_llm_runtime_missing(tmp_path, capsys, monkeypatch):
     # doctor must not show a green wiki-LLM when the model file is present but the
-    # llama-cpp-python runtime is absent (it would fail at wiki time). Simulate the
-    # missing runtime by making find_spec('llama_cpp') return None.
+    # openvino-genai runtime is absent (it would fail at wiki time). Simulate the
+    # missing runtime by making find_spec('openvino_genai') return None. This stub once
+    # named llama_cpp, the runtime before it, and so hid nothing: the test passed only
+    # where the llm-local extra was not installed, and failed in the extras CI cell.
     real_find_spec = commands_mod.importlib.util.find_spec
 
     def fake_find_spec(name, *a, **k):
-        return None if name == "llama_cpp" else real_find_spec(name, *a, **k)
+        return None if name == "openvino_genai" else real_find_spec(name, *a, **k)
 
     monkeypatch.setattr(commands_mod.importlib.util, "find_spec", fake_find_spec)
     cfg = tmp_path / "kb.toml"
