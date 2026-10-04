@@ -42,6 +42,7 @@ import os
 import re
 from pathlib import Path
 
+from ..kinds import KIND_REGISTRY
 from ..model import EXTERNAL_LINK_RELATIONS
 from ..ownership import anon_author
 from ..paths import read_repo_file, within
@@ -588,6 +589,59 @@ def data_flow(store, repo_id: str, *, limit: int = 500) -> dict:
 # time -- see kb/visualize/diagrams.py::to_sequence_diagram's docstring. It's served
 # separately, from sequence_diagram() below, seeded by the dashboard's symbol page.
 DIAGRAM_FORMATS = ("mermaid", "classdiagram", "statediagram", "erdiagram", "deploymentdiagram")
+
+# Button text for each format above, in tab order. UI copy lives here with the format list
+# so `dashboard.js` holds neither.
+_DIAGRAM_LABELS = {
+    "mermaid": "Relations",
+    "classdiagram": "Classes",
+    "statediagram": "States",
+    "erdiagram": "Data model",
+    "deploymentdiagram": "Deployment",
+}
+
+# Node kinds that enable the States and Deployment tabs. Unlike the Classes and Data model
+# tabs, these have no registry flag: `to_state_diagram` and `to_deployment_diagram` name
+# their kinds in the renderer. `tests/kb/test_dashboard_vocab_from_registries.py` renders
+# every registered kind and fails when either tuple stops matching what the renderer draws.
+_STATE_KINDS = ("state",)
+# `to_deployment_diagram` also draws `module` nodes whose lang is hcl. `module` stays out of
+# this gate on purpose: a repo's kind counts carry no language, and every code language
+# emits `module` nodes, so listing it would enable Deployment on every repo.
+_DEPLOYMENT_KINDS = ("resource", "data")
+
+
+def dashboard_vocab() -> dict:
+    """The two vocabularies ``dashboard.js`` used to keep hand-copied lists of.
+
+    * ``lang_labels``: language id -> lettermark text, the table the graph page already
+      uses (``visualize/styling._LANG_LABELS``, 28 entries). The script's own map held 14
+      of them, and a repo in any other language showed a two-letter guess.
+    * ``diagram_tabs``: the Diagrams tab strip, in order. ``kinds`` lists the node kinds
+      that enable a tab (the tab is enabled when the repo has at least one), or ``None``
+      for a tab that is always enabled. The Classes and Data model lists are the
+      registry's ``classifier`` and ``er_entity`` flags, so a kind registered with one
+      enables its tab with no edit to the script.
+
+    Built on every call, not at import, so a registry change is seen by the next caller.
+    The live server calls it once at start and prepends the result to ``/dashboard.js``;
+    the static export stores it in the snapshot. The Diagrams tab is live-only, so the
+    static copy of ``diagram_tabs`` has no reader today.
+    """
+    from ..visualize import styling
+
+    gates = {
+        "mermaid": None,
+        "classdiagram": sorted(k for k, s in KIND_REGISTRY.items() if s.classifier),
+        "statediagram": list(_STATE_KINDS),
+        "erdiagram": sorted(k for k, s in KIND_REGISTRY.items() if s.er_entity),
+        "deploymentdiagram": list(_DEPLOYMENT_KINDS),
+    }
+    return {
+        "lang_labels": dict(styling._LANG_LABELS),
+        "diagram_tabs": [{"fmt": fmt, "label": _DIAGRAM_LABELS[fmt], "kinds": gates[fmt]}
+                         for fmt in DIAGRAM_FORMATS],
+    }
 
 
 def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500,

@@ -222,8 +222,7 @@ consequence, so you can decide rather than guess.
 
 | Extra | Where | If you skip it |
 | --- | --- | --- |
-| Repo lettermark on graph pages | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend |
-| Repo lettermark in the dashboard | `LANG_LABELS` in `kb/dashboard/static/dashboard.js` | the same, in the dashboard. This table is a hand-kept mirror of the Python one and **no test compares them**, so change both or neither |
+| Repo lettermark | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend. The dashboard reads the same table from the server, so one entry covers both |
 | HTTP endpoints and clients | `_FAMILY` in `kb/flow/http.py` | no `endpoint` nodes and no `calls_http` edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do |
 | State machines | `_FAMILY` in `kb/flow/state.py` | no `state` nodes and no state diagram for your language |
 | Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language really hosts a JS-style router |

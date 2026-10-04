@@ -45,6 +45,7 @@ from ..http_base import (
     qs_int,
 )
 from ..lock import StoreBusy, StoreLock
+from ..security import json_for_script
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
@@ -163,6 +164,9 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     shell = _static("dashboard.html")
     js = _static("dashboard.js")
     js = f"window.__CL_LLM_CHAT__={json.dumps(chat_llm is not None)};\n" + js
+    # Language labels and diagram-tab gates, read from the registries once at start. The
+    # static export carries the same value in its snapshot (`site._snapshot`).
+    js = f"window.__CL_VOCAB__={json_for_script(kbdata.dashboard_vocab())};\n" + js
     if allow_mutations or llm_chat:
         js = f'window.__CL_TOKEN__={json.dumps(token)};\n' + js
     js = f"window.__CL_MUTATIONS__={json.dumps(allow_mutations)};\n" + js

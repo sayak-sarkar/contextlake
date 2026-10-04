@@ -355,7 +355,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
-- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
+- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the ten source types
 - **[docs/searching-semantically.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
 - **[docs/generating-the-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
 - **[docs/generating-documentation.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-documentation.md)**, `kb docs`, an API reference with real call sites, no model
@@ -1097,11 +1097,29 @@ transparency log.
 file this repository's workflow built and uploaded. It says nothing about the Python payload,
 because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
 first run, which happens after any signature here. If you want the payload checked too, install
-with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
-[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
-also publishes a CycloneDX SBOM listing that dependency closure.
+with `pipx` or `uv` instead and check the release yourself. Each release publishes two
+supply-chain records for that install:
 
-The SBOM does not close the gap on its own, either. Its subject is `contextlake[kb-full]`, while the
+- **PyPI attestations.** The release workflow publishes through PyPI Trusted Publishing, so the wheel
+  and the sdist of a release carry a [PEP 740](https://peps.python.org/pep-0740/) attestation. It names
+  this repository's `release.yml` workflow as the builder. Releases 2.1.0 and 4.0.0 have none.
+- **An SBOM.** Each release also publishes a CycloneDX SBOM listing that dependency closure.
+
+**`pip install`, `uv pip install` and `uv tool install` do not check the attestation.** None of
+them has an option for it (`--help` in pip 26.1.2 and uv 0.12.3 lists none), so an install from PyPI
+does not prove who built the wheel. To check it yourself, use the separate `pypi-attestations`
+tool. It downloads the file and its attestation from PyPI and fails if a different repository
+built it:
+
+```bash
+pip install pypi-attestations
+pypi-attestations verify pypi --repository https://github.com/sayak-sarkar/contextlake \
+  pypi:contextlake-X.Y.Z-py3-none-any.whl
+```
+
+Replace `X.Y.Z` with the release you installed. Use the `.tar.gz` file name to check the sdist.
+
+The SBOM does not cover the launcher's whole payload. Its subject is `contextlake[kb-full]`, while the
 launcher installs `contextlake[kb-full,llm-local]`, so the wiki-LLM runtime and everything under it
 is outside what the SBOM enumerates.
 
@@ -2690,7 +2708,7 @@ dashboard use, so node kinds look the same everywhere. Edge relations mostly mat
 tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
-Depth differs across three tiers, and a single number would hide it.
+Depth differs across four tiers, and a single number would hide it.
 
 | Tier | Languages | What you get |
 | --- | --- | --- |
@@ -2914,8 +2932,9 @@ It normalises table names with the same rule `.sql` files use for their `table` 
 `EXEC SQL SELECT ... FROM CUSTOMERS` and a `CREATE TABLE dbo.[Customers]` in another file land on
 one node, and that rule lives in exactly one place.
 
-`.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
-selects it, `--languages python` does not.
+`.pc` follows C for language filtering rather than having a setting of its own. `languages = ["c"]`
+in the `[kb]` table of `kb.toml` selects it, and `languages = ["python"]` does not. The filter is a
+config setting, not a command-line flag.
 
 ### Architecture decisions (ADRs)
 
@@ -3129,7 +3148,7 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
 
 ## Connectors
 
-`connect` enriches the graph with external context. Four connectors ship, sharing one seam:
+`connect` enriches the graph with external context. Five connectors ship, sharing one seam:
 
 - **Atlassian**: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -3173,15 +3192,21 @@ and work alongside hand-editing if you mix approaches.
 
 The commands:
 
-- **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type, offering every type this build ships, the five connectors (`atlassian`, `figma`, `gitlab`, `zendesk`,
-  `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
-  installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
-  `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
-  token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
-  value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
-  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
+- **`contextlake kb source add [NAME] [--type TYPE]`**: add a connector. The name is a positional
+  argument, not a flag (`contextlake kb source add jira --type atlassian`). Run it in a terminal without
+  a name or a `--type` and it asks for them. It offers every type this build ships, the five connectors
+  (`atlassian`, `figma`, `gitlab`, `zendesk`, `slack`) plus the built-in ingest sources (`files`, `web`,
+  `api`, `graphql`, `mcp`) and any installed plugin, proposes defaults, and writes the entry to `kb.toml`.
+  Without a terminal, a missing name or type exits 2 and prints the form to use. `--mcp URL` sets the MCP
+  server URL and `--local` targets a project-level file (`--help` shows all). `--set KEY=VALUE`
+  (repeatable) writes any other connector option `kb.toml` accepts.
+
+  **A credential never goes on the command line.** Store the name of the environment variable that holds
+  it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
+  `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
+  and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
+  one non-secret option from stdin instead of the command line, so it stays out of shell history:
+  `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
@@ -3197,7 +3222,7 @@ The commands:
 An example workflow:
 
 ```bash
-contextlake kb source add                # interactive: what type? which workspace?
+contextlake kb source add                # interactive: what type? what name? which MCP URL?
 contextlake kb source list               # show what you've configured + status
 contextlake kb source test my-atlassian  # does it work? what's in scope?
 contextlake kb connect                   # now link repos to their items
@@ -8328,7 +8353,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
+35 commands: 6 top-level, 8 under `mirror`, 21 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -9171,6 +9196,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+
+- **The docs no longer teach commands that fail.** `kb source add --name`,
+  `kb source add --from-stdin token` and `kb index --languages c` all exit 2: the name is
+  positional, a credential is stored by its environment-variable name
+  (`--set token_env=MY_TOKEN`), and the language filter is `[kb] languages` in `kb.toml`.
+  The examples now show forms that run. A new test parses every `contextlake` command in
+  the docs and the README, in code blocks and inline, through the real parser.
+- **The install docs no longer say pip verifies who built the package.** Releases carry a
+  PyPI attestation naming this repository's release workflow, but `pip install`,
+  `uv pip install` and `uv tool install` do not check it. The docs now say so and give the
+  `pypi-attestations verify pypi` command that does.
+- **Counts in the docs match the product:** 35 commands, five connectors, ten source types
+  and four language tiers. Tests derive each from the parser and the registries.
+- **The dashboard labels every supported language.** Its own table listed 14 of 28
+  languages, so the others showed a wrong two-letter guess (`bash` as `BA`, not `SH`). The
+  dashboard now reads the labels, and the node kinds that enable each diagram tab, from the
+  server, built from the same registries the graph pages use.
 
 ## [9.6.0] - 2026-10-04
 
@@ -19216,8 +19260,7 @@ consequence, so you can decide rather than guess.
 
 | Extra | Where | If you skip it |
 | --- | --- | --- |
-| Repo lettermark on graph pages | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend |
-| Repo lettermark in the dashboard | `LANG_LABELS` in `kb/dashboard/static/dashboard.js` | the same, in the dashboard. This table is a hand-kept mirror of the Python one and **no test compares them**, so change both or neither |
+| Repo lettermark | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend. The dashboard reads the same table from the server, so one entry covers both |
 | HTTP endpoints and clients | `_FAMILY` in `kb/flow/http.py` | no `endpoint` nodes and no `calls_http` edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do |
 | State machines | `_FAMILY` in `kb/flow/state.py` | no `state` nodes and no state diagram for your language |
 | Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language really hosts a JS-style router |

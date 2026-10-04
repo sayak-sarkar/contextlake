@@ -223,6 +223,8 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
         "health": kbdata.health(store, store_dir),
         "symbols": symbols,
         "impact": impact,
+        # The live server prepends the same value to /dashboard.js.
+        "vocab": kbdata.dashboard_vocab(),
         "anonymized": anonymize,
     }
 

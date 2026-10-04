@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The docs no longer teach commands that fail.** `kb source add --name`,
+  `kb source add --from-stdin token` and `kb index --languages c` all exit 2: the name is
+  positional, a credential is stored by its environment-variable name
+  (`--set token_env=MY_TOKEN`), and the language filter is `[kb] languages` in `kb.toml`.
+  The examples now show forms that run. A new test parses every `contextlake` command in
+  the docs and the README, in code blocks and inline, through the real parser.
+- **The install docs no longer say pip verifies who built the package.** Releases carry a
+  PyPI attestation naming this repository's release workflow, but `pip install`,
+  `uv pip install` and `uv tool install` do not check it. The docs now say so and give the
+  `pypi-attestations verify pypi` command that does.
+- **Counts in the docs match the product:** 35 commands, five connectors, ten source types
+  and four language tiers. Tests derive each from the parser and the registries.
+- **The dashboard labels every supported language.** Its own table listed 14 of 28
+  languages, so the others showed a wrong two-letter guess (`bash` as `BA`, not `SH`). The
+  dashboard now reads the labels, and the node kinds that enable each diagram tab, from the
+  server, built from the same registries the graph pages use.
+
 ## [9.6.0] - 2026-10-04
 
 ### Upgrading from 9.5.0
