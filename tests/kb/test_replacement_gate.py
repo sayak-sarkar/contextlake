@@ -46,7 +46,7 @@ def test_a_draft_citing_a_name_the_page_does_not_hold_is_refused():
     verdict = replacement_gate(
         _complete_draft() + "\nIt also calls `SensorGateway`.\n", PAGE)
     assert verdict is not None
-    assert verdict["reason"] == "cites names the graph does not hold"
+    assert verdict["reason"] == "cites names its prompt did not contain"
     assert "SensorGateway" in verdict["issues"][0]
 
 

@@ -236,7 +236,7 @@ def replacement_gate(draft: str, structural_page: str) -> dict | None:
     invented = sorted(_citations(body) - _backticked(structural_page))
     if invented:
         return {
-            "accepted": False, "score": 0.0, "reason": "cites names the graph does not hold",
+            "accepted": False, "score": 0.0, "reason": "cites names its prompt did not contain",
             "issues": [f"names not present in the structural page: "
                        f"{', '.join(invented[:8])}"],
         }

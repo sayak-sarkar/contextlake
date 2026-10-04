@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same four short bullets 20 times passed it and was published. It now also counts repeated
   runs of 3 lines. Every sound page measured repeats such a run at most once; the degenerate
   ones repeat it 26 and 29 times. Found by running the built-in model over 12 public repos.
+- **A wiki rejection now says what it checked.** A draft that backticks a name its prompt (the
+  structural page) did not contain was rejected as citing "names the graph does not hold". The
+  check never consults the graph, and some of those names are in it. The reason now reads
+  "cites names its prompt did not contain"; the rule is unchanged.
 
 ## [9.6.2] - 2026-10-04
 
