@@ -44,8 +44,9 @@ def test_the_steering_path_is_exactly_dot_contextlake_wiki_toml():
 # --- reading --------------------------------------------------------------------------
 
 def test_a_repo_with_no_steering_file_gets_empty_lists(tmp_path):
-    assert read_wiki_steering(tmp_path) == {"notes": [], "pages": []}
-    assert read_wiki_steering(None) == {"notes": [], "pages": []}
+    absent = {"notes": [], "pages": [], "unreadable": False}
+    assert read_wiki_steering(tmp_path) == absent
+    assert read_wiki_steering(None) == absent
 
 
 def test_notes_accepts_a_single_string_or_a_list(tmp_path):
@@ -71,7 +72,8 @@ def test_a_note_is_bounded(tmp_path):
 def test_malformed_toml_is_reported_and_ignored_not_fatal(tmp_path, gls_logs):
     """One unparseable file in one clone must not cost a fleet-wide run its output."""
     out = read_wiki_steering(_write(tmp_path, "notes = [unclosed"))
-    assert out == {"notes": [], "pages": []}
+    # Unknown, not empty: the caller must not prune module pages against this.
+    assert out == {"notes": [], "pages": [], "unreadable": True}
     assert any("not readable TOML" in r.getMessage() for r in gls_logs.records)
 
 

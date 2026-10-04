@@ -46,13 +46,17 @@ def steering_file(repo_path: str | Path) -> Path:
 
 
 def read_wiki_steering(repo_path: str | Path | None) -> dict:
-    """``{"notes": [...], "pages": [...]}`` for a repository, both possibly empty.
+    """``{"notes": [...], "pages": [...], "unreadable": bool}`` for a repository.
 
     Never raises. A malformed or unreadable steering file is reported once and then ignored,
     because a repository that cannot be parsed must still get a wiki page -- the alternative
     is one bad file in one clone silently costing a fleet-wide run its output.
+
+    ``unreadable`` says the file exists and did not parse. Its ``pages`` are then unknown,
+    not empty: a caller must not prune module pages against a plan made without them, or one
+    missing bracket deletes every page the file asked for.
     """
-    empty: dict = {"notes": [], "pages": []}
+    empty: dict = {"notes": [], "pages": [], "unreadable": False}
     if not repo_path:
         return empty
     path = steering_file(repo_path)
@@ -71,9 +75,10 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
         data = tomllib.loads(text)
     except Exception as e:  # noqa: BLE001 - a broken file costs itself, not the run
         log(f"wiki: ignoring {path} -- it is not readable TOML ({type(e).__name__}: {e}). "
-            f"The page is generated without it.", level=logging.WARNING)
-        return empty
-    return {"notes": _notes(data), "pages": _pages(data)}
+            f"The page is generated without it, and no module page is pruned until it "
+            f"parses again.", level=logging.WARNING)
+        return {**empty, "unreadable": True}
+    return {"notes": _notes(data), "pages": _pages(data), "unreadable": False}
 
 
 def _notes(data: dict) -> list[str]:

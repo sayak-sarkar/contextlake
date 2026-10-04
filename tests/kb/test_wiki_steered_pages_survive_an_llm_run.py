@@ -161,6 +161,26 @@ def test_requested_pages_survive_a_run_with_an_llm(tmp_path, monkeypatch, gls_lo
     assert "pruned the wiki page" not in logs, logs
 
 
+def test_requested_pages_survive_a_steering_file_that_stops_parsing(tmp_path, monkeypatch,
+                                                                   gls_logs, fake_vectors):
+    """The pages exist; then `wiki.toml` loses a bracket and a run with an LLM arrives. The
+    unreadable file read as "no override", the heuristic planned nothing for a small repo,
+    and the prune deleted both pages with their partitions. Unknown `pages` is not empty."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir, repo_dir = _setup(tmp_path, pages=["mod1", "mod3"])
+    assert _wiki(tmp_path, monkeypatch, None) == 0
+    (repo_dir / ".contextlake" / "wiki.toml").write_text('pages = ["mod1", "mod3"\n',
+                                                         encoding="utf-8")
+    assert _wiki(tmp_path, monkeypatch, _FakeLlm()) == 0
+
+    logs = gls_logs.text
+    assert "not readable TOML" in logs, "the capture did not see the broken file"
+    for prefix in ("mod1", "mod3"):
+        assert _module_page(store_dir, prefix).exists(), f"`{prefix}` was deleted.\n{logs}"
+        assert _has_partition(store_dir, prefix), f"`{prefix}` lost its partition"
+    assert "pruned the wiki page" not in logs, logs
+
+
 def test_the_generated_stage_follows_the_requested_list_on_a_federated_repo(
         tmp_path, monkeypatch, fake_vectors):
     """The other direction. A large repo qualifies on all six modules by the heuristic, and

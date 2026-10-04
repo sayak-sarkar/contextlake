@@ -179,7 +179,7 @@ def test_wiki_steering_refuses_a_symlinked_file_out_of_the_clone(world):
     _, clone, outside = world
     (clone / ".contextlake").mkdir()
     (clone / ".contextlake" / "wiki.toml").symlink_to(outside / "wiki.toml")
-    assert read_wiki_steering(clone) == {"notes": [], "pages": []}
+    assert read_wiki_steering(clone) == {"notes": [], "pages": [], "unreadable": False}
     (clone / ".contextlake" / "wiki.toml").unlink()
     (clone / ".contextlake" / "wiki.toml").write_text('notes = "real note"\n')
     assert read_wiki_steering(clone)["notes"] == ["real note"]
@@ -189,7 +189,7 @@ def test_wiki_steering_refuses_a_symlinked_parent_directory_that_escapes(world):
     _, clone, outside = world
     (clone / ".contextlake").symlink_to(outside, target_is_directory=True)
     # `outside/wiki.toml` exists and parses, so only the guard keeps its notes out.
-    assert read_wiki_steering(clone) == {"notes": [], "pages": []}
+    assert read_wiki_steering(clone) == {"notes": [], "pages": [], "unreadable": False}
 
 
 @pytest.mark.parametrize("make", [

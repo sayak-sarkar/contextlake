@@ -571,6 +571,9 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         steering = read_wiki_steering(_repo_paths.get(repo_id))
         modules, may_prune = _module_page_plan(store, repo_id, len(shard.nodes),
                                                override=steering["pages"])
+        # A `wiki.toml` that does not parse has unknown `pages`, not none: pruning against
+        # the heuristic plan deleted every page the file had asked for.
+        may_prune = may_prune and not steering["unreadable"]
         # Recorded before the brief checks below can `continue`, so every repository
         # that was planned keeps its plan for the generated path. `may_prune` travels
         # with the modules: `([], False)` means the index is not answering, and the
@@ -1152,8 +1155,11 @@ def cmd_wiki(args) -> int:
             # uses. Still one `repo_modules()` query per repo per run.
             plan = structural_plans.get(repo_id)
             if plan is None:
+                steering = read_wiki_steering(repo_path)
                 plan = _module_page_plan(store, repo_id, node_count,
-                                         override=read_wiki_steering(repo_path)["pages"])
+                                         override=steering["pages"])
+                if steering["unreadable"]:
+                    plan = (plan[0], False)     # unknown `pages`: keep what exists
             # Reused below for the module-page loop too, and computed before the
             # whole-repo page so that page can name its subsystem pages (Task 16).
             modules, may_prune = plan
