@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`schedule install --dry-run`** prints the unit, crontab line, manifest or cloud schedule it
+  would create, and the interval, then installs and records nothing. `dry_run = true` in the
+  config does the same.
+
 ### Fixed
 
+- **`schedule` refuses a flag on an action that ignores it.** Its flags share one namespace and
+  the help scopes each to some actions, but nothing enforced that. The scheduling guide taught
+  `schedule --platform k8s install --json` as a way to see the manifest without applying it;
+  the command ignored `--json` and applied it. Now a flag or argument given to an action that
+  does not read it exits 2 and names the actions that do, and the guide shows `--dry-run`.
+  With `dry_run = true` in the config, `uninstall`, `reset` and `interval` refuse to run
+  rather than ignore it.
+- **A damaged schedule job store is no longer overwritten.** One stray byte in
+  `schedule-jobs.json` made it read as empty, and the next `schedule install` rewrote it with
+  only the new job: every other job record was lost while its crontab line or unit stayed
+  installed. `install`, `uninstall`, `reset` and `interval` now stop with exit 1 and leave the
+  file as it is; a scheduled run skips recording its outcome instead of rewriting it.
+- **A dry run is not recorded as a measured run.** `mirror update --dry-run` appended a 0.03 s
+  run to the schedule history, which the interval recommender read as real.
 - **`kb connect` no longer fails every linked repo when two sources are configured.** With
   embeddings on and the sqlite-vec backend (the `auto` default when it is installed), each repo
   whose docs held a scraped link failed with `UNIQUE constraint failed on vec_items primary
