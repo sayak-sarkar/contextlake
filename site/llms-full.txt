@@ -9335,6 +9335,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Output no longer breaks on a console that cannot show its symbols.** A pipe on Windows
+  uses the cp1252 encoding, which has none of the status marks (`✓`, `⚠`, `✗`) or the arrows
+  in messages. Each such line failed inside logging: the line was lost and a "Logging error"
+  traceback printed instead. Those characters now fall back to ASCII (`OK`, `!`, `X`, `->`) on
+  such a stream, and any other character a stream cannot hold prints as `?`.
+
 ## [9.8.1] - 2026-10-05
 
 ### Security
