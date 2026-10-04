@@ -174,6 +174,40 @@ def _size_and_mtime(path):
     return st.st_size, st.st_mtime_ns
 
 
+_CRONTAB_STUB = """#!/bin/sh
+# Put first on PATH by conftest. No test may reach the operator's real crontab.
+if [ "$1" = "-l" ]; then
+    echo "no crontab for test" >&2
+    exit 1
+fi
+echo "conftest: a test tried to write the real crontab with: crontab $*" >&2
+exit 97
+"""
+
+
+@pytest.fixture(scope="session")
+def _crontab_stub_dir(tmp_path_factory):
+    stub_dir = tmp_path_factory.mktemp("crontab-stub")
+    stub = stub_dir / "crontab"
+    stub.write_text(_CRONTAB_STUB)
+    stub.chmod(0o755)
+    return stub_dir
+
+
+@pytest.fixture(autouse=True)
+def _no_real_crontab(_crontab_stub_dir, monkeypatch):
+    """Keep every test off the real ``crontab`` binary.
+
+    `test_every_help_example_runs` ran a help example that probes cron, so each full
+    run read this machine's real crontab: read-only, but a test's outcome then depended
+    on that crontab, and the next code change could make the probe a write. The real
+    crontab holds the operator's own jobs, and `crontab -` replaces all of them. A stub
+    answers "no crontab" to `-l` and refuses every write. A test that needs its own
+    fake puts it first on PATH, after this fixture has run.
+    """
+    monkeypatch.setenv("PATH", f"{_crontab_stub_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+
+
 @pytest.fixture(autouse=True)
 def _real_keys_file_untouched():
     """Fail the test that writes to the operator's real key file.
