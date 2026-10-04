@@ -26,6 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The MCP server instructions say which results carry a verified date.** They said every
   result is cited with a source file and verified date; edges carry both, nodes carry a file
   and line.
+- **`kb query --as-of` accepts an abbreviated commit.** The docs show `--as-of a1b2c3`, and
+  only the full 40-character sha matched. A prefix of 4 or more hex characters now resolves to
+  the one indexed commit it starts; a prefix that fits several is refused with the candidates
+  listed.
+- **`kb graph --kind` is refused where it cannot apply.** It filters the seeds of `--node`,
+  `--name` or `--search`; on a `--repo` or `--overview` view it was accepted and changed
+  nothing. It now exits 2 and names the forms that work. The visualizing guide taught
+  `kb graph --kind config_key`, which exited 2 without a seed; it now shows
+  `kb query <text> --kind config_key` and `kb graph --search <text> --kind config_key`.
+- **`kb query --json` includes each hit's node `id`**, so a hit can seed `kb graph --node`.
+  The `--node` refusal pointed at `kb query` for an id it never printed; it now also suggests
+  `--name`, which looks a node up by name.
+- **`kb graph --help` states each mode's default.** `--max-nodes` is 5000 with `--overview`,
+  `--layout` is concentric with `--overview`, and `--max-edges` caps only the Mermaid formats
+  of a `--repo` view.
 
 ## [9.7.0] - 2026-10-04
 
