@@ -8,7 +8,6 @@ import re
 import json
 import pathlib
 import subprocess
-import markdown
 
 HERE = pathlib.Path(__file__).resolve().parent   # the site/ dir (source + build output)
 REPO = HERE.parent                                # repo root
@@ -1112,6 +1111,11 @@ def verify_jsonld():
 
 
 def main():
+    # Imported here, not at the top: tests/test_llms_full_is_in_sync.py imports this module
+    # for PAGES and LLMS_INTRO only, and CI installs no `markdown`, so a top-level import
+    # made that test skip in every CI cell and the published file could drift unchecked.
+    import markdown
+
     md = markdown.Markdown(
         extensions=["tables", "pymdownx.superfences", "codehilite", "toc", "sane_lists",
                     "md_in_html", "admonition"],

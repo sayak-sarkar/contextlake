@@ -32,7 +32,6 @@ SITE = REPO / "site"
 
 
 def _build_docs():
-    pytest.importorskip("markdown", reason="site builder dependency, not a runtime one")
     if str(SITE) not in sys.path:
         sys.path.insert(0, str(SITE))
     return pytest.importorskip("build_docs", reason="site/build_docs.py not importable")
