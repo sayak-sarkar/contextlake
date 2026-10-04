@@ -381,7 +381,8 @@ _NEEDS_SYMBOL = ("Pass the symbol as `node_id` or `name` -- either a node id "
 
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
-    "(source file + verified date) and confidence-tagged: treat EXTRACTED edges as "
+    "(an edge carries its source file and verified date; a node its file and line) and "
+    "confidence-tagged: treat EXTRACTED edges as "
     "ground truth and verify INFERRED/AMBIGUOUS ones against the cited file. "
     "A node reached through an edge (callers, callees, dependents, path hops) carries "
     "that edge's confidence in its `confidence` field; a node from a lookup or a search "
