@@ -11,27 +11,25 @@ written out. A delegating proxy forwards whatever it is asked for, so the first 
 nobody thought about is served unfiltered, and the test that would catch it has to
 predict the attribute's name.
 
-WHAT IS AND IS NOT CLOSED HERE, stated because the gap is real and dated:
+WHAT IS CLOSED HERE, and how it was closed:
 
 * Filtered: ``get_node``, ``neighbors``, ``search``, ``nodes_by_name``, ``list_repos``,
-  ``get_repo``, ``stats``, ``repo_counts``, ``list_partitions`` and the two per-repo
-  index-metadata reads.
-* NOT closed: ``.conn`` is still forwarded. Three tools (``repo_dependencies``,
-  ``repo_flow``, ``repo_event_flow``) reach raw SQL through ``arch/resolve.py``, so
-  hiding it turns every one of those calls into an ``AttributeError``. They are filtered
-  at the tool bodies instead (``server._readable_repo_edges``): an edge comes back only
-  when the caller may read BOTH endpoint repositories, and a denied ``repo`` argument
-  returns nothing. What remains open is NEW code written against ``.conn``;
-  ``tests/kb/test_scope_over_the_wire.py`` drives every registered tool with a scoped
-  key, so such a tool turns that file red. Closing it means rewriting
-  ``arch/resolve.py`` off ``.conn``, which is S4.3.6.
+  ``get_repo``, ``stats``, ``repo_counts``, ``list_partitions``, the two per-repo
+  index-metadata reads, and the two repo-pair queries ``arch/resolve.py`` runs
+  (``repo_pairs_via_shared_target``, ``edges_with_unmatched_target``).
+* ``.conn`` is NOT forwarded. Reading it raises ``AttributeError``. It used to be
+  forwarded because three tools (``repo_dependencies``, ``repo_flow``,
+  ``repo_event_flow``) ran raw SQL through ``arch/resolve.py``; that SQL now lives in the
+  store behind the two methods above, which this proxy filters on BOTH repos of a pair.
+  The tool bodies keep their own filter (``server._readable_repo_edges``) as a second
+  layer. New code that needs data the protocol does not offer adds a filtered method
+  here; it does not reach for ``.conn``. ``tests/kb/test_scope_over_the_wire.py`` drives
+  every registered tool with a scoped key, so a tool that does reach for it fails there.
 
-  THIS PARAGRAPH WAS FALSE in the release that introduced it. It said the three tools
-  were filtered at their bodies, and no filter existed: a key scoped to one glob
-  received every denied repository's name and its package, HTTP and event relations.
-  The proxy cannot see that road, and no test drove it with a scoped key.
+  History: a paragraph here once said the three tools were filtered at their bodies
+  when no filter existed, and a key scoped to one glob received every denied
+  repository's name and its package, HTTP and event relations.
 
-Do not "fix" that by hiding ``conn`` without doing the rewrite first.
 """
 
 from __future__ import annotations
@@ -281,12 +279,10 @@ class ScopedStore:
 
     @property
     def conn(self):
-        """STILL FORWARDED, and this is the one hole in this class. See the module
-        docstring: hiding it breaks three tools until ``arch/resolve.py`` is rewritten
-        off raw SQL. Those three are filtered at their tool bodies instead, by
-        ``server._readable_repo_edges`` (this line said so before that filter
-        existed)."""
-        return self._store.conn
+        """Not forwarded: raw SQL would read past the scope. See the module docstring."""
+        raise AttributeError(
+            "ScopedStore does not forward .conn; raw SQL would read past the caller's "
+            "scope. Add a filtered method to the Store protocol instead.")
 
     def close(self) -> None:
         self._store.close()
@@ -398,6 +394,22 @@ class ScopedStore:
 
     def repo_counts(self, repo_id: str) -> tuple[int, int]:
         return self._store.repo_counts(repo_id) if self._allows(repo_id) else (0, 0)
+
+    def repo_pairs_via_shared_target(self, a_relation: str, b_relation: str):
+        """Only pairs where the caller may read BOTH repos: a pair from a readable repo
+        to a denied one would hand over the denied repo's id, as ``neighbors`` says."""
+        rows = self._store.repo_pairs_via_shared_target(a_relation, b_relation)
+        if self._unscoped():
+            return rows
+        return [r for r in rows if self.allows_repo(r[0]) and self.allows_repo(r[1])]
+
+    def edges_with_unmatched_target(self, relation: str, target_relation: str):
+        """Only rows whose source repo the caller may read. The other column is a raw
+        host from the edge's attrs, not a repo id."""
+        rows = self._store.edges_with_unmatched_target(relation, target_relation)
+        if self._unscoped():
+            return rows
+        return [r for r in rows if self.allows_repo(r[0])]
 
     def get_repo_parser_version(self, repo_id: str):
         return (self._store.get_repo_parser_version(repo_id)

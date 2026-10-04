@@ -126,6 +126,27 @@ class Store(ABC):
         """
 
     @abstractmethod
+    def repo_pairs_via_shared_target(self, a_relation: str,
+                                     b_relation: str) -> list[tuple[str, str, int]]:
+        """``(a_repo, b_repo, shared)`` for each pair of different repos where an
+        ``a_relation`` edge from one and a ``b_relation`` edge from the other point at the
+        same node. ``shared`` counts the distinct target nodes.
+
+        ``arch/resolve.py`` builds package, HTTP and event flow between repos from this.
+        On the protocol for the reason :meth:`repo_counts` is: the only other route is raw
+        SQL through ``.conn``, which a scoping proxy must not forward.
+        """
+
+    @abstractmethod
+    def edges_with_unmatched_target(self, relation: str,
+                                    target_relation: str) -> list[tuple[str, str | None]]:
+        """``(source_repo, attrs_json)`` for each ``relation`` edge whose target no
+        ``target_relation`` edge points at, such as an HTTP call to an endpoint no indexed
+        repo exposes. On the protocol for the same reason as
+        :meth:`repo_pairs_via_shared_target`.
+        """
+
+    @abstractmethod
     def clear_repo(self, repo_id: str) -> None:
         """Remove all nodes/edges for a repo (for a clean re-index). Leaves the
         ``repos`` row itself in place -- use :meth:`delete_repo` to drop that too."""

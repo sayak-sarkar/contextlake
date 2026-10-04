@@ -549,6 +549,32 @@ class SqliteStore(Store):
             "SELECT COUNT(*) c FROM edges WHERE repo_id=?", (repo_id,)).fetchone()["c"]
         return n, e
 
+    _PAIRS_VIA_SHARED_TARGET = """
+        SELECT a.repo, b.repo, COUNT(DISTINCT a.target)
+        FROM (SELECT n.repo_id AS repo, e.dst AS target FROM edges e
+                JOIN nodes n ON n.node_id = e.src WHERE e.relation = ?) a
+        JOIN (SELECT n.repo_id AS repo, e.dst AS target FROM edges e
+                JOIN nodes n ON n.node_id = e.src WHERE e.relation = ?) b
+          ON a.target = b.target
+        WHERE a.repo != b.repo
+        GROUP BY a.repo, b.repo
+    """
+
+    def repo_pairs_via_shared_target(self, a_relation: str,
+                                     b_relation: str) -> list[tuple[str, str, int]]:
+        rows = self.conn.execute(self._PAIRS_VIA_SHARED_TARGET,
+                                 (a_relation, b_relation)).fetchall()
+        return [(r[0], r[1], r[2]) for r in rows]
+
+    def edges_with_unmatched_target(self, relation: str,
+                                    target_relation: str) -> list[tuple[str, str | None]]:
+        rows = self.conn.execute(
+            "SELECT n.repo_id, e.attrs FROM edges e JOIN nodes n ON n.node_id = e.src "
+            "WHERE e.relation = ? AND e.dst NOT IN "
+            "(SELECT dst FROM edges WHERE relation = ?)",
+            (relation, target_relation)).fetchall()
+        return [(r[0], r[1]) for r in rows]
+
     def list_partitions(self) -> list[str]:
         """Every ``repo_id`` that owns nodes, whether or not it has a ``repos`` row.
 

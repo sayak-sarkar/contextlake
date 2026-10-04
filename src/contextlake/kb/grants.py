@@ -41,14 +41,12 @@ because there are two questions: "may this key call this tool" is answerable fro
 a name, and "may this key see this row" is not.
 
 THE PROXY DOES NOT SEE EVERY ROAD, and the tools that bypass it are gated in their
-own bodies in ``kb/server.py``: ``repo_dependencies``, ``repo_flow`` and
-``repo_event_flow`` build their edges with raw SQL through ``.conn``
-(``arch/resolve.py``) and drop any edge with an endpoint the caller may not read;
-the disk readers resolve the repository that owns the file they serve. Until
-``arch/resolve.py`` is rewritten off ``.conn`` (S4.3.6), a new tool written against
-``.conn`` is unscoped unless its body does the same. ``tests/kb/
-test_scope_over_the_wire.py`` drives every registered tool over a socket with a
-scoped key, so such a tool turns that file red.
+own bodies in ``kb/server.py``: the disk readers resolve the repository that owns the
+file they serve. ``repo_dependencies``, ``repo_flow`` and ``repo_event_flow`` get their
+edges through the proxy's filtered ``repo_pairs_via_shared_target`` and also drop any
+edge with an endpoint the caller may not read. The proxy does not forward ``.conn``, so
+a new tool cannot reach raw SQL through it. ``tests/kb/test_scope_over_the_wire.py``
+drives every registered tool over a socket with a scoped key.
 """
 
 from __future__ import annotations

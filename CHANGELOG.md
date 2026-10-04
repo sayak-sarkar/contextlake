@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **The network MCP server's scoping proxy no longer forwards raw database access.** Three
+  tools (`repo_dependencies`, `repo_flow`, `repo_event_flow`) built their answers with raw SQL,
+  so the proxy that limits a scoped key to its repositories had to pass the database connection
+  through, and the tool bodies filtered the rows themselves. The queries now run in the store
+  behind two methods the proxy filters on both repositories of a pair, and the proxy refuses
+  `.conn`. A tool added later cannot reach raw SQL through it. stdio is unchanged.
+
 ### Fixed
 
 - **A wiki draft that repeated the same few lines could replace the structural page.** The

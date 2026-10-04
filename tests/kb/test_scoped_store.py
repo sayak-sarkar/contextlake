@@ -484,3 +484,52 @@ def test_scoped_search_still_finds_a_readable_match_below_the_ceiling(request_sc
 
     hits = _scoped(store=_ReadableAt20()).search("term", limit=1)
     assert [n.id for n in hits] == ["hit"]
+
+
+# --------------------------------------------------------------------------
+# The repo-pair queries `arch/resolve.py` runs, and `.conn`
+# --------------------------------------------------------------------------
+
+class _PairStore(_FakeStore):
+    """A package two-hop and two unresolved calls across a granted and a denied repo."""
+
+    def repo_pairs_via_shared_target(self, a_relation, b_relation):
+        return [("acme/api", "acme/web", 2), ("acme/api", "other/api", 1),
+                ("other/api", "acme/web", 3)]
+
+    def edges_with_unmatched_target(self, relation, target_relation):
+        return [("acme/api", '{"raw_host": "pay.example"}'),
+                ("other/api", '{"raw_host": "mail.example"}')]
+
+
+def test_a_repo_pair_is_returned_only_when_both_repos_are_granted(request_scope):
+    """A pair from a granted repo to a denied one would name the denied repo."""
+    s = _scoped(store=_PairStore())
+    assert s.repo_pairs_via_shared_target("publishes", "depends_on") == [
+        ("acme/api", "acme/web", 2)]
+
+
+def test_an_unmatched_call_is_returned_only_for_a_granted_source_repo(request_scope):
+    s = _scoped(store=_PairStore())
+    assert s.edges_with_unmatched_target("calls_http", "exposes") == [
+        ("acme/api", '{"raw_host": "pay.example"}')]
+
+
+def test_an_unscoped_caller_gets_every_pair(request_scope):
+    s = ScopedStore(_PairStore(), lambda: ((), False))
+    assert len(s.repo_pairs_via_shared_target("publishes", "depends_on")) == 3
+    assert len(s.edges_with_unmatched_target("calls_http", "exposes")) == 2
+
+
+def test_no_principal_gets_no_pairs(request_scope):
+    s = ScopedStore(_PairStore(), lambda: None)
+    assert s.repo_pairs_via_shared_target("publishes", "depends_on") == []
+    assert s.edges_with_unmatched_target("calls_http", "exposes") == []
+
+
+def test_conn_is_not_forwarded(request_scope):
+    """Raw SQL would read past the scope. `getattr(store, "conn", None)` sees None."""
+    s = _scoped()
+    with pytest.raises(AttributeError, match="does not forward .conn"):
+        _ = s.conn
+    assert getattr(s, "conn", None) is None

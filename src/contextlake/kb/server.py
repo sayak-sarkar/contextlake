@@ -1574,12 +1574,12 @@ def build_server(
         """The repo->repo edges touching ``repo`` that this caller may read, for the
         three flow tools ONLY.
 
-        Those tools build their rows with raw SQL through ``store.conn``
-        (``arch/resolve.py``), which no ``ScopedStore`` method sees, so the proxy
-        cannot filter them and this does. Before it existed, a key scoped to one glob
-        received the name of every denied repository on the far end of an edge, and a
-        denied repository passed as ``repo`` returned its whole neighbourhood beside
-        ``found=false``, while ``scoped_store.py`` said these tools were filtered.
+        The rows now come through ``ScopedStore.repo_pairs_via_shared_target``,
+        which already drops a pair with a denied repo; this is the second layer, and the
+        only one that handles a denied ``repo`` argument. Before either existed, a key
+        scoped to one glob received the name of every denied repository on the far end
+        of an edge, and a denied repository passed as ``repo`` returned its whole
+        neighbourhood beside ``found=false``.
 
         BOTH endpoints are checked, for the reason ``ScopedStore.neighbors`` gives: an
         edge from a readable repo to a denied one hands over the denied repo's id in
