@@ -1226,8 +1226,13 @@ to use instead.
 
     p = command("connect", "enrich the graph from configured sources "
                            "(GitLab MRs/issues, Atlassian, Figma)")
-    p.add_argument("args", nargs="*", metavar="source",
-                   help="only run these named sources (default: all configured)")
+    # Repo ids, as for `kb enrich`. The help said "only run these named sources", and
+    # `kb connect zendesk` then matched no repo and exited 0 with "No repos to enrich".
+    # Running a subset of SOURCES is not offered: each repo's @connect partition is replaced
+    # with every source's results, so a one-source run would drop the others' links.
+    p.add_argument("args", nargs="*", metavar="repo",
+                   help="only connect these repos (default: all indexed); every configured "
+                        "source runs")
     _add_watch(p, "the connectors")
 
     p = command("embed", "build semantic vectors for the graph "

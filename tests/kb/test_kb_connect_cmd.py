@@ -457,3 +457,17 @@ def test_connect_one_bad_repo_does_not_abort_the_others(tmp_path, monkeypatch, g
         assert store.nodes_by_name("PROJ-1")
     finally:
         store.close()
+
+
+def test_the_connect_positional_is_documented_as_the_repo_filter_it_is():
+    """The help said "only run these named sources", while `_connect_targets` filters REPOS by
+    the positional: `kb connect zendesk` matched no repo and exited 0 with "No repos to
+    enrich". A subset of sources is not offered (a one-source run would replace each repo's
+    @connect partition and drop the other sources' links), so the help names repos."""
+    from contextlake.cli import build_parser
+
+    sub = next(a for a in build_parser()._actions if a.dest == "command").choices["kb"]
+    connect = next(a for a in sub._actions if a.dest == "subcommand").choices["connect"]
+    positional = next(a for a in connect._actions if a.dest == "args")
+    assert positional.metavar == "repo"
+    assert "repos" in positional.help and "source" not in positional.help.split(";")[0]
