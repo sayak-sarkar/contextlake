@@ -14,10 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Known gap: `--anonymize` leaves two kinds of text in place.** A connector link's title and
   name (a ticket's or merge request's title, and the external host its name is built from)
   and the body of an architecture decision record (which can name its deciders) are served on
-  `kb dashboard --serve --anonymize` and written by `--site --anonymize`. This is in every
-  release that has the flag. The dashboard guide now says so; until a release notes it as
-  fixed, do not share an anonymized export or screen from a store with connector sources or
-  ADRs.
+  `kb dashboard --serve --anonymize` and written by `--site --anonymize`. Measured on 9.8.0
+  and on 9.2.1. The dashboard guide now says so; until a release notes it as fixed, do not
+  share an anonymized export or screen from a store with connector sources or ADRs.
 
 ### Fixed
 
