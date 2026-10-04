@@ -14,11 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rewrite now runs where data leaves for the client: on every JSON response the dashboard
   server sends (chat included), on every graph payload (pages, neighbours, diagrams), and on
   the `--site` snapshot. Connector items become their kind and a short code, with their title,
-  summary, URL and text dropped; document kinds lose their body. The code is keyed per export
+  summary, URL and text dropped; document kinds lose their body and the URL they came from.
+  The code is keyed per export
   and per server start, so labels match nothing outside it, and an anonymized connector item
   does not open. A test drives every read route and reads every exported file, with a control
-  run that must find each planted value. `--allow-mutations` is now refused with
-  `--anonymize`, because those actions stream logs that name connector items.
+  run that must find each planted value.
+
+### Changed
+
+- **`kb dashboard --serve --allow-mutations` is refused while anonymizing.** With
+  `--anonymize`, or with `anonymize = "always"` in the config, it now exits 1: the actions it
+  adds stream run logs that name connector items. It exited 0 on 9.8.1. To use the actions,
+  run the dashboard without anonymizing, on a machine where nobody else sees the screen.
 
 ### Fixed
 

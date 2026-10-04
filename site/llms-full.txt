@@ -6267,13 +6267,15 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 ### What `--anonymize` changes, and what still shows
 
 - **Removed:** README and wiki prose, the body of an architecture decision record or an
-  ingested document, external URLs, and every connector item's title, summary and URL.
+  ingested document, external URLs (including the address an ingested or enriched document
+  came from), and every connector item's title, summary and URL.
 - **Replaced:** author identities become `Contributor a1b2`, and each connector item (a ticket,
   a merge request, a design, a page, a message) becomes its kind and a short code, such as
   `issue 9cb5`. The code comes from a key made fresh for every export and every server start, so
   labels never match across two of them. An anonymized connector item does not open.
 - **Still shows:** repository ids (which name the forge host), symbol names and their
-  docstrings, file paths inside your repositories, and the headings of wiki sections.
+  docstrings, file paths inside your repositories, the headings of wiki sections, and the
+  titles of documents and decision records (their node names).
 
 `--allow-mutations` is refused with `--anonymize`: the actions it adds stream run logs that name
 connector items.
@@ -9348,11 +9350,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rewrite now runs where data leaves for the client: on every JSON response the dashboard
   server sends (chat included), on every graph payload (pages, neighbours, diagrams), and on
   the `--site` snapshot. Connector items become their kind and a short code, with their title,
-  summary, URL and text dropped; document kinds lose their body. The code is keyed per export
+  summary, URL and text dropped; document kinds lose their body and the URL they came from.
+  The code is keyed per export
   and per server start, so labels match nothing outside it, and an anonymized connector item
   does not open. A test drives every read route and reads every exported file, with a control
-  run that must find each planted value. `--allow-mutations` is now refused with
-  `--anonymize`, because those actions stream logs that name connector items.
+  run that must find each planted value.
+
+### Changed
+
+- **`kb dashboard --serve --allow-mutations` is refused while anonymizing.** With
+  `--anonymize`, or with `anonymize = "always"` in the config, it now exits 1: the actions it
+  adds stream run logs that name connector items. It exited 0 on 9.8.1. To use the actions,
+  run the dashboard without anonymizing, on a machine where nobody else sees the screen.
 
 ### Fixed
 
