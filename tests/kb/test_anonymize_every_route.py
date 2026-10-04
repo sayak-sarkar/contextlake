@@ -42,7 +42,9 @@ CANARIES = ("zq7linkhost", "zq7slug", "Dc5Qdecider", "dc5q@example", "ad63host",
             # distinctive), its title, and the URLs an enriched and an ingested document came
             # from. An enrich document's body `snippet` is planted too, but no route serves
             # that field (the plain control never shows it), so it is not a canary here.
-            "ACME-123", "Pw7Title", "zq9enrich", "zq8ingest")
+            "ACME-123", "Pw7Title", "zq9enrich", "zq8ingest",
+            # A document named and identified by its URL (D-3), linked and unlinked.
+            "zq5weburl", "zq4lonely")
 KEY_ISSUE = "atlassian:issue:ACME-123"
 _PROV = Provenance(source_file="x", verified_at=date(2026, 10, 5))
 
@@ -100,6 +102,17 @@ def _store(tmp_path) -> Path:
     s.upsert_nodes(ingest, [Node(
         id=f"{ingest}:h1", repo=ingest, kind="document", name="Handbook",
         file="https://zq8ingest.example.test/handbook", attrs={"source": "api"})])
+    # A page with no <title>: the web source and an MCP source name the document by its
+    # URL, and every ingest and enrich id embeds `doc.id`, which is the URL (D-3). One is
+    # linked to code, one is linked to nothing, so only a search reaches it.
+    web = "@ingest:web"
+    page = "https://zq5weburl.example.test/notes-page"
+    s.upsert_nodes(web, [Node(id=f"{web}:{page}", repo=web, kind="document", name=page,
+                              file=page, attrs={"source": "web"})])
+    s.upsert_edges(web, [_edge("svc", f"{web}:{page}", "documented_by")])
+    lone = "https://zq4lonely.example.test/notes-lone"
+    s.upsert_nodes(enrich, [Node(id=f"{enrich}:{lone}", repo=enrich, kind="document",
+                                 name=lone, file=lone, attrs={"source": "mcp"})])
     s.close()
     return store_dir
 
@@ -110,6 +123,7 @@ GETS = [
     "/api/search?q=article", "/api/search?q=ticket", "/api/search?q=ledger",
     "/api/search?q=runbook", "/api/search?q=handbook", "/api/search?q=outage",
     "/api/search?q=123",
+    "/api/search?q=notes",
     f"/api/repo/{REPO}", f"/api/repo/{REPO}/rel", f"/api/repo/{REPO}/data-flow",
     f"/api/repo/{REPO}/diagram?format=mermaid", f"/api/repo/{REPO}/modules",
     f"/api/repo/{REPO}/wiki", f"/api/repo/{REPO}/docs",
@@ -120,7 +134,8 @@ GETS = [
 ]
 QUESTIONS = ["who owns team/app", "explain team/app", "what is ForecastService",
              "search ticket", "what tickets mention ForecastService",
-             "123", "acme"]     # the bare search route: reaches the tracker key
+             "123", "acme",     # the bare search route: reaches the tracker key
+             "notes"]           # ...and the documents named by their address (D-3)
 # No request carries a canary: a response that echoes the query would read as a leak.
 # Mutation routes are off without --allow-mutations, and the CLI refuses that flag with
 # --anonymize (test below), so an anonymized server never serves them.
@@ -134,7 +149,7 @@ def _free_port():
         return s.getsockname()[1]
 
 
-def _bodies(store_dir, anonymize: bool) -> dict[str, str]:
+def _serve(store_dir, anonymize: bool, requests) -> dict[str, str]:
     s = SqliteStore(store_dir / "index.sqlite")
     port = _free_port()
     srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port, anonymize=anonymize)
@@ -151,15 +166,25 @@ def _bodies(store_dir, anonymize: bool) -> dict[str, str]:
             return e.read().decode("utf-8", "replace")
 
     try:
-        for path in GETS:
-            out[path] = fetch(base + path)
-        for q in QUESTIONS:
-            out[f"POST /api/chat {q}"] = fetch(urllib.request.Request(
-                base + "/api/chat", method="POST", data=json.dumps({"question": q}).encode(),
-                headers={"Content-Type": "application/json"}))
+        for key, make in requests:
+            out[key] = fetch(make(base))
     finally:
         srv.shutdown()
         s.close()
+    return out
+
+
+def _bodies(store_dir, anonymize: bool, *, one_server_per_request: bool = False
+            ) -> dict[str, str]:
+    requests = [(path, lambda base, p=path: base + p) for path in GETS]
+    requests += [(f"POST /api/chat {q}", lambda base, q=q: urllib.request.Request(
+        base + "/api/chat", method="POST", data=json.dumps({"question": q}).encode(),
+        headers={"Content-Type": "application/json"})) for q in QUESTIONS]
+    if not one_server_per_request:
+        return _serve(store_dir, anonymize, requests)
+    out = {}
+    for request in requests:
+        out.update(_serve(store_dir, anonymize, [request]))
     return out
 
 
@@ -196,6 +221,16 @@ def test_every_route_keeps_the_promise(store_dir):
         "so the fixture does not reach that field")
     leaked = _hits(_bodies(store_dir, anonymize=True))
     assert leaked == {}, f"--anonymize leaked: {leaked}"
+
+
+def test_no_route_depends_on_an_earlier_request(store_dir):
+    """Each request on a server of its own. The rewrite maps an id once it has seen the node
+    it belongs to, so a route asked first has seen nothing: tier D's order probe got a raw
+    document address from a search sent before any repo page (D-3)."""
+    plain = _hits(_bodies(store_dir, anonymize=False, one_server_per_request=True))
+    assert set(plain) == set(CANARIES), f"control: one server per request showed {sorted(plain)}"
+    leaked = _hits(_bodies(store_dir, anonymize=True, one_server_per_request=True))
+    assert leaked == {}, f"--anonymize leaked on a fresh server: {leaked}"
 
 
 def test_every_site_file_keeps_the_promise(store_dir, tmp_path):
@@ -248,11 +283,13 @@ class _EchoLlm:
         return prompt
 
 
-# What the plain run's prompts carry, measured: the ADR body and both tickets' names. No
-# answer to these questions holds a connector item's title or a document's source URL, so
-# those canaries are covered by the read routes in the test above, not here.
+# What the plain run's prompts carry, measured: the ADR body, both tickets' names, and the
+# two documents named by their address. No answer to these questions holds a connector
+# item's title or the `file` URL of a titled document, so those canaries are covered by the
+# read routes in the tests above, not here.
 CHAT_QUESTIONS = [*QUESTIONS, "ticket"]
-PROMPT_CANARIES = {"zq7linkhost", "Dc5Qdecider", "dc5q@example", "ad63host", "ACME-123"}
+PROMPT_CANARIES = {"zq7linkhost", "Dc5Qdecider", "dc5q@example", "ad63host", "ACME-123",
+                   "zq5weburl", "zq4lonely"}
 
 
 @pytest.mark.parametrize("anonymize", [False, True])

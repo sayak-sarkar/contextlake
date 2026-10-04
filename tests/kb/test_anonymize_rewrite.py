@@ -64,6 +64,23 @@ def test_code_and_plain_words_are_untouched():
     assert out[1] == fn         # a plain word is replaced only where it stands alone
 
 
+def test_a_web_address_becomes_one_token_wherever_it_appears():
+    """A page with no title is named by its URL, and the ingest id embeds it (D-3). The
+    token must match in an id, a name, a route and prose, without the node being seen
+    first, and a second pass must leave it alone."""
+    a = _a()
+    page = "https://wiki.example/handbook"
+    out = a.rewrite({"hits": [f"@ingest:web:{page}"], "names": [page],
+                     "href": f"#/symbol/@ingest:web:{page}", "note": f"See {page}."})
+    token = out["names"][0]
+    assert token.startswith("url-") and "://" not in str(out)
+    assert out["hits"] == [f"@ingest:web:{token}"]
+    assert out["href"] == f"#/symbol/@ingest:web:{token}"
+    assert out["note"] == f"See {token}."
+    assert a.rewrite(out) == out
+    assert Anonymizer(b"j" * 16).rewrite(page) != token     # keyed per run
+
+
 def test_two_runs_give_different_labels():
     assert (Anonymizer().rewrite({"nodes": [ISSUE]})["nodes"][0]["name"]
             != Anonymizer().rewrite({"nodes": [ISSUE]})["nodes"][0]["name"])

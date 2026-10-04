@@ -17,6 +17,12 @@ Rules, keyed on the node, not on the route:
   original id and name are replaced wherever they appear inside another string.
 - **Document nodes** (``adr``, ``document``, ``wiki``) lose their body text (``doc`` and its
   siblings). Their names stay, as symbol names do.
+- **Every web address** (``scheme://...``) in any string becomes ``url-<8 hex>``, derived from
+  the address with the same key. A page with no title is named by its URL, and every ingest
+  and enrich id embeds it (``@ingest:web:https://...``), so a rule keyed on the node missed
+  both, and a string with no node beside it (a search hit, a health list) could never be
+  matched to one. The token is the same in every payload, so ids that embed an address still
+  join their edges, whatever order the routes are asked in. Docstrings are not exempt.
 
 The key is random per export and per server start, so labels change between the two and cannot
 be matched across exports. Anonymized external nodes therefore do not open: their ids resolve
@@ -52,6 +58,10 @@ def _kinds_in(group: str) -> frozenset[str]:
 # route such as `#/symbol/<id>` is its own token. Trailing punctuation is left out, so a key at
 # the end of a sentence still matches. A key outside this class takes the alternation path.
 _TOKEN = re.compile(r"[\w.:\-]*\w")
+
+# A web address as it appears in a stored id, a name or prose. Trailing punctuation is left
+# out, so an address that ends a sentence hashes the same as the same address in an id field.
+_URL = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*://[^\s\"'<>`\\]*[^\s\"'<>`\\.,;:!?)\]]")
 
 
 def _distinctive(name: str) -> bool:
@@ -114,6 +124,9 @@ class Anonymizer:
             for v in obj:
                 self._collect(v)
 
+    def _url_token(self, m: re.Match) -> str:
+        return f"url-{self._digest(m.group(0))[:8]}"
+
     def _string(self, s: str) -> str:
         if s in self._produced:
             return s
@@ -121,6 +134,10 @@ class Anonymizer:
             return self._ids[s]
         if s in self._names:
             return self._names[s]
+        if "://" in s:
+            # Before the id and name lookups below, which then see the address already
+            # replaced. The token holds no "://", so a second pass leaves it as it is.
+            s = _URL.sub(self._url_token, s)
         # Inside longer strings: chat prose, a "No indexed package named ..." note, a
         # `#/symbol/<id>` route. Only ids and distinctive names: a frame named "Login"
         # replaced inside every string would rewrite symbol names that merely contain it.
