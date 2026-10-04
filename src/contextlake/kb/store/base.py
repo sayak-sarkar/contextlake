@@ -144,6 +144,11 @@ class Store(ABC):
         ``target_relation`` edge points at, such as an HTTP call to an endpoint no indexed
         repo exposes. On the protocol for the same reason as
         :meth:`repo_pairs_via_shared_target`.
+
+        The ``NOT IN`` runs over the whole store. A scoping proxy filters the rows by source
+        repo afterwards, so a scoped caller can still infer that some repo it may not read
+        exposes an endpoint its readable repo calls: that call is missing from its answer.
+        No network tool uses this today; one that does must not treat it as fully filtered.
         """
 
     @abstractmethod

@@ -176,6 +176,16 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
+At the fleet **Overview**, each table row has a **Show in graph** button beside its provenance
+button:
+
+- Hover or focus it to ring the two repos in the graph. The camera does not move.
+- Click it to highlight the pair and the edges between them and frame them in the graph.
+  Keyboard focus stays on the row.
+
+The button is live-only. A `--site` export opened from a file has no origin the graph can trust,
+so the export leaves the button out.
+
 A repo page's tables add a fourth tab, **Data flow**: which files read or write which SQL tables
 and views inside that one repo.
 

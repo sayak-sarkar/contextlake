@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Architecture table rows drive the graph beside them.** At the fleet Overview, a row's
+  **Show in graph** button rings its two repos in the embedded graph on hover or focus, without
+  moving the camera, and frames the pair and the edges between them on click, without taking
+  keyboard focus. The graph accepts only these two messages, with at most two repo ids, and
+  only from its own http(s) origin; a file export leaves the button out. Reduced motion makes
+  the framing instant.
+
 ## [9.6.3] - 2026-10-04
 
 ### Security
