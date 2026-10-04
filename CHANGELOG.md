@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `\U` is an invalid escape, so every `kb` command then failed to read the config `init` had
   just written. A path typed at the prompt with a backslash or a `"` broke it the same way on
   any platform. The path is now escaped.
+- **`kb connect`'s help says its arguments are repos.** It said "only run these named
+  sources", but the arguments have always filtered repos: `kb connect zendesk` matched no
+  repo and exited 0 with "No repos to enrich". Running a subset of sources is not offered,
+  because each repo's connector partition is replaced with every source's results.
+- **A command `kb index` prints for you to run pastes into a Windows shell.** It quoted the
+  path the POSIX way, which wraps any path with a backslash in single quotes; `cmd.exe` keeps
+  those as part of the argument. On Windows it now quotes the way Windows shells read.
 - **`mirror audit --dry-run` writes no report.** It wrote `repo_audit.json` and `.csv` like a
   real run; a dry run now prints the summary and says the report was not written.
 - **`schedule list` and `status` name a job store they cannot read.** Read quietly as empty,
