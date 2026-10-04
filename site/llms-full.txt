@@ -9319,6 +9319,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`kb connect` no longer fails every linked repo when two sources are configured.** With
+  embeddings on and the sqlite-vec backend (the `auto` default when it is installed), each repo
+  whose docs held a scraped link failed with `UNIQUE constraint failed on vec_items primary
+  key`, and no links were stored. Since 9.5.0 `kb connect` writes all sources' vectors for a
+  repo in one batch, and two sources embedding the same node put its id in that batch twice.
+  The sqlite-vec store now keeps the last row for a repeated id, as the brute store always did.
 - **Docs on exported JavaScript and TypeScript definitions are captured.** A `/** ... */`
   comment above `export function`, `export default function`, `export class` or an exported
   interface was never read: the parser looked for it inside the `export` statement. Arrow

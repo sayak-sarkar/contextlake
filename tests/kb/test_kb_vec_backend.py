@@ -211,3 +211,41 @@ def test_a_chunky_document_cannot_crowd_distinct_nodes_out_of_the_window(tmp_pat
         assert len({h[0] for h in hits}) == 3
     finally:
         s.close()
+
+
+# --- one contract for both backends ----------------------------------------
+
+@pytest.mark.parametrize("backend", ["brute", pytest.param("sqlite-vec", marks=requires_vec)])
+def test_a_batch_that_repeats_an_id_keeps_the_last_vector(tmp_path, backend):
+    # `kb connect` stages every source's vector rows for a repo into ONE upsert (since
+    # 9.5.0, so a failed source can leave the old partition in place). Two sources that
+    # embed the same node put its id in the batch twice. vec0 has no upsert, and the
+    # second INSERT broke its primary key, failing `kb connect` for every repo with a
+    # scraped link. The brute store's INSERT OR REPLACE always kept the last row.
+    vs = build_vector_store(tmp_path / "e.sqlite", backend=backend)
+    try:
+        vs.upsert([("n1", "r", [1.0, 0.0]), ("n2", "r", [0.5, 0.5]),
+                   ("n1", "r", [0.0, 1.0])])
+        assert vs.count_repo("r") == 2
+        best_id, best_score = vs.search([0.0, 1.0], k=1)[0]
+        assert best_id == "n1" and best_score > 0.99     # the LAST vector for n1 won
+    finally:
+        vs.close()
+
+
+@requires_vec
+def test_connect_staging_two_sources_writes_one_partition(tmp_path):
+    # The path that failed in `kb connect`: two sources' rows staged for one repo, holding
+    # the same node id, flushed as one batch onto the ANN backend.
+    from contextlake.kb.cmds.connect import _StagedVectors
+
+    real = build_vector_store(tmp_path / "e.sqlite", backend="sqlite-vec")
+    try:
+        staged = _StagedVectors(real)
+        staged.upsert([("link:a", "@connect:r", [1.0, 0.0])])           # source one
+        staged.upsert([("link:a", "@connect:r", [0.0, 1.0]),            # source two
+                       ("link:b", "@connect:r", [0.6, 0.8])])
+        staged.flush("@connect:r")
+        assert real.count_repo("@connect:r") == 2
+    finally:
+        real.close()

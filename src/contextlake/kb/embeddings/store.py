@@ -265,6 +265,11 @@ class SqliteVecStore:
         items = list(items)
         if not items:
             return 0
+        # Last row wins for an id the batch holds twice, as INSERT OR REPLACE gives the
+        # brute store. vec0 has no upsert, and a repeated id in one INSERT batch broke its
+        # primary key: `kb connect` stages every source's rows for a repo into ONE batch,
+        # so two sources embedding the same node failed the whole repo.
+        items = list({it[0]: it for it in items}.values())
         self._ensure_table(len(items[0][2]))
         ids = [(it[0],) for it in items]
         # vec0 has no UPSERT, so delete any existing ids then insert.
