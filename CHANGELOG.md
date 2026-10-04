@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.6.1] - 2026-10-04
+
 ### Fixed
 
 - **The docs no longer teach commands that fail.** `kb source add --name`,
