@@ -9353,6 +9353,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.8.3] - 2026-10-05
+
 ### Security
 
 - **`--anonymize` now replaces every web address, including the address an ingested or
