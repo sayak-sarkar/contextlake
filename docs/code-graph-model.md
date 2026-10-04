@@ -39,7 +39,7 @@ dashboard use, so node kinds look the same everywhere. Edge relations mostly mat
 tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
-Depth differs across three tiers, and a single number would hide it.
+Depth differs across four tiers, and a single number would hide it.
 
 | Tier | Languages | What you get |
 | --- | --- | --- |
@@ -263,8 +263,9 @@ It normalises table names with the same rule `.sql` files use for their `table` 
 `EXEC SQL SELECT ... FROM CUSTOMERS` and a `CREATE TABLE dbo.[Customers]` in another file land on
 one node, and that rule lives in exactly one place.
 
-`.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
-selects it, `--languages python` does not.
+`.pc` follows C for language filtering rather than having a setting of its own. `languages = ["c"]`
+in the `[kb]` table of `kb.toml` selects it, and `languages = ["python"]` does not. The filter is a
+config setting, not a command-line flag.
 
 ### Architecture decisions (ADRs)
 

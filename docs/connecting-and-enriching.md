@@ -26,7 +26,7 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
 
 ## Connectors
 
-`connect` enriches the graph with external context. Four connectors ship, sharing one seam:
+`connect` enriches the graph with external context. Five connectors ship, sharing one seam:
 
 - **Atlassian**: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -70,15 +70,21 @@ and work alongside hand-editing if you mix approaches.
 
 The commands:
 
-- **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type, offering every type this build ships, the five connectors (`atlassian`, `figma`, `gitlab`, `zendesk`,
-  `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
-  installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
-  `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
-  token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
-  value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
-  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
+- **`contextlake kb source add [NAME] [--type TYPE]`**: add a connector. The name is a positional
+  argument, not a flag (`contextlake kb source add jira --type atlassian`). Run it in a terminal without
+  a name or a `--type` and it asks for them. It offers every type this build ships, the five connectors
+  (`atlassian`, `figma`, `gitlab`, `zendesk`, `slack`) plus the built-in ingest sources (`files`, `web`,
+  `api`, `graphql`, `mcp`) and any installed plugin, proposes defaults, and writes the entry to `kb.toml`.
+  Without a terminal, a missing name or type exits 2 and prints the form to use. `--mcp URL` sets the MCP
+  server URL and `--local` targets a project-level file (`--help` shows all). `--set KEY=VALUE`
+  (repeatable) writes any other connector option `kb.toml` accepts.
+
+  **A credential never goes on the command line.** Store the name of the environment variable that holds
+  it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
+  `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
+  and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
+  one non-secret option from stdin instead of the command line, so it stays out of shell history:
+  `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
@@ -94,7 +100,7 @@ The commands:
 An example workflow:
 
 ```bash
-contextlake kb source add                # interactive: what type? which workspace?
+contextlake kb source add                # interactive: what type? what name? which MCP URL?
 contextlake kb source list               # show what you've configured + status
 contextlake kb source test my-atlassian  # does it work? what's in scope?
 contextlake kb connect                   # now link repos to their items

@@ -137,7 +137,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
+35 commands: 6 top-level, 8 under `mirror`, 21 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.

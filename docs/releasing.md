@@ -319,6 +319,22 @@ workflow on an otherwise-successful release:
 | SLSA build provenance on both images | `release.yml`, `provenance: true` on the image build | The image bytes pushed to ghcr.io. The images are also `cosign`-signed |
 | Sigstore build-provenance attestation on the three launchers | `binaries.yml`, `actions/attest-build-provenance` | The **launcher** only. The Python payload is fetched from PyPI on the user's machine at first run, after any signature here, so the attestation says nothing about it. `docs/installing.md` states that limit to users too, and the release notes must not imply otherwise |
 
+The wheel and the sdist also carry a [PEP 740](https://peps.python.org/pep-0740/) attestation on PyPI.
+The `publish` job in `release.yml` makes it through `pypa/gh-action-pypi-publish` and Trusted
+Publishing, and the job sets nothing that turns it off. It names the `release.yml` workflow of this
+repository as the builder. **`pip install`, `uv pip install` and `uv tool install` do not check it**
+(none has an option for it in pip 26.1.2 or uv 0.12.3), so the release notes must not say an install
+verified it. To check a published release, run (after `pip install pypi-attestations`):
+
+```bash
+pypi-attestations verify pypi --repository https://github.com/sayak-sarkar/contextlake \
+  pypi:contextlake-X.Y.Z-py3-none-any.whl
+```
+
+It exits non-zero when PyPI has no attestation for the file or a different repository built it.
+Releases 2.1.0 and 4.0.0 have none. `scripts/verify-published-release.py` in step 8 compares the
+bytes on the index with the bytes the run built. It does not read the attestation.
+
 ## Troubleshooting
 
 **A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** Transient, and it has

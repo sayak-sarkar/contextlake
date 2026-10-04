@@ -194,11 +194,29 @@ transparency log.
 file this repository's workflow built and uploaded. It says nothing about the Python payload,
 because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
 first run, which happens after any signature here. If you want the payload checked too, install
-with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
-[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
-also publishes a CycloneDX SBOM listing that dependency closure.
+with `pipx` or `uv` instead and check the release yourself. Each release publishes two
+supply-chain records for that install:
 
-The SBOM does not close the gap on its own, either. Its subject is `contextlake[kb-full]`, while the
+- **PyPI attestations.** The release workflow publishes through PyPI Trusted Publishing, so the wheel
+  and the sdist of a release carry a [PEP 740](https://peps.python.org/pep-0740/) attestation. It names
+  this repository's `release.yml` workflow as the builder. Releases 2.1.0 and 4.0.0 have none.
+- **An SBOM.** Each release also publishes a CycloneDX SBOM listing that dependency closure.
+
+**`pip install`, `uv pip install` and `uv tool install` do not check the attestation.** None of
+them has an option for it (`--help` in pip 26.1.2 and uv 0.12.3 lists none), so an install from PyPI
+does not prove who built the wheel. To check it yourself, use the separate `pypi-attestations`
+tool. It downloads the file and its attestation from PyPI and fails if a different repository
+built it:
+
+```bash
+pip install pypi-attestations
+pypi-attestations verify pypi --repository https://github.com/sayak-sarkar/contextlake \
+  pypi:contextlake-X.Y.Z-py3-none-any.whl
+```
+
+Replace `X.Y.Z` with the release you installed. Use the `.tar.gz` file name to check the sdist.
+
+The SBOM does not cover the launcher's whole payload. Its subject is `contextlake[kb-full]`, while the
 launcher installs `contextlake[kb-full,llm-local]`, so the wiki-LLM runtime and everything under it
 is outside what the SBOM enumerates.
 
