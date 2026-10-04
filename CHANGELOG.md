@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.8.0] - 2026-10-04
+
 ### Added
 
 - **`schedule install --dry-run`** prints the unit, crontab line, manifest or cloud schedule it
