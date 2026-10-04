@@ -4,7 +4,8 @@ Hover or focus on a row previews the pair (the peek ring: no camera move, no cha
 selection); a click frames the pair and the edges between them without opening the
 inspector, so keyboard focus stays in the dashboard. The frame accepts a closed vocabulary
 (`cl-peek`, `cl-focus`), at most two string ids, and only from its own origin. A page opened
-from file:// has origin "null", which names nobody, so linking is off there.
+from file:// has an origin that names nobody ("null" in most browsers, "file://" in Chrome),
+so linking is off there.
 
 The receiver runs in a real browser, served over HTTP so the page has a real origin. The
 postMessage hop between two frames is not driven (`--dump-dom` returns the top document
