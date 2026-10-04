@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A wiki draft that repeated the same few lines could replace the structural page.** The
+  repetition gate counted sentences and word runs within one line, so a draft that wrote the
+  same four short bullets 20 times passed it and was published. It now also counts repeated
+  runs of 3 lines. Every sound page measured repeats such a run at most once; the degenerate
+  ones repeat it 26 and 29 times. Found by running the built-in model over 12 public repos.
+
 ## [9.6.2] - 2026-10-04
 
 ### Changed

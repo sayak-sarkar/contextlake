@@ -185,9 +185,30 @@ def test_repetition_caught_without_sentence_punctuation():
 
 
 def test_short_repeated_lines_are_not_repetition():
-    """Headings, table rows and one-line labels recur by design."""
-    page = "# repo\n\n" + "## Dependencies\n- pytest\n- ruff\n" * 20
+    """Headings, table rows and one-line labels recur by design: twenty module
+    sections that each list the same two dependencies are honest structure,
+    because each section's heading and content differ."""
+    page = "# repo\n\n" + "".join(
+        f"## module_{i}\nHandles queue {i}.\n- pytest\n- ruff\n" for i in range(20))
     assert repeated_span(page) is None
+
+
+def test_a_loop_over_short_lines_is_repetition():
+    """The 9.6.2 measurement's published failure: the same four bullets, each under
+    the sentence width, written 20 times. Neither the sentence pass nor the
+    within-line word-span pass can see it."""
+    page = ("# repo\n\n### Architecture\n" + "- **Modules**: 26\n- **Structures**: 22\n"
+            "- **Methods**: 427\n- **Functions**: 427\n" * 20)
+    hit = repeated_span(page)
+    assert hit is not None and hit[1] > _MAX_REPEATS
+    assert structural_gate(page, PROMPT_INSTRUCTIONS)["reason"] == "degenerate repetition"
+
+
+def test_a_block_repeated_up_to_the_limit_passes():
+    block = "- **Modules**: 26\n- **Structures**: 22\n- **Methods**: 427\n"
+    # Overlapping 3-line windows: N copies of a 3-line cycle hold the same window N times.
+    assert repeated_span("# repo\n" + block * _MAX_REPEATS) is None
+    assert repeated_span("# repo\n" + block * (_MAX_REPEATS + 1)) is not None
 
 
 def test_leak_needs_a_long_run_not_a_shared_phrase():

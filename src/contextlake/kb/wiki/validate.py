@@ -51,6 +51,13 @@ _MAX_REPEATS = 8
 # rules share one notion of "a span long enough to be evidence".
 _MIN_SENTENCE_WORDS = 12
 
+# How many consecutive non-blank lines make a block for the short-line loop check.
+# Measured on the 8 fixture pages and 12 pages from a 9.6.2 run over public repos: every
+# sound page repeats no 3-line block more than once; the two degenerate pages repeat one
+# 29 and 26 times. Two lines would also separate them, but a 2-line pair ("- pytest" /
+# "- ruff") recurs in honest pages more readily than a 3-line run does.
+_BLOCK_LINES = 3
+
 
 def _words(text: str) -> list[str]:
     return _WORD_RE.findall(text.lower())
@@ -119,6 +126,16 @@ def repeated_span(draft: str) -> tuple[str, int] | None:
     for span, count in spans.most_common(1):
         if count > _MAX_REPEATS:
             return " ".join(span), count
+    # A loop over SHORT lines escapes both passes above: each line is under the sentence
+    # width and the word-span pass stays within a line. A page that wrote the same four
+    # bullets ("Modules: 26" / "Structures: 22" / ...) 20 times passed both and was
+    # published over a correct structural page. Count runs of consecutive lines instead.
+    lines = [" ".join(words) for words in map(_words, draft.splitlines()) if words]
+    blocks = Counter(tuple(lines[i:i + _BLOCK_LINES])
+                     for i in range(len(lines) - _BLOCK_LINES + 1))
+    for block, count in blocks.most_common(1):
+        if count > _MAX_REPEATS:
+            return " / ".join(block), count
     return None
 
 
