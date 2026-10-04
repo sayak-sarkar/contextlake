@@ -61,3 +61,36 @@ jobs:
           tests/kb/test_windows_relative_paths.py tests/kb/test_kb_parse.py
           tests/kb/test_kb_adr.py tests/kb/test_kb_manifest.py
           tests/kb/test_kb_index_nested_dirs.py
+      - name: init --local writes a kb.toml that kb reads
+        # 9.8.1: init wrote the store path into TOML unescaped, and on Windows the backslashes
+        # of a local path are invalid escapes, so no kb command could read the config.
+        shell: pwsh
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          $d = Join-Path $env:RUNNER_TEMP "init-local"
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          Set-Location $d
+          contextlake init --local --skip-interactive --no-mirror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Select-String -Path .contextlake.kb.toml -Pattern store_dir
+          contextlake kb query anything --json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Control, 9.8.0 must fail the same check
+        # Proves the step above can see the defect: the release before the fix writes a
+        # config that kb cannot parse here.
+        shell: pwsh
+        env:
+          HF_HUB_OFFLINE: "1"
+        run: |
+          $v = Join-Path $env:RUNNER_TEMP "v980"
+          python -m venv $v
+          & "$v\Scripts\python.exe" -m pip install -q "contextlake[kb]==9.8.0"
+          $d = Join-Path $env:RUNNER_TEMP "init-local-980"
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          Set-Location $d
+          & "$v\Scripts\contextlake.exe" init --local --skip-interactive --no-mirror
+          if ($LASTEXITCODE -ne 0) { Write-Error "9.8.0 init itself failed"; exit 1 }
+          & "$v\Scripts\contextlake.exe" kb query anything --json
+          if ($LASTEXITCODE -eq 0) { Write-Error "9.8.0 read its own config: the check above is blind"; exit 1 }
+          exit 0
