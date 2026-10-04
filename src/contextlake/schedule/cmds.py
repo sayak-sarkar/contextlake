@@ -59,7 +59,8 @@ FLAG_ACTIONS = {
     "dry_run": frozenset({"install"}),
 }
 FLAG_NAMES = {"allow_ephemeral": "--allow-ephemeral", "dry_run": "--dry-run", "yes": "--yes"}
-# Actions that write the job store or a platform unit.
+# Actions that write the job store or a platform unit. Each refuses an unreadable store
+# up front, before any unit is touched.
 WRITING_ACTIONS = frozenset({"install", "uninstall", "reset", "interval"})
 
 
@@ -83,6 +84,7 @@ def _misplaced_flag(args, action) -> str | None:
 def dispatch(args, config) -> int:
     """Route one `schedule` invocation."""
     from .. import style
+    from . import jobs as jobstore
 
     action = args.action
     refusal = _misplaced_flag(args, action)
@@ -96,6 +98,13 @@ def dispatch(args, config) -> int:
         log(style.fail(f"dry_run is set in the config, and 'schedule {action}' has no "
                        f"preview, so nothing was run."))
         return 2
+    if action in WRITING_ACTIONS and not (action == "install" and dry_run):
+        try:
+            jobstore.read_jobs(jobstore.jobs_path(config), strict=True)
+        except jobstore.JobStoreUnreadable as e:
+            log(style.fail(f"{e}. Nothing was changed: rewriting it would drop every "
+                           f"other job. Repair or move the file, then run this again."))
+            return 1
     if action == "recommend":
         return cmd_recommend(args, config)
     if action == "list":

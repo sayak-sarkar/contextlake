@@ -10,6 +10,7 @@ the source that reads each flag and to the help text that describes it.
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
 import pytest
@@ -152,3 +153,23 @@ def test_install_dry_run_prints_the_unit_and_writes_nothing(tmp_path, monkeypatc
 def test_a_config_dry_run_refuses_actions_with_no_preview(tmp_path, action):
     cfg = _config(tmp_path) | {"dry_run": "true"}
     assert cmds.dispatch(_parse(["schedule", action]), cfg) == 2
+
+
+def test_an_unreadable_job_store_is_refused_before_anything_is_installed(tmp_path, monkeypatch):
+    """Every writer rewrote the whole store from the empty mapping a malformed file reads
+    as: one appended byte, and the next install dropped every other job record while their
+    crontab lines stayed installed."""
+    cfg = _config(tmp_path)
+    store = Path(jobstore.jobs_path(cfg))
+    store.parent.mkdir(parents=True, exist_ok=True)
+    good = {"jobs": {"nightly": {"argv": ["mirror", "sync"], "interval": "1h"}}}
+    store.write_text(json.dumps(good) + "x")
+    before = store.read_bytes()
+    for action in ("install", "uninstall", "reset"):
+        assert cmds.dispatch(_parse(["schedule", action, "--job", "weekly"]), cfg) == 1, action
+    assert store.read_bytes() == before
+    with pytest.raises(jobstore.JobStoreUnreadable):
+        jobstore.write_job(str(store), jobstore.new_job("w", ["kb", "index"], "1h", "cron"))
+    with pytest.raises(jobstore.JobStoreUnreadable):
+        jobstore.record_outcome(str(store), "nightly", 0, "2026-10-04T00:00:00Z")
+    assert jobstore.read_jobs(str(store)) == {}          # readers still treat it as empty

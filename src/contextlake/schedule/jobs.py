@@ -58,24 +58,43 @@ def new_job(name, argv, interval, platform, full_argv=None, created=None) -> Job
                platform=str(platform), failures=0, last_run=None, last_exit=None)
 
 
-def _read_document(path) -> dict:
+class JobStoreUnreadable(ValueError):
+    """The job store exists and cannot be parsed.
+
+    Readers may treat it as empty; writers must not. Every writer here rewrites the whole
+    document, so a write from the empty mapping a malformed file reads as dropped every
+    other job, while their crontab lines and units stayed installed as orphans.
+    """
+
+
+def _read_document(path, *, strict: bool = False) -> dict:
     try:
         with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return {}
-    return doc.get("jobs", {}) if isinstance(doc, dict) else {}
+    except (OSError, ValueError) as e:
+        if strict:
+            raise JobStoreUnreadable(f"{path} cannot be read as a job store: {e}") from e
+        return {}
+    jobs = doc.get("jobs", {}) if isinstance(doc, dict) else None
+    if not isinstance(jobs, dict):
+        if strict:
+            raise JobStoreUnreadable(f"{path} holds no mapping of jobs")
+        return {}
+    return jobs
 
 
-def read_jobs(path) -> dict:
-    """Every valid job, keyed by name. A malformed file reads as empty.
+def read_jobs(path, *, strict: bool = False) -> dict:
+    """Every valid job, keyed by name. A malformed file reads as empty, or raises
+    :class:`JobStoreUnreadable` with ``strict``, which every writer passes.
 
     A record whose ``argv`` is not a list of strings is dropped outright, not
     coerced: a shell string is what this store refuses to represent,
     because these values are handed to a unit file that runs unattended.
     """
     out = {}
-    for name, raw in _read_document(path).items():
+    for name, raw in _read_document(path, strict=strict).items():
         if not isinstance(raw, dict) or any(k not in raw for k in _REQUIRED):
             continue
         argv = raw.get("argv")
@@ -126,13 +145,13 @@ def _write_document(path, mapping) -> None:
 
 def write_job(path, job) -> None:
     """Add or replace one job. Same name means replace, never duplicate."""
-    mapping = read_jobs(path)
+    mapping = read_jobs(path, strict=True)
     mapping[job.name] = job
     _write_document(path, mapping)
 
 
 def delete_job(path, name) -> bool:
-    mapping = read_jobs(path)
+    mapping = read_jobs(path, strict=True)
     if name not in mapping:
         return False
     del mapping[name]
@@ -147,7 +166,7 @@ def record_outcome(path, name, exit_code, ts):
     the first success. Resetting on success is what stops one bad night from
     holding the interval at the maximum for a week.
     """
-    mapping = read_jobs(path)
+    mapping = read_jobs(path, strict=True)
     job = mapping.get(name)
     if job is None:
         return None

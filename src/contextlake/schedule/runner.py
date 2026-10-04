@@ -301,7 +301,12 @@ def _one_cycle(args, config, job, jobs_file, _return_gated=False):
         log(f"Skipping this run: {e}")
         return GATED if _return_gated else 0
 
-    jobstore.record_outcome(jobs_file, job.name, code, history.utc_now_iso())
+    try:
+        jobstore.record_outcome(jobs_file, job.name, code, history.utc_now_iso())
+    except jobstore.JobStoreUnreadable as e:
+        # The run happened; only its bookkeeping cannot be written. Rewriting the store
+        # from nothing would drop every other job, so leave it for the user to repair.
+        log(f"Not recording this run's outcome: {e}")
     if code != 0:
         log(f"The scheduled run exited {code}. See the log above.")
     return code
