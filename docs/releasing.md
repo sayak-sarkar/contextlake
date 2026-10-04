@@ -187,6 +187,18 @@ pip install -e ".[release]"        # build + twine
    Re-measure any figure the page states (test counts, line counts, node counts) rather than
    carrying it forward -- see `measurement-baselines-go-stale`.
 
+10. **Deploy the docs site.** No workflow publishes it: the live pages change only when
+    `site/deploy.sh` runs, which builds the site and pushes the `gh-pages` branch. Run it from
+    the tagged commit, after the release workflows succeed:
+
+    ```bash
+    PYTHON=.venv/bin/python ./site/deploy.sh
+    ```
+
+    Then open the live changelog page and check it shows the new version. Skipping this step
+    leaves the site describing an older release: 9.3.0 to 9.6.0 shipped without it, and the
+    live site still carried docs those releases had corrected.
+
 ## Tokenless publishing via GitHub Actions (recommended)
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to
