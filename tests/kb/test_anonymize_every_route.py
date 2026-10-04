@@ -234,13 +234,25 @@ def test_every_read_route_in_the_server_is_requested_here():
 
 
 class _EchoLlm:
-    """A provider that answers with the prompt it was given: whatever the prompt carried,
-    the prose shows."""
+    """A provider that keeps every prompt it is sent and answers with it: whatever the
+    prompt carried, the prose shows. `answer` is cut at 4,000 characters, so the test reads
+    the kept prompts, which are what reaches a hosted provider."""
 
     name = "echo"
 
+    def __init__(self):
+        self.prompts: list[str] = []
+
     def generate(self, prompt, *, system=None):
+        self.prompts.append(prompt)
         return prompt
+
+
+# What the plain run's prompts carry, measured: the ADR body and both tickets' names. No
+# answer to these questions holds a connector item's title or a document's source URL, so
+# those canaries are covered by the read routes in the test above, not here.
+CHAT_QUESTIONS = [*QUESTIONS, "ticket"]
+PROMPT_CANARIES = {"zq7linkhost", "Dc5Qdecider", "dc5q@example", "ad63host", "ACME-123"}
 
 
 @pytest.mark.parametrize("anonymize", [False, True])
@@ -251,7 +263,8 @@ def test_llm_chat_never_sends_hidden_text_to_the_provider(store_dir, monkeypatch
     import contextlake.kb.embeddings as emb
     import contextlake.kb.llm.base as llm_base
 
-    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: _EchoLlm())
+    echo = _EchoLlm()
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: echo)
     monkeypatch.setattr(emb, "build_embedder", lambda cfg: None)
     s = SqliteStore(store_dir / "index.sqlite")
     port = _free_port()
@@ -263,7 +276,7 @@ def test_llm_chat_never_sends_hidden_text_to_the_provider(store_dir, monkeypatch
         js = urllib.request.urlopen(base + "/dashboard.js", timeout=30).read().decode()  # noqa: S310
         token = json.loads(re.search(r"window\.__CL_TOKEN__=(\"[^\"]*\");", js).group(1))
         answers = []
-        for q in ("explain team/app", "123", "ticket"):
+        for q in CHAT_QUESTIONS:
             req = urllib.request.Request(
                 base + "/api/chat", method="POST", data=json.dumps({"question": q}).encode(),
                 headers={"Content-Type": "application/json", "X-Contextlake-Token": token})
@@ -272,12 +285,16 @@ def test_llm_chat_never_sends_hidden_text_to_the_provider(store_dir, monkeypatch
     finally:
         srv.shutdown()
         s.close()
-    found = _hits({str(i): a for i, a in enumerate(answers)})
+    assert len(echo.prompts) == len(answers), "a question never reached the provider"
+    sent = _hits({f"prompt {i}": p for i, p in enumerate(echo.prompts)})
+    shown = _hits({f"answer {i}": a for i, a in enumerate(answers)})
     if anonymize:
-        assert found == {}, f"the provider's prompt and prose carried: {found}"
+        assert sent == {} and shown == {}, f"the provider was sent {sent}; the prose showed {shown}"
     else:
-        assert {"Dc5Qdecider", "ACME-123"} <= set(found), (
-            f"control: the echo prose showed only {sorted(found)}")
+        assert set(sent) == PROMPT_CANARIES, (
+            f"control: the prompts carried {sorted(sent)}, not {sorted(PROMPT_CANARIES)}")
+        assert {"Dc5Qdecider", "ACME-123"} <= set(shown), (
+            f"control: the echo prose showed only {sorted(shown)}")
 
 
 def test_mutations_are_refused_with_anonymize(tmp_path, monkeypatch, capsys):
