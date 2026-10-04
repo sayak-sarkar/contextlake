@@ -253,10 +253,24 @@ def test_stdio_serve_stops_cleanly_on_a_stop_signal(tmp_path, sig):
     assert "Exception ignored" not in err
 
 
+def _wait_readable(fileobj, timeout: float) -> bool:
+    """Whether ``fileobj`` has data within ``timeout`` seconds.
+
+    `selectors`, not `select.select`: select() refuses a descriptor numbered 1024 or
+    higher. Late in a full run under `--cov`, objects closed only by garbage collection
+    hold enough descriptors that this pipe was numbered past 1024, and the test failed
+    with "filedescriptor out of range in select()" while the server was fine.
+    """
+    import selectors
+
+    with selectors.DefaultSelector() as sel:
+        sel.register(fileobj, selectors.EVENT_READ)
+        return bool(sel.select(timeout))
+
+
 def _handshake(proc, *, deadline: float) -> None:
     """Drive an MCP `initialize` over stdio and wait for the reply."""
     import json
-    import select
 
     request = {
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -270,7 +284,7 @@ def _handshake(proc, *, deadline: float) -> None:
     while time.time() < deadline:
         if proc.poll() is not None:
             pytest.fail(f"server exited during handshake (rc={proc.returncode})")
-        if select.select([proc.stdout], [], [], 0.25)[0]:
+        if _wait_readable(proc.stdout, 0.25):
             chunk = proc.stdout.read1(4096)
             if not chunk:
                 break
@@ -416,3 +430,24 @@ def test_the_tool_concurrency_env_var_keeps_its_lenient_path(monkeypatch):
 # kb.server there fails with ModuleNotFoundError: mcp on every Python version. A
 # local run with kb installed passes it either way, so CI's core job is the only
 # thing that catches this.
+
+
+def test_wait_readable_works_past_descriptor_1024():
+    """The case that failed: a pipe numbered past select()'s 1024 limit."""
+    import resource
+    import select
+
+    if resource.getrlimit(resource.RLIMIT_NOFILE)[0] <= 1500:
+        pytest.skip("the open-file limit does not reach descriptor 1500")
+    r, w = os.pipe()
+    high = os.dup2(r, 1500)
+    os.close(r)
+    try:
+        with open(high, "rb", buffering=0) as f:
+            with pytest.raises(ValueError):
+                select.select([f], [], [], 0)      # the old call refuses it
+            assert _wait_readable(f, 0.1) is False
+            os.write(w, b"x")
+            assert _wait_readable(f, 1.0) is True
+    finally:
+        os.close(w)
