@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=06442722">
-<link rel="stylesheet" href="tokens.css?v=06442722">
-<link rel="stylesheet" href="docs.css?v=06442722">
-<link rel="stylesheet" href="cmdk.css?v=06442722">
+<link rel="stylesheet" href="fonts.css?v=2ec5f84f">
+<link rel="stylesheet" href="tokens.css?v=2ec5f84f">
+<link rel="stylesheet" href="docs.css?v=2ec5f84f">
+<link rel="stylesheet" href="cmdk.css?v=2ec5f84f">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -278,7 +278,7 @@ output carries an <code>activity</code> field reading <code>not-measured</code>,
 </table>
 <h3 id="kubernetes-and-openshift">Kubernetes and OpenShift<a class="anchor" href="#kubernetes-and-openshift" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>k8s<span class="w"> </span>install<span class="w">            </span><span class="c1"># applies with kubectl, or oc</span>
-contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>k8s<span class="w"> </span>install<span class="w"> </span>--json<span class="w">     </span><span class="c1"># see the manifest without applying</span>
+contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>k8s<span class="w"> </span>install<span class="w"> </span>--dry-run<span class="w">  </span><span class="c1"># print the manifest, apply nothing</span>
 </code></pre></div>
 <p>One adapter covers both, because OpenShift is Kubernetes with a stricter default security
 context and the manifest is written to satisfy the stricter one. Three properties of it are
@@ -301,6 +301,10 @@ worth.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>aws<span class="w"> </span>install<span class="w">       </span><span class="c1"># EventBridge Scheduler firing an ECS task</span>
 contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>azure<span class="w"> </span>install<span class="w">     </span><span class="c1"># a Container Apps Job on a cron trigger</span>
 </code></pre></div>
+<p><code>--dry-run</code> works on every <code>install</code>: it prints the unit, crontab line, manifest or schedule
+definition it would create, and the interval, then creates and records nothing. A
+<code>dry_run = true</code> in your config does the same. <code>uninstall</code>, <code>reset</code> and <code>interval</code> have no
+preview, so they refuse to run while it is set.</p>
 <p><strong>On EKS and AKS, use <code>--platform k8s</code> instead.</strong> Both are Kubernetes, so the <code>CronJob</code> adapter
 serves them and brings <code>concurrencyPolicy: Forbid</code> with it.</p>
 <p>Neither cloud service has an equivalent of <code>Forbid</code>. Both will start a second execution while
@@ -504,6 +508,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=06442722"></script>
+<script defer src="cmdk.js?v=2ec5f84f"></script>
 </body>
 </html>

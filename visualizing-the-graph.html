@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=06442722">
-<link rel="stylesheet" href="tokens.css?v=06442722">
-<link rel="stylesheet" href="docs.css?v=06442722">
-<link rel="stylesheet" href="cmdk.css?v=06442722">
+<link rel="stylesheet" href="fonts.css?v=2ec5f84f">
+<link rel="stylesheet" href="tokens.css?v=2ec5f84f">
+<link rel="stylesheet" href="docs.css?v=2ec5f84f">
+<link rel="stylesheet" href="cmdk.css?v=2ec5f84f">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -271,8 +271,9 @@ key, a macro, a struct field. On a large repository these are most of the graph,
 them adds a dot and a label that answer nothing the container doesn't already answer.</p>
 <p>Nothing disappears quietly. The status bar says how many went
 (<code>412 leaves folded into their containers</code>), and selecting a container shows the tally for that
-node, as <code>folded  19 (config_key 14, macro 5)</code>. The full graph is still in the store; use
-<code>contextlake kb graph --kind config_key</code> or the MCP tools to reach it.</p>
+node, as <code>folded  19 (config_key 14, macro 5)</code>. The full graph is still in the store:
+<code>contextlake kb query &lt;text&gt; --kind config_key</code> lists them, <code>contextlake kb graph --search &lt;text&gt;
+--kind config_key</code> draws them, and the MCP tools reach them too.</p>
 <h2 id="composed-namespace-c4-diagram">Composed namespace C4 diagram<a class="anchor" href="#composed-namespace-c4-diagram" title="Link to this section">#</a></h2>
 <p><code>contextlake kb graph --c4</code> renders a composed <strong>C4 Context and Container</strong> diagram over the whole
 fleet:</p>
@@ -321,7 +322,7 @@ box labels yourself; you'll recognize your own internal hosts. <code>--c1</code>
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=06442722"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=2ec5f84f"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -443,6 +444,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=06442722"></script>
+<script defer src="cmdk.js?v=2ec5f84f"></script>
 </body>
 </html>
