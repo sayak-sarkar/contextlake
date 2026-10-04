@@ -233,6 +233,53 @@ def test_every_read_route_in_the_server_is_requested_here():
     assert missing == [], f"routes with no request in this test: {missing}"
 
 
+class _EchoLlm:
+    """A provider that answers with the prompt it was given: whatever the prompt carried,
+    the prose shows."""
+
+    name = "echo"
+
+    def generate(self, prompt, *, system=None):
+        return prompt
+
+
+@pytest.mark.parametrize("anonymize", [False, True])
+def test_llm_chat_never_sends_hidden_text_to_the_provider(store_dir, monkeypatch, anonymize):
+    """With --llm-chat the router's result goes into a prompt for the configured provider,
+    and its prose comes back in `answer`. Under --anonymize only owners and the wiki were
+    withheld, so ADR bodies and connector items reached the provider and its prose."""
+    import contextlake.kb.embeddings as emb
+    import contextlake.kb.llm.base as llm_base
+
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: _EchoLlm())
+    monkeypatch.setattr(emb, "build_embedder", lambda cfg: None)
+    s = SqliteStore(store_dir / "index.sqlite")
+    port = _free_port()
+    srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port,
+                                 anonymize=anonymize, llm_chat=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        js = urllib.request.urlopen(base + "/dashboard.js", timeout=30).read().decode()  # noqa: S310
+        token = json.loads(re.search(r"window\.__CL_TOKEN__=(\"[^\"]*\");", js).group(1))
+        answers = []
+        for q in ("explain team/app", "123", "ticket"):
+            req = urllib.request.Request(
+                base + "/api/chat", method="POST", data=json.dumps({"question": q}).encode(),
+                headers={"Content-Type": "application/json", "X-Contextlake-Token": token})
+            with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - loopback
+                answers.append(json.loads(r.read())["answer"] or "")
+    finally:
+        srv.shutdown()
+        s.close()
+    found = _hits({str(i): a for i, a in enumerate(answers)})
+    if anonymize:
+        assert found == {}, f"the provider's prompt and prose carried: {found}"
+    else:
+        assert {"Dc5Qdecider", "ACME-123"} <= set(found), (
+            f"control: the echo prose showed only {sorted(found)}")
+
+
 def test_mutations_are_refused_with_anonymize(tmp_path, monkeypatch, capsys):
     from contextlake.cli import main
 

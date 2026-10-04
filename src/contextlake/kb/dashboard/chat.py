@@ -55,6 +55,14 @@ def chat_answer(
     structured = asyncio.run(_ask_via_router(store, question, embedder, vector_store))
     if anonymize:
         structured = _withhold(store, structured)
+        # The output-side rewrite (kb/anonymize.py) runs HERE, before any prompt is built,
+        # not only on the response: the configured provider (possibly a hosted API) and the
+        # prose it returns see labels, never a connector item's title or an ADR body. The
+        # response rewrite cannot reach either inside prose, since titles and bodies are
+        # dropped as fields, not matched as text.
+        from ..anonymize import Anonymizer, active
+
+        structured = (active() or Anonymizer()).rewrite(structured)
     result: dict[str, Any] = {
         "question": question, "structured": structured,
         "answer": None, "llm_used": False,
