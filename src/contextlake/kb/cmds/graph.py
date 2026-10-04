@@ -210,6 +210,16 @@ def cmd_graph(args) -> int:
             max_edges = 400
 
         meta: dict = {}
+        if getattr(args, "kind", None) and (overview or (getattr(args, "repo", None)
+                                                         and not _has_seed(args))):
+            # `--kind` filters the SEEDS of --node/--name/--search. A --repo or --overview
+            # view has none, so the flag was accepted and changed nothing: the docs taught
+            # `kb graph --kind config_key` to reach folded nodes and it drew everything.
+            log(style.fail("--kind filters the seeds of --node, --name or --search; a "
+                           "--repo or --overview view draws everything, so nothing was run."))
+            log("  To list one kind: contextlake kb query <text> --kind KIND")
+            log("  To draw it:       contextlake kb graph --search <text> --kind KIND")
+            return 2
         if overview:
             nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
             meta["mode"] = "overview"

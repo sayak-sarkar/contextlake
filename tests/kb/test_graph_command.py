@@ -1658,6 +1658,29 @@ def test_cli_json_format_is_not_edge_capped_by_default(tmp_path, capsys):
     assert len(parsed["edges"]) == 400  # uncapped
 
 
+@pytest.mark.parametrize("view", [["--repo", "r"], ["--overview"]])
+def test_kind_on_a_view_with_no_seeds_is_refused(tmp_path, capsys, view):
+    # `--kind` filters the seeds of --node/--name/--search. On a --repo or --overview view
+    # it was accepted and changed nothing, and the docs taught `kb graph --kind config_key`
+    # as the way to reach folded nodes.
+    cfg = _write_dense_repo_config(tmp_path, leaves=3)
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "graph", *view, "--kind", "function", "--format", "json",
+              "--config", str(cfg)])
+    assert e.value.code == 2
+    err = capsys.readouterr().err
+    assert "--kind filters the seeds" in err and "kb query <text> --kind KIND" in err
+
+
+def test_kind_still_filters_a_seeded_view(tmp_path, capsys):
+    cfg = _write_dense_repo_config(tmp_path, leaves=3)
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "graph", "--repo", "r", "--search", "H", "--kind", "class",
+              "--format", "json", "--config", str(cfg)])
+    assert e.value.code == 0
+    assert "--kind filters the seeds" not in capsys.readouterr().err
+
+
 def test_cli_mermaid_format_is_edge_capped_by_default(tmp_path, capsys):
     cfg = _write_dense_repo_config(tmp_path, leaves=20)
     with pytest.raises(SystemExit) as e:

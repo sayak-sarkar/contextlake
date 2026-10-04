@@ -252,8 +252,9 @@ them adds a dot and a label that answer nothing the container doesn't already an
 
 Nothing disappears quietly. The status bar says how many went
 (`412 leaves folded into their containers`), and selecting a container shows the tally for that
-node, as `folded  19 (config_key 14, macro 5)`. The full graph is still in the store; use
-`contextlake kb graph --kind config_key` or the MCP tools to reach it.
+node, as `folded  19 (config_key 14, macro 5)`. The full graph is still in the store:
+`contextlake kb query <text> --kind config_key` lists them, `contextlake kb graph --search <text>
+--kind config_key` draws them, and the MCP tools reach them too.
 
 ## Composed namespace C4 diagram
 
