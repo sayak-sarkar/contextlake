@@ -15,6 +15,7 @@ var, referenced by name.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -95,12 +96,22 @@ def _mirror_ini(work_dir: str, platform: str, group: str) -> str:
     return "\n".join(lines)
 
 
+def _toml_str(value: str) -> str:
+    """``value`` as a TOML basic string. Every escape JSON emits is a valid TOML escape, and
+    ``ensure_ascii=False`` keeps other characters as UTF-8, because TOML has no surrogate-pair
+    escapes."""
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _kb_toml(enable_embeddings: bool, store_dir: str) -> str:
     lines = [
         "# contextlake knowledge-layer configuration (written by `contextlake init`).",
         "",
         "[kb]",
-        f'store_dir = "{store_dir}"',
+        # Escaped, not interpolated. `init --local` on Windows builds a path with
+        # backslashes, and in a TOML basic string a backslash starts an escape, so every
+        # `kb` command then failed to parse the config `init` had just written.
+        f"store_dir = {_toml_str(store_dir)}",
         "",
         "[embeddings]",
         "# Local-first semantic search. The built-in CPU embedder needs no Ollama",

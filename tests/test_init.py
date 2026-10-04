@@ -692,3 +692,24 @@ def test_init_interactive_still_offers_completion(tmp_path, monkeypatch):
     rc = tmp_path / "home" / ".bashrc"
     assert rc.exists()
     assert "register-python-argcomplete contextlake" in rc.read_text()
+
+
+@pytest.mark.parametrize("store_dir", [
+    r"C:\Users\me\proj\.contextlake\kb",      # what `init --local` builds on Windows
+    '/srv/a "quoted" dir/kb',
+    "/home/ünïcode/kb",
+    "~/.contextlake/kb",
+    "/tmp/tab\there",
+])
+def test_the_kb_config_keeps_any_store_path_parseable(store_dir):
+    """`init` wrote `store_dir = "<path>"` unescaped. On Windows `init --local` builds
+    `C:\\Users\\...`, and in a TOML basic string `\\U` and `\\.` are invalid escapes, so every
+    `kb` command failed to parse the config `init` had just written."""
+    try:
+        import tomllib
+    except ModuleNotFoundError:     # Python 3.10, where the core CI job has no tomli
+        tomllib = pytest.importorskip("tomli")
+
+    from contextlake.init_cmd import _kb_toml
+
+    assert tomllib.loads(_kb_toml(True, store_dir))["kb"]["store_dir"] == store_dir
