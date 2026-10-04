@@ -48,6 +48,17 @@ it as a node without edges; `find_definition` says whether a name is absent enti
 excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
 all, and carries `total`/`truncated` like its siblings.
 
+**A node reached through an edge says how far to trust that edge.** `find_callers`,
+`find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
+subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
+or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
+line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
+line before relying on it. The field is `null` where the tool names no single edge that reached
+the node: `get_node`, `find_definition`, the searches (`search_code`, `semantic_search`, and
+`hybrid_search`, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
+the first node of a path. `null` does not mean `EXTRACTED`. Clients that ignore the field keep
+working.
+
 `get_generated_doc` returns what `kb docs` wrote:
 
 - `kind="api"` for the reference, with its real call sites

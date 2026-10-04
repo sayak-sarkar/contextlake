@@ -383,6 +383,9 @@ _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
     "(source file + verified date) and confidence-tagged: treat EXTRACTED edges as "
     "ground truth and verify INFERRED/AMBIGUOUS ones against the cited file. "
+    "A node reached through an edge (callers, callees, dependents, path hops) carries "
+    "that edge's confidence in its `confidence` field; a node from a lookup or a search "
+    "(`hybrid_search` included) has none. "
     "Every cited node carries citation_status, checked against the file on disk as the "
     "answer is built: 'verified' = the file has not been written since indexing, "
     "'stale' = it has and the line number may have moved (the file is still the right "
@@ -436,6 +439,22 @@ class NodeOut(BaseModel):
     # whose relation its name describes, so no result ever carries both.
     edge_file: str | None = None
     edge_line: int | None = None
+    # HOW MUCH TO TRUST THE EDGE THAT REACHED THIS NODE: "EXTRACTED" | "INFERRED" |
+    # "AMBIGUOUS". Filled from the same edge as `call_*`/`edge_*` above, so it
+    # labels the call site or declaration those fields cite.
+    #
+    # The server instructions tell agents that results are confidence-tagged and that
+    # INFERRED/AMBIGUOUS ones need checking against the cited file. These verbs
+    # computed the edge's confidence to sort by it, then dropped it at this boundary,
+    # so a call site that was one guess among several read the same as one the parser
+    # read straight from source. Same defect as `score` and `call_line` above.
+    #
+    # None wherever the verb names no single edge that reached the node: lookups
+    # (`get_node`, `find_definition`), searches, and the first node of a path.
+    # `hybrid_search` is one of those searches: it ranks nodes the graph expansion
+    # reached by PageRank mass, which has no one edge to report. None is not a synonym
+    # for EXTRACTED. Additive: a client that does not read the field is unaffected.
+    confidence: str | None = None
     # WHETHER THE FILE STILL LOOKS LIKE WHAT WAS INDEXED, decided per response against
     # the file on disk (see store/drift.py). "verified" | "stale" | "unverifiable".
     #
@@ -822,6 +841,9 @@ def _node_out(n: Node, *, score: float | None = None,
     manifest line declaring the dependency, an `inherits` edge's is where the base
     class is named. Naming either one a "call_line" would be a plausible-looking lie.
 
+    The same edge also fills `confidence`, whichever pair the provenance goes in, so a
+    guessed edge is labelled as one next to the line that cites it.
+
     This is also the single funnel every NodeOut passes through, which is why the
     stale-slice guard hangs off it: one place to weigh the citation, and no verb can
     forget to. The probe is per-request and comes from the ambient context rather than
@@ -846,6 +868,7 @@ def _node_out(n: Node, *, score: float | None = None,
                    if edge and as_edge_provenance else None),
         edge_line=(edge.provenance.source_line
                    if edge and as_edge_provenance else None),
+        confidence=edge.confidence.value if edge else None,
         citation_status=check.status if check else None,
         # Not passed through `sanitize_label` like every field above it, and the
         # difference is the point: those carry indexed repository content, which is
@@ -1444,6 +1467,8 @@ def build_server(
         Each entry carries `call_file`/`call_line` — the line the call is written on,
         which is what you quote as evidence — while `file`/`line_start` on the same
         object stay the caller's own definition, usually a different line entirely.
+        `confidence` is that call edge's (EXTRACTED | INFERRED | AMBIGUOUS): verify an
+        INFERRED or AMBIGUOUS site against the cited line before relying on it.
 
         **One entry per call SITE.** The parser builds the calls stream with
         ``per_site=True``, so a caller invoking the target from three lines yields
@@ -1489,7 +1514,8 @@ def build_server(
         function you did not write, this is "what does this reach", where `find_callers`
         is "who depends on this". Same arguments, same budgeting, same contract — one
         entry per recorded call edge, each carrying the `call_file`/`call_line` the call
-        is written on (see `find_callers` on why one edge is currently one callee), and
+        is written on and that edge's `confidence` (see `find_callers` on why one edge
+        is currently one callee), and
         `note` reports the distinct-callee count when it differs from the entry count.
         """
         node_id = _one_of(node_id, name)
@@ -1518,6 +1544,8 @@ def build_server(
         `repo` scopes the answer to dependents inside one repository (the package
         node itself is shared across repos, so it is the dependents that get
         filtered). Capped at `limit`; `truncated`/`total` flag widely-used packages.
+        Each entry carries the `edge_file`/`edge_line` of the manifest that declares the
+        dependency and that edge's `confidence`.
 
         An unknown package returns `note` saying so, rather than an empty list that
         reads as "nothing depends on it".
@@ -2129,6 +2157,9 @@ def build_server(
         the two reasons applies: an id the graph does not hold, or two indexed
         nodes with no route between them inside `max_hops`. This used to return a
         bare list, which rendered a typo and a genuine disconnection identically.
+
+        Each node after the first carries the `edge_file`/`edge_line` and `confidence`
+        of the edge that made it adjacent to the node before it.
         """
         absent = [f"{label}={nid!r}" for label, nid in
                   (("src_id", src_id), ("dst_id", dst_id)) if not store.get_node(nid)]
