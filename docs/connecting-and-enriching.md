@@ -215,6 +215,11 @@ The exit code is non-zero when any repository was skipped, the same verdict `kb 
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.
 
+A source that could not be reached is not an empty answer. A repo whose source failed keeps the
+links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
+code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
+A source that answers with no results still clears the repo's previous ones.
+
 ## See also
 
 - [Index the code graph](indexing-the-code-graph.md)

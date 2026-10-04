@@ -3313,6 +3313,11 @@ The exit code is non-zero when any repository was skipped, the same verdict `kb 
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.
 
+A source that could not be reached is not an empty answer. A repo whose source failed keeps the
+links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
+code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
+A source that answers with no results still clears the repo's previous ones.
+
 ## See also
 
 - [Index the code graph](indexing-the-code-graph.md)
@@ -4219,7 +4224,9 @@ working -- a name the notes introduce becomes a name a draft may legitimately ci
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
 untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
 is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
-silently delete a repository's whole module set on the next prune.
+silently delete a repository's whole module set on the next prune. The list is the whole set on
+both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
+generated pages of modules that are not on it.
 
 Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (`kb/trust.py`). Quoting a
@@ -6678,7 +6685,9 @@ server natively:
 `.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
 managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
 `.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like `.devin/` are left untouched.
+name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
+JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
+not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.
 
 ### The generated `AGENTS.md` names the store it was built from
 
@@ -9135,6 +9144,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Upgrading from 9.4.0
+
+These can make a run that worked on 9.4.0 behave differently:
+
+- `schedule install` and `uninstall` on cron refuse to write when `crontab -l` fails for
+  any reason other than "no crontab for <user>", or when a contextlake BEGIN line has no
+  END. Each write saves the previous crontab under `~/.cache/contextlake/crontab-backups/`.
+- `kb keys create`, `revoke`, `rotate` and `prune` take a lock beside the key file and wait
+  up to 10 seconds for another one. On a filesystem that cannot lock files they refuse:
+  point `$CONTEXTLAKE_KEYS_FILE` at a local path.
+- With a `wiki.toml` `pages` list, a wiki run with an LLM keeps only the listed module
+  pages and prunes the other generated ones.
+- `mirror update` stays on a branch with unpushed commits, or one an auto-stash is held
+  for, and reports a skip. `status`, `clone` and `audit` counts no longer include
+  checkouts nested inside a clone.
 
 ### Added
 

@@ -119,7 +119,9 @@ server natively:
 `.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
 managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
 `.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like `.devin/` are left untouched.
+name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
+JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
+not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.
 
 ### The generated `AGENTS.md` names the store it was built from
 

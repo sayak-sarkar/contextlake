@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading from 9.4.0
+
+These can make a run that worked on 9.4.0 behave differently:
+
+- `schedule install` and `uninstall` on cron refuse to write when `crontab -l` fails for
+  any reason other than "no crontab for <user>", or when a contextlake BEGIN line has no
+  END. Each write saves the previous crontab under `~/.cache/contextlake/crontab-backups/`.
+- `kb keys create`, `revoke`, `rotate` and `prune` take a lock beside the key file and wait
+  up to 10 seconds for another one. On a filesystem that cannot lock files they refuse:
+  point `$CONTEXTLAKE_KEYS_FILE` at a local path.
+- With a `wiki.toml` `pages` list, a wiki run with an LLM keeps only the listed module
+  pages and prunes the other generated ones.
+- `mirror update` stays on a branch with unpushed commits, or one an auto-stash is held
+  for, and reports a skip. `status`, `clone` and `audit` counts no longer include
+  checkouts nested inside a clone.
+
 ### Added
 
 - **`kb lint` reports files that share one graph node.** A file's node id folds case and

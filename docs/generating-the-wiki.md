@@ -233,7 +233,9 @@ working -- a name the notes introduce becomes a name a draft may legitimately ci
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
 untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
 is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
-silently delete a repository's whole module set on the next prune.
+silently delete a repository's whole module set on the next prune. The list is the whole set on
+both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
+generated pages of modules that are not on it.
 
 Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (`kb/trust.py`). Quoting a
