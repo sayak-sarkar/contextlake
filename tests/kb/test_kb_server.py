@@ -118,6 +118,25 @@ def test_find_dependents(tmp_path):
     s.close()
 
 
+def test_find_dependents_finds_a_package_by_either_spelling(tmp_path):
+    # One PyPI package, two spellings: the node id folds them, the node `name` keeps
+    # whichever manifest was written last. An exact name lookup answered "No indexed
+    # package named 'acme-ledger-client'" while billing declared exactly that.
+    from contextlake.kb.manifest import parse_manifest
+    s = SqliteStore(tmp_path / "k.sqlite")
+    for repo, spelling in (("billing", "acme-ledger-client"), ("ledger", "acme_ledger_client")):
+        body = f'[project]\nname = "{repo}"\ndependencies = ["{spelling}>=1"]\n'.encode()
+        nodes, edges = parse_manifest(repo, "pyproject.toml", body, date(2026, 10, 4))
+        s.upsert_nodes(repo, nodes)
+        s.upsert_edges(repo, edges)
+    srv = build_server(s)
+    for spelling in ("acme-ledger-client", "acme_ledger_client", "Acme.Ledger.Client"):
+        out = _unwrap(asyncio.run(_call(srv, "find_dependents",
+                                        {"package": spelling})).structured_content)
+        assert sorted(n["repo"] for n in out["nodes"]) == ["billing", "ledger"], spelling
+    s.close()
+
+
 def test_get_node_round_trip(server):
     res = asyncio.run(_call(server, "get_node", {"node_id": "a"}))
     assert not res.is_error

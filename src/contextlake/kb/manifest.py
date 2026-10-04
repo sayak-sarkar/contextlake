@@ -252,9 +252,20 @@ def _maven_project_coord(text: str) -> str | None:
     return f"{group}:{artifact}" if group else artifact
 
 
+# Every ecosystem `parse_manifest` assigns. A package's node id is
+# ``package_id(ecosystem, name)``, which folds case and punctuation, so one PyPI package
+# written `acme-ledger-client` and `acme_ledger_client` is one node.
+PACKAGE_ECOSYSTEMS = ("pypi", "npm", "nuget", "maven")
+
+
+def package_id(ecosystem: str, name: str) -> str:
+    """The node id a package of ``ecosystem`` named ``name`` is stored under."""
+    return make_id("pkg", ecosystem, name)
+
+
 def _package_node(name: str, ecosystem: str) -> Node:
     return Node(
-        id=make_id("pkg", ecosystem, name), repo=PACKAGES_REPO, kind="package",
+        id=package_id(ecosystem, name), repo=PACKAGES_REPO, kind="package",
         name=name, lang=ecosystem, attrs={"ecosystem": ecosystem},
     )
 

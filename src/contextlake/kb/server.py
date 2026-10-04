@@ -1550,7 +1550,19 @@ def build_server(
         An unknown package returns `note` saying so, rather than an empty list that
         reads as "nothing depends on it".
         """
-        pkgs = store.nodes_by_name(package, kind="package")
+        pkgs = list(store.nodes_by_name(package, kind="package"))
+        # The node's id folds spellings (`acme-ledger-client` and `acme_ledger_client`
+        # are one PyPI package), but its `name` keeps whichever spelling the last
+        # manifest wrote, so an exact name match missed the other spelling and answered
+        # "not indexed" for a package the store holds. Also try the id each ecosystem
+        # stores a package under.
+        from .manifest import PACKAGE_ECOSYSTEMS, package_id
+        found = {p.id for p in pkgs}
+        for eco in PACKAGE_ECOSYSTEMS:
+            n = store.get_node(package_id(eco, package))
+            if n is not None and n.kind == "package" and n.id not in found:
+                pkgs.append(n)
+                found.add(n.id)
         if not pkgs:
             # "no such package is indexed" and "this package has no dependents" are
             # different facts, and the second is the more reassuring one to get
