@@ -15,13 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   would create, and the interval, then installs and records nothing. `dry_run = true` in the
   config does the same.
 
+### Changed
+
+- **Three kinds of ignored input now exit 2.** Each flag or setting below was accepted and
+  had no effect; under the versioning policy, refusing a value that never did what it said is
+  a fix, not a break. A script that passed one of them sees exit 2 where it saw 0:
+  - a `schedule` flag given to an action that does not read it, such as `install --json`,
+    `uninstall --interval` or `uninstall --platform`, and any argument after an action other
+    than `interval`;
+  - `kb graph --kind` on a `--repo` or `--overview` view, which has no seeds to filter;
+  - `schedule uninstall`, `reset` or `interval` while `dry_run = true` is set in the config.
+    `schedule install` now honours that key and makes no change.
+
 ### Fixed
 
 - **`schedule` refuses a flag on an action that ignores it.** Its flags share one namespace and
   the help scopes each to some actions, but nothing enforced that. The scheduling guide taught
   `schedule --platform k8s install --json` as a way to see the manifest without applying it;
-  the command ignored `--json` and applied it. Now a flag or argument given to an action that
-  does not read it exits 2 and names the actions that do, and the guide shows `--dry-run`.
+  the command ignored `--json` and applied it. Now a `schedule` flag or argument given to a
+  `schedule` action that does not read it exits 2 and names the actions that do, and the
+  guide shows `--dry-run`.
   With `dry_run = true` in the config, `uninstall`, `reset` and `interval` refuse to run
   rather than ignore it.
 - **A damaged schedule job store is no longer overwritten.** One stray byte in
@@ -38,9 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reader saw 0, 8, 16 ... during a healthy run. Each batch now overwrites its nodes in place, and
   the vectors of nodes that are gone are deleted in one step once every batch has landed. A
   `--limit` pass no longer cuts a repo down to its slice.
-- **`kb wiki` replaces a page's partition in one transaction.** A reader saw a `@wiki`
+- **`kb wiki` replaces a page's graph rows in one transaction.** A reader saw a `@wiki`
   partition at 0 rows, then nodes with no edges, and an interrupt between the steps left a
-  module page's partition gone until the next run.
+  module page's partition gone until the next run. The page's vectors are still cleared and
+  then re-embedded, so a reader can briefly find the page by name but not by meaning.
 - **`kb steer` leaves alone a client config it can parse but not merge into.** An `.mcp.json`
   or `.vscode/mcp.json` that was a top-level array, or whose server map was a list, and a
   `.claude/settings.json` that was an array, were replaced and the other entries lost. They are
