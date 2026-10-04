@@ -173,3 +173,20 @@ def test_an_unreadable_job_store_is_refused_before_anything_is_installed(tmp_pat
     with pytest.raises(jobstore.JobStoreUnreadable):
         jobstore.record_outcome(str(store), "nightly", 0, "2026-10-04T00:00:00Z")
     assert jobstore.read_jobs(str(store)) == {}          # readers still treat it as empty
+
+
+@pytest.mark.parametrize("action", ["list", "status"])
+def test_a_reader_names_an_unreadable_store_instead_of_reporting_orphans(tmp_path, action,
+                                                                        monkeypatch):
+    """Read quietly as empty, an unreadable store made `schedule list` call every installed
+    job an orphan and advise recreating its record."""
+    from contextlake.schedule import report
+    seen = []
+    monkeypatch.setattr(report, "log", lambda m="", *a, **k: seen.append(str(m)))
+    cfg = _config(tmp_path)
+    store = Path(jobstore.jobs_path(cfg))
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_text('{"jobs": {"nightly": {"argv": ["mirror", "sync"], "interval": "1h"}}}x')
+    monkeypatch.setattr(report, "orphaned_units", lambda names: ([], []), raising=False)
+    cmds.dispatch(_parse(["schedule", action]), cfg)
+    assert any("cannot be read as a job store" in m for m in seen), seen

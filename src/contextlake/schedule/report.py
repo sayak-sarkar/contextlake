@@ -120,12 +120,28 @@ def orphaned_units(known_names):
     return sorted(found), sorted(unchecked)
 
 
+def _read_jobs_or_warn(path) -> dict:
+    """The job records, or ``{}`` with a warning that names the file when it cannot be read.
+
+    Read quietly as empty, an unreadable store made `list` call every installed job an
+    orphan and advise recreating its record, while `install` (correctly) refused to touch it.
+    """
+    from . import jobs as jobstore
+
+    try:
+        return jobstore.read_jobs(path, strict=True)
+    except jobstore.JobStoreUnreadable as e:
+        log(f"WARNING: {e}. Its jobs cannot be listed until it is repaired or moved; "
+            f"commands that would change it refuse until then.")
+        return {}
+
+
 def cmd_list(args, config) -> int:
     """Every job this tool installed. Reads only."""
     from . import jobs as jobstore
 
     path = jobstore.jobs_path(config)
-    mapping = jobstore.read_jobs(path)
+    mapping = _read_jobs_or_warn(path)
     orphans, unchecked = orphaned_units(set(mapping))
     if getattr(args, "json", False):
         # Jobs stay at the TOP LEVEL, where 8.8.0 put them. Nesting them under a
@@ -197,7 +213,7 @@ def cmd_status(args, config) -> int:
     from .. import style
     from . import jobs as jobstore
 
-    mapping = jobstore.read_jobs(jobstore.jobs_path(config))
+    mapping = _read_jobs_or_warn(jobstore.jobs_path(config))
     only = getattr(args, "job", None)
     all_names = sorted(mapping)
     if only:
