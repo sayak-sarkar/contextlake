@@ -1990,7 +1990,12 @@ def _group_is_usable(group):
 
 
 def _audit_report_path(args, config):
-    """Where the per-repo audit report is written (CLI --report, else cache_dir)."""
+    """Where the per-repo audit report is written (CLI --report, else cache_dir), or None
+    in a dry run: the summary still prints, and nothing is written. `mirror audit
+    --dry-run` used to write repo_audit.json and .csv like a real run."""
+    if _is_dry_run(config):
+        log("  Dry run: the audit report is printed, not written.")
+        return None
     if getattr(args, "report", None):
         return expand_path(args.report)
     cache_file, _ = get_cache_paths(config)

@@ -194,3 +194,18 @@ def test_a_dry_run_records_no_history(tmp_path):
     result = _run_cli(tmp_path, ["mirror", "update", "--dry-run", "--work-dir", str(workspace)])
     assert result.returncode == 0, result.stderr
     assert _history_files(tmp_path) == []
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_a_dry_run_audit_writes_no_report(tmp_path, dry_run):
+    """`mirror audit --dry-run` wrote repo_audit.json and .csv like a real run. The real run
+    is the control: it must write them, or the dry-run half proves nothing."""
+    ini = tmp_path / "contextlake.ini"
+    ini.write_text(f"[contextlake]\ngitlab_group = acme\ncache_dir = {tmp_path / 'c'}\n")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    argv = ["mirror", "audit", "--config", str(ini), "--work-dir", str(workspace)]
+    result = _run_cli(tmp_path, argv + (["--dry-run"] if dry_run else []))
+    assert result.returncode == 0, result.stderr
+    reports = sorted(p.name for p in tmp_path.rglob("repo_audit.*"))
+    assert reports == ([] if dry_run else ["repo_audit.csv", "repo_audit.json"]), reports
