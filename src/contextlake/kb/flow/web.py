@@ -26,6 +26,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from .._lines import LineIndex
 from ..ids import make_id
 from ..model import Confidence, Edge, Node, Provenance
 from .data import strip_code_noise
@@ -107,6 +108,7 @@ def _jsx_flat_routes(text: str) -> list[tuple[str, int, str | None]]:
     still be matched.
     """
     text = strip_code_noise(text)
+    line_of = LineIndex(text).line_of
     out: list[tuple[str, int, str | None]] = []
     stack: list[str] = [""]  # composed prefixes; index 0 is the file root
     pos, n = 0, len(text)
@@ -123,7 +125,7 @@ def _jsx_flat_routes(text: str) -> list[tuple[str, int, str | None]]:
             if path_m:
                 raw = f"{prefix}/{path_m.group('path')}" if prefix else path_m.group("path")
                 comp = _ELEMENT.search(attrs)
-                line = text.count("\n", 0, om.start()) + 1
+                line = line_of(om.start())
                 out.append((normalize_route(raw), line, comp.group(1) if comp else None))
                 child_prefix = raw
             else:

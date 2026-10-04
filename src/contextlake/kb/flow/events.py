@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from .._lines import LineIndex
 from ..ids import make_id
 from ..model import SHARED_REPO, Confidence, Edge, Node, Provenance
 
@@ -60,6 +61,7 @@ def extract_event_flow(repo_id: str, rel_path: str, source, lang: str,
     text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
     verified_at = verified_at or date.today()
     file_id = make_id(repo_id, rel_path)
+    line_of = LineIndex(text).line_of
     nodes: list[Node] = []
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
@@ -80,7 +82,7 @@ def extract_event_flow(repo_id: str, rel_path: str, source, lang: str,
                     src=file_id, dst=tid, relation=relation,
                     confidence=Confidence.INFERRED,
                     provenance=Provenance(source_file=rel_path,
-                                          source_line=text.count("\n", 0, m.start()) + 1,
+                                          source_line=line_of(m.start()),
                                           verified_at=verified_at)))
 
     scan(_PUBLISH, "publishes_event")

@@ -5,9 +5,9 @@ The fleet's SQL is dialect-heavy (T-SQL/PL-SQL) and defeats a tree-sitter AST
 regex extractor targeting the high-value defs -- CREATE TABLE / VIEW / PROCEDURE --
 and foreign-key ``REFERENCES`` clauses, mirroring the dependency-free style of
 :mod:`.manifest` and :mod:`.flow.http`. Every edge is ``INFERRED`` (regex, a likely
-undercount, never asserted as ground truth). Object names are normalized (brackets
-and a schema qualifier stripped, casefolded) so an FK reference and its target
-table -- possibly in another file -- land on the same node.
+undercount, never asserted as ground truth). Object names are normalized (quotes and
+brackets stripped, every schema qualifier dropped, casefolded) so an FK reference and
+its target table -- possibly in another file -- land on the same node.
 """
 
 from __future__ import annotations
@@ -15,11 +15,30 @@ from __future__ import annotations
 import re
 from datetime import date
 
+from ._lines import LineIndex
 from .ids import make_id
 from .model import Node
 
-# One object-name token: optional [ ], optional schema. qualifier, bare identifier.
-_NAME = r"(?:\[?[A-Za-z_]\w*\]?\.)?\[?([A-Za-z_]\w*)\]?"
+# One identifier: bare, "double-quoted" (PostgreSQL, SQLite, Oracle), `backticked` (MySQL)
+# or [bracketed] (T-SQL). A quoted body starts with a word character and holds word
+# characters, spaces and `$ # @ -`. That is enough for `[Order Details]` and `"order-items"`.
+# It also keeps an unbalanced quote from running on to the end of the file, and keeps code
+# such as `"... FROM " + t + " WHERE ..."` from being read as a table named ` + t + `.
+_IDENT = r'(?:[A-Za-z_]\w*|"\w[\w $#@-]*"|`\w[\w $#@-]*`|\[\w[\w $#@-]*\])'
+# One object-name token: any number of schema qualifiers (`db.schema.table`), then the
+# name itself as group 1. Group 1 keeps its quotes; `_norm_name` strips them. The lookahead
+# stops a failed match from backing off to a qualifier and returning `dbo` for `dbo.orders`.
+_NAME = r"(?:" + _IDENT + r"\.)*(" + _IDENT + r')(?!\.[\w"`\[])'
+# `IF NOT EXISTS` sits between the object keyword and its name (PostgreSQL, MySQL, SQLite;
+# MySQL and MariaDB also allow it for routines and triggers). Without this the name token
+# read `IF`, so the real table, and every foreign key inside it, was lost. The lookahead
+# refuses to read the phrase itself as a name when a truncated file ends right after it.
+_IF_NOT_EXISTS = r"(?:IF\s+NOT\s+EXISTS\s+)?(?!IF\s+NOT\s+EXISTS\b)"
+# A table the session or the engine treats specially: `TEMP`, `TEMPORARY` (PostgreSQL,
+# MySQL, SQLite), `GLOBAL TEMPORARY` (Oracle), `UNLOGGED` (PostgreSQL). It is a table all
+# the same. The scope-end pattern below must accept the same words, or a `CREATE TEMP TABLE`
+# does not end the table before it and that table is credited with its foreign keys.
+_TABLE_KIND = r"(?:(?:(?:GLOBAL|LOCAL)\s+)?(?:TEMP(?:ORARY)?|UNLOGGED)\s+)?"
 # T-SQL writes `CREATE OR ALTER`; Oracle writes `CREATE OR REPLACE`. Both, everywhere a
 # redefinition is legal: the previous version accepted only the T-SQL spelling, so every
 # `CREATE OR REPLACE PROCEDURE` in an Oracle tree produced no node at all.
@@ -27,9 +46,12 @@ _OR_REDEF = r"(?:OR\s+(?:ALTER|REPLACE)\s+)?"
 # Oracle marks a definition it may not have a body for; it changes nothing that is extracted.
 _EDITIONABLE = r"(?:(?:NON)?EDITIONABLE\s+)?"
 _HEAD = r"\bCREATE\s+" + _OR_REDEF + _EDITIONABLE
-_CREATE_TABLE = re.compile(r"\bCREATE\s+(?:GLOBAL\s+TEMPORARY\s+)?TABLE\s+" + _NAME, re.I)
-_CREATE_VIEW = re.compile(_HEAD + r"(?:MATERIALIZED\s+)?VIEW\s+" + _NAME, re.I)
-_CREATE_PROC = re.compile(_HEAD + r"PROC(?:EDURE)?\s+" + _NAME, re.I)
+_CREATE_TABLE = re.compile(
+    r"\bCREATE\s+" + _OR_REDEF + _TABLE_KIND + r"TABLE\s+" + _IF_NOT_EXISTS + _NAME, re.I)
+_CREATE_VIEW = re.compile(
+    _HEAD + _TABLE_KIND + r"(?:RECURSIVE\s+)?(?:MATERIALIZED\s+)?VIEW\s+"
+    + _IF_NOT_EXISTS + _NAME, re.I)
+_CREATE_PROC = re.compile(_HEAD + r"PROC(?:EDURE)?\s+" + _IF_NOT_EXISTS + _NAME, re.I)
 _REFERENCES = re.compile(r"\bREFERENCES\s+" + _NAME, re.I)
 
 # --- PL/SQL -----------------------------------------------------------------------
@@ -40,9 +62,9 @@ _REFERENCES = re.compile(r"\bREFERENCES\s+" + _NAME, re.I)
 # excludes the keyword explicitly rather than relying on match order alone.
 _CREATE_PKG_BODY = re.compile(_HEAD + r"PACKAGE\s+BODY\s+" + _NAME, re.I)
 _CREATE_PKG = re.compile(_HEAD + r"PACKAGE\s+(?!BODY\b)" + _NAME, re.I)
-_CREATE_FUNC = re.compile(_HEAD + r"FUNCTION\s+" + _NAME, re.I)
+_CREATE_FUNC = re.compile(_HEAD + r"FUNCTION\s+" + _IF_NOT_EXISTS + _NAME, re.I)
 _CREATE_TYPE = re.compile(_HEAD + r"TYPE\s+(?!BODY\b)" + _NAME, re.I)
-_CREATE_TRIGGER = re.compile(_HEAD + r"TRIGGER\s+" + _NAME, re.I)
+_CREATE_TRIGGER = re.compile(_HEAD + r"TRIGGER\s+" + _IF_NOT_EXISTS + _NAME, re.I)
 # The table a trigger fires on. `ON` also introduces a join, so this is only read inside a
 # trigger's own scope, never across the file.
 _TRIGGER_ON = re.compile(
@@ -53,7 +75,7 @@ _TRIGGER_ON = re.compile(
 # on through an unrelated package body and attributes its REFERENCES to the wrong table.
 _SCOPE_END = re.compile(
     r"\bCREATE\s+(?:OR\s+(?:ALTER|REPLACE)\s+)?(?:(?:NON)?EDITIONABLE\s+)?"
-    r"(?:GLOBAL\s+TEMPORARY\s+)?(?:MATERIALIZED\s+)?"
+    + _TABLE_KIND + r"(?:RECURSIVE\s+)?(?:MATERIALIZED\s+)?"
     r"(?:TABLE|VIEW|PROC|PROCEDURE|FUNCTION|PACKAGE|TYPE|TRIGGER)\b"
     r"|\bALTER\s+TABLE\b|^\s*GO\s*$|^\s*/\s*$",
     re.I | re.M)
@@ -70,8 +92,11 @@ EMITTED_KINDS = frozenset({
 
 
 def _norm_name(raw: str) -> str:
-    """A SQL object name normalized for matching: bare identifier, casefolded."""
-    return raw.strip().strip("[]").casefold()
+    """A SQL object name normalized for matching: bare identifier, casefolded.
+
+    The quotes of a quoted identifier (`"x"`, `` `x` ``, `[x]`) are not part of the name.
+    """
+    return raw.strip().strip('[]"`').casefold()
 
 
 # Where a comment can begin -- and the one thing that can make those two tokens
@@ -91,7 +116,7 @@ def _mask_comments(text: str) -> str:
 
     Every masked character is replaced by a space and **newlines are kept**, so
     the result is the same length with the same line breaks: offsets and
-    ``_line_of`` results are identical to the raw text, and nothing downstream
+    line numbers are identical to the raw text, and nothing downstream
     has to re-derive a position.
 
     Single-quoted literals are stepped over rather than scanned, so a ``--`` or
@@ -135,10 +160,6 @@ def _mask_comments(text: str) -> str:
     return "".join(out)
 
 
-def _line_of(text: str, pos: int) -> int:
-    return text.count("\n", 0, pos) + 1
-
-
 def parse_sql(
     repo_id: str, rel_path: str, source: bytes, verified_at: date | None = None
 ) -> tuple[list[Node], list[tuple[str, str, str, int]]]:
@@ -157,6 +178,7 @@ def parse_sql(
     # inside a comment must neither mint a node nor act as the scope boundary
     # that cuts a live table's FK scope short.
     text = _mask_comments(raw)
+    line_of = LineIndex(text).line_of
     nodes: list[Node] = []
     refs: list[tuple[str, str, str, int]] = []
 
@@ -169,7 +191,7 @@ def parse_sql(
             nodes.append(Node(
                 id=nid, repo=repo_id, kind=kind, name=name,
                 qualified_name=f"{rel_path}::{name}", file=rel_path,
-                line_start=_line_of(text, m.start()), lang="sql"))
+                line_start=line_of(m.start()), lang="sql"))
 
     _emit(_CREATE_VIEW, "view")
     _emit(_CREATE_PROC, "procedure")
@@ -192,14 +214,14 @@ def parse_sql(
         nodes.append(Node(
             id=nid, repo=repo_id, kind="trigger", name=name,
             qualified_name=f"{rel_path}::{name}", file=rel_path,
-            line_start=_line_of(text, m.start()), lang="sql"))
+            line_start=line_of(m.start()), lang="sql"))
         scope_end = _SCOPE_END.search(text, m.end())
         end = scope_end.start() if scope_end else len(text)
         on = _TRIGGER_ON.search(text, m.end(), end)
         if on:
             target = _norm_name(on.group(1))
             if target and target != name:
-                refs.append((nid, target, rel_path, _line_of(text, on.start())))
+                refs.append((nid, target, rel_path, line_of(on.start())))
 
     # Tables + FK attribution: each CREATE TABLE owns the text up to the next
     # top-level CREATE / GO, and every REFERENCES in that scope is its FK.
@@ -211,12 +233,12 @@ def parse_sql(
         nodes.append(Node(
             id=nid, repo=repo_id, kind="table", name=name,
             qualified_name=f"{rel_path}::{name}", file=rel_path,
-            line_start=_line_of(text, m.start()), lang="sql"))
+            line_start=line_of(m.start()), lang="sql"))
         scope_end = _SCOPE_END.search(text, m.end())
         end = scope_end.start() if scope_end else len(text)
         for r in _REFERENCES.finditer(text, m.end(), end):
             target = _norm_name(r.group(1))
             if target and target != name:
-                refs.append((nid, target, rel_path, _line_of(text, r.start())))
+                refs.append((nid, target, rel_path, line_of(r.start())))
 
     return nodes, refs

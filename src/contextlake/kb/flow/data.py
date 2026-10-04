@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 
 from .. import sql as _sql
+from .._lines import LineIndex
 from ..ids import make_id
 
 _SELECT = re.compile(r"\bSELECT\b.*?\bFROM\s+" + _sql._NAME, re.IGNORECASE | re.DOTALL)
@@ -77,8 +78,7 @@ def extract_data_refs(
     writes: list[tuple[str, str, str, int]] = []
     seen: set[tuple[str, str]] = set()
 
-    def line_of(pos: int) -> int:
-        return text.count("\n", 0, pos) + 1
+    line_of = LineIndex(text).line_of
 
     def scan(rx: re.Pattern, bucket: list, tag: str, max_span: int | None = None) -> None:
         for m in rx.finditer(text):
