@@ -124,3 +124,38 @@ def test_a_valid_file_still_says_other_servers_were_kept(tmp_path, repo, gls_log
 
     assert (".vscode/mcp.json (contextlake-kb MCP server, other servers kept)"
             in gls_logs.text)
+
+
+# --- parseable, but not a shape steer merges into (stability v2 tier A, F7) -------------
+
+WRONG_SHAPE = {
+    "top-level-array": '[{"other": {"command": "x"}}]\n',
+    "servers-as-a-list": '{\n  "SERVERS": [{"name": "other", "command": "x"}]\n}\n',
+}
+
+
+@pytest.mark.parametrize("rel", sorted(WRAPPER))
+@pytest.mark.parametrize("shape", sorted(WRONG_SHAPE))
+def test_a_wrong_shape_mcp_config_is_left_unchanged(repo, tmp_path, rel, shape):
+    text = WRONG_SHAPE[shape].replace("SERVERS", WRAPPER[rel])
+    _put(repo, rel, text)
+    _steer(tmp_path, repo)
+    assert (repo / rel).read_text(encoding="utf-8") == text
+
+
+def test_a_settings_file_that_is_an_array_is_left_unchanged(repo, tmp_path):
+    text = '[{"hooks": {"SessionStart": []}}]\n'
+    _put(repo, ".claude/settings.json", text)
+    _steer(tmp_path, repo)
+    assert (repo / ".claude/settings.json").read_text(encoding="utf-8") == text
+
+
+def test_agents_md_keeps_its_line_endings_and_bytes(repo, tmp_path):
+    """The block is appended; everything the user wrote comes back byte for byte. Text
+    mode turned CRLF into LF and `errors="ignore"` dropped bytes that were not UTF-8."""
+    user = b"# Notes\r\nKeep \xff this byte.\r\nAnd this line.\r\n"
+    (repo / "AGENTS.md").write_bytes(user)
+    _steer(tmp_path, repo)
+    after = (repo / "AGENTS.md").read_bytes()
+    assert after.startswith(user)
+    assert b"\n" not in after.replace(b"\r\n", b""), "the appended block mixed line endings"

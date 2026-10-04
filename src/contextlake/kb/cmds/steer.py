@@ -110,7 +110,19 @@ def cmd_steer(args) -> int:
         if not path.exists():
             path.write_text(block + "\n", encoding="utf-8")
             return True
-        existing = path.read_text(encoding="utf-8", errors="ignore")
+        # The user's bytes outside our block come back exactly as they were. Text mode
+        # turned CRLF into LF, and `errors="ignore"` dropped every byte that was not
+        # UTF-8: surrogateescape round-trips them, and newline="" translates nothing.
+        with open(path, encoding="utf-8", errors="surrogateescape", newline="") as fh:
+            existing = fh.read()
+        nl = "\r\n" if "\r\n" in existing else "\n"
+        block = block.replace("\n", nl)
+
+        def write(text: str) -> None:
+            with open(path, "w", encoding="utf-8", errors="surrogateescape",
+                      newline="") as fh:
+                fh.write(text)
+
         # Refresh an existing managed block in place.
         if BEGIN in existing and END in existing:
             if existing.count(BEGIN) != 1 or existing.count(END) != 1:
@@ -118,12 +130,12 @@ def cmd_steer(args) -> int:
             b, e = existing.index(BEGIN), existing.index(END) + len(END)
             if e <= b:
                 return False
-            path.write_text(existing[:b] + block + existing[e:], encoding="utf-8")
+            write(existing[:b] + block + existing[e:])
             return True
         # No managed block yet — append ours, keeping all the user's own content.
-        glue = "\n\n" if not existing.endswith("\n") else (
-            "" if existing.endswith("\n\n") else "\n")
-        path.write_text(existing + glue + block + "\n", encoding="utf-8")
+        glue = nl + nl if not existing.endswith(nl) else (
+            "" if existing.endswith(nl + nl) else nl)
+        write(existing + glue + block + nl)
         return True
 
     store, store_dir = _open_store(args)
@@ -199,6 +211,19 @@ def cmd_steer(args) -> int:
             if path.exists():
                 try:
                     parsed = _json.loads(path.read_text())
+                    # Parsed, but not the shape we merge into: a top-level array, or a
+                    # server map that is a list. Rewriting it as ours would drop what it
+                    # holds, so it is refused like a file that does not parse. An EMPTY
+                    # wrong shape (`null`, `[]`) holds nothing and is still healed.
+                    inner = parsed.get(wrapper_key) if isinstance(parsed, dict) else None
+                    if ((not isinstance(parsed, dict) and parsed)
+                            or (inner and not isinstance(inner, dict))):
+                        log(style.warn(
+                            f"  {rel} is JSON but not an object with a `{wrapper_key}` "
+                            "object, so it was left as it is and the contextlake-kb MCP "
+                            "server was not added. Add the server by hand."))
+                        refused.append(rel)
+                        return
                     data = parsed if isinstance(parsed, dict) else {}
                 except _json.JSONDecodeError as e:
                     log(style.warn(
@@ -237,6 +262,20 @@ def cmd_steer(args) -> int:
             if path.exists():
                 try:
                     parsed = _json.loads(path.read_text())
+                    # Empty wrong shapes (`null`, `[]`) hold nothing and are healed, as
+                    # the MCP merge does; a wrong shape that holds something is refused.
+                    hooks_in = parsed.get("hooks") if isinstance(parsed, dict) else None
+                    start_in = (hooks_in.get("SessionStart")
+                                if isinstance(hooks_in, dict) else None)
+                    if ((not isinstance(parsed, dict) and parsed)
+                            or (hooks_in and not isinstance(hooks_in, dict))
+                            or (start_in and not isinstance(start_in, list))):
+                        # JSON, but not settings we can merge into (a top-level array, a
+                        # `hooks` that is not an object): replacing it loses the user's.
+                        log(style.warn("  .claude/settings.json is not the settings shape "
+                                       "contextlake merges into — leaving it alone; the "
+                                       "session hook was not installed"))
+                        return
                     data = parsed if isinstance(parsed, dict) else {}
                 except _json.JSONDecodeError:
                     # Not ours to repair, and overwriting somebody's settings because we
