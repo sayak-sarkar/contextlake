@@ -44,9 +44,11 @@ on your PATH to exercise the tool for real (`glab auth login`).
 
 ### Check the core-only config before you push
 
-CI runs eight cells. Four of them (`core`) install `.[dev]` WITHOUT the `kb` extra and run
+CI runs ten cells. Four of them (`core`) install `.[dev]` WITHOUT the `kb` extra and run
 `pytest --ignore=tests/kb`. A development venv normally has the extra, so a full green run
-locally says nothing about those four cells.
+locally says nothing about those four cells. Four (`knowledge-layer`) run the full suite with
+the `kb` extras. One (`extras`) installs every optional extra. One (`windows`) runs the
+path-handling tests and an `init --local` check on Windows.
 
 ```bash
 uv venv --python 3.10 /tmp/corevenv

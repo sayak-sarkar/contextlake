@@ -54,6 +54,8 @@ pip install -e ".[release]"        # build + twine
    | --- | --- |
    | `ci.yml`, `core` | `pytest --ignore=tests/kb --cov=contextlake --cov-report=term-missing` |
    | `ci.yml`, `knowledge-layer` | `pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88` |
+   | `ci.yml`, `extras` | `pytest` with every optional extra installed |
+   | `ci.yml`, `windows` | five path-handling test files, then `init --local` and `kb query` on Windows |
    | `release.yml`, release gate | `pytest -q` |
 
    **This step has now been narrower than the gate twice.** It read `ruff check src tests`

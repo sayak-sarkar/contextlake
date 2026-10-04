@@ -1,10 +1,15 @@
 name: stability
 
-# Cells for the stability campaign's tier H (hermetic suite) and tier F (Windows paths).
+# Where a new cell starts, and where the controls for promoted cells live.
 #
 # Manual only. ci.yml gates every release (release.yml refuses a tag without a green ci.yml
 # run on the exact commit), so a new cell that turns out red would block every release until
-# it is fixed. A cell starts here, and joins ci.yml's push matrix once it is green.
+# it is fixed. A cell starts here, and joins ci.yml once it is green. The extras and windows
+# cells joined ci.yml on 2026-10-05.
+#
+# A control installs an old release from PyPI and expects the check to FAIL on it. It proves
+# the check can see the defect. It stays here so that ci.yml does not depend on PyPI serving
+# an old release on every push.
 on:
   workflow_dispatch:
 
@@ -12,72 +17,17 @@ permissions:
   contents: read
 
 jobs:
-  extras:
-    # ci.yml installs [dev,kb,kb-dockerfile,kb-vec]. No cell has ever run the suite with
-    # kb-local, kb-pdf, the OCR/video/transcribe stack or llm-local installed, which is the
-    # configuration a maintainer's machine has. A test that only passes because an extra is
-    # ABSENT, or one that reaches for a model download when it is PRESENT, shows up here.
-    name: extras (py3.12, every optional extra)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install every optional extra
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,kb-full,kb-dockerfile,kb-pdf,kb-ocr,kb-video,kb-transcribe,kb-fastembed,llm-local]"
-          pip list
-      - name: Test full suite (model hub offline)
-        env:
-          # tests/conftest.py sets this too. Setting it before Python starts as well means
-          # a test that imports huggingface_hub before conftest runs still sees it.
-          HF_HUB_OFFLINE: "1"
-        run: pytest
-
-  windows:
-    # Tier F: W02 built repo-relative paths with the OS separator, which on Windows lost every
-    # ADR and nested manifest and changed symbol ids. Its tests simulate Windows paths on
-    # Linux and run unpatched here. The rest of these files walk real paths on disk.
-    name: windows (py3.12, path handling)
+  windows-control:
+    # Pairs with ci.yml's windows job, step "init --local writes a kb.toml that kb reads".
+    name: windows control (9.8.0 must fail the init check)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install with the knowledge layer
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,kb]"
-      - name: Path handling (W02)
-        env:
-          HF_HUB_OFFLINE: "1"
-        run: >-
-          pytest
-          tests/kb/test_windows_relative_paths.py tests/kb/test_kb_parse.py
-          tests/kb/test_kb_adr.py tests/kb/test_kb_manifest.py
-          tests/kb/test_kb_index_nested_dirs.py
-      - name: init --local writes a kb.toml that kb reads
-        # 9.8.1: init wrote the store path into TOML unescaped, and on Windows the backslashes
-        # of a local path are invalid escapes, so no kb command could read the config.
-        shell: pwsh
-        env:
-          HF_HUB_OFFLINE: "1"
-        run: |
-          $d = Join-Path $env:RUNNER_TEMP "init-local"
-          New-Item -ItemType Directory -Force -Path $d | Out-Null
-          Set-Location $d
-          contextlake init --local --skip-interactive --no-mirror
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Select-String -Path .contextlake.kb.toml -Pattern store_dir
-          contextlake kb query anything --json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Control, 9.8.0 must fail the same check
-        # Proves the step above can see the defect: the release before the fix writes a
+        # Proves ci.yml's init step can see the defect: the release before the fix writes a
         # config that kb cannot parse here.
         shell: pwsh
         env:
@@ -92,5 +42,5 @@ jobs:
           & "$v\Scripts\contextlake.exe" init --local --skip-interactive --no-mirror
           if ($LASTEXITCODE -ne 0) { Write-Error "9.8.0 init itself failed"; exit 1 }
           & "$v\Scripts\contextlake.exe" kb query anything --json
-          if ($LASTEXITCODE -eq 0) { Write-Error "9.8.0 read its own config: the check above is blind"; exit 1 }
+          if ($LASTEXITCODE -eq 0) { Write-Error "9.8.0 read its own config: the ci.yml check is blind"; exit 1 }
           exit 0
