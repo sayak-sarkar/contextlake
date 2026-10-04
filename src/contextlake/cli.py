@@ -1602,11 +1602,11 @@ Examples:
     p.add_argument("--limit", type=_COUNT, default=_S, help="max seed nodes")
     p.add_argument("--hops", type=_HOPS, default=_S, help="expansion radius (default 2)")
     p.add_argument("--max-nodes", dest="max_nodes", type=_COUNT, default=_S,
-                   help="cap on rendered nodes (default 500)")
+                   help="cap on rendered nodes (default 500; 5000 with --overview)")
     p.add_argument("--max-edges", dest="max_edges", type=_MAX_EDGES, default=_S,
-                   help="cap on rendered edges for --repo views (default 400 -- a dense "
-                        "repo can pack well over 500 edges into 500 nodes, which used to "
-                        "exceed Mermaid's own hard maxEdges limit and fail to render)")
+                   help="cap on rendered edges in a --repo view (default 400 in the Mermaid "
+                        "formats, which have a hard maxEdges limit; html, json and dot "
+                        "draw every edge unless this is set)")
     p.add_argument("--max-fanout", dest="max_fanout", type=_COUNT, default=_S,
                    help="per-node neighbour cap, anti-hub (seeded views default to 50; "
                         "a --repo view is uncapped unless you pass this)")
@@ -1629,9 +1629,9 @@ Examples:
                         "graphml = Gephi/yEd import; cypher = Neo4j/FalkorDB CREATE statements)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid", "dagre"],
-                   help="html: initial layout (default cose; switchable in the page; "
-                        "dagre is a preview -- layered/directed, renders nodes as HTML "
-                        "cards below 400 nodes)")
+                   help="html: initial layout (default cose, concentric with --overview; "
+                        "switchable in the page; dagre is a preview -- layered/directed, "
+                        "renders nodes as HTML cards below 400 nodes)")
     p.add_argument("--output", default=_S,
                    help="write to this path (default <store>/graphs/graph.html; "
                         "else stdout for non-html)")

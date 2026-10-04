@@ -1690,6 +1690,17 @@ def test_an_unknown_node_id_points_at_name_lookup(tmp_path, capsys):
     assert "`--name nope`" in err and "kb query nope --json" in err
 
 
+def test_graph_help_states_each_mode_default(capsys):
+    # The help gave one default per flag; the code uses another under --overview, and the
+    # edge cap applies only to the Mermaid formats of a --repo view.
+    with pytest.raises(SystemExit):
+        main(["kb", "graph", "--help"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "default 500; 5000 with --overview" in out
+    assert "default cose, concentric with --overview" in out
+    assert "cap on rendered edges in a --repo view (default 400 in the Mermaid formats" in out
+
+
 def test_cli_mermaid_format_is_edge_capped_by_default(tmp_path, capsys):
     cfg = _write_dense_repo_config(tmp_path, leaves=20)
     with pytest.raises(SystemExit) as e:
