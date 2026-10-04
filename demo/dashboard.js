@@ -328,6 +328,28 @@
       onclick: function () { openDrawer(receipt); }
     }, h("span", { html: icon("ui-search", "cl-ic") }));
   }
+  // A repo-pair row in the Architecture lens previews its pair in the embedded overview
+  // graph on hover or focus, and frames it on click. The frame checks the origin; this side
+  // sends to our own origin only. Built only where it can work: at overview scope, where the
+  // graph's nodes ARE repo ids, and only over http(s): the frame refuses a file:// origin.
+  function graphLinkButton(src, dst) {
+    var ids = [src, dst];
+    function send(type, list) {
+      var f = $("#cl-iframe");
+      if (f && f.contentWindow) {
+        try { f.contentWindow.postMessage({ type: type, ids: list }, window.location.origin); } catch (e) { }
+      }
+    }
+    return h("button", {
+      type: "button", class: "cl-cite", title: "Show in graph",
+      "aria-label": "Show " + src + " and " + dst + " in the graph",
+      onclick: function () { send("cl-focus", ids); },
+      onmouseenter: function () { send("cl-peek", ids); },
+      onmouseleave: function () { send("cl-peek", []); },
+      onfocus: function () { send("cl-peek", ids); },
+      onblur: function () { send("cl-peek", []); }
+    }, h("span", { html: icon("ui-arch", "cl-ic") }));
+  }
   var lastReceipt = null, drawerInvoker = null;
   function openDrawer(receipt) {
     drawerInvoker = document.activeElement;
@@ -1480,6 +1502,7 @@
         var rows = (rel[k] || []).filter(function (e) { return gtActive(e.confidence); });
         if (!rows.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No " + names[k].toLowerCase() + " for this scope" })); return; }
         var maxW = rows.reduce(function (a, e) { return Math.max(a, e.weight || 1); }, 1);
+        var linkable = !id && /^https?:$/.test(window.location.protocol);
         pane.appendChild(table(["Source", "Target", "Relation", "Confidence", "Weight", ""],
           rows.map(function (e) {
             return [e.src, e.dst, e.relation, confChip(e.confidence),
@@ -1490,7 +1513,8 @@
                 h("span", { class: "cl-flowbar", "aria-hidden": "true",
                   style: "width:" + Math.max(6, Math.round((e.weight || 1) / maxW * 60)) + "px" }),
                 h("span", null, num(e.weight || 1))),
-              citeButton({ claim: e.src + " → " + e.dst, repo: e.src, source: e.context || "manifest/regex", confidence: e.confidence, note: e.confidence === "AMBIGUOUS" ? "Flagged uncertain — verify." : "" })];
+              h("span", null, linkable ? graphLinkButton(e.src, e.dst) : null,
+                citeButton({ claim: e.src + " → " + e.dst, repo: e.src, source: e.context || "manifest/regex", confidence: e.confidence, note: e.confidence === "AMBIGUOUS" ? "Flagged uncertain — verify." : "" }))];
           }), [false, false, false, false, true, false],
           rows.map(function (e) { return e.confidence === "AMBIGUOUS"; })));
       }

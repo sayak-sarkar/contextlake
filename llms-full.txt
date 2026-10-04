@@ -6355,6 +6355,16 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
+At the fleet **Overview**, each table row has a **Show in graph** button beside its provenance
+button:
+
+- Hover or focus it to ring the two repos in the graph. The camera does not move.
+- Click it to highlight the pair and the edges between them and frame them in the graph.
+  Keyboard focus stays on the row.
+
+The button is live-only. A `--site` export opened from a file has no origin the graph can trust,
+so the export leaves the button out.
+
 A repo page's tables add a fourth tab, **Data flow**: which files read or write which SQL tables
 and views inside that one repo.
 
@@ -9305,6 +9315,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [9.7.0] - 2026-10-04
+
+### Added
+
+- **Architecture table rows drive the graph beside them.** At the fleet Overview, a row's
+  **Show in graph** button rings its two repos in the embedded graph on hover or focus, without
+  moving the camera, and frames the pair and the edges between them on click, without taking
+  keyboard focus. The graph accepts only these two messages, with at most two repo ids, and
+  only from its own http(s) origin; a file export leaves the button out. Reduced motion makes
+  the framing instant.
 
 ## [9.6.3] - 2026-10-04
 

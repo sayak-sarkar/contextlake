@@ -1472,6 +1472,46 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   cy.on("tap", "node", function(e){ activateNode(e.target, false); });
   cy.on("tap", "edge", function(e){ activateEdge(e.target, false); });
 
+  // ===== Camera linking from an embedding dashboard =================================
+  // The dashboard's Architecture lens lists repo pairs beside this frame. A row may ask
+  // to PREVIEW a pair (hover or focus: the peek ring, no camera move, no change to the
+  // selection) or to SHOW it (click: the pair and the edges between them are highlighted
+  // and framed, as a tap on an edge does, but without opening the inspector, so keyboard
+  // focus stays in the dashboard). Reduced motion is honoured by frameOn's dur().
+  //
+  // A closed vocabulary, at most two string ids, and same origin only, over http(s). A
+  // file:// page's origin names nobody ("null" in most browsers, "file://" in Chrome),
+  // so linking is off there. The ids are
+  // looked up as graph elements and never rendered, so they cannot inject markup.
+  function linkedNodes(ids){
+    var col = cy.collection();
+    ids.forEach(function(id){
+      var n = cy.getElementById(id);
+      if(n.nonempty() && n.isNode()){ col = col.union(n); }
+    });
+    return col;
+  }
+  window.addEventListener("message", function(e){
+    var d = e && e.data;
+    if(!d || (d.type !== "cl-peek" && d.type !== "cl-focus")) return;
+    if(!/^https?:$/.test(location.protocol) || e.origin !== location.origin) return;
+    var ids = Array.isArray(d.ids) ? d.ids : [];
+    if(ids.length > 2 || ids.some(function(x){ return typeof x !== "string" || x.length > 512; })) return;
+    var col = linkedNodes(ids);
+    unpeek();
+    if(d.type === "cl-peek"){
+      if(col.nonempty()){ peeked = col; col.addClass("peek"); }
+      return;
+    }
+    if(col.empty()) return;
+    var shown = col.union(col.edgesWith(col));
+    cy.elements().addClass("faded").removeClass("hi");
+    shown.removeClass("faded").addClass("hi");
+    refreshDomFx();
+    marchAnts(shown.edges());
+    frameOn(shown.nodes());
+  });
+
   // ===== Text view: the graph, as text you can navigate ========================
   // A force-directed canvas has no accessible content: #cy's innerText is empty and
   // its entire accessible name was the string "Knowledge graph", so a screen-reader
