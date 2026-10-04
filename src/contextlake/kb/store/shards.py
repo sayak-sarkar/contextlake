@@ -403,6 +403,30 @@ def read_shard_at(store_dir: str | Path, repo_id: str, commit: str) -> GraphShar
     return None
 
 
+# Git's own floor for an abbreviated object name.
+_COMMIT_PREFIX = re.compile(r"[0-9a-fA-F]{4,64}")
+
+
+def resolve_indexed_commit(store_dir: str | Path, repo_id: str,
+                           commit: str) -> tuple[str | None, list[str]]:
+    """The indexed commit ``commit`` names, accepting an abbreviated sha as git does.
+
+    ``(full_sha, [])`` when ``commit`` is an indexed commit or the prefix of exactly one;
+    ``(None, candidates)`` when the prefix fits several; ``(None, [])`` when it fits none.
+    The docs teach `--as-of a1b2c3`, and only the full 40 characters ever matched.
+    """
+    known = set(list_indexed_commits(store_dir, repo_id))
+    current = read_shard(store_dir, repo_id)
+    if current is not None and current.head_commit:
+        known.add(current.head_commit)
+    if commit in known:
+        return commit, []
+    if not _COMMIT_PREFIX.fullmatch(commit):
+        return None, []
+    hits = sorted(c for c in known if c.lower().startswith(commit.lower()))
+    return (hits[0], []) if len(hits) == 1 else (None, hits)
+
+
 def list_indexed_commits(store_dir: str | Path, repo_id: str) -> list[str]:
     try:
         d = history_dir(store_dir, repo_id)

@@ -95,3 +95,36 @@ def test_query_as_of_unknown_commit(tmp_path):
     archive_shard(store_dir, _shard("r", "c1", ["foo"]))
     args = Namespace(config=cfg, repo="r", kind=None, limit=None, args=["foo"])
     assert _query_as_of(args, "nope") == 1  # no such snapshot
+
+
+# --- abbreviated commits (the docs teach `--as-of a1b2c3`) ------------------
+
+_OLD = "a1b2c3d4" + "0" * 32
+_NEW = "a1b2ffff" + "1" * 32
+_OTHER = "9f8e7d6c" + "2" * 32
+
+
+def test_query_as_of_accepts_an_abbreviated_commit(tmp_path, logs):
+    store_dir, cfg = _cfg(tmp_path)
+    archive_shard(store_dir, _shard("r", _OLD, ["legacy_handler"]))
+    archive_shard(store_dir, _shard("r", _OTHER, ["modern_handler"]))
+    args = Namespace(config=cfg, repo="r", kind=None, limit=None, args=["handler"])
+
+    assert _query_as_of(args, "a1b2c3") == 0
+    assert "legacy_handler" in "\n".join(logs)
+    logs.clear()
+    assert _query_as_of(args, "9F8E") == 0          # case-insensitive, git's 4-char floor
+    assert "modern_handler" in "\n".join(logs)
+
+
+def test_query_as_of_refuses_an_ambiguous_or_short_prefix(tmp_path, logs):
+    store_dir, cfg = _cfg(tmp_path)
+    archive_shard(store_dir, _shard("r", _OLD, ["legacy_handler"]))
+    archive_shard(store_dir, _shard("r", _NEW, ["modern_handler"]))
+    args = Namespace(config=cfg, repo="r", kind=None, limit=None, args=["handler"])
+
+    assert _query_as_of(args, "a1b2") == 1          # fits both: refuse, name them
+    text = "\n".join(logs)
+    assert "matches 2 indexed commits" in text and _OLD[:12] in text and _NEW[:12] in text
+    assert "legacy_handler" not in text and "modern_handler" not in text
+    assert _query_as_of(args, "a1b") == 1           # under 4 characters: no prefix match

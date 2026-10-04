@@ -42,7 +42,7 @@ def _hit_json(n) -> dict:
 
 def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
     """Search a repo's snapshot at an indexed commit (bi-temporal 'as of')."""
-    from ..store.shards import read_shard_at
+    from ..store.shards import read_shard_at, resolve_indexed_commit
 
     repo = getattr(args, "repo", None)
     if not repo:
@@ -50,7 +50,16 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
         return 2
     text = " ".join(getattr(args, "args", []) or []).strip().lower()
     store_dir = kb_config(args).store_path
-    shard = read_shard_at(store_dir, repo, commit)
+    resolved, candidates = resolve_indexed_commit(store_dir, repo, commit)
+    if candidates:
+        if as_json:
+            print(json.dumps({"error": "ambiguous_commit", "repo": repo, "commit": commit,
+                              "candidates": candidates}, indent=2))
+            return 1
+        log(f"{commit!r} matches {len(candidates)} indexed commits of {repo!r}: "
+            f"{', '.join(c[:12] for c in candidates)}. Give more characters.")
+        return 1
+    shard = read_shard_at(store_dir, repo, resolved) if resolved else None
     if shard is None:
         if as_json:
             print(json.dumps({"error": "no_snapshot", "repo": repo, "commit": commit}, indent=2))
