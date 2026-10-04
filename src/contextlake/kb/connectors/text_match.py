@@ -17,9 +17,72 @@ from ..model import Confidence, Edge, Node
 
 __all__ = ["link_documents_to_symbols", "match_symbol_mentions", "symbol_nodes_for_repo"]
 
+# `\w` is what `\b` is defined by, so tokenising on it gives the same word edges the
+# regex this module used to compile per symbol had.
+_WORD_RUN = re.compile(r"\w+")
+_NON_WORD = re.compile(r"\W")
+_MIN_NAME_LEN = 3
+
+
+def _prepare_candidates(
+    symbols: list[Node], min_name_len: int
+) -> list[tuple[str, str, tuple[str, ...] | None]]:
+    """``(id, name, word_runs)`` for each embeddable symbol, longest name first.
+
+    ``word_runs`` is ``None`` for a name made only of word characters, which is the
+    fast case: such a name matches a text when it is one of the text's word tokens.
+    Any other name (`$ref`, `a.b`, `Foo::bar`, `operator==`) gets its own word runs,
+    used by :func:`_match_prepared` to skip the regex when the text cannot hold it.
+
+    Split from the matching so a caller with many documents sorts and classifies the
+    symbols once, not once per document.
+    """
+    candidates = [
+        s for s in symbols
+        if s.kind in EMBEDDABLE_KINDS and s.name and len(s.name) >= min_name_len
+    ]
+    candidates.sort(key=lambda s: len(s.name), reverse=True)
+    return [
+        (s.id, s.name,
+         None if _NON_WORD.search(s.name) is None else tuple(_WORD_RUN.findall(s.name)))
+        for s in candidates
+    ]
+
+
+def _match_prepared(
+    prepared: list[tuple[str, str, tuple[str, ...] | None]], text: str
+) -> list[tuple[str, Confidence]]:
+    # One pass over the text, then one set lookup per symbol. This used to compile
+    # and run a regex per symbol per document: cost was symbols x text length, and
+    # 20,000 symbols against one 40 KB document took 8.4 s (the `re` cache holds 512
+    # patterns, so each pattern was compiled again for every document).
+    tokens = set(_WORD_RUN.findall(text))
+    seen: set[str] = set()
+    matches: list[tuple[str, Confidence]] = []
+    for sym_id, name, runs in prepared:
+        if sym_id in seen:
+            continue
+        if runs is None:
+            hit = name in tokens
+        else:
+            # A name with a non-word character keeps the regex, so its `\b` rules
+            # are unchanged, including the odd ones: `\b` before `$` needs a word
+            # character in front of it, so `$ref` matches in `a$ref` and not in
+            # ` $ref`. The token test only decides when the regex can be skipped:
+            # each word run inside a matching name is a whole token of the text
+            # (the neighbours of a run are non-word, either inside the name or
+            # because `\b` forced them to be). A name with no word characters at all
+            # has no runs, so it always reaches the regex.
+            hit = (all(run in tokens for run in runs)
+                   and re.search(r"\b" + re.escape(name) + r"\b", text) is not None)
+        if hit:
+            matches.append((sym_id, Confidence.AMBIGUOUS))
+            seen.add(sym_id)
+    return matches
+
 
 def match_symbol_mentions(
-    text: str, symbols: list[Node], *, min_name_len: int = 3
+    text: str, symbols: list[Node], *, min_name_len: int = _MIN_NAME_LEN
 ) -> list[tuple[str, Confidence]]:
     """(symbol_node_id, Confidence.AMBIGUOUS) for every embeddable symbol whose
     name appears in `text` as a whole-word match. Whole-word `\\b` matching
@@ -28,21 +91,7 @@ def match_symbol_mentions(
     returned list -- it does not suppress two genuinely distinct,
     overlapping-name symbols (e.g. `sample` and `sampleGrid`) from both
     matching if both are present in the text."""
-    candidates = [
-        s for s in symbols
-        if s.kind in EMBEDDABLE_KINDS and s.name and len(s.name) >= min_name_len
-    ]
-    candidates.sort(key=lambda s: len(s.name), reverse=True)
-    seen: set[str] = set()
-    matches: list[tuple[str, Confidence]] = []
-    for sym in candidates:
-        if sym.id in seen:
-            continue
-        pattern = r"\b" + re.escape(sym.name) + r"\b"
-        if re.search(pattern, text):
-            matches.append((sym.id, Confidence.AMBIGUOUS))
-            seen.add(sym.id)
-    return matches
+    return _match_prepared(_prepare_candidates(symbols, min_name_len), text)
 
 
 def symbol_nodes_for_repo(store, repo_id: str) -> list[Node]:
@@ -110,9 +159,10 @@ def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
     symbols = symbol_nodes_for_repo(store, repo_id) if repo_id else []
     if not symbols:
         return []
+    prepared = _prepare_candidates(symbols, _MIN_NAME_LEN)
     edges: list[Edge] = []
     for node, text in zip(nodes, texts, strict=True):
-        matches = match_symbol_mentions(text or "", symbols)
+        matches = _match_prepared(prepared, text or "")
         if not matches:
             continue
         if repo_fallback:
