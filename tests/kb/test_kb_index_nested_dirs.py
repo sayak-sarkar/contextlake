@@ -174,7 +174,12 @@ def test_index_reports_the_true_nested_count_and_its_depths(tmp_path, logs):
 
 # --- F12: the remedy must name the directory that was actually indexed -------
 
-def test_typed_path_echoes_what_was_typed_and_quotes_only_when_needed():
+def test_typed_path_echoes_what_was_typed_and_quotes_only_when_needed(monkeypatch):
+    # The POSIX branch, pinned so it holds on any platform; the Windows branch has its own
+    # test below.
+    from contextlake.kb.cmds import index as index_cmd
+
+    monkeypatch.setattr(index_cmd.os, "name", "posix")
     assert _typed_path(".") == "."
     assert _typed_path("./repositories") == "./repositories"
     assert _typed_path("/srv/fleet") == "/srv/fleet"
