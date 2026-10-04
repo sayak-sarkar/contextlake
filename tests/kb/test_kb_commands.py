@@ -616,11 +616,16 @@ def test_query_json_emits_a_clean_parseable_array(tmp_path, capsys):
     captured = capsys.readouterr()  # --json redirects logs to stderr like graph does
     assert captured.out.strip(), "payload must be on stdout"
     hits = json.loads(captured.out)
+    node_id = hits[0].pop("id")
     assert hits == [{
         "repo": "demo/app", "file": "src/forecast.py", "line": 1,
         "kind": "class", "name": "ForecastService",
         "qualified_name": "demo.app.forecast.ForecastService",
     }]
+    # The id is there so a hit can seed `kb graph --node`, whose refusal for an unknown id
+    # sends the reader to `kb query ... --json` for exactly this.
+    assert _run(["kb", "graph", "--node", node_id, "--format", "json",
+                 "--config", str(cfg)]) == 0
 
 
 def test_query_json_empty_argument_is_still_valid_json(tmp_path, capsys):

@@ -36,7 +36,7 @@ def _print_hit(n) -> None:
 
 
 def _hit_json(n) -> dict:
-    return {"repo": n.repo, "file": n.file, "line": n.line_start, "kind": n.kind,
+    return {"id": n.id, "repo": n.repo, "file": n.file, "line": n.line_start, "kind": n.kind,
             "name": n.name, "qualified_name": n.qualified_name}
 
 

@@ -1681,6 +1681,15 @@ def test_kind_still_filters_a_seeded_view(tmp_path, capsys):
     assert "--kind filters the seeds" not in capsys.readouterr().err
 
 
+def test_an_unknown_node_id_points_at_name_lookup(tmp_path, capsys):
+    cfg = _write_dense_repo_config(tmp_path, leaves=3)
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "graph", "--node", "r::nope", "--format", "json", "--config", str(cfg)])
+    assert e.value.code == 1
+    err = capsys.readouterr().err
+    assert "`--name nope`" in err and "kb query nope --json" in err
+
+
 def test_cli_mermaid_format_is_edge_capped_by_default(tmp_path, capsys):
     cfg = _write_dense_repo_config(tmp_path, leaves=20)
     with pytest.raises(SystemExit) as e:

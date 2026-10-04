@@ -47,7 +47,8 @@ def _seed_not_found_msg(store, args) -> str:
     node = getattr(args, "node", None)
     if node:
         return (f"No node with id {node!r} is in the graph. Ids are exact; "
-                f"`contextlake kb query {node.split('::')[-1]}` finds one by name.")
+                f"`--name {node.split('::')[-1]}` looks a node up by name, and "
+                f"`contextlake kb query {node.split('::')[-1]} --json` lists ids.")
     name = getattr(args, "name", None)
     if name:
         kind = getattr(args, "kind", None)
