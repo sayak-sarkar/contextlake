@@ -11,12 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The docs no longer teach commands that fail.** `kb source add --name`,
-  `kb source add --from-stdin token` and `kb index --languages c` all exit 2: the name is
+- **Three documented commands that exit 2 are corrected.** `kb source add --name`,
+  `kb source add --from-stdin token` and `kb index --languages c` all failed: the name is
   positional, a credential is stored by its environment-variable name
   (`--set token_env=MY_TOKEN`), and the language filter is `[kb] languages` in `kb.toml`.
-  The examples now show forms that run. A new test parses every `contextlake` command in
-  the docs and the README, in code blocks and inline, through the real parser.
+  Each rewritten example was run. A new test parses every `contextlake` command in the docs
+  and the README through the real parser, which catches a flag that does not exist; a
+  value refused at run time, like the `--from-stdin token` case, needs a test that runs
+  the example, and that one has one.
 - **The install docs no longer say pip verifies who built the package.** Releases carry a
   PyPI attestation naming this repository's release workflow, but `pip install`,
   `uv pip install` and `uv tool install` do not check it. The docs now say so and give the

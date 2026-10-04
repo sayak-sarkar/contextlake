@@ -195,7 +195,8 @@ pip install -e ".[release]"        # build + twine
     PYTHON=.venv/bin/python ./site/deploy.sh
     ```
 
-    Then open the live changelog page and check it shows the new version. Skipping this step
+    Then open the live changelog, <https://sayak.in/contextlake/changelog.html>, and check it
+    shows the new version (GitHub Pages can take a few minutes). Skipping this step
     leaves the site describing an older release: 9.3.0 to 9.6.0 shipped without it, and the
     live site still carried docs those releases had corrected.
 
