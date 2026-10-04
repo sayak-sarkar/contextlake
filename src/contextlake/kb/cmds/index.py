@@ -553,10 +553,16 @@ def _typed_path(source: str) -> str:
     Echoes what was typed rather than the resolved absolute path. When the user
     did type ``.`` (or typed nothing, which becomes ``.``) the short form is both
     correct and the one they will recognise as their own command; printing
-    ``/home/…/very/long/path`` there would be noise. Quoting is
-    :func:`shlex.quote`'s, which leaves an ordinary path untouched and only
-    intervenes for one that would not survive a shell.
+    ``/home/…/very/long/path`` there would be noise. Quoting leaves an ordinary path
+    untouched and only intervenes for one that would not survive the user's shell:
+    :func:`shlex.quote` on POSIX, ``subprocess.list2cmdline`` on Windows. shlex wraps any
+    path holding a backslash in single quotes, and in ``cmd.exe`` single quotes are part of
+    the argument, so every Windows path printed a command that could not be pasted.
     """
+    if os.name == "nt":
+        import subprocess
+
+        return subprocess.list2cmdline([source])
     return shlex.quote(source)
 
 

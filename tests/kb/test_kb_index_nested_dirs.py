@@ -258,7 +258,21 @@ def test_a_prescribed_command_survives_a_path_with_a_space(tmp_path, logs):
     cfg, store_dir = _kb(tmp_path)
 
     assert cmd_index(_args(cfg, ws)) == 1
-    assert _prescribed(logs) == f"contextlake kb index '{ws / 'solo'}'"
+    quoted = f'"{ws / "solo"}"' if os.name == "nt" else f"'{ws / 'solo'}'"
+    assert _prescribed(logs) == f"contextlake kb index {quoted}"
+
+
+@pytest.mark.parametrize("path,expected", [
+    (r"C:\Users\me\ws", r"C:\Users\me\ws"),          # backslashes need no quoting
+    (r"C:\Users\me\my ws", r'"C:\Users\me\my ws"'),   # a space does, with DOUBLE quotes
+])
+def test_a_windows_path_is_quoted_for_windows_shells(monkeypatch, path, expected):
+    """shlex wrapped every path holding a backslash in single quotes, which `cmd.exe` keeps
+    as part of the argument, so each Windows prescription printed an unpasteable command."""
+    from contextlake.kb.cmds import index as index_cmd
+
+    monkeypatch.setattr(index_cmd.os, "name", "nt")
+    assert index_cmd._typed_path(path) == expected
 
 
 def test_loose_sources_beside_a_vendored_clone_are_bundled_not_refused(tmp_path, logs):
