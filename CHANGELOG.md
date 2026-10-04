@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.5.0] - 2026-10-04
+
 ### Upgrading from 9.4.0
 
 These can make a run that worked on 9.4.0 behave differently:
@@ -47,7 +49,8 @@ These can make a run that worked on 9.4.0 behave differently:
 - **A cron install keeps every other crontab line byte for byte.** Lines after a
   contextlake BEGIN marker with no END were deleted; now install and uninstall refuse and
   name the line to fix. Non-UTF-8 bytes and `\r\n` line ends were rewritten; now they
-  come back as they were.
+  come back as they were. The one byte added: a last line with no newline gains one, which
+  cron requires.
 - **Your later cron jobs get their failure mail again.** The contextlake block set
   `MAILTO=""`, which cron applies to every line below it. The block now sets no MAILTO,
   and the contextlake job line ends in `>/dev/null 2>&1` instead. Installing again
@@ -101,7 +104,8 @@ These can make a run that worked on 9.4.0 behave differently:
   (`<key file>.lock`, mode `0600`) for the whole read and write. A second one waits up to
   10 seconds, then exits 1 with `key_file_error` and changes nothing. A filesystem that
   cannot lock files now refuses these commands, and the message says to point
-  `$CONTEXTLAKE_KEYS_FILE` at a local path.
+  `$CONTEXTLAKE_KEYS_FILE` at a local path. Tested on Linux; the Windows lock path is
+  tested against a stand-in only.
 
 ## [9.4.0] - 2026-10-03
 
