@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -66,7 +66,7 @@ declared, says so.</p>
 <p>That last one means "what extends <code>BaseController</code>?" is a single hop, and changing a base class
 shows its subclasses in <code>blast_radius</code>.</p>
 <p>The diagram below takes its colours from the same module <code>contextlake kb graph</code> and the
-dashboard use, so node kinds look the same everywhere. Edge relations mostly match too:</p>
+dashboard use, so node kinds look the same everywhere. Most edge relations match too:</p>
 <ul>
 <li><strong>10 have their own colour</strong>: <code>calls</code>, <code>imports</code>, <code>contains</code>, <code>depends_on</code>, <code>publishes</code>,
   <code>tracked_by</code>, <code>documented_by</code>, <code>flow</code>, <code>exposes</code>, <code>calls_http</code></li>
@@ -168,7 +168,7 @@ file unsupported.</p>
 </table>
 <p>Frameworks are indexed through their base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X),
 <strong>Angular</strong> is TS (its templates are HTML), and <strong>.NET</strong> is C#.</p>
-<p>Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
+<p>Missing yours? "Pluggable" is a literal claim: a language is a grammar package plus a few table
 entries. <a href="adding-a-language">Adding a language</a> is the ordered recipe, with the verification
 commands that prove a new grammar works.</p>
 <h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
@@ -212,29 +212,33 @@ semantically searchable.</p>
 high-value defs and FK references and is a <strong>deliberate undercount</strong>. Render it with
 <code>contextlake kb graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualizing-the-graph">Visualize</a>.</p>
 <p><strong>Measured, not asserted:</strong> <code>tests/kb/fixtures/sql/</code> is a small, synthetic, hand-labelled
-orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
-call real (<code>expected_edges.json</code>, 13 edges); <code>tests/kb/test_sql_fixture_corpus.py</code> scores the parser's
-emitted <code>references</code> edges against it on every CI run, and asserts this page still quotes what it
-measures. Current numbers on that corpus: <strong>precision 1.00 (9 true positives / 0 false positives),
-recall 0.69 (9 / 13 ground-truth edges found)</strong>, a small, hand-built corpus, not a claim about the whole
-fleet, but real and reproducible. Two documented gap classes account for the four missed edges, both by
-design, not bugs: a <strong>self-referencing FK</strong> (<code>referred_by</code>/<code>parent_category_id</code>-style hierarchies) is
-dropped because the extractor excludes <code>target == name</code>, and an FK <strong>attached via a separate
-<code>ALTER TABLE ... ADD CONSTRAINT</code></strong> statement is never captured because the scope tracker only scans
-<code>REFERENCES</code> inside a <code>CREATE TABLE</code>'s own text span. Precision was 0.90 on this corpus until the
-extractor learned to blank out <code>--</code> and <code>/* */</code> comments before matching: its one false positive was a
-commented-out <code>REFERENCES</code> line, dead DDL history that resolved into a real-looking edge because the
-table it named still existed elsewhere in the repo. That case is now pinned as a negative in the corpus
-test. These are the numbers to distrust a graph <code>INFERRED</code> SQL edge by, and
-the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
-target already met.</p>
+orders/customers/inventory corpus. It has a checked ground truth of every FK a human reading the DDL
+would call real (<code>expected_edges.json</code>, 13 edges). <code>tests/kb/test_sql_fixture_corpus.py</code> scores the
+parser's emitted <code>references</code> edges against it on every CI run, and asserts this page still quotes
+what it measures.</p>
+<p>Current numbers on that corpus: <strong>precision 1.00 (9 true positives / 0 false positives),
+recall 0.69 (9 / 13 ground-truth edges found)</strong>. The corpus is small and hand-built. The numbers are
+no claim about the whole fleet, and they are real and reproducible.</p>
+<p>Two documented gap classes account for the four missed edges, both by design, not bugs:</p>
+<ul>
+<li>A <strong>self-referencing FK</strong> (<code>referred_by</code>/<code>parent_category_id</code>-style hierarchies) is dropped
+  because the extractor excludes <code>target == name</code>.</li>
+<li>An FK <strong>attached via a separate <code>ALTER TABLE ... ADD CONSTRAINT</code></strong> statement is never captured,
+  because the scope tracker only scans <code>REFERENCES</code> inside a <code>CREATE TABLE</code>'s own text span.</li>
+</ul>
+<p>Precision was 0.90 on this corpus until the extractor learned to blank out <code>--</code> and <code>/* */</code> comments
+before matching. Its one false positive was a commented-out <code>REFERENCES</code> line: dead DDL history that
+resolved into a real-looking edge because the table it named still existed elsewhere in the repo. That
+case is now pinned as a negative in the corpus test.</p>
+<p>These are the numbers to distrust a graph <code>INFERRED</code> SQL edge by. The floors in the corpus test are
+meant to be ratcheted up as the extractor improves, not treated as a target already met.</p>
 <h3 id="data-contracts-xml-schema">Data contracts: XML Schema<a class="anchor" href="#data-contracts-xml-schema" title="Link to this section">#</a></h3>
 <p><code>.xsd</code> files build a schema graph. Every <strong>global</strong> component becomes a node. Every name one
 component gives another becomes a <code>references</code> edge, resolved across files in the repo.</p>
 <p>Two node kinds:</p>
 <ul>
 <li><strong><code>schema_element</code></strong> for a global <code>xs:element</code>. This is the name a message, a document root or
-  a SOAP body actually carries, so it is the name people search for.</li>
+  a SOAP body carries, so it is the name people search for.</li>
 <li><strong><code>schema_type</code></strong> for a global <code>complexType</code>, <code>simpleType</code>, <code>group</code>, <code>attributeGroup</code> or
   <code>attribute</code>. Which one it was is kept in the <code>schema_construct</code> attribute, rather than
   splitting these into five separate kinds.</li>
@@ -344,7 +348,7 @@ verified reference the way an import or a call site is, so nothing is inferred f
 
 <p><strong>Only guarded transitions are emitted.</strong> The source state has to be established by a comparison
 on the same field just before. That way a diagram never claims a transition the code does not
-actually make.</p>
+make.</p>
 <p>Supported in Python, JS/TS and C#. Detection is regex-based, so every edge is marked <code>INFERRED</code>.</p>
 <p>Render it with <code>contextlake kb graph --repo &lt;repo&gt; --format statediagram</code>, which produces a
 Mermaid state diagram. See <a href="visualizing-the-graph">Visualizing the graph</a>.</p>
@@ -365,7 +369,7 @@ guessed link.</p>
 <code>contextlake kb impact &lt;table&gt;</code> answers "what code touches this table" with no extra flags.</p>
 <h3 id="constants-their-value-and-every-place-it-is-read">Constants: their value, and every place it is read<a class="anchor" href="#constants-their-value-and-every-place-it-is-read" title="Link to this section">#</a></h3>
 <p>A constant node records the declaration it was written with, so the graph answers what a value
-actually is and not only that a name exists: <code>MAX_RETRY = 3</code>, <code>PAGE_SIZE = 50</code>,
+is and not only that a name exists: <code>MAX_RETRY = 3</code>, <code>PAGE_SIZE = 50</code>,
 <code>#define TIMEOUT 30</code>. It is stored as written, collapsed to one line and capped, and it is called
 a declaration rather than a value because nothing has been parsed out of it.</p>
 <p>Each place a constant's value is read becomes a <code>uses</code> edge from the file to the constant,
@@ -388,7 +392,7 @@ default relation set, so <code>contextlake kb impact MAX_RETRY</code> answers "w
 <p>Two web-topology layers sit on top of the definitions.</p>
 <p><strong>HTTP endpoints</strong> a repo exposes or calls become shared <code>endpoint</code> nodes that join across repos into
 <code>flow</code> edges, from the caller repo to the exposer repo. Detection is regex-based and framework-targeted,
-so read the list as what is actually matched:</p>
+so read the list as what is matched:</p>
 <ul>
 <li><strong>Python</strong>: FastAPI and Flask decorator routing (<code>@app.get("...")</code>, <code>@router.route("...")</code>).</li>
 <li><strong>JavaScript and TypeScript</strong>: the Express-shaped call form,
@@ -443,14 +447,14 @@ stylesheets.</p>
 doesn't encode a repo: two repos that both import <code>requests</code>, call the same route, or publish
 to the same topic produce the identical node, which the store dedupes to one row. Its <code>repo</code>
 reads as a pseudo-repo (<code>"(shared)"</code>, <code>"(packages)"</code>) rather than any one real repo, by design:
-which repos actually touch it is a question the cross-repo edges answer, not the node itself.</p>
+which repos touch it is a question the cross-repo edges answer, not the node itself.</p>
 </div>
 <h3 id="manifests-and-cross-repo-dependencies">Manifests and cross-repo dependencies<a class="anchor" href="#manifests-and-cross-repo-dependencies" title="Link to this section">#</a></h3>
 <p>Indexing also reads manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a
 <strong>cross-repo dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change this"); see
 <a href="serving-over-mcp">the full tool list under Serve</a>.</p>
-<p>Each <code>depends_on</code> edge records what the manifest actually says, not only the package name:</p>
+<p>Each <code>depends_on</code> edge records what the manifest says, not only the package name:</p>
 <table>
 <thead>
 <tr>
@@ -489,7 +493,7 @@ getting a silent best-guess.</p>
 <span class="go">  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]</span>
 </code></pre></div>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=58f289e9"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -572,6 +576,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Asking the graph · contextlake docs">
 <meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -176,7 +176,7 @@ unavailable, so there is no fallback and no warning. An unexpectedly empty
 <code>--retriever semantic</code> run usually means <code>contextlake kb embed</code> has not run yet.</p>
 <p><strong><code>--kind</code> is applied differently per mode.</strong> On <code>fts</code> it is part of the SQL, so <code>--limit 20</code> gives
 you up to 20 matching nodes. On <code>semantic</code> and <code>hybrid</code> it is a filter applied <em>after</em> the retriever
-has already cut to <code>--limit</code>, so <code>--retriever semantic --kind function --limit 20</code> can return far
+has already cut to <code>--limit</code>, so <code>--retriever semantic --kind function --limit 20</code> can return
 fewer than 20 functions even when the repo has hundreds.</p>
 <p><strong><code>--as-of</code> is a different search, not the same search over old data.</strong> It reads the repo's stored
 shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor
@@ -276,7 +276,7 @@ name how many repos define it, list the candidates, and exit <code>1</code>, so 
 <p class="admonition-title">Warning</p>
 <p>A name that matches no node exactly falls back to a fuzzy search and takes the top hit, silently
 (<code>resolve_target</code> in <code>src/contextlake/kb/impact.py</code>). A typo can therefore produce a confident
-blast radius for the wrong symbol. The header line always names the node that was actually
+blast radius for the wrong symbol. The header line always names the node that was
 resolved, <code>Impact of changing &lt;name&gt; (&lt;node id&gt;)</code>, so read it before trusting the list.</p>
 </div>
 <h3 id="verification_1">Verification<a class="anchor" href="#verification_1" title="Link to this section">#</a></h3>
@@ -391,12 +391,12 @@ followed by up to three numbered lines ending in a percentage.</p>
   resolved.</li>
 <li><strong><code>--limit 0</code> and <code>--hops 0</code> are refused</strong>, with the argument error and exit <code>2</code>: <code>--limit</code> takes
   1 to 1,000,000 and <code>--hops</code> takes 1 to 1,000. Zero used to be read as "unset" and quietly became
-  the default, which is exactly why it is now an error. Neither ever meant "no limit".</li>
+  the default, which is why it is now an error. Neither ever meant "no limit".</li>
 <li><strong>The <code>--as-of</code> argument check is the one error that ignores <code>--json</code></strong>: <code>--as-of</code> without
   <code>--repo</code> prints a plain line to stderr and exits <code>2</code> with no JSON error object.</li>
 </ul>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=58f289e9"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -523,6 +523,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

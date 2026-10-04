@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -94,7 +94,7 @@ absence never reads as an oversight:</p>
    scoreboard. Pseudonymised when <code>[kb] anonymize = "always"</code>.
 5. <strong>The public surface</strong> -- the named symbols, most-called first, with caller counts where the graph
    records any.
-6. <strong>Installation and usage</strong> -- the build and packaging files the repository actually has.
+6. <strong>Installation and usage</strong> -- the build and packaging files the repository has.
 7. <strong>What this repository contains</strong> -- languages, node kinds, and <strong>the repositories it depends on and
    that depend on it</strong>. That last pair is a cross-repository answer no single-repo tool can give, and it
    is always labelled as describing the whole repository even on a module page, because it cannot be
@@ -202,7 +202,7 @@ always conditional, and it is not one of the named sections.</p>
 <p>For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see <a href="model-providers">Model providers</a>.</p>
 <h2 id="why-a-page-was-rejected">Why a page was rejected<a class="anchor" href="#why-a-page-was-rejected" title="Link to this section">#</a></h2>
-<p>A rejection always names the rule that fired, because a page that simply fails to appear leaves you
+<p>A rejection always names the rule that fired, because a page that fails to appear leaves you
 staring at a missing file. Two of the reasons come from a <strong>structural gate</strong> that runs before the
 council and makes no model call at all:</p>
 <table>
@@ -224,7 +224,7 @@ council and makes no model call at all:</p>
 </tbody>
 </table>
 <p>Both are mechanically visible, so they are decided without asking a reviewer. That is deliberate: a
-weak model acting as its own council rubber-stamps exactly these defects, which
+weak model acting as its own council rubber-stamps these defects, which
 <a href="explained#generated-prose-and-how-it-is-kept-honest">contextlake, explained</a> records with the
 measurement behind it. Rejecting them early also saves the council's round trips on a page that
 could not have passed.</p>
@@ -249,19 +249,19 @@ having its repr printed into a wiki page.</p>
 structural page IS the prompt</strong>, so putting the notes on that page is what puts them in front
 of the model on the prose path. One insertion point, both paths, and the replacement gate keeps
 working -- a name the notes introduce becomes a name a draft may legitimately cite.</p>
-<p><strong><code>pages</code> steers, it cannot invent.</strong> Names are matched against the modules the graph actually
+<p><strong><code>pages</code> steers, it cannot invent.</strong> Names are matched against the modules the graph
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
-untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
-is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
-silently delete a repository's whole module set on the next prune. The list is the whole set on
-both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
+untrusted input, and this is the line that keeps it unable to fabricate a page.</p>
+<p>When every name is unknown, the automatic heuristic runs instead of producing nothing. So one typo
+cannot silently delete a repository's whole module set on the next prune. The list is the whole set
+on both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
 generated pages of modules that are not on it.</p>
 <p>Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (<code>kb/trust.py</code>). Quoting a
 repository's own prose is the same trust level as the README excerpt the page has always
 carried.</p>
 <h2 id="per-subsystem-pages-for-large-federated-repos">Per-subsystem pages for large, federated repos<a class="anchor" href="#per-subsystem-pages-for-large-federated-repos" title="Link to this section">#</a></h2>
-<p>A repo qualifies as <strong>genuinely federated</strong> when it has at least 5,000 graph nodes and no
+<p>A repo qualifies as <strong>federated</strong> when it has at least 5,000 graph nodes and no
 single top-level module owns more than 60% of them. One big source directory does not qualify.
 A repo split into several comparable subsystems does.</p>
 <p>For those, <code>contextlake kb wiki</code> writes one extra page per subsystem automatically. No new flag.
@@ -275,7 +275,7 @@ These are added to the whole-repo page, never used instead of it.</p>
 <p>They live under <code>wiki/_modules/</code> with their own <code>@wiki:&lt;repo&gt;::&lt;module&gt;</code> partition. A
 natural-language question can therefore land on a subsystem's own explanation, cited back to
 that page.</p>
-<p>Generation is capped at <strong>20 subsystem pages per run</strong>, so one <code>wiki</code> call on a very large repo
+<p>Generation is capped at <strong>20 subsystem pages per run</strong>, so one <code>wiki</code> call on a large repo
 stays bounded.</p>
 <p>Which 20 depends on what is already on disk:</p>
 <ol>
@@ -291,7 +291,7 @@ re-picking the same top 20 forever.</p>
 
 <p><strong>Once subsystem pages exist</strong>, the whole-repo overview names and briefly describes each one and
 links to it, instead of summarising their internals inline.</p>
-<p>One catch: the overview only picks that up the next time it is actually regenerated. A repo
+<p>One catch: the overview only picks that up the next time it is regenerated. A repo
 already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
 pages still generate. So an existing store gets the naming after its next commit, or on a
 <code>--force</code> run
@@ -450,6 +450,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

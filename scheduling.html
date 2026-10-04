@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Scheduling runs · contextlake docs">
 <meta name="twitter:description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -406,11 +406,12 @@ run</code> refuses:</p>
 <span class="go">  Mount a volume at the cache directory (a PVC on Kubernetes, EFS on AWS, Azure Files on Azure), or pass --allow-ephemeral if that is what you want.</span>
 </code></pre></div>
 <p>The check is whether the cache directory sits on its own mount point, not what filesystem type it
-reports: a container's own writable layer is part of the root mount, while any volume you attach
+reports. A container's own writable layer is part of the root mount, while any volume you attach
 (a PVC, an <code>emptyDir</code>, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
-underlying filesystem. Fix it by pointing <code>cache_dir</code> at a mounted volume, or pass
-<code>--allow-ephemeral</code> if a from-scratch run every cycle is what you want. There is no daemon to
-install inside a container; run the cycle in the foreground instead:</p>
+underlying filesystem.</p>
+<p>Fix it by pointing <code>cache_dir</code> at a mounted volume, or pass <code>--allow-ephemeral</code> if a from-scratch
+run every cycle is what you want. There is no daemon to install inside a container. Run the cycle in
+the foreground instead:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>run<span class="w"> </span>--foreground
 </code></pre></div>
 <p><code>--foreground</code> loops here, sleeping between cycles, and does not re-read the config file
@@ -503,6 +504,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

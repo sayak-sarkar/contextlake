@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Visualizing the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -49,7 +49,7 @@
     <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Visualizing the graph</h1><p class="doc-sub">Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p><code>contextlake kb graph</code> draws a <strong>bounded</strong> slice of the graph. The whole thing (hundreds of thousands of
-nodes) is far too large to render, so every view is scoped from a seed and capped:</p>
+nodes) is too large to render, so every view is scoped from a seed and capped:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>ForecastService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
@@ -123,7 +123,7 @@ accepted and then ignored; <code>--repo</code>, <code>--max-nodes</code> / <code
 highest-connected first, ties broken by node id. So a truncated diagram keeps the most connected
 part of the repo, not whatever sorted first.</p>
 <p>Degree alone is not the whole rule. Every kind present in the view gets a small floor of slots
-first. Pure degree ranking starved the rare kinds completely: on one measured repo it kept 0 of
+first. Pure degree ranking starved the rare kinds: on one measured repo it kept 0 of
 412 <code>table</code> nodes and 0 of 402 <code>resource</code> nodes, which made <code>erdiagram</code> and <code>deploymentdiagram</code>
 render empty for a repo that plainly had the data.</p>
 <p>On the dashboard, a repo too large for one diagram is narrowed to its largest module
@@ -134,51 +134,68 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 <p>Output is chosen with <code>--format</code>:</p>
 <ul>
 <li><strong><code>html</code></strong> (default), a single <strong>self-contained, offline</strong> page (cytoscape.js is inlined, so it opens
-  from <code>file://</code> with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
-  by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
-  the view stays readable). Pan, zoom, drag, and a <strong>layout switcher</strong> (<code>cose</code>, <code>concentric</code>,
-  <code>breadthfirst</code>, <code>circle</code>, <code>grid</code>, <code>dagre</code>) in the page, set the initial one with <code>--layout</code>. <code>dagre</code> is
-  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
-  an HTML card instead of a dot. <code>--open</code> launches the
-  browser; <code>--cdn</code> produces a small online-only file instead, and applies to <code>--site</code> as well as
-  the single-file export.</li>
+  from <code>file://</code> with no network, handy air-gapped / behind a proxy). <code>--open</code> launches the browser;
+  <code>--cdn</code> produces a small online-only file instead, and applies to <code>--site</code> as well as the
+  single-file export.<ul>
+<li>Nodes are coloured by kind and sized by degree. Edges are styled by relation/confidence, with
+  their labels hidden until you click a node (so the view stays readable).</li>
+<li>Pan, zoom, drag, and a <strong>layout switcher</strong> (<code>cose</code>, <code>concentric</code>, <code>breadthfirst</code>, <code>circle</code>,
+  <code>grid</code>, <code>dagre</code>) in the page. Set the initial one with <code>--layout</code>.</li>
+<li><code>dagre</code> is a preview: it is layered and directed rather than organic, and below 400 nodes it
+  renders each node as an HTML card instead of a dot.</li>
+</ul>
+</li>
 <li><strong><code>dot</code></strong>, Graphviz (<code>contextlake kb graph ... --format dot | dot -Tsvg &gt; g.svg</code>).</li>
 <li><strong><code>mermaid</code></strong>, the relation graph, pastes into Markdown / GitHub.</li>
 <li><strong><code>classdiagram</code></strong>, a <strong>Mermaid UML class diagram</strong> for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and <code>inherits</code> edges as inheritance arrows (<code>&lt;|--</code> extends,
   <code>&lt;|..</code> implements). Great for a PR or design doc: <code>contextlake kb graph --repo demo/app --format classdiagram</code>.</li>
 <li><strong><code>sequencediagram</code></strong>, a <strong>Mermaid call-order trace</strong> from one seeded function, each caller's callees
-  ordered by call-site line, the order they actually appear in the source: <code>contextlake kb graph --name
+  ordered by call-site line, the order they appear in the source: <code>contextlake kb graph --name
   verify_station --format sequencediagram</code>. Needs exactly one seed (<code>--node</code>/<code>--name</code>/<code>--search</code>, not
   <code>--repo</code>/<code>--overview</code>; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own <code>--hops</code>. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.</li>
 <li><strong><code>statediagram</code></strong>, a <strong>Mermaid entity state machine</strong>: guarded assignments to a status/state/stage field
   (<code>if reading.status == Received: reading.status = Validated</code>) become transitions, labeled with the method that
-  makes them. Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding
-  comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
-  (an honest undercount, not a guess). Best with <code>--repo</code>, like <code>classdiagram</code>: <code>contextlake kb graph --repo
-  demo/app --format statediagram</code>. A <code>--name</code>/<code>--node</code> seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's <code>--hops</code>; use <code>--repo</code> for the full picture.
-  Multiple entities in view each get their own composite block; a single-entity view renders flat.</li>
+  makes them. Best with <code>--repo</code>, like <code>classdiagram</code>:
+  <code>contextlake kb graph --repo demo/app --format statediagram</code>.<ul>
+<li>Only <em>guarded</em> transitions are emitted. The source state must be established by a preceding
+  comparison on the same field, so a diagram never claims a transition the code doesn't establish
+  (an honest undercount, not a guess).</li>
+<li>A <code>--name</code>/<code>--node</code> seed can reach the state nodes (via the file that declares them) but not
+  their transitions past the view's <code>--hops</code>. Use <code>--repo</code> for the full picture.</li>
+<li>Multiple entities in view each get their own composite block; a single-entity view renders
+  flat.</li>
+</ul>
+</li>
 <li><strong><code>erdiagram</code></strong>, a <strong>Mermaid ER diagram</strong> of <code>table</code>/<code>view</code> definitions and their foreign-key
   <code>references</code> edges, from the SQL DDL extractor (see <a href="indexing-the-code-graph">Index &amp; Code Graph</a>):
-  <code>contextlake kb graph --repo demo/app --format erdiagram</code>. No attribute/column data (the extractor
-  only captures <code>CREATE TABLE</code>/<code>VIEW</code> names and FK targets), so entities render as bare boxes with
-  relationship lines, not column lists. A <code>REFERENCES</code> clause always points child-row to parent-row,
-  so the parent is drawn on the "one" side of the notation. <strong>Only sees raw <code>.sql</code> DDL</strong>, an
-  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal <code>CREATE TABLE</code>
-  text anywhere) renders an empty diagram with guidance, not a bug.</li>
+  <code>contextlake kb graph --repo demo/app --format erdiagram</code>.<ul>
+<li>No attribute/column data (the extractor only captures <code>CREATE TABLE</code>/<code>VIEW</code> names and FK
+  targets), so entities render as bare boxes with relationship lines, not column lists.</li>
+<li>A <code>REFERENCES</code> clause always points child-row to parent-row, so the parent is drawn on the
+  "one" side of the notation.</li>
+<li><strong>Only sees raw <code>.sql</code> DDL</strong>. An ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM
+  model classes, no literal <code>CREATE TABLE</code> text anywhere) renders an empty diagram with
+  guidance, not a bug.</li>
+</ul>
+</li>
 <li><strong><code>deploymentdiagram</code></strong>, a <strong>Mermaid flowchart</strong> of Terraform/HCL <code>resource</code>/<code>data</code>/<code>module</code>
-  definitions grouped by an inferred category
-  (network/compute/storage/database/security/other/module; a resource type matching none of the
-  keyword lists lands in <code>other</code> and gets its own subgraph),
-  from the HCL extractor (see <a href="indexing-the-code-graph">Index &amp; Code Graph</a>): <code>contextlake kb graph --repo
-  demo/app --format deploymentdiagram</code>. Category is a keyword heuristic over the resource type prefix (e.g.
-  <code>aws_security_group.web</code> -&gt; security); <code>depends_on</code> edges reconstructed from <code>var.</code>/<code>module.</code>/
-  type-name interpolation references draw the connections between resources. A single-category view
-  renders flat (no subgraph wrapper). <strong>Terraform-only</strong> (HCL is the only IaC language the extractor
-  parses): a repo with no <code>.tf</code> files renders an empty diagram with guidance, not a bug.</li>
+  definitions grouped by an inferred category, from the HCL extractor (see
+  <a href="indexing-the-code-graph">Index &amp; Code Graph</a>):
+  <code>contextlake kb graph --repo demo/app --format deploymentdiagram</code>.<ul>
+<li>The categories are network/compute/storage/database/security/other/module. Category is a
+  keyword heuristic over the resource type prefix (for example <code>aws_security_group.web</code> -&gt;
+  security). A resource type matching none of the keyword lists lands in <code>other</code> and gets its
+  own subgraph.</li>
+<li><code>depends_on</code> edges reconstructed from <code>var.</code>/<code>module.</code>/type-name interpolation references
+  draw the connections between resources. A single-category view renders flat (no subgraph
+  wrapper).</li>
+<li><strong>Terraform-only</strong> (HCL is the only IaC language the extractor parses): a repo with no <code>.tf</code>
+  files renders an empty diagram with guidance, not a bug.</li>
+</ul>
+</li>
 <li><strong><code>graphml</code></strong>, the standard <a href="http://graphml.graphdrawing.org/" target="_blank" rel="noopener">GraphML<span class="ext-arrow" aria-hidden="true">↗</span></a> interchange format for
   <a href="https://gephi.org/" target="_blank" rel="noopener">Gephi<span class="ext-arrow" aria-hidden="true">↗</span></a>/<a href="https://www.yworks.com/products/yed" target="_blank" rel="noopener">yEd<span class="ext-arrow" aria-hidden="true">↗</span></a>: <code>contextlake kb graph --repo
   demo/app --format graphml --output g.graphml</code>. Nodes/edges carry real attributes (kind, name, repo,
@@ -298,13 +315,13 @@ calls over HTTP that never resolves to any indexed repo's exposed route, connect
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--c1<span class="w"> </span>--group-depth<span class="w"> </span><span class="m">2</span><span class="w"> </span>--open
 </code></pre></div>
 <p><strong>Deliberately unclassified.</strong> contextlake can't tell a genuine third-party dependency (Stripe,
-GitHub's API) apart from an internal service this fleet simply hasn't indexed yet, both look
+GitHub's API) apart from an internal service this fleet hasn't indexed yet, both look
 identical here: an HTTP call whose target path matches no indexed repo's <code>exposes</code> route. Read the
 box labels yourself; you'll recognize your own internal hosts. <code>--c1</code> requires <code>--c4</code> (it has no
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=58f289e9"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -426,6 +443,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

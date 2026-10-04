@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="MCP transports and limits · contextlake docs">
 <meta name="twitter:description" content="stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -173,7 +173,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w
 <p>Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
 to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (<code>0.0.0.0</code>) only
 answers requests whose <code>Host</code> is a loopback name, because the Host check has no way to know which
-address you meant, bind the address clients will actually name (<code>--host 192.0.2.10</code>).</p>
+address you meant, bind the address clients will name (<code>--host 192.0.2.10</code>).</p>
 <p><strong>There is an access log, and it is off by default.</strong> These servers are loopback developer tools
 whose console is already a command's output, so they stay quiet, but a server holding the whole
 code graph should be able to answer "what did it serve, and to whom". <code>--access-log</code> turns on one
@@ -323,7 +323,7 @@ concurrency knob usually does, so it is worth writing down why. The bound applie
 transport, not only the network ones.</p>
 <p>The MCP SDK runs every synchronous tool body through <code>anyio.to_thread.run_sync</code> with no limiter,
 so it uses anyio's default of 40 worker threads.</p>
-<p>That is far too many here, for a specific reason. contextlake's tool bodies are graph traversals
+<p>That is too many here, for a specific reason. contextlake's tool bodies are graph traversals
 over SQLite, and a traversal is not one query. It is thousands of small round trips through the
 store.</p>
 <p>Forty threads interleaving those on one connection pool spend their time contending rather than
@@ -345,10 +345,11 @@ store round-trips as well, fewer of them but the same kind, so in an unbounded b
 same contention as the traversals do. Bounding the pool takes that away from them rather than
 making them queue for a slot.</p>
 <p><strong>Two rather than one</strong>, because a limit of one is only free when every call costs the same. Real
-editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
-traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
-the cheap path while still keeping the server far away from the width where contention dominates.
-One is a supported setting, not a trap: set it if your traffic is one caller at a time.</p>
+editor traffic mixes one slow call with many fast ones. At a limit of one, a single multi-second
+traversal holds the only token while every cheap lookup waits behind it.</p>
+<p>Two keeps a slot free for the cheap path while still keeping the server away from the width where
+contention dominates. One is a supported setting, not a trap: set it if your traffic is one caller
+at a time.</p>
 <p>Precedence is the flag, then <code>$CONTEXTLAKE_MCP_TOOL_CONCURRENCY</code>, then the default. A value that
 is not a positive integer is ignored rather than fatal, whichever of the two it came from
 (<code>resolve_tool_concurrency</code>): this is a performance knob on a server your editor launches, and
@@ -391,12 +392,13 @@ checked, and the two are kept apart for the same reason <code>kb eval --verify-c
 apart (<a href="searching-semantically#are-the-citations-real">Semantic search</a>). The answer is still returned
 either way: the guard discloses, it never withholds a result or refuses.</p>
 <p><strong>What it costs.</strong> One <code>stat()</code> per <em>distinct file</em> in a response, not per node. Only files that
-really were written after indexing escalate to a confirming read, which asks the same question
+were written after indexing escalate to a confirming read. That read asks the same question
 <code>--verify-citations</code> asks and shares its implementation. Measured on a real store, a full MCP call
 costs about <strong>1.7% more when nothing has changed</strong> and 28.6% in the worst case where every file in
-the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request
-the remainder are reported <code>stale</code> with <code>modified_after_index</code> rather than quietly passed. A
-budget nobody is told about would read as a clean bill of health for work that never ran.</p>
+the response was modified, at roughly 1.5 tokens per node.</p>
+<p>Past 32 confirming reads in one request the remainder are reported <code>stale</code> with
+<code>modified_after_index</code> rather than quietly passed. A budget nobody is told about would read as a
+clean bill of health for work that never ran.</p>
 <p><strong>"One request" means one call over the wire, including every leg of an <code>ask</code>.</strong> <code>ask</code> routes to
 several tools internally and they share one probe on purpose, so a file cited by three legs costs
 one <code>stat()</code> rather than three. The budget is shared for the same reason, which is worth knowing
@@ -462,6 +464,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

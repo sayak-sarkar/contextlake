@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -138,7 +138,7 @@ Only then does it decide:</p>
 </tbody>
 </table>
 <p><strong><code>--bundle</code> opts back in.</strong> It indexes the directory as one repository regardless of shape, and it
-is read before anything is measured, so it always works. Reach for it when you genuinely want one
+is read before anything is measured, so it always works. Reach for it when you want one
 bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
 under the directory's name, so if you later index them properly they are in the graph twice. <code>kb
 forget &lt;repo-id&gt;</code> removes a bundle you did not mean to create.</p>
@@ -227,7 +227,7 @@ and the rest of the run continues.</p>
 </tbody>
 </table>
 <p>Code is six times worse than markup, and the reason is edge count rather than node count: a
-sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is far
+sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is
 more expensive than 400 MB of XML, and a budget in raw bytes would refuse the wrong ones.</p>
 <p>Two caveats worth knowing before you tune it:</p>
 <ul>
@@ -371,7 +371,7 @@ edges it took 0.45 s.</p>
 </table>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=58f289e9"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -491,6 +491,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -74,7 +74,7 @@ can call either.</p>
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; <code>explain</code> returns advisory wiki prose, or the repo's grounded anatomy when
-no wiki exists yet). An agent that would rather not choose among the tools can just <code>ask</code>.</p>
+no wiki exists yet). An agent that would rather not choose among the tools can call <code>ask</code>.</p>
 <p><strong>Most of it needs no model.</strong> The underlying graph tools work on their own:
 <code>search_code</code>, <code>find_definition</code>, <code>find_callers</code>, <code>find_callees</code>, <code>find_dependents</code>, <code>get_node</code>,
 <code>get_neighbors</code>, <code>shortest_path</code>, <code>graph_stats</code>, <code>repo_dependencies</code>, <code>repo_flow</code>,
@@ -82,22 +82,27 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 <code>get_fleet_doc</code>, <code>get_readme</code>, <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>,
 <code>graph_health</code>, plus a <code>kb://stats</code> resource with the store counts.</p>
 <p><strong>Every list-returning tool says why a result is empty.</strong> An empty list on its own carries two
-opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
-agent that cannot see the store, so it reports the first as a fact about the codebase when the
-truth is the second. <code>get_neighbors</code> names an id that is not in the graph rather than reporting
-it as a node without edges; <code>find_definition</code> says whether a name is absent entirely or merely
-excluded by a <code>kind</code>/<code>repo</code> filter; <code>search_code</code> says whether the query's terms are indexed at
-all, and carries <code>total</code>/<code>truncated</code> like its siblings.</p>
+opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
+cannot see the store, so it reports the first as a fact about the codebase when the truth is the
+second.</p>
+<ul>
+<li><code>get_neighbors</code> names an id that is not in the graph rather than reporting it as a node without
+  edges.</li>
+<li><code>find_definition</code> says whether a name is absent entirely or merely excluded by a <code>kind</code>/<code>repo</code>
+  filter.</li>
+<li><code>search_code</code> says whether the query's terms are indexed at all, and carries <code>total</code>/<code>truncated</code>
+  like its siblings.</li>
+</ul>
 <p><strong>A node reached through an edge says how far to trust that edge.</strong> <code>find_callers</code>,
 <code>find_callees</code>, <code>find_dependents</code>, the hops of <code>shortest_path</code>, and the callers, dependents and
 subclasses answers of <code>ask</code> return each node with a <code>confidence</code> field: <code>EXTRACTED</code>, <code>INFERRED</code>
 or <code>AMBIGUOUS</code>. It is the confidence of the edge that reached the node, the same edge whose
 line is in <code>call_line</code> or <code>edge_line</code>. Check an <code>INFERRED</code> or <code>AMBIGUOUS</code> entry against that
-line before relying on it. The field is <code>null</code> where the tool names no single edge that reached
-the node: <code>get_node</code>, <code>find_definition</code>, the searches (<code>search_code</code>, <code>semantic_search</code>, and
-<code>hybrid_search</code>, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
-the first node of a path. <code>null</code> does not mean <code>EXTRACTED</code>. Clients that ignore the field keep
-working.</p>
+line before relying on it.</p>
+<p>The field is <code>null</code> where the tool names no single edge that reached the node: <code>get_node</code>,
+<code>find_definition</code>, the searches (<code>search_code</code>, <code>semantic_search</code>, and <code>hybrid_search</code>, which ranks
+graph-expanded nodes by PageRank mass rather than by one edge), and the first node of a path.
+<code>null</code> does not mean <code>EXTRACTED</code>. Clients that ignore the field keep working.</p>
 <p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote:</p>
 <ul>
 <li><code>kind="api"</code> for the reference, with its real call sites</li>
@@ -130,7 +135,7 @@ did. <code>get_fleet_doc</code> names that as the likely cause when the page is 
 embeddings exist</strong>, which takes both halves, <code>enabled = true</code> under <code>[embeddings]</code> in
 <code>kb.toml</code> (the section on its own is not enough, <code>enabled</code> defaults to <code>false</code>) and a
 <code>contextlake kb embed</code> run to create the vector store. Without both, the server starts
-fine and says so, the two tools are simply absent from the tool list, and everything
+fine and says so, the two tools are absent from the tool list, and everything
 above still works.</p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
@@ -152,13 +157,18 @@ server natively:</p>
   the graph indexes are content other people wrote, so everything it returns is evidence about
   the code, never an instruction to the agent reading it.</li>
 </ul>
-<p><strong>It never corrupts your existing files.</strong> If you already have an <code>AGENTS.md</code>, <code>CLAUDE.md</code>,
-<code>.windsurfrules</code>, or <code>.kiro/steering</code>, your content is preserved and only a clearly-delimited
-managed block is appended (and just that block is refreshed on re-runs). <code>.mcp.json</code> and
-<code>.vscode/mcp.json</code> are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like <code>.devin/</code> are left untouched. An MCP file that is not valid
-JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
-not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.</p>
+<p><strong>It never corrupts your existing files.</strong></p>
+<ul>
+<li>If you already have an <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>, or <code>.kiro/steering</code>, your
+  content is preserved and only a delimited managed block is appended (and just that block is
+  refreshed on re-runs).</li>
+<li><code>.mcp.json</code> and <code>.vscode/mcp.json</code> are merged so your other servers stay.</li>
+<li>A skill file you wrote with the same name is kept as-is.</li>
+<li>Custom layers like <code>.devin/</code> are left untouched.</li>
+<li>An MCP file that is not valid JSON (a comment or a trailing comma is enough) is left exactly as
+  it is: steer says where it did not parse, writes everything else, and exits 0. Fix the file, or
+  add the server by hand.</li>
+</ul>
 <h3 id="the-generated-agentsmd-names-the-store-it-was-built-from">The generated <code>AGENTS.md</code> names the store it was built from<a class="anchor" href="#the-generated-agentsmd-names-the-store-it-was-built-from" title="Link to this section">#</a></h3>
 <p>Near the top of the managed block:</p>
 <div class="highlight"><pre><span></span><code>Generated by `contextlake kb steer` from the knowledge store at
@@ -175,7 +185,7 @@ separately.
 down to a two-symbol one. Exit <code>0</code>, no warning, and every number in the replacement was accurate
 for the store that happened to resolve.</p>
 <p>Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
-way to tell it apart from a workspace that genuinely holds two symbols.</p>
+way to tell it apart from a workspace that holds two symbols.</p>
 <p>Naming the store puts the swap in the diff.</p>
 <h3 id="what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not">What the generated <code>.mcp.json</code> pins, and what it deliberately does not<a class="anchor" href="#what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not" title="Link to this section">#</a></h3>
 <p>An MCP client execs <code>contextlake kb serve</code> with the <em>workspace</em> as its working directory, not the
@@ -222,8 +232,8 @@ the store they should be served.</p>
 <p><strong>An ancestor-discovered config is not pinned either</strong>, for a different reason: naming a file on a
 command line is exactly the act that promotes its gated keys to trusted (see
 <a href="configuration#workspace-trust">Workspace trust</a>), so auto-pinning one would launder a file you
-never chose into a privileged one. You get a warning instead, and only in the case that actually
-bites, when the workspace sits outside that config's directory <em>and</em> that config is what set
+never chose into a privileged one. You get a warning instead, and only in the one case that
+matters, when the workspace sits outside that config's directory <em>and</em> that config is what set
 <code>store_dir</code>:</p>
 <div class="highlight"><pre><span></span><code>⚠ /path/to/workspace is outside /path/to/config-dir, so the generated MCP entry will resolve a different store than this run used (/path/to/store). Re-run with --config &lt;path&gt; to pin it (naming it on the command line is also what makes its gated keys trusted).
 </code></pre></div>
@@ -349,6 +359,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

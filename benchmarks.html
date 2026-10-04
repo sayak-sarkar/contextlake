@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Benchmarks · contextlake docs">
 <meta name="twitter:description" content="Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Benchmarks", "description": "Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.", "url": "https://sayak.in/contextlake/benchmarks", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Benchmarks", "item": "https://sayak.in/contextlake/benchmarks"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Benchmarks", "description": "Where the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools comes from, new-code grounding first, plus search, maintenance, the caveats, and how to measure it on your own repos.", "url": "https://sayak.in/contextlake/benchmarks", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Benchmarks", "item": "https://sayak.in/contextlake/benchmarks"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,27 +53,34 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p><strong>This page publishes no benchmark figures, on purpose.</strong> It used to. Those numbers were taken on
-one private estate and no script, dataset, or result file was ever committed with them, so nobody,
-including us, could re-run them. A figure you cannot reproduce is a claim wearing a number's
-clothes, so they have been removed rather than restated. What is left is the mechanism, which you
-can check by reading the code, and a procedure for measuring the effect on your own repositories,
-which is the only place a number should decide anything for you.</p>
+one private estate, and no script, dataset, or result file was ever committed with them. So
+nobody, including us, could re-run them. A figure you cannot reproduce is a claim wearing a
+number's clothes, so they have been removed rather than restated. What is left:</p>
+<ul>
+<li>the mechanism, which you can check by reading the code</li>
+<li>a procedure for measuring the effect on your own repositories, which is the only place a number
+  should decide anything for you</li>
+</ul>
 <p>There is now exactly one set of figures this project does publish, and it arrives with the script
-that produced it: <code>benchmarks/head-to-head/</code> compares graph coverage against another local
-code-graph tool over four pinned public repositories. It answers a <strong>different</strong> question from
-this page. It measures how much of a tree each tool represents, not what either saves you in
-tokens, and contextlake leads on one of the four.</p>
+that produced it: <code>benchmarks/head-to-head/</code>.</p>
+<ul>
+<li>It compares graph coverage against another local code-graph tool over four pinned public
+  repositories.</li>
+<li>It answers a <strong>different</strong> question from this page. It measures how much of a tree each tool
+  represents, not what either saves you in tokens.</li>
+<li>contextlake leads on one of the four.</li>
+</ul>
 </div>
 <h2 id="the-short-version">The short version<a class="anchor" href="#the-short-version" title="Link to this section">#</a></h2>
 <ul>
 <li><strong>Writing new code in an existing estate is where it matters most.</strong> New code in a large codebase
-  is not greenfield invention, it is mostly <em>grounding</em>: which service to call, its real signature,
+  is not greenfield invention, most of it is <em>grounding</em>: which service to call, its real signature,
   the pattern to follow, whether a utility already exists, where it plugs in. That work is almost
   entirely retrieval, and it is where hallucinated integrations and duplicated code come from.
   contextlake answers those questions from an index, cited, and matches <em>concepts</em> rather than
   keywords alone.</li>
 <li><strong>Search of every kind</strong>, semantic / knowledge search, "who calls X", "what breaks if I change X",
-  "which repo has X", is the other strong case, where brute-force is intractable or hugely wasteful
+  "which repo has X", is the other strong case, where brute-force is intractable or wasteful
   on a large fleet.</li>
 <li><strong>Assessing impact on and maintaining unfamiliar existing code</strong> benefits for the same reason:
   orientation is retrieval.</li>
@@ -237,7 +244,7 @@ round-trips.</p>
 <li>
 <p><strong>Devin (ACU).</strong> We did <strong>not</strong> measure this, and anyone quoting you an ACU number is guessing. An
   ACU is compute-time, not tokens; the plausible lever is <em>exploration steps and rework avoided</em>,
-  which is highly task-dependent. Expect a meaningful reduction on exploration-heavy,
+  which depends on the task. Expect a meaningful reduction on exploration-heavy,
   unfamiliar-fleet tasks and ≈0 on tightly-scoped generation tasks, a hypothesis to A/B test, not a
   measured claim.</p>
 </li>
@@ -253,13 +260,13 @@ round-trips.</p>
 <li>Whatever you measure will be <strong>per-query</strong>. Whole-task savings are diluted by all the non-retrieval
   tokens around them, so don't multiply a per-query ratio onto your whole bill.</li>
 <li>The <strong>baseline depends on how the agent searches.</strong> A smart, well-scoped agent that greps one known
-  repository spends far less than one that greps the whole fleet. Both are realistic; they are not
+  repository spends less than one that greps the whole fleet. Both are realistic; they are not
   the same baseline, and a ratio means nothing without saying which one you used.</li>
 <li>contextlake adds a <strong>fixed schema cost per session</strong> and can be net-negative if an agent calls it
   for questions it doesn't help with.</li>
 <li><strong>Semantic recall is good, not perfect</strong>, the built-in CPU embedder is fast, not frontier-grade.
   Results are cited and advisory; verify against the source.</li>
-<li>Fleet size and the mix of questions your team actually asks dominate everything here. A result from
+<li>Fleet size and the mix of questions your team asks dominate everything here. A result from
   someone else's estate does not transfer to yours, which is the other half of why this page no
   longer prints one.</li>
 </ul>
@@ -267,7 +274,7 @@ round-trips.</p>
 <p>The comparison is straightforward to run, and yours is the one worth having:</p>
 <ol>
 <li>Index your repos (<code>contextlake bootstrap</code> or <code>contextlake kb index --workspace …</code>).</li>
-<li>Pick a handful of representative questions your team actually asks, and write them down before
+<li>Pick a handful of representative questions your team asks, and write them down before
    you look at any output. Post-hoc question selection is how benchmarks flatter themselves.</li>
 <li>For each question, capture <strong>both</strong> sides.</li>
 </ol>
@@ -278,7 +285,7 @@ round-trips.</p>
      then read.</li>
 </ul>
 <ol start="4">
-<li>Tokenize both with the <strong>same</strong> tokenizer, the one your model actually uses.</li>
+<li>Tokenize both with the <strong>same</strong> tokenizer, the one your model uses.</li>
 </ol>
 <p>Record the tokenizer and the contextlake version next to the numbers. Both change. A figure
    without them ages into fiction, which is what happened to the numbers this page used to
@@ -287,7 +294,7 @@ round-trips.</p>
 <li>Add the one-off schema cost once per session, not once per query.</li>
 </ol>
 <p>The point is not a single magic number, it is to see, on <em>your</em> codebase and <em>your</em> question mix,
-where the retrieval cost actually lives.</p>
+where the retrieval cost lives.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="explained">contextlake, explained</a></li>
@@ -343,6 +350,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

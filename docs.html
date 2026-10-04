@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -49,9 +49,9 @@
     <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake</h1><p class="doc-sub">A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <h2 id="why-contextlake">Why contextlake<a class="anchor" href="#why-contextlake" title="Link to this section">#</a></h2>
-<p>Your AI assistant is only as good as what it can actually see. Point it at one file and
+<p>Your AI assistant is only as good as what it can see. Point it at one file and
 it's sharp; ask it about <em>the system</em>, which service calls this API, who depends on that
-package, where a symbol is really defined across dozens of repos, and it starts guessing.</p>
+package, where a symbol is defined across dozens of repos, and it starts guessing.</p>
 <p><strong>contextlake gives your tools the real source to read.</strong> It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
 editor over <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP<span class="ext-arrow" aria-hidden="true">↗</span></a>. Everything runs locally and offline,
@@ -250,7 +250,7 @@ builds. It works offline. Tabs cover:</p>
 <h2 id="local-by-default-and-you-can-prove-it">Local by default, and you can prove it<a class="anchor" href="#local-by-default-and-you-can-prove-it" title="Link to this section">#</a></h2>
 <p>There is no telemetry, no analytics, no usage reporting and no crash reporting in
 contextlake. There is nothing to opt out of, because there is nothing there.</p>
-<p>That is easy for any project to type, so there is a switch that makes it checkable:</p>
+<p>Any project can type that, so there is a switch that makes it checkable:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--offline<span class="w"> </span>kb<span class="w"> </span>index<span class="w">         </span><span class="c1"># or CONTEXTLAKE_OFFLINE=1</span>
 </code></pre></div>
 <p><code>--offline</code> refuses every outbound connection <strong>at the socket</strong>, so it covers not only
@@ -259,7 +259,7 @@ download embedding or language models. Loopback stays open, because the MCP serv
 dashboard, the graph viewer and a local Ollama all live there.</p>
 <p>Verified with the network blocked, on a fresh store: <code>kb index</code>, <code>kb query</code>, <code>kb embed</code>,
 semantic search, and <code>kb graph</code> (whose HTML output contains no remote references at all).
-The commands that genuinely need the network say so and stop rather than failing obscurely:
+The commands that need the network say so and stop rather than failing obscurely:
 mirroring from a forge refuses up front, and <code>bootstrap</code> skips the mirror stage and builds
 the knowledge layer from what is already on disk.</p>
 <p><strong>Two caveats, because they are the honest ones.</strong> The bundled embedding model is
@@ -269,7 +269,7 @@ LLM tier is only as local as the provider you point it at: the built-in <code>op
 model runs on your machine once cached, while <code>--llm openai</code> is a hosted API and <code>--offline</code>
 will and should block it.</p>
 <p>The boundary is worth stating plainly: this is an in-process guard, so <code>git</code> and <code>glab</code>
-subprocesses have their own sockets. That is exactly why the mirror stages refuse up
+subprocesses have their own sockets. That is why the mirror stages refuse up
 front under <code>--offline</code> instead of relying on the guard. Everything above is covered by
 tests that try to escape it, including one that goes out through <code>urllib</code> rather than
 through any of our own helpers.</p>
@@ -299,11 +299,11 @@ from working:</p>
 <li><strong>Config keys.</strong> Removing a key or changing its default in a way that changes what a run
   does.</li>
 </ul>
-<p><strong><code>PARSER_VERSION</code> is deliberately not on that list</strong>, and the distinction is worth stating
-because it looks like it should be. Bumping it does not stop anything working: your store
-stays readable, every command keeps running, and nothing you wrote needs editing. What it
-means is that repositories indexed by an older parser now carry <em>less</em> than the current one
-would extract, so <code>kb index</code> rebuilds them instead of reporting them unchanged. <code>doctor</code>
+<p><strong><code>PARSER_VERSION</code> is deliberately not on that list</strong>, even though it looks like it should
+be. Bumping it does not stop anything working: your store stays readable, every command keeps
+running, and nothing you wrote needs editing.</p>
+<p>A bump means that repositories indexed by an older parser now carry <em>less</em> than the current
+one would extract, so <code>kb index</code> rebuilds them instead of reporting them unchanged. <code>doctor</code>
 reports that as an advisory, not a fault, because a parser bump would otherwise turn
 every upgrade into a red check for something that is working correctly.</p>
 <h2 id="documentation">Documentation<a class="anchor" href="#documentation" title="Link to this section">#</a></h2>
@@ -397,6 +397,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

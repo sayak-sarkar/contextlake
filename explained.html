@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="contextlake, explained · contextlake docs">
 <meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -198,7 +198,7 @@ rather than a constraint.</p>
 <h3 id="caching-bounded-by-memory-not-by-entry-count">Caching bounded by memory, not by entry count<a class="anchor" href="#caching-bounded-by-memory-not-by-entry-count" title="Link to this section">#</a></h3>
 <p>A small decision with a measurement attached, and a good example of the house style.</p>
 <p>The shard cache is capped by <strong>estimated resident bytes</strong>, not by number of entries. Parsed
-objects cost far more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
+objects cost more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
 shard: 27.6 MB on disk, about 363 MB resident. Roughly 13 times
 (<code>src/contextlake/kb/store/shards.py</code>).</p>
 <p>An entry-count cap of, say, 256 would pin dozens of large shards in memory before it ever fired.
@@ -221,12 +221,15 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 <p>Config is discovered by walking up from the current directory, the way git finds <code>.git</code>. That is
 the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
 classes of setting are therefore honoured only from a file you named with <code>--config</code> or from your
-own home config: the ones that make contextlake <em>run a program</em> (<code>[llm] command</code>/<code>args</code>,
-<code>provider = "cli"</code>, <code>[[sources]] command</code>/<code>args</code>/<code>mcp_command</code>), the ones that choose <em>where a
-request goes</em> (<code>base_url</code>, <code>[[sources]] mcp</code>), and the ones that name <em>which environment variable
-holds the credential</em> sent with it (<code>api_key_env</code>, <code>[[sources]] token_env</code>, plus <code>auth</code> and <code>user</code>,
-which choose how that credential is sent, and <code>auth_dir</code>, the directory an OAuth refresh token is
-written to).</p>
+own home config:</p>
+<ul>
+<li>the ones that make contextlake <em>run a program</em> (<code>[llm] command</code>/<code>args</code>, <code>provider = "cli"</code>,
+  <code>[[sources]] command</code>/<code>args</code>/<code>mcp_command</code>)</li>
+<li>the ones that choose <em>where a request goes</em> (<code>base_url</code>, <code>[[sources]] mcp</code>)</li>
+<li>the ones that name <em>which environment variable holds the credential</em> sent with it
+  (<code>api_key_env</code>, <code>[[sources]] token_env</code>, plus <code>auth</code> and <code>user</code>, which choose how that credential
+  is sent, and <code>auth_dir</code>, the directory an OAuth refresh token is written to)</li>
+</ul>
 <p>The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
 capability arriving in two pieces.</p>
@@ -343,7 +346,7 @@ exists to fix.</p>
 <p><code>kb impact</code> is where you see it pay off: incoming edges are walked highest-confidence first, so
 when a result is truncated at <code>--limit</code>, what you kept is the trustworthy part rather than an
 arbitrary slice.</p>
-<h3 id="what-an-inferred-edge-is-actually-worth">What an inferred edge is actually worth<a class="anchor" href="#what-an-inferred-edge-is-actually-worth" title="Link to this section">#</a></h3>
+<h3 id="what-an-inferred-edge-is-worth">What an inferred edge is worth<a class="anchor" href="#what-an-inferred-edge-is-worth" title="Link to this section">#</a></h3>
 <p>Rather than describing inference as accurate, the SQL extractor's inferred foreign keys are scored
 against a hand-labelled corpus on every CI run: <strong>precision 1.00 and recall 0.69</strong> against
 13 ground-truth edges (<code>tests/kb/fixtures/sql/</code>, scored by
@@ -374,7 +377,7 @@ the second.</p>
 </ul>
 <p>Self-review is not independent. A model cannot see its own failure modes. A stronger judge
    moved those verdicts without making them reliable.
-4. <strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and very large
+4. <strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and large
    repositories get a page per subsystem rather than one page claiming to cover everything.</p>
 <p>In run order rather than in the order above, because the deterministic gate is deliberately in
 front of the council:</p>
@@ -486,7 +489,7 @@ described.</p>
 <li><a href="installing">Install and upgrade</a>, if you have decided to try it</li>
 <li><a href="internals">Architecture and internals</a>, the same machinery at implementation depth</li>
 <li><a href="asking-the-graph">Ask the graph</a>, the questions this page promised you can ask</li>
-<li><a href="indexing-the-code-graph">Index the code graph</a>, what the graph actually contains</li>
+<li><a href="indexing-the-code-graph">Index the code graph</a>, what the graph contains</li>
 </ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="benchmarks"><span>Benchmarks</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="installing"><span>Installing and upgrading</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
@@ -510,7 +513,7 @@ described.</p>
 </ul>
 </li>
 <li><a href="#confidence-and-provenance">Confidence and provenance</a><ul>
-<li><a href="#what-an-inferred-edge-is-actually-worth">What an inferred edge is actually worth</a></li>
+<li><a href="#what-an-inferred-edge-is-worth">What an inferred edge is worth</a></li>
 </ul>
 </li>
 <li><a href="#generated-prose-and-how-it-is-kept-honest">Generated prose, and how it is kept honest</a></li>
@@ -593,6 +596,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Writing style · contextlake docs">
 <meta name="twitter:description" content="The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Writing style", "description": "The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.", "url": "https://sayak.in/contextlake/style-guide", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Writing style", "item": "https://sayak.in/contextlake/style-guide"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Writing style", "description": "The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.", "url": "https://sayak.in/contextlake/style-guide", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Writing style", "item": "https://sayak.in/contextlake/style-guide"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -91,10 +91,18 @@ friend.</em></p>
   this guide.</li>
 </ul>
 <h2 id="enforcement">Enforcement<a class="anchor" href="#enforcement" title="Link to this section">#</a></h2>
-<p>Consistency survives many editing sessions only if it's checked. A small lint config (Vale or equivalent)
-encodes the mechanical rules (banned hype words, "click here", filler words, em-dashes, "allows you to"),
-so style is a build gate like <code>ruff</code>, not a review argument. The site's <code>de_emdash</code> step stays as a
-backstop, but source should already be em-dash-free.</p>
+<p>Two tests run on every push, so the mechanical rules are a build gate like <code>ruff</code>, not a review
+argument:</p>
+<ul>
+<li><code>tests/test_docs_plain_language.py</code> checks every tracked Markdown file outside <code>tests/</code>,
+  except the CHANGELOG, for intensifiers, downtoners, filler, hype words, "allows you to",
+  "please", and "click here" link text, and fails any prose paragraph over 90 words. A use
+  that is correct on purpose goes in its allowlist with a reason.</li>
+<li><code>tests/test_no_emdash_in_docs.py</code> checks for em-dashes.</li>
+</ul>
+<p>Both skip fenced code blocks, because those hold captured output. A person reviews the rest of
+the checklist below. The site's <code>de_emdash</code> step stays as a backstop, but source should already
+be em-dash-free.</p>
 <h2 id="the-page-review-checklist">The page review checklist<a class="anchor" href="#the-page-review-checklist" title="Link to this section">#</a></h2>
 <p>Run this against every page before it ships.</p>
 <ol>
@@ -162,6 +170,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

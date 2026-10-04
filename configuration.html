@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Configuration · contextlake docs">
 <meta name="twitter:description" content="Config-file precedence and the full settings reference for the mirror layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -188,10 +188,11 @@ it are the same capability in two pieces. <code>[embeddings]</code> is on by def
 default setup at a host the file author picked.</p>
 <p>When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the <code>provider</code> that
-wins the merge for <code>[llm]</code> or <code>[embeddings]</code> is <code>openai</code> or <code>anthropic</code> and that value came from a
-discovered file, the tier is off for that run and a second warning says so. Dropping
-<code>base_url = "http://127.0.0.1:1234/v1"</code> on a <code>provider = "openai"</code> tier would otherwise fall back to
-<code>api.openai.com</code> and send your <code>OPENAI_API_KEY</code> there, from a file that asked for loopback.</p>
+wins the merge for <code>[llm]</code> or <code>[embeddings]</code> is <code>openai</code> or <code>anthropic</code>, and that value came from a
+discovered file, the tier is off for that run. A second warning says so.</p>
+<p>Dropping <code>base_url = "http://127.0.0.1:1234/v1"</code> on a <code>provider = "openai"</code> tier would otherwise
+fall back to <code>api.openai.com</code> and send your <code>OPENAI_API_KEY</code> there, from a file that asked for
+loopback.</p>
 <p>Three things clear it:</p>
 <ul>
 <li><strong>Delete the <code>[llm]</code> or <code>[embeddings]</code> keys from the file the warning names</strong>, and set them in
@@ -258,10 +259,14 @@ inside that tree sent the variable's value there.</p>
 <p>A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
 the file. If nothing you chose sets that key instead (the global file, <code>--config</code>, or the
 <code>GITLAB_HOST</code> env var for <code>gitlab_host</code>), the forge token is also off for that run, and a second
-warning says so. Dropping the key alone would fall back to a built-in default: a <code>gitlab_host</code> meant
-for your own instance would fall back to <code>gitlab.com</code>, and your token would go there. With the token
-off, GitLab enumeration uses <code>glab</code> and its own login, other platforms see public repositories only,
-and clone and fetch run without the token.</p>
+warning says so.</p>
+<p>Dropping the key alone would fall back to a built-in default: a <code>gitlab_host</code> meant for your own
+instance would fall back to <code>gitlab.com</code>, and your token would go there. With the token off:</p>
+<ul>
+<li>GitLab enumeration uses <code>glab</code> and its own login.</li>
+<li>Other platforms see public repositories only.</li>
+<li>Clone and fetch run without the token.</li>
+</ul>
 <p><code>work_dir</code>, <code>gitlab_group</code> and <code>platform</code> keep working from a local file. They are all that
 <code>contextlake init --local</code> writes. To clear the warning, delete the keys from the file it names and
 set them in <code>~/.contextlake.ini</code> (or export <code>GITLAB_HOST</code>), or pass <code>--config</code> naming that file.</p>
@@ -637,6 +642,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

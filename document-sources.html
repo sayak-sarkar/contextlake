@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Document sources and RAG · contextlake docs">
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -98,7 +98,7 @@ The per-source equivalent is <code>for_repo = "group/app"</code> on a <code>[[so
 <span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.txt&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="pdfs-the-text-layer-and-nothing-pretending-to-be-more">PDFs: the text layer, and nothing pretending to be more<a class="anchor" href="#pdfs-the-text-layer-and-nothing-pretending-to-be-more" title="Link to this section">#</a></h3>
-<p>Design docs, RFCs and architecture decisions genuinely arrive as PDFs, so the <code>files</code> source reads
+<p>Design docs, RFCs and architecture decisions arrive as PDFs, so the <code>files</code> source reads
 them as well. <code>*.pdf</code> is one of its default globs, and the text comes from the PDF's <strong>text layer</strong>
 via <code>pypdf</code>, which rides in its own extra so the core stays a single dependency:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-pdf]&quot;</span>
@@ -169,7 +169,7 @@ install first</strong> and nothing is downloaded at runtime: as offline as image
 the slides, the terminal and the UI.</p>
 <p><strong><code>[kb-transcribe]</code></strong> adds the spoken track via a local speech model. That model is fetched
 once on first use and cached under <code>~/.contextlake/models</code>, the same way <code>[kb-local]</code>'s
-embedder is -- a weaker offline promise than frame OCR's, which is exactly why it is a
+embedder is -- a weaker offline promise than frame OCR's, which is why it is a
 separate extra rather than folded into the first. <code>CONTEXTLAKE_WHISPER_MODEL</code> picks the size;
 the default is the smallest useful one, because a first run downloads it.</p>
 <p><strong>The work is bounded, not the file.</strong></p>
@@ -186,7 +186,7 @@ every hit would drown the transcript in its own echo.</p>
   carries <code>transcribed = false</code>, and one line per run names the extra. "The meeting discussed
   nothing" and "nobody installed the speech model" must never look the same.</li>
 <li><strong>No audio track at all.</strong> A screen recording with no microphone is ordinary, so it is
-  reported as exactly that and not as a failed transcription.</li>
+  reported as a recording with no audio, not as a failed transcription.</li>
 <li><strong>Nothing readable either way.</strong> Reported and stored as nothing, never as an empty document.</li>
 </ul>
 <p>Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
@@ -295,13 +295,20 @@ codebase-derived terms into the tool's arguments. This is what powers query-driv
 tool is called with the templated arguments during enrichment, returning documents grounded to the
 codebase's query context.</p>
 <p><strong>Additional <code>[[sources]]</code> keys.</strong> Beyond the per-type keys above, connector and ingest sources also
-accept: <code>auth_dir</code>, an isolated OAuth-cache directory (set a distinct one per Atlassian org so their
-<code>mcp-remote</code> caches never collide); <code>mcp_command</code>, a local stdio MCP command to launch instead of a remote
-endpoint (e.g. <code>"figma-mcp --stdio"</code> or <code>"slack-mcp --stdio"</code>); <code>hosts</code>, the list of hostnames a Figma/Slack
-source claims links for (defaults to <code>["figma.com"]</code>/<code>["slack.com"]</code>); <code>verify_tool</code>, the Slack MCP tool
-name used for reachability checks (default <code>conversations_info</code>); <code>history_tool</code>, the Slack MCP tool name
-used to read a channel's messages (default <code>conversations_history</code>); <code>group</code>, a GitLab group prefixed to each
-repo's path to form the project id; and <code>per_page</code>, the API page size (default <code>50</code>).</p>
+accept:</p>
+<ul>
+<li><code>auth_dir</code>: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
+  <code>mcp-remote</code> caches never collide.</li>
+<li><code>mcp_command</code>: a local stdio MCP command to launch instead of a remote endpoint (for example
+  <code>"figma-mcp --stdio"</code> or <code>"slack-mcp --stdio"</code>).</li>
+<li><code>hosts</code>: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
+  <code>["figma.com"]</code>, <code>["slack.com"]</code> and <code>["zendesk.com"]</code>).</li>
+<li><code>verify_tool</code>: the Slack MCP tool name used for reachability checks (default <code>conversations_info</code>).</li>
+<li><code>history_tool</code>: the Slack MCP tool name used to read a channel's messages (default
+  <code>conversations_history</code>).</li>
+<li><code>group</code>: a GitLab group prefixed to each repo's path to form the project id.</li>
+<li><code>per_page</code>: the API page size (default <code>50</code>).</li>
+</ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="connecting-and-enriching">Connecting and enriching</a></li>
@@ -350,6 +357,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

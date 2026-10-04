@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -135,7 +135,7 @@ available:</p>
   (<code>acme/team/api</code>) and against the local path (<code>team/api</code>), so either form works.</li>
 </ul>
 <h3 id="matching-a-repo-whose-name-contains-or">Matching a repo whose name contains <code>*</code> or <code>?</code><a class="anchor" href="#matching-a-repo-whose-name-contains-or" title="Link to this section">#</a></h3>
-<p>There is no escape character. A pattern like <code>odd*name</code> matches a repo literally called
+<p>There is no escape character. A pattern like <code>odd*name</code> matches a repo named
 <code>odd*name</code>, but it also matches <code>oddXname</code>, so it cannot pick out the first one on its
 own.</p>
 <p>Use a single-character set instead, which treats the wildcard as an ordinary character:</p>
@@ -190,10 +190,13 @@ available as its own command:</p>
 <p><strong>Workspaces holding more than one group.</strong> Local paths are relative to the group, so a clone of
 <code>alpha/team/api</code> and one of <code>beta/team/api</code> both land at <code>team/api</code> and the path cannot say which
 group a repo came from. <code>status</code>, <code>verify</code>, and the branch-switch pass therefore read each clone's
-<code>origin</code> remote and leave repos from other groups out of scope: they are counted under <strong>Other
-groups</strong> rather than reported as <strong>Extra</strong>, and the branch pass does not try to switch them. Only a
-repo whose origin positively names a different group drops out. A clone with no origin, or one whose
-config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.</p>
+<code>origin</code> remote and leave repos from other groups out of scope:</p>
+<ul>
+<li>They are counted under <strong>Other groups</strong> rather than reported as <strong>Extra</strong>.</li>
+<li>The branch pass does not try to switch them.</li>
+</ul>
+<p>Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
+whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.</p>
 <h3 id="mirror-fetch-fetch-every-project-you-can-see"><code>mirror fetch</code>: fetch every project you can see<a class="anchor" href="#mirror-fetch-fetch-every-project-you-can-see" title="Link to this section">#</a></h3>
 <p>Retrieves all repositories from the configured group / org / workspace / owner and caches them
 locally.</p>
@@ -221,15 +224,20 @@ locally.</p>
 </ul>
 <p>How each repo is cloned, with <code>clone_method = auto</code> (the default):</p>
 <ol>
-<li><strong>With a platform token set</strong>, meaning <code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code>,
+<li>
+<p><strong>With a platform token set</strong>, meaning <code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code>,
    <code>GITEA_TOKEN</code>, or whatever <code>token_env</code> names: contextlake clones with plain <code>git</code> and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into <code>ps</code> output or <code>.git/config</code>. The header is scoped to the
-   forge's own host (<code>https://gitlab.com/</code>, your <code>gitlab_host</code>, <code>https://github.com/</code>, and so on),
-   so git sends it there and nowhere else. <code>update</code> and <code>branches</code> use the same scoped header, so
-   a clone in the workspace whose remote is on another host never receives your forge token.</li>
-<li><strong>Without a token, and with glab installed</strong>: <code>glab repo clone</code>, using glab's own auth. This
-   is a GitLab-only path.</li>
+   in the URL, so it cannot leak into <code>ps</code> output or <code>.git/config</code>.</p>
+<p>The header is scoped to the forge's own host (<code>https://gitlab.com/</code>, your <code>gitlab_host</code>,
+<code>https://github.com/</code>, and so on), so git sends it there and nowhere else. <code>update</code> and
+<code>branches</code> use the same scoped header, so a clone in the workspace whose remote is on another
+host never receives your forge token.</p>
+</li>
+<li>
+<p><strong>Without a token, and with glab installed</strong>: <code>glab repo clone</code>, using glab's own auth. This
+   is a GitLab-only path.</p>
+</li>
 <li><strong>Otherwise</strong>: plain <code>git clone</code> over HTTPS.</li>
 </ol>
 <p>Set <code>clone_method = git</code> or <code>clone_method = glab</code> to force one path.</p>
@@ -347,8 +355,8 @@ other repository goes to <code>main</code>.</p>
 <li><code>audit</code> - Report repo health &amp; age (skip with <code>--no-audit</code>)</li>
 </ol>
 <h3 id="mirror-audit-repo-health-age-report"><code>mirror audit</code>: repo health &amp; age report<a class="anchor" href="#mirror-audit-repo-health-age-report" title="Link to this section">#</a></h3>
-<p>Scans every local clone and reports which repos are effectively empty and how old/active
-they are. Runs automatically at the end of <code>sync</code>, and in <code>bootstrap</code> immediately after the mirror
+<p>Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
+and how old or active they are. Runs automatically at the end of <code>sync</code>, and in <code>bootstrap</code> immediately after the mirror
 step (stage 2 of 8, before the knowledge layer is built), or on demand:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w">                       </span><span class="c1"># summary to console + report to &lt;cache_dir&gt;/repo_audit.json</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w"> </span>--report<span class="w"> </span>./audit.json<span class="w"> </span><span class="c1"># choose where the per-repo JSON + .csv are written</span>
@@ -418,7 +426,7 @@ The only <em>setting</em> that blocks an <code>update</code> is the one that cat
   rebases.</li>
 </ul>
 <p>Neither is configurable, because neither is about protecting your work. In both cases there is
-simply no fast-forward to perform.</p>
+no fast-forward to perform.</p>
 <p>Both are reported per repo as skips, with the reason. So a green run is not a promise that every
 clean repo moved. See <a href="console-output">Console output</a>.</p>
 <p align="center">
@@ -596,6 +604,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

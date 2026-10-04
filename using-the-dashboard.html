@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Using the dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,7 +55,7 @@ build step, one command and it opens in your browser. Read-only by default; see
 <a href="#12-chat">§12</a> to ask it questions directly.</p>
 <blockquote>
 <p>New here? Skim <a href="quickstart">QUICKSTART</a> first. For what the graph/wiki/search
-tiers actually do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
+tiers do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
 </blockquote>
 <pre class="mermaid">flowchart LR
   G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
@@ -211,7 +211,7 @@ the fall-through for a resource type no keyword list claims).</p>
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
 <strong>Call sequence</strong> card instead (§7).</p>
 <p>No new extraction happens. Each tab renders data <code>index</code> already collected.</p>
-<p>A format is enabled only when the repo actually has the relevant node kind. <strong>Classes</strong> stays
+<p>A format is enabled only when the repo has the relevant node kind. <strong>Classes</strong> stays
 disabled for a repo with no classes, for instance. That comes from the same anatomy census the
 repo page's Kinds card shows, not a separate check.</p>
 <p>The raw Mermaid source sits below the rendered diagram with a one-click copy, ready to paste
@@ -219,7 +219,7 @@ into a PR or a design doc.</p>
 <p><strong>A repo too large to draw in one slice</strong> auto-narrows to its largest module instead of
 showing a truncated whole-repo tangle, and if that module is <em>itself</em> still too large,
 it keeps narrowing into that module's own largest child, one level at a time, until the
-view fits (or there's genuinely nowhere further to go). A breadcrumb trail (<code>Whole repo
+view fits (or there's nowhere further to go). A breadcrumb trail (<code>Whole repo
 › src › sensors › tests</code>) shows the path taken; click any earlier crumb to widen back
 out, or pick a different child from the narrow-further control to explore a sibling.</p>
 <p>Live-only (not part of a <code>--site</code> export, same as MCP console/Settings below), Mermaid
@@ -330,7 +330,7 @@ graph alone. Add <code>--llm</code> and the same tab shows the prose sections li
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
 subsystem's own page, or the <strong>Whole repo</strong> option to go back, without leaving the tab. The dropdown
-only ever lists subsystems that actually have a generated page on disk, so it never offers an
+only ever lists subsystems that have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no <code>--site</code> export).</p>
 <p>A subsystem pane says the same thing in words: wiki pages are generated per repo, not
 per subsystem, and the card below it covers the whole repo. There is no module-scoped
@@ -358,7 +358,7 @@ tab at all.</p>
 <p>Two read-only panels, live-only (not part of a <code>--site</code> export; both describe this
 machine/process, not the graph itself):</p>
 <p><strong>MCP</strong>: the live tool catalog for <code>contextlake kb serve</code> against this store (introspected
-from the real server, so it can never drift from what's actually exposed), plus a
+from the real server, so it can never drift from what's exposed), plus a
 copyable <code>.mcp.json</code> / <code>.vscode/mcp.json</code> snippet for wiring an editor to it.</p>
 <p><strong>Settings</strong>: the active <code>kb.toml</code> at a glance: store path/size/schema version, the
 mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
@@ -597,6 +597,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

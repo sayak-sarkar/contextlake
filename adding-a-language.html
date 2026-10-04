@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -87,7 +87,7 @@ because it is the reason this list is ordered the way it is.</p>
 the tree-sitter runtime plus per-language grammar packages". Add your grammar to that list:</p>
 <div class="highlight"><pre><span></span><code><span class="s2">&quot;tree-sitter-&lt;lang&gt;&gt;=X.Y&quot;</span><span class="err">,</span>
 </code></pre></div>
-<p>Pin the floor to the version whose <code>language()</code> entry point you actually import against, not to a
+<p>Pin the floor to the version whose <code>language()</code> entry point you import against, not to a
 house number. The existing pins vary for that reason. Nothing else needs editing: the <code>kb-full</code> extra
 is defined in terms of <code>kb</code>, so it inherits the grammar, and <code>make install</code> runs the same
 <code>pip install -e ".[dev,kb]"</code> that CI does.</p>
@@ -96,7 +96,7 @@ is defined in terms of <code>kb</code>, so it inherits the grammar, and <code>ma
 map to one id, the way <code>.kt</code> and <code>.kts</code> both map to <code>kotlin</code>.</p>
 <p>If your language is a superset of one already covered, reusing the existing id is a legitimate choice
 that costs nothing else on this list. <code>.h</code>, <code>.cu</code> and <code>.cuh</code> are all read with the C++ grammar for
-exactly that reason, and the in-table comments explain what each of those decisions does and does not
+that reason, and the in-table comments explain what each of those decisions does and does not
 capture. Write the same kind of note if you make the same kind of call.</p>
 <p>Nothing downstream needs an edit. The extension filter behind <code>kb.toml</code>'s <code>languages</code> setting, the
 router that decides which extractor owns a file, and the walk that stamps <code>SourceFile.lang</code> all read
@@ -174,14 +174,14 @@ your language up for free.</p>
 definitions. Name resolution is repo-wide and name-based, so without the grouping a Python
 <code>conn.close()</code> matched a JavaScript <code>close()</code>; the comment above the table records the measurement
 that forced it, 282 false positives on one real repo, precision 1 in 282.</p>
-<p>Add your language to a group <strong>only if it genuinely interoperates</strong> with the ones already in it.</p>
+<p>Add your language to a group <strong>only if it interoperates</strong> with the ones already in it.</p>
 <p>The existing groups are:</p>
 <ul>
 <li><code>js</code>: JavaScript, TypeScript, TSX</li>
 <li><code>c</code>: C and C++</li>
 <li><code>jvm</code>: Java, Kotlin, Scala</li>
 </ul>
-<p>A language absent from the table is its own group. That is exactly what you want for a language
+<p>A language absent from the table is its own group. That is what you want for a language
 that shares a runtime with nothing else, and it is why Python, Go, Rust, C#, Ruby and PHP are all
 absent.</p>
 <p>Getting this wrong in the permissive direction is the expensive error. The false edges it creates are
@@ -300,7 +300,7 @@ topics work for your language the moment its files are indexed.</p>
 and <code>module</code> of its own. (The five member-symbol kinds, <code>field</code>, <code>macro</code>, <code>typedef</code>, <code>enum_constant</code>
 and <code>global_variable</code>, come from a separate C and C++ pass, not from <code>_DEF_TYPES</code>.) Mapping into that
 first set is the cheap path and the normal one.</p>
-<p>If you genuinely need a new kind, add a row to <code>KIND_REGISTRY</code> in
+<p>If you need a new kind, add a row to <code>KIND_REGISTRY</code> in
 <code>src/contextlake/kb/kinds.py</code>.</p>
 <p><code>KindSpec</code> is a frozen dataclass where <strong>no field has a default</strong>. That is deliberate, and it
 buys two things:</p>
@@ -340,10 +340,11 @@ shared definition, containment or resolution logic.</p>
 <p><strong>The retrieval evaluation set</strong>, <code>examples/fixtures/golden-queries.json</code> and
 <code>examples/fixtures/eval-repo/</code>. This set is scored on every pull request against a declared hit-rate
 floor, and it deliberately does not cover every language: Kotlin and Scala are both supported and both
-absent. Adding fixture symbols without adding matching queries dilutes the corpus and can push the
-score under the floor, and one of its tests requires a perfect hit rate for single-word queries.
-Representing your language there is a separate, deliberate change that ratchets the floor up in the
-same commit. It is not part of adding a language.</p>
+absent.</p>
+<p>Adding fixture symbols without adding matching queries dilutes the corpus and can push the score under
+the floor, and one of its tests requires a perfect hit rate for single-word queries. Representing your
+language there is a separate, deliberate change that ratchets the floor up in the same commit. It is
+not part of adding a language.</p>
 <h2 id="verify-it">Verify it<a class="anchor" href="#verify-it" title="Link to this section">#</a></h2>
 <p>Run these in order. The first three are offline and touch nothing outside the repo and a scratch
 directory.</p>
@@ -359,7 +360,7 @@ directory.</p>
 <p>This is the cheapest check and the one that separates the three most common failures from each other:
 it proves the <code>pyproject.toml</code> entry installed, that your <code>_language</code> branch names the right entry
 point, and that your query compiles against <strong>that</strong> grammar version.</p>
-<p>The compile step is genuinely strict, which is why it is worth a contributor's time. A node type your
+<p>The compile step is strict, which is why it is worth a contributor's time. A node type your
 grammar does not have fails at construction, naming the row and column:</p>
 <div class="highlight"><pre><span></span><code>tree_sitter.QueryError: Invalid node type at row 0, column 1: no_such_node_type
 </code></pre></div>
@@ -387,7 +388,7 @@ inherits [&#39;Base&#39;]
 <p>Read all four streams. <code>class</code> and <code>method</code> prove your <code>_DEF_TYPES</code> mapping and the method promotion;
 the <code>module</code> node proves <code>@import</code>; and the two lists prove <code>@call</code> and <code>@base</code> captured names with
 <strong>no</strong> spurious extras. Package segments and generic type arguments appearing in <code>inherits</code> are the
-two things to look for, because they are exactly what the normalisation strips.</p>
+two things to look for, because they are what the normalisation strips.</p>
 <h3 id="the-test-suite">The test suite<a class="anchor" href="#the-test-suite" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/kb/test_kb_parse.py<span class="w"> </span>tests/kb/test_kind_registry_parity.py<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>tests/kb/test_languages_config.py<span class="w"> </span>tests/kb/test_kb_parse_golden.py<span class="w"> </span><span class="se">\</span>
@@ -482,7 +483,7 @@ variable, which meant <code>_parser()</code> was inserting parser objects into t
 only while no language shares a name with a kind. Run the <code>KIND_REGISTRY</code> check from the
 <a href="#prerequisites">prerequisites</a> before you settle on an id.</p>
 <h3 id="the-interop-family-is-the-expensive-one-to-get-wrong">The interop family is the expensive one to get wrong<a class="anchor" href="#the-interop-family-is-the-expensive-one-to-get-wrong" title="Link to this section">#</a></h3>
-<p>Putting your language in a family it does not really interoperate with produces <code>INFERRED</code> <code>calls</code> and
+<p>Putting your language in a family it does not interoperate with produces <code>INFERRED</code> <code>calls</code> and
 <code>inherits</code> edges to same-named symbols in another language, and <code>INFERRED</code> reads as fact to everything
 downstream. Omitting the language self-isolates it, which is always safe. See step 6.</p>
 <h3 id="aliasing-a-grammar-is-three-edits-not-one">Aliasing a grammar is three edits, not one<a class="anchor" href="#aliasing-a-grammar-is-three-edits-not-one" title="Link to this section">#</a></h3>
@@ -501,7 +502,7 @@ that reads as fact. If your query or any helper you add meets a shape it does no
 visible rather than returning nothing.</p>
 <h2 id="worked-example-kotlin">Worked example: Kotlin<a class="anchor" href="#worked-example-kotlin" title="Link to this section">#</a></h2>
 <p>Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
-makes it a useful template: it shows which parts are genuinely required.</p>
+makes it a useful template: it shows which parts are required.</p>
 <h3 id="the-mandatory-set-in-the-order-above">The mandatory set, in the order above<a class="anchor" href="#the-mandatory-set-in-the-order-above" title="Link to this section">#</a></h3>
 <table>
 <thead>
@@ -647,6 +648,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

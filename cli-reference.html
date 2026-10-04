@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -145,11 +145,12 @@ behind is all there is.</p>
 </ul>
 <p><code>--dry-run</code> looks global too, and is not. It belongs to the 8 <code>mirror</code> commands, <code>bootstrap</code>,
 <code>doctor</code> and <code>kb forget</code>. Any other command refuses it with exit <code>2</code> and runs nothing, wherever the
-flag is typed (<code>contextlake --dry-run kb index</code> as much as <code>contextlake kb index --dry-run</code>), and
-the message names the commands that do take it. <code>bootstrap --dry-run</code> prints the stages a real run
-would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
-cache, metrics or history file is written (a <code>--log-file</code> you ask for still is). <code>mirror sync
---dry-run</code> previews what the mirror stages would change.</p>
+flag is typed (<code>contextlake --dry-run kb index</code> as much as <code>contextlake kb index --dry-run</code>). The
+message names the commands that do take it.</p>
+<p><code>bootstrap --dry-run</code> prints the stages a real run would perform and runs none of them: no mirror,
+no audit, no index, no model call, and no store, cache, metrics or history file is written (a
+<code>--log-file</code> you ask for still is). <code>mirror sync --dry-run</code> previews what the mirror stages would
+change.</p>
 <h3 id="what-offline-covers-and-what-it-does-not">What <code>--offline</code> covers, and what it does not<a class="anchor" href="#what-offline-covers-and-what-it-does-not" title="Link to this section">#</a></h3>
 <p>It blocks at the socket, inside this process. Every client here inherits the block: <code>urllib</code>,
 <code>requests</code>, <code>httpx</code>, and the model downloaders inside the embedding and LLM libraries. Loopback
@@ -493,9 +494,9 @@ which is a rotating file that outlives the process.</p>
 <p><strong><code>check</code> reads the key from standard input only.</strong> A key typed on a command line lands in
 shell history and shows in <code>ps</code> to every account on the machine, so
 <code>contextlake kb keys check &lt;key&gt;</code> is refused with exit 2. A terminal with nothing piped in
-is refused the same way, rather than waiting for end-of-file behind a blank screen. <code>check</code>
-opens no socket and sends no request: it compares the digest against the key file, which is
-what lets it answer when the server is the thing that is down. It reports what the record
+is refused the same way, rather than waiting for end-of-file behind a blank screen.</p>
+<p><code>check</code> opens no socket and sends no request: it compares the digest against the key file, which
+is what lets it answer when the server is the thing that is down. It reports what the record
 stores, not what a server would allow.</p>
 <p><strong>The checksum in a key is a typo filter, not a security control.</strong> It catches a key
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
@@ -629,13 +630,17 @@ leaves a parseable file.</p>
 date, <code>never</code> or <code>-</code>. Read <code>policy</code>, <code>expires_at</code> and <code>last_used_at</code> instead.
 <code>last_used_state</code> is the sibling that keeps a null from meaning two things: <code>not-recorded</code>
 (no usage file), <code>no-rows</code> (a file with no call for this key) or <code>measured</code>.</p>
-<p><strong>Exit codes.</strong> <code>0</code> on success, including <code>list</code> on a key file that does not exist yet, and
-including <code>usage</code> for a key that was issued and never used. <code>1</code>
-on an id that is not in the file, on a key file that cannot be read, and on <code>check</code> of a
-key that is malformed, unknown, revoked or expired. <code>2</code> on a missing positional or a bad
-flag value. Note the asymmetry with <code>kb source remove</code>, which treats a missing name as a
-no-op at <code>0</code>: <code>revoke</code> on an unknown id fails, because an admin scripting a revocation
-reads the exit code and "I revoked nothing" must not read as success.</p>
+<p><strong>Exit codes.</strong></p>
+<ul>
+<li><code>0</code> on success, including <code>list</code> on a key file that does not exist yet, and including <code>usage</code>
+  for a key that was issued and never used.</li>
+<li><code>1</code> on an id that is not in the file, on a key file that cannot be read, and on <code>check</code> of a
+  key that is malformed, unknown, revoked or expired.</li>
+<li><code>2</code> on a missing positional or a bad flag value.</li>
+</ul>
+<p><code>revoke</code> on an unknown id fails, because an admin scripting a revocation reads the exit code and
+"I revoked nothing" must not read as success. Note the asymmetry with <code>kb source remove</code>, which
+treats a missing name as a no-op at <code>0</code>.</p>
 <p>No <code>kb keys</code> verb opens the store database, so every one of them runs on a machine with no
 index built. <code>usage</code> and the <code>LAST USED</code> column read the usage file beside the store by
 path, which opens nothing. <code>kb keys list</code> is the first command to run after a server
@@ -716,6 +721,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

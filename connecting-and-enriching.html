@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -70,35 +70,46 @@ queries connected sources with codebase-derived terms and stores what comes back
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
 <p><code>connect</code> enriches the graph with external context. Five connectors ship, sharing one seam:</p>
 <ul>
-<li><strong>Atlassian</strong>: links each repo to the Jira issues and Confluence pages it references. Issue keys
+<li>
+<p><strong>Atlassian</strong>: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated. <strong>Per-symbol attribution</strong>: an issue key found in a specific symbol's own docstring, or
-  in the git-blame commit message on its defining line, becomes a <code>tracked_by</code> edge sourced from that
-  <em>symbol</em> (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
-  radius page's <strong>Ticket</strong> breadcrumb, distinct from the repo-level <strong>Links</strong> crumb.</li>
-<li><strong>Figma</strong>: links repos to the design files they reference, classifying <code>figma.com</code> URLs to a stable file
+  authenticated.</p>
+<p><strong>Per-symbol attribution</strong>: an issue key found in a specific symbol's own docstring, or in the
+git-blame commit message on its defining line, becomes a <code>tracked_by</code> edge sourced from that
+<em>symbol</em> (not just the repo). The same batched JQL call confirms it. The dashboard blast radius
+page shows it as the <strong>Ticket</strong> breadcrumb, distinct from the repo-level <strong>Links</strong> crumb.</p>
+</li>
+<li>
+<p><strong>Figma</strong>: links repos to the design files they reference, classifying <code>figma.com</code> URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
-  frame/page names) is merged in on top of the URL-slug title, which is always the fallback.</li>
+  frame/page names) is merged in on top of the URL-slug title, which is always the fallback.</p>
+</li>
 <li><strong>GitLab</strong>: links each repo to its open <strong>merge requests and issues</strong> (read through your authenticated
   <code>glab</code>).</li>
-<li><strong>Zendesk</strong>: links repos to the support tickets and Help Center articles about them, classifying
+<li>
+<p><strong>Zendesk</strong>: links repos to the support tickets and Help Center articles about them, classifying
   <code>*.zendesk.com</code> URLs to a ticket id (<code>repo --discussed_in--&gt; issue</code>) or an article id
-  (<code>repo --documented_by--&gt; document</code>). <strong>It makes no network call</strong>, which makes it the one connector
-  that runs inside the offline boundary rather than as an opt-in exception to it: Zendesk's API needs a
-  per-instance token, and the association is already stated by the link itself. The cost is that a ticket
-  node carries no subject line -- an article gets its title from the URL slug, a ticket has none to get,
-  and inventing one would state something the graph cannot support. Node ids carry the instance
-  subdomain, because ticket numbers restart at 1 per instance. <code>hosts</code> is configurable for an instance
-  served from a vanity domain; the default claims only <code>*.zendesk.com</code>, since claiming an arbitrary host
-  would take links belonging to another connector.</li>
-<li><strong>Slack</strong>: links repos to the channels and messages that discuss them, classifying <code>slack.com</code> permalinks
+  (<code>repo --documented_by--&gt; document</code>).</p>
+<p><strong>It makes no network call</strong>, which makes it the one connector that runs inside the offline
+boundary rather than as an opt-in exception to it. Zendesk's API needs a per-instance token, and
+the association is already stated by the link itself. The cost is that a ticket node carries no
+subject line. An article gets its title from the URL slug; a ticket has none to get, and
+inventing one would state something the graph cannot support.</p>
+<p>Node ids carry the instance subdomain, because ticket numbers restart at 1 per instance.
+<code>hosts</code> is configurable for an instance served from a vanity domain. The default claims only
+<code>*.zendesk.com</code>, since claiming an arbitrary host would take links belonging to another
+connector.</p>
+</li>
+<li>
+<p><strong>Slack</strong>: links repos to the channels and messages that discuss them, classifying <code>slack.com</code> permalinks
   (<code>/archives/&lt;channel&gt;</code> and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
   MCP servers, so the verification tool name is configurable (<code>verify_tool</code>, default <code>conversations_info</code>),
   as is the tool used to read a channel's recent messages (<code>history_tool</code>, default <code>conversations_history</code>).
-  Any code symbol those messages mention by name is linked straight to the channel.</li>
+  Any code symbol those messages mention by name is linked straight to the channel.</p>
+</li>
 </ul>
 <p>Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
@@ -109,28 +120,30 @@ manage connectors without touching the config file. They rewrite <code>kb.toml</
 and work alongside hand-editing if you mix approaches.</p>
 <p>The commands:</p>
 <ul>
-<li><strong><code>contextlake kb source add [NAME] [--type TYPE]</code></strong>: add a connector. The name is a positional
+<li>
+<p><strong><code>contextlake kb source add [NAME] [--type TYPE]</code></strong>: add a connector. The name is a positional
   argument, not a flag (<code>contextlake kb source add jira --type atlassian</code>). Run it in a terminal without
-  a name or a <code>--type</code> and it asks for them. It offers every type this build ships, the five connectors
+  a name or a <code>--type</code> and it asks for them. It offers every type this build ships: the five connectors
   (<code>atlassian</code>, <code>figma</code>, <code>gitlab</code>, <code>zendesk</code>, <code>slack</code>) plus the built-in ingest sources (<code>files</code>, <code>web</code>,
-  <code>api</code>, <code>graphql</code>, <code>mcp</code>) and any installed plugin, proposes defaults, and writes the entry to <code>kb.toml</code>.
-  Without a terminal, a missing name or type exits 2 and prints the form to use. <code>--mcp URL</code> sets the MCP
-  server URL and <code>--local</code> targets a project-level file (<code>--help</code> shows all). <code>--set KEY=VALUE</code>
-  (repeatable) writes any other connector option <code>kb.toml</code> accepts.</li>
-</ul>
+  <code>api</code>, <code>graphql</code>, <code>mcp</code>) and any installed plugin. It proposes defaults and writes the entry to
+  <code>kb.toml</code>. Without a terminal, a missing name or type exits 2 and prints the form to use.</p>
+<p><code>--mcp URL</code> sets the MCP server URL and <code>--local</code> targets a project-level file (<code>--help</code>
+shows all). <code>--set KEY=VALUE</code> (repeatable) writes any other connector option <code>kb.toml</code> accepts.</p>
 <p><strong>A credential never goes on the command line.</strong> Store the name of the environment variable that holds
-  it, and contextlake reads the value from your environment at run time: <code>--set token_env=MY_TOKEN</code>.
-  <code>add</code> refuses a literal secret (a key such as <code>token</code>, <code>api_key</code>, <code>password</code> or <code>secret</code>) from <code>--set</code>
-  and from <code>--from-stdin</code>, and exits 2 without writing anything. <strong><code>--from-stdin KEY</code></strong> reads the value of
-  one non-secret option from stdin instead of the command line, so it stays out of shell history:
-  <code>printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp</code>.</p>
-<ul>
-<li><strong><code>contextlake kb source list</code></strong>: show all configured connectors (the effective merged config from
+it, and contextlake reads the value from your environment at run time: <code>--set token_env=MY_TOKEN</code>.
+<code>add</code> refuses a literal secret (a key such as <code>token</code>, <code>api_key</code>, <code>password</code> or <code>secret</code>) from <code>--set</code>
+and from <code>--from-stdin</code>, and exits 2 without writing anything. <strong><code>--from-stdin KEY</code></strong> reads the value of
+one non-secret option from stdin instead of the command line, so it stays out of shell history:
+<code>printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp</code>.</p>
+</li>
+<li>
+<p><strong><code>contextlake kb source list</code></strong>: show all configured connectors (the effective merged config from
   <code>~/.contextlake/kb.toml</code>, the nearest ancestor directory's <code>.contextlake.kb.toml</code> if one exists, and
   the built-in defaults), with
-  reachability status.</li>
+  reachability status.</p>
+</li>
 <li><strong><code>contextlake kb source test SOURCE</code></strong>: verify that a specific connector works. Reaches its API, reads
-  credentials from the configured env var, lists available items. Shows you exactly what each source will
+  credentials from the configured env var, lists available items. Shows what each source will
   ingest without running a full <code>connect</code>.</li>
 <li><strong><code>contextlake kb source enable|disable SOURCE</code></strong>: toggle a connector on/off in the config by name, so you
   can pause one without deleting it.</li>
@@ -251,13 +264,17 @@ carries on with the rest:</p>
 <p>The exit code is non-zero when any repository was skipped, the same verdict <code>kb index</code> gives a
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.</p>
-<p>A source that could not be reached is not an empty answer. A repo whose source failed keeps the
-links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
-code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
-A source that answers with no results still clears the repo's previous ones. With several
-sources, one that stays unreachable keeps every affected repo's previous results, so the other
-sources' results for those repos wait too, and the run exits 1 until that source is fixed or
-removed from the config.</p>
+<p>A source that could not be reached is not an empty answer.</p>
+<ul>
+<li>A repo whose source failed keeps the links, nodes and vectors from its last complete run, and
+  the run names it in a warning.</li>
+<li>The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
+  results.</li>
+<li>A source that answers with no results still clears the repo's previous ones.</li>
+<li>With several sources, one that stays unreachable keeps every affected repo's previous results,
+  so the other sources' results for those repos wait too. The run exits 1 until that source is
+  fixed or removed from the config.</li>
+</ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="indexing-the-code-graph">Index the code graph</a></li>
@@ -346,6 +363,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>

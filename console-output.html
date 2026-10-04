@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b68ad261">
-<link rel="stylesheet" href="tokens.css?v=b68ad261">
-<link rel="stylesheet" href="docs.css?v=b68ad261">
-<link rel="stylesheet" href="cmdk.css?v=b68ad261">
+<link rel="stylesheet" href="fonts.css?v=58f289e9">
+<link rel="stylesheet" href="tokens.css?v=58f289e9">
+<link rel="stylesheet" href="docs.css?v=58f289e9">
+<link rel="stylesheet" href="cmdk.css?v=58f289e9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -128,7 +128,7 @@ different from <code>⊘</code> skip.</p>
 </ul>
 <p>There is one note case today: a freshly created repo with no commits. <code>update</code> and <code>branches</code>
 cannot resolve <code>HEAD</code> there, because there is no history to read. Nothing failed and nothing was
-skipped. There is simply nothing to sync yet.</p>
+skipped. There is nothing to sync yet.</p>
 <p>Multi-stage commands (<code>bootstrap</code> and <code>sync</code>) also print <code>▶ &lt;Phase&gt;</code> section headers (e.g. <code>▶ Mirror
 repositories from GitLab</code>, <code>▶ Audit repositories (health &amp; age)</code>) so a long run reads as sections rather
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
@@ -162,7 +162,7 @@ letter, not a shortened prefix) does get a suggestion, scoped to that command's 
 Did you mean: --workspace?
 </code></pre></div>
 <p>A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
-reporting it as simply unrecognized:</p>
+reporting it as unrecognized:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake bootstrap --local
 ✗ &#39;--local&#39; isn&#39;t a flag on &#39;bootstrap&#39;
 
@@ -246,7 +246,7 @@ lines, with no bar artefacts and no <code>\r</code> clutter, because the bar nev
   lines instead of repainting in place.</li>
 <li><strong>Both streams on one terminal</strong>, the default interactive case: the bar and detail lines
   interleave as the run scrolls, so the bar reprints below each new detail line rather than
-  repainting perfectly in place.</li>
+  repainting in place.</li>
 </ul>
 <p>Redirect stdout to a file if you want the bar as a single live line with the detail captured
 separately.</p>
@@ -263,34 +263,43 @@ separately.</p>
   embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, <strong><code>0.00B</code> means nothing was downloaded, everything was already
   cached</strong>. It fires once per run at model load, not per repo.</li>
-<li><strong><code>✓ &lt;repo&gt;: written (score 0.98)</code></strong>, a wiki page passed the review council and was saved. <strong><code>⚠ &lt;repo&gt;:
-  rejected by council (score 0.31)</code></strong>, it did not clear the accept threshold; the indented <code>-
-  accuracy/completeness/clarity: ...</code> lines are the per-lens reasons. <strong><code>unparseable review</code></strong> means the
-  model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
-  lenses are excluded from the mean rather than counted as zero. A rejection that also says
-  <strong><code>N reviewer(s) returned nothing parseable</code></strong> tells you how many lenses abstained, when that count
-  equals your <code>council_size</code> on every page, suspect a <em>misconfigured reviewer</em> (missing API key, review
-  CLI not on PATH) rather than genuinely weak pages: a reviewer that returns nothing rejects everything
-  at score 0.0, which otherwise looks identical to a very strict council. A capable backend
-  (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>) produces far fewer rejections, see
+<li><strong><code>✓ &lt;repo&gt;: written (score 0.98)</code></strong>, a wiki page passed the review council and was saved.</li>
+<li><strong><code>⚠ &lt;repo&gt;: rejected by council (score 0.31)</code></strong>, it did not clear the accept threshold. The
+  indented <code>- accuracy/completeness/clarity: ...</code> lines are the per-lens reasons. A capable backend
+  (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>) produces fewer rejections, see
   <a href="model-providers">Model providers</a>.</li>
+<li><strong><code>unparseable review</code></strong> means the model returned a review the council couldn't score (common
+  with the tiny built-in 0.5B model). Those lenses are excluded from the mean rather than counted
+  as zero.</li>
+<li><strong><code>N reviewer(s) returned nothing parseable</code></strong>, on a rejection, tells you how many lenses
+  abstained. When that count equals your <code>council_size</code> on every page, suspect a <em>misconfigured
+  reviewer</em> (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
+  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
+  council.</li>
 <li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> as the last line before it
-  opens the socket -- <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code> for <code>http</code>, or the
-  same with an <code>/sse</code> suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing
-  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
-  on your screen means a server that is coming up.
-  Both URLs include the path because neither transport is served at the bare root. Note that probing
-  the root will not tell you that: the bearer-token middleware wraps the whole app, so an
-  unauthenticated request to any path, the root included, answers <code>401</code> rather than <code>404</code>.
-  <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
+  opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
+  For <code>http</code> the line is <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code>; for <code>sse</code>
+  it is the same with an <code>/sse</code> suffix. <code>stdio</code> transport has no address to report and stays quiet
+  on that line.<ul>
+<li>It is last on purpose. A start that refuses prints the refusal and no URL, so a URL on your
+  screen means a server that is coming up.</li>
+<li>Both URLs include the path because neither transport is served at the bare root. Probing the
+  root will not tell you that. The bearer-token middleware wraps the whole app, so an
+  unauthenticated request to any path, the root included, answers <code>401</code> rather than <code>404</code>.</li>
+</ul>
+</li>
 <li><strong>The network transports print their bearer token just above that URL, on stderr.</strong> A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
-  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. It comes first because the credential is decided first: the same step can refuse the
-  start, and a refusal has to reach you before anything says the server is up. Deliberately <em>not</em> through the logger: <code>--log-file</code> would otherwise leave the token on
-  disk after the process is gone. Pin your own with <code>CONTEXTLAKE_MCP_TOKEN</code> and the line acknowledges
-  it instead of echoing the value. <code>stdio</code> prints no token because it needs none. See
-  <a href="serving-over-mcp">Serve</a>.</li>
+  you cannot use. So the token is said once, next to the address it belongs to, rather than left to
+  be discovered. <code>stdio</code> prints no token because it needs none. See <a href="serving-over-mcp">Serve</a>.<ul>
+<li>It comes first because the credential is decided first. The same step can refuse the start,
+  and a refusal has to reach you before anything says the server is up.</li>
+<li>It is deliberately <em>not</em> sent through the logger: <code>--log-file</code> would otherwise leave the token
+  on disk after the process is gone.</li>
+<li>Pin your own with <code>CONTEXTLAKE_MCP_TOKEN</code> and the line acknowledges it instead of echoing the
+  value.</li>
+</ul>
+</li>
 <li><strong><code>graph --overview</code> on an empty store warns instead of reporting silent success.</strong> It still writes the
   (empty) artifact, but now says <code>⚠ Wrote html (0 nodes, 0 edges) -&gt; ...: the store is empty.</code> followed by
   a hint to run <code>contextlake kb index</code> first, instead of logging the same success line it would for a
@@ -335,13 +344,13 @@ progress still shows.</p>
 </table>
 <p><strong>The long-running commands are the exception, and deliberately so.</strong> <code>kb serve</code>,
 <code>kb dashboard --serve</code>, <code>kb graph --serve</code> and <code>kb graph --site --serve</code> are meant to be ended by
-you, and each says <code>Ctrl-C to stop</code> on the line announcing where it listens (<code>kb serve --transport
-stdio</code> is the one with no address to announce). Stopping them that way is the documented ending
-rather than an interruption: each catches the interrupt, prints its own stop
-line (<code>Stopping MCP server</code>, <code>Stopping dashboard server</code>, <code>Stopping graph server</code>,
-<code>Stopping graph site server</code>) and exits <code>0</code>. The <code>--watch</code> loops on <code>kb index</code>, <code>kb embed</code> and
-<code>kb connect</code> end the same way, finishing normally rather than aborting. <code>130</code> is for a command
-that was interrupted mid-job.</p>
+you. Each says <code>Ctrl-C to stop</code> on the line announcing where it listens (<code>kb serve --transport
+stdio</code> is the one with no address to announce).</p>
+<p>Stopping them that way is the documented ending rather than an interruption. Each catches the
+interrupt, prints its own stop line (<code>Stopping MCP server</code>, <code>Stopping dashboard server</code>,
+<code>Stopping graph server</code>, <code>Stopping graph site server</code>) and exits <code>0</code>. The <code>--watch</code> loops on
+<code>kb index</code>, <code>kb embed</code> and <code>kb connect</code> end the same way, finishing normally rather than aborting.
+<code>130</code> is for a command that was interrupted mid-job.</p>
 <p><code>kb serve</code> adds one code the rest of the CLI never uses:</p>
 <table>
 <thead>
@@ -374,7 +383,7 @@ cleanup never ran. See <a href="mcp-transports#stopping-it">Stopping it</a>.</p>
 <p>Three things worth knowing about <code>1</code>:</p>
 <ul>
 <li><strong>A partial run counts as a failure.</strong> Some repositories synced and others did not is still <code>1</code>,
-  which is the point: before that, a completely broken sync looked identical to a healthy one.
+  which is the point: before that, a broken sync looked identical to a healthy one.
   <code>sync</code> aggregates across all its stages, so one failed clone fails the run, and <code>bootstrap</code>
   counts a failed mirror stage exactly as it counts a failed knowledge-layer stage.</li>
 <li><strong>Deliberate skips are not failures.</strong> Already up to date, a protected working branch, a
@@ -439,6 +448,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=b68ad261"></script>
+<script defer src="cmdk.js?v=58f289e9"></script>
 </body>
 </html>
