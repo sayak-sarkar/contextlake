@@ -184,3 +184,13 @@ def test_the_recommender_reads_what_the_producer_wrote(tmp_path):
     rec = R.recommend(history.read_runs(str(hist)))
     assert rec.measured is True
     assert rec.samples == 3
+
+
+def test_a_dry_run_records_no_history(tmp_path):
+    """A dry run measures nothing. `mirror update --dry-run` used to append a 0.03 s
+    "incremental" run, which the interval recommender then read as a real one."""
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    result = _run_cli(tmp_path, ["mirror", "update", "--dry-run", "--work-dir", str(workspace)])
+    assert result.returncode == 0, result.stderr
+    assert _history_files(tmp_path) == []

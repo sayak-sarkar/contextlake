@@ -2837,8 +2837,10 @@ def _run(argv, metrics):
     cache_file, _ = get_cache_paths(config)
     # A manual `mirror sync` is a real measurement of what a scheduled sync
     # would cost, so it counts. Skipped if a scheduled parent already named the
-    # file, so one run can never be recorded twice.
-    if args.command in _HISTORY_COMMANDS and not metrics.history_path:
+    # file, so one run can never be recorded twice. A dry run measures nothing: it
+    # used to land as a 0.03 s run that the interval recommender then read.
+    if (args.command in _HISTORY_COMMANDS and not metrics.history_path
+            and not _is_dry_run(config)):
         metrics.track_history(schedule_history.history_path(config))
     log(f"Cache file: {cache_file}")
     if config.get("dry_run", "false").lower() == "true":
