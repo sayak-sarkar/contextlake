@@ -75,11 +75,13 @@ Two more look similar and are not:
 
 `--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
 `doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
-flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`), and
-the message names the commands that do take it. `bootstrap --dry-run` prints the stages a real run
-would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
-cache, metrics or history file is written (a `--log-file` you ask for still is). `mirror sync
---dry-run` previews what the mirror stages would change.
+flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`). The
+message names the commands that do take it.
+
+`bootstrap --dry-run` prints the stages a real run would perform and runs none of them: no mirror,
+no audit, no index, no model call, and no store, cache, metrics or history file is written (a
+`--log-file` you ask for still is). `mirror sync --dry-run` previews what the mirror stages would
+change.
 
 ### What `--offline` covers, and what it does not
 
@@ -284,9 +286,10 @@ which is a rotating file that outlives the process.
 **`check` reads the key from standard input only.** A key typed on a command line lands in
 shell history and shows in `ps` to every account on the machine, so
 `contextlake kb keys check <key>` is refused with exit 2. A terminal with nothing piped in
-is refused the same way, rather than waiting for end-of-file behind a blank screen. `check`
-opens no socket and sends no request: it compares the digest against the key file, which is
-what lets it answer when the server is the thing that is down. It reports what the record
+is refused the same way, rather than waiting for end-of-file behind a blank screen.
+
+`check` opens no socket and sends no request: it compares the digest against the key file, which
+is what lets it answer when the server is the thing that is down. It reports what the record
 stores, not what a server would allow.
 
 **The checksum in a key is a typo filter, not a security control.** It catches a key
@@ -408,13 +411,17 @@ date, `never` or `-`. Read `policy`, `expires_at` and `last_used_at` instead.
 `last_used_state` is the sibling that keeps a null from meaning two things: `not-recorded`
 (no usage file), `no-rows` (a file with no call for this key) or `measured`.
 
-**Exit codes.** `0` on success, including `list` on a key file that does not exist yet, and
-including `usage` for a key that was issued and never used. `1`
-on an id that is not in the file, on a key file that cannot be read, and on `check` of a
-key that is malformed, unknown, revoked or expired. `2` on a missing positional or a bad
-flag value. Note the asymmetry with `kb source remove`, which treats a missing name as a
-no-op at `0`: `revoke` on an unknown id fails, because an admin scripting a revocation
-reads the exit code and "I revoked nothing" must not read as success.
+**Exit codes.**
+
+- `0` on success, including `list` on a key file that does not exist yet, and including `usage`
+  for a key that was issued and never used.
+- `1` on an id that is not in the file, on a key file that cannot be read, and on `check` of a
+  key that is malformed, unknown, revoked or expired.
+- `2` on a missing positional or a bad flag value.
+
+`revoke` on an unknown id fails, because an admin scripting a revocation reads the exit code and
+"I revoked nothing" must not read as success. Note the asymmetry with `kb source remove`, which
+treats a missing name as a no-op at `0`.
 
 No `kb keys` verb opens the store database, so every one of them runs on a machine with no
 index built. `usage` and the `LAST USED` column read the usage file beside the store by

@@ -133,10 +133,12 @@ default setup at a host the file author picked.
 
 When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
-wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic` and that value came from a
-discovered file, the tier is off for that run and a second warning says so. Dropping
-`base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise fall back to
-`api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for loopback.
+wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`, and that value came from a
+discovered file, the tier is off for that run. A second warning says so.
+
+Dropping `base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise
+fall back to `api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for
+loopback.
 
 Three things clear it:
 
@@ -194,10 +196,14 @@ inside that tree sent the variable's value there.
 A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
 the file. If nothing you chose sets that key instead (the global file, `--config`, or the
 `GITLAB_HOST` env var for `gitlab_host`), the forge token is also off for that run, and a second
-warning says so. Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant
-for your own instance would fall back to `gitlab.com`, and your token would go there. With the token
-off, GitLab enumeration uses `glab` and its own login, other platforms see public repositories only,
-and clone and fetch run without the token.
+warning says so.
+
+Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant for your own
+instance would fall back to `gitlab.com`, and your token would go there. With the token off:
+
+- GitLab enumeration uses `glab` and its own login.
+- Other platforms see public repositories only.
+- Clone and fetch run without the token.
 
 `work_dir`, `gitlab_group` and `platform` keep working from a local file. They are all that
 `contextlake init --local` writes. To clear the warning, delete the keys from the file it names and

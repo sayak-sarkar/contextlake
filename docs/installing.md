@@ -249,12 +249,18 @@ Each configured source gets its own line, and the mark says which of three thing
 the exit code.
 
 **Read the output, do not gate on the exit code alone.** `doctor` exits non-zero only when the
-environment cannot support a run at all: FTS5 missing, `git` missing, or the config and store
-unreadable. Everything else is reported and does not fail the command, including **shard
-staleness** and the optional tiers (`glab`, embeddings, the ANN index, the wiki model). That
-matches `kb lint`, which deliberately keeps staleness out of its exit code for the same reason:
-a stale shard is a thing to act on, not a broken install, and failing a build over one would
-make the check unusable on any workspace mid-migration.
+environment cannot support a run at all:
+
+- FTS5 missing,
+- `git` missing, or
+- the config and store unreadable.
+
+Everything else is reported and does not fail the command, including **shard staleness** and
+the optional tiers (`glab`, embeddings, the ANN index, the wiki model).
+
+That matches `kb lint`, which deliberately keeps staleness out of its exit code for the same
+reason: a stale shard is a thing to act on, not a broken install, and failing a build over one
+would make the check unusable on any workspace mid-migration.
 
 The consequence is worth stating plainly, because it is the opposite of what an exit code
 usually implies: **a store full of stale shards prints a red mark for each and still exits 0.**
@@ -426,10 +432,11 @@ The flags worth knowing when you write one of these by hand:
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
   "no matching distribution" message. Name the one native package when you still want a source
-  fallback for everything else; `--only-binary :all:` is the blunt version, for the row above where
-  a build has already failed and you do not know which package broke. `doctor --fix` always scopes
-  to a single package and never uses `:all:`, because forbidding a source fallback everywhere lets
-  one missing wheel anywhere fail the whole install.
+  fallback for everything else.
+- **`--only-binary :all:`** is the blunt version, for the row above where a build has already
+  failed and you do not know which package broke. `doctor --fix` always scopes to a single
+  package and never uses `:all:`, because forbidding a source fallback everywhere lets one
+  missing wheel anywhere fail the whole install.
 
 ## See also
 

@@ -322,11 +322,12 @@ from working:
 - **Config keys.** Removing a key or changing its default in a way that changes what a run
   does.
 
-**`PARSER_VERSION` is deliberately not on that list**, and the distinction is worth stating
-because it looks like it should be. Bumping it does not stop anything working: your store
-stays readable, every command keeps running, and nothing you wrote needs editing. What it
-means is that repositories indexed by an older parser now carry *less* than the current one
-would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
+**`PARSER_VERSION` is deliberately not on that list**, even though it looks like it should
+be. Bumping it does not stop anything working: your store stays readable, every command keeps
+running, and nothing you wrote needs editing.
+
+A bump means that repositories indexed by an older parser now carry *less* than the current
+one would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
 reports that as an advisory, not a fault, because a parser bump would otherwise turn
 every upgrade into a red check for something that is working correctly.
 

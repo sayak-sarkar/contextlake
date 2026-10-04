@@ -205,12 +205,14 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
 the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
 classes of setting are therefore honoured only from a file you named with `--config` or from your
-own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
-`provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
-request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
-holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`,
-which choose how that credential is sent, and `auth_dir`, the directory an OAuth refresh token is
-written to).
+own home config:
+
+- the ones that make contextlake *run a program* (`[llm] command`/`args`, `provider = "cli"`,
+  `[[sources]] command`/`args`/`mcp_command`)
+- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`)
+- the ones that name *which environment variable holds the credential* sent with it
+  (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`, which choose how that credential
+  is sent, and `auth_dir`, the directory an OAuth refresh token is written to)
 
 The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same

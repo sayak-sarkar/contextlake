@@ -103,14 +103,15 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 Output is chosen with `--format`:
 
 - **`html`** (default), a single **self-contained, offline** page (cytoscape.js is inlined, so it opens
-  from `file://` with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
-  by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
-  the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
-  `breadthfirst`, `circle`, `grid`, `dagre`) in the page, set the initial one with `--layout`. `dagre` is
-  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
-  an HTML card instead of a dot. `--open` launches the
-  browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
-  the single-file export.
+  from `file://` with no network, handy air-gapped / behind a proxy). `--open` launches the browser;
+  `--cdn` produces a small online-only file instead, and applies to `--site` as well as the
+  single-file export.
+    - Nodes are coloured by kind and sized by degree. Edges are styled by relation/confidence, with
+      their labels hidden until you click a node (so the view stays readable).
+    - Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`, `breadthfirst`, `circle`,
+      `grid`, `dagre`) in the page. Set the initial one with `--layout`.
+    - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
+      renders each node as an HTML card instead of a dot.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
@@ -124,30 +125,38 @@ Output is chosen with `--format`:
   isn't re-entered) instead of hanging.
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
   (`if reading.status == Received: reading.status = Validated`) become transitions, labeled with the method that
-  makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
-  comparison on the same field, so a diagram never claims a transition the code doesn't establish
-  (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake kb graph --repo
-  demo/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
-  Multiple entities in view each get their own composite block; a single-entity view renders flat.
+  makes them. Best with `--repo`, like `classdiagram`:
+  `contextlake kb graph --repo demo/app --format statediagram`.
+    - Only *guarded* transitions are emitted. The source state must be established by a preceding
+      comparison on the same field, so a diagram never claims a transition the code doesn't establish
+      (an honest undercount, not a guess).
+    - A `--name`/`--node` seed can reach the state nodes (via the file that declares them) but not
+      their transitions past the view's `--hops`. Use `--repo` for the full picture.
+    - Multiple entities in view each get their own composite block; a single-entity view renders
+      flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
   `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
-  `contextlake kb graph --repo demo/app --format erdiagram`. No attribute/column data (the extractor
-  only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
-  relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
-  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
-  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
-  text anywhere) renders an empty diagram with guidance, not a bug.
+  `contextlake kb graph --repo demo/app --format erdiagram`.
+    - No attribute/column data (the extractor only captures `CREATE TABLE`/`VIEW` names and FK
+      targets), so entities render as bare boxes with relationship lines, not column lists.
+    - A `REFERENCES` clause always points child-row to parent-row, so the parent is drawn on the
+      "one" side of the notation.
+    - **Only sees raw `.sql` DDL**. An ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM
+      model classes, no literal `CREATE TABLE` text anywhere) renders an empty diagram with
+      guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
-  definitions grouped by an inferred category
-  (network/compute/storage/database/security/other/module; a resource type matching none of the
-  keyword lists lands in `other` and gets its own subgraph),
-  from the HCL extractor (see [Index & Code Graph](indexing-the-code-graph.md)): `contextlake kb graph --repo
-  demo/app --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
-  `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
-  type-name interpolation references draw the connections between resources. A single-category view
-  renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
-  parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
+  definitions grouped by an inferred category, from the HCL extractor (see
+  [Index & Code Graph](indexing-the-code-graph.md)):
+  `contextlake kb graph --repo demo/app --format deploymentdiagram`.
+    - The categories are network/compute/storage/database/security/other/module. Category is a
+      keyword heuristic over the resource type prefix (for example `aws_security_group.web` ->
+      security). A resource type matching none of the keyword lists lands in `other` and gets its
+      own subgraph.
+    - `depends_on` edges reconstructed from `var.`/`module.`/type-name interpolation references
+      draw the connections between resources. A single-category view renders flat (no subgraph
+      wrapper).
+    - **Terraform-only** (HCL is the only IaC language the extractor parses): a repo with no `.tf`
+      files renders an empty diagram with guidance, not a bug.
 - **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
   [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
   demo/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,

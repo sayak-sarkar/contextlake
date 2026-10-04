@@ -150,10 +150,13 @@ A fully synced workspace shows `0` for both.
 **Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
 `alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
 group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
-`origin` remote and leave repos from other groups out of scope: they are counted under **Other
-groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
-repo whose origin positively names a different group drops out. A clone with no origin, or one whose
-config cannot be read, is still reported as before, so a stray checkout never goes quiet.
+`origin` remote and leave repos from other groups out of scope:
+
+- They are counted under **Other groups** rather than reported as **Extra**.
+- The branch pass does not try to switch them.
+
+Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
+whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -193,10 +196,13 @@ How each repo is cloned, with `clone_method = auto` (the default):
 1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
    `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into `ps` output or `.git/config`. The header is scoped to the
-   forge's own host (`https://gitlab.com/`, your `gitlab_host`, `https://github.com/`, and so on),
-   so git sends it there and nowhere else. `update` and `branches` use the same scoped header, so
-   a clone in the workspace whose remote is on another host never receives your forge token.
+   in the URL, so it cannot leak into `ps` output or `.git/config`.
+
+    The header is scoped to the forge's own host (`https://gitlab.com/`, your `gitlab_host`,
+    `https://github.com/`, and so on), so git sends it there and nowhere else. `update` and
+    `branches` use the same scoped header, so a clone in the workspace whose remote is on another
+    host never receives your forge token.
+
 2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
    is a GitLab-only path.
 3. **Otherwise**: plain `git clone` over HTTPS.

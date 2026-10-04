@@ -52,29 +52,28 @@ removes itself from the dropdown rather than offering a mode that would do nothi
 > and plain `kb graph --serve` (`build_graph_server`) both inline the libs, and
 > `--site` writes them as siblings.
 
-> **Known gap -- the preview cannot be the *initial* layout from the CLI.**
-> `to_html(..., layout="dagre")` works (it validates against `html_render.LAYOUTS`,
-> which contains `dagre`), but `kb graph --layout dagre` is rejected before it gets
-> there: `cli.py` restates the layout names as two hard-coded argparse `choices`
-> lists rather than importing `LAYOUTS`, and neither was updated when the preview was
-> added. So the preview is reachable only by picking it from the in-page dropdown.
-> The fix is for those two lists to read `LAYOUTS` -- deliberately not done here,
-> since it is a change to `cli.py`, not to these assets.
+> **The CLI restates the layout names.** `kb graph --layout dagre` works: both argparse
+> `choices` lists in `cli.py` include `dagre`. They are hard-coded copies of
+> `html_render.LAYOUTS` rather than imports, so a new layout has to be added in all three
+> places.
 
 ## Why there is no SVG-export library here
 
 The page's `SVG` button is hand-rolled in `app.js` (`svgText()`), not backed by a
-vendored extension. `cytoscape-svg` -- the obvious candidate -- drives cytoscape's own
-**canvas** renderer into an SVG-emitting Canvas2D shim: `src/convert-to-svg.js` in
-v0.4.0 does `new C2S(width, height)` (canvas2svg) and then
-`renderer.drawElements(buffCxt, zsortedEles)`, returning `getSerializedSvg()`. So it
-emits what the canvas draws -- and in the `dagre (preview)` mode the canvas node
-is deliberately blanked (`node.cl-dom` in `app.js`'s `graphStyle`) because the visible
-node is an HTML card. That library would therefore export a graph of blank nodes. The
-hand-rolled serializer instead reads cytoscape's geometry and wraps each card in an SVG
-`foreignObject`, which is the one construct that can carry real HTML.
+vendored extension. `cytoscape-svg` (the obvious candidate) would export a graph of
+blank nodes:
 
-Two consequences worth knowing:
+- It drives cytoscape's own **canvas** renderer into an SVG-emitting Canvas2D shim:
+  `src/convert-to-svg.js` in v0.4.0 does `new C2S(width, height)` (canvas2svg) and then
+  `renderer.drawElements(buffCxt, zsortedEles)`, returning `getSerializedSvg()`. So it
+  emits what the canvas draws.
+- In the `dagre (preview)` mode the canvas node is deliberately blanked (`node.cl-dom`
+  in `app.js`'s `graphStyle`), because the visible node is an HTML card.
+
+The hand-rolled serializer instead reads cytoscape's geometry and wraps each card in an
+SVG `foreignObject`, which is the one construct that can carry real HTML.
+
+Three consequences worth knowing:
 
 - `foreignObject` renders in browsers, and is **ignored by Inkscape / Illustrator** -- a
   card-mode SVG opened there shows the edges but not the nodes. The canvas-mode export

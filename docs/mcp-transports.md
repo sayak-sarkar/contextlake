@@ -329,10 +329,12 @@ same contention as the traversals do. Bounding the pool takes that away from the
 making them queue for a slot.
 
 **Two rather than one**, because a limit of one is only free when every call costs the same. Real
-editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
-traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
-the cheap path while still keeping the server far away from the width where contention dominates.
-One is a supported setting, not a trap: set it if your traffic is one caller at a time.
+editor traffic mixes one slow call with many fast ones. At a limit of one, a single multi-second
+traversal holds the only token while every cheap lookup waits behind it.
+
+Two keeps a slot free for the cheap path while still keeping the server away from the width where
+contention dominates. One is a supported setting, not a trap: set it if your traffic is one caller
+at a time.
 
 Precedence is the flag, then `$CONTEXTLAKE_MCP_TOOL_CONCURRENCY`, then the default. A value that
 is not a positive integer is ignored rather than fatal, whichever of the two it came from
@@ -368,12 +370,14 @@ apart ([Semantic search](searching-semantically.md#are-the-citations-real)). The
 either way: the guard discloses, it never withholds a result or refuses.
 
 **What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
-were written after indexing escalate to a confirming read, which asks the same question
+were written after indexing escalate to a confirming read. That read asks the same question
 `--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
 costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
-the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request
-the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
-budget nobody is told about would read as a clean bill of health for work that never ran.
+the response was modified, at roughly 1.5 tokens per node.
+
+Past 32 confirming reads in one request the remainder are reported `stale` with
+`modified_after_index` rather than quietly passed. A budget nobody is told about would read as a
+clean bill of health for work that never ran.
 
 **"One request" means one call over the wire, including every leg of an `ask`.** `ask` routes to
 several tools internally and they share one probe on purpose, so a file cited by three legs costs

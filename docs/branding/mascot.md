@@ -83,19 +83,23 @@ simplification of the one character, not a second logo register.
 
 Generate the painterly background without text, then overlay the wordmark in real Space
 Grotesk. Never ship a single AI generation with baked-in lettering. Vary only [POSE] and [CONTEXT].
+Paste the three quoted paragraphs below as one prompt.
 
 > Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter**
 > with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle,
 > large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep
 > blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly),
-> deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a
+> deepwater `#0E2A33` nose, no pure black.
+
+> Pebble is **[POSE]**, cradling in both forepaws a
 > **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner
 > glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint
 > (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws
-> and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy,
-> friendly-but-precise mood. **[STYLE BLOCK]**. Gaze directed toward the context-pebble.
-> Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore
-> `#D7C5A0`, gold `#E7B53C`.
+> and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**.
+
+> Calm, trustworthy, friendly-but-precise mood. **[STYLE BLOCK]**. Gaze directed toward the
+> context-pebble. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist
+> `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
 
 **[STYLE BLOCK]:** Rich dimensional painterly illustration, soft volumetric
 subsurface lighting, gentle rim light in mist `#EAF4F4`, no hard outlines, forms separated by

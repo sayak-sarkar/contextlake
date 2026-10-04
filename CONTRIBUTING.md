@@ -14,14 +14,14 @@ reports, fixes, and well-scoped features are all welcome.
   faked. A passing test suite should never touch GitLab.
 - **No real filesystem/dotfile mutation in tests, either.** `tests/conftest.py`'s
   autouse `_isolated_home` fixture hard-redirects `HOME` to a per-test tmp
-  directory for the *entire* suite specifically because of a real incident: a
-  code path that had always been a no-op (declining shell-completion setup)
-  gained a real write (a decision marker, so a later automatic check never
-  re-asks), and every pre-existing test that exercised it, never having
-  needed to isolate `HOME` before, silently started writing to the real
-  machine's `~/.contextlake/`. **When a branch that used to do nothing gains a
+  directory for the *entire* suite. **When a branch that used to do nothing gains a
   filesystem or env-dependent side effect, re-check every test that already
   exercises it, not just the new tests you're adding for it.**
+    - The fixture exists because of a real incident. A code path that had always
+      been a no-op (declining shell-completion setup) gained a real write (a
+      decision marker, so a later automatic check never re-asks). Every
+      pre-existing test that exercised it, never having needed to isolate `HOME`
+      before, silently started writing to the real machine's `~/.contextlake/`.
 - **Every change ships with a test.** Bug fix? Add the test that fails without
   it. Feature? Cover the happy path and the obvious failure.
 - **No secrets or local config in the repo.** Never hardcode credentials, API

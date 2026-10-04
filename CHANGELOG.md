@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The docs follow the style guide's mechanical rules, and a test keeps them there.**
+  `docs/style-guide.md` described a lint gate that did not exist. `tests/test_docs_plain_language.py`
+  now checks every hand-written Markdown file for intensifiers, downtoners, filler, hype words,
+  "allows you to", "please", "click here" link text, and prose paragraphs over 90 words. 119
+  phrases and 51 paragraphs were rewritten to pass it. No command, flag or default changed.
+
+### Fixed
+
+- **Two docs described the trust rule for a discovered `kb.toml` wrongly.**
+  `docs/model-providers.md` and `SECURITY.md` said a project-local file could set
+  `provider = "openai"` or `"anthropic"` and keep working. That provider switches its tier off
+  for the run, as `docs/configuration.md` already said. Only `ollama`, `builtin` and `auto` keep
+  working from a discovered file.
+- **`SECURITY.md` said `[[sources]] url` names no host, then that it names one.** It names a host
+  and carries no credential.
+- **`docs/document-sources.md` left Zendesk out of the sources that take `hosts`.**
+- **On the docs site, the `kb source add` credential paragraph rendered outside its list item.**
+
 ## [9.6.1] - 2026-10-04
 
 ### Fixed

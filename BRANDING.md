@@ -117,12 +117,16 @@ chrome). Source: the same painterly generation pipeline as the mascot (§5), cro
 square or near-square frame. Current canonical source asset: `docs/img/icon-512.png`; the small
 nav/footer embed (`docs/branding/mark.png`) is a resize of the same source, not a separate artwork.
 
-**One exception, for practical legibility, not aesthetics:** below about 48px, painterly shading
-degrades to a muddy blob (fine gradients and soft edges don't survive that much downsampling). At
-**16–64px** (browser favicon, tab strip), contextlake ships the **context-pebble alone** -- the object
-Pebble is holding, not Pebble -- because a character has too many parts to survive 16 pixels however
-it is simplified. This is a rendering necessity, not a second brand register: it is a *detail of the
-same artwork*, using the same palette and the same object §2.2 already defines, not an independent
+**One exception, for practical legibility, not aesthetics:** at **16–64px** (browser favicon, tab
+strip), contextlake ships the **context-pebble alone**. That is the object Pebble is holding, not
+Pebble. The reasons:
+
+- Below about 48px, painterly shading degrades to a muddy blob. Fine gradients and soft edges don't
+  survive that much downsampling.
+- A character has too many parts to survive 16 pixels, however it is simplified.
+
+This is a rendering necessity. It is not a second brand register. It is a *detail of the same
+artwork*, using the same palette and the same object §2.2 already defines. It is not an independent
 flat logo with its own construction rules. Built by `site/tools/gen_small_mark.py`; see §2.3, which
 records the contrast measurements behind it.
 
@@ -427,15 +431,23 @@ This section is canon. Pebble and the context-pebble are fixed; their silhouette
 
 Pebble is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
 
-**Corrected back to blue-grey (2026-07-28), after a same-day detour to "brown."** A pixel-sampling exercise
-against `docs/img/pebble-peek.png`/`icon-512.png` briefly concluded Pebble was warm brown -- but those
-files are themselves off-canon art from a later, unlocked ChatGPT session, not the original design.
-Tracing the actual asset history (`pebble_images/pebble.png`, the first generation) confirmed the
-character was always blue-grey. Blue-grey also fits the product: contextlake's whole primitive palette
-is cool (deepwater/lake/current), the shipped theme is moonlit navy, and `shore #D7C5A0` -- the only warm
-primitive -- is explicitly restricted to illustration dividers (§7.2), never a UI or mascot color. A
-blue-grey otter is *of* the same water as the product; a brown one would be a warm object with no
-palette support. **The shipped painterly art (`docs/img/pebble-peek.png`, `icon-512.png`, the hero images)
+**Corrected back to blue-grey (2026-07-28), after a same-day detour to "brown."** Tracing the asset
+history (`pebble_images/pebble.png`, the first generation) confirmed the character was always
+blue-grey. The detour came from a pixel-sampling exercise against `docs/img/pebble-peek.png`/`icon-512.png`,
+which briefly concluded Pebble was warm brown. Those files are themselves off-canon art from a later,
+unlocked ChatGPT session, not the original design.
+
+Blue-grey also fits the product:
+
+- contextlake's whole primitive palette is cool (deepwater/lake/current).
+- The shipped theme is moonlit navy.
+- `shore #D7C5A0`, the only warm primitive, is explicitly restricted to illustration dividers (§7.2),
+  never a UI or mascot color.
+
+A blue-grey otter is *of* the same water as the product; a brown one would be a warm object with no
+palette support.
+
+**The shipped painterly art (`docs/img/pebble-peek.png`, `icon-512.png`, the hero images)
 is currently off-canon and needs regeneration** to match; see §7.3.
 
 <p align="center">
@@ -534,8 +546,12 @@ content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble ou
 
 Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary only **[POSE]** and **[CONTEXT]**.
 
-**Reusable base prompt**
-> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly), deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy, friendly-but-precise mood. Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
+**Reusable base prompt** (three quoted paragraphs; paste them as one prompt)
+> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly), deepwater `#0E2A33` nose, no pure black.
+
+> Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**.
+
+> Calm, trustworthy, friendly-but-precise mood. Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
 
 **Locked phrases (paste verbatim):**
 - `cute innocent-faced dark blue-grey river otter`

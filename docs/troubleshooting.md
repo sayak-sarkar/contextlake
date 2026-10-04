@@ -91,11 +91,16 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
 ```
 
 That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
-to ingest, and it declines rather than storing an empty document that would look like knowledge in
+to ingest. It declines rather than storing an empty document that would look like knowledge in
 search results. Run the file through an OCR tool of your choice first, or ingest the source
-document the PDF was made from. The other two refusals name themselves the same way: a PDF that
-cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+document the PDF was made from.
+
+The other two refusals name themselves the same way:
+
+- a PDF that cannot be parsed (encrypted files are not decrypted)
+- a PDF over the source's `max_bytes`, which you can raise on the source
+
+See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 

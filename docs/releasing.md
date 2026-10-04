@@ -98,12 +98,15 @@ pip install -e ".[release]"        # build + twine
 
    The order is not stylistic. Both `release.yml` and `binaries.yml` open with a
    gate that asks the API for a **completed** `ci.yml` run on the tagged commit and
-   refuses to publish otherwise. Push the tag while CI is still running and that
-   gate reads `missing`, both workflows fail immediately, and every real job is
-   skipped. Nothing is broken and nothing is published: re-run the two failed runs
-   once CI is green (`gh run rerun <id> --failed`) and they proceed normally. This
-   is the gate doing its job. It trips when the tag lands before the matrix finishes,
-   because the tag push is fast and the matrix is not.
+   refuses to publish otherwise.
+
+   Push the tag while CI is still running and that gate reads `missing`, both
+   workflows fail immediately, and every real job is skipped. This is the gate doing
+   its job. It trips when the tag lands before the matrix finishes, because the tag
+   push is fast and the matrix is not.
+
+   Nothing is broken and nothing is published: re-run the two failed runs once CI is
+   green (`gh run rerun <id> --failed`) and they proceed normally.
 
 5. **Build and validate** the distribution:
 

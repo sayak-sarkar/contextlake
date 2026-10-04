@@ -14,6 +14,9 @@ What it checks, all from `docs/style-guide-voice.md`:
   phrases ("it is worth noting", "in essence", ...);
 - hype words, anthropomorphism ("allows you to"), "please", and "click here" link text.
 
+It also fails any prose paragraph over 90 words (`test_no_prose_paragraph_is_over_the_limit`),
+because the owner's complaint was the shape of the docs as much as their words.
+
 What it leaves out, on purpose. A word with a legitimate sense is only banned in its other
 sense, and a bare word match cannot tell the two apart. A `\\bjust\\b` rule once flagged 45
 correct sentences meaning "only". So:
@@ -232,3 +235,69 @@ def test_legitimate_uses_pass(sentence):
 def test_masking_keeps_line_numbers():
     text = "first\n```\nvery\n```\nThis is very fast.\n"
     assert hits(text) == [(5, "intensifier", "very")]
+
+
+# --- paragraph length ------------------------------------------------------------------
+#
+# The owner's complaint on 2026-08-25 was the SHAPE of the docs, not their words: the filler
+# check passed on all 46 pages while three paragraphs ran past 200 words. A paragraph over
+# 90 words is split into shorter ones or a list. A list item counts as its own paragraph.
+# Tables, headings, HTML lines and fenced blocks are not prose and are not counted.
+
+_MAX_PARAGRAPH_WORDS = 90
+
+
+def paragraphs(text: str) -> list[tuple[int, int]]:
+    """(first line, word count) for every prose paragraph in a Markdown page."""
+    out: list[tuple[int, int]] = []
+    para: list[str] = []
+    start = 0
+    fenced = False
+
+    def flush() -> None:
+        if para:
+            joined = re.sub(r"`[^`]*`", "CODE", " ".join(para))
+            joined = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", joined)
+            out.append((start, len(joined.split())))
+            para.clear()
+
+    for n, line in enumerate(text.split("\n"), 1):
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+            flush()
+            continue
+        if fenced:
+            continue
+        s = line.strip()
+        if not s or s.startswith(("#", "|", "<", "![")):
+            flush()
+            continue
+        s = re.sub(r"^(>\s*)+", "", s)
+        if re.fullmatch(r"\[!\w+\]", s):
+            continue
+        if re.match(r"^([-*]|\d+\.)\s+", s):
+            flush()
+            s = re.sub(r"^([-*]|\d+\.)\s+", "", s)
+        if not para:
+            start = n
+        para.append(s)
+    flush()
+    return out
+
+
+def test_no_prose_paragraph_is_over_the_limit():
+    long = []
+    for rel in _prose_files():
+        path = REPO / rel
+        if not path.exists():
+            continue
+        long += [f"{rel}:{n}: {w} words" for n, w in paragraphs(path.read_text(encoding="utf-8"))
+                 if w > _MAX_PARAGRAPH_WORDS]
+    assert not long, (
+        f"{len(long)} paragraph(s) over {_MAX_PARAGRAPH_WORDS} words. Split each into shorter "
+        "paragraphs or a list, outcome first; see docs/style-guide-voice.md.\n" + "\n".join(long))
+
+
+def test_paragraph_counter():
+    text = "One two three.\n\n- a list item\n- another\n\n```\nnot prose\n```\n| a | table |\n"
+    assert paragraphs(text) == [(1, 3), (3, 3), (4, 1)]

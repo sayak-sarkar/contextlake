@@ -334,11 +334,12 @@ from working:
 - **Config keys.** Removing a key or changing its default in a way that changes what a run
   does.
 
-**`PARSER_VERSION` is deliberately not on that list**, and the distinction is worth stating
-because it looks like it should be. Bumping it does not stop anything working: your store
-stays readable, every command keeps running, and nothing you wrote needs editing. What it
-means is that repositories indexed by an older parser now carry *less* than the current one
-would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
+**`PARSER_VERSION` is deliberately not on that list**, even though it looks like it should
+be. Bumping it does not stop anything working: your store stays readable, every command keeps
+running, and nothing you wrote needs editing.
+
+A bump means that repositories indexed by an older parser now carry *less* than the current
+one would extract, so `kb index` rebuilds them instead of reporting them unchanged. `doctor`
 reports that as an advisory, not a fault, because a parser bump would otherwise turn
 every upgrade into a red check for something that is working correctly.
 
@@ -598,12 +599,14 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
 the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
 classes of setting are therefore honoured only from a file you named with `--config` or from your
-own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
-`provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
-request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
-holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`,
-which choose how that credential is sent, and `auth_dir`, the directory an OAuth refresh token is
-written to).
+own home config:
+
+- the ones that make contextlake *run a program* (`[llm] command`/`args`, `provider = "cli"`,
+  `[[sources]] command`/`args`/`mcp_command`)
+- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`)
+- the ones that name *which environment variable holds the credential* sent with it
+  (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`, which choose how that credential
+  is sent, and `auth_dir`, the directory an OAuth refresh token is written to)
 
 The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
@@ -1152,12 +1155,18 @@ Each configured source gets its own line, and the mark says which of three thing
 the exit code.
 
 **Read the output, do not gate on the exit code alone.** `doctor` exits non-zero only when the
-environment cannot support a run at all: FTS5 missing, `git` missing, or the config and store
-unreadable. Everything else is reported and does not fail the command, including **shard
-staleness** and the optional tiers (`glab`, embeddings, the ANN index, the wiki model). That
-matches `kb lint`, which deliberately keeps staleness out of its exit code for the same reason:
-a stale shard is a thing to act on, not a broken install, and failing a build over one would
-make the check unusable on any workspace mid-migration.
+environment cannot support a run at all:
+
+- FTS5 missing,
+- `git` missing, or
+- the config and store unreadable.
+
+Everything else is reported and does not fail the command, including **shard staleness** and
+the optional tiers (`glab`, embeddings, the ANN index, the wiki model).
+
+That matches `kb lint`, which deliberately keeps staleness out of its exit code for the same
+reason: a stale shard is a thing to act on, not a broken install, and failing a build over one
+would make the check unusable on any workspace mid-migration.
 
 The consequence is worth stating plainly, because it is the opposite of what an exit code
 usually implies: **a store full of stale shards prints a red mark for each and still exits 0.**
@@ -1329,10 +1338,11 @@ The flags worth knowing when you write one of these by hand:
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
   "no matching distribution" message. Name the one native package when you still want a source
-  fallback for everything else; `--only-binary :all:` is the blunt version, for the row above where
-  a build has already failed and you do not know which package broke. `doctor --fix` always scopes
-  to a single package and never uses `:all:`, because forbidding a source fallback everywhere lets
-  one missing wheel anywhere fail the whole install.
+  fallback for everything else.
+- **`--only-binary :all:`** is the blunt version, for the row above where a build has already
+  failed and you do not know which package broke. `doctor --fix` always scopes to a single
+  package and never uses `:all:`, because forbidding a source fallback everywhere lets one
+  missing wheel anywhere fail the whole install.
 
 ## See also
 
@@ -1662,10 +1672,13 @@ A fully synced workspace shows `0` for both.
 **Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
 `alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
 group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
-`origin` remote and leave repos from other groups out of scope: they are counted under **Other
-groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
-repo whose origin positively names a different group drops out. A clone with no origin, or one whose
-config cannot be read, is still reported as before, so a stray checkout never goes quiet.
+`origin` remote and leave repos from other groups out of scope:
+
+- They are counted under **Other groups** rather than reported as **Extra**.
+- The branch pass does not try to switch them.
+
+Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
+whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -1705,10 +1718,13 @@ How each repo is cloned, with `clone_method = auto` (the default):
 1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
    `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into `ps` output or `.git/config`. The header is scoped to the
-   forge's own host (`https://gitlab.com/`, your `gitlab_host`, `https://github.com/`, and so on),
-   so git sends it there and nowhere else. `update` and `branches` use the same scoped header, so
-   a clone in the workspace whose remote is on another host never receives your forge token.
+   in the URL, so it cannot leak into `ps` output or `.git/config`.
+
+    The header is scoped to the forge's own host (`https://gitlab.com/`, your `gitlab_host`,
+    `https://github.com/`, and so on), so git sends it there and nowhere else. `update` and
+    `branches` use the same scoped header, so a clone in the workspace whose remote is on another
+    host never receives your forge token.
+
 2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
    is a GitLab-only path.
 3. **Otherwise**: plain `git clone` over HTTPS.
@@ -2183,10 +2199,12 @@ default setup at a host the file author picked.
 
 When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
-wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic` and that value came from a
-discovered file, the tier is off for that run and a second warning says so. Dropping
-`base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise fall back to
-`api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for loopback.
+wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`, and that value came from a
+discovered file, the tier is off for that run. A second warning says so.
+
+Dropping `base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise
+fall back to `api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for
+loopback.
 
 Three things clear it:
 
@@ -2244,10 +2262,14 @@ inside that tree sent the variable's value there.
 A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
 the file. If nothing you chose sets that key instead (the global file, `--config`, or the
 `GITLAB_HOST` env var for `gitlab_host`), the forge token is also off for that run, and a second
-warning says so. Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant
-for your own instance would fall back to `gitlab.com`, and your token would go there. With the token
-off, GitLab enumeration uses `glab` and its own login, other platforms see public repositories only,
-and clone and fetch run without the token.
+warning says so.
+
+Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant for your own
+instance would fall back to `gitlab.com`, and your token would go there. With the token off:
+
+- GitLab enumeration uses `glab` and its own login.
+- Other platforms see public repositories only.
+- Clone and fetch run without the token.
 
 `work_dir`, `gitlab_group` and `platform` keep working from a local file. They are all that
 `contextlake init --local` writes. To clear the warning, delete the keys from the file it names and
@@ -2812,22 +2834,29 @@ high-value defs and FK references and is a **deliberate undercount**. Render it 
 `contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
 
 **Measured, not asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
-orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
-call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
-emitted `references` edges against it on every CI run, and asserts this page still quotes what it
-measures. Current numbers on that corpus: **precision 1.00 (9 true positives / 0 false positives),
-recall 0.69 (9 / 13 ground-truth edges found)**, a small, hand-built corpus, not a claim about the whole
-fleet, but real and reproducible. Two documented gap classes account for the four missed edges, both by
-design, not bugs: a **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is
-dropped because the extractor excludes `target == name`, and an FK **attached via a separate
-`ALTER TABLE ... ADD CONSTRAINT`** statement is never captured because the scope tracker only scans
-`REFERENCES` inside a `CREATE TABLE`'s own text span. Precision was 0.90 on this corpus until the
-extractor learned to blank out `--` and `/* */` comments before matching: its one false positive was a
-commented-out `REFERENCES` line, dead DDL history that resolved into a real-looking edge because the
-table it named still existed elsewhere in the repo. That case is now pinned as a negative in the corpus
-test. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
-the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
-target already met.
+orders/customers/inventory corpus. It has a checked ground truth of every FK a human reading the DDL
+would call real (`expected_edges.json`, 13 edges). `tests/kb/test_sql_fixture_corpus.py` scores the
+parser's emitted `references` edges against it on every CI run, and asserts this page still quotes
+what it measures.
+
+Current numbers on that corpus: **precision 1.00 (9 true positives / 0 false positives),
+recall 0.69 (9 / 13 ground-truth edges found)**. The corpus is small and hand-built. The numbers are
+no claim about the whole fleet, and they are real and reproducible.
+
+Two documented gap classes account for the four missed edges, both by design, not bugs:
+
+- A **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped
+  because the extractor excludes `target == name`.
+- An FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`** statement is never captured,
+  because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s own text span.
+
+Precision was 0.90 on this corpus until the extractor learned to blank out `--` and `/* */` comments
+before matching. Its one false positive was a commented-out `REFERENCES` line: dead DDL history that
+resolved into a real-looking edge because the table it named still existed elsewhere in the repo. That
+case is now pinned as a negative in the corpus test.
+
+These are the numbers to distrust a graph `INFERRED` SQL edge by. The floors in the corpus test are
+meant to be ratcheted up as the extractor improves, not treated as a target already met.
 
 ### Data contracts: XML Schema
 
@@ -3154,10 +3183,13 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated. **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or
-  in the git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
-  *symbol* (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
-  radius page's **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
+  authenticated.
+
+    **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or in the
+    git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
+    *symbol* (not just the repo). The same batched JQL call confirms it. The dashboard blast radius
+    page shows it as the **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
+
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
@@ -3165,14 +3197,19 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   `glab`).
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
-  (`repo --documented_by--> document`). **It makes no network call**, which makes it the one connector
-  that runs inside the offline boundary rather than as an opt-in exception to it: Zendesk's API needs a
-  per-instance token, and the association is already stated by the link itself. The cost is that a ticket
-  node carries no subject line -- an article gets its title from the URL slug, a ticket has none to get,
-  and inventing one would state something the graph cannot support. Node ids carry the instance
-  subdomain, because ticket numbers restart at 1 per instance. `hosts` is configurable for an instance
-  served from a vanity domain; the default claims only `*.zendesk.com`, since claiming an arbitrary host
-  would take links belonging to another connector.
+  (`repo --documented_by--> document`).
+
+    **It makes no network call**, which makes it the one connector that runs inside the offline
+    boundary rather than as an opt-in exception to it. Zendesk's API needs a per-instance token, and
+    the association is already stated by the link itself. The cost is that a ticket node carries no
+    subject line. An article gets its title from the URL slug; a ticket has none to get, and
+    inventing one would state something the graph cannot support.
+
+    Node ids carry the instance subdomain, because ticket numbers restart at 1 per instance.
+    `hosts` is configurable for an instance served from a vanity domain. The default claims only
+    `*.zendesk.com`, since claiming an arbitrary host would take links belonging to another
+    connector.
+
 - **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
   (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
@@ -3194,19 +3231,20 @@ The commands:
 
 - **`contextlake kb source add [NAME] [--type TYPE]`**: add a connector. The name is a positional
   argument, not a flag (`contextlake kb source add jira --type atlassian`). Run it in a terminal without
-  a name or a `--type` and it asks for them. It offers every type this build ships, the five connectors
+  a name or a `--type` and it asks for them. It offers every type this build ships: the five connectors
   (`atlassian`, `figma`, `gitlab`, `zendesk`, `slack`) plus the built-in ingest sources (`files`, `web`,
-  `api`, `graphql`, `mcp`) and any installed plugin, proposes defaults, and writes the entry to `kb.toml`.
-  Without a terminal, a missing name or type exits 2 and prints the form to use. `--mcp URL` sets the MCP
-  server URL and `--local` targets a project-level file (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any other connector option `kb.toml` accepts.
+  `api`, `graphql`, `mcp`) and any installed plugin. It proposes defaults and writes the entry to
+  `kb.toml`. Without a terminal, a missing name or type exits 2 and prints the form to use.
 
-  **A credential never goes on the command line.** Store the name of the environment variable that holds
-  it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
-  `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
-  and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
-  one non-secret option from stdin instead of the command line, so it stays out of shell history:
-  `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
+    `--mcp URL` sets the MCP server URL and `--local` targets a project-level file (`--help`
+    shows all). `--set KEY=VALUE` (repeatable) writes any other connector option `kb.toml` accepts.
+
+    **A credential never goes on the command line.** Store the name of the environment variable that holds
+    it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
+    `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
+    and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
+    one non-secret option from stdin instead of the command line, so it stays out of shell history:
+    `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
@@ -3343,13 +3381,16 @@ The exit code is non-zero when any repository was skipped, the same verdict `kb 
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.
 
-A source that could not be reached is not an empty answer. A repo whose source failed keeps the
-links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
-code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
-A source that answers with no results still clears the repo's previous ones. With several
-sources, one that stays unreachable keeps every affected repo's previous results, so the other
-sources' results for those repos wait too, and the run exits 1 until that source is fixed or
-removed from the config.
+A source that could not be reached is not an empty answer.
+
+- A repo whose source failed keeps the links, nodes and vectors from its last complete run, and
+  the run names it in a warning.
+- The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
+  results.
+- A source that answers with no results still clears the repo's previous ones.
+- With several sources, one that stays unreachable keeps every affected repo's previous results,
+  so the other sources' results for those repos wait too. The run exits 1 until that source is
+  fixed or removed from the config.
 
 ## See also
 
@@ -3662,13 +3703,19 @@ tool is called with the templated arguments during enrichment, returning documen
 codebase's query context.
 
 **Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest sources also
-accept: `auth_dir`, an isolated OAuth-cache directory (set a distinct one per Atlassian org so their
-`mcp-remote` caches never collide); `mcp_command`, a local stdio MCP command to launch instead of a remote
-endpoint (e.g. `"figma-mcp --stdio"` or `"slack-mcp --stdio"`); `hosts`, the list of hostnames a Figma/Slack
-source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_tool`, the Slack MCP tool
-name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
-used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
-repo's path to form the project id; and `per_page`, the API page size (default `50`).
+accept:
+
+- `auth_dir`: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
+  `mcp-remote` caches never collide.
+- `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
+  `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
+- `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
+  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`).
+- `verify_tool`: the Slack MCP tool name used for reachability checks (default `conversations_info`).
+- `history_tool`: the Slack MCP tool name used to read a channel's messages (default
+  `conversations_history`).
+- `group`: a GitLab group prefixed to each repo's path to form the project id.
+- `per_page`: the API page size (default `50`).
 
 ## See also
 
@@ -4255,10 +4302,11 @@ working -- a name the notes introduce becomes a name a draft may legitimately ci
 
 **`pages` steers, it cannot invent.** Names are matched against the modules the graph
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
-untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
-is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
-silently delete a repository's whole module set on the next prune. The list is the whole set on
-both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
+untrusted input, and this is the line that keeps it unable to fabricate a page.
+
+When every name is unknown, the automatic heuristic runs instead of producing nothing. So one typo
+cannot silently delete a repository's whole module set on the next prune. The list is the whole set
+on both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
 generated pages of modules that are not on it.
 
 Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
@@ -4778,29 +4826,39 @@ the model pulled, and otherwise to the built-in CPU model.
 - **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`, or `codex`.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
   the prompt on stdin. No API key touches contextlake; data goes to whatever provider that CLI uses. Reuses
-  your subscription, and mirrors how contextlake already shells out to `git` and `glab`. It is **not** an
-  offline backend: the CLI makes its own network call, and a subprocess owns its own sockets, so
-  `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command carries on with
-  no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
-  For the three recognised commands, contextlake strips that CLI's own API-key env var(s)
-  (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
-  `GOOGLE_API_KEY` for `gemini`) from the child process only -- otherwise a key set anywhere in your shell
-  for an unrelated reason (e.g. testing the `anthropic` provider) can silently override the CLI's
-  subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
-  for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
-  explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
-  precaution there rather than a confirmed-necessary fix.
-  **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
-  `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
-  directory, since that file may have arrived inside a repository you cloned and these keys are a
-  command line contextlake runs. Setting them locally logs a warning and is ignored. `base_url` and
-  `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every provider: a
-  discovered file may not choose the host a request goes to, or the environment variable read for its
-  credential. Everything else, `provider` included for any value other than `"cli"`, works from a local
-  file as usual. One knock-on: if a discovered file picks `openai` or `anthropic` *and* tries to set
-  `base_url` or `api_key_env`, the tier is switched off for that run rather than falling back to
-  built-in defaults you did not choose. Pass `--llm PROVIDER`, or `--config PATH`, or set the tier in
-  `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
+  your subscription, and mirrors how contextlake already shells out to `git` and `glab`.
+
+    It is **not** an offline backend. The CLI makes its own network call, and a subprocess owns its own
+    sockets. So `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command
+    carries on with no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
+
+    For the three recognised commands, contextlake strips that CLI's own API-key env var(s) from the
+    child process only:
+
+    - `ANTHROPIC_API_KEY` for `claude`
+    - `OPENAI_API_KEY` for `codex`
+    - `GEMINI_API_KEY` / `GOOGLE_API_KEY` for `gemini`
+
+    Otherwise a key set anywhere in your shell for an unrelated reason (e.g. testing the `anthropic`
+    provider) can silently override the CLI's subscription login and bill a pay-per-token account you
+    never meant to use here. Confirmed by live repro for `claude` and by its own docs for `gemini`.
+    `codex`'s docs describe API-key auth as a separate, explicitly-opted-into mode rather than an
+    environment-variable override, so the strip is a defensive precaution there rather than a
+    confirmed-necessary fix.
+
+    **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
+    `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
+    directory. This is because that file may have arrived inside a repository you cloned, and these
+    keys are a command line contextlake runs. Setting them locally logs a warning and is ignored.
+
+    `base_url` and `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every
+    provider: a discovered file may not choose the host a request goes to, or the environment variable
+    read for its credential. A local `provider` (`ollama`, `builtin`, `auto`) and everything else
+    works from a local file as usual.
+
+    A discovered file that picks `openai` or `anthropic` switches that tier off for the run: a file
+    found by directory walk may not aim a credential-carrying tier. Pass `--llm PROVIDER`, or
+    `--config PATH`, or set the tier in `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -4964,11 +5022,15 @@ timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 ```
 
 If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
-calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
-connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
-or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
-rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
-first` keeps telling you to run `ollama pull` however many pages are left.
+calls the model once per page.
+
+After three consecutive endpoint failures (a timeout, a refused connection, a 5xx), the provider is
+skipped for 60 seconds and then probed once. So a dead Ollama daemon or an unreachable API costs the run
+a few timeouts instead of one per page, and says so in the log.
+
+A rejected *request* is exempt and always reported as itself. So
+`model "..." not found, try pulling it first` keeps telling you to run `ollama pull` however many pages
+are left.
 
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
@@ -5651,11 +5713,13 @@ Refusing to run: this container's state does not survive a restart, so every run
 ```
 
 The check is whether the cache directory sits on its own mount point, not what filesystem type it
-reports: a container's own writable layer is part of the root mount, while any volume you attach
+reports. A container's own writable layer is part of the root mount, while any volume you attach
 (a PVC, an `emptyDir`, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
-underlying filesystem. Fix it by pointing `cache_dir` at a mounted volume, or pass
-`--allow-ephemeral` if a from-scratch run every cycle is what you want. There is no daemon to
-install inside a container; run the cycle in the foreground instead:
+underlying filesystem.
+
+Fix it by pointing `cache_dir` at a mounted volume, or pass `--allow-ephemeral` if a from-scratch
+run every cycle is what you want. There is no daemon to install inside a container. Run the cycle in
+the foreground instead:
 
 ```bash
 contextlake schedule run --foreground
@@ -6640,23 +6704,28 @@ no wiki exists yet). An agent that would rather not choose among the tools can c
 `graph_health`, plus a `kb://stats` resource with the store counts.
 
 **Every list-returning tool says why a result is empty.** An empty list on its own carries two
-opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
-agent that cannot see the store, so it reports the first as a fact about the codebase when the
-truth is the second. `get_neighbors` names an id that is not in the graph rather than reporting
-it as a node without edges; `find_definition` says whether a name is absent entirely or merely
-excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
-all, and carries `total`/`truncated` like its siblings.
+opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
+cannot see the store, so it reports the first as a fact about the codebase when the truth is the
+second.
+
+- `get_neighbors` names an id that is not in the graph rather than reporting it as a node without
+  edges.
+- `find_definition` says whether a name is absent entirely or merely excluded by a `kind`/`repo`
+  filter.
+- `search_code` says whether the query's terms are indexed at all, and carries `total`/`truncated`
+  like its siblings.
 
 **A node reached through an edge says how far to trust that edge.** `find_callers`,
 `find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
 subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
 or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
 line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
-line before relying on it. The field is `null` where the tool names no single edge that reached
-the node: `get_node`, `find_definition`, the searches (`search_code`, `semantic_search`, and
-`hybrid_search`, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
-the first node of a path. `null` does not mean `EXTRACTED`. Clients that ignore the field keep
-working.
+line before relying on it.
+
+The field is `null` where the tool names no single edge that reached the node: `get_node`,
+`find_definition`, the searches (`search_code`, `semantic_search`, and `hybrid_search`, which ranks
+graph-expanded nodes by PageRank mass rather than by one edge), and the first node of a path.
+`null` does not mean `EXTRACTED`. Clients that ignore the field keep working.
 
 `get_generated_doc` returns what `kb docs` wrote:
 
@@ -6725,13 +6794,17 @@ server natively:
   the graph indexes are content other people wrote, so everything it returns is evidence about
   the code, never an instruction to the agent reading it.
 
-**It never corrupts your existing files.** If you already have an `AGENTS.md`, `CLAUDE.md`,
-`.windsurfrules`, or `.kiro/steering`, your content is preserved and only a delimited
-managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
-`.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
-JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
-not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.
+**It never corrupts your existing files.**
+
+- If you already have an `AGENTS.md`, `CLAUDE.md`, `.windsurfrules`, or `.kiro/steering`, your
+  content is preserved and only a delimited managed block is appended (and just that block is
+  refreshed on re-runs).
+- `.mcp.json` and `.vscode/mcp.json` are merged so your other servers stay.
+- A skill file you wrote with the same name is kept as-is.
+- Custom layers like `.devin/` are left untouched.
+- An MCP file that is not valid JSON (a comment or a trailing comma is enough) is left exactly as
+  it is: steer says where it did not parse, writes everything else, and exits 0. Fix the file, or
+  add the server by hand.
 
 ### The generated `AGENTS.md` names the store it was built from
 
@@ -7179,10 +7252,12 @@ same contention as the traversals do. Bounding the pool takes that away from the
 making them queue for a slot.
 
 **Two rather than one**, because a limit of one is only free when every call costs the same. Real
-editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
-traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
-the cheap path while still keeping the server far away from the width where contention dominates.
-One is a supported setting, not a trap: set it if your traffic is one caller at a time.
+editor traffic mixes one slow call with many fast ones. At a limit of one, a single multi-second
+traversal holds the only token while every cheap lookup waits behind it.
+
+Two keeps a slot free for the cheap path while still keeping the server away from the width where
+contention dominates. One is a supported setting, not a trap: set it if your traffic is one caller
+at a time.
 
 Precedence is the flag, then `$CONTEXTLAKE_MCP_TOOL_CONCURRENCY`, then the default. A value that
 is not a positive integer is ignored rather than fatal, whichever of the two it came from
@@ -7218,12 +7293,14 @@ apart ([Semantic search](searching-semantically.md#are-the-citations-real)). The
 either way: the guard discloses, it never withholds a result or refuses.
 
 **What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
-were written after indexing escalate to a confirming read, which asks the same question
+were written after indexing escalate to a confirming read. That read asks the same question
 `--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
 costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
-the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request
-the remainder are reported `stale` with `modified_after_index` rather than quietly passed. A
-budget nobody is told about would read as a clean bill of health for work that never ran.
+the response was modified, at roughly 1.5 tokens per node.
+
+Past 32 confirming reads in one request the remainder are reported `stale` with
+`modified_after_index` rather than quietly passed. A budget nobody is told about would read as a
+clean bill of health for work that never ran.
 
 **"One request" means one call over the wire, including every leg of an `ask`.** `ask` routes to
 several tools internally and they share one probe on purpose, so a file cited by three legs costs
@@ -7355,14 +7432,15 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 Output is chosen with `--format`:
 
 - **`html`** (default), a single **self-contained, offline** page (cytoscape.js is inlined, so it opens
-  from `file://` with no network, handy air-gapped / behind a proxy). Nodes are coloured by kind and sized
-  by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
-  the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
-  `breadthfirst`, `circle`, `grid`, `dagre`) in the page, set the initial one with `--layout`. `dagre` is
-  a preview: it is layered and directed rather than organic, and below 400 nodes it renders each node as
-  an HTML card instead of a dot. `--open` launches the
-  browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
-  the single-file export.
+  from `file://` with no network, handy air-gapped / behind a proxy). `--open` launches the browser;
+  `--cdn` produces a small online-only file instead, and applies to `--site` as well as the
+  single-file export.
+    - Nodes are coloured by kind and sized by degree. Edges are styled by relation/confidence, with
+      their labels hidden until you click a node (so the view stays readable).
+    - Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`, `breadthfirst`, `circle`,
+      `grid`, `dagre`) in the page. Set the initial one with `--layout`.
+    - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
+      renders each node as an HTML card instead of a dot.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
@@ -7376,30 +7454,38 @@ Output is chosen with `--format`:
   isn't re-entered) instead of hanging.
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
   (`if reading.status == Received: reading.status = Validated`) become transitions, labeled with the method that
-  makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
-  comparison on the same field, so a diagram never claims a transition the code doesn't establish
-  (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake kb graph --repo
-  demo/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
-  Multiple entities in view each get their own composite block; a single-entity view renders flat.
+  makes them. Best with `--repo`, like `classdiagram`:
+  `contextlake kb graph --repo demo/app --format statediagram`.
+    - Only *guarded* transitions are emitted. The source state must be established by a preceding
+      comparison on the same field, so a diagram never claims a transition the code doesn't establish
+      (an honest undercount, not a guess).
+    - A `--name`/`--node` seed can reach the state nodes (via the file that declares them) but not
+      their transitions past the view's `--hops`. Use `--repo` for the full picture.
+    - Multiple entities in view each get their own composite block; a single-entity view renders
+      flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
   `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
-  `contextlake kb graph --repo demo/app --format erdiagram`. No attribute/column data (the extractor
-  only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
-  relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
-  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
-  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
-  text anywhere) renders an empty diagram with guidance, not a bug.
+  `contextlake kb graph --repo demo/app --format erdiagram`.
+    - No attribute/column data (the extractor only captures `CREATE TABLE`/`VIEW` names and FK
+      targets), so entities render as bare boxes with relationship lines, not column lists.
+    - A `REFERENCES` clause always points child-row to parent-row, so the parent is drawn on the
+      "one" side of the notation.
+    - **Only sees raw `.sql` DDL**. An ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM
+      model classes, no literal `CREATE TABLE` text anywhere) renders an empty diagram with
+      guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
-  definitions grouped by an inferred category
-  (network/compute/storage/database/security/other/module; a resource type matching none of the
-  keyword lists lands in `other` and gets its own subgraph),
-  from the HCL extractor (see [Index & Code Graph](indexing-the-code-graph.md)): `contextlake kb graph --repo
-  demo/app --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
-  `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
-  type-name interpolation references draw the connections between resources. A single-category view
-  renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
-  parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
+  definitions grouped by an inferred category, from the HCL extractor (see
+  [Index & Code Graph](indexing-the-code-graph.md)):
+  `contextlake kb graph --repo demo/app --format deploymentdiagram`.
+    - The categories are network/compute/storage/database/security/other/module. Category is a
+      keyword heuristic over the resource type prefix (for example `aws_security_group.web` ->
+      security). A resource type matching none of the keyword lists lands in `other` and gets its
+      own subgraph.
+    - `depends_on` edges reconstructed from `var.`/`module.`/type-name interpolation references
+      draw the connections between resources. A single-category view renders flat (no subgraph
+      wrapper).
+    - **Terraform-only** (HCL is the only IaC language the extractor parses): a repo with no `.tf`
+      files renders an empty diagram with guidance, not a bug.
 - **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
   [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
   demo/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
@@ -7582,17 +7668,22 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
 
 > [!IMPORTANT]
 > **This page publishes no benchmark figures, on purpose.** It used to. Those numbers were taken on
-> one private estate and no script, dataset, or result file was ever committed with them, so nobody,
-> including us, could re-run them. A figure you cannot reproduce is a claim wearing a number's
-> clothes, so they have been removed rather than restated. What is left is the mechanism, which you
-> can check by reading the code, and a procedure for measuring the effect on your own repositories,
-> which is the only place a number should decide anything for you.
+> one private estate, and no script, dataset, or result file was ever committed with them. So
+> nobody, including us, could re-run them. A figure you cannot reproduce is a claim wearing a
+> number's clothes, so they have been removed rather than restated. What is left:
+>
+> - the mechanism, which you can check by reading the code
+> - a procedure for measuring the effect on your own repositories, which is the only place a number
+>   should decide anything for you
 >
 > There is now exactly one set of figures this project does publish, and it arrives with the script
-> that produced it: `benchmarks/head-to-head/` compares graph coverage against another local
-> code-graph tool over four pinned public repositories. It answers a **different** question from
-> this page. It measures how much of a tree each tool represents, not what either saves you in
-> tokens, and contextlake leads on one of the four.
+> that produced it: `benchmarks/head-to-head/`.
+>
+> - It compares graph coverage against another local code-graph tool over four pinned public
+>   repositories.
+> - It answers a **different** question from this page. It measures how much of a tree each tool
+>   represents, not what either saves you in tokens.
+> - contextlake leads on one of the four.
 
 ## The short version
 
@@ -8291,11 +8382,13 @@ Two more look similar and are not:
 
 `--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
 `doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
-flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`), and
-the message names the commands that do take it. `bootstrap --dry-run` prints the stages a real run
-would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
-cache, metrics or history file is written (a `--log-file` you ask for still is). `mirror sync
---dry-run` previews what the mirror stages would change.
+flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`). The
+message names the commands that do take it.
+
+`bootstrap --dry-run` prints the stages a real run would perform and runs none of them: no mirror,
+no audit, no index, no model call, and no store, cache, metrics or history file is written (a
+`--log-file` you ask for still is). `mirror sync --dry-run` previews what the mirror stages would
+change.
 
 ### What `--offline` covers, and what it does not
 
@@ -8500,9 +8593,10 @@ which is a rotating file that outlives the process.
 **`check` reads the key from standard input only.** A key typed on a command line lands in
 shell history and shows in `ps` to every account on the machine, so
 `contextlake kb keys check <key>` is refused with exit 2. A terminal with nothing piped in
-is refused the same way, rather than waiting for end-of-file behind a blank screen. `check`
-opens no socket and sends no request: it compares the digest against the key file, which is
-what lets it answer when the server is the thing that is down. It reports what the record
+is refused the same way, rather than waiting for end-of-file behind a blank screen.
+
+`check` opens no socket and sends no request: it compares the digest against the key file, which
+is what lets it answer when the server is the thing that is down. It reports what the record
 stores, not what a server would allow.
 
 **The checksum in a key is a typo filter, not a security control.** It catches a key
@@ -8624,13 +8718,17 @@ date, `never` or `-`. Read `policy`, `expires_at` and `last_used_at` instead.
 `last_used_state` is the sibling that keeps a null from meaning two things: `not-recorded`
 (no usage file), `no-rows` (a file with no call for this key) or `measured`.
 
-**Exit codes.** `0` on success, including `list` on a key file that does not exist yet, and
-including `usage` for a key that was issued and never used. `1`
-on an id that is not in the file, on a key file that cannot be read, and on `check` of a
-key that is malformed, unknown, revoked or expired. `2` on a missing positional or a bad
-flag value. Note the asymmetry with `kb source remove`, which treats a missing name as a
-no-op at `0`: `revoke` on an unknown id fails, because an admin scripting a revocation
-reads the exit code and "I revoked nothing" must not read as success.
+**Exit codes.**
+
+- `0` on success, including `list` on a key file that does not exist yet, and including `usage`
+  for a key that was issued and never used.
+- `1` on an id that is not in the file, on a key file that cannot be read, and on `check` of a
+  key that is malformed, unknown, revoked or expired.
+- `2` on a missing positional or a bad flag value.
+
+`revoke` on an unknown id fails, because an admin scripting a revocation reads the exit code and
+"I revoked nothing" must not read as success. Note the asymmetry with `kb source remove`, which
+treats a missing name as a no-op at `0`.
 
 No `kb keys` verb opens the store database, so every one of them runs on a machine with no
 index built. `usage` and the `LAST USED` column read the usage file beside the store by
@@ -8904,34 +9002,39 @@ separately.
   embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, **`0.00B` means nothing was downloaded, everything was already
   cached**. It fires once per run at model load, not per repo.
-- **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved. **`⚠ <repo>:
-  rejected by council (score 0.31)`**, it did not clear the accept threshold; the indented `-
-  accuracy/completeness/clarity: ...` lines are the per-lens reasons. **`unparseable review`** means the
-  model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
-  lenses are excluded from the mean rather than counted as zero. A rejection that also says
-  **`N reviewer(s) returned nothing parseable`** tells you how many lenses abstained, when that count
-  equals your `council_size` on every page, suspect a *misconfigured reviewer* (missing API key, review
-  CLI not on PATH) rather than weak pages: a reviewer that returns nothing rejects everything
-  at score 0.0, which otherwise looks identical to a strict council. A capable backend
+- **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved.
+- **`⚠ <repo>: rejected by council (score 0.31)`**, it did not clear the accept threshold. The
+  indented `- accuracy/completeness/clarity: ...` lines are the per-lens reasons. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces fewer rejections, see
   [Model providers](model-providers.md).
+- **`unparseable review`** means the model returned a review the council couldn't score (common
+  with the tiny built-in 0.5B model). Those lenses are excluded from the mean rather than counted
+  as zero.
+- **`N reviewer(s) returned nothing parseable`**, on a rejection, tells you how many lenses
+  abstained. When that count equals your `council_size` on every page, suspect a *misconfigured
+  reviewer* (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
+  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
+  council.
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
-  opens the socket -- `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the
-  same with an `/sse` suffix for `sse` -- so you don't have to guess the host/port/path before pointing
-  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
-  on your screen means a server that is coming up.
-  Both URLs include the path because neither transport is served at the bare root. Note that probing
-  the root will not tell you that: the bearer-token middleware wraps the whole app, so an
-  unauthenticated request to any path, the root included, answers `401` rather than `404`.
-  `stdio` transport has no address to report and stays quiet on that line.
+  opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
+  For `http` the line is `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)`; for `sse`
+  it is the same with an `/sse` suffix. `stdio` transport has no address to report and stays quiet
+  on that line.
+    - It is last on purpose. A start that refuses prints the refusal and no URL, so a URL on your
+      screen means a server that is coming up.
+    - Both URLs include the path because neither transport is served at the bare root. Probing the
+      root will not tell you that. The bearer-token middleware wraps the whole app, so an
+      unauthenticated request to any path, the root included, answers `401` rather than `404`.
 - **The network transports print their bearer token just above that URL, on stderr.** A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
-  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. It comes first because the credential is decided first: the same step can refuse the
-  start, and a refusal has to reach you before anything says the server is up. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
-  disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
-  it instead of echoing the value. `stdio` prints no token because it needs none. See
-  [Serve](serving-over-mcp.md).
+  you cannot use. So the token is said once, next to the address it belongs to, rather than left to
+  be discovered. `stdio` prints no token because it needs none. See [Serve](serving-over-mcp.md).
+    - It comes first because the credential is decided first. The same step can refuse the start,
+      and a refusal has to reach you before anything says the server is up.
+    - It is deliberately *not* sent through the logger: `--log-file` would otherwise leave the token
+      on disk after the process is gone.
+    - Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges it instead of echoing the
+      value.
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
@@ -8955,13 +9058,14 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
 `kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
-you, and each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
-stdio` is the one with no address to announce). Stopping them that way is the documented ending
-rather than an interruption: each catches the interrupt, prints its own stop
-line (`Stopping MCP server`, `Stopping dashboard server`, `Stopping graph server`,
-`Stopping graph site server`) and exits `0`. The `--watch` loops on `kb index`, `kb embed` and
-`kb connect` end the same way, finishing normally rather than aborting. `130` is for a command
-that was interrupted mid-job.
+you. Each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
+stdio` is the one with no address to announce).
+
+Stopping them that way is the documented ending rather than an interruption. Each catches the
+interrupt, prints its own stop line (`Stopping MCP server`, `Stopping dashboard server`,
+`Stopping graph server`, `Stopping graph site server`) and exits `0`. The `--watch` loops on
+`kb index`, `kb embed` and `kb connect` end the same way, finishing normally rather than aborting.
+`130` is for a command that was interrupted mid-job.
 
 `kb serve` adds one code the rest of the CLI never uses:
 
@@ -9104,11 +9208,16 @@ files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). co
 ```
 
 That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
-to ingest, and it declines rather than storing an empty document that would look like knowledge in
+to ingest. It declines rather than storing an empty document that would look like knowledge in
 search results. Run the file through an OCR tool of your choice first, or ingest the source
-document the PDF was made from. The other two refusals name themselves the same way: a PDF that
-cannot be parsed (encrypted files are not decrypted), and one over the source's `max_bytes`, which
-you can raise on the source. See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
+document the PDF was made from.
+
+The other two refusals name themselves the same way:
+
+- a PDF that cannot be parsed (encrypted files are not decrypted)
+- a PDF over the source's `max_bytes`, which you can raise on the source
+
+See [Aggregating documents](document-sources.md#pdfs-the-text-layer-and-nothing-pretending-to-be-more).
 
 ## A Docker run fails with a permission error on the mount
 
@@ -9196,6 +9305,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- **The docs follow the style guide's mechanical rules, and a test keeps them there.**
+  `docs/style-guide.md` described a lint gate that did not exist. `tests/test_docs_plain_language.py`
+  now checks every hand-written Markdown file for intensifiers, downtoners, filler, hype words,
+  "allows you to", "please", "click here" link text, and prose paragraphs over 90 words. 119
+  phrases and 51 paragraphs were rewritten to pass it. No command, flag or default changed.
+
+### Fixed
+
+- **Two docs described the trust rule for a discovered `kb.toml` wrongly.**
+  `docs/model-providers.md` and `SECURITY.md` said a project-local file could set
+  `provider = "openai"` or `"anthropic"` and keep working. That provider switches its tier off
+  for the run, as `docs/configuration.md` already said. Only `ollama`, `builtin` and `auto` keep
+  working from a discovered file.
+- **`SECURITY.md` said `[[sources]] url` names no host, then that it names one.** It names a host
+  and carries no credential.
+- **`docs/document-sources.md` left Zendesk out of the sources that take `hosts`.**
+- **On the docs site, the `kb source add` credential paragraph rendered outside its list item.**
 
 ## [9.6.1] - 2026-10-04
 
@@ -18397,8 +18526,8 @@ argument:
 
 - `tests/test_docs_plain_language.py` checks every tracked Markdown file outside `tests/`,
   except the CHANGELOG, for intensifiers, downtoners, filler, hype words, "allows you to",
-  "please", and "click here" link text. A use that is correct on purpose goes in its
-  allowlist with a reason.
+  "please", and "click here" link text, and fails any prose paragraph over 90 words. A use
+  that is correct on purpose goes in its allowlist with a reason.
 - `tests/test_no_emdash_in_docs.py` checks for em-dashes.
 
 Both skip fenced code blocks, because those hold captured output. A person reviews the rest of
@@ -19336,10 +19465,12 @@ shared definition, containment or resolution logic.
 **The retrieval evaluation set**, `examples/fixtures/golden-queries.json` and
 `examples/fixtures/eval-repo/`. This set is scored on every pull request against a declared hit-rate
 floor, and it deliberately does not cover every language: Kotlin and Scala are both supported and both
-absent. Adding fixture symbols without adding matching queries dilutes the corpus and can push the
-score under the floor, and one of its tests requires a perfect hit rate for single-word queries.
-Representing your language there is a separate, deliberate change that ratchets the floor up in the
-same commit. It is not part of adding a language.
+absent.
+
+Adding fixture symbols without adding matching queries dilutes the corpus and can push the score under
+the floor, and one of its tests requires a perfect hit rate for single-word queries. Representing your
+language there is a separate, deliberate change that ratchets the floor up in the same commit. It is
+not part of adding a language.
 
 ## Verify it
 

@@ -21,15 +21,17 @@ we'll coordinate disclosure.
 `contextlake` is a local developer tool. A few things worth knowing:
 
 - **Credentials are read from environment variables, never stored, logged, or
-  passed in argv/URLs.** Mirroring reads a platform token (`GITLAB_TOKEN` /
-  `GITHUB_TOKEN` / `BITBUCKET_TOKEN` / `GITEA_TOKEN`) when set, or delegates to
-  [`glab`](https://gitlab.com/gitlab-org/cli) / your `git` credential helper /
-  SSH keys otherwise. The optional knowledge layer's connectors (Atlassian,
-  Figma, Slack) and LLM providers (Anthropic, OpenAI, or an Ollama/OpenAI-
-  compatible endpoint) read their own API key from an env var you name via
-  config (`api_key_env`, default `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and send
-  it directly to that provider's API -- never inferred from an unrelated key
-  already in your environment, and never written to disk or a log line.
+  passed in argv/URLs.**
+    - Mirroring reads a platform token (`GITLAB_TOKEN` / `GITHUB_TOKEN` /
+      `BITBUCKET_TOKEN` / `GITEA_TOKEN`) when set, or delegates to
+      [`glab`](https://gitlab.com/gitlab-org/cli) / your `git` credential helper /
+      SSH keys otherwise.
+    - The optional knowledge layer's connectors (Atlassian, Figma, Slack) and LLM
+      providers (Anthropic, OpenAI, or an Ollama/OpenAI-compatible endpoint) read
+      their own API key from an env var you name via config (`api_key_env`, default
+      `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) and send it directly to that provider's
+      API -- never inferred from an unrelated key already in your environment, and
+      never written to disk or a log line.
 - **Configuration may contain a private GitLab group name.** Keep your real
   `.contextlake.ini`/`kb.toml` out of version control (both are git-ignored by
   default).
@@ -37,12 +39,12 @@ we'll coordinate disclosure.
   default: workspace paths, `$HOME`, the group/org name, a self-hosted forge
   hostname and repository names are replaced with placeholders (repositories
   become a stable `repo-<digest>`, so a scrubbed log still reads coherently).
-  Attach it to an issue as-is. `--redact` extends the same treatment to the
-  console; `--no-redact` disables it. This is obfuscation for sharing, not a
-  cryptographic guarantee -- a short, guessable repository name can be confirmed
-  by someone who guesses it -- so a log from a sensitive environment still
-  deserves a read-through before you post it. See
-  [docs/console-output.md](docs/console-output.md#sharing-a-log---redact).
+  Attach it to an issue as-is.
+    - `--redact` extends the same treatment to the console; `--no-redact` disables it.
+    - This is obfuscation for sharing, not a cryptographic guarantee -- a short,
+      guessable repository name can be confirmed by someone who guesses it -- so a
+      log from a sensitive environment still deserves a read-through before you post
+      it. See [docs/console-output.md](docs/console-output.md#sharing-a-log---redact).
 - **The project cache** (`/tmp/<...>.json` and `.txt` by default) lists the
   repositories you can access. Treat it as mildly sensitive and don't commit it.
 
@@ -85,19 +87,24 @@ endpoint and a secret to send to it are the same capability arriving in two piec
 enough to point the default configuration at a host of the file author's choosing.
 `api_key_env` and `[[sources]] token_env` each name any variable in your environment,
 and the client puts that value into an `Authorization` (or `x-api-key`) header on the
-request it sends to that host. `[[sources]] auth` and `user` are not secrets, but they
-decide how the `token_env` value is sent: a file that set `auth = "basic"` could turn a
-bearer token into half of a `user:token` pair. They are gated with it. `[[sources]] auth_dir` chooses where `mcp-remote`
-writes the OAuth refresh token it obtains, so an honest endpoint and honest scopes
-still hand a refreshable grant to a path the file picked. `kb connect` is a
+request it sends to that host.
+
+`[[sources]] auth` and `user` are not secrets, but they decide how the `token_env` value
+is sent: a file that set `auth = "basic"` could turn a bearer token into half of a
+`user:token` pair. They are gated with it. `[[sources]] auth_dir` chooses where
+`mcp-remote` writes the OAuth refresh token it obtains, so an honest endpoint and honest
+scopes still hand a refreshable grant to a path the file picked. `kb connect` is a
 `bootstrap` stage, so no opt-in stands between a clone and the connector half of that.
 
 **Those keys are honoured only from a config file you chose:** the global
 `~/.contextlake/kb.toml`, or a path you passed to `--config`. When they appear in an
 auto-discovered file, they are dropped and a warning naming the file and the key is
-logged. The rest of that file still applies as normal -- `store_dir`, `languages`,
-`[[rules]]`, `[embeddings] provider`, and non-`cli` LLM providers all keep working, so
-directory-scoped config keeps doing its job. What a discovered file can no longer do is
+logged.
+
+The rest of that file still applies as normal -- `store_dir`, `languages`,
+`[[rules]]`, and a `provider` that stays on your machine (`ollama`, `builtin`, `auto`) all keep
+working, so directory-scoped config keeps doing its job. A discovered `openai` or `anthropic`
+provider switches its tier off, as the next paragraph explains. What a discovered file can no longer do is
 name the host a request goes to, or the environment variable read for its credential, in
 `[llm]`, `[embeddings]` or `[[sources]]`.
 
@@ -136,8 +143,12 @@ with `--config`. A privileged provider is trusted with its own defaults, so a gl
 and the file. When a dropped key has no replacement in `~/.contextlake.ini`, `--config`, or (for
 the host) `GITLAB_HOST`, the forge token is off for that run, rather than falling back to the
 platform's public host or its standard variable. `work_dir`, `gitlab_group` and `platform` still
-apply from a discovered file. Two limits hold whatever any config says: git sends the token header
-only to the forge's own origin, and clone never deletes a non-empty directory that has no `.git`.
+apply from a discovered file.
+
+Two limits hold whatever any config says:
+
+- git sends the token header only to the forge's own origin, and
+- clone never deletes a non-empty directory that has no `.git`.
 
 Two keys are gated by **direction** rather than outright, because one way round is an
 honest thing for a project-local file to do.
@@ -167,13 +178,16 @@ this environment would never read.
 
 What this gate does **not** cover, deliberately: a discovered config can still set `[llm] enabled`,
 a `provider` that stays on your machine (`ollama`, `builtin`, `auto`), and `[[sources]] url`. None of
-those runs attacker code, and none of them names a host or a credential. The first switches on a
-tier your global config already points at, so if that tier is `openai` or `anthropic` a discovered
-file can start spending against your key. The second picks between local backends. The third names
-the host an ingest fetch, or an MCP tool query, is sent to. Gating `provider` for every value would
-break ordinary directory-scoped config, which is the feature this tier exists for, so the gate stops
-at the values that carry a credential. Use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the
-discovered tier gone entirely.
+those runs attacker code or carries a credential.
+
+- The first switches on a tier your global config already points at, so if that tier is `openai`
+  or `anthropic` a discovered file can start spending against your key.
+- The second picks between local backends.
+- The third names the host an ingest fetch, or an MCP tool query, is sent to.
+
+Gating `provider` for every value would break ordinary directory-scoped config, which is the
+feature this tier exists for, so the gate stops at the values that carry a credential. Use
+`CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the discovered tier gone entirely.
 
 `[[sources]] url` is limited to a *host*: ingest fetchers open `http`/`https` only and
 refuse any other scheme with a warning. That is enforced, not assumed -- `urllib` also speaks

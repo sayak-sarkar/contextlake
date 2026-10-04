@@ -32,10 +32,13 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated. **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or
-  in the git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
-  *symbol* (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
-  radius page's **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
+  authenticated.
+
+    **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or in the
+    git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
+    *symbol* (not just the repo). The same batched JQL call confirms it. The dashboard blast radius
+    page shows it as the **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
+
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
@@ -43,14 +46,19 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   `glab`).
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
-  (`repo --documented_by--> document`). **It makes no network call**, which makes it the one connector
-  that runs inside the offline boundary rather than as an opt-in exception to it: Zendesk's API needs a
-  per-instance token, and the association is already stated by the link itself. The cost is that a ticket
-  node carries no subject line -- an article gets its title from the URL slug, a ticket has none to get,
-  and inventing one would state something the graph cannot support. Node ids carry the instance
-  subdomain, because ticket numbers restart at 1 per instance. `hosts` is configurable for an instance
-  served from a vanity domain; the default claims only `*.zendesk.com`, since claiming an arbitrary host
-  would take links belonging to another connector.
+  (`repo --documented_by--> document`).
+
+    **It makes no network call**, which makes it the one connector that runs inside the offline
+    boundary rather than as an opt-in exception to it. Zendesk's API needs a per-instance token, and
+    the association is already stated by the link itself. The cost is that a ticket node carries no
+    subject line. An article gets its title from the URL slug; a ticket has none to get, and
+    inventing one would state something the graph cannot support.
+
+    Node ids carry the instance subdomain, because ticket numbers restart at 1 per instance.
+    `hosts` is configurable for an instance served from a vanity domain. The default claims only
+    `*.zendesk.com`, since claiming an arbitrary host would take links belonging to another
+    connector.
+
 - **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
   (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
@@ -72,19 +80,20 @@ The commands:
 
 - **`contextlake kb source add [NAME] [--type TYPE]`**: add a connector. The name is a positional
   argument, not a flag (`contextlake kb source add jira --type atlassian`). Run it in a terminal without
-  a name or a `--type` and it asks for them. It offers every type this build ships, the five connectors
+  a name or a `--type` and it asks for them. It offers every type this build ships: the five connectors
   (`atlassian`, `figma`, `gitlab`, `zendesk`, `slack`) plus the built-in ingest sources (`files`, `web`,
-  `api`, `graphql`, `mcp`) and any installed plugin, proposes defaults, and writes the entry to `kb.toml`.
-  Without a terminal, a missing name or type exits 2 and prints the form to use. `--mcp URL` sets the MCP
-  server URL and `--local` targets a project-level file (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any other connector option `kb.toml` accepts.
+  `api`, `graphql`, `mcp`) and any installed plugin. It proposes defaults and writes the entry to
+  `kb.toml`. Without a terminal, a missing name or type exits 2 and prints the form to use.
 
-  **A credential never goes on the command line.** Store the name of the environment variable that holds
-  it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
-  `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
-  and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
-  one non-secret option from stdin instead of the command line, so it stays out of shell history:
-  `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
+    `--mcp URL` sets the MCP server URL and `--local` targets a project-level file (`--help`
+    shows all). `--set KEY=VALUE` (repeatable) writes any other connector option `kb.toml` accepts.
+
+    **A credential never goes on the command line.** Store the name of the environment variable that holds
+    it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
+    `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
+    and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
+    one non-secret option from stdin instead of the command line, so it stays out of shell history:
+    `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
@@ -221,13 +230,16 @@ The exit code is non-zero when any repository was skipped, the same verdict `kb 
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.
 
-A source that could not be reached is not an empty answer. A repo whose source failed keeps the
-links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
-code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
-A source that answers with no results still clears the repo's previous ones. With several
-sources, one that stays unreachable keeps every affected repo's previous results, so the other
-sources' results for those repos wait too, and the run exits 1 until that source is fixed or
-removed from the config.
+A source that could not be reached is not an empty answer.
+
+- A repo whose source failed keeps the links, nodes and vectors from its last complete run, and
+  the run names it in a warning.
+- The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
+  results.
+- A source that answers with no results still clears the repo's previous ones.
+- With several sources, one that stays unreachable keeps every affected repo's previous results,
+  so the other sources' results for those repos wait too. The run exits 1 until that source is
+  fixed or removed from the config.
 
 ## See also
 

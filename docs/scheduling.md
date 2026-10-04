@@ -318,11 +318,13 @@ Refusing to run: this container's state does not survive a restart, so every run
 ```
 
 The check is whether the cache directory sits on its own mount point, not what filesystem type it
-reports: a container's own writable layer is part of the root mount, while any volume you attach
+reports. A container's own writable layer is part of the root mount, while any volume you attach
 (a PVC, an `emptyDir`, a bind mount, EFS, Azure Files) shows up as its own mount, whatever its
-underlying filesystem. Fix it by pointing `cache_dir` at a mounted volume, or pass
-`--allow-ephemeral` if a from-scratch run every cycle is what you want. There is no daemon to
-install inside a container; run the cycle in the foreground instead:
+underlying filesystem.
+
+Fix it by pointing `cache_dir` at a mounted volume, or pass `--allow-ephemeral` if a from-scratch
+run every cycle is what you want. There is no daemon to install inside a container. Run the cycle in
+the foreground instead:
 
 ```bash
 contextlake schedule run --foreground

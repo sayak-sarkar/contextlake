@@ -286,10 +286,12 @@ shared definition, containment or resolution logic.
 **The retrieval evaluation set**, `examples/fixtures/golden-queries.json` and
 `examples/fixtures/eval-repo/`. This set is scored on every pull request against a declared hit-rate
 floor, and it deliberately does not cover every language: Kotlin and Scala are both supported and both
-absent. Adding fixture symbols without adding matching queries dilutes the corpus and can push the
-score under the floor, and one of its tests requires a perfect hit rate for single-word queries.
-Representing your language there is a separate, deliberate change that ratchets the floor up in the
-same commit. It is not part of adding a language.
+absent.
+
+Adding fixture symbols without adding matching queries dilutes the corpus and can push the score under
+the floor, and one of its tests requires a perfect hit rate for single-word queries. Representing your
+language there is a separate, deliberate change that ratchets the floor up in the same commit. It is
+not part of adding a language.
 
 ## Verify it
 

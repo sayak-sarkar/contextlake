@@ -62,29 +62,39 @@ the model pulled, and otherwise to the built-in CPU model.
 - **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`, or `codex`.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
   the prompt on stdin. No API key touches contextlake; data goes to whatever provider that CLI uses. Reuses
-  your subscription, and mirrors how contextlake already shells out to `git` and `glab`. It is **not** an
-  offline backend: the CLI makes its own network call, and a subprocess owns its own sockets, so
-  `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command carries on with
-  no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
-  For the three recognised commands, contextlake strips that CLI's own API-key env var(s)
-  (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
-  `GOOGLE_API_KEY` for `gemini`) from the child process only -- otherwise a key set anywhere in your shell
-  for an unrelated reason (e.g. testing the `anthropic` provider) can silently override the CLI's
-  subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
-  for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
-  explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
-  precaution there rather than a confirmed-necessary fix.
-  **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
-  `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
-  directory, since that file may have arrived inside a repository you cloned and these keys are a
-  command line contextlake runs. Setting them locally logs a warning and is ignored. `base_url` and
-  `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every provider: a
-  discovered file may not choose the host a request goes to, or the environment variable read for its
-  credential. Everything else, `provider` included for any value other than `"cli"`, works from a local
-  file as usual. One knock-on: if a discovered file picks `openai` or `anthropic` *and* tries to set
-  `base_url` or `api_key_env`, the tier is switched off for that run rather than falling back to
-  built-in defaults you did not choose. Pass `--llm PROVIDER`, or `--config PATH`, or set the tier in
-  `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
+  your subscription, and mirrors how contextlake already shells out to `git` and `glab`.
+
+    It is **not** an offline backend. The CLI makes its own network call, and a subprocess owns its own
+    sockets. So `--offline` (or `CONTEXTLAKE_OFFLINE=1`) refuses to spawn it, says so, and the command
+    carries on with no model. Use `builtin` or `ollama` for a run that has to stay on the machine.
+
+    For the three recognised commands, contextlake strips that CLI's own API-key env var(s) from the
+    child process only:
+
+    - `ANTHROPIC_API_KEY` for `claude`
+    - `OPENAI_API_KEY` for `codex`
+    - `GEMINI_API_KEY` / `GOOGLE_API_KEY` for `gemini`
+
+    Otherwise a key set anywhere in your shell for an unrelated reason (e.g. testing the `anthropic`
+    provider) can silently override the CLI's subscription login and bill a pay-per-token account you
+    never meant to use here. Confirmed by live repro for `claude` and by its own docs for `gemini`.
+    `codex`'s docs describe API-key auth as a separate, explicitly-opted-into mode rather than an
+    environment-variable override, so the strip is a defensive precaution there rather than a
+    confirmed-necessary fix.
+
+    **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
+    `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
+    directory. This is because that file may have arrived inside a repository you cloned, and these
+    keys are a command line contextlake runs. Setting them locally logs a warning and is ignored.
+
+    `base_url` and `api_key_env` are gated the same way, for `[llm]` and `[embeddings]` and for every
+    provider: a discovered file may not choose the host a request goes to, or the environment variable
+    read for its credential. A local `provider` (`ollama`, `builtin`, `auto`) and everything else
+    works from a local file as usual.
+
+    A discovered file that picks `openai` or `anthropic` switches that tier off for the run: a file
+    found by directory walk may not aim a credential-carrying tier. Pass `--llm PROVIDER`, or
+    `--config PATH`, or set the tier in `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -248,11 +258,15 @@ timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 ```
 
 If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
-calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
-connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
-or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
-rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
-first` keeps telling you to run `ollama pull` however many pages are left.
+calls the model once per page.
+
+After three consecutive endpoint failures (a timeout, a refused connection, a 5xx), the provider is
+skipped for 60 seconds and then probed once. So a dead Ollama daemon or an unreachable API costs the run
+a few timeouts instead of one per page, and says so in the log.
+
+A rejected *request* is exempt and always reported as itself. So
+`model "..." not found, try pulling it first` keeps telling you to run `ollama pull` however many pages
+are left.
 
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder

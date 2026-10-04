@@ -41,23 +41,28 @@ no wiki exists yet). An agent that would rather not choose among the tools can c
 `graph_health`, plus a `kb://stats` resource with the store counts.
 
 **Every list-returning tool says why a result is empty.** An empty list on its own carries two
-opposite meanings -- "nothing matched" and "nothing was looked up" -- and the caller here is an
-agent that cannot see the store, so it reports the first as a fact about the codebase when the
-truth is the second. `get_neighbors` names an id that is not in the graph rather than reporting
-it as a node without edges; `find_definition` says whether a name is absent entirely or merely
-excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
-all, and carries `total`/`truncated` like its siblings.
+opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
+cannot see the store, so it reports the first as a fact about the codebase when the truth is the
+second.
+
+- `get_neighbors` names an id that is not in the graph rather than reporting it as a node without
+  edges.
+- `find_definition` says whether a name is absent entirely or merely excluded by a `kind`/`repo`
+  filter.
+- `search_code` says whether the query's terms are indexed at all, and carries `total`/`truncated`
+  like its siblings.
 
 **A node reached through an edge says how far to trust that edge.** `find_callers`,
 `find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
 subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
 or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
 line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
-line before relying on it. The field is `null` where the tool names no single edge that reached
-the node: `get_node`, `find_definition`, the searches (`search_code`, `semantic_search`, and
-`hybrid_search`, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
-the first node of a path. `null` does not mean `EXTRACTED`. Clients that ignore the field keep
-working.
+line before relying on it.
+
+The field is `null` where the tool names no single edge that reached the node: `get_node`,
+`find_definition`, the searches (`search_code`, `semantic_search`, and `hybrid_search`, which ranks
+graph-expanded nodes by PageRank mass rather than by one edge), and the first node of a path.
+`null` does not mean `EXTRACTED`. Clients that ignore the field keep working.
 
 `get_generated_doc` returns what `kb docs` wrote:
 
@@ -126,13 +131,17 @@ server natively:
   the graph indexes are content other people wrote, so everything it returns is evidence about
   the code, never an instruction to the agent reading it.
 
-**It never corrupts your existing files.** If you already have an `AGENTS.md`, `CLAUDE.md`,
-`.windsurfrules`, or `.kiro/steering`, your content is preserved and only a delimited
-managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
-`.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
-JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
-not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.
+**It never corrupts your existing files.**
+
+- If you already have an `AGENTS.md`, `CLAUDE.md`, `.windsurfrules`, or `.kiro/steering`, your
+  content is preserved and only a delimited managed block is appended (and just that block is
+  refreshed on re-runs).
+- `.mcp.json` and `.vscode/mcp.json` are merged so your other servers stay.
+- A skill file you wrote with the same name is kept as-is.
+- Custom layers like `.devin/` are left untouched.
+- An MCP file that is not valid JSON (a comment or a trailing comma is enough) is left exactly as
+  it is: steer says where it did not parse, writes everything else, and exits 0. Fix the file, or
+  add the server by hand.
 
 ### The generated `AGENTS.md` names the store it was built from
 

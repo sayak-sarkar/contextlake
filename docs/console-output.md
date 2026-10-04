@@ -229,34 +229,39 @@ separately.
   embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, **`0.00B` means nothing was downloaded, everything was already
   cached**. It fires once per run at model load, not per repo.
-- **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved. **`⚠ <repo>:
-  rejected by council (score 0.31)`**, it did not clear the accept threshold; the indented `-
-  accuracy/completeness/clarity: ...` lines are the per-lens reasons. **`unparseable review`** means the
-  model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
-  lenses are excluded from the mean rather than counted as zero. A rejection that also says
-  **`N reviewer(s) returned nothing parseable`** tells you how many lenses abstained, when that count
-  equals your `council_size` on every page, suspect a *misconfigured reviewer* (missing API key, review
-  CLI not on PATH) rather than weak pages: a reviewer that returns nothing rejects everything
-  at score 0.0, which otherwise looks identical to a strict council. A capable backend
+- **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved.
+- **`⚠ <repo>: rejected by council (score 0.31)`**, it did not clear the accept threshold. The
+  indented `- accuracy/completeness/clarity: ...` lines are the per-lens reasons. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces fewer rejections, see
   [Model providers](model-providers.md).
+- **`unparseable review`** means the model returned a review the council couldn't score (common
+  with the tiny built-in 0.5B model). Those lenses are excluded from the mean rather than counted
+  as zero.
+- **`N reviewer(s) returned nothing parseable`**, on a rejection, tells you how many lenses
+  abstained. When that count equals your `council_size` on every page, suspect a *misconfigured
+  reviewer* (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
+  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
+  council.
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
-  opens the socket -- `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the
-  same with an `/sse` suffix for `sse` -- so you don't have to guess the host/port/path before pointing
-  an editor at it. It is last on purpose: a start that refuses prints the refusal and no URL, so a URL
-  on your screen means a server that is coming up.
-  Both URLs include the path because neither transport is served at the bare root. Note that probing
-  the root will not tell you that: the bearer-token middleware wraps the whole app, so an
-  unauthenticated request to any path, the root included, answers `401` rather than `404`.
-  `stdio` transport has no address to report and stays quiet on that line.
+  opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
+  For `http` the line is `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)`; for `sse`
+  it is the same with an `/sse` suffix. `stdio` transport has no address to report and stays quiet
+  on that line.
+    - It is last on purpose. A start that refuses prints the refusal and no URL, so a URL on your
+      screen means a server that is coming up.
+    - Both URLs include the path because neither transport is served at the bare root. Probing the
+      root will not tell you that. The bearer-token middleware wraps the whole app, so an
+      unauthenticated request to any path, the root included, answers `401` rather than `404`.
 - **The network transports print their bearer token just above that URL, on stderr.** A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
-  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
-  discovered. It comes first because the credential is decided first: the same step can refuse the
-  start, and a refusal has to reach you before anything says the server is up. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
-  disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
-  it instead of echoing the value. `stdio` prints no token because it needs none. See
-  [Serve](serving-over-mcp.md).
+  you cannot use. So the token is said once, next to the address it belongs to, rather than left to
+  be discovered. `stdio` prints no token because it needs none. See [Serve](serving-over-mcp.md).
+    - It comes first because the credential is decided first. The same step can refuse the start,
+      and a refusal has to reach you before anything says the server is up.
+    - It is deliberately *not* sent through the logger: `--log-file` would otherwise leave the token
+      on disk after the process is gone.
+    - Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges it instead of echoing the
+      value.
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
@@ -280,13 +285,14 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
 `kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
-you, and each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
-stdio` is the one with no address to announce). Stopping them that way is the documented ending
-rather than an interruption: each catches the interrupt, prints its own stop
-line (`Stopping MCP server`, `Stopping dashboard server`, `Stopping graph server`,
-`Stopping graph site server`) and exits `0`. The `--watch` loops on `kb index`, `kb embed` and
-`kb connect` end the same way, finishing normally rather than aborting. `130` is for a command
-that was interrupted mid-job.
+you. Each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
+stdio` is the one with no address to announce).
+
+Stopping them that way is the documented ending rather than an interruption. Each catches the
+interrupt, prints its own stop line (`Stopping MCP server`, `Stopping dashboard server`,
+`Stopping graph server`, `Stopping graph site server`) and exits `0`. The `--watch` loops on
+`kb index`, `kb embed` and `kb connect` end the same way, finishing normally rather than aborting.
+`130` is for a command that was interrupted mid-job.
 
 `kb serve` adds one code the rest of the CLI never uses:
 

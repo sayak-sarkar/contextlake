@@ -298,13 +298,19 @@ tool is called with the templated arguments during enrichment, returning documen
 codebase's query context.
 
 **Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest sources also
-accept: `auth_dir`, an isolated OAuth-cache directory (set a distinct one per Atlassian org so their
-`mcp-remote` caches never collide); `mcp_command`, a local stdio MCP command to launch instead of a remote
-endpoint (e.g. `"figma-mcp --stdio"` or `"slack-mcp --stdio"`); `hosts`, the list of hostnames a Figma/Slack
-source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_tool`, the Slack MCP tool
-name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
-used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
-repo's path to form the project id; and `per_page`, the API page size (default `50`).
+accept:
+
+- `auth_dir`: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
+  `mcp-remote` caches never collide.
+- `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
+  `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
+- `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
+  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`).
+- `verify_tool`: the Slack MCP tool name used for reachability checks (default `conversations_info`).
+- `history_tool`: the Slack MCP tool name used to read a channel's messages (default
+  `conversations_history`).
+- `group`: a GitLab group prefixed to each repo's path to form the project id.
+- `per_page`: the API page size (default `50`).
 
 ## See also
 

@@ -5,17 +5,22 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
 
 > [!IMPORTANT]
 > **This page publishes no benchmark figures, on purpose.** It used to. Those numbers were taken on
-> one private estate and no script, dataset, or result file was ever committed with them, so nobody,
-> including us, could re-run them. A figure you cannot reproduce is a claim wearing a number's
-> clothes, so they have been removed rather than restated. What is left is the mechanism, which you
-> can check by reading the code, and a procedure for measuring the effect on your own repositories,
-> which is the only place a number should decide anything for you.
+> one private estate, and no script, dataset, or result file was ever committed with them. So
+> nobody, including us, could re-run them. A figure you cannot reproduce is a claim wearing a
+> number's clothes, so they have been removed rather than restated. What is left:
+>
+> - the mechanism, which you can check by reading the code
+> - a procedure for measuring the effect on your own repositories, which is the only place a number
+>   should decide anything for you
 >
 > There is now exactly one set of figures this project does publish, and it arrives with the script
-> that produced it: `benchmarks/head-to-head/` compares graph coverage against another local
-> code-graph tool over four pinned public repositories. It answers a **different** question from
-> this page. It measures how much of a tree each tool represents, not what either saves you in
-> tokens, and contextlake leads on one of the four.
+> that produced it: `benchmarks/head-to-head/`.
+>
+> - It compares graph coverage against another local code-graph tool over four pinned public
+>   repositories.
+> - It answers a **different** question from this page. It measures how much of a tree each tool
+>   represents, not what either saves you in tokens.
+> - contextlake leads on one of the four.
 
 ## The short version
 
