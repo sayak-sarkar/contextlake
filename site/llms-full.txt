@@ -9185,12 +9185,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it.
 - **An unreachable source no longer empties a repo's `kb connect` or `kb enrich`
   results.** A source that failed answered like one with nothing to say, so one outage
-  replaced the repo's previous links, nodes and vectors with nothing, and the run exited
-  0 when another repo had results. Now a repo whose source failed keeps its previous
-  results, the run names it, and it exits 1 unless `contextlake --exit-zero-on-partial`
-  is given, the rule `kb ingest` already follows. A source that answers with no results
-  still clears them. One failed source keeps the whole repo's previous results, so the
-  other sources' new results for that repo wait for the next complete run.
+  replaced the repo's previous links, nodes and vectors with nothing. Now a repo whose
+  source failed keeps its previous results, and the run's warnings name it. The exit code
+  rule is unchanged: 1 when nothing was stored and sources failed, 0 with warnings when
+  other repos got results. A source that answers with no results still clears them. One
+  failed source keeps the whole repo's previous results, so the other sources' new
+  results for that repo wait for the next complete run.
 - **A shard file is never seen half-written.** It was written in place, so a reader could
   read a truncated file and a crash could leave one behind. It is now written to a
   temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,

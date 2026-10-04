@@ -86,13 +86,13 @@ def test_a_clean_run_with_nothing_to_find_still_succeeds(tmp_path, monkeypatch, 
     assert "Enrich complete" in printed
 
 
-def _partial_degradation(tmp_path, monkeypatch, capsys, **flags):
-    """Run `kb enrich` where one source call was written off and results were still stored."""
+def test_partial_degradation_with_results_matches_connects_rule(tmp_path, monkeypatch, capsys):
+    """`kb connect` exits 0 when some calls degraded but something was still stored. The
+    rule is copied rather than tightened: two sibling commands disagreeing on one event is
+    the defect this batch is about."""
     from contextlake.kb.cmds.enrich import cmd_enrich
 
     args = _index(tmp_path, monkeypatch)
-    for name, value in flags.items():
-        setattr(args, name, value)
     capsys.readouterr()
     import contextlake.kb.connectors.enrich as enrich_mod
     from contextlake.kb import resilience
@@ -103,25 +103,6 @@ def _partial_degradation(tmp_path, monkeypatch, capsys, **flags):
 
     monkeypatch.setattr(enrich_mod, "run_enrich_repo", _partial)
     code = cmd_enrich(args)
-    return code, "".join(capsys.readouterr())
-
-
-def test_partial_degradation_with_results_is_a_failed_run_like_connect_and_ingest(
-        tmp_path, monkeypatch, capsys):
-    """This used to pin exit 0, "copied from `kb connect`". That rule hid an outage behind
-    any other repo's documents, and `kb connect` now exits 1 for the same event, as
-    `kb ingest` does for a failed source. The two siblings still agree; they agree on the
-    stricter verdict. `--exit-zero-on-partial` is the way to get the old one back."""
-    code, printed = _partial_degradation(tmp_path, monkeypatch, capsys)
-    assert code == 1
-    assert "incomplete" in printed, "the degradation still has to be stated"
-    assert "contextlake --exit-zero-on-partial kb enrich" in printed, \
-        "the escape hatch is named with its position"
-
-
-def test_partial_degradation_with_results_exits_zero_under_exit_zero_on_partial(
-        tmp_path, monkeypatch, capsys):
-    code, printed = _partial_degradation(tmp_path, monkeypatch, capsys,
-                                         exit_zero_on_partial=True)
+    printed = "".join(capsys.readouterr())
     assert code == 0
-    assert "incomplete" in printed, "tolerating it does not hide it"
+    assert "incomplete" in printed, "the degradation still has to be stated"

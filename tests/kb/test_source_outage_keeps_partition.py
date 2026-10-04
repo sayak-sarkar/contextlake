@@ -189,18 +189,8 @@ def test_enrich_an_outage_for_one_repo_keeps_its_previous_partition(
     assert after == before
     beta = _enrich_snapshot(store_dir, "group/beta")
     assert beta["node_ids"] == ["@enrich:group/beta:d3"], "the healthy repo was refreshed"
-    assert code == 1, "a failed source is a failure of the run, even with results elsewhere"
+    assert code == 0, "results were stored for another repo; the warnings name this one"
     assert "kept" in gls_logs.text and "group/alpha" in gls_logs.text
-
-
-def test_enrich_exit_zero_on_partial_still_keeps_the_partition_and_exits_zero(
-        tmp_path, monkeypatch):
-    cfg, store_dir = _enrich_world(tmp_path, monkeypatch)
-    before = _healthy_first_run(cfg, store_dir, monkeypatch)
-
-    _answer_with(monkeypatch, {("wiki", "alpha"): DOWN, ("wiki", "beta"): _docs("d3")})
-    assert _run_enrich(cfg, exit_zero_on_partial=True) == 0
-    assert _enrich_snapshot(store_dir, "group/alpha") == before
 
 
 def test_enrich_an_answer_of_no_documents_still_clears_the_partition(tmp_path, monkeypatch):
@@ -247,7 +237,7 @@ def test_enrich_a_source_that_raises_keeps_the_previous_partition_too(
     mode["alpha"] = "boom"
     code = _run_enrich(cfg)
     assert _enrich_snapshot(store_dir, "group/alpha") == before
-    assert code == 1
+    assert code == 0  # another repo answered
 
 
 def test_enrich_one_failed_source_keeps_the_whole_partition_even_if_another_answered(
@@ -409,18 +399,8 @@ def test_connect_an_outage_for_one_repo_keeps_its_previous_partition(
     assert _connect_snapshot(store_dir, "group/alpha") == before
     beta = _connect_snapshot(store_dir, "group/beta")
     assert [e[1] for e in beta["edges"]] == ["issue:group/beta:B2", "issue:group/beta:B3"]
-    assert code == 1, "a failed source is a failure of the run, even with links elsewhere"
+    assert code == 0, "links were stored for another repo; the warnings name this one"
     assert "kept" in gls_logs.text and "group/alpha" in gls_logs.text
-
-
-def test_connect_exit_zero_on_partial_still_keeps_the_partition_and_exits_zero(
-        tmp_path, monkeypatch):
-    cfg, store_dir = _connect_world(tmp_path, monkeypatch)
-    before = _first_connect_run(cfg, store_dir, monkeypatch)
-
-    _planned_enricher(monkeypatch, {"group/alpha": DOWN, "group/beta": ("B2",)})
-    assert _run_connect(cfg, exit_zero_on_partial=True) == 0
-    assert _connect_snapshot(store_dir, "group/alpha") == before
 
 
 def test_connect_an_answer_of_no_links_still_clears_edges_nodes_and_vectors(
@@ -457,7 +437,7 @@ def test_connect_a_source_that_raises_keeps_the_previous_partition(tmp_path, mon
     _planned_enricher(monkeypatch, {"group/alpha": "RAISE", "group/beta": ("B2",)})
     code = _run_connect(cfg)
     assert _connect_snapshot(store_dir, "group/alpha") == before
-    assert code == 1
+    assert code == 0  # another repo answered
 
 
 def test_connect_one_failed_source_keeps_the_whole_partition_even_if_another_answered(
@@ -589,32 +569,3 @@ def test_build_enrichers_names_the_sources_it_had_to_drop():
 
 
 # --- the escape hatch reaches kb connect and kb enrich from the real CLI ----------
-
-def test_exit_zero_on_partial_is_read_by_connect_from_the_real_cli(tmp_path, monkeypatch):
-    """A `Namespace(exit_zero_on_partial=True)` passes even if argparse never sets it, so
-    this goes through `cli.main`. The flag is a pre-command global."""
-    from contextlake.cli import main
-
-    cfg, _store_dir = _connect_world(tmp_path, monkeypatch)
-    _planned_enricher(monkeypatch, {"group/alpha": DOWN, "group/beta": ("B1",)})
-
-    with pytest.raises(SystemExit) as strict:
-        main(["kb", "connect", "--config", str(cfg)])
-    assert strict.value.code == 1
-    with pytest.raises(SystemExit) as lenient:
-        main(["--exit-zero-on-partial", "kb", "connect", "--config", str(cfg)])
-    assert lenient.value.code == 0
-
-
-def test_exit_zero_on_partial_is_read_by_enrich_from_the_real_cli(tmp_path, monkeypatch):
-    from contextlake.cli import main
-
-    cfg, _store_dir = _enrich_world(tmp_path, monkeypatch)
-    _answer_with(monkeypatch, {("wiki", "alpha"): DOWN, ("wiki", "beta"): _docs("d1")})
-
-    with pytest.raises(SystemExit) as strict:
-        main(["kb", "enrich", "--config", str(cfg)])
-    assert strict.value.code == 1
-    with pytest.raises(SystemExit) as lenient:
-        main(["--exit-zero-on-partial", "kb", "enrich", "--config", str(cfg)])
-    assert lenient.value.code == 0

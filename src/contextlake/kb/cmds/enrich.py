@@ -140,7 +140,7 @@ def cmd_enrich(args) -> int:
             # Nothing stored AND calls written off is not an empty result, it is a failed
             # one. An expired token, a dead host and a 404 all land here, and exiting 0
             # made them indistinguishable from a clean run over repos with nothing to find.
-            if degraded and not total:
+            if (degraded or kept) and not total:
                 # Says what was MEASURED. "No source could be reached" is `kb connect`'s
                 # wording under a stricter condition it actually tracks (every attempt
                 # failed); this command counts written-off calls, not attempts, so one
@@ -156,10 +156,9 @@ def cmd_enrich(args) -> int:
                     f"symbols (returned, unattached). That is the correct result when "
                     f"the documents discuss the repo in prose. Check the repo is "
                     f"indexed and that its symbol names appear in the text.")
-            # Partial degradation with results is a failed run too, the verdict `kb ingest`
-            # gives a failed source and `kb connect` now gives alike (see the end of this
-            # function). It used to exit 0 here, so one repo's outage hid behind another
-            # repo's documents.
+            # Partial degradation with results exits 0 with these warnings, the rule
+            # `kb connect` has: a source that is down for good would otherwise fail every
+            # scheduled `bootstrap`. A repo whose source failed keeps its previous results.
             kind = "warn" if (degraded or failed or kept) else "ok"
             word = "incomplete" if (degraded or failed or kept) else "complete"
             # Both numbers, never one instead of the other: documents stored answers
@@ -176,15 +175,6 @@ def cmd_enrich(args) -> int:
             if degraded or kept:
                 log("  Nothing was silently dropped: each unavailable source is logged "
                     "above, and the repos listed there kept their previous results.")
-                # Same escape hatch as `kb ingest`, and the position has to be shown: the
-                # flag is a PRE-command global, so `kb enrich --exit-zero-on-partial` is
-                # rejected by argparse with exit 2.
-                if getattr(args, "exit_zero_on_partial", False):
-                    log(style.dim("  Exiting 0 (--exit-zero-on-partial)."))
-                    return 0
-                log("  For a scheduled run that should tolerate this:")
-                log("    contextlake --exit-zero-on-partial kb enrich")
-                return 1
             return 0
         finally:
             if vector_store is not None:

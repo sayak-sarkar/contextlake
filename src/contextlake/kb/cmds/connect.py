@@ -404,20 +404,11 @@ def cmd_connect(args) -> int:
             # it is a failed one: an expired token, a dead host and a 404 all land
             # here, and exiting 0 made them indistinguishable from a clean run
             # over a repo with no open work.
-            if degraded and not total_edges:
-                return 1
-            # A source that could not be reached is a failure of the run even when
-            # other repos got links: those links hide the outage, and the repos that
-            # kept their previous partition are not the graph this run was asked to
-            # build. Same verdict, and the same escape hatch, as `kb ingest` gives a
-            # failed source. The flag is a PRE-command global (`contextlake
-            # --exit-zero-on-partial kb connect`).
-            if (kept or degraded) and not repo_failed:
-                if getattr(args, "exit_zero_on_partial", False):
-                    log(style.dim("  Exiting 0 (--exit-zero-on-partial)."))
-                    return 0
-                log("  For a scheduled run that should tolerate this:")
-                log("    contextlake --exit-zero-on-partial kb connect")
+            # A repo that kept its previous links because a source failed counts the same
+            # way. Some links stored with some sources down stays exit 0 with the warnings
+            # above, the rule `kb enrich` copies: a source that is down for good would
+            # otherwise fail every scheduled `bootstrap`, which runs this as a stage.
+            if (degraded or kept) and not total_edges:
                 return 1
             # A skipped repository is missing knowledge, so the run is not clean --
             # same verdict `kb index` gives a workspace where one repo failed to
