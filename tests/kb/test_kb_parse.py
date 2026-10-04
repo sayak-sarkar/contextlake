@@ -61,6 +61,55 @@ def test_doc_comment_captured_for_js_and_csharp():
     assert cn["Charge"].attrs.get("doc") == "Charges a card."          # /// XML, tags stripped
 
 
+_EXPORTED_DOCS = b"""/** A plain. */
+function aPlain() { return 1 }
+
+/** B export. */
+export function bExport() { return 1 }
+
+/** C default. */
+export default function cDefault() { return 1 }
+
+/** D class. */
+export class DClass {}
+
+/** F arrow. */
+export const fArrow = () => 1
+
+/** G plain arrow. */
+const gArrow = () => 1
+
+// J plain comment, not a doc.
+export function jNoDoc() { return 1 }
+"""
+
+
+@pytest.mark.parametrize("lang,path", [("javascript", "m.js"), ("typescript", "m.ts")])
+def test_doc_comment_reaches_exported_definitions(lang, path):
+    # `/** doc */ export function f` parses as the comment, then an export_statement
+    # WRAPPING the definition: the definition's own previous sibling is the `export`
+    # keyword. Every exported JS/TS definition lost its doc that way, and `export const`
+    # arrow functions, which come through the member-symbol path, never had one at all.
+    nodes = parse_source("r", path, _EXPORTED_DOCS, lang, verified_at=date(2026, 10, 4))[0]
+    doc = {n.name: (n.attrs or {}).get("doc") for n in nodes}
+    assert doc["aPlain"] == "A plain."
+    assert doc["bExport"] == "B export."
+    assert doc["cDefault"] == "C default."
+    assert doc["DClass"] == "D class."
+    assert doc["fArrow"] == "F arrow."
+    assert doc["gArrow"] == "G plain arrow."
+    assert doc["jNoDoc"] is None          # a plain comment is still not a doc
+
+
+def test_typescript_abstract_class_is_a_class_with_its_doc():
+    src = b"/** Base repository. */\nexport abstract class BaseRepo {\n  run() { return 1 }\n}\n"
+    nodes = parse_source("r", "b.ts", src, "typescript", verified_at=date(2026, 10, 4))[0]
+    by_name = {n.name: n for n in nodes}
+    assert by_name["BaseRepo"].kind == "class"
+    assert by_name["BaseRepo"].attrs.get("doc") == "Base repository."
+    assert by_name["run"].kind == "method"
+
+
 def test_parse_extracts_defs_and_imports():
     nodes, edges, _, _ = parse_source(
         "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)

@@ -399,7 +399,7 @@ _DEF_TYPES = {
     "typescript": {
         "class_declaration": "class", "function_declaration": "function",
         "method_definition": "method", "interface_declaration": "interface",
-        "enum_declaration": "enum",
+        "enum_declaration": "enum", "abstract_class_declaration": "class",
     },
     "csharp": {
         "class_declaration": "class", "interface_declaration": "interface",
@@ -507,6 +507,7 @@ _QUERIES = {
     """,
     "typescript": """
         (class_declaration name: (type_identifier) @def)
+        (abstract_class_declaration name: (type_identifier) @def)
         (function_declaration name: (identifier) @def)
         (method_definition name: (property_identifier) @def)
         (interface_declaration name: (type_identifier) @def)
@@ -777,8 +778,15 @@ def _leading_doc(def_ts: ts.Node) -> str | None:
     run of doc-comments immediately above the def, strips the comment + XML syntax.
     """
     raws: list[str] = []
-    node = def_ts.prev_sibling
-    last_line = def_ts.start_point[0]
+    # `/** doc */ export function f` parses as a comment, then an `export_statement`
+    # WRAPPING the definition, so the definition's own prev_sibling is the `export`
+    # keyword and the doc was never reached. Every exported JS/TS definition lost its
+    # doc that way. Start from the outermost export wrapper instead.
+    anchor = def_ts
+    while anchor.parent is not None and anchor.parent.type == "export_statement":
+        anchor = anchor.parent
+    node = anchor.prev_sibling
+    last_line = anchor.start_point[0]
     while node is not None and node.type == "comment" and last_line - node.end_point[0] <= 1:
         raw = node.text.decode("utf-8", "replace").strip()
         if not (raw.startswith("/**") or raw.startswith("///")):
@@ -1308,6 +1316,13 @@ def parse_source(
             decl = _declaration_text(m_name_node, m_container)
             if decl:
                 m_attrs["declaration"] = decl
+        # `/** doc */ export const handler = () => ...` is how much of a modern JS/TS
+        # module is written, and these bindings come through here, not `_doc_sig`. The
+        # doc belongs to the declaration statement, so every name it declares gets it.
+        if lang in _JS_LANGS:
+            m_doc = _leading_doc(m_container)
+            if m_doc:
+                m_attrs["doc"] = m_doc
         nodes.append(Node(
             id=m_id, repo=repo_id, kind=m_kind, name=m_name,
             qualified_name=(f"{m_file_scope}::{m_qualified}" if m_file_scope
