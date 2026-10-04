@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Docs on exported JavaScript and TypeScript definitions are captured.** A `/** ... */`
+  comment above `export function`, `export default function`, `export class` or an exported
+  interface was never read: the parser looked for it inside the `export` statement. Arrow
+  functions bound with `const` (exported or not) never had a doc captured at all. Both now
+  carry their doc into search, the wiki and `find_definition`. TypeScript `abstract class`
+  declarations were not indexed as classes; they are now. Run `kb index --force` once to pick
+  this up in an existing store.
+- **`find_dependents` finds a package by any spelling of its name.** A PyPI package written
+  `acme-ledger-client` in one manifest and `acme_ledger_client` in another is one package node,
+  but the lookup matched only the spelling written last and answered "No indexed package" for
+  the other. `ask`'s dependents route uses the same lookup.
+- **`list_repos` and the dashboard show each repo's branch.** Nothing ever wrote the field,
+  so every repo showed none. `kb index` now records the branch checked out when the repo was
+  indexed; a detached HEAD records none.
+- **The MCP server instructions say which results carry a verified date.** They said every
+  result is cited with a source file and verified date; edges carry both, nodes carry a file
+  and line.
+
 ## [9.7.0] - 2026-10-04
 
 ### Added
