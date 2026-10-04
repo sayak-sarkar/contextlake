@@ -60,7 +60,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
-| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose. Works on **both** `--site` and `--serve`. Connector link titles and ADR bodies are not removed yet: see the caution below. |
+| `--anonymize` | Hash author identities, drop external URLs and README/wiki prose, and replace connector items with neutral labels. Works on **both** `--site` and `--serve`. See below for what still shows. |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
@@ -80,13 +80,19 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > guaranteed-generic demo fleet). `--anonymize` does not hide the code itself: symbol
 > names, their docstrings, and the headings of wiki sections in search results still show.
 
-> [!CAUTION]
-> **What `--anonymize` does not remove yet.** Two kinds of text get through it in 9.8.1:
-> a connector link's title and name (a ticket's or merge request's title, and the external
-> host its name is built from), and the body of an architecture decision record (which can
-> name the people who made the decision). Until a release notes this as fixed, do not share an
-> anonymized export or screen from a store that has connector sources or ADRs. Use
-> `--sample` for a demo.
+### What `--anonymize` changes, and what still shows
+
+- **Removed:** README and wiki prose, the body of an architecture decision record or an
+  ingested document, external URLs, and every connector item's title, summary and URL.
+- **Replaced:** author identities become `Contributor a1b2`, and each connector item (a ticket,
+  a merge request, a design, a page, a message) becomes its kind and a short code, such as
+  `issue 9cb5`. The code comes from a key made fresh for every export and every server start, so
+  labels never match across two of them. An anonymized connector item does not open.
+- **Still shows:** repository ids (which name the forge host), symbol names and their
+  docstrings, file paths inside your repositories, and the headings of wiki sections.
+
+`--allow-mutations` is refused with `--anonymize`: the actions it adds stream run logs that name
+connector items.
 
 ### Making it the default on this machine
 

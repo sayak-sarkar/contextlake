@@ -165,7 +165,14 @@ def to_payload(nodes, edges, meta: dict | None = None, *, fold_leaves: bool = Fa
             m["folded_leaves"] = sum(folded.values())
             m["folded_leaf_kinds"] = folded
             m["drawn_node_count"] = len(nd)
-    return {"nodes": nd, "edges": ed, "meta": m}
+    payload = {"nodes": nd, "edges": ed, "meta": m}
+    # Every graph rendering (the overview and repo pages, neighbours, Mermaid and the other
+    # diagram formats, the --site graph build) starts here, so an anonymized run rewrites the
+    # payload once, before any renderer sees a connector name or an ADR body.
+    from ..anonymize import active
+
+    anonymizer = active()
+    return anonymizer.rewrite(payload) if anonymizer is not None else payload
 
 
 # ---------------------------------------------------------------------------

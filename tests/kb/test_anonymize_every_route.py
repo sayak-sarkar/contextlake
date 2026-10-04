@@ -1,0 +1,208 @@
+"""`--anonymize` holds on every dashboard route and in every `--site` file.
+
+Each surface that leaked had its own serializer that missed one field: the export's wiki
+pages, the chat answers, and then connector link names and titles and ADR bodies on fourteen
+routes (stability v2 tier D, D-1 and D-2). This drives the real server on every read route,
+and reads every file a real `--site` export writes, with canaries planted where each of those
+leaks lived. The same run without `--anonymize` must find every canary, or the fixture is not
+reaching the field and the clean result proves nothing.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import socket
+import threading
+import urllib.error
+import urllib.request
+from datetime import date
+from pathlib import Path
+
+import pytest
+
+from contextlake.kb.dashboard.server import build_dashboard_server
+from contextlake.kb.dashboard.site import build_dashboard_site
+from contextlake.kb.ids import make_id
+from contextlake.kb.model import EXTERNAL_REPO, Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+from contextlake.kb.store.sqlite_store import SqliteStore
+
+SERVER_PY = (Path(__file__).resolve().parents[2] / "src" / "contextlake" / "kb" / "dashboard"
+             / "server.py")
+REPO = "team/app"
+REPO_NODE = make_id("repo", REPO)
+ISSUE = "zendesk:issue:zq7linkhost:77"
+ARTICLE = "zendesk:article:zq7linkhost:4242"
+# Where each leak lived: a link name built from the external host, a title its users wrote,
+# and an ADR body naming its decider with an email and a URL.
+CANARIES = ("zq7linkhost", "zq7slug", "Dc5Qdecider", "dc5q@example", "ad63host")
+_PROV = Provenance(source_file="x", verified_at=date(2026, 10, 5))
+
+
+def _edge(src, dst, relation):
+    return Edge(src=src, dst=dst, relation=relation, confidence=Confidence.EXTRACTED,
+                provenance=_PROV)
+
+
+def _store(tmp_path) -> Path:
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    adr_doc = ("Deciders: Dc5Qdecider <dc5q@example.test>. "
+               "Background: https://ad63host.example.test/rfc/1")
+    nodes = [
+        Node(id=REPO_NODE, repo=REPO, kind="repo", name=REPO),
+        Node(id="svc", repo=REPO, kind="class", name="ForecastService", lang="python",
+             file="src/svc.py", line_start=1),
+        Node(id="caller", repo=REPO, kind="function", name="run_cycle", lang="python",
+             file="src/run.py", line_start=1),
+        Node(id="adr_0001", repo=REPO, kind="adr", name="Use the ledger store",
+             file="docs/adr/0001-ledger.md", attrs={"doc": adr_doc}),
+    ]
+    edges = [_edge("caller", "svc", "calls"), _edge("svc", "adr_0001", "references"),
+             _edge("caller", "adr_0001", "references")]
+    s.upsert_repo(Repo(id=REPO, path=str(tmp_path), head_commit="h1"))
+    write_shard(store_dir, GraphShard(repo=REPO, head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, store_dir, REPO)
+    s.mark_indexed(REPO, "h1", "2026-10-05T00:00:00Z")
+    s.upsert_nodes(EXTERNAL_REPO, [
+        Node(id=ISSUE, repo=EXTERNAL_REPO, kind="issue", name="zq7linkhost:ticket:77",
+             attrs={"title": "zq7slug runbook", "status": "open",
+                    "url": "https://zq7linkhost.zendesk.example.test/tickets/77"}),
+        Node(id=ARTICLE, repo=EXTERNAL_REPO, kind="document", name="zq7linkhost:article:4242",
+             attrs={"title": "zq7slug article",
+                    "url": "https://zq7linkhost.zendesk.example.test/articles/4242"}),
+    ])
+    s.upsert_edges(f"@connect:{REPO}", [
+        _edge(REPO_NODE, ISSUE, "discussed_in"), _edge(REPO_NODE, ARTICLE, "documented_by"),
+        _edge("svc", ISSUE, "tracked_by"),
+    ])
+    s.close()
+    return store_dir
+
+
+GETS = [
+    "/api/overview", "/api/groups", "/api/health", "/api/relationships",
+    "/api/impact?node=svc", "/api/impact/diagram?node=svc", "/api/path?from=caller&to=svc",
+    "/api/search?q=article", "/api/search?q=ticket", "/api/search?q=ledger",
+    f"/api/repo/{REPO}", f"/api/repo/{REPO}/rel", f"/api/repo/{REPO}/data-flow",
+    f"/api/repo/{REPO}/diagram?format=mermaid", f"/api/repo/{REPO}/modules",
+    f"/api/repo/{REPO}/wiki", f"/api/repo/{REPO}/docs",
+    "/api/mcp", "/api/wiki/status", "/api/docs/status", "/api/wiki/estimate",
+    "/api/settings", "/api/capabilities",
+    "/neighbors?id=svc", f"/neighbors?id={REPO_NODE}", "/graph/neighbors?id=svc",
+    "/graph/overview", "/graph/repo-team__app",
+]
+QUESTIONS = ["who owns team/app", "explain team/app", "what is ForecastService",
+             "search ticket", "what tickets mention ForecastService"]
+# No request carries a canary: a response that echoes the query would read as a leak.
+# Mutation routes are off without --allow-mutations, and the CLI refuses that flag with
+# --anonymize (test below), so an anonymized server never serves them.
+MUTATION_ROUTES = {"/api/docs/generate", "/api/wiki/generate", "/api/repo/add",
+                   "/api/mcp/serve", "/sync"}
+
+
+def _free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _bodies(store_dir, anonymize: bool) -> dict[str, str]:
+    s = SqliteStore(store_dir / "index.sqlite")
+    port = _free_port()
+    srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port, anonymize=anonymize)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    out = {}
+
+    def fetch(req) -> str:
+        # An error body is a response too, and goes through the same writer.
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - loopback
+                return r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.read().decode("utf-8", "replace")
+
+    try:
+        for path in GETS:
+            out[path] = fetch(base + path)
+        for q in QUESTIONS:
+            out[f"POST /api/chat {q}"] = fetch(urllib.request.Request(
+                base + "/api/chat", method="POST", data=json.dumps({"question": q}).encode(),
+                headers={"Content-Type": "application/json"}))
+    finally:
+        srv.shutdown()
+        s.close()
+    return out
+
+
+def _site(store_dir, out, anonymize: bool) -> dict[str, str]:
+    build_dashboard_site(store_dir, out, anonymize=anonymize)
+    return {str(p.relative_to(out)): p.read_text(encoding="utf-8", errors="replace")
+            for p in sorted(out.rglob("*")) if p.is_file()}
+
+
+def _hits(bodies: dict[str, str]) -> dict[str, list[str]]:
+    found: dict[str, list[str]] = {}
+    for where, text in bodies.items():
+        low = text.lower()
+        for c in CANARIES:
+            if c.lower() in low:
+                found.setdefault(c, []).append(where)
+    return found
+
+
+@pytest.fixture
+def store_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    return _store(tmp_path)
+
+
+def test_every_route_keeps_the_promise(store_dir):
+    plain = _hits(_bodies(store_dir, anonymize=False))
+    assert set(plain) == set(CANARIES), (
+        f"positive control: the plain server never showed {set(CANARIES) - set(plain)}, "
+        "so the fixture does not reach that field")
+    leaked = _hits(_bodies(store_dir, anonymize=True))
+    assert leaked == {}, f"--anonymize leaked: {leaked}"
+
+
+def test_every_site_file_keeps_the_promise(store_dir, tmp_path):
+    plain = _hits(_site(store_dir, tmp_path / "plain", anonymize=False))
+    assert {"zq7linkhost", "zq7slug", "Dc5Qdecider"} <= set(plain), (
+        f"positive control: the plain export showed only {sorted(plain)}")
+    leaked = _hits(_site(store_dir, tmp_path / "anon", anonymize=True))
+    assert leaked == {}, f"--site --anonymize leaked: {leaked}"
+
+
+def test_every_read_route_in_the_server_is_requested_here():
+    """A route added to server.py without a request here fails this, rather than shipping
+    with nobody checking what it sends under --anonymize."""
+    src = SERVER_PY.read_text(encoding="utf-8")
+    literals = set(re.findall(
+        r'(?:path|parsed\.path)\s*(?:==|\.startswith\(|\.endswith\()\s*"([^"]+)"', src))
+    literals |= {"/" + m for m in re.findall(r'rest\.endswith\("/([^"]+)"', src)}
+    literals |= {"/graph/" + m for m in re.findall(r'leaf\s*(?:==|\.startswith\()\s*"([^"]+)"',
+                                                   src)}
+    requested = " ".join(GETS) + " /api/chat"
+    missing = sorted(lit for lit in literals - MUTATION_ROUTES
+                     if lit not in ("/api/",) and lit not in requested)
+    assert missing == [], f"routes with no request in this test: {missing}"
+
+
+def test_mutations_are_refused_with_anonymize(tmp_path, monkeypatch, capsys):
+    from contextlake.cli import main
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{(tmp_path / "kb").as_posix()}"\n')
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "dashboard", "--serve", "--anonymize", "--allow-mutations",
+              "--config", str(cfg)])
+    assert e.value.code == 1
+    cap = capsys.readouterr()
+    assert "--allow-mutations refused with --anonymize" in cap.out + cap.err

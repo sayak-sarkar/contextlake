@@ -122,6 +122,12 @@ def cmd_dashboard(args) -> int:
         log(style.fail("--allow-mutations refused with --sample: the demo fleet "
                       "is fictional, there's nothing on disk for it to sync/clone."))
         return 1
+    if allow_mutations and (bool(getattr(args, "anonymize", False)) or anonymize_default):
+        # The mutation routes stream the logs of connect, sync and wiki runs, which print
+        # connector names and titles: exactly what an anonymized dashboard exists to hide.
+        log(style.fail("--allow-mutations refused with --anonymize: the run logs those "
+                       "actions stream name the connector items it hides."))
+        return 1
     # Checked in a fixed order so a run that trips both flags names one reason.
     for flag, enabled, exposure in (
         ("--allow-mutations", allow_mutations,

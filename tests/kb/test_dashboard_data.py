@@ -560,7 +560,7 @@ def test_impact_carries_the_seeds_own_ticket(store_dir):
     s, _ = store_dir
     imp = kbdata.impact(s, "app_ingest")
     assert imp["ticket"] == [{
-        "kind": "issue", "name": "PROJ-99",
+        "kind": "issue", "name": "PROJ-99", "repo": "team/app",
         "url": "https://tracker.example.com/PROJ-99",
         "title": "Ingest backfill edge case", "status": "open",
         "confidence": "EXTRACTED",
@@ -573,11 +573,17 @@ def test_impact_ticket_empty_for_symbol_without_one(store_dir):
     assert imp["ticket"] == []
 
 
-def test_impact_ticket_anonymize_strips_url(store_dir):
+def test_impact_ticket_anonymize_strips_url_title_and_name(store_dir):
+    """The URL was always dropped, and this test used to assert the rest survived. It did,
+    and that was the leak: the name carries the tracker's key or host, and the title is what
+    the tracker's users wrote (stability v2 tier D, D-1)."""
     s, _ = store_dir
     imp = kbdata.impact(s, "app_ingest", anonymize=True)
-    assert imp["ticket"][0]["url"] is None
-    assert imp["ticket"][0]["name"] == "PROJ-99"  # non-URL fields survive
+    ticket = imp["ticket"][0]
+    assert ticket["url"] is None
+    assert ticket["title"] is None
+    assert "PROJ" not in ticket["name"]
+    assert ticket["kind"] == "issue" and ticket["status"] == "open"
 
 
 def test_health_shape(store_dir):

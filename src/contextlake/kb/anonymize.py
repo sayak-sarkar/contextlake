@@ -1,0 +1,182 @@
+"""The last step before anonymized output leaves for a client: one rewrite of the payload.
+
+`--anonymize` promises to hash author identities and drop external URLs and README and wiki
+prose. Each serializer applied that on its own, and each one that missed a field leaked it:
+the export's wiki pages, the chat answers, and then connector link names and titles and ADR
+bodies on fourteen routes. This module is the second layer. It runs on everything the
+dashboard server sends as JSON, on every graph payload (`viz.to_payload` consults
+:func:`active`), and on the `--site` snapshot. The per-serializer drops stay in place as the
+first layer: one bug here must not become a full leak.
+
+Rules, keyed on the node, not on the route:
+
+- **External nodes** (connector output: ``repo`` is ``(external)``, or a cross-source kind
+  such as ``issue`` or ``mr``) keep their kind and get a label and an id derived from their
+  ORIGINAL id with a per-run key. Every text field that could hold what an external system
+  wrote (title, summary, URL, doc, file, qualified name, signature) is dropped, and the
+  original id and name are replaced wherever they appear inside another string.
+- **Document nodes** (``adr``, ``document``, ``wiki``) lose their body text (``doc`` and its
+  siblings). Their names stay, as symbol names do.
+
+The key is random per export and per server start, so labels change between the two and cannot
+be matched across exports. Anonymized external nodes therefore do not open: their ids resolve
+to nothing.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import contextvars
+import hashlib
+import hmac
+import os
+import re
+import threading
+
+from .model import EXTERNAL_REPO
+
+# Fields that hold text an external system wrote, or a path or URL into it.
+_EXTERNAL_TEXT = ("title", "summary", "url", "doc", "file", "qualified_name", "signature",
+                  "text", "snippet", "excerpt", "body", "description", "attrs")
+# Fields that hold a document's body.
+_DOCUMENT_TEXT = ("doc", "summary", "text", "snippet", "excerpt", "body")
+
+
+def _kinds_in(group: str) -> frozenset[str]:
+    from .kinds import KIND_REGISTRY
+
+    return frozenset(k for k, spec in KIND_REGISTRY.items() if spec.group == group)
+
+
+def _distinctive(name: str) -> bool:
+    """A name safe to replace inside other text: long, and carrying a separator, as the
+    ``host:ticket:77`` form connectors build does."""
+    return len(name) >= 8 and any(c in name for c in ":/@#")
+
+
+class Anonymizer:
+    """One run's rewrite. Labels and ids are derived from the original id only, and every
+    value this produced is remembered, so a payload rewritten twice comes out unchanged."""
+
+    def __init__(self, key: bytes | None = None) -> None:
+        self._key = key if key is not None else os.urandom(16)
+        self._external_kinds = _kinds_in("Cross-source")
+        self._document_kinds = _kinds_in("Documents")
+        self._produced: set[str] = set()
+        self._ids: dict[str, str] = {}     # original id -> anonymized id
+        self._names: dict[str, str] = {}   # original name -> label
+        self._pattern: re.Pattern | None = None
+        self._pattern_size = -1
+        # One per server, shared by its request threads, and the maps grow as it runs.
+        self._lock = threading.Lock()
+
+    def _digest(self, value: str) -> str:
+        return hmac.new(self._key, value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    def _is_external(self, d: dict) -> bool:
+        kind = d.get("kind")
+        return d.get("repo") == EXTERNAL_REPO or (isinstance(kind, str)
+                                                  and kind in self._external_kinds)
+
+    def _remember(self, d: dict) -> None:
+        orig_id = d.get("id") if isinstance(d.get("id"), str) else None
+        name = d.get("name") if isinstance(d.get("name"), str) else None
+        basis = orig_id or name
+        if not basis or basis in self._produced:
+            return
+        h = self._digest(basis)
+        kind = d.get("kind") if isinstance(d.get("kind"), str) else "item"
+        if orig_id and orig_id not in self._ids:
+            new_id = f"anon:{kind}:{h[:12]}"
+            self._ids[orig_id] = new_id
+            self._produced.add(new_id)
+        if name and name not in self._names and name not in self._produced:
+            label = f"{kind} {h[:4]}"
+            self._names[name] = label
+            self._produced.add(label)
+
+    def _collect(self, obj) -> None:
+        if isinstance(obj, dict):
+            if self._is_external(obj):
+                self._remember(obj)
+            for v in obj.values():
+                self._collect(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                self._collect(v)
+
+    def _string(self, s: str) -> str:
+        if s in self._produced:
+            return s
+        if s in self._ids:
+            return self._ids[s]
+        if s in self._names:
+            return self._names[s]
+        # Inside longer strings: chat prose, a "No indexed package named ..." note, a
+        # `#/symbol/<id>` route. Only ids and distinctive names: a frame named "Login"
+        # replaced inside every string would rewrite symbol names that merely contain it.
+        pattern = self._substring_pattern()
+        return pattern.sub(lambda m: self._sub[m.group(0)], s) if pattern else s
+
+    def _substring_pattern(self) -> re.Pattern | None:
+        size = len(self._ids) + len(self._names)
+        if size != self._pattern_size:
+            self._pattern_size = size
+            self._sub = dict(self._ids)
+            self._sub.update({n: lbl for n, lbl in self._names.items() if _distinctive(n)})
+            keys = sorted(self._sub, key=len, reverse=True)   # longest first
+            self._pattern = re.compile("|".join(map(re.escape, keys))) if keys else None
+        return self._pattern
+
+    def _rewrite(self, obj):
+        if isinstance(obj, dict):
+            out = {}
+            external = self._is_external(obj)
+            document = obj.get("kind") in self._document_kinds
+            for k, v in obj.items():
+                if external and k in _EXTERNAL_TEXT:
+                    continue
+                if document and k in _DOCUMENT_TEXT:
+                    continue
+                out[k] = self._rewrite(v)
+            if external and isinstance(obj.get("name"), str):
+                out["name"] = self._names.get(obj["name"], self._string(obj["name"]))
+            return out
+        if isinstance(obj, list):
+            return [self._rewrite(v) for v in obj]
+        if isinstance(obj, str):
+            return self._string(obj)
+        return obj
+
+    def rewrite(self, payload):
+        """``payload`` with the rules above applied. Pure: the input is not modified."""
+        with self._lock:
+            self._collect(payload)
+            return self._rewrite(payload)
+
+    def label_for(self, kind: str, original: str) -> str:
+        """The label an external node with this original id or name gets (for a serializer
+        that builds one entry at a time, such as the Links panel)."""
+        with self._lock:
+            self._remember({"kind": kind, "id": original, "name": original})
+            return self._names.get(original) or self._ids[original]
+
+
+_ACTIVE: contextvars.ContextVar[Anonymizer | None] = contextvars.ContextVar(
+    "contextlake_anonymizer", default=None)
+
+
+def active() -> Anonymizer | None:
+    """The anonymizer for the output being built in this context, or None."""
+    return _ACTIVE.get()
+
+
+@contextlib.contextmanager
+def using(anonymizer: Anonymizer | None):
+    """Make ``anonymizer`` active for the block, and reset it afterwards. A thread starts with
+    an empty context, so a server sets this in each request handler."""
+    token = _ACTIVE.set(anonymizer)
+    try:
+        yield anonymizer
+    finally:
+        _ACTIVE.reset(token)

@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ...logging_setup import log
+from ..anonymize import Anonymizer, using
 from ..kinds import KIND_REGISTRY
 from ..security import json_for_script, sanitize_label
 from ..state import check_schema
@@ -269,6 +270,16 @@ def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos, *,
     from .. import visualize as viz
 
     _refuse_foreign_dir(out)
+    if anonymize:
+        # The output-side rewrite (kb/anonymize.py), on the snapshot and, through
+        # viz.to_payload, on every graph page below. Fails closed: an anonymized export
+        # never writes a file without it.
+        from ..anonymize import active
+
+        anonymizer = active()
+        if anonymizer is None:
+            raise RuntimeError("an anonymized export was built with no active anonymizer")
+        snapshot = anonymizer.rewrite(snapshot)
     out.mkdir(parents=True, exist_ok=True)
     (out / "data.json").write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
     (out / "dashboard.js").write_text(_static("dashboard.js"), encoding="utf-8")
@@ -316,9 +327,10 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
         tmp = Path(tempfile.mkdtemp(prefix="contextlake-dash-sample-"))
         store = _sample_store(tmp)
         try:
-            snapshot = _snapshot(store, tmp, repos=repos, anonymize=anonymize,
-                                 group_depth=group_depth)
-            _emit(out, store, tmp, snapshot, repos, anonymize=anonymize)
+            with using(Anonymizer() if anonymize else None):
+                snapshot = _snapshot(store, tmp, repos=repos, anonymize=anonymize,
+                                     group_depth=group_depth)
+                _emit(out, store, tmp, snapshot, repos, anonymize=anonymize)
         finally:
             store.close()
             shutil.rmtree(tmp, ignore_errors=True)
@@ -340,9 +352,11 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
         # rather than rendered, since the page would present facts read through a
         # schema this build is only guessing at.
         check_schema(store)
-        snapshot = _snapshot(store, store_dir, repos=repos, anonymize=anonymize,
-                             group_depth=group_depth)
-        _emit(out, store, store_dir, snapshot, repos, anonymize=anonymize)
+        # One key per export: its labels match nothing in any other export.
+        with using(Anonymizer() if anonymize else None):
+            snapshot = _snapshot(store, store_dir, repos=repos, anonymize=anonymize,
+                                 group_depth=group_depth)
+            _emit(out, store, store_dir, snapshot, repos, anonymize=anonymize)
     finally:
         store.close()
     return out

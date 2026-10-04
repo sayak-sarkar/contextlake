@@ -36,6 +36,7 @@ import urllib.parse
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ...logging_setup import get_logger
 from ..http_base import (
     LOOPBACK_HOSTS,
     BadRequest,
@@ -138,9 +139,12 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     wiki prose and pseudonymises owners before it reaches the browser or the LLM.
     """
     from .. import visualize as viz
+    from ..anonymize import Anonymizer, using
 
     store_dir = Path(store_dir)
     store_factory, store_path = type(store), getattr(store, "path", None)
+    # One key per server start: labels are stable while it runs and match nothing outside it.
+    anonymizer = Anonymizer() if anonymize else None
     ws_dir = Path(workspace) if workspace else store_dir.parent
     token = secrets.token_urlsafe(32) if (allow_mutations or llm_chat) else None
     host_header_ok = allowed_host_headers(host, port)
@@ -216,9 +220,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     for n in ov_nodes:
         if n["id"] in pages:
             n["href"] = pages[n["id"]]
-    overview_html = viz.to_html(
-        viz.to_payload(ov_nodes, ov_edges, ov_meta), assets="inline", live=True,
-        layout="concentric", title="contextlake — fleet overview").encode("utf-8")
+    with using(anonymizer):
+        overview_html = viz.to_html(
+            viz.to_payload(ov_nodes, ov_edges, ov_meta), assets="inline", live=True,
+            layout="concentric", title="contextlake — fleet overview").encode("utf-8")
 
     def _open_store():
         return store_factory(store_path) if store_path else store
@@ -630,7 +635,30 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     class Handler(LocalHttpHandler):
         allowed_hosts = host_header_ok
 
+        def send_bytes(self, code: int, ctype: str, body: bytes) -> None:
+            # The output-side rewrite for --anonymize (kb/anonymize.py): every JSON body any
+            # route sends, errors and chat included, passes here. Fails closed: a rewrite
+            # that raises sends a 500, never the original body.
+            if anonymizer is not None and ctype.startswith("application/json") and body:
+                try:
+                    body = json.dumps(anonymizer.rewrite(json.loads(body))).encode("utf-8")
+                except Exception:  # noqa: BLE001 - never fall back to the raw body
+                    get_logger().error("anonymize: could not rewrite the response to %s",
+                                       self.path)
+                    code, body = 500, b'{"error": "internal server error"}'
+            super().send_bytes(code, ctype, body)
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler name
+            # Each request runs in a new thread with an empty context, so the anonymizer is
+            # made active here, for every graph payload this request builds.
+            with using(anonymizer):
+                self._get()
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler name
+            with using(anonymizer):
+                self._post()
+
+        def _get(self) -> None:
             # Same Host pinning POST has always had, for the same DNS-rebinding
             # reason (see LocalHttpHandler.reject_bad_host) -- checked before any
             # route dispatch, including the SPA shell and the static assets:
@@ -659,7 +687,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 return
             self.send_bytes(404, "text/plain", b"not found")
 
-        def do_POST(self) -> None:  # noqa: N802 - stdlib handler name
+        def _post(self) -> None:
             if self.reject_bad_host():
                 return
             parsed = urllib.parse.urlparse(self.path)

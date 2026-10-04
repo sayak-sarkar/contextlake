@@ -208,9 +208,21 @@ def _link_entry(n, e, *, anonymize: bool = False) -> dict:
     attrs = getattr(n, "attrs", None) or {}
     title = attrs.get("title") or attrs.get("summary")
     url = None if anonymize else _safe_url(attrs.get("url"))
+    name = sanitize_label(n.name)
+    if anonymize:
+        # The title is what the external system's users wrote (a ticket's or a merge
+        # request's), and the name is built from its host. Both used to survive here; the
+        # output-side rewrite (kb/anonymize.py) is the second layer behind this one.
+        from ..anonymize import active
+
+        anonymizer = active()
+        name = (anonymizer.label_for(n.kind, n.id) if anonymizer is not None
+                else sanitize_label(n.kind))
+        title = None
     return {
         "kind": sanitize_label(n.kind),
-        "name": sanitize_label(n.name),
+        "name": name,
+        "repo": sanitize_label(n.repo),
         "url": sanitize_label(url) if url else None,
         "title": sanitize_label(title) if title else None,
         "status": sanitize_label(attrs["status"]) if attrs.get("status") else None,
