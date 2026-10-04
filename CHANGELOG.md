@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mirror audit --dry-run` writes no report.** It wrote `repo_audit.json` and `.csv` like a
+  real run; a dry run now prints the summary and says the report was not written.
+- **`schedule list` and `status` name a job store they cannot read.** Read quietly as empty,
+  a damaged `schedule-jobs.json` made `list` call every installed job an orphan and advise
+  recreating its record. They now say which file cannot be read, while the commands that
+  would change it keep refusing until it is repaired.
+
 ## [9.8.0] - 2026-10-04
 
 ### Added
