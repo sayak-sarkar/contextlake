@@ -604,6 +604,18 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     same way the dashboard's README and wiki routes withhold it. Wiki pages an earlier
     plain export left in this folder are deleted, since the folder is written in place.
     """
+    if anonymize:
+        # Every page below is built through viz.to_payload, which rewrites only while an
+        # anonymizer is active. A caller that asks for anonymize without one gets one here,
+        # rather than pages that render connector names in plain text and fail nothing.
+        from ..anonymize import Anonymizer, active, using
+
+        if active() is None:
+            with using(Anonymizer()):
+                return build_site(store, out_dir, max_nodes=max_nodes,
+                                  repo_max_nodes=repo_max_nodes,
+                                  overview_layout=overview_layout, repo_layout=repo_layout,
+                                  repos=repos, cdn=cdn, anonymize=anonymize, log=log)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     if anonymize:

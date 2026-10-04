@@ -37,7 +37,13 @@ ISSUE = "zendesk:issue:zq7linkhost:77"
 ARTICLE = "zendesk:article:zq7linkhost:4242"
 # Where each leak lived: a link name built from the external host, a title its users wrote,
 # and an ADR body naming its decider with an email and a URL.
-CANARIES = ("zq7linkhost", "zq7slug", "Dc5Qdecider", "dc5q@example", "ad63host")
+CANARIES = ("zq7linkhost", "zq7slug", "Dc5Qdecider", "dc5q@example", "ad63host",
+            # A tracker key as a name (only replaced inside prose if keys count as
+            # distinctive), its title, and the URLs an enriched and an ingested document came
+            # from. An enrich document's body `snippet` is planted too, but no route serves
+            # that field (the plain control never shows it), so it is not a canary here.
+            "ACME-123", "Pw7Title", "zq9enrich", "zq8ingest")
+KEY_ISSUE = "atlassian:issue:ACME-123"
 _PROV = Provenance(source_file="x", verified_at=date(2026, 10, 5))
 
 
@@ -75,11 +81,25 @@ def _store(tmp_path) -> Path:
         Node(id=ARTICLE, repo=EXTERNAL_REPO, kind="document", name="zq7linkhost:article:4242",
              attrs={"title": "zq7slug article",
                     "url": "https://zq7linkhost.zendesk.example.test/articles/4242"}),
+        Node(id=KEY_ISSUE, repo=EXTERNAL_REPO, kind="issue", name="ACME-123",
+             attrs={"title": "Pw7Title outage", "status": "open",
+                    "url": "https://tracker.example.test/browse/ACME-123"}),
     ])
     s.upsert_edges(f"@connect:{REPO}", [
         _edge(REPO_NODE, ISSUE, "discussed_in"), _edge(REPO_NODE, ARTICLE, "documented_by"),
-        _edge("svc", ISSUE, "tracked_by"),
+        _edge("svc", ISSUE, "tracked_by"), _edge(REPO_NODE, KEY_ISSUE, "tracked_by"),
+        _edge("svc", KEY_ISSUE, "tracked_by"),
     ])
+    enrich = f"@enrich:{REPO}"
+    s.upsert_nodes(enrich, [Node(
+        id=f"{enrich}:runbook", repo=enrich, kind="document", name="Runbook",
+        file="https://zq9enrich.example.test/runbook",
+        attrs={"source": "api", "snippet": "Pw9Snippet: page the on-call first"})])
+    s.upsert_edges(enrich, [_edge(f"{enrich}:runbook", "svc", "mentions")])
+    ingest = "@ingest:handbook"
+    s.upsert_nodes(ingest, [Node(
+        id=f"{ingest}:h1", repo=ingest, kind="document", name="Handbook",
+        file="https://zq8ingest.example.test/handbook", attrs={"source": "api"})])
     s.close()
     return store_dir
 
@@ -88,6 +108,8 @@ GETS = [
     "/api/overview", "/api/groups", "/api/health", "/api/relationships",
     "/api/impact?node=svc", "/api/impact/diagram?node=svc", "/api/path?from=caller&to=svc",
     "/api/search?q=article", "/api/search?q=ticket", "/api/search?q=ledger",
+    "/api/search?q=runbook", "/api/search?q=handbook", "/api/search?q=outage",
+    "/api/search?q=123",
     f"/api/repo/{REPO}", f"/api/repo/{REPO}/rel", f"/api/repo/{REPO}/data-flow",
     f"/api/repo/{REPO}/diagram?format=mermaid", f"/api/repo/{REPO}/modules",
     f"/api/repo/{REPO}/wiki", f"/api/repo/{REPO}/docs",
@@ -97,7 +119,8 @@ GETS = [
     "/graph/overview", "/graph/repo-team__app",
 ]
 QUESTIONS = ["who owns team/app", "explain team/app", "what is ForecastService",
-             "search ticket", "what tickets mention ForecastService"]
+             "search ticket", "what tickets mention ForecastService",
+             "123", "acme"]     # the bare search route: reaches the tracker key
 # No request carries a canary: a response that echoes the query would read as a leak.
 # Mutation routes are off without --allow-mutations, and the CLI refuses that flag with
 # --anonymize (test below), so an anonymized server never serves them.
@@ -163,7 +186,11 @@ def store_dir(tmp_path, monkeypatch):
 
 
 def test_every_route_keeps_the_promise(store_dir):
-    plain = _hits(_bodies(store_dir, anonymize=False))
+    plain_bodies = _bodies(store_dir, anonymize=False)
+    # Chat must be exercised on its own: the union control cannot tell that it was.
+    assert any("ACME-123" in t for k, t in plain_bodies.items() if k.startswith("POST")), (
+        "no chat question reached the tickets: the chat half of this test is vacuous")
+    plain = _hits(plain_bodies)
     assert set(plain) == set(CANARIES), (
         f"positive control: the plain server never showed {set(CANARIES) - set(plain)}, "
         "so the fixture does not reach that field")
@@ -181,16 +208,28 @@ def test_every_site_file_keeps_the_promise(store_dir, tmp_path):
 
 def test_every_read_route_in_the_server_is_requested_here():
     """A route added to server.py without a request here fails this, rather than shipping
-    with nobody checking what it sends under --anonymize."""
+    with nobody checking what it sends under --anonymize. Each literal is matched the way the
+    server routes it: an exact path, a prefix, a suffix after /api/repo/<id>, a /graph/ leaf.
+    """
     src = SERVER_PY.read_text(encoding="utf-8")
-    literals = set(re.findall(
-        r'(?:path|parsed\.path)\s*(?:==|\.startswith\(|\.endswith\()\s*"([^"]+)"', src))
-    literals |= {"/" + m for m in re.findall(r'rest\.endswith\("/([^"]+)"', src)}
-    literals |= {"/graph/" + m for m in re.findall(r'leaf\s*(?:==|\.startswith\()\s*"([^"]+)"',
-                                                   src)}
-    requested = " ".join(GETS) + " /api/chat"
-    missing = sorted(lit for lit in literals - MUTATION_ROUTES
-                     if lit not in ("/api/",) and lit not in requested)
+    paths = [g.split("?")[0] for g in GETS] + ["/api/chat"]
+    repo_base = f"/api/repo/{REPO}"
+    missing = []
+    for lit in re.findall(r'(?:path|parsed\.path)\s*==\s*"([^"]+)"', src):
+        if lit not in MUTATION_ROUTES and lit not in paths:
+            missing.append(lit)
+    for lit in re.findall(r'(?<!\.)path\.startswith\(\s*"([^"]+)"', src):
+        if not any(p.startswith(lit) and p != lit for p in paths):
+            missing.append(lit + "*")
+    for suffix in re.findall(r'rest\.endswith\(\s*"([^"]+)"', src):
+        if repo_base + suffix not in paths:
+            missing.append(repo_base + suffix)
+    for leaf in re.findall(r'leaf\s*==\s*"([^"]+)"', src):
+        if "/graph/" + leaf not in paths:
+            missing.append("/graph/" + leaf)
+    for leaf in re.findall(r'leaf\.startswith\(\s*"([^"]+)"', src):
+        if not any(p.startswith("/graph/" + leaf) for p in paths):
+            missing.append("/graph/" + leaf + "*")
     assert missing == [], f"routes with no request in this test: {missing}"
 
 

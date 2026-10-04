@@ -48,10 +48,18 @@ def _kinds_in(group: str) -> frozenset[str]:
     return frozenset(k for k, spec in KIND_REGISTRY.items() if spec.group == group)
 
 
+# A run of the characters ids and keys are built from: no `/`, `#` or `@`, so an id inside a
+# route such as `#/symbol/<id>` is its own token. Trailing punctuation is left out, so a key at
+# the end of a sentence still matches. A key outside this class takes the alternation path.
+_TOKEN = re.compile(r"[\w.:\-]*\w")
+
+
 def _distinctive(name: str) -> bool:
-    """A name safe to replace inside other text: long, and carrying a separator, as the
-    ``host:ticket:77`` form connectors build does."""
-    return len(name) >= 8 and any(c in name for c in ":/@#")
+    """A name to replace inside other text as well as where it stands alone: five characters
+    or more and not only letters, as ``host:ticket:77`` or a tracker key like ``ACME-123``.
+    A plain word such as ``Login`` is replaced only as a whole field: inside other strings it
+    would rewrite symbol names that merely contain it."""
+    return len(name) >= 5 and not name.isalpha()
 
 
 class Anonymizer:
@@ -65,7 +73,8 @@ class Anonymizer:
         self._produced: set[str] = set()
         self._ids: dict[str, str] = {}     # original id -> anonymized id
         self._names: dict[str, str] = {}   # original name -> label
-        self._pattern: re.Pattern | None = None
+        self._sub: dict[str, str] = {}
+        self._spaced: re.Pattern | None = None
         self._pattern_size = -1
         # One per server, shared by its request threads, and the maps grow as it runs.
         self._lock = threading.Lock()
@@ -115,18 +124,28 @@ class Anonymizer:
         # Inside longer strings: chat prose, a "No indexed package named ..." note, a
         # `#/symbol/<id>` route. Only ids and distinctive names: a frame named "Login"
         # replaced inside every string would rewrite symbol names that merely contain it.
-        pattern = self._substring_pattern()
-        return pattern.sub(lambda m: self._sub[m.group(0)], s) if pattern else s
+        self._refresh_substrings()
+        if not self._sub:
+            return s
+        # Most keys are single tokens (`host:ticket:77`, `ACME-123`, an id): find tokens once
+        # and look each up, which is linear in the string. A regex alternation of thousands
+        # of keys over every string took 1.4 s on a 2 MB payload with 5,000 items. Names
+        # with a space are rare and go through a small alternation.
+        s = _TOKEN.sub(lambda m: self._sub.get(m.group(0), m.group(0)), s)
+        if self._spaced is not None:
+            s = self._spaced.sub(lambda m: self._sub[m.group(0)], s)
+        return s
 
-    def _substring_pattern(self) -> re.Pattern | None:
+    def _refresh_substrings(self) -> None:
         size = len(self._ids) + len(self._names)
-        if size != self._pattern_size:
-            self._pattern_size = size
-            self._sub = dict(self._ids)
-            self._sub.update({n: lbl for n, lbl in self._names.items() if _distinctive(n)})
-            keys = sorted(self._sub, key=len, reverse=True)   # longest first
-            self._pattern = re.compile("|".join(map(re.escape, keys))) if keys else None
-        return self._pattern
+        if size == self._pattern_size:
+            return
+        self._pattern_size = size
+        self._sub = dict(self._ids)
+        self._sub.update({n: lbl for n, lbl in self._names.items() if _distinctive(n)})
+        spaced = sorted((k for k in self._sub if not _TOKEN.fullmatch(k)), key=len,
+                        reverse=True)
+        self._spaced = re.compile("|".join(map(re.escape, spaced))) if spaced else None
 
     def _rewrite(self, obj):
         if isinstance(obj, dict):
@@ -136,8 +155,9 @@ class Anonymizer:
             for k, v in obj.items():
                 if external and k in _EXTERNAL_TEXT:
                     continue
-                if document and k in _DOCUMENT_TEXT:
-                    continue
+                if document and (k in _DOCUMENT_TEXT or k == "url"
+                                 or (k == "file" and isinstance(v, str) and "://" in v)):
+                    continue      # an ingested document's file can be the URL it came from
                 out[k] = self._rewrite(v)
             if external and isinstance(obj.get("name"), str):
                 out["name"] = self._names.get(obj["name"], self._string(obj["name"]))

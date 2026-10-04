@@ -83,13 +83,15 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 ### What `--anonymize` changes, and what still shows
 
 - **Removed:** README and wiki prose, the body of an architecture decision record or an
-  ingested document, external URLs, and every connector item's title, summary and URL.
+  ingested document, external URLs (including the address an ingested or enriched document
+  came from), and every connector item's title, summary and URL.
 - **Replaced:** author identities become `Contributor a1b2`, and each connector item (a ticket,
   a merge request, a design, a page, a message) becomes its kind and a short code, such as
   `issue 9cb5`. The code comes from a key made fresh for every export and every server start, so
   labels never match across two of them. An anonymized connector item does not open.
 - **Still shows:** repository ids (which name the forge host), symbol names and their
-  docstrings, file paths inside your repositories, and the headings of wiki sections.
+  docstrings, file paths inside your repositories, the headings of wiki sections, and the
+  titles of documents and decision records (their node names).
 
 `--allow-mutations` is refused with `--anonymize`: the actions it adds stream run logs that name
 connector items.
