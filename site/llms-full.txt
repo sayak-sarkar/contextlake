@@ -9329,6 +9329,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`contextlake init` writes a `kb.toml` that parses on Windows.** It put the store path in
+  a TOML string without escaping it. `init --local` on Windows builds `C:\Users\...`, where
+  `\U` is an invalid escape, so every `kb` command then failed to read the config `init` had
+  just written. A path typed at the prompt with a backslash or a `"` broke it the same way on
+  any platform. The path is now escaped.
 - **`mirror audit --dry-run` writes no report.** It wrote `repo_audit.json` and `.csv` like a
   real run; a dry run now prints the summary and says the report was not written.
 - **`schedule list` and `status` name a job store they cannot read.** Read quietly as empty,
