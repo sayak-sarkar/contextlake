@@ -27,6 +27,25 @@ _CODES = {
 _ANSI_RE = re.compile(r"\033\[[0-9;]*[A-Za-z]")
 
 
+# What each non-ASCII character this module prints becomes on a stream that cannot encode it.
+# A pipe on Windows defaults to cp1252, which has none of the glyphs: every status line raised
+# UnicodeEncodeError inside logging, so the line was lost and a traceback printed instead.
+_ASCII_FALLBACK = str.maketrans({
+    "✓": "OK", "✗": "X", "⚠": "!", "⊘": "-", "•": "*", "↝": "~>", "▶": ">", "→": "->",
+    "█": "#", "░": ".", "─": "-", "…": "...",
+})
+
+
+def write_safely(stream, text: str) -> None:
+    """Write ``text``, degrading characters ``stream``'s encoding cannot hold instead of
+    raising: the glyphs above become ASCII, anything else becomes ``?``."""
+    try:
+        stream.write(text)
+    except UnicodeEncodeError:
+        enc = getattr(stream, "encoding", None) or "ascii"
+        stream.write(text.translate(_ASCII_FALLBACK).encode(enc, "replace").decode(enc))
+
+
 def strip_ansi(text: str) -> str:
     """Remove ANSI CSI escape sequences (colour, erase, cursor moves) from ``text``."""
     return _ANSI_RE.sub("", text)
@@ -404,9 +423,9 @@ class Progress:
                 _active.discard(self)
             self.clear()
             if summary:
-                self._stream.write(summary + "\n")
+                write_safely(self._stream, summary + "\n")
         else:
-            self._stream.write((summary or self._line(now)) + "\n")
+            write_safely(self._stream, (summary or self._line(now)) + "\n")
         self._stream.flush()
 
     def clear(self) -> None:
@@ -431,7 +450,7 @@ class Progress:
         so a stale or closed stream here must never take down the whole command.
         """
         try:
-            self._stream.write(text)
+            write_safely(self._stream, text)
             self._stream.flush()
         except Exception:  # noqa: BLE001 - a dead progress stream is never fatal
             self._tty = False
@@ -446,7 +465,7 @@ class Progress:
             due_count = self._summary_every > 0 and self._count % self._summary_every == 0
             due_time = (now - self._last_render) >= self._summary_seconds
             if due_count or due_time:
-                self._stream.write(self._line(now) + "\n")
+                write_safely(self._stream, self._line(now) + "\n")
                 self._last_render = now
                 self._stream.flush()
 

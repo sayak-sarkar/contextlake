@@ -167,7 +167,15 @@ class _ConsoleHandler(logging.StreamHandler):
 
     def emit(self, record):
         with style.suspend_progress():
-            super().emit(record)
+            # StreamHandler.emit, with the write degraded rather than raised when the stream
+            # cannot encode a glyph (a Windows pipe is cp1252): the line used to be lost and
+            # replaced by a "--- Logging error ---" traceback.
+            try:
+                style.write_safely(self.stream, self.format(record) + self.terminator)
+            except RecursionError:
+                raise
+            except Exception:  # noqa: BLE001 - logging's own contract for a failed emit
+                self.handleError(record)
             try:
                 self.flush()
             except Exception:  # noqa: BLE001,S110 - flush failures are never fatal here
