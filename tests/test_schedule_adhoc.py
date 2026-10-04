@@ -14,7 +14,7 @@ def _config(tmp_path):
 
 def _args(rest, **kw):
     base = dict(action="interval", rest=list(rest), job=None, json=False,
-                platform=None, quiet=True, verbose=False, interval=None, yes=True)
+                platform=None, quiet=True, verbose=False, interval=None, yes=False)
     base.update(kw)
     return argparse.Namespace(**base)
 

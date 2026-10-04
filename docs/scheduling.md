@@ -206,7 +206,7 @@ Three worked examples, all at the default `duty_cycle = 0.10` and `k = 1.0`:
 
 ```bash
 contextlake schedule --platform k8s install            # applies with kubectl, or oc
-contextlake schedule --platform k8s install --json     # see the manifest without applying
+contextlake schedule --platform k8s install --dry-run  # print the manifest, apply nothing
 ```
 
 One adapter covers both, because OpenShift is Kubernetes with a stricter default security
@@ -233,6 +233,11 @@ worth.
 contextlake schedule --platform aws install       # EventBridge Scheduler firing an ECS task
 contextlake schedule --platform azure install     # a Container Apps Job on a cron trigger
 ```
+
+`--dry-run` works on every `install`: it prints the unit, crontab line, manifest or schedule
+definition it would create, and the interval, then creates and records nothing. A
+`dry_run = true` in your config does the same. `uninstall`, `reset` and `interval` have no
+preview, so they refuse to run while it is set.
 
 **On EKS and AKS, use `--platform k8s` instead.** Both are Kubernetes, so the `CronJob` adapter
 serves them and brings `concurrencyPolicy: Forbid` with it.

@@ -1741,7 +1741,8 @@ flag inside that trailing command is never parsed as a flag of `schedule`.
     from .schedule.platform.base import registered
 
     p.add_argument("--platform", default=_S, metavar="NAME",
-                   help="force an adapter (" + " | ".join(registered())
+                   help="install/status/reset/interval: force an adapter ("
+                        + " | ".join(registered())
                         + ") instead of detecting one. Cluster and cloud "
                           "adapters are never auto-detected, so naming one "
                           "here is the only way to reach it")
@@ -1752,9 +1753,12 @@ flag inside that trailing command is never parsed as a flag of `schedule`.
     p.add_argument("--all", action="store_true", default=_S,
                    help="uninstall: remove every job, not just one")
     p.add_argument("-y", "--yes", action="store_true", default=_S,
-                   help="do not prompt before discarding measurements")
+                   help="uninstall/reset: do not prompt before discarding measurements")
     p.add_argument("--json", action="store_true", default=_S,
                    help="recommend/status/list: machine-readable output")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", default=_S,
+                   help="install: print the unit or manifest it would install, and the "
+                        "interval, then install and record nothing")
     p.add_argument("--allow-ephemeral", dest="allow_ephemeral", action="store_true",
                    default=_S,
                    help="run: proceed even though the store will not survive this "

@@ -40,10 +40,62 @@ from .settings import (  # noqa: F401
 
 ACTIONS = ("recommend", "install", "uninstall", "status", "run", "list", "reset", "interval")
 
+# The actions each schedule flag acts on, taken from what each `cmd_*` and the helpers it
+# calls actually read (tests/test_schedule_flag_scope.py derives the same table from the
+# source and holds the help text to it). `schedule` has one flat flag namespace, and a flag
+# given to any other action was accepted and ignored: `install --json` installed a k8s
+# manifest that the docs said it would only show.
+FLAG_ACTIONS = {
+    "job": frozenset({"install", "uninstall", "status", "run", "reset", "interval"}),
+    "interval": frozenset({"install"}),
+    "foreground": frozenset({"run"}),
+    "platform": frozenset({"install", "status", "reset", "interval"}),
+    "history": frozenset({"reset"}),
+    "purge": frozenset({"uninstall"}),
+    "all": frozenset({"uninstall"}),
+    "yes": frozenset({"uninstall", "reset"}),
+    "json": frozenset({"recommend", "status", "list"}),
+    "allow_ephemeral": frozenset({"run"}),
+    "dry_run": frozenset({"install"}),
+}
+FLAG_NAMES = {"allow_ephemeral": "--allow-ephemeral", "dry_run": "--dry-run", "yes": "--yes"}
+# Actions that write the job store or a platform unit.
+WRITING_ACTIONS = frozenset({"install", "uninstall", "reset", "interval"})
+
+
+def _flag(dest: str) -> str:
+    return FLAG_NAMES.get(dest, "--" + dest.replace("_", "-"))
+
+
+def _misplaced_flag(args, action) -> str | None:
+    """The refusal for a flag (or stray argument) this action would ignore, or None."""
+    for dest, actions in FLAG_ACTIONS.items():
+        if action not in actions and getattr(args, dest, None) not in (None, False):
+            users = ", ".join(f"schedule {a}" for a in ACTIONS if a in actions)
+            return (f"'{_flag(dest)}' isn't a flag on 'schedule {action}', so nothing was "
+                    f"run.\n\nIt's used by: {users}.")
+    if action != "interval" and getattr(args, "rest", None):
+        return (f"'schedule {action}' takes no arguments, and got "
+                f"{' '.join(args.rest)!r}, so nothing was run.")
+    return None
+
 
 def dispatch(args, config) -> int:
     """Route one `schedule` invocation."""
+    from .. import style
+
     action = args.action
+    refusal = _misplaced_flag(args, action)
+    if refusal:
+        log(style.fail(refusal))
+        log("Run 'contextlake schedule --help' to see each flag's actions.")
+        return 2
+    dry_run = str(config.get("dry_run", "false")).lower() == "true"
+    if dry_run and action in WRITING_ACTIONS - {"install"}:
+        # `--dry-run` on these is refused above, so this is `dry_run = true` in the config.
+        log(style.fail(f"dry_run is set in the config, and 'schedule {action}' has no "
+                       f"preview, so nothing was run."))
+        return 2
     if action == "recommend":
         return cmd_recommend(args, config)
     if action == "list":

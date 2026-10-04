@@ -60,6 +60,18 @@ def cmd_install(args, config) -> int:
     job = jobstore.new_job(name, argv, interval_setting, adapter.id, full_argv=full_argv,
                            created=existing.created if existing else None)
     on_battery = config.get("schedule_on_battery", "skip")
+    if str(config.get("dry_run", "false")).lower() == "true":
+        # `--dry-run`, or `dry_run = true` in the config. Everything above only reads, so
+        # stopping here installs nothing and writes no job record.
+        rendered = adapter.render(job, interval_s, adapters.exec_argv_for(name),
+                                  on_battery=on_battery)
+        log(f"Dry run: nothing installed. Job {name!r} on {adapter.id}, every "
+            f"{recommend.format_duration(interval_s)}. {why}")
+        for filename, text in rendered.items():
+            if filename in adapter.metadata_keys:
+                continue
+            log(f"\n----- {filename} -----\n{text}")
+        return 0
     try:
         written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
                                   on_battery=on_battery)

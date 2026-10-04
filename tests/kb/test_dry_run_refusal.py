@@ -48,12 +48,14 @@ TAILS = {
     "completion": [], "connect": [], "dashboard": [], "docs": [], "embed": [],
     "enrich": [], "eval": [], "graph": [], "hook": ["status"], "impact": ["x"],
     "index": ["x"], "ingest": [], "init": [], "keys": ["list"], "lint": [],
-    "owners": ["x"], "query": ["x"], "refresh": [], "schedule": ["status"], "serve": [],
+    "owners": ["x"], "query": ["x"], "refresh": [], "serve": [],
     "source": ["list"], "steer": [], "version": [], "wiki": [],
 }
-# Commands whose own parser declares --dry-run, so they read it.
-TAKERS = ["audit", "bootstrap", "branches", "clone", "doctor", "fetch", "forget", "status",
-          "sync", "update", "verify"]
+# Commands whose own parser declares --dry-run, so they read it. `schedule` reads it on
+# `install` only and refuses it on its other actions itself (cmds.FLAG_ACTIONS; see
+# tests/test_schedule_flag_scope.py).
+TAKERS = ["audit", "bootstrap", "branches", "clone", "doctor", "fetch", "forget", "schedule",
+          "status", "sync", "update", "verify"]
 
 _MIRROR_ENTRY_STAGE = {
     "fetch": "fetch_gitlab_projects", "clone": "clone_missing_repos",
