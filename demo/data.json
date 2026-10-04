@@ -1140,14 +1140,6 @@
     "acme/alerts": {
       "dependencies": [
         {
-          "src": "acme/alerts",
-          "dst": "acme/shared-lib",
-          "relation": "depends_on",
-          "confidence": "INFERRED",
-          "weight": 1,
-          "context": null
-        },
-        {
           "src": "acme/forecast-api",
           "dst": "acme/alerts",
           "relation": "depends_on",
@@ -1158,6 +1150,14 @@
         {
           "src": "acme/sensor-ingest",
           "dst": "acme/alerts",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "weight": 1,
+          "context": null
+        },
+        {
+          "src": "acme/alerts",
+          "dst": "acme/shared-lib",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1200,16 +1200,16 @@
     "acme/forecast-api": {
       "dependencies": [
         {
-          "src": "acme/console-ui",
-          "dst": "acme/forecast-api",
+          "src": "acme/forecast-api",
+          "dst": "acme/alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/forecast-api",
-          "dst": "acme/alerts",
+          "src": "acme/console-ui",
+          "dst": "acme/forecast-api",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1246,16 +1246,16 @@
     "acme/sensor-ingest": {
       "dependencies": [
         {
-          "src": "acme/forecast-api",
-          "dst": "acme/sensor-ingest",
+          "src": "acme/sensor-ingest",
+          "dst": "acme/alerts",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
         },
         {
-          "src": "acme/sensor-ingest",
-          "dst": "acme/alerts",
+          "src": "acme/forecast-api",
+          "dst": "acme/sensor-ingest",
           "relation": "depends_on",
           "confidence": "INFERRED",
           "weight": 1,
@@ -1314,6 +1314,14 @@
     "acme/station-registry": {
       "dependencies": [
         {
+          "src": "acme/station-registry",
+          "dst": "acme/shared-lib",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "weight": 1,
+          "context": null
+        },
+        {
           "src": "acme/console-ui",
           "dst": "acme/station-registry",
           "relation": "depends_on",
@@ -1336,14 +1344,6 @@
           "confidence": "INFERRED",
           "weight": 1,
           "context": null
-        },
-        {
-          "src": "acme/station-registry",
-          "dst": "acme/shared-lib",
-          "relation": "depends_on",
-          "confidence": "INFERRED",
-          "weight": 1,
-          "context": null
         }
       ],
       "http_flow": [],
@@ -1358,8 +1358,16 @@
   "fleet_relationships": {
     "dependencies": [
       {
-        "src": "acme/alerts",
-        "dst": "acme/shared-lib",
+        "src": "acme/forecast-api",
+        "dst": "acme/alerts",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/sensor-ingest",
+        "dst": "acme/alerts",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
@@ -1374,30 +1382,6 @@
         "context": null
       },
       {
-        "src": "acme/console-ui",
-        "dst": "acme/shared-lib",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/console-ui",
-        "dst": "acme/station-registry",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/forecast-api",
-        "dst": "acme/alerts",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
         "src": "acme/forecast-api",
         "dst": "acme/sensor-ingest",
         "relation": "depends_on",
@@ -1406,7 +1390,15 @@
         "context": null
       },
       {
-        "src": "acme/forecast-api",
+        "src": "acme/alerts",
+        "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/console-ui",
         "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
@@ -1415,23 +1407,7 @@
       },
       {
         "src": "acme/forecast-api",
-        "dst": "acme/station-registry",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/sensor-ingest",
-        "dst": "acme/alerts",
-        "relation": "depends_on",
-        "confidence": "INFERRED",
-        "weight": 1,
-        "context": null
-      },
-      {
-        "src": "acme/sensor-ingest",
-        "dst": "acme/station-registry",
+        "dst": "acme/shared-lib",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,
@@ -1440,6 +1416,30 @@
       {
         "src": "acme/station-registry",
         "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/console-ui",
+        "dst": "acme/station-registry",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/forecast-api",
+        "dst": "acme/station-registry",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/sensor-ingest",
+        "dst": "acme/station-registry",
         "relation": "depends_on",
         "confidence": "INFERRED",
         "weight": 1,

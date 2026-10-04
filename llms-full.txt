@@ -9306,6 +9306,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.6.3] - 2026-10-04
+
+### Security
+
+- **The network MCP server's scoping proxy no longer forwards raw database access.** Three
+  tools (`repo_dependencies`, `repo_flow`, `repo_event_flow`) built their answers with raw SQL,
+  so the proxy that limits a scoped key to its repositories had to pass the database connection
+  through, and the tool bodies filtered the rows themselves. The queries now run in the store
+  behind two methods the proxy filters on both repositories of a pair, and the proxy refuses
+  `.conn`. A tool added later cannot reach raw SQL through it. stdio is unchanged.
+
+### Fixed
+
+- **A wiki draft that repeated the same few lines could replace the structural page.** The
+  repetition gate counted sentences and word runs within one line, so a draft that wrote the
+  same four short bullets 20 times passed it and was published. It now also counts repeated
+  runs of 3 lines. Every sound page measured repeats such a run at most once; the degenerate
+  ones repeat it 26 and 29 times. Found by running the built-in model over 12 public repos.
+- **A wiki rejection now says what it checked.** A draft that backticks a name its prompt (the
+  structural page) did not contain was rejected as citing "names the graph does not hold". The
+  check never consults the graph, and some of those names are in it. The reason now reads
+  "cites names its prompt did not contain"; the rule is unchanged.
+- **`kb ingest`, `kb enrich` and `kb connect` replace a partition in one transaction.** Each
+  cleared the partition, then wrote its nodes, then its edges, as three commits, so a failure
+  part way left it empty or half-written. A failed write now leaves the previous partition in
+  place. Ingest and enrich also cleared vectors after the rows, so a stop between the two left
+  vectors that answered queries for documents the partition no longer held; they now clear
+  vectors first, the order `kb forget` uses.
+
 ## [9.6.2] - 2026-10-04
 
 ### Changed
