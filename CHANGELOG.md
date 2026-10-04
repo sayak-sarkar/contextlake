@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **`--anonymize` now removes connector item text and document bodies on every surface.**
-  9.8.1 disclosed that a connector link's title and name and an ADR body survived it. One
-  rewrite now runs where data leaves for the client: on every JSON response the dashboard
-  server sends (chat included), on every graph payload (pages, neighbours, diagrams), and on
-  the `--site` snapshot. Connector items become their kind and a short code, with their title,
+- **`--anonymize` now removes connector item text and document bodies on every dashboard
+  surface.** 9.8.1 disclosed that a connector link's title and name and an ADR body survived
+  it. One rewrite now runs where data leaves for the client: on every JSON response the
+  dashboard server sends (chat included), on every graph payload (pages, neighbours,
+  diagrams), and on the `--site` snapshot. With `--llm-chat`, it also runs on the chat result
+  before the prompt is built, so the configured provider and the prose it returns see the
+  short codes, never an item's title or a decision record's body. Connector items become their kind and a short code, with their title,
   summary, URL and text dropped; document kinds lose their body and the URL they came from.
   The code is keyed per export
   and per server start, so labels match nothing outside it, and an anonymized connector item

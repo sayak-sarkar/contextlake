@@ -93,6 +93,10 @@ contextlake kb dashboard --serve --open         # live, against your store; open
   docstrings, file paths inside your repositories, the headings of wiki sections, and the
   titles of documents and decision records (their node names).
 
+With `--llm-chat`, the prompt sent to your provider is built from the anonymized result, so the
+provider sees the codes, never a connector item's title or a decision record's body. The question
+you type is sent as you typed it.
+
 `--allow-mutations` is refused with `--anonymize`: the actions it adds stream run logs that name
 connector items.
 
