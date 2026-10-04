@@ -89,7 +89,7 @@ def _kb(tmp_path):
     a kb command is pointed at a store only through `[kb] store_dir`."""
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
-    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
     return cfg, store_dir
 
 
