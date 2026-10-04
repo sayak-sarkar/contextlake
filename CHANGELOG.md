@@ -24,6 +24,11 @@ These can make a run that worked on 9.4.0 behave differently:
 - `mirror update` stays on a branch with unpushed commits, or one an auto-stash is held
   for, and reports a skip. `status`, `clone` and `audit` counts no longer include
   checkouts nested inside a clone.
+- With several `kb connect` or `kb enrich` sources, one that stays unreachable (an expired
+  token, for example) keeps every affected repo's previous results, so the other sources'
+  results for those repos stop refreshing, and the command exits 1 on every run until that
+  source is fixed or removed from the config. 9.4.0 exited 0 and erased that source's
+  results instead.
 
 ### Added
 
@@ -85,13 +90,17 @@ These can make a run that worked on 9.4.0 behave differently:
   read a truncated file and a crash could leave one behind. It is now written to a
   temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,
   edges) is now one transaction, so another reader no longer sees the repo empty, or with
-  nodes and no edges, part way through.
+  nodes and no edges, part way through. Tested on Linux. On Windows, replacing a shard that
+  another process holds open can fail that write.
 - **`mirror update` no longer moves you off a branch that holds unpushed work.** When the
   tracked branch was gone from `origin`, update switched to the most active branch, even
   when the branch had local commits or `--auto-stash` was holding edits for it, and the
   stash then landed on the other branch. Now update stays on the branch, and says why,
   when it has commits no `origin` branch has, when git cannot tell, or while an auto-stash
-  is held. A branch merged and deleted upstream with nothing local still switches.
+  is held. A branch merged and deleted upstream with nothing local still switches. A
+  squash-merged branch is different once git prunes its `origin` ref (`fetch.prune`): its
+  commits are on no `origin` branch, so update stays and reports them as such. Use
+  `mirror branches` to move it.
 - **Mirror commands no longer treat a checkout inside a clone as a mirror repo.** The repo
   scan walked into every clone, so `update` and `branches` fetched and could switch a
   vendored checkout, and the scan read every `.git` and `node_modules` directory. It now
