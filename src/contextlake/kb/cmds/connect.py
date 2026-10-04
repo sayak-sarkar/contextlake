@@ -215,6 +215,7 @@ def cmd_connect(args) -> int:
     from ..connectors.orchestrate import connect_partition
     from ..model import EXTERNAL_REPO
     from ..references import extract_issue_keys, scrape_links
+    from ..store.shards import store_partition
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "connect"):
@@ -342,9 +343,10 @@ def cmd_connect(args) -> int:
                     return 0
                 if staged is not None:
                     staged.flush(part)
-                store.clear_repo(part)
-                store.upsert_nodes(part, list(merged_nodes.values()))
-                store.upsert_edges(part, list(merged_edges.values()))
+                # One transaction, so a failure part way keeps the previous links rather
+                # than an empty partition. The staged vectors were flushed just above.
+                store_partition(store, part, list(merged_nodes.values()),
+                                list(merged_edges.values()))
                 if merged_edges:
                     log(f"  {repo_id}: {len(merged_edges)} link(s)", inline=True)
                 return len(merged_edges)

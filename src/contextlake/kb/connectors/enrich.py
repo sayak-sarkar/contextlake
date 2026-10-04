@@ -18,7 +18,7 @@ from typing import NamedTuple
 from ..model import Node
 from ..resilience import degraded_calls, note_unavailable
 from ..sources.base import Document
-from ..store.shards import GraphShard, write_shard
+from ..store.shards import GraphShard, store_partition, write_shard
 from ..wiki.generate import repo_brief
 from .mcp_query import _cfg_get, _normalize, _num, mcp_tool_query
 from .text_match import link_documents_to_symbols
@@ -224,17 +224,16 @@ def run_enrich_repo(
     # previous run's along with its nodes.
     edges = link_documents_to_symbols(store, repo_id, nodes, texts, "documented_by", "enrich")
 
-    store.clear_repo(part)
-    store.upsert_nodes(part, nodes)
-    store.upsert_edges(part, edges)
-    write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=edges))
-
-    # Clear this partition's stale vectors whenever the partition was rewritten (mirroring
-    # the graph store.clear_repo above, and reached only when every source answered). A
-    # source that stops returning a doc a prior run embedded, or returns none at all,
-    # would otherwise leave orphaned vectors.
+    # Clear this partition's stale vectors whenever the partition is rewritten (reached only
+    # when every source answered). A source that stops returning a doc a prior run embedded,
+    # or returns none at all, would otherwise leave orphaned vectors. Vectors FIRST, then the
+    # shard, then the rows in one transaction, the order `kb ingest` and `kb index` use: a
+    # stop part way leaves documents with no vectors, which re-embedding repairs, rather
+    # than vectors for documents the partition no longer holds.
     if vector_store is not None:
         vector_store.clear_repo(part)
+    write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=edges))
+    store_partition(store, part, nodes, edges)
     if embedder and vector_store and nodes:
         from ..commands import _embed_documents
         batch = getattr(cfg.embeddings, "batch_size", 64)

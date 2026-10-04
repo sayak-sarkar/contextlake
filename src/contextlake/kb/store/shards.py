@@ -423,9 +423,20 @@ def reindex_shard(store: Store, store_dir: str | Path, repo_id: str) -> bool:
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return False
+    store_partition(store, repo_id, shard.nodes, shard.edges)
+    return True
+
+
+def store_partition(store: Store, part: str, nodes, edges) -> None:
+    """Replace one partition's rows in ONE transaction: clear it, then its nodes, its edges.
+
+    ``kb ingest``, ``kb enrich`` and ``kb connect`` replaced their synthetic partitions as
+    three commits, so a reader saw the partition empty, then without edges, and a failure
+    part way left it empty. This is the atomicity ``reindex_shard`` gives a code repo. A
+    store without a ``transaction`` method gets the same three calls with no atomicity.
+    """
     transaction = getattr(store, "transaction", None)
     with transaction() if transaction is not None else contextlib.nullcontext():
-        store.clear_repo(repo_id)
-        store.upsert_nodes(repo_id, shard.nodes)
-        store.upsert_edges(repo_id, shard.edges)
-    return True
+        store.clear_repo(part)
+        store.upsert_nodes(part, nodes)
+        store.upsert_edges(part, edges)

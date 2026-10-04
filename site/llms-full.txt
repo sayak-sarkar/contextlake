@@ -9317,6 +9317,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structural page) did not contain was rejected as citing "names the graph does not hold". The
   check never consults the graph, and some of those names are in it. The reason now reads
   "cites names its prompt did not contain"; the rule is unchanged.
+- **`kb ingest`, `kb enrich` and `kb connect` replace a partition in one transaction.** Each
+  cleared the partition, then wrote its nodes, then its edges, as three commits, so a failure
+  part way left it empty or half-written. A failed write now leaves the previous partition in
+  place. Ingest and enrich also cleared vectors after the rows, so a stop between the two left
+  vectors that answered queries for documents the partition no longer held; they now clear
+  vectors first, the order `kb forget` uses.
 
 ## [9.6.2] - 2026-10-04
 

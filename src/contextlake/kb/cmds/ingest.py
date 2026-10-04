@@ -8,7 +8,7 @@ from ... import style
 from ...logging_setup import log
 from ..connectors.text_match import link_documents_to_symbols, symbol_nodes_for_repo
 from ..paths import is_plain_id
-from ..store.shards import GraphShard, write_shard
+from ..store.shards import GraphShard, store_partition, write_shard
 from ._common import (
     _guard_store,
     _open_store,
@@ -194,7 +194,7 @@ def cmd_ingest(args) -> int:
                 repo_id = f"@ingest:{name}"
                 if not is_plain_id(repo_id):
                     # The name becomes a path under the store. Checked before the fetch, so
-                    # nothing is stored for a name `write_shard` would refuse at the end.
+                    # nothing is fetched or stored for a name `write_shard` would refuse.
                     log(f"  {name}: refused, a source name may not hold a '.' or '..' "
                         "segment or be a path", inline=True)
                     failed += 1
@@ -239,23 +239,26 @@ def cmd_ingest(args) -> int:
                     # having passed --for-repo, so it cannot be silent.
                     log(f"  {name}: linked to no code in {for_repo!r} — no document "
                         f"named a symbol the graph knows", inline=True)
-                store.clear_repo(repo_id)
-                # Sweep this partition's vectors too, for the same reason the graph's
-                # nodes are swept: the run is about to rewrite them. A document is now
-                # SEVERAL vectors, so replace-by-key is no longer enough -- a page that
-                # loses a section keeps the orphaned chunks of the text it no longer has
-                # and can still be retrieved on them. It also drops the one whole-document
-                # vector a pre-8.3 store holds under the bare node id, which would
-                # otherwise sit alongside the new chunks and compete with them.
+                # Sweep this partition's vectors, for the same reason the graph's nodes
+                # are swept: the run is about to rewrite them. A document is now SEVERAL
+                # vectors, so replace-by-key is no longer enough -- a page that loses a
+                # section keeps the orphaned chunks of the text it no longer has and can
+                # still be retrieved on them. It also drops the one whole-document vector
+                # a pre-8.3 store holds under the bare node id, which would otherwise sit
+                # alongside the new chunks and compete with them.
                 # Placed after the `continue` above, like connect.py's sweep: only a
                 # partition that is actually being rewritten gets cleared, so a source
                 # that momentarily returns nothing does not wipe good vectors.
+                # Vectors FIRST, then the shard, then the rows in one transaction: the
+                # order `forget` and `kb index` use. A stop after the vector sweep leaves
+                # documents with no vectors, which re-embedding repairs and which shows as
+                # a missing semantic hit. The old order (rows first) left vectors that
+                # answer queries for documents the partition no longer holds.
                 if vs is not None:
                     vs.clear_repo(repo_id)
-                store.upsert_nodes(repo_id, nodes)
-                store.upsert_edges(repo_id, edges)
                 write_shard(store_dir, GraphShard(repo=repo_id, head_commit="ingest",
                                                   nodes=nodes, edges=edges))
+                store_partition(store, repo_id, nodes, edges)
                 total += len(nodes)
                 msg = f"  {name}: {len(nodes)} document(s)"
                 if misses:
