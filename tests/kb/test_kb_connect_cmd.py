@@ -4,6 +4,8 @@ reconciled external nodes/edges persisted in an isolated store partition."""
 import re
 from argparse import Namespace
 
+import pytest
+
 import contextlake.kb.connectors.orchestrate as orch
 import contextlake.kb.references as refs
 from contextlake.kb.cmds.connect import _rule_patterns
@@ -359,6 +361,40 @@ def test_connect_sweeps_stale_connector_vectors(tmp_path, monkeypatch):
                vs.conn.execute("SELECT node_id FROM embeddings WHERE repo_id=?", (part,))}
         assert "stale_node_from_a_previous_run" not in ids  # swept
         assert ids  # ...and this pass's own channel vector survived the sweep
+    finally:
+        vs.close()
+
+
+def test_staged_flush_keeps_the_old_vectors_when_the_write_fails(tmp_path):
+    """The flush cleared the partition and then wrote, so a write that failed left it
+    with no vectors at all while the graph kept the previous links."""
+    from contextlake.kb.cmds.connect import _StagedVectors
+    from contextlake.kb.embeddings.store import VectorStore
+
+    part = connect_partition("group/app")
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+
+    class _WriteFails:
+        def __getattr__(self, name):
+            return getattr(vs, name)
+
+        def upsert(self, items):
+            raise RuntimeError("disk full")
+
+    try:
+        vs.upsert([("old", part, [1.0, 0.0]), ("other", "@connect:group/other", [0.0, 1.0])])
+        staged = _StagedVectors(_WriteFails())
+        staged.upsert([("new", part, [1.0, 0.0])])
+        with pytest.raises(RuntimeError):
+            staged.flush(part)
+        assert {r[0] for r in vs.conn.execute("SELECT node_id FROM embeddings")} == {
+            "old", "other"}
+
+        staged = _StagedVectors(vs)
+        staged.upsert([("new", part, [1.0, 0.0])])
+        staged.flush(part)
+        rows = set(vs.conn.execute("SELECT node_id, repo_id FROM embeddings"))
+        assert rows == {("new", part), ("other", "@connect:group/other")}
     finally:
         vs.close()
 

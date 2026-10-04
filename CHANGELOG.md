@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`kb connect` no longer empties a repo's connector vectors when writing them fails.** The
+  pass deleted the partition's vectors and then wrote the new ones, so a failed write left
+  none, while the repo's connector links stayed as they were. It now writes first and then
+  deletes only the vectors it did not write.
+
 ## [9.8.2] - 2026-10-05
 
 ### Security

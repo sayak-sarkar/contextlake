@@ -65,8 +65,8 @@ class _StagedVectors:
     replaced at all is only known once every source has answered: if one of them was
     unreachable, the previous partition must stay, and the sweep is the one step that
     cannot be undone. So the enrichers are handed this object in place of the vector
-    store. ``upsert`` is held back; ``flush`` then sweeps and writes in the order the
-    old code produced, and ``discard`` drops what was held. Everything else passes
+    store. ``upsert`` is held back; ``flush`` then writes the held rows and sweeps the
+    partition's other rows, and ``discard`` drops what was held. Everything else passes
     through to the real store.
     """
 
@@ -83,10 +83,14 @@ class _StagedVectors:
         self._held = []
 
     def flush(self, part: str) -> None:
+        # Write first, sweep last, as `embeddings/index.py` does. Cleared first, a write
+        # that failed left the partition with no vectors while its graph rows, written
+        # after this, still held the previous links. The held rows are already embedded,
+        # so a complete flush ends in the same state either way.
         rows, self._held = self._held, []
-        self._real.clear_repo(part)
         if rows:
             self._real.upsert(rows)
+        self._real.delete_except(part, {node_id for node_id, _repo, _vec in rows})
 
     def __getattr__(self, name):
         return getattr(self._real, name)
