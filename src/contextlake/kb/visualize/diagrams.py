@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING
 
 from ..kinds import KIND_REGISTRY
@@ -220,6 +221,15 @@ _CLASS_MEMBER_KINDS = {k for k, s in KIND_REGISTRY.items() if s.class_member}
 _ER_ENTITY_KINDS = {k for k, s in KIND_REGISTRY.items() if s.er_entity}
 
 
+def _er_name(name: str) -> str:
+    """``name`` as a Mermaid ``erDiagram`` entity name: word characters and ``-`` only.
+
+    The SQL extractor reads quoted names, so ``[Order Details]`` reaches here as
+    ``order details``, and Mermaid reads that as two tokens and fails the whole diagram.
+    """
+    return re.sub(r"[^\w-]", "_", name) or "_"
+
+
 def to_class_diagram(payload: dict, *, stats: dict | None = None) -> str:
     """Render a Mermaid ``classDiagram``: classifier nodes (class/interface/struct/enum)
     with their methods as members, and ``inherits`` edges as inheritance arrows —
@@ -419,9 +429,9 @@ def to_er_diagram(payload: dict, *, stats: dict | None = None) -> str:
 
     No attribute blocks: the extractor captures ``CREATE TABLE``/``VIEW`` names
     and FK targets, not column lists, so this shows entities and relationships
-    only. Table/view names come straight from ``kb.sql``'s ``_NAME`` regex
-    (``[A-Za-z_]\\w*``), always Mermaid-identifier-safe, so unlike the other
-    diagram formats this needs no ``_mermaid_escape`` on the identifiers.
+    only. A table name can hold spaces and other characters a Mermaid entity name
+    cannot (``[Order Details]``, `` `line-items` ``), so each name goes through
+    :func:`_er_name`, which turns every other character into ``_``.
 
     ORM-defined schemas (SQLAlchemy / Entity Framework / TypeORM model classes,
     no raw ``.sql`` DDL) produce nothing here -- this format only sees literal
@@ -449,13 +459,13 @@ def to_er_diagram(payload: dict, *, stats: dict | None = None) -> str:
         # parent it names (one row) -- FK semantics, not a guess -- so the
         # one/many cardinality here is asserted, unlike the edge's own
         # INFERRED confidence (which is about whether the reference exists).
-        child, parent = by_id[src]["name"], by_id[dst]["name"]
+        child, parent = _er_name(by_id[src]["name"]), _er_name(by_id[dst]["name"])
         lines.append(f"  {parent} ||--o{{ {child} : references")
 
     mentioned = {n for pair in seen for n in pair}
     for nid, n in by_id.items():
         if nid not in mentioned:
-            lines.append(f"  {n['name']}")
+            lines.append(f"  {_er_name(n['name'])}")
     _drawn(stats, len(by_id), len(seen))
     return "\n".join(lines)
 

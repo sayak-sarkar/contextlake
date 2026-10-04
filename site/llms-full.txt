@@ -9156,6 +9156,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - On Windows, run `contextlake kb index --force` once. Architecture decision records and
   manifests below a repo's root were missing from the graph there, and a repo is only
   re-indexed when its commit moves. Nothing changes on Linux or macOS.
+- For a repo that holds SQL schemas, run `contextlake kb index --force <repo>` once: table
+  and view names are now read correctly (see Fixed), and an unchanged repo is not
+  re-indexed on its own.
 
 ### Fixed
 
@@ -9169,6 +9172,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parser rebuilt the set of every node id once per member symbol, so 16,000 defines took
   7.8 seconds and a 5.9 MB generated header would have taken about 25 minutes. It now
   keeps the set as it goes: 0.24 seconds and 4.9 seconds. The output is unchanged.
+- **SQL tables are read under their real names.** `CREATE TABLE IF NOT EXISTS orders`
+  was indexed as a table named `if`, losing `orders` and its foreign keys, in
+  PostgreSQL, MySQL and SQLite schemas. Quoted names (`"Order"`, `` `order` ``,
+  `[Order Details]`), names with more than one qualifier, and `TEMP`, `TEMPORARY`,
+  `UNLOGGED` and `OR REPLACE` tables were missed or cut short. All of these now give the
+  table its own name, and SQL embedded in code reads the same names. The ER diagram
+  writes a name with a space or other character as one Mermaid entity (`order_details`).
+- **The SQL and flow extractors no longer slow down with file size squared.** Each
+  match counted lines from the top of the file: a 3.3 MB DDL file took 19.9 seconds and
+  now takes 0.87. The HTTP, event, state, data and web extractors had the same cost; the
+  state extractor also rescanned the file for every transition (8.3 seconds to 0.05 on
+  0.8 MB). Line numbers are unchanged.
 
 ## [9.5.0] - 2026-10-04
 
