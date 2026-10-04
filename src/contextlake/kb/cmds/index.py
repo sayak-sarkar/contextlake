@@ -15,6 +15,7 @@ from ..model import Repo
 from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from ._common import (
+    _git_branch,
     _git_head,
     _guard_store,
     _open_store,
@@ -189,7 +190,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         # nodes under it.
         write_shard(store_dir, shard)
         archive_shard(store_dir, shard)
-        store.upsert_repo(Repo(id=repo_id, path=path))
+        store.upsert_repo(Repo(id=repo_id, path=path, default_branch=_git_branch(Path(path))))
         reindex_shard(store, store_dir, repo_id)
         # Stamp from the shard, never from PARSER_VERSION: the row then mirrors
         # the file that was actually written, so the two cannot drift.
@@ -641,7 +642,8 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     except ValueError as e:
         log(f"  {style.fail(repo_id)}: refused, not indexed: {e}")
         return 1
-    store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
+    store.upsert_repo(Repo(id=repo_id, path=str(repo_path),
+                           default_branch=_git_branch(Path(repo_path))))
     reindex_shard(store, store_dir, repo_id)
     mark_repo_indexed(store, repo_id, head, shard.parser_version)
     st = store.stats()

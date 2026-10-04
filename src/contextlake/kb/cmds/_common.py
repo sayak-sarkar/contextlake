@@ -240,6 +240,28 @@ def _git_head(path: Path) -> str | None:
         return None
 
 
+def _git_branch(path: Path) -> str | None:
+    """The branch checked out in the repository rooted AT ``path``; None when detached,
+    or when ``path`` is not its own repository (the same walk-up hazard as `_git_head`).
+
+    Stored as the repo row's ``default_branch``: the branch the indexed graph was built
+    from, which `list_repos` and the dashboard show as "the branch". Nothing wrote the
+    field before, so every repo showed none.
+    """
+    from ..repo_identity import is_own_gitdir
+
+    if not is_own_gitdir(str(path)):
+        return None
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(path), "symbolic-ref", "--short", "-q", "HEAD"],
+            capture_output=True, text=True, errors="replace", timeout=10,
+        )
+        return out.stdout.strip() or None if out.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def _git_commit_state(path: Path | None) -> str:
     """Why :func:`_git_head` could not name a commit: ``"missing"``, ``"shard"``,
     ``"unreadable"``, ``"empty"``, or ``"ok"`` when it can.
