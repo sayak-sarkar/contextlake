@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Upgrading from 9.5.0
 
-- On Windows, run `contextlake kb index --force` once. Architecture decision records and
-  manifests below a repo's root were missing from the graph there, and a repo is only
-  re-indexed when its commit moves. Nothing changes on Linux or macOS.
-- For a repo that holds SQL schemas, run `contextlake kb index --force <repo>` once: table
-  and view names are now read correctly (see Fixed), and an unchanged repo is not
-  re-indexed on its own.
+- On Windows, re-index once: `contextlake kb index --force <repo dir>`, or
+  `contextlake kb index --force --workspace <mirror dir>` for a whole mirror. Architecture
+  decision records and manifests below a repo's root were missing from the graph there,
+  and a repo is only re-indexed when its commit moves. Nothing changes on Linux or macOS.
+- For a repo that holds SQL schemas, re-index once with the same command: table and view
+  names are now read correctly (see Fixed), and an unchanged repo is not re-indexed on
+  its own.
+- If you use semantic search, run `contextlake kb embed --force` after either re-index. A
+  forced index leaves the vector store marked current, so without it the corrected
+  tables and the Windows symbol ids have no vectors. It re-embeds every repo.
 - `--dry-run` (or `-n`) placed before a command that does not support it now exits 2 and
   runs nothing, where it used to be accepted and the command ran for real. Eleven commands
   support it: `bootstrap`, `doctor`, `kb forget` and the eight `mirror` verbs that preview.
