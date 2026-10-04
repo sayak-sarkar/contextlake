@@ -108,8 +108,8 @@ only contextlake emits and one file.
 - **Routes.** The comparator emits 266 route nodes to contextlake's 47 endpoints on a repo whose
   entire purpose is routing.
 - **Functions.** 214 to 86. contextlake's definition query recognises declared functions and
-  methods; a JavaScript codebase of this vintage is largely function expressions and arrow
-  functions passed as arguments.
+  methods; a JavaScript codebase of this vintage defines most of its functions as function
+  expressions and arrow functions passed as arguments.
 
 Neither is fixed here. They are named because a gap you can decompose is worth more than a gap
 you can only report.

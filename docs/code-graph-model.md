@@ -22,7 +22,7 @@ That last one means "what extends `BaseController`?" is a single hop, and changi
 shows its subclasses in `blast_radius`.
 
 The diagram below takes its colours from the same module `contextlake kb graph` and the
-dashboard use, so node kinds look the same everywhere. Edge relations mostly match too:
+dashboard use, so node kinds look the same everywhere. Most edge relations match too:
 
 - **10 have their own colour**: `calls`, `imports`, `contains`, `depends_on`, `publishes`,
   `tracked_by`, `documented_by`, `flow`, `exposes`, `calls_http`
@@ -90,7 +90,7 @@ Two gaps, named here so you do not have to find them yourself:
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
 
-Missing yours? "Pluggable" is meant literally: a language is a grammar package plus a few table
+Missing yours? "Pluggable" is a literal claim: a language is a grammar package plus a few table
 entries. [Adding a language](adding-a-language.md) is the ordered recipe, with the verification
 commands that prove a new grammar works.
 
@@ -168,7 +168,7 @@ component gives another becomes a `references` edge, resolved across files in th
 Two node kinds:
 
 - **`schema_element`** for a global `xs:element`. This is the name a message, a document root or
-  a SOAP body actually carries, so it is the name people search for.
+  a SOAP body carries, so it is the name people search for.
 - **`schema_type`** for a global `complexType`, `simpleType`, `group`, `attributeGroup` or
   `attribute`. Which one it was is kept in the `schema_construct` attribute, rather than
   splitting these into five separate kinds.
@@ -300,7 +300,7 @@ A guarded assignment to a status, state or stage field becomes a `transitions_to
 
 **Only guarded transitions are emitted.** The source state has to be established by a comparison
 on the same field just before. That way a diagram never claims a transition the code does not
-actually make.
+make.
 
 Supported in Python, JS/TS and C#. Detection is regex-based, so every edge is marked `INFERRED`.
 
@@ -331,7 +331,7 @@ guessed link.
 ### Constants: their value, and every place it is read
 
 A constant node records the declaration it was written with, so the graph answers what a value
-actually is and not only that a name exists: `MAX_RETRY = 3`, `PAGE_SIZE = 50`,
+is and not only that a name exists: `MAX_RETRY = 3`, `PAGE_SIZE = 50`,
 `#define TIMEOUT 30`. It is stored as written, collapsed to one line and capped, and it is called
 a declaration rather than a value because nothing has been parsed out of it.
 
@@ -360,7 +360,7 @@ Two web-topology layers sit on top of the definitions.
 
 **HTTP endpoints** a repo exposes or calls become shared `endpoint` nodes that join across repos into
 `flow` edges, from the caller repo to the exposer repo. Detection is regex-based and framework-targeted,
-so read the list as what is actually matched:
+so read the list as what is matched:
 
 - **Python**: FastAPI and Flask decorator routing (`@app.get("...")`, `@router.route("...")`).
 - **JavaScript and TypeScript**: the Express-shaped call form,
@@ -396,7 +396,7 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > doesn't encode a repo: two repos that both import `requests`, call the same route, or publish
 > to the same topic produce the identical node, which the store dedupes to one row. Its `repo`
 > reads as a pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design:
-> which repos actually touch it is a question the cross-repo edges answer, not the node itself.
+> which repos touch it is a question the cross-repo edges answer, not the node itself.
 
 ### Manifests and cross-repo dependencies
 
@@ -405,7 +405,7 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serving-over-mcp.md).
 
-Each `depends_on` edge records what the manifest actually says, not only the package name:
+Each `depends_on` edge records what the manifest says, not only the package name:
 
 | On the edge | What it holds |
 | --- | --- |

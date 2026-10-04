@@ -390,7 +390,7 @@ No light (<400) weights anywhere (they fail contrast on dark surfaces). No Space
 
 - Space Grotesk runs wide; **tighten as size grows** (negative tracking on all headings ≥24px). No positive tracking except the eyebrow.
 - Inter: **zero tracking** at body sizes. Never letter-space running text.
-- Enable Inter `calt`. **JetBrains Mono ligatures OFF by default** in product UI (so `=>`, `!=` read literally); ligatures may be on in marketing code samples only.
+- Enable Inter `calt`. **JetBrains Mono ligatures OFF by default** in product UI (so `=>`, `!=` show as the characters typed); ligatures may be on in marketing code samples only.
 
 ### 4.5 Web-font loading (offline-first, hard constraint)
 
@@ -474,7 +474,7 @@ Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never dis
 - **Shape:** rounded organic pebble, slightly taller than wide. **No facet edges that read as a cut gem.** Faint internal striations may *hint* at structure but stay soft and subsurface.
 - **Inner glow (identical in both registers):** **core `current #2BB3A3` → falloff to `lake #137A8B` → thin `mist #EAF4F4` rim** where it meets dark fur. The glow is the brightest value in any composition.
 - **Gold glint:** exactly **one** small warm highlight in **sun `#E7B53C`** near the upper third (one point or short streak). One glint, never a constellation.
-- **Cast glow:** the pebble casts soft teal light onto Pebble's paws/chest/chin, proof it really glows.
+- **Cast glow:** the pebble casts soft teal light onto Pebble's paws/chest/chin, proof it glows.
 - **Scale:** pebble diameter ≈ **45–55%** of head width (co-subject, never larger than the head) at
   mascot scale; the mark (§2.1) and the 16–64px favicon tier (§2.3) may shrink it further for
   legibility, same object, smaller reference frame.

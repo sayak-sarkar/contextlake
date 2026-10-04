@@ -34,12 +34,12 @@ the model pulled, and otherwise to the built-in CPU model.
   pulled, else the **built-in** CPU model if its extra is installed, else it skips that tier.
   Reachability alone isn't enough to pick Ollama, a daemon running for other models (e.g. just a chat
   model, with no embedding model ever pulled) falls straight through to the built-in tier instead of
-  failing on first real use. So the semantic/wiki tiers Just Work the moment you set `enabled = true`,
+  failing on first real use. So the semantic/wiki tiers work the moment you set `enabled = true`,
   with no daemon and no API key.
 - **`builtin`**, a small model that runs **in-process on CPU**, auto-downloaded once to `cache_dir`
   (default `~/.contextlake/models`). Zero daemon, zero API key.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
-    very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
+    fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
     via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
@@ -57,7 +57,7 @@ the model pulled, and otherwise to the built-in CPU model.
 - **`anthropic`**, the Anthropic **Messages API** (a hosted key). Best-in-class wiki prose and reliable
   structured council reviews. The key is read from the env var named by `api_key_env` (default
   `ANTHROPIC_API_KEY`), never stored in config. `model` selects the tier: default `claude-opus-4-8`; set
-  `model = "claude-haiku-4-5"` or `"claude-sonnet-5"` for a much cheaper high-volume fleet run (the council
+  `model = "claude-haiku-4-5"` or `"claude-sonnet-5"` for a cheaper high-volume fleet run (the council
   makes many calls). `max_tokens` (default 4096) caps each response.
 - **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`, or `codex`.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
@@ -165,15 +165,15 @@ any x86_64 platform**, which pinned the whole project's container base image to 
 Python.
 
 `openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14, so the index,
-the `--only-binary` pin and the compiler requirement are all simply gone. If you want GPU
+the `--only-binary` pin and the compiler requirement are all gone. If you want GPU
 inference, use Ollama (below) rather than a different index.
 
 ## Using Ollama for the wiki
 
 [Ollama](https://ollama.com) is a standalone local model server. It sidesteps the native Python build, and
-a 3B-8B model writes much better wiki pages than the 0.5B built-in.
+a 3B-8B model writes better wiki pages than the 0.5B built-in.
 
-**A) Ollama inside WSL / Linux** (simplest, `localhost` just works):
+**A) Ollama inside WSL / Linux** (simplest, `localhost` works):
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh   # installs + starts the daemon
@@ -211,7 +211,7 @@ Pull the model on whichever side runs Ollama: `ollama pull qwen2.5:3b`.
 
 The wiki's quality is bounded by the model behind it. The graph facts fed in are identical; the difference
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
-a smaller model mostly means *more rejections* and blander accepted pages).
+the main effect of a smaller model is *more rejections* and blander accepted pages).
 
 For most people the deciding factor is **hardware, not model quality**.
 

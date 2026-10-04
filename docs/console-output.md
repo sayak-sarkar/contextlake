@@ -53,7 +53,7 @@ different from `⊘` skip.
 
 There is one note case today: a freshly created repo with no commits. `update` and `branches`
 cannot resolve `HEAD` there, because there is no history to read. Nothing failed and nothing was
-skipped. There is simply nothing to sync yet.
+skipped. There is nothing to sync yet.
 
 Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section headers (e.g. `▶ Mirror
 repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long run reads as sections rather
@@ -100,7 +100,7 @@ Did you mean: --workspace?
 ```
 
 A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
-reporting it as simply unrecognized:
+reporting it as unrecognized:
 
 ```
 $ contextlake bootstrap --local
@@ -211,7 +211,7 @@ Two behaviours follow:
   lines instead of repainting in place.
 - **Both streams on one terminal**, the default interactive case: the bar and detail lines
   interleave as the run scrolls, so the bar reprints below each new detail line rather than
-  repainting perfectly in place.
+  repainting in place.
 
 Redirect stdout to a file if you want the bar as a single live line with the detail captured
 separately.
@@ -236,9 +236,9 @@ separately.
   lenses are excluded from the mean rather than counted as zero. A rejection that also says
   **`N reviewer(s) returned nothing parseable`** tells you how many lenses abstained, when that count
   equals your `council_size` on every page, suspect a *misconfigured reviewer* (missing API key, review
-  CLI not on PATH) rather than genuinely weak pages: a reviewer that returns nothing rejects everything
-  at score 0.0, which otherwise looks identical to a very strict council. A capable backend
-  (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
+  CLI not on PATH) rather than weak pages: a reviewer that returns nothing rejects everything
+  at score 0.0, which otherwise looks identical to a strict council. A capable backend
+  (`--llm ollama`/`anthropic`/`openai`) produces fewer rejections, see
   [Model providers](model-providers.md).
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
   opens the socket -- `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the
@@ -308,7 +308,7 @@ cleanup never ran. See [Stopping it](mcp-transports.md#stopping-it).
 Three things worth knowing about `1`:
 
 - **A partial run counts as a failure.** Some repositories synced and others did not is still `1`,
-  which is the point: before that, a completely broken sync looked identical to a healthy one.
+  which is the point: before that, a broken sync looked identical to a healthy one.
   `sync` aggregates across all its stages, so one failed clone fails the run, and `bootstrap`
   counts a failed mirror stage exactly as it counts a failed knowledge-layer stage.
 - **Deliberate skips are not failures.** Already up to date, a protected working branch, a

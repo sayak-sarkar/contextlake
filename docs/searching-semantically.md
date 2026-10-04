@@ -155,7 +155,7 @@ Two things make a golden set able to see this at all:
 ### Are the citations real?
 
 Those metrics answer one question: did the right node come back? They say nothing about whether the
-`file:line` it carries still points at that symbol, and the citation is what an agent is actually told to
+`file:line` it carries still points at that symbol, and the citation is what an agent is told to
 go and read. A wrong citation is worse than a miss, because it looks like an answer.
 
 `--verify-citations` opens every returned node's file at its recorded line and checks the symbol's name is

@@ -84,7 +84,7 @@ unavailable, so there is no fallback and no warning. An unexpectedly empty
 
 **`--kind` is applied differently per mode.** On `fts` it is part of the SQL, so `--limit 20` gives
 you up to 20 matching nodes. On `semantic` and `hybrid` it is a filter applied *after* the retriever
-has already cut to `--limit`, so `--retriever semantic --kind function --limit 20` can return far
+has already cut to `--limit`, so `--retriever semantic --kind function --limit 20` can return
 fewer than 20 functions even when the repo has hundreds.
 
 **`--as-of` is a different search, not the same search over old data.** It reads the repo's stored
@@ -188,7 +188,7 @@ The candidate list stops at 10 repos even when the count in the line above it is
 > [!WARNING]
 > A name that matches no node exactly falls back to a fuzzy search and takes the top hit, silently
 > (`resolve_target` in `src/contextlake/kb/impact.py`). A typo can therefore produce a confident
-> blast radius for the wrong symbol. The header line always names the node that was actually
+> blast radius for the wrong symbol. The header line always names the node that was
 > resolved, `Impact of changing <name> (<node id>)`, so read it before trusting the list.
 
 ### Verification
@@ -283,7 +283,7 @@ Three behaviours that bite scripts:
   resolved.
 - **`--limit 0` and `--hops 0` are refused**, with the argument error and exit `2`: `--limit` takes
   1 to 1,000,000 and `--hops` takes 1 to 1,000. Zero used to be read as "unset" and quietly became
-  the default, which is exactly why it is now an error. Neither ever meant "no limit".
+  the default, which is why it is now an error. Neither ever meant "no limit".
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
 

@@ -40,7 +40,7 @@ we'll coordinate disclosure.
   Attach it to an issue as-is. `--redact` extends the same treatment to the
   console; `--no-redact` disables it. This is obfuscation for sharing, not a
   cryptographic guarantee -- a short, guessable repository name can be confirmed
-  by someone who guesses it -- so a log from a highly sensitive environment still
+  by someone who guesses it -- so a log from a sensitive environment still
   deserves a read-through before you post it. See
   [docs/console-output.md](docs/console-output.md#sharing-a-log---redact).
 - **The project cache** (`/tmp/<...>.json` and `.txt` by default) lists the
@@ -175,7 +175,7 @@ break ordinary directory-scoped config, which is the feature this tier exists fo
 at the values that carry a credential. Use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the
 discovered tier gone entirely.
 
-`[[sources]] url` really is limited to a *host*: ingest fetchers open `http`/`https` only and
+`[[sources]] url` is limited to a *host*: ingest fetchers open `http`/`https` only and
 refuse any other scheme with a warning. That is enforced, not assumed -- `urllib` also speaks
 `file:`, `ftp:` and `data:`, so without the restriction a discovered config could have named
 `file:///…` and read a local file into the graph, which would be disclosure rather than egress.
@@ -251,7 +251,7 @@ explicit "known-unresolved, disposition pending" suppression rather than as a si
 
 **7.0.0 removes the dependency.** The built-in wiki LLM moved from `llama-cpp-python` to
 `openvino-genai`, whose closure is `openvino-tokenizers` and `openvino` and contains no
-`diskcache`. Verified by resolving the extra in a clean environment and listing what actually
+`diskcache`. Verified by resolving the extra in a clean environment and listing what
 installs, not by reading the advisory. The suppression is gone from `security.yml` with it.
 
 Users on earlier versions who never installed `[llm-local]` were never exposed: the package

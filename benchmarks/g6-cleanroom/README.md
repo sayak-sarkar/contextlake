@@ -6,7 +6,7 @@ editable install has masked a version mismatch twice: the tree and the released 
 different, and every check that read the tree agreed with itself.
 
 One happy path is not a clean room. This runs on the **minimum supported interpreter and the
-newest**, and includes the shapes that have actually broken before: a second index over an
+newest**, and includes the shapes that have broken before: a second index over an
 unchanged tree, an `--offline` run, and a repository with no manifest at all.
 
 ```bash

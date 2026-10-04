@@ -1,7 +1,7 @@
 # Visualize the graph
 
 `contextlake kb graph` draws a **bounded** slice of the graph. The whole thing (hundreds of thousands of
-nodes) is far too large to render, so every view is scoped from a seed and capped:
+nodes) is too large to render, so every view is scoped from a seed and capped:
 
 ```bash
 contextlake kb graph --overview --open                 # repos-as-nodes: the architecture map
@@ -89,7 +89,7 @@ highest-connected first, ties broken by node id. So a truncated diagram keeps th
 part of the repo, not whatever sorted first.
 
 Degree alone is not the whole rule. Every kind present in the view gets a small floor of slots
-first. Pure degree ranking starved the rare kinds completely: on one measured repo it kept 0 of
+first. Pure degree ranking starved the rare kinds: on one measured repo it kept 0 of
 412 `table` nodes and 0 of 402 `resource` nodes, which made `erdiagram` and `deploymentdiagram`
 render empty for a repo that plainly had the data.
 
@@ -117,7 +117,7 @@ Output is chosen with `--format`:
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
   `<|..` implements). Great for a PR or design doc: `contextlake kb graph --repo demo/app --format classdiagram`.
 - **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
-  ordered by call-site line, the order they actually appear in the source: `contextlake kb graph --name
+  ordered by call-site line, the order they appear in the source: `contextlake kb graph --name
   verify_station --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
   `--repo`/`--overview`; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
@@ -125,7 +125,7 @@ Output is chosen with `--format`:
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
   (`if reading.status == Received: reading.status = Validated`) become transitions, labeled with the method that
   makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
-  comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
+  comparison on the same field, so a diagram never claims a transition the code doesn't establish
   (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake kb graph --repo
   demo/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
@@ -299,7 +299,7 @@ contextlake kb graph --c4 --c1 --group-depth 2 --open
 ```
 
 **Deliberately unclassified.** contextlake can't tell a genuine third-party dependency (Stripe,
-GitHub's API) apart from an internal service this fleet simply hasn't indexed yet, both look
+GitHub's API) apart from an internal service this fleet hasn't indexed yet, both look
 identical here: an HTTP call whose target path matches no indexed repo's `exposes` route. Read the
 box labels yourself; you'll recognize your own internal hosts. `--c1` requires `--c4` (it has no
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,

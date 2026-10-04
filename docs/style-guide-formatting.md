@@ -24,7 +24,7 @@ never leave a lone single sub-section, have two or none.
 
 ## Tables
 
-Use tables for genuinely tabular data: flags, config keys, provider matrices, comparisons. Don't use a
+Use tables for tabular data: flags, config keys, provider matrices, comparisons. Don't use a
 table to lay out prose. Give every table a short lead-in sentence, sentence-case column headers, and
 specific rather than generic headers ("Config key", not "Item").
 
@@ -36,7 +36,7 @@ Every non-trivial example follows the four-part unit:
 2. One sentence on what the command does.
 3. The code block: language-tagged (the site requires an explicit language), one command per block, the
    command separated from its output.
-4. What the output means, especially the line the reader should see to know it worked.
+4. What the output means, including the line the reader should see to know it worked.
 
 More conventions:
 
@@ -61,7 +61,7 @@ never bury it inline in a paragraph.
 | **Important** | a prerequisite or constraint the reader must not miss |
 | **Warning** | a destructive or irreversible action (a sync over a dirty tree, a forced branch switch) |
 
-Pick the weakest level that fits, and don't cry wolf. Reserve **Warning** for the genuinely destructive,
+Pick the weakest level that fits, and don't cry wolf. Reserve **Warning** for the destructive,
 matching the CLI's own safety-flag posture.
 
 ## Links

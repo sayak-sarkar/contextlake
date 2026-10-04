@@ -175,7 +175,7 @@ rather than a constraint.
 A small decision with a measurement attached, and a good example of the house style.
 
 The shard cache is capped by **estimated resident bytes**, not by number of entries. Parsed
-objects cost far more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
+objects cost more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
 shard: 27.6 MB on disk, about 363 MB resident. Roughly 13 times
 (`src/contextlake/kb/store/shards.py`).
 
@@ -333,7 +333,7 @@ Without it, the assistant is back to sounding confident about everything.
 when a result is truncated at `--limit`, what you kept is the trustworthy part rather than an
 arbitrary slice.
 
-### What an inferred edge is actually worth
+### What an inferred edge is worth
 
 Rather than describing inference as accurate, the SQL extractor's inferred foreign keys are scored
 against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69** against
@@ -368,7 +368,7 @@ the second.
 
    Self-review is not independent. A model cannot see its own failure modes. A stronger judge
    moved those verdicts without making them reliable.
-4. **Coverage honesty.** Each page states how much of the repository it reflects, and very large
+4. **Coverage honesty.** Each page states how much of the repository it reflects, and large
    repositories get a page per subsystem rather than one page claiming to cover everything.
 
 In run order rather than in the order above, because the deterministic gate is deliberately in
@@ -501,4 +501,4 @@ described.
 - [Install and upgrade](installing.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
 - [Ask the graph](asking-the-graph.md), the questions this page promised you can ask
-- [Index the code graph](indexing-the-code-graph.md), what the graph actually contains
+- [Index the code graph](indexing-the-code-graph.md), what the graph contains

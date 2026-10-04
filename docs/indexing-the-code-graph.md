@@ -87,7 +87,7 @@ Only then does it decide:
 | A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |
 
 **`--bundle` opts back in.** It indexes the directory as one repository regardless of shape, and it
-is read before anything is measured, so it always works. Reach for it when you genuinely want one
+is read before anything is measured, so it always works. Reach for it when you want one
 bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
 under the directory's name, so if you later index them properly they are in the graph twice. `kb
 forget <repo-id>` removes a bundle you did not mean to create.
@@ -174,7 +174,7 @@ The estimate weights each file kind by measured cost per byte, because they diff
 | XML | 3.5x |
 
 Code is six times worse than markup, and the reason is edge count rather than node count: a
-sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is far
+sample of 5,738 C# files produced 82,000 nodes and 467,000 edges. So 400 MB of code is
 more expensive than 400 MB of XML, and a budget in raw bytes would refuse the wrong ones.
 
 Two caveats worth knowing before you tune it:

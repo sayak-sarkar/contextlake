@@ -76,7 +76,7 @@ Four rules govern every pattern:
 
 ### Matching a repo whose name contains `*` or `?`
 
-There is no escape character. A pattern like `odd*name` matches a repo literally called
+There is no escape character. A pattern like `odd*name` matches a repo named
 `odd*name`, but it also matches `oddXname`, so it cannot pick out the first one on its
 own.
 
@@ -153,7 +153,7 @@ group a repo came from. `status`, `verify`, and the branch-switch pass therefore
 `origin` remote and leave repos from other groups out of scope: they are counted under **Other
 groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
 repo whose origin positively names a different group drops out. A clone with no origin, or one whose
-config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.
+config cannot be read, is still reported as before, so a stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -353,8 +353,8 @@ This command executes:
 
 ### `mirror audit`: repo health & age report
 
-Scans every local clone and reports which repos are effectively empty and how old/active
-they are. Runs automatically at the end of `sync`, and in `bootstrap` immediately after the mirror
+Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
+and how old or active they are. Runs automatically at the end of `sync`, and in `bootstrap` immediately after the mirror
 step (stage 2 of 8, before the knowledge layer is built), or on demand:
 
 ```bash
@@ -419,7 +419,7 @@ Two more states stop an `update`, even on a clean tree:
   rebases.
 
 Neither is configurable, because neither is about protecting your work. In both cases there is
-simply no fast-forward to perform.
+no fast-forward to perform.
 
 Both are reported per repo as skips, with the reason. So a green run is not a promise that every
 clean repo moved. See [Console output](console-output.md).

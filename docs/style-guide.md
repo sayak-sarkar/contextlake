@@ -49,10 +49,18 @@ This guide is the writing layer of the brand, so it shapes every surface where c
 
 ## Enforcement
 
-Consistency survives many editing sessions only if it's checked. A small lint config (Vale or equivalent)
-encodes the mechanical rules (banned hype words, "click here", filler words, em-dashes, "allows you to"),
-so style is a build gate like `ruff`, not a review argument. The site's `de_emdash` step stays as a
-backstop, but source should already be em-dash-free.
+Two tests run on every push, so the mechanical rules are a build gate like `ruff`, not a review
+argument:
+
+- `tests/test_docs_plain_language.py` checks every tracked Markdown file outside `tests/`,
+  except the CHANGELOG, for intensifiers, downtoners, filler, hype words, "allows you to",
+  "please", and "click here" link text. A use that is correct on purpose goes in its
+  allowlist with a reason.
+- `tests/test_no_emdash_in_docs.py` checks for em-dashes.
+
+Both skip fenced code blocks, because those hold captured output. A person reviews the rest of
+the checklist below. The site's `de_emdash` step stays as a backstop, but source should already
+be em-dash-free.
 
 ## The page review checklist
 

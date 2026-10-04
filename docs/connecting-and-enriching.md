@@ -91,7 +91,7 @@ The commands:
   the built-in defaults), with
   reachability status.
 - **`contextlake kb source test SOURCE`**: verify that a specific connector works. Reaches its API, reads
-  credentials from the configured env var, lists available items. Shows you exactly what each source will
+  credentials from the configured env var, lists available items. Shows what each source will
   ingest without running a full `connect`.
 - **`contextlake kb source enable|disable SOURCE`**: toggle a connector on/off in the config by name, so you
   can pause one without deleting it.

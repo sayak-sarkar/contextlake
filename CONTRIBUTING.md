@@ -82,7 +82,7 @@ Hint: The package was installed by debian.
 
 Those distros ship some Python packages through `apt`, and pip refuses to uninstall what it
 did not install, because it cannot tell which files belong to the distro copy. A virtual
-environment sidesteps it entirely. If you genuinely need the system interpreter, tell pip to
+environment sidesteps it entirely. If you need the system interpreter, tell pip to
 leave the distro copy alone with `pip install -e ".[dev,kb]" --ignore-installed PyJWT`.
 
 ## The loop
@@ -165,8 +165,8 @@ src/contextlake/
 └── logging_setup.py  one logger, console + optional rotating file
 ```
 
-(The optional `[kb]` extra's knowledge-layer package, `src/contextlake/kb/`, has its own much
-larger internal layout, see [docs/internals.md](docs/internals.md), not covered here.)
+(The optional `[kb]` extra's knowledge-layer package, `src/contextlake/kb/`, has its own, larger
+internal layout, see [docs/internals.md](docs/internals.md), not covered here.)
 
 The CLI stays thin: it parses, resolves config, and calls into `core`. Business
 logic belongs in `core` (and is unit-testable without a real repo). Anything that
@@ -263,7 +263,7 @@ function, file, flag or number.
 
 Delete essay scaffolding (`Two properties shape...`, `Three things follow from this...`),
 closing verdicts (`...which is the whole point`), and the `not X, but Y` contrast. A body
-that reads slightly flat is correct.
+that reads flat is correct.
 
 ### The body is a record, not a conversation
 

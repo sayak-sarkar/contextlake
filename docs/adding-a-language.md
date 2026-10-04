@@ -51,7 +51,7 @@ the tree-sitter runtime plus per-language grammar packages". Add your grammar to
 "tree-sitter-<lang>>=X.Y",
 ```
 
-Pin the floor to the version whose `language()` entry point you actually import against, not to a
+Pin the floor to the version whose `language()` entry point you import against, not to a
 house number. The existing pins vary for that reason. Nothing else needs editing: the `kb-full` extra
 is defined in terms of `kb`, so it inherits the grammar, and `make install` runs the same
 `pip install -e ".[dev,kb]"` that CI does.
@@ -63,7 +63,7 @@ map to one id, the way `.kt` and `.kts` both map to `kotlin`.
 
 If your language is a superset of one already covered, reusing the existing id is a legitimate choice
 that costs nothing else on this list. `.h`, `.cu` and `.cuh` are all read with the C++ grammar for
-exactly that reason, and the in-table comments explain what each of those decisions does and does not
+that reason, and the in-table comments explain what each of those decisions does and does not
 capture. Write the same kind of note if you make the same kind of call.
 
 Nothing downstream needs an edit. The extension filter behind `kb.toml`'s `languages` setting, the
@@ -141,7 +141,7 @@ definitions. Name resolution is repo-wide and name-based, so without the groupin
 `conn.close()` matched a JavaScript `close()`; the comment above the table records the measurement
 that forced it, 282 false positives on one real repo, precision 1 in 282.
 
-Add your language to a group **only if it genuinely interoperates** with the ones already in it.
+Add your language to a group **only if it interoperates** with the ones already in it.
 
 The existing groups are:
 
@@ -149,7 +149,7 @@ The existing groups are:
 - `c`: C and C++
 - `jvm`: Java, Kotlin, Scala
 
-A language absent from the table is its own group. That is exactly what you want for a language
+A language absent from the table is its own group. That is what you want for a language
 that shares a runtime with nothing else, and it is why Python, Go, Rust, C#, Ruby and PHP are all
 absent.
 
@@ -239,7 +239,7 @@ and `module` of its own. (The five member-symbol kinds, `field`, `macro`, `typed
 and `global_variable`, come from a separate C and C++ pass, not from `_DEF_TYPES`.) Mapping into that
 first set is the cheap path and the normal one.
 
-If you genuinely need a new kind, add a row to `KIND_REGISTRY` in
+If you need a new kind, add a row to `KIND_REGISTRY` in
 `src/contextlake/kb/kinds.py`.
 
 `KindSpec` is a frozen dataclass where **no field has a default**. That is deliberate, and it
@@ -314,7 +314,7 @@ This is the cheapest check and the one that separates the three most common fail
 it proves the `pyproject.toml` entry installed, that your `_language` branch names the right entry
 point, and that your query compiles against **that** grammar version.
 
-The compile step is genuinely strict, which is why it is worth a contributor's time. A node type your
+The compile step is strict, which is why it is worth a contributor's time. A node type your
 grammar does not have fails at construction, naming the row and column:
 
 ```
@@ -352,7 +352,7 @@ inherits ['Base']
 Read all four streams. `class` and `method` prove your `_DEF_TYPES` mapping and the method promotion;
 the `module` node proves `@import`; and the two lists prove `@call` and `@base` captured names with
 **no** spurious extras. Package segments and generic type arguments appearing in `inherits` are the
-two things to look for, because they are exactly what the normalisation strips.
+two things to look for, because they are what the normalisation strips.
 
 ### The test suite
 
@@ -475,7 +475,7 @@ only while no language shares a name with a kind. Run the `KIND_REGISTRY` check 
 
 ### The interop family is the expensive one to get wrong
 
-Putting your language in a family it does not really interoperate with produces `INFERRED` `calls` and
+Putting your language in a family it does not interoperate with produces `INFERRED` `calls` and
 `inherits` edges to same-named symbols in another language, and `INFERRED` reads as fact to everything
 downstream. Omitting the language self-isolates it, which is always safe. See step 6.
 
@@ -502,7 +502,7 @@ visible rather than returning nothing.
 ## Worked example: Kotlin
 
 Kotlin was added late, is grammatically simple, and skips several of the optional steps, which is what
-makes it a useful template: it shows which parts are genuinely required.
+makes it a useful template: it shows which parts are required.
 
 ### The mandatory set, in the order above
 

@@ -20,13 +20,13 @@ Windsurf …) does to token usage, where it helps most, and where it does not he
 ## The short version
 
 - **Writing new code in an existing estate is where it matters most.** New code in a large codebase
-  is not greenfield invention, it is mostly *grounding*: which service to call, its real signature,
+  is not greenfield invention, most of it is *grounding*: which service to call, its real signature,
   the pattern to follow, whether a utility already exists, where it plugs in. That work is almost
   entirely retrieval, and it is where hallucinated integrations and duplicated code come from.
   contextlake answers those questions from an index, cited, and matches *concepts* rather than
   keywords alone.
 - **Search of every kind**, semantic / knowledge search, "who calls X", "what breaks if I change X",
-  "which repo has X", is the other strong case, where brute-force is intractable or hugely wasteful
+  "which repo has X", is the other strong case, where brute-force is intractable or wasteful
   on a large fleet.
 - **Assessing impact on and maintaining unfamiliar existing code** benefits for the same reason:
   orientation is retrieval.
@@ -181,7 +181,7 @@ Different tools bill differently, so the honest answer differs per platform.
 
 - **Devin (ACU).** We did **not** measure this, and anyone quoting you an ACU number is guessing. An
   ACU is compute-time, not tokens; the plausible lever is *exploration steps and rework avoided*,
-  which is highly task-dependent. Expect a meaningful reduction on exploration-heavy,
+  which depends on the task. Expect a meaningful reduction on exploration-heavy,
   unfamiliar-fleet tasks and ≈0 on tightly-scoped generation tasks, a hypothesis to A/B test, not a
   measured claim.
 
@@ -195,13 +195,13 @@ Different tools bill differently, so the honest answer differs per platform.
 - Whatever you measure will be **per-query**. Whole-task savings are diluted by all the non-retrieval
   tokens around them, so don't multiply a per-query ratio onto your whole bill.
 - The **baseline depends on how the agent searches.** A smart, well-scoped agent that greps one known
-  repository spends far less than one that greps the whole fleet. Both are realistic; they are not
+  repository spends less than one that greps the whole fleet. Both are realistic; they are not
   the same baseline, and a ratio means nothing without saying which one you used.
 - contextlake adds a **fixed schema cost per session** and can be net-negative if an agent calls it
   for questions it doesn't help with.
 - **Semantic recall is good, not perfect**, the built-in CPU embedder is fast, not frontier-grade.
   Results are cited and advisory; verify against the source.
-- Fleet size and the mix of questions your team actually asks dominate everything here. A result from
+- Fleet size and the mix of questions your team asks dominate everything here. A result from
   someone else's estate does not transfer to yours, which is the other half of why this page no
   longer prints one.
 
@@ -210,7 +210,7 @@ Different tools bill differently, so the honest answer differs per platform.
 The comparison is straightforward to run, and yours is the one worth having:
 
 1. Index your repos (`contextlake bootstrap` or `contextlake kb index --workspace …`).
-2. Pick a handful of representative questions your team actually asks, and write them down before
+2. Pick a handful of representative questions your team asks, and write them down before
    you look at any output. Post-hoc question selection is how benchmarks flatter themselves.
 3. For each question, capture **both** sides.
 
@@ -219,7 +219,7 @@ The comparison is straightforward to run, and yours is the one worth having:
    - The baseline your agent would otherwise gather: the `grep` output, plus the files it would
      then read.
 
-4. Tokenize both with the **same** tokenizer, the one your model actually uses.
+4. Tokenize both with the **same** tokenizer, the one your model uses.
 
    Record the tokenizer and the contextlake version next to the numbers. Both change. A figure
    without them ages into fiction, which is what happened to the numbers this page used to
@@ -228,7 +228,7 @@ The comparison is straightforward to run, and yours is the one worth having:
 5. Add the one-off schema cost once per session, not once per query.
 
 The point is not a single magic number, it is to see, on *your* codebase and *your* question mix,
-where the retrieval cost actually lives.
+where the retrieval cost lives.
 
 ## See also
 

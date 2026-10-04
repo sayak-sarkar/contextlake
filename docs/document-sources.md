@@ -40,7 +40,7 @@ include = ["*.md", "*.txt"]
 
 ### PDFs: the text layer, and nothing pretending to be more
 
-Design docs, RFCs and architecture decisions genuinely arrive as PDFs, so the `files` source reads
+Design docs, RFCs and architecture decisions arrive as PDFs, so the `files` source reads
 them as well. `*.pdf` is one of its default globs, and the text comes from the PDF's **text layer**
 via `pypdf`, which rides in its own extra so the core stays a single dependency:
 
@@ -139,7 +139,7 @@ the slides, the terminal and the UI.
 
 **`[kb-transcribe]`** adds the spoken track via a local speech model. That model is fetched
 once on first use and cached under `~/.contextlake/models`, the same way `[kb-local]`'s
-embedder is -- a weaker offline promise than frame OCR's, which is exactly why it is a
+embedder is -- a weaker offline promise than frame OCR's, which is why it is a
 separate extra rather than folded into the first. `CONTEXTLAKE_WHISPER_MODEL` picks the size;
 the default is the smallest useful one, because a first run downloads it.
 
@@ -161,7 +161,7 @@ Three outcomes are stated rather than implied:
   carries `transcribed = false`, and one line per run names the extra. "The meeting discussed
   nothing" and "nobody installed the speech model" must never look the same.
 - **No audio track at all.** A screen recording with no microphone is ordinary, so it is
-  reported as exactly that and not as a failed transcription.
+  reported as a recording with no audio, not as a failed transcription.
 - **Nothing readable either way.** Reported and stored as nothing, never as an empty document.
 
 Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each

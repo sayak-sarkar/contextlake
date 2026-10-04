@@ -150,7 +150,7 @@ container instead, so the run appeared to succeed and the index was gone the mom
 container exited.
 
 A `:slim` tag is also published, built from `[kb,kb-local,kb-vec]`: no `openvino-genai`, no baked
-wiki-LLM model, a much smaller pull, and the `sqlite-vec` ANN backend the default image leaves out.
+wiki-LLM model, a smaller pull, and the `sqlite-vec` ANN backend the default image leaves out.
 Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
@@ -269,7 +269,7 @@ If `doctor` names something missing, `contextlake doctor --fix` installs it. Tha
 ## Installing what is missing
 
 `doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
-configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
+configuration calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
 the local built-in runtime. Name a capability to install it regardless of config.
 
 | Flag | Effect |
@@ -289,7 +289,7 @@ Two privilege tiers, and the split is deliberate:
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
   never trip a sudo prompt.
 
-`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
+`--fix` also explains, rather than re-raising, the failures that happen: a PEP 668
 externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
 or no matching distribution. Nothing planned is ever run before it has been printed.
 

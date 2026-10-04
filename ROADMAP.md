@@ -19,7 +19,7 @@ below the mirror is optional and stays off by default.
   (`kb index`, `kb lint`, …).
 - **Connectors**: Atlassian (Jira + Confluence), Figma, GitLab (MRs/issues), Slack and
   Zendesk, sharing one seam. Beyond repo-level links, a shared `link_to_code` matcher connects
-  external content directly to the specific symbols it's actually about (a GitLab MR's
+  external content directly to the specific symbols it's about (a GitLab MR's
   file-touch, a Figma frame name, a Slack message mention), not just the repo.
 - **Semantic search**: a pluggable embedder (built-in CPU model, Ollama, or an API) and
   vector store (optional `sqlite-vec` ANN backend), with `semantic_search` and
@@ -27,7 +27,7 @@ below the mirror is optional and stays off by default.
   (`kb eval`) to score precision/recall/MRR against real questions.
 - **Curated wiki**: LLM-synthesized, provenance-stamped pages gated by a verification
   council that scores each draft before publishing; coverage-ratio disclosure on every
-  page; automatic per-subsystem pages for large, genuinely federated repos (5,000+ nodes,
+  page; automatic per-subsystem pages for large, federated repos (5,000+ nodes,
   no single module dominating); a council review pass can use a stronger model than the
   one that generated the draft.
 - **Diagrams**: an offline interactive HTML/DOT/Mermaid graph, plus class, sequence,
@@ -59,7 +59,7 @@ below the mirror is optional and stays off by default.
 - ~~Per-repo wiki-steering file~~, **shipped.** A repo's own `.contextlake/wiki.toml`
   is read from its working tree and stamped on the page that used it.
 - **Deeper diagram/wiki cross-linking.** Half done: wiki headings now carry stable,
-  deduplicated `id` anchors, so the jump targets exist. The clickable diagram-node → 
+  deduplicated `id` anchors, so the jump targets exist. The clickable diagram-node →
   wiki-section jump itself is still to build.
 - **Fleet-scale dashboard views.** The **fleet treemap shipped** as a fourth fleet mode
   alongside cards, list and table. A repo-coupling matrix and query-chip navigation are

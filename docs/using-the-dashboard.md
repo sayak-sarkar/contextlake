@@ -7,7 +7,7 @@ build step, one command and it opens in your browser. Read-only by default; see
 [§12](#12-chat) to ask it questions directly.
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
-> tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
+> tiers do, see [knowledge-layer.md](knowledge-layer.md).
 
 ```mermaid
 flowchart LR
@@ -153,7 +153,7 @@ seed rather than a whole repo, so it isn't offered here, it's on the symbol page
 
 No new extraction happens. Each tab renders data `index` already collected.
 
-A format is enabled only when the repo actually has the relevant node kind. **Classes** stays
+A format is enabled only when the repo has the relevant node kind. **Classes** stays
 disabled for a repo with no classes, for instance. That comes from the same anatomy census the
 repo page's Kinds card shows, not a separate check.
 
@@ -163,7 +163,7 @@ into a PR or a design doc.
 **A repo too large to draw in one slice** auto-narrows to its largest module instead of
 showing a truncated whole-repo tangle, and if that module is *itself* still too large,
 it keeps narrowing into that module's own largest child, one level at a time, until the
-view fits (or there's genuinely nowhere further to go). A breadcrumb trail (`Whole repo
+view fits (or there's nowhere further to go). A breadcrumb trail (`Whole repo
 › src › sensors › tests`) shows the path taken; click any earlier crumb to widen back
 out, or pick a different child from the narrow-further control to explore a sibling.
 
@@ -305,7 +305,7 @@ graph alone. Add `--llm` and the same tab shows the prose sections listed above.
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
 exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
 subsystem's own page, or the **Whole repo** option to go back, without leaving the tab. The dropdown
-only ever lists subsystems that actually have a generated page on disk, so it never offers an
+only ever lists subsystems that have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
 A subsystem pane says the same thing in words: wiki pages are generated per repo, not
@@ -343,7 +343,7 @@ Two read-only panels, live-only (not part of a `--site` export; both describe th
 machine/process, not the graph itself):
 
 **MCP**: the live tool catalog for `contextlake kb serve` against this store (introspected
-from the real server, so it can never drift from what's actually exposed), plus a
+from the real server, so it can never drift from what's exposed), plus a
 copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 
 **Settings**: the active `kb.toml` at a glance: store path/size/schema version, the

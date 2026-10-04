@@ -17,7 +17,7 @@ One new function called from five places, and one new runtime dependency.
 The function exercises the graph, the API reference's call-site list, the diagram and vector
 search in a single change. Its docstring shares **no keyword** with the query used to
 retrieve it, so a hit is semantic rather than lexical: a substring matcher would rank it
-nowhere, which is exactly what makes that bar meaningful.
+nowhere, which is what makes that bar meaningful.
 
 The dependency exercises the design notes and the fleet page. The tree is chosen for having
 **zero** runtime dependencies, so before and after are unambiguous.

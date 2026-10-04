@@ -15,9 +15,9 @@ single-page app shell, served via `importlib.resources` (see `kb/dashboard/serve
 Used by the repo page's **Diagrams** tab to render Mermaid text
 (`classdiagram`/`statediagram`/`erdiagram`/`deploymentdiagram`/generic `mermaid`,
 the same text `contextlake graph --format ...` produces) as an inline SVG in the
-browser. At ~3.5MB this is much larger than `kb/static/cytoscape.min.js`, so
+browser. At ~3.5MB this is larger than `kb/static/cytoscape.min.js`, so
 `dashboard.js`'s `loadMermaid()` injects a `<script src="mermaid.min.js">` tag
-only the first time the Diagrams tab is opened, not in the base page shell -- 
+only the first time the Diagrams tab is opened, not in the base page shell --
 served offline from this same directory, no CDN dependency.
 
 Initialized with `securityLevel: "strict"` (mermaid's own DOMPurify-sanitized

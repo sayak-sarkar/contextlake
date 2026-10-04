@@ -123,7 +123,7 @@ a fresh vector store.
 
 Which one is better **on your code** has a local answer, and
 [`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a
-golden set from queries your team actually types, embed with one model, score, re-embed with
+golden set from queries your team types, embed with one model, score, re-embed with
 the other, score again. No published ranking against somebody else's corpus is worth as much
 as that run.
 

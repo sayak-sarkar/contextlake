@@ -165,7 +165,7 @@ own page.
 That separation is not tidiness. Measured on a real four-repository fleet, one package had 11
 dependency edges across 2 repositories, because one of them declares it in eleven manifests: its
 own plus ten bundled examples. Counting edges would have printed "11 repositories" onto a
-four-repository fleet, which is absurd at four and perfectly plausible at forty.
+four-repository fleet, which is absurd at four and plausible at forty.
 
 The page names which packages are pinned inconsistently and then explicitly declines to
 recommend anything, because a repository may pin tightly for a real reason and nothing in a

@@ -383,7 +383,7 @@ Connector results, once fetched, stay queryable offline.
 ## See also
 
 - [contextlake, explained](explained.md), the same decisions at reasoning depth
-- [Index the code graph](indexing-the-code-graph.md), what the parser actually extracts
+- [Index the code graph](indexing-the-code-graph.md), what the parser extracts
 - [Configuration](configuration.md), the full settings reference
 - [Mirror repositories](mirroring-repositories.md), the commands this layer implements
 - [`contextlake` command reference](cli-reference.md), every flag

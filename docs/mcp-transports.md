@@ -107,7 +107,7 @@ contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
 Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
 to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
 answers requests whose `Host` is a loopback name, because the Host check has no way to know which
-address you meant, bind the address clients will actually name (`--host 192.0.2.10`).
+address you meant, bind the address clients will name (`--host 192.0.2.10`).
 
 **There is an access log, and it is off by default.** These servers are loopback developer tools
 whose console is already a command's output, so they stay quiet, but a server holding the whole
@@ -299,7 +299,7 @@ transport, not only the network ones.
 The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` with no limiter,
 so it uses anyio's default of 40 worker threads.
 
-That is far too many here, for a specific reason. contextlake's tool bodies are graph traversals
+That is too many here, for a specific reason. contextlake's tool bodies are graph traversals
 over SQLite, and a traversal is not one query. It is thousands of small round trips through the
 store.
 
@@ -368,7 +368,7 @@ apart ([Semantic search](searching-semantically.md#are-the-citations-real)). The
 either way: the guard discloses, it never withholds a result or refuses.
 
 **What it costs.** One `stat()` per *distinct file* in a response, not per node. Only files that
-really were written after indexing escalate to a confirming read, which asks the same question
+were written after indexing escalate to a confirming read, which asks the same question
 `--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
 costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
 the response was modified, at roughly 1.5 tokens per node. Past 32 confirming reads in one request

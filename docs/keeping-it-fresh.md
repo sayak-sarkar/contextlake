@@ -97,7 +97,7 @@ Two guards worth knowing:
 - **An unrecognised `[kb]` key or table is warned about, not ignored silently.** So a typo like
   `store` for `store_dir` is surfaced, rather than quietly dropping the run into the wrong store.
 - **An explicit `--config` path that does not exist is a hard error.** It does not fall through
-  to the next file in the precedence chain, which could point at a completely different
+  to the next file in the precedence chain, which could point at a different
   store.
 
 ### Composing the stages yourself

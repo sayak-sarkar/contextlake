@@ -35,7 +35,7 @@ These five are mechanical. A linter can check them, and reviewers should.
   maintainer recommendation ("we recommend Ollama at scale"), never as a synonym for "you".
 - **Present tense.** "`sync` fetches and updates every repo", not "will fetch".
 - **Active voice.** "Run `contextlake kb index`", not "the index should be run". Passive is fine only when the
-  actor is genuinely unknown or irrelevant, or in an error message where you don't want to blame the reader.
+  actor is unknown or irrelevant, or in an error message where you don't want to blame the reader.
 - **Imperative for steps.** Every step in a task starts with a verb: "Install", "Run", "Open", "Verify".
 - **Contractions welcome.** "you'll", "it's", "let's", "don't". This is the heart of the warmth. Avoid a
   contraction only where it creates real ambiguity in a precision-critical spot.
@@ -110,8 +110,8 @@ These are contextlake's signature, and they are good technical writing on their 
 Assume your reader is smart, busy, and possibly reading English as a second language.
 
 - **Short sentences,** aim under 25 words. Split a long one into two, or into a list.
-- **Keep "that".** "Verify that the service is running" parses more easily than "Verify the service is
-  running", especially in translation.
+- **Keep "that".** "Verify that the service is running" is easier to parse than "Verify the service is
+  running", and machine translation handles it better.
 - **Avoid idioms and figurative load-bearing language.** A metaphor may decorate, but it must never carry
   the only copy of a technical fact. (The lake metaphor is the one sanctioned decorative exception.)
 - **Don't open with an expletive subject.** "The store holds three tables", not "There are three tables in

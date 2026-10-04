@@ -68,7 +68,7 @@ vendored extension. `cytoscape-svg` -- the obvious candidate -- drives cytoscape
 **canvas** renderer into an SVG-emitting Canvas2D shim: `src/convert-to-svg.js` in
 v0.4.0 does `new C2S(width, height)` (canvas2svg) and then
 `renderer.drawElements(buffCxt, zsortedEles)`, returning `getSerializedSvg()`. So it
-emits exactly what the canvas draws -- and in the `dagre (preview)` mode the canvas node
+emits what the canvas draws -- and in the `dagre (preview)` mode the canvas node
 is deliberately blanked (`node.cl-dom` in `app.js`'s `graphStyle`) because the visible
 node is an HTML card. That library would therefore export a graph of blank nodes. The
 hand-rolled serializer instead reads cytoscape's geometry and wraps each card in an SVG
@@ -81,7 +81,7 @@ Two consequences worth knowing:
   (any other layout) is plain vector shapes and opens fine anywhere.
 - Card styling is inlined as computed CSS per card (~6 KB each), because neither the
   stylesheet nor its custom properties travel inside the file. A card-mode export is
-  therefore much larger than a canvas-mode one.
+  therefore larger than a canvas-mode one.
 - Canvas-mode node labels are emitted as a single `<text>` line (truncated past 28
   characters). The canvas renderer wraps them instead, so a long namespace label can
   sit a little wider in the SVG than it does on screen.

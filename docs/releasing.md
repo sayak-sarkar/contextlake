@@ -17,7 +17,7 @@ pip install -e ".[release]"        # build + twine
 1. Create an account at <https://pypi.org/account/register/> and verify your email.
 2. Enable two-factor auth (PyPI **requires** it to upload).
 3. Create an API token at <https://pypi.org/manage/account/token/>.
-   - For the **very first** publish of this project, the token must be
+   - For the **first** publish of this project, the token must be
      **account-scoped** ("Entire account"), project-scoped tokens only exist
      once the project is on PyPI.
    - After the first publish, create a new token **scoped to `contextlake`**,
@@ -102,8 +102,8 @@ pip install -e ".[release]"        # build + twine
    gate reads `missing`, both workflows fail immediately, and every real job is
    skipped. Nothing is broken and nothing is published: re-run the two failed runs
    once CI is green (`gh run rerun <id> --failed`) and they proceed normally. This
-   is the gate doing its job, and it is easy to trip because the tag push is fast
-   and the matrix is not.
+   is the gate doing its job. It trips when the tag lands before the matrix finishes,
+   because the tag push is fast and the matrix is not.
 
 5. **Build and validate** the distribution:
 
@@ -238,7 +238,7 @@ compiler toolchain in the final image:
   needs no Ollama, no API key, and no model download at runtime. Useful for
   zero-config or air-gapped use, at the cost of a larger pull.
 - **slim** (`--target slim`), the `[kb,kb-local,kb-vec]` extras only: no
-  `openvino-genai`, no baked model, much smaller pull. Semantic search still works
+  `openvino-genai`, no baked model, smaller pull. Semantic search still works
   out of the box (model2vec is pure Python); point the wiki tier at
   Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
 

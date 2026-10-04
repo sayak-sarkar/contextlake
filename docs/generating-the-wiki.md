@@ -52,7 +52,7 @@ absence never reads as an oversight:
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
 5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
    records any.
-6. **Installation and usage** -- the build and packaging files the repository actually has.
+6. **Installation and usage** -- the build and packaging files the repository has.
 7. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
    that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
    is always labelled as describing the whole repository even on a module page, because it cannot be
@@ -186,7 +186,7 @@ see [Model providers](model-providers.md).
 
 ## Why a page was rejected
 
-A rejection always names the rule that fired, because a page that simply fails to appear leaves you
+A rejection always names the rule that fired, because a page that fails to appear leaves you
 staring at a missing file. Two of the reasons come from a **structural gate** that runs before the
 council and makes no model call at all:
 
@@ -196,7 +196,7 @@ council and makes no model call at all:
 | `degenerate repetition` | Repeated one span over and over, which is what a model that has run out of grounded material tends to emit. |
 
 Both are mechanically visible, so they are decided without asking a reviewer. That is deliberate: a
-weak model acting as its own council rubber-stamps exactly these defects, which
+weak model acting as its own council rubber-stamps these defects, which
 [contextlake, explained](explained.md#generated-prose-and-how-it-is-kept-honest) records with the
 measurement behind it. Rejecting them early also saves the council's round trips on a page that
 could not have passed.
@@ -229,7 +229,7 @@ structural page IS the prompt**, so putting the notes on that page is what puts 
 of the model on the prose path. One insertion point, both paths, and the replacement gate keeps
 working -- a name the notes introduce becomes a name a draft may legitimately cite.
 
-**`pages` steers, it cannot invent.** Names are matched against the modules the graph actually
+**`pages` steers, it cannot invent.** Names are matched against the modules the graph
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
 untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
 is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
@@ -244,7 +244,7 @@ carried.
 
 ## Per-subsystem pages for large, federated repos
 
-A repo qualifies as **genuinely federated** when it has at least 5,000 graph nodes and no
+A repo qualifies as **federated** when it has at least 5,000 graph nodes and no
 single top-level module owns more than 60% of them. One big source directory does not qualify.
 A repo split into several comparable subsystems does.
 
@@ -261,7 +261,7 @@ They live under `wiki/_modules/` with their own `@wiki:<repo>::<module>` partiti
 natural-language question can therefore land on a subsystem's own explanation, cited back to
 that page.
 
-Generation is capped at **20 subsystem pages per run**, so one `wiki` call on a very large repo
+Generation is capped at **20 subsystem pages per run**, so one `wiki` call on a large repo
 stays bounded.
 
 Which 20 depends on what is already on disk:
@@ -280,7 +280,7 @@ The run says how many are still waiting, rather than going quiet about it:
 **Once subsystem pages exist**, the whole-repo overview names and briefly describes each one and
 links to it, instead of summarising their internals inline.
 
-One catch: the overview only picks that up the next time it is actually regenerated. A repo
+One catch: the overview only picks that up the next time it is regenerated. A repo
 already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
 pages still generate. So an existing store gets the naming after its next commit, or on a
 `--force` run

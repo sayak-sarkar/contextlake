@@ -31,7 +31,7 @@ can call either.
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
-no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
+no wiki exists yet). An agent that would rather not choose among the tools can call `ask`.
 
 **Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
@@ -99,7 +99,7 @@ did. `get_fleet_doc` names that as the likely cause when the page is missing.
 embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
 `kb.toml` (the section on its own is not enough, `enabled` defaults to `false`) and a
 `contextlake kb embed` run to create the vector store. Without both, the server starts
-fine and says so, the two tools are simply absent from the tool list, and everything
+fine and says so, the two tools are absent from the tool list, and everything
 above still works.
 
 ## The quick way: let contextlake wire your editors
@@ -127,7 +127,7 @@ server natively:
   the code, never an instruction to the agent reading it.
 
 **It never corrupts your existing files.** If you already have an `AGENTS.md`, `CLAUDE.md`,
-`.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
+`.windsurfrules`, or `.kiro/steering`, your content is preserved and only a delimited
 managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
 `.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
 name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
@@ -155,7 +155,7 @@ down to a two-symbol one. Exit `0`, no warning, and every number in the replacem
 for the store that happened to resolve.
 
 Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
-way to tell it apart from a workspace that genuinely holds two symbols.
+way to tell it apart from a workspace that holds two symbols.
 
 Naming the store puts the swap in the diff.
 
@@ -185,8 +185,8 @@ the store they should be served.
 **An ancestor-discovered config is not pinned either**, for a different reason: naming a file on a
 command line is exactly the act that promotes its gated keys to trusted (see
 [Workspace trust](configuration.md#workspace-trust)), so auto-pinning one would launder a file you
-never chose into a privileged one. You get a warning instead, and only in the case that actually
-bites, when the workspace sits outside that config's directory *and* that config is what set
+never chose into a privileged one. You get a warning instead, and only in the one case that
+matters, when the workspace sits outside that config's directory *and* that config is what set
 `store_dir`:
 
 ```text

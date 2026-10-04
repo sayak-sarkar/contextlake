@@ -20,9 +20,9 @@
 
 ## Why contextlake
 
-Your AI assistant is only as good as what it can actually see. Point it at one file and
+Your AI assistant is only as good as what it can see. Point it at one file and
 it's sharp; ask it about *the system*, which service calls this API, who depends on that
-package, where a symbol is really defined across dozens of repos, and it starts guessing.
+package, where a symbol is defined across dozens of repos, and it starts guessing.
 
 **contextlake gives your tools the real source to read.** It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
@@ -262,7 +262,7 @@ Want to look first? `contextlake kb dashboard --serve --sample` needs no setup a
 There is no telemetry, no analytics, no usage reporting and no crash reporting in
 contextlake. There is nothing to opt out of, because there is nothing there.
 
-That is easy for any project to type, so there is a switch that makes it checkable:
+Any project can type that, so there is a switch that makes it checkable:
 
 ```bash
 contextlake --offline kb index         # or CONTEXTLAKE_OFFLINE=1
@@ -275,7 +275,7 @@ dashboard, the graph viewer and a local Ollama all live there.
 
 Verified with the network blocked, on a fresh store: `kb index`, `kb query`, `kb embed`,
 semantic search, and `kb graph` (whose HTML output contains no remote references at all).
-The commands that genuinely need the network say so and stop rather than failing obscurely:
+The commands that need the network say so and stop rather than failing obscurely:
 mirroring from a forge refuses up front, and `bootstrap` skips the mirror stage and builds
 the knowledge layer from what is already on disk.
 
@@ -287,7 +287,7 @@ model runs on your machine once cached, while `--llm openai` is a hosted API and
 will and should block it.
 
 The boundary is worth stating plainly: this is an in-process guard, so `git` and `glab`
-subprocesses have their own sockets. That is exactly why the mirror stages refuse up
+subprocesses have their own sockets. That is why the mirror stages refuse up
 front under `--offline` instead of relying on the guard. Everything above is covered by
 tests that try to escape it, including one that goes out through `urllib` rather than
 through any of our own helpers.
