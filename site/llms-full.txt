@@ -9347,6 +9347,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only the new job: every other job record was lost while its crontab line or unit stayed
   installed. `install`, `uninstall`, `reset` and `interval` now stop with exit 1 and leave the
   file as it is; a scheduled run skips recording its outcome instead of rewriting it.
+- **A `wiki.toml` that stops parsing no longer deletes the module pages it asked for.** An
+  unreadable file read as "no override", the heuristic planned nothing for a small repo, and a
+  run with an LLM pruned every page the file had named, with its partitions and vectors. Its
+  pages are now unknown rather than empty: nothing is pruned until the file parses again.
+- **A failed or interrupted `kb embed` keeps a repo's vectors.** It cleared the repo first and
+  then refilled it, so an embedder that failed early took a repo from 6,048 vectors to 0, and a
+  reader saw 0, 8, 16 ... during a healthy run. Each batch now overwrites its nodes in place, and
+  the vectors of nodes that are gone are deleted in one step once every batch has landed. A
+  `--limit` pass no longer cuts a repo down to its slice.
+- **`kb wiki` replaces a page's partition in one transaction.** A reader saw a `@wiki`
+  partition at 0 rows, then nodes with no edges, and an interrupt between the steps left a
+  module page's partition gone until the next run.
+- **`kb steer` leaves alone a client config it can parse but not merge into.** An `.mcp.json`
+  or `.vscode/mcp.json` that was a top-level array, or whose server map was a list, and a
+  `.claude/settings.json` that was an array, were replaced and the other entries lost. They are
+  now refused like a file that does not parse; an empty wrong shape (`null`, `[]`) is still
+  repaired. `AGENTS.md` and `CLAUDE.md` keep their line endings and every byte outside the
+  contextlake block: CRLF was rewritten as LF and bytes that were not UTF-8 were dropped.
 - **A dry run is not recorded as a measured run.** `mirror update --dry-run` appended a 0.03 s
   run to the schedule history, which the interval recommender read as real.
 - **`kb connect` no longer fails every linked repo when two sources are configured.** With
