@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -324,7 +324,7 @@ progress still shows.</p>
 <tr>
 <td><code>2</code></td>
 <td>You and the CLI disagree about the command</td>
-<td>An unknown command, an unrecognized flag, a flag whose value is missing, a <code>kb query</code> / <code>impact</code> / <code>owners</code> with no target, an unknown <code>--platform</code> or shell, or no group configured on a command that needs one</td>
+<td>An unknown command, an unrecognized flag (including <code>--dry-run</code> on a command that does not take it), a flag whose value is missing, a <code>kb query</code> / <code>impact</code> / <code>owners</code> with no target, an unknown <code>--platform</code> or shell, or no group configured on a command that needs one</td>
 </tr>
 <tr>
 <td><code>130</code></td>
@@ -439,6 +439,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

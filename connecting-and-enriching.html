@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connecting and enriching · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -68,7 +68,7 @@ queries connected sources with codebase-derived terms and stores what comes back
 
 <p>Each stage writes its own partition, so re-indexing a repo's code never disturbs its external links.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
-<p><code>connect</code> enriches the graph with external context. Four connectors ship, sharing one seam:</p>
+<p><code>connect</code> enriches the graph with external context. Five connectors ship, sharing one seam:</p>
 <ul>
 <li><strong>Atlassian</strong>: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -109,23 +109,26 @@ manage connectors without touching the config file. They rewrite <code>kb.toml</
 and work alongside hand-editing if you mix approaches.</p>
 <p>The commands:</p>
 <ul>
-<li>
-<p><strong><code>contextlake kb source add [--name NAME]</code></strong>: guided prompt to add a new connector. Asks for the connector
-  type, offering every type this build ships, the five connectors (<code>atlassian</code>, <code>figma</code>, <code>gitlab</code>, <code>zendesk</code>,
-  <code>slack</code>) plus the built-in ingest sources (<code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, <code>mcp</code>) and any
-  installed plugin, provides sane defaults, and writes the entry to <code>kb.toml</code>. Pass
-  <code>--type</code>, <code>--name</code>, and other flags to bypass the prompt (<code>--help</code> shows all). <code>--set KEY=VALUE</code>
-  (repeatable) writes any connector option <code>kb.toml</code> accepts, <code>token_env</code> included (see below): <code>--set
-  token_env=MY_TOKEN</code> is the flag form of that same pattern. <strong><code>--from-stdin KEY</code></strong> reads that one option's
-  value from stdin instead of the command line, so a secret never lands in shell history: <code>printf '%s'
-  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token</code>.</p>
-</li>
-<li>
-<p><strong><code>contextlake kb source list</code></strong>: show all configured connectors (the effective merged config from
+<li><strong><code>contextlake kb source add [NAME] [--type TYPE]</code></strong>: add a connector. The name is a positional
+  argument, not a flag (<code>contextlake kb source add jira --type atlassian</code>). Run it in a terminal without
+  a name or a <code>--type</code> and it asks for them. It offers every type this build ships, the five connectors
+  (<code>atlassian</code>, <code>figma</code>, <code>gitlab</code>, <code>zendesk</code>, <code>slack</code>) plus the built-in ingest sources (<code>files</code>, <code>web</code>,
+  <code>api</code>, <code>graphql</code>, <code>mcp</code>) and any installed plugin, proposes defaults, and writes the entry to <code>kb.toml</code>.
+  Without a terminal, a missing name or type exits 2 and prints the form to use. <code>--mcp URL</code> sets the MCP
+  server URL and <code>--local</code> targets a project-level file (<code>--help</code> shows all). <code>--set KEY=VALUE</code>
+  (repeatable) writes any other connector option <code>kb.toml</code> accepts.</li>
+</ul>
+<p><strong>A credential never goes on the command line.</strong> Store the name of the environment variable that holds
+  it, and contextlake reads the value from your environment at run time: <code>--set token_env=MY_TOKEN</code>.
+  <code>add</code> refuses a literal secret (a key such as <code>token</code>, <code>api_key</code>, <code>password</code> or <code>secret</code>) from <code>--set</code>
+  and from <code>--from-stdin</code>, and exits 2 without writing anything. <strong><code>--from-stdin KEY</code></strong> reads the value of
+  one non-secret option from stdin instead of the command line, so it stays out of shell history:
+  <code>printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp</code>.</p>
+<ul>
+<li><strong><code>contextlake kb source list</code></strong>: show all configured connectors (the effective merged config from
   <code>~/.contextlake/kb.toml</code>, the nearest ancestor directory's <code>.contextlake.kb.toml</code> if one exists, and
   the built-in defaults), with
-  reachability status.</p>
-</li>
+  reachability status.</li>
 <li><strong><code>contextlake kb source test SOURCE</code></strong>: verify that a specific connector works. Reaches its API, reads
   credentials from the configured env var, lists available items. Shows you exactly what each source will
   ingest without running a full <code>connect</code>.</li>
@@ -134,7 +137,7 @@ and work alongside hand-editing if you mix approaches.</p>
 <li><strong><code>contextlake kb source remove SOURCE</code></strong>: delete a connector entry by name.</li>
 </ul>
 <p>An example workflow:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? what name? which MCP URL?</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span><span class="nb">test</span><span class="w"> </span>my-atlassian<span class="w">  </span><span class="c1"># does it work? what&#39;s in scope?</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>connect<span class="w">                   </span><span class="c1"># now link repos to their items</span>
@@ -248,6 +251,13 @@ carries on with the rest:</p>
 <p>The exit code is non-zero when any repository was skipped, the same verdict <code>kb index</code> gives a
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.</p>
+<p>A source that could not be reached is not an empty answer. A repo whose source failed keeps the
+links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
+code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
+A source that answers with no results still clears the repo's previous ones. With several
+sources, one that stays unreachable keeps every affected repo's previous results, so the other
+sources' results for those repos wait too, and the run exits 1 until that source is fixed or
+removed from the config.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="indexing-the-code-graph">Index the code graph</a></li>
@@ -336,6 +346,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

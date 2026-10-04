@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -143,6 +143,13 @@ behind is all there is.</p>
 <li><strong><code>--offline</code></strong> is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is <code>CONTEXTLAKE_OFFLINE=1</code>.</li>
 </ul>
+<p><code>--dry-run</code> looks global too, and is not. It belongs to the 8 <code>mirror</code> commands, <code>bootstrap</code>,
+<code>doctor</code> and <code>kb forget</code>. Any other command refuses it with exit <code>2</code> and runs nothing, wherever the
+flag is typed (<code>contextlake --dry-run kb index</code> as much as <code>contextlake kb index --dry-run</code>), and
+the message names the commands that do take it. <code>bootstrap --dry-run</code> prints the stages a real run
+would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
+cache, metrics or history file is written (a <code>--log-file</code> you ask for still is). <code>mirror sync
+--dry-run</code> previews what the mirror stages would change.</p>
 <h3 id="what-offline-covers-and-what-it-does-not">What <code>--offline</code> covers, and what it does not<a class="anchor" href="#what-offline-covers-and-what-it-does-not" title="Link to this section">#</a></h3>
 <p>It blocks at the socket, inside this process. Every client here inherits the block: <code>urllib</code>,
 <code>requests</code>, <code>httpx</code>, and the model downloaders inside the embedding and LLM libraries. Loopback
@@ -215,7 +222,7 @@ primary home. See <a href="mirroring-repositories#branch-safety">Branch safety</
 else. Nothing under <code>kb</code> has a hidden tier, and there is no top-level
 <code>contextlake --help-advanced</code>.</p>
 <h2 id="the-command-surface">The command surface<a class="anchor" href="#the-command-surface" title="Link to this section">#</a></h2>
-<p>34 commands: 6 top-level, 8 under <code>mirror</code>, 20 under <code>kb</code>. <code>contextlake --help</code> groups them by
+<p>35 commands: 6 top-level, 8 under <code>mirror</code>, 21 under <code>kb</code>. <code>contextlake --help</code> groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: <code>kb who-knows</code> for <code>kb owners</code> and
 <code>kb blast-radius</code> for <code>kb impact</code>.</p>
@@ -235,7 +242,7 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>bootstrap</code></td>
-<td>Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a <code>--no-&lt;stage&gt;</code> switch</td>
+<td>Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a <code>--no-&lt;stage&gt;</code> switch. <code>--dry-run</code> prints the stage list and runs none of it</td>
 </tr>
 <tr>
 <td><code>doctor</code></td>
@@ -374,7 +381,7 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>kb lint</code></td>
-<td>Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (<code>--json</code>)</td>
+<td>Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser, partitions holding vectors with no nodes, and file nodes that stand for more than one file. <code>--json</code> adds <code>orphan_vectors</code> (a count) and <code>orphan_vector_partitions</code> (the ids), and <code>shared_file_nodes</code> (a count, or <code>null</code> when the check could not run), <code>shared_file_node_repos</code> and <code>shared_file_nodes_sample</code>; see <a href="indexing-the-code-graph#health-and-maintenance">Health and maintenance</a> and <a href="indexing-the-code-graph#shared-file-nodes">Shared file nodes</a></td>
 </tr>
 <tr>
 <td><code>kb serve</code></td>
@@ -473,6 +480,12 @@ to print later. A key nobody wrote down is rotated, never recovered:
   script: it is the only one where the mode is set at creation rather than inherited from
   the caller's umask.</li>
 </ul>
+<p><strong>Write verbs take turns.</strong> <code>create</code>, <code>revoke</code>, <code>rotate</code> and <code>prune</code> each hold a lock,
+<code>&lt;key file&gt;.lock</code> beside the key file at mode <code>0600</code>, from reading the file until writing
+it. A second write verb waits up to 10 seconds for the first, then exits <code>1</code> with
+<code>key_file_error</code> and changes nothing. Without the lock, a <code>create</code> overlapping a <code>revoke</code>
+wrote the revoked key back as live. The lock is released when its holder exits, so there is
+never a stale one to delete. The lock file stays on disk.</p>
 <p><code>rotate</code> takes <code>--print-key</code> and <code>--out</code> too, with the same meaning. Its new key exists
 nowhere else either.</p>
 <p>The key never reaches standard output on the default path and never reaches <code>--log-file</code>,
@@ -487,10 +500,12 @@ stores, not what a server would allow.</p>
 <p><strong>The checksum in a key is a typo filter, not a security control.</strong> It catches a key
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.</p>
-<p><strong>Five key flags are enforced and two are not, and the marker beside each value says
-which.</strong> <code>--tools</code> and <code>--owners</code> are read on every call a networked server serves.
-<code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are checked at the gate, before a call reaches a
-tool. <code>--repos</code> and <code>--external</code> are still written onto the key and read by nothing.</p>
+<p><strong>All seven key flags are enforced, and the marker beside each value says so.</strong> <code>--tools</code>
+and <code>--owners</code> are read on every call a networked server serves. <code>--rate</code>, <code>--burst</code> and
+<code>--cost-budget</code> are checked at the gate, before a call reaches a tool. <code>--repos</code> and
+<code>--external</code> are applied inside the store, so they filter what a call can read. The list
+of enforced axes is <code>ENFORCED_AXES</code> in <code>kb/grants.py</code>, and <code>kb keys --help</code> and every
+<code>kb keys</code> surface read it, so the help text and the markers follow it.</p>
 <p><code>--tools</code> takes a comma-separated list of groups: <code>graph</code>, <code>search</code>, <code>docs</code>, <code>stats</code>,
 <code>owners</code>, <code>semantic</code>, plus the reserved <code>all</code>, <code>read</code> and <code>none</code>. <code>read</code> covers every
 group except <code>semantic</code>. A group name this server does not know is refused at <code>create</code>,
@@ -506,25 +521,32 @@ granted. <code>--tools read</code> covers them.</p>
 <p><code>--owners real</code> allows <code>who_knows</code>. <code>--owners pseudonymous</code> and <code>--owners hidden</code> <strong>refuse</strong>
 it, and refuse <code>ask</code> with it. There is no anonymiser on the network path in this release,
 so a key that asked for pseudonyms gets no names rather than real ones.</p>
-<p><strong><code>--repos</code> still binds nothing.</strong> A key created <code>--repos nothing-matches/*</code> reads every
-indexed repository. It cannot be enforced by a check on the call alone: a node id does not
-carry the repository it came from, and three tools that take a required <code>repo</code> return rows
-naming other repositories. Correct scoping needs a filter inside the store, which ships
-later.</p>
-<p>Measured on a live <code>kb serve --transport http --keys-only</code> server, not assumed. In the
-release before this one, a key created <code>--tools none --repos nothing-matches/*</code> was
-presented and <code>tools/list</code>
-answered with all 23 registered tools, after which <code>graph_stats</code> ran and returned a result.
-The same key on the same server now gets an empty tool list and a refusal on <code>graph_stats</code>.
-The <code>--repos</code> half is unchanged.</p>
+<p><strong><code>--repos</code> limits what the key can read.</strong> A key created <code>--repos acme/*</code> sees only
+repositories that match one of its globs. Search, graph, repo-list and stats answers leave
+the others out. A tool that reads a whole-fleet document (<code>get_fleet_doc</code>, <code>graph_health</code>)
+refuses a scoped key, since it has no repo argument to check. A node id does not carry the
+repository it came from, so the filter runs inside the store and not on the call.</p>
+<p><strong><code>--external</code> GRANTS access.</strong> It is not a label. On a key that has <code>--repos</code>,
+connector-fetched content that belongs to no repository (issues, designs and similar items)
+is hidden unless the key was created with <code>--external</code>. That content can be more sensitive
+than code, so add the flag only for a holder you would trust with it.</p>
+<p>A key with no <code>--repos</code> is not limited by <code>--external</code> in search and graph answers: those
+reads skip the filter for an unscoped key, so the content can appear there with or without
+the flag. <code>get_node</code> does apply the flag.</p>
+<p>Measured on a live <code>kb serve --transport http --keys-only</code> server, not assumed. In an
+earlier release, a key created <code>--tools none --repos nothing-matches/*</code> was presented and
+<code>tools/list</code> answered with all 23 registered tools, after which <code>graph_stats</code> ran and
+returned a result. The same key on the same server now gets an empty tool list and a
+refusal on <code>graph_stats</code>.</p>
 <p><strong><code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are enforced.</strong> A key over its quota gets <code>429</code>
 with a <code>Retry-After</code> header, refused at the gate before the request reaches any tool. Values
 are validated at the flag, so a typo cannot be minted onto a key, and again when a key file
 is loaded for serving. See <a href="mcp-transports#per-key-quotas">per-key quotas</a> for the
 formats, the <code>[serve]</code> defaults and what the quota deliberately does not do.</p>
-<p>Every surface that prints an unenforced axis says <code>(recorded, not enforced)</code> beside it and
-carries a note naming both halves. Each <code>--json</code> document carries <code>"policy_enforced"</code> for
-what it renders, and each key carries <code>"enforced_axes"</code>, the three <code>"effective_*"</code> quota
+<p><code>create</code>, <code>show</code> and <code>check</code> print <code>(enforced)</code> beside each value. <code>list</code> has no room for
+a marker, so it carries a note instead. An axis that a release did not enforce would print
+<code>(recorded, not enforced)</code> there, and the note would name it.</p>
+<p>Each <code>--json</code> document carries <code>"policy_enforced"</code> for what it renders, and each key carries <code>"enforced_axes"</code>, the three <code>"effective_*"</code> quota
 values a running server will apply, and <code>"limits_source"</code> saying whether each came from the
 key, from <code>[serve]</code> in kb.toml, or from nowhere.</p>
 <p>Scoping is a NETWORK control. stdio serves one local user who already has the files, so
@@ -694,6 +716,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

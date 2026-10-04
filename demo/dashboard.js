@@ -33,11 +33,12 @@
     function: 1, method: 1, package: 1, repo: 1, issue: 1, design: 1, endpoint: 1, topic: 1,
     config_key: 1, test: 1
   };
-  var LANG_LABELS = {
-    python: "PY", javascript: "JS", typescript: "TS", tsx: "TS", csharp: "C#",
-    c_sharp: "C#", java: "JV", go: "GO", ruby: "RB", rust: "RS", php: "PHP",
-    kotlin: "KT", cpp: "C++", c: "C"
-  };
+  // Language labels and the diagram-tab gates come from the registries (kb/dashboard/data.py
+  // dashboard_vocab()), never from a list in this file. A static export carries them in the
+  // snapshot; the live server prepends window.__CL_VOCAB__ to this script. A language the
+  // vocabulary does not name still falls back to its first two letters (see lettermarks()).
+  var VOCAB = (SNAP && SNAP.vocab) || window.__CL_VOCAB__ || {};
+  var LANG_LABELS = VOCAB.lang_labels || {};
 
   // ---- tiny DOM helpers (textContent-safe; data is not HTML-escaped server-side) --
   function h(tag, attrs) {
@@ -1167,19 +1168,18 @@
   // Formats offered here mirror `contextlake graph --repo <id> --format <fmt>` --
   // same payload, same renderers (kb/visualize/), nothing new extracted. Each
   // renderer already degrades to an honest "no X in this view" placeholder, but
-  // `avail` still gates the tab itself so the switcher only offers formats that
-  // are actually meaningful for this repo (using kinds the anatomy tab already
-  // fetched). sequencediagram is deliberately absent: it needs a single symbol
-  // seed, not a repo-wide view (see kb/dashboard/data.py's DIAGRAM_FORMATS).
-  var DIAGRAM_FORMATS = [
-    { fmt: "mermaid", label: "Relations", avail: function () { return true; } },
-    { fmt: "classdiagram", label: "Classes",
-      avail: function (k) { return !!(k.class || k.interface || k.struct || k.enum); } },
-    { fmt: "statediagram", label: "States", avail: function (k) { return !!k.state; } },
-    { fmt: "erdiagram", label: "Data model", avail: function (k) { return !!(k.table || k.view); } },
-    { fmt: "deploymentdiagram", label: "Deployment",
-      avail: function (k) { return !!(k.resource || k.data); } }
-  ];
+  // a tab is still gated so the switcher only offers formats that are actually
+  // meaningful for this repo (using kinds the anatomy tab already fetched).
+  // sequencediagram is deliberately absent: it needs a single symbol seed, not a
+  // repo-wide view (see kb/dashboard/data.py's DIAGRAM_FORMATS).
+  // The list, the labels and each tab's kinds come from the server as
+  // VOCAB.diagram_tabs: [{ fmt, label, kinds }], where `kinds` is null for a tab that
+  // is always enabled. The Classes and Data model kinds are the kind registry's
+  // `classifier` and `er_entity` flags, so a new kind needs no edit here.
+  var DIAGRAM_FORMATS = VOCAB.diagram_tabs || [];
+  function diagramAvailable(tab, kinds) {
+    return !tab.kinds || tab.kinds.some(function (k) { return !!kinds[k]; });
+  }
   var mermaidLoadPromise = null;
   function loadMermaid() {
     if (window.mermaid) return Promise.resolve(window.mermaid);
@@ -1258,9 +1258,13 @@
       cmd: "contextlake kb dashboard --serve",
       action: genAction("Run live server", "contextlake kb dashboard --serve")
     })); return; }
+    if (!DIAGRAM_FORMATS.length) { pane.appendChild(stateBlock({
+      kind: "error", title: "Diagram formats are missing",
+      msg: "The page did not receive the diagram format list from the server. Reload the page."
+    })); return; }
     var kinds = (d.brief && d.brief.kinds) || {};
     var available = {};
-    DIAGRAM_FORMATS.forEach(function (f) { available[f.fmt] = f.avail(kinds); });
+    DIAGRAM_FORMATS.forEach(function (f) { available[f.fmt] = diagramAvailable(f, kinds); });
     var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Diagram format" });
     var scopeWrap = h("div", { class: "cl-diagram-scope" });
     var body = h("div", { class: "cl-panel__body" });
@@ -1904,7 +1908,8 @@
       });
     } else if (s.wiki && s.wiki.found) {
       if (s.wiki.stale) box.appendChild(h("p", { class: "cl-muted" }, "STALE -- the code changed since this was generated."));
-      box.appendChild(h("pre", { class: "cl-snippet" }, s.wiki.markdown || ""));
+      // Empty under --anonymize: the answer's note says the text is withheld.
+      if (s.wiki.markdown) box.appendChild(h("pre", { class: "cl-snippet" }, s.wiki.markdown));
     } else if (s.brief && s.brief.found) {
       box.appendChild(h("pre", { class: "cl-snippet" }, JSON.stringify(s.brief, null, 2)));
     } else {

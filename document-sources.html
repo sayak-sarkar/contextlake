@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Document sources and RAG · contextlake docs">
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -214,16 +214,48 @@ dependency:</p>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>
 <span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://example.com/changelog&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;https://example.com/roadmap&quot;</span><span class="p">]</span>
 </code></pre></div>
-<p>An <strong><code>api</code></strong> source ships built-in too: GET a JSON endpoint and map its records to documents, with any
-bearer token read from an env var (never the config file):</p>
+<p>An <strong><code>api</code></strong> source ships built-in too: GET a JSON endpoint and map its records to documents, with the
+secret read from an env var (never the config file):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span>
 <span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/v1/articles&quot;</span>
 <span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;data.articles&quot;</span><span class="w">        </span><span class="c1"># dotted path to the record list</span>
 <span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
-<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># bearer token comes from this env var</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># the secret comes from this env var</span>
 </code></pre></div>
+<p><code>id_field</code>, <code>title_field</code> and <code>text_field</code> take a plain key or a dotted path into the record,
+such as <code>fields.summary</code>. A record with no text at that path is skipped.</p>
+<p><strong>The credential stays on one host.</strong> The <code>Authorization</code> header goes only to the origin
+(scheme, host and port) of <code>url</code>. A redirect, or a next-page link, that points at a different
+origin is still followed, but without the header. A redirect within the same origin keeps it.</p>
+<p><strong>Two auth schemes.</strong> <code>auth = "bearer"</code> is the default and sends
+<code>Authorization: Bearer &lt;secret&gt;</code>. <code>auth = "basic"</code> sends
+<code>Authorization: Basic base64(user:secret)</code>, which is what an API token needs on Atlassian
+Cloud, Jira and Confluence:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated&quot;</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
+<span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
+<span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fields.summary&quot;</span>
+<span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;basic&quot;</span>
+<span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;you@example.com&quot;</span><span class="w">        </span><span class="c1"># the account email; not a secret, so config is fine</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ATLASSIAN_API_TOKEN&quot;</span><span class="w">   </span><span class="c1"># the token is, so it stays in the environment</span>
+</code></pre></div>
+<p>Create the token under <strong>Account settings → Security → API tokens</strong> in your Atlassian
+profile, then export it as <code>ATLASSIAN_API_TOKEN</code>. A bearer header against Atlassian Cloud
+returns 401 with a body that does not explain why, so <code>auth = "basic"</code> is required rather
+than a preference.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>auth</code>, <code>user</code> and <code>token_env</code> are privileged keys: a config file contextlake <em>discovered</em>
+by walking up from the working directory may not set them, because together they decide
+where a secret is sent and how it is spent. Name the config explicitly with <code>--config</code> to
+use them.</p>
+</div>
 <p>A <strong><code>graphql</code></strong> source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way <code>api</code> maps a REST response:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
@@ -318,6 +350,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-09-06",
+  "snapshot_date": "2026-10-04",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -2621,6 +2621,78 @@
         }
       ]
     }
+  },
+  "vocab": {
+    "lang_labels": {
+      "python": "PY",
+      "javascript": "JS",
+      "typescript": "TS",
+      "tsx": "TS",
+      "csharp": "C#",
+      "c_sharp": "C#",
+      "java": "JV",
+      "go": "GO",
+      "ruby": "RB",
+      "rust": "RS",
+      "php": "PHP",
+      "kotlin": "KT",
+      "cpp": "C++",
+      "c": "C",
+      "scala": "SC",
+      "swift": "SW",
+      "dart": "DT",
+      "zig": "ZG",
+      "perl": "PL",
+      "bash": "SH",
+      "elixir": "EX",
+      "css": "CSS",
+      "html": "HTM",
+      "nix": "NIX",
+      "svelte": "SVE",
+      "vue": "VUE",
+      "make": "MK",
+      "dockerfile": "DKR"
+    },
+    "diagram_tabs": [
+      {
+        "fmt": "mermaid",
+        "label": "Relations",
+        "kinds": null
+      },
+      {
+        "fmt": "classdiagram",
+        "label": "Classes",
+        "kinds": [
+          "class",
+          "enum",
+          "interface",
+          "struct"
+        ]
+      },
+      {
+        "fmt": "statediagram",
+        "label": "States",
+        "kinds": [
+          "state"
+        ]
+      },
+      {
+        "fmt": "erdiagram",
+        "label": "Data model",
+        "kinds": [
+          "table",
+          "view"
+        ]
+      },
+      {
+        "fmt": "deploymentdiagram",
+        "label": "Deployment",
+        "kinds": [
+          "resource",
+          "data"
+        ]
+      }
+    ]
   },
   "anonymized": false
 }

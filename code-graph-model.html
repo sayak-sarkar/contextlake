@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="The code graph model · contextlake docs">
 <meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -81,7 +81,7 @@ dashboard use, so node kinds look the same everywhere. Edge relations mostly mat
 <h3 id="languages">Languages<a class="anchor" href="#languages" title="Link to this section">#</a></h3>
 <p>tree-sitter covers <strong>27 languages across 25 grammars</strong> (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.</p>
-<p>Depth differs across three tiers, and a single number would hide it.</p>
+<p>Depth differs across four tiers, and a single number would hide it.</p>
 <table>
 <thead>
 <tr>
@@ -315,8 +315,9 @@ statement exists to say is which tables the file reads and writes.</p>
 <p>It normalises table names with the same rule <code>.sql</code> files use for their <code>table</code> nodes. So an
 <code>EXEC SQL SELECT ... FROM CUSTOMERS</code> and a <code>CREATE TABLE dbo.[Customers]</code> in another file land on
 one node, and that rule lives in exactly one place.</p>
-<p><code>.pc</code> follows C for language filtering rather than having a flag of its own: <code>--languages c</code>
-selects it, <code>--languages python</code> does not.</p>
+<p><code>.pc</code> follows C for language filtering rather than having a setting of its own. <code>languages = ["c"]</code>
+in the <code>[kb]</code> table of <code>kb.toml</code> selects it, and <code>languages = ["python"]</code> does not. The filter is a
+config setting, not a command-line flag.</p>
 <h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
 <p>A repo's own decision records become <code>adr</code> nodes in that repo's shard, one node per file.</p>
 <p><strong>What counts as an ADR file:</strong> any <code>.md</code> file with a directory named <code>adr</code>, <code>adrs</code> or
@@ -488,7 +489,7 @@ getting a silent best-guess.</p>
 <span class="go">  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]</span>
 </code></pre></div>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=2dcd9aed"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -571,6 +572,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

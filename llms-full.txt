@@ -207,12 +207,14 @@ The knowledge-layer build commands get a page each:
 **Two more look global and are not:**
 
 - `--dry-run`, which previews without changing anything, belongs to the 8 `mirror` commands plus
-  `bootstrap`, `doctor` and `kb forget`.
+  `bootstrap`, `doctor` and `kb forget`. On `bootstrap` it prints the stages a real run would
+  perform and runs none of them.
 - `--version` belongs to the bare `contextlake` only. `contextlake version` is the form that
   works everywhere.
 
-Pass either somewhere it does not exist, and the command exits `2` and names the commands that do
-take it.
+Pass either to a command that does not take it, and the command exits `2`, runs nothing, and names
+the commands that do take it. That holds in every position: `contextlake --dry-run kb index`,
+`contextlake kb --dry-run index` and `contextlake kb index --dry-run` all refuse.
 
 Output is colourised on a TTY and plain when piped. Set `NO_COLOR` to force it off.
 
@@ -353,7 +355,7 @@ every upgrade into a red check for something that is working correctly.
 - **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
 - **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
-- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the nine source types
+- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the ten source types
 - **[docs/searching-semantically.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
 - **[docs/generating-the-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
 - **[docs/generating-documentation.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-documentation.md)**, `kb docs`, an API reference with real call sites, no model
@@ -599,8 +601,9 @@ classes of setting are therefore honoured only from a file you named with `--con
 own home config: the ones that make contextlake *run a program* (`[llm] command`/`args`,
 `provider = "cli"`, `[[sources]] command`/`args`/`mcp_command`), the ones that choose *where a
 request goes* (`base_url`, `[[sources]] mcp`), and the ones that name *which environment variable
-holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth_dir`, the
-directory an OAuth refresh token is written to).
+holds the credential* sent with it (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`,
+which choose how that credential is sent, and `auth_dir`, the directory an OAuth refresh token is
+written to).
 
 The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
@@ -1094,11 +1097,29 @@ transparency log.
 file this repository's workflow built and uploaded. It says nothing about the Python payload,
 because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
 first run, which happens after any signature here. If you want the payload checked too, install
-with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
-[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
-also publishes a CycloneDX SBOM listing that dependency closure.
+with `pipx` or `uv` instead and check the release yourself. Each release publishes two
+supply-chain records for that install:
 
-The SBOM does not close the gap on its own, either. Its subject is `contextlake[kb-full]`, while the
+- **PyPI attestations.** The release workflow publishes through PyPI Trusted Publishing, so the wheel
+  and the sdist of a release carry a [PEP 740](https://peps.python.org/pep-0740/) attestation. It names
+  this repository's `release.yml` workflow as the builder. Releases 2.1.0 and 4.0.0 have none.
+- **An SBOM.** Each release also publishes a CycloneDX SBOM listing that dependency closure.
+
+**`pip install`, `uv pip install` and `uv tool install` do not check the attestation.** None of
+them has an option for it (`--help` in pip 26.1.2 and uv 0.12.3 lists none), so an install from PyPI
+does not prove who built the wheel. To check it yourself, use the separate `pypi-attestations`
+tool. It downloads the file and its attestation from PyPI and fails if a different repository
+built it:
+
+```bash
+pip install pypi-attestations
+pypi-attestations verify pypi --repository https://github.com/sayak-sarkar/contextlake \
+  pypi:contextlake-X.Y.Z-py3-none-any.whl
+```
+
+Replace `X.Y.Z` with the release you installed. Use the `.tar.gz` file name to check the sdist.
+
+The SBOM does not cover the launcher's whole payload. Its subject is `contextlake[kb-full]`, while the
 launcher installs `contextlake[kb-full,llm-local]`, so the wiki-LLM runtime and everything under it
 is outside what the SBOM enumerates.
 
@@ -1684,12 +1705,26 @@ How each repo is cloned, with `clone_method = auto` (the default):
 1. **With a platform token set**, meaning `GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN`,
    `GITEA_TOKEN`, or whatever `token_env` names: contextlake clones with plain `git` and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into `ps` output or `.git/config`.
+   in the URL, so it cannot leak into `ps` output or `.git/config`. The header is scoped to the
+   forge's own host (`https://gitlab.com/`, your `gitlab_host`, `https://github.com/`, and so on),
+   so git sends it there and nowhere else. `update` and `branches` use the same scoped header, so
+   a clone in the workspace whose remote is on another host never receives your forge token.
 2. **Without a token, and with glab installed**: `glab repo clone`, using glab's own auth. This
    is a GitLab-only path.
 3. **Otherwise**: plain `git clone` over HTTPS.
 
 Set `clone_method = git` or `clone_method = glab` to force one path.
+
+A project whose path would land outside the work directory is skipped, with
+`Refused: this forge path is not inside the work directory` on its line. That covers an absolute
+path, a path with `..` in it, a path that resolves to the work directory itself, and one that
+passes through a symlink to somewhere else. The check runs before anything on disk is touched.
+
+Clone never deletes a non-empty directory that has no `.git`. If one already sits where a
+repository would go, that repository is reported as failed with
+`<path> exists, is not a git repository and is not empty, so it was left alone; move it aside to clone here`,
+in a dry run too. An empty directory there (an interrupted clone can leave one) is removed and
+cloned into while `clean_corrupted` is on.
 
 ### `mirror update`: update existing repositories
 
@@ -1706,6 +1741,16 @@ This command:
 - Skips a repo on a detached HEAD, there is no branch to fast-forward
 - Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand
 - Reports repositories that are already up to date
+- When the branch it tracks is no longer on `origin` (merged and deleted, or renamed), switches
+  to the most active remaining branch, the same choice `mirror branches` makes. It stays on
+  the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
+  when git cannot say whether it does, or while `--auto-stash` holds your edits for it.
+  A squash-merged branch whose `origin` ref git has pruned (`fetch.prune`) counts as having
+  such commits, because the squash put new commits on `origin`, not these; move it with
+  `mirror branches`
+- Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
+  and anything under `node_modules` are part of that clone, and are not fetched or switched.
+  `mirror verify` still reports a repository nested in another one
 
 ### `mirror branches`: switch to most active branches
 
@@ -2125,7 +2170,8 @@ you pass to `--config`:
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
-| `[[sources]] token_env` | the env var read for an api/graphql source's bearer token |
+| `[[sources]] token_env` | the env var read for an api/graphql source's token |
+| `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the env var read for the credential sent to that host |
@@ -2177,7 +2223,35 @@ That last point changes what `contextlake kb source add ... --local` can scope. 
 document source still works from a local file over its `url`; its `command` has to live in the
 global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
-`token_env` and `auth_dir` on any source.
+`token_env`, `auth`, `user` and `auth_dir` on any source.
+
+### The mirror config, `.contextlake.ini`
+
+The same rule covers the mirror keys that decide where the forge token goes. A discovered
+`.contextlake.ini` may not set them. They are honoured only from `~/.contextlake.ini` or from a path
+you pass to `--config`:
+
+| Key | Reaches |
+| --- | --- |
+| `gitlab_host` | the GitLab host that gets the REST call, and git's token header on clone and fetch |
+| `api_base` | the same host for GitHub, Bitbucket and Gitea |
+| `token_env`, `gitlab_token_env` | the env var whose value is sent to that host as the token |
+
+Before this gate, a `.contextlake.ini` inside a cloned repository could set `gitlab_host` to its own
+server and `token_env` to any variable in your environment, and the next `mirror fetch` run from
+inside that tree sent the variable's value there.
+
+A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
+the file. If nothing you chose sets that key instead (the global file, `--config`, or the
+`GITLAB_HOST` env var for `gitlab_host`), the forge token is also off for that run, and a second
+warning says so. Dropping the key alone would fall back to a built-in default: a `gitlab_host` meant
+for your own instance would fall back to `gitlab.com`, and your token would go there. With the token
+off, GitLab enumeration uses `glab` and its own login, other platforms see public repositories only,
+and clone and fetch run without the token.
+
+`work_dir`, `gitlab_group` and `platform` keep working from a local file. They are all that
+`contextlake init --local` writes. To clear the warning, delete the keys from the file it names and
+set them in `~/.contextlake.ini` (or export `GITLAB_HOST`), or pass `--config` naming that file.
 
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
 `.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
@@ -2192,10 +2266,10 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `platform` | Platform to mirror: `gitlab`, `github`, `bitbucket`, `gitea` (+ `codeberg`/`forgejo` flavors) | `gitlab` | `github` |
 | `group` | The group / org / workspace / owner to mirror (`gitlab_group` is its alias) | none | `your-org` |
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
-| `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
-| `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN` | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
-| `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it | `gitlab.com` | `gitlab.example.com` |
+| `token_env` | Env var holding the platform token. Global config or `--config` only (see [Workspace trust](#workspace-trust)) | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
+| `gitlab_token_env` | GitLab-specific alias for `token_env`; checked first, then `token_env`, then `GITLAB_TOKEN`. Global config or `--config` only | `GITLAB_TOKEN` | `MY_GITLAB_PAT` |
+| `api_base` | REST endpoint for self-hosted / enterprise instances. Global config or `--config` only | per platform | `https://github.example.com/api/v3` |
+| `gitlab_host` | GitLab host for the REST API. The `GITLAB_HOST` env var wins over it. Global config or `--config` only | `gitlab.com` | `gitlab.example.com` |
 | `repo_filter` | Comma-separated glob patterns limiting every command to matching repositories, the permanent form of `--repos` (see [Branch safety and scoping](mirroring-repositories.md)) | none, meaning every repository | `team/*,shared-libs` |
 | `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
 | `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
@@ -2208,7 +2282,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `branch_timeout` | Branch operation timeout (seconds) | `30` | `60` |
 | `pull_timeout` | Pull operation timeout (seconds) | `60` | `120` |
 | `max_workers` | Maximum parallel workers | `8` | `4` |
-| `clean_corrupted` | Auto-remove corrupted directories | `true` | `false` |
+| `clean_corrupted` | Before a clone, remove an empty directory an interrupted clone left at the destination. A non-empty directory with no `.git` is never removed: clone reports it as an error and leaves it alone | `true` | `false` |
 | `max_retries` | Maximum retry attempts for failed operations | `3` | `5` |
 | `backoff_initial` | Initial backoff time in seconds | `1` | `2` |
 | `backoff_max` | Maximum backoff time in seconds | `30` | `60` |
@@ -2486,9 +2560,35 @@ run, so they pick up parser fixes.
 - **stale repos**, where HEAD moved since they were indexed
 - **dangling edges**, where an edge's endpoint node is missing
 - the same **older-parser** repos doctor reports, so the two commands never disagree
+- **orphan vectors**, where the semantic store holds vectors for a partition that has no nodes
+  in the graph (see below)
+- **shared file nodes**, where several files in the store share one file node (see
+  [Shared file nodes](#shared-file-nodes))
 
 Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
 it cannot read.
+
+The orphan-vector check is advisory too. For each partition that has vectors and no nodes, lint
+prints a line:
+
+```text
+  orphan vectors: <partition> (vectors with no nodes behind them, so nothing can reach them -- ...)
+```
+
+and the summary line ends with `N partition(s) with orphaned vectors`. Run `contextlake kb embed`
+to rebuild them, or `contextlake kb forget` to remove them. Before 9.3.0 an interrupted
+`kb forget` could leave this state. The check does not affect the exit code.
+
+It runs only when `[embeddings]` is enabled and the vector store exists. Otherwise it reports
+none. It also runs in the CLI only: the dashboard's lint view does not include it, because the scan
+reads the vector store.
+
+`kb lint --json` carries two fields for it, on every run:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `orphan_vectors` | number | how many partitions have vectors and no nodes; `0` when there are none |
+| `orphan_vector_partitions` | list of strings | the partition ids, sorted; `[]` when there are none |
 
 The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
 upgrading to a build with a new parser could turn a green CI gate red on its own.
@@ -2502,6 +2602,50 @@ either of them:
   be behind. Also advisory, for the same reason.
 - **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
+
+### Shared file nodes
+
+Every file in the graph has a node. Its id is built from the repo id and the file path. The id
+builder lowercases the text and turns every run of punctuation into one `_`. So these names get
+the same id:
+
+- `a-b.py`, `a_b.py` and `A_B.py` in one repo
+- `pkg/__main__.py` and `pkg/main.py`
+- `numpy/_core/records.py` and `numpy/core/records.py`
+- the repos `grp/a-b` and `grp/a/b`, for a file with the same path in both
+
+The store keeps one row per id. The files share one file node, so all but one of them are
+missing from the graph as files. The symbols inside every file are still indexed. They hang off
+the one shared node.
+
+`kb lint` names each such node, with the repo and every path it can see:
+
+```text
+  shared file node: <repo>: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (known id limitation, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command's exit code)
+```
+
+When two repos share the node, the line says `across repos` and puts the repo in front of each
+path. The summary line ends with `N shared file node(s)`.
+
+This is a known limitation of the id scheme. The check reports it and changes nothing. It does
+not affect the exit code. Re-indexing does not clear it. Renaming a file so that its name differs
+by more than case and punctuation, then re-indexing, takes that file out of the report.
+
+The check is a lower bound. The tables keep a trace of a file only through its node row and its
+`contains` edges. A colliding file that has no definitions, and is not the file the node row
+names, leaves no trace, so lint cannot see it.
+
+It runs in the CLI only, like the orphan-vector check. It reads SQLite, and the dashboard's lint
+view answers from a cache of the shards. On a synthetic store of 700,000 nodes and 1.7 million
+edges it took 0.45 s.
+
+`kb lint --json` carries three fields for it, on every run:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `shared_file_nodes` | number or null | how many file nodes stand for more than one file; `0` when there are none; `null` when the check could not run |
+| `shared_file_node_repos` | list of strings | every repo that shares a node, sorted; `[]` when there are none |
+| `shared_file_nodes_sample` | list of objects | the first 20 findings. Each has `node` (the id), `repos`, `cross_repo` (true when more than one repo shares it) and `files` (a list of `{repo, path}`) |
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
 
@@ -2564,7 +2708,7 @@ dashboard use, so node kinds look the same everywhere. Edge relations mostly mat
 tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
 parser registry is pluggable.
 
-Depth differs across three tiers, and a single number would hide it.
+Depth differs across four tiers, and a single number would hide it.
 
 | Tier | Languages | What you get |
 | --- | --- | --- |
@@ -2788,8 +2932,9 @@ It normalises table names with the same rule `.sql` files use for their `table` 
 `EXEC SQL SELECT ... FROM CUSTOMERS` and a `CREATE TABLE dbo.[Customers]` in another file land on
 one node, and that rule lives in exactly one place.
 
-`.pc` follows C for language filtering rather than having a flag of its own: `--languages c`
-selects it, `--languages python` does not.
+`.pc` follows C for language filtering rather than having a setting of its own. `languages = ["c"]`
+in the `[kb]` table of `kb.toml` selects it, and `languages = ["python"]` does not. The filter is a
+config setting, not a command-line flag.
 
 ### Architecture decisions (ADRs)
 
@@ -3003,7 +3148,7 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
 
 ## Connectors
 
-`connect` enriches the graph with external context. Four connectors ship, sharing one seam:
+`connect` enriches the graph with external context. Five connectors ship, sharing one seam:
 
 - **Atlassian**: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -3047,15 +3192,21 @@ and work alongside hand-editing if you mix approaches.
 
 The commands:
 
-- **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type, offering every type this build ships, the five connectors (`atlassian`, `figma`, `gitlab`, `zendesk`,
-  `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
-  installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
-  `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
-  token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
-  value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
-  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
+- **`contextlake kb source add [NAME] [--type TYPE]`**: add a connector. The name is a positional
+  argument, not a flag (`contextlake kb source add jira --type atlassian`). Run it in a terminal without
+  a name or a `--type` and it asks for them. It offers every type this build ships, the five connectors
+  (`atlassian`, `figma`, `gitlab`, `zendesk`, `slack`) plus the built-in ingest sources (`files`, `web`,
+  `api`, `graphql`, `mcp`) and any installed plugin, proposes defaults, and writes the entry to `kb.toml`.
+  Without a terminal, a missing name or type exits 2 and prints the form to use. `--mcp URL` sets the MCP
+  server URL and `--local` targets a project-level file (`--help` shows all). `--set KEY=VALUE`
+  (repeatable) writes any other connector option `kb.toml` accepts.
+
+  **A credential never goes on the command line.** Store the name of the environment variable that holds
+  it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
+  `add` refuses a literal secret (a key such as `token`, `api_key`, `password` or `secret`) from `--set`
+  and from `--from-stdin`, and exits 2 without writing anything. **`--from-stdin KEY`** reads the value of
+  one non-secret option from stdin instead of the command line, so it stays out of shell history:
+  `printf '%s' "$MCP_URL" | contextlake kb source add jira --type atlassian --from-stdin mcp`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
@@ -3071,7 +3222,7 @@ The commands:
 An example workflow:
 
 ```bash
-contextlake kb source add                # interactive: what type? which workspace?
+contextlake kb source add                # interactive: what type? what name? which MCP URL?
 contextlake kb source list               # show what you've configured + status
 contextlake kb source test my-atlassian  # does it work? what's in scope?
 contextlake kb connect                   # now link repos to their items
@@ -3191,6 +3342,14 @@ carries on with the rest:
 The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
 workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
 for, so the run should not read as clean.
+
+A source that could not be reached is not an empty answer. A repo whose source failed keeps the
+links, nodes and vectors from its last complete run, and the run names it in a warning. The exit
+code is 1 when nothing was stored at all, and 0 with that warning when other repos got results.
+A source that answers with no results still clears the repo's previous ones. With several
+sources, one that stays unreachable keeps every affected repo's previous results, so the other
+sources' results for those repos wait too, and the run exits 1 until that source is fixed or
+removed from the config.
 
 ## See also
 
@@ -3403,8 +3562,8 @@ name = "changelog"
 urls = ["https://example.com/changelog", "https://example.com/roadmap"]
 ```
 
-An **`api`** source ships built-in too: GET a JSON endpoint and map its records to documents, with any
-bearer token read from an env var (never the config file):
+An **`api`** source ships built-in too: GET a JSON endpoint and map its records to documents, with the
+secret read from an env var (never the config file):
 
 ```toml
 [[sources]]
@@ -3413,8 +3572,45 @@ name = "tickets"
 url = "https://api.example.com/v1/articles"
 items = "data.articles"        # dotted path to the record list
 text_field = "body"            # which key holds the document text
-token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
+token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 ```
+
+`id_field`, `title_field` and `text_field` take a plain key or a dotted path into the record,
+such as `fields.summary`. A record with no text at that path is skipped.
+
+**The credential stays on one host.** The `Authorization` header goes only to the origin
+(scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
+origin is still followed, but without the header. A redirect within the same origin keeps it.
+
+**Two auth schemes.** `auth = "bearer"` is the default and sends
+`Authorization: Bearer <secret>`. `auth = "basic"` sends
+`Authorization: Basic base64(user:secret)`, which is what an API token needs on Atlassian
+Cloud, Jira and Confluence:
+
+```toml
+[[sources]]
+type = "api"
+name = "issues"
+url = "https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated"
+items = "issues"
+id_field = "key"
+title_field = "key"
+text_field = "fields.summary"
+auth = "basic"
+user = "you@example.com"        # the account email; not a secret, so config is fine
+token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environment
+```
+
+Create the token under **Account settings → Security → API tokens** in your Atlassian
+profile, then export it as `ATLASSIAN_API_TOKEN`. A bearer header against Atlassian Cloud
+returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
+than a preference.
+
+> [!NOTE]
+> `auth`, `user` and `token_env` are privileged keys: a config file contextlake *discovered*
+> by walking up from the working directory may not set them, because together they decide
+> where a secret is sent and how it is spent. Name the config explicitly with `--config` to
+> use them.
 
 A **`graphql`** source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way `api` maps a REST response:
@@ -4061,7 +4257,9 @@ working -- a name the notes introduce becomes a name a draft may legitimately ci
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
 untrusted input, and this is the line that keeps it unable to fabricate a page. When every name
 is unknown the automatic heuristic runs instead of producing nothing, so one typo cannot
-silently delete a repository's whole module set on the next prune.
+silently delete a repository's whole module set on the next prune. The list is the whole set on
+both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
+generated pages of modules that are not on it.
 
 Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (`kb/trust.py`). Quoting a
@@ -5201,6 +5399,27 @@ resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
 hand. Force a specific platform with `--platform systemd` or `--platform cron`.
 
+### How the cron adapter edits your crontab
+
+`crontab -` replaces the whole crontab, so the cron adapter guards what it writes:
+
+- Only the lines between `# >>> contextlake (<name>) >>>` and `# <<< contextlake (<name>) <<<`
+  change. Every other byte comes back as it was. The one addition: a last line with no newline
+  gains one, because cron treats a crontab whose last line has no newline as broken.
+- Before each write, a copy of the crontab as it was is saved to `crontab-backups/` under the
+  cache root (`~/.cache/contextlake/`, or `$XDG_CACHE_HOME/contextlake/` when that is set). The
+  path is printed. Only you can read the file. If the copy cannot be saved, nothing is written.
+- If `crontab -l` fails for any reason other than "no crontab for <user>", the crontab is not
+  changed and the error is printed. `install` then prints the crontab line so you can add it by
+  hand. `uninstall` still removes the job record.
+- If a `# >>> contextlake (<name>) >>>` line has no matching end line, the crontab is not changed
+  and the error names the line. Fix it with `crontab -e`, then run `install` again. `uninstall`
+  still removes the job record, so `schedule list` then reports the block as an orphaned unit
+  until you delete it with `crontab -e`.
+- The job's line sends its own output to `/dev/null`, so cron mails nothing for it. Earlier
+  versions wrote `MAILTO=""` into the block instead, which cron also applied to every line below
+  it. Running `install` again removes that line.
+
 The default job runs `contextlake bootstrap` on most cycles, and switches to
 `contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
 re-embedded) once `schedule_full_every` has passed since the last successful full run.
@@ -5973,7 +6192,8 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 > git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
 > identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
-> guaranteed-generic demo fleet).
+> guaranteed-generic demo fleet). `--anonymize` does not hide the code itself: symbol
+> names, their docstrings, and the headings of wiki sections in search results still show.
 
 ### Making it the default on this machine
 
@@ -6427,6 +6647,17 @@ it as a node without edges; `find_definition` says whether a name is absent enti
 excluded by a `kind`/`repo` filter; `search_code` says whether the query's terms are indexed at
 all, and carries `total`/`truncated` like its siblings.
 
+**A node reached through an edge says how far to trust that edge.** `find_callers`,
+`find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
+subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
+or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
+line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
+line before relying on it. The field is `null` where the tool names no single edge that reached
+the node: `get_node`, `find_definition`, the searches (`search_code`, `semantic_search`, and
+`hybrid_search`, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
+the first node of a path. `null` does not mean `EXTRACTED`. Clients that ignore the field keep
+working.
+
 `get_generated_doc` returns what `kb docs` wrote:
 
 - `kind="api"` for the reference, with its real call sites
@@ -6498,7 +6729,9 @@ server natively:
 `.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
 managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
 `.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like `.devin/` are left untouched.
+name is kept as-is; custom layers like `.devin/` are left untouched. An MCP file that is not valid
+JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
+not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.
 
 ### The generated `AGENTS.md` names the store it was built from
 
@@ -8056,6 +8289,14 @@ Two more look similar and are not:
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
 
+`--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
+`doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
+flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`), and
+the message names the commands that do take it. `bootstrap --dry-run` prints the stages a real run
+would perform and runs none of them: no mirror, no audit, no index, no model call, and no store,
+cache, metrics or history file is written (a `--log-file` you ask for still is). `mirror sync
+--dry-run` previews what the mirror stages would change.
+
 ### What `--offline` covers, and what it does not
 
 It blocks at the socket, inside this process. Every client here inherits the block: `urllib`,
@@ -8112,7 +8353,7 @@ else. Nothing under `kb` has a hidden tier, and there is no top-level
 
 ## The command surface
 
-34 commands: 6 top-level, 8 under `mirror`, 20 under `kb`. `contextlake --help` groups them by
+35 commands: 6 top-level, 8 under `mirror`, 21 under `kb`. `contextlake --help` groups them by
 task in its own output; the tables below are the same commands organized for lookup. Two extra
 spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
 `kb blast-radius` for `kb impact`.
@@ -8124,7 +8365,7 @@ These span both tiers, or neither, so they are not namespaced.
 | Command | What it does |
 | --- | --- |
 | `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
-| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, diagrams, API reference, design notes, steer. Each stage has a `--no-<stage>` switch. `--dry-run` prints the stage list and runs none of it |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
 | `completion` | Register shell tab-completion on demand |
 | `version` | Print the installed version |
@@ -8165,7 +8406,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
-| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
+| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser, partitions holding vectors with no nodes, and file nodes that stand for more than one file. `--json` adds `orphan_vectors` (a count) and `orphan_vector_partitions` (the ids), and `shared_file_nodes` (a count, or `null` when the check could not run), `shared_file_node_repos` and `shared_file_nodes_sample`; see [Health and maintenance](indexing-the-code-graph.md#health-and-maintenance) and [Shared file nodes](indexing-the-code-graph.md#shared-file-nodes) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--keys-file` and `--keys-only` decide which key file is read and whether a shared token may be minted; `--no-usage` turns off the per-key call record; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb keys` | Create and manage the API keys that authenticate MCP callers, and read what they called: `create`, `list`, `show`, `revoke`, `rotate`, `check`, `prune`, `usage` |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -8243,6 +8484,13 @@ Three ways to capture it at creation:
   script: it is the only one where the mode is set at creation rather than inherited from
   the caller's umask.
 
+**Write verbs take turns.** `create`, `revoke`, `rotate` and `prune` each hold a lock,
+`<key file>.lock` beside the key file at mode `0600`, from reading the file until writing
+it. A second write verb waits up to 10 seconds for the first, then exits `1` with
+`key_file_error` and changes nothing. Without the lock, a `create` overlapping a `revoke`
+wrote the revoked key back as live. The lock is released when its holder exits, so there is
+never a stale one to delete. The lock file stays on disk.
+
 `rotate` takes `--print-key` and `--out` too, with the same meaning. Its new key exists
 nowhere else either.
 
@@ -8261,10 +8509,12 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**Five key flags are enforced and two are not, and the marker beside each value says
-which.** `--tools` and `--owners` are read on every call a networked server serves.
-`--rate`, `--burst` and `--cost-budget` are checked at the gate, before a call reaches a
-tool. `--repos` and `--external` are still written onto the key and read by nothing.
+**All seven key flags are enforced, and the marker beside each value says so.** `--tools`
+and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
+`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos` and
+`--external` are applied inside the store, so they filter what a call can read. The list
+of enforced axes is `ENFORCED_AXES` in `kb/grants.py`, and `kb keys --help` and every
+`kb keys` surface read it, so the help text and the markers follow it.
 
 `--tools` takes a comma-separated list of groups: `graph`, `search`, `docs`, `stats`,
 `owners`, `semantic`, plus the reserved `all`, `read` and `none`. `read` covers every
@@ -8285,18 +8535,26 @@ granted. `--tools read` covers them.
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
 so a key that asked for pseudonyms gets no names rather than real ones.
 
-**`--repos` still binds nothing.** A key created `--repos nothing-matches/*` reads every
-indexed repository. It cannot be enforced by a check on the call alone: a node id does not
-carry the repository it came from, and three tools that take a required `repo` return rows
-naming other repositories. Correct scoping needs a filter inside the store, which ships
-later.
+**`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
+repositories that match one of its globs. Search, graph, repo-list and stats answers leave
+the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
+refuses a scoped key, since it has no repo argument to check. A node id does not carry the
+repository it came from, so the filter runs inside the store and not on the call.
 
-Measured on a live `kb serve --transport http --keys-only` server, not assumed. In the
-release before this one, a key created `--tools none --repos nothing-matches/*` was
-presented and `tools/list`
-answered with all 23 registered tools, after which `graph_stats` ran and returned a result.
-The same key on the same server now gets an empty tool list and a refusal on `graph_stats`.
-The `--repos` half is unchanged.
+**`--external` GRANTS access.** It is not a label. On a key that has `--repos`,
+connector-fetched content that belongs to no repository (issues, designs and similar items)
+is hidden unless the key was created with `--external`. That content can be more sensitive
+than code, so add the flag only for a holder you would trust with it.
+
+A key with no `--repos` is not limited by `--external` in search and graph answers: those
+reads skip the filter for an unscoped key, so the content can appear there with or without
+the flag. `get_node` does apply the flag.
+
+Measured on a live `kb serve --transport http --keys-only` server, not assumed. In an
+earlier release, a key created `--tools none --repos nothing-matches/*` was presented and
+`tools/list` answered with all 23 registered tools, after which `graph_stats` ran and
+returned a result. The same key on the same server now gets an empty tool list and a
+refusal on `graph_stats`.
 
 **`--rate`, `--burst` and `--cost-budget` are enforced.** A key over its quota gets `429`
 with a `Retry-After` header, refused at the gate before the request reaches any tool. Values
@@ -8304,9 +8562,11 @@ are validated at the flag, so a typo cannot be minted onto a key, and again when
 is loaded for serving. See [per-key quotas](mcp-transports.md#per-key-quotas) for the
 formats, the `[serve]` defaults and what the quota deliberately does not do.
 
-Every surface that prints an unenforced axis says `(recorded, not enforced)` beside it and
-carries a note naming both halves. Each `--json` document carries `"policy_enforced"` for
-what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
+`create`, `show` and `check` print `(enforced)` beside each value. `list` has no room for
+a marker, so it carries a note instead. An axis that a release did not enforce would print
+`(recorded, not enforced)` there, and the note would name it.
+
+Each `--json` document carries `"policy_enforced"` for what it renders, and each key carries `"enforced_axes"`, the three `"effective_*"` quota
 values a running server will apply, and `"limits_source"` saying whether each came from the
 key, from `[serve]` in kb.toml, or from nowhere.
 
@@ -8690,7 +8950,7 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 | --- | --- | --- |
 | `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
 | `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
-| `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag, a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
+| `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag (including `--dry-run` on a command that does not take it), a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
 | `130` | `Ctrl-C` on a command that was still working | Interrupted at any point, including during `init`. Not the long-running servers, see below |
 
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
@@ -8936,6 +9196,481 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [9.6.1] - 2026-10-04
+
+### Fixed
+
+- **Three documented commands that exit 2 are corrected.** `kb source add --name`,
+  `kb source add --from-stdin token` and `kb index --languages c` all failed: the name is
+  positional, a credential is stored by its environment-variable name
+  (`--set token_env=MY_TOKEN`), and the language filter is `[kb] languages` in `kb.toml`.
+  Each rewritten example was run. A new test parses every `contextlake` command in the docs
+  and the README through the real parser, which catches a flag that does not exist; a
+  value refused at run time, like the `--from-stdin token` case, needs a test that runs
+  the example, and that one has one.
+- **The install docs no longer say pip verifies who built the package.** Releases carry a
+  PyPI attestation naming this repository's release workflow, but `pip install`,
+  `uv pip install` and `uv tool install` do not check it. The docs now say so and give the
+  `pypi-attestations verify pypi` command that does.
+- **Counts in the docs match the product:** 35 commands, five connectors, ten source types
+  and four language tiers. Tests derive each from the parser and the registries.
+- **The dashboard labels every supported language.** Its own table listed 14 of 28
+  languages, so the others showed a wrong two-letter guess (`bash` as `BA`, not `SH`). The
+  dashboard now reads the labels, and the node kinds that enable each diagram tab, from the
+  server, built from the same registries the graph pages use.
+
+## [9.6.0] - 2026-10-04
+
+### Upgrading from 9.5.0
+
+- On Windows, re-index once: `contextlake kb index --force <repo dir>`, or
+  `contextlake kb index --force --workspace <mirror dir>` for a whole mirror. Architecture
+  decision records and manifests below a repo's root were missing from the graph there,
+  and a repo is only re-indexed when its commit moves. Nothing changes on Linux or macOS.
+- For a repo that holds SQL schemas, re-index once with the same command: table and view
+  names are now read correctly (see Fixed), and an unchanged repo is not re-indexed on
+  its own.
+- If you use semantic search, run `contextlake kb embed --force` after either re-index. A
+  forced index leaves the vector store marked current, so without it the corrected
+  tables and the Windows symbol ids have no vectors. It re-embeds every repo.
+- `--dry-run` (or `-n`) placed before a command that does not support it now exits 2 and
+  runs nothing, where it used to be accepted and the command ran for real. Eleven commands
+  support it: `bootstrap`, `doctor`, `kb forget` and the eight `mirror` verbs that preview.
+- `bootstrap --dry-run`, or `dry_run = true` in the mirror config, now prints the stages
+  bootstrap would run and runs none of them. It used to preview the mirror stages and then
+  index, embed and write the wiki for real.
+
+### Added
+
+- **Graph tools say how sure each connection is.** `find_callers`, `find_callees`,
+  `find_dependents`, `shortest_path` and the `ask` routes built on them return each node
+  with the `confidence` of the edge that reached it (`EXTRACTED`, `INFERRED` or
+  `AMBIGUOUS`), so a guessed call site no longer looks like a parsed one. The field is
+  new and optional; a node from a lookup or a search has none.
+
+### Fixed
+
+- **Windows indexes ADRs and nested manifests.** The parser built each file's path inside
+  the repo with the operating system's separator, and every reader after it expects `/`.
+  On Windows, architecture decision records and any `package.json`, `pyproject.toml` or
+  other manifest below the repo root produced no nodes or dependency edges, and nested
+  files carried backslashes in their names. Paths in the code graph are now built with
+  `/` on every system, so its nodes match a Linux index. Tested with a simulated Windows
+  path on Linux. Ingested documents still name their paths with the system separator.
+- **Indexing a header with thousands of `#define` lines no longer takes minutes.** The
+  parser rebuilt the set of every node id once per member symbol, so 16,000 defines took
+  7.8 seconds and a 5.9 MB generated header would have taken about 25 minutes. It now
+  keeps the set as it goes: 0.24 seconds and 4.9 seconds. The output is unchanged.
+- **SQL tables are read under their real names.** `CREATE TABLE IF NOT EXISTS orders`
+  was indexed as a table named `if`, losing `orders` and its foreign keys, in
+  PostgreSQL, MySQL and SQLite schemas. Quoted names (`"Order"`, `` `order` ``,
+  `[Order Details]`), names with more than one qualifier, and `TEMP`, `TEMPORARY`,
+  `UNLOGGED` and `OR REPLACE` tables were missed or cut short. All of these now give the
+  table its own name, and SQL embedded in code reads the same names. The ER diagram
+  writes a name with a space or other character as one Mermaid entity (`order_details`).
+- **The SQL and flow extractors no longer slow down with file size squared.** Each
+  match counted lines from the top of the file: a 3.3 MB DDL file took 19.9 seconds and
+  now takes 0.87. The HTTP, event, state, data and web extractors had the same cost; the
+  state extractor also rescanned the file for every transition (8.3 seconds to 0.05 on
+  0.8 MB). Line numbers are unchanged.
+- **Linking documents to code no longer compiles a pattern per symbol per document.**
+  With 20,000 symbols, one 40 KB document took 8.4 seconds; it now takes 0.01, with the
+  same matches in the same order. Names that hold `$`, `.` or `::` keep the old pattern
+  and run it only when their words appear in the text.
+- **`--dry-run` before a `kb` command or `bootstrap` no longer runs it for real.** Placed
+  before a `kb` verb it was accepted and ignored, so `contextlake --dry-run kb index`
+  wrote the store and `bootstrap --dry-run` indexed, embedded and could call a paid LLM.
+  See "Upgrading from 9.5.0" for what happens now. `mirror fetch`, `audit` and `sync`
+  still write their project cache, audit report and history row under `--dry-run`.
+
+## [9.5.0] - 2026-10-04
+
+### Upgrading from 9.4.0
+
+These can make a run that worked on 9.4.0 behave differently:
+
+- `schedule install` and `uninstall` on cron refuse to write when `crontab -l` fails for
+  any reason other than "no crontab for <user>", or when a contextlake BEGIN line has no
+  END. Each write saves the previous crontab under `~/.cache/contextlake/crontab-backups/`.
+- `kb keys create`, `revoke`, `rotate` and `prune` take a lock beside the key file and wait
+  up to 10 seconds for another one. On a filesystem that cannot lock files they refuse:
+  point `$CONTEXTLAKE_KEYS_FILE` at a local path.
+- With a `wiki.toml` `pages` list, a wiki run with an LLM keeps only the listed module
+  pages and prunes the other generated ones.
+- `mirror update` stays on a branch with unpushed commits, or one an auto-stash is held
+  for, and reports a skip. `status`, `clone` and `audit` counts no longer include
+  checkouts nested inside a clone.
+- With several `kb connect` or `kb enrich` sources, one that stays unreachable (an expired
+  token, for example) keeps every affected repo's previous results, so the other sources'
+  results for those repos stop refreshing, and the command exits 1 on every run until that
+  source is fixed or removed from the config. 9.4.0 exited 0 and erased that source's
+  results instead.
+
+### Added
+
+- **`kb lint` reports files that share one graph node.** A file's node id folds case and
+  punctuation, so `a-b.py`, `a_b.py` and `A_B.py` in one repo, or `_utils.py` and
+  `utils.py`, become one node, and all but one of those files are missing from the graph.
+  Repos such as `grp/a-b` and `grp/a/b` can share nodes the same way. `kb lint` now names
+  each such node, its repo and the files behind it, with `--json` fields
+  `shared_file_nodes`, `shared_file_node_repos` and `shared_file_nodes_sample`. It is
+  advisory and does not change the exit code. The ids themselves are unchanged; see
+  "Shared file nodes" in `docs/indexing-the-code-graph.md`.
+
+### Fixed
+
+- **`schedule install` on cron no longer replaces your whole crontab when it cannot read
+  it.** Any failed `crontab -l` was read as an empty crontab, so a permission error or a
+  transient failure followed by a successful write left only contextlake's block, and
+  every other job was gone with no copy. Now only cron's own "no crontab for <user>"
+  message counts as empty. Any other read failure refuses the write and names the error.
+  Before each write, the crontab as read is saved to
+  `~/.cache/contextlake/crontab-backups/`, readable by you only, and the log names the
+  file. If the copy cannot be saved, nothing is written.
+- **A cron install keeps every other crontab line byte for byte.** Lines after a
+  contextlake BEGIN marker with no END were deleted; now install and uninstall refuse and
+  name the line to fix. Non-UTF-8 bytes and `\r\n` line ends were rewritten; now they
+  come back as they were. The one byte added: a last line with no newline gains one, which
+  cron requires.
+- **Your later cron jobs get their failure mail again.** The contextlake block set
+  `MAILTO=""`, which cron applies to every line below it. The block now sets no MAILTO,
+  and the contextlake job line ends in `>/dev/null 2>&1` instead. Installing again
+  removes the old `MAILTO=""` line.
+- **A `wiki.toml` `pages` list now survives a wiki run with an LLM.** The LLM stage planned
+  the module pages again without the list, then pruned the pages the structural stage had
+  just written for it, with their partitions and vectors. Both stages now use one plan. A
+  list longer than 20 is no longer cut short. With a list, a run keeps only the module
+  pages it names, generated ones included: the list is the complete set.
+- **`kb steer` no longer replaces an MCP config it cannot parse.** A `.vscode/mcp.json` or
+  another MCP file holding a comment or a trailing comma was replaced by one holding only
+  contextlake's entry, and the run said the other servers were kept. Now the file is left
+  as it is, a warning says where it did not parse and what to do, and the closing line
+  names it. The rest of the steering is still written, and the exit code stays 0.
+- **`kb forget` removes the module wiki pages of a repo whose id holds `@` or `:`.** It
+  named those pages differently from the wiki writer, so the module pages of a
+  remote-less repo (`name@<commit>`) or a host with a port stayed on disk.
+- **`kb embed` no longer calls a partly embedded repo up to date.** After `--limit`, or a
+  run whose embedder failed or was interrupted, the next plain `kb embed` said "already
+  up to date" while the repo held a few of its vectors, so semantic search missed most of
+  it. A repo is now marked current only after a complete pass, and the next run re-embeds
+  it.
+- **An unreachable source no longer empties a repo's `kb connect` or `kb enrich`
+  results.** A source that failed answered like one with nothing to say, so one outage
+  replaced the repo's previous links, nodes and vectors with nothing. Now a repo whose
+  source failed keeps its previous results, and the run's warnings name it. The exit code
+  rule is unchanged: 1 when nothing was stored and sources failed, 0 with warnings when
+  other repos got results. A source that answers with no results still clears them. One
+  failed source keeps the whole repo's previous results, so the other sources' new
+  results for that repo wait for the next complete run.
+- **A shard file is never seen half-written.** It was written in place, so a reader could
+  read a truncated file and a crash could leave one behind. It is now written to a
+  temporary file and renamed into place. Reindexing a repo into the store (clear, nodes,
+  edges) is now one transaction, so another reader no longer sees the repo empty, or with
+  nodes and no edges, part way through. Tested on Linux. On Windows, replacing a shard that
+  another process holds open can fail that write.
+- **`mirror update` no longer moves you off a branch that holds unpushed work.** When the
+  tracked branch was gone from `origin`, update switched to the most active branch, even
+  when the branch had local commits or `--auto-stash` was holding edits for it, and the
+  stash then landed on the other branch. Now update stays on the branch, and says why,
+  when it has commits no `origin` branch has, when git cannot tell, or while an auto-stash
+  is held. A branch merged and deleted upstream with nothing local still switches. A
+  squash-merged branch is different once git prunes its `origin` ref (`fetch.prune`): its
+  commits are on no `origin` branch, so update stays and reports them as such. Use
+  `mirror branches` to move it.
+- **Mirror commands no longer treat a checkout inside a clone as a mirror repo.** The repo
+  scan walked into every clone, so `update` and `branches` fetched and could switch a
+  vendored checkout, and the scan read every `.git` and `node_modules` directory. It now
+  stops at each clone and skips both. `status`, `clone` and `audit` counts drop nested
+  checkouts. `mirror verify` still reports a repository nested in another, once, as nested.
+- **Two overlapping `kb keys` commands can no longer bring a revoked key back.** Each write
+  verb read the key file, edited it and replaced it, so a `create` that read the file
+  before a `revoke` and wrote after it saved the revoked key as live, and the next
+  `kb serve` start accepted it. `create`, `revoke`, `rotate` and `prune` now hold a lock
+  (`<key file>.lock`, mode `0600`) for the whole read and write. A second one waits up to
+  10 seconds, then exits 1 with `key_file_error` and changes nothing. A filesystem that
+  cannot lock files now refuses these commands, and the message says to point
+  `$CONTEXTLAKE_KEYS_FILE` at a local path. Tested on Linux; the Windows lock path is
+  tested against a stand-in only.
+
+## [9.4.0] - 2026-10-03
+
+### Upgrading from 9.3.0
+
+Two changes can make a run that worked on 9.3.0 behave differently:
+
+- A `.contextlake.ini` found by walking up from the current directory may no longer set
+  `gitlab_host`, `api_base`, `token_env` or `gitlab_token_env`. Each is ignored with a
+  warning, and when no file you chose sets the same key, the forge token is off for that
+  run. Move those keys to `~/.contextlake.ini`, or pass `--config`.
+- `mirror clone` and `mirror sync` exit 1 when a non-empty directory with no `.git` sits
+  where a repository would be cloned. 9.3.0 deleted that directory and cloned over it. Move
+  the directory aside. An unattended sync (cron, or a systemd unit with `OnFailure=`)
+  sees a failed run.
+
+### Security
+
+- **`--anonymize` now withholds the wiki from the static export and from Chat.**
+  - `kb dashboard --site --anonymize` dropped the wiki from `data.json` and still wrote
+    every wiki page in full to `graph/wiki-<slug>.html`. It now writes no wiki page and
+    no link to one, and deletes the wiki pages an earlier plain export left in the same
+    folder.
+  - Under `--serve --anonymize`, Chat answered with a repo's wiki text and its real owner
+    names, which the wiki and owners panels withhold. With `--llm-chat` it also sent them
+    to the LLM provider. Chat now drops the wiki text and shows the owners panel's
+    pseudonyms. Chat keeps the answer's fields by name, so a field added to it later is
+    withheld until someone decides it is safe.
+  - Still shown, as before: symbol names and docstrings, and wiki section headings in
+    search results. `docs/using-the-dashboard.md` now says so.
+- **A `.contextlake.ini` found by walking up can no longer choose where the forge token
+  goes.** A file planted in a cloned repository could set `gitlab_host` and `token_env`,
+  and a mirror command run inside that tree sent the named variable's value to the named
+  host. `gitlab_host`, `api_base`, `token_env` and `gitlab_token_env` are now honoured only
+  from `~/.contextlake.ini` or `--config`, the rule `kb.toml` already follows. From a
+  discovered file each is ignored with a warning naming the key and the file. If no file
+  you chose sets the same key (or `GITLAB_HOST` for the host), the forge token is off for
+  that run, rather than going to the public host or the standard variable. Affected: a
+  project-local `.contextlake.ini` that sets one of those four keys. Move them to
+  `~/.contextlake.ini`, or pass `--config`.
+- **The forge token reaches only the forge.** git received it as a bare
+  `http.extraHeader`, which matches every URL, so `mirror update` and `mirror branches`
+  sent it to the host of every clone in the workspace, including third-party ones. It is
+  now `http.<forge origin>.extraHeader`.
+- **Clone stays inside `work_dir`, and never deletes a non-empty directory that has no
+  `.git`.**
+  - A forge project path holding `..`, an absolute path, or one naming `work_dir` itself
+    made clone delete and replace a directory outside the workspace. Such a path is now
+    skipped with a reason.
+  - Clone deleted any directory at a project path that had no `.git`, as "corrupted". With
+    a planted `work_dir`, that reached the user's own folders; a project path naming a
+    folder that holds other clones deleted those clones. Now only an empty directory is
+    removed. A non-empty one is reported as `exists, is not a git repository and is not
+    empty, so it was left alone`, and that repository counts as failed, so `mirror clone`
+    and `mirror sync` exit 1 where the directory used to be replaced.
+- **A repo id with a `..` segment or an absolute path can no longer reach outside its own
+  files.** A repo id comes from a clone's remote URL, so its owner chooses it.
+  - `kb forget` on such an id deleted the store root, the directory above the store, or
+    the directory an absolute id named.
+  - `kb index` wrote snapshots into the store root, and `team/../other` overwrote repo
+    `other`'s shard. With such a row already in the store, the next `kb index` migrated
+    it and deleted the whole store.
+  - Now the shard and history paths refuse such an id. `kb index` names the repo,
+    does not index it, and carries on; reads treat it as not found; `kb forget` removes
+    the rows and leaves files it cannot attribute. `kb ingest` refuses a source name of
+    that shape, and the dashboard's Sync and Add buttons refuse to index such a repo.
+- **A clone's doc files and `.contextlakeignore` no longer follow symlinks out of the
+  clone.** These were the two readers 9.3.0 listed as still open.
+- **`api` source pagination checks each `next` link the way it checks the first URL.**
+  A link is resolved against the page that named it, so relative links now work. A
+  `file:` or other non-http link is refused and recorded, and the pages already read are
+  kept. The credential still goes only to the configured origin.
+- **The git post-commit hook quotes every value it writes.** `$(...)` or backticks in a
+  repo path or repo id ran as a command on every commit. Run `kb hook install` again to
+  update a hook installed by an earlier version.
+
+### Fixed
+
+- **A stdio MCP server now starts when the process swapped its stderr before loading the
+  client.** The MCP library picks the server's stderr when it is first imported, not
+  when a call is made. A process that imported it while `sys.stderr` was an in-memory
+  stream with no file descriptor (an `io.StringIO`, or pytest's output capture) failed
+  every stdio connector call and every `mcp` document source with the one-word error
+  `fileno`. A stderr redirected to a real file was not affected. contextlake now picks
+  the stream per call, and falls back to the interpreter's original stderr when the
+  current one has no file descriptor.
+
+## [9.3.0] - 2026-10-03
+
+### Security
+
+- **A clone's README and steering file can no longer reach outside the clone.** Four readers of a
+  clone's own files followed symlinks: `get_readme` over MCP, the wiki generator's
+  README excerpt, the dashboard README panel and the wiki steering file. A `README.md`
+  linked to `/proc/self/environ` returned the server's environment, which holds
+  `CONTEXTLAKE_MCP_TOKEN` when the operator pins it there, so the holder of a key scoped
+  to one repository who could commit a link to it obtained the full-scope token. All four
+  now refuse a file whose resolved path leaves the clone. Symlink loops return not-found.
+  Two other in-clone readers still follow links and are next: a pass that scrapes link
+  patterns from doc files, and the `.contextlakeignore` reader. Neither returns file
+  content to an MCP caller.
+- **Repository scopes now hold on the roads that bypassed the store proxy.**
+  The scope released above had gaps a 2026-10-03 audit found:
+  - `repo_dependencies`, `repo_flow` and `repo_event_flow` build edges with raw SQL the
+    proxy cannot see, and returned denied repositories' names. An edge now comes back
+    only when the caller may read both ends.
+  - `get_wiki` and `get_generated_doc` checked the caller's string, then opened a file
+    named by an encoding that is not one-to-one, so `team/x__y` opened a denied
+    `team/x/y` page and a namespace opened a cluster page narrating denied members.
+    The gate now resolves who owns the file.
+  - A key record removed mid-request read as unscoped. It now denies.
+  - Keys with no repo scope, and the shared token, were over-denied: a node visible in
+    `search_code` came back null from `get_node`, and `semantic_search` blamed a stale
+    embedding store. They now see everything, as documented.
+  - `test_scope_over_the_wire.py` drives every registered tool over a real socket with a
+    scoped key, an unscoped key and the shared token. It failed on 13 tools before these
+    fixes.
+  - Still open: a tool written later against the raw store connection is unscoped unless
+    its body filters, as the three flow tools now do (that test turns red when one does
+    not); and the vector-store path is not yet driven by that test.
+- **A source credential stays on its own origin.** The `api` and `graphql` sources sent
+  `Authorization` through urllib, which re-sends it on a redirect, so an open redirect on
+  the API host received the token. A cross-origin redirect or next-page link is still
+  followed, without the header.
+
+### Added
+
+- **The `repos` and `external` key scopes are enforced.** They were recorded and read
+  by nothing, so a key carrying `repos = "acme/**"` read every indexed repository and
+  every surface said so. Enforcement is a store-layer filter (`kb/scoped_store.py`),
+  not a predicate over tool names: a node id does not carry its repo (the repo is
+  inside a SHA-256 digest, and `normalize_id` collapses `/` to `_`), so the repo is
+  resolved by looking the node up. Every axis a key can carry is now enforced, with two
+  known limits stated rather than hidden: tools that read raw SQL through the store
+  connection are gated in their own bodies (a tool written later against that
+  connection is unscoped unless it does the same, and `test_scope_over_the_wire.py`
+  turns red when one does), and the vector-store path is not yet covered by that
+  socket-level test. The "recorded, not enforced" clause is omitted rather than
+  printed with an empty list.
+  - Matching is segment-wise: `*` within a path segment, `**` across segments, never
+    `startswith`. A prefix test would grant a scope for `acme/api` read access to
+    `acme/api-v2`.
+  - An edge is returned only when BOTH endpoints are visible. A file node's id is its
+    repo id followed by a path inside it, so a one-sided filter hands a denied
+    repository's name and a path within it to any caller asking about a shared node
+    both repositories import.
+  - `list_repos` no longer runs raw SQL through the store connection. Its page, its
+    `total` and its `truncated` flag are all computed over the filtered set, so a
+    caller is never told how many repositories exist that it cannot see.
+  - The five tools that read generated files from disk (`get_wiki`,
+    `get_generated_doc`, `get_repo_brief`, `get_fleet_doc`, `graph_health`) ask
+    whether the caller may read the repository first. They resolve a path and open a
+    file, so no store method sees the request: measured over a real HTTP server,
+    `get_repo_brief` returned the denied repository's own brief while `search_code` on
+    the same key was correctly filtered.
+  - `(shared)` and `(packages)` stay visible to every key or imports break.
+    `(external)` needs the `external` grant. `(system)` needs `**`, because its
+    presence discloses that some indexed repository calls an unindexed target.
+  - stdio and the dashboard are unaffected: the proxy is built only for the HTTP
+    transport, and the local paths get the bare store.
+- **`kb lint` reports partitions holding vectors with no nodes.** Content in that state
+  is unreachable and nothing else named it. Advisory: it does not change the exit code,
+  and `kb embed` rebuilds it. Deliberately not in the shared `lint_result`, which the
+  dashboard calls on every request, because the check scans the vector store: on the
+  ANN backend that is a virtual-table scan measured at 427.6 ms over 4,000 partitions.
+- **`Store.list_partitions()` and `Store.repo_counts()` are on the protocol.** Both
+  were concrete-class methods. Scoping reads the first (an allow-list has to be
+  intersected with the partitions that actually exist) and the second is the only route
+  to a per-repo count that does not go through raw SQL.
+- **The `api` source can authenticate with HTTP Basic, not only Bearer.** Set
+  `auth = "basic"` and `user = "<account email>"`; the secret still comes from the env var
+  named by `token_env` and never lives in config. Atlassian Cloud, Jira and Confluence
+  accept an API token ONLY this way, and a bearer header there returns 401 with a body
+  that does not say why, so the source reached the operator as `0 documents` while looking
+  correctly configured. `auth` and `user` are privileged keys alongside `token_env`: a
+  discovered config may not set them, because together they decide where a secret goes and
+  how it is spent.
+- **A configured credential that cannot be built is reported instead of dropped.** An unset
+  `token_env`, or `auth = "basic"` with no `user`, previously added no header at all, so
+  the request went out anonymous and the empty result was indistinguishable from an empty
+  source. Both now say so on the log.
+
+### Changed
+
+- **`kb forget <repo>` now deletes the repo's wiki partitions too.** A behaviour change
+  worth knowing: a forgotten repo's wiki pages no longer stay queryable. It removed the code shard, `@connect:<repo>` and `@enrich:<repo>`
+  and left `@wiki:<repo>` and every `@wiki:<repo>::<module>` page partition in the
+  store forever, still answering queries under a repo id that no longer resolves. The
+  module partitions cannot be constructed from the repo id (one per qualifying module,
+  discovered from the store), which is why they were missed.
+- **A repo-scoped semantic search now returns the repo's own wiki prose.**
+  `semantic_search` and `hybrid_search` with a `repo=` filter expanded to the code
+  shard plus the two connector partitions and omitted `@wiki:` entirely, so the one
+  place a repo's own generated explanation lives was invisible to a query scoped to
+  that repo. This widens results on the local path with no key involved.
+- **Partition ids are built from one set of constants.** `kb/scope.py` now owns
+  `@connect:`, `@enrich:`, `@wiki:` and the `::` module separator, and
+  `connect_partition`, `enrich_partition` and `_wiki_partition` build from them. There
+  were three builders and two expanders, and the two expanders both omitted `@wiki:`,
+  which is how a partition family came to be written by one command and invisible to
+  every reader of it.
+- **`kb forget` clears vectors before nodes.** It was the other way round, so a run
+  interrupted between the two left vectors with no nodes behind them: unreachable,
+  because every scope is computed from the nodes table, and unreported. The reverse
+  order leaves nodes with no vectors, which the next `kb embed` repairs.
+- **The repo-scoped expansion no longer degrades on a partial install.** It imported
+  the connectors' partition helpers and fell back to the literal repo id alone on
+  `ImportError`, silently narrowing every repo-scoped search on an install missing an
+  optional dependency. Partition ids are string formatting over constants; there is
+  nothing left to fail.
+
+### Fixed
+
+- **`list_repos` no longer scans every edge once per repository.** `edges` had no index on
+  `repo_id`. On a 200-repo, 600k-edge store: 2.9 s before, 0.012 s after. Existing stores
+  gain the index on their next open.
+- **A scoped search finds a term whose best match sits in a repository it cannot read.**
+  It used to filter after the store's limit, so `ask` said "No indexed symbol matches".
+  It now widens the search, bounded at 10,000 rows so a common term cannot load the whole
+  match set; past the bound it fails closed and logs it.
+- **The `api` source reads dotted field paths.** `text_field = "fields.summary"`, the
+  documented Atlassian example, ingested 0 documents.
+- **`--external` and `--repos` help says what is enforced.** It said "recorded, not
+  enforced", and in this release `--external` grants access. A discovered-config warning
+  now names the key it actually dropped. `SECURITY.md` and the configuration page list
+  the `auth` and `user` privileged source keys, and the orphan-vector lint advisory is
+  documented.
+- **Rewriting a wiki page sweeps that page's vectors.** It cleared the page's graph
+  partition and re-embedded the new sections without touching the old vectors. Section
+  nodes are keyed by index (`@wiki:<repo>:<i>`) and a document is one node but
+  one-or-more vectors keyed by `chunk_key(node.id, i)`, and the write is
+  `INSERT OR REPLACE`, which reaches only the keys it is given. So a page that lost its
+  last section, or whose text shrank to fewer chunks, kept the keys the new page never
+  wrote: rows that outlived their node and still answered semantic searches about text
+  the page no longer contained. An emptied page stranded every vector it had written,
+  because no nodes means an early return right after the graph clear. `kb lint`'s
+  orphan-vector check does not report this one: the partition still holds the surviving
+  sections' nodes, so it is not empty. `ingest.py` sweeps for the same failure and
+  `_embed_documents` came from there; the sweep did not come with it.
+- **Pruning an orphaned module wiki page clears its vectors before its nodes.** It was
+  the other way round. That path is a prune, so nothing rewrites either side after it
+  and an interruption between the two was permanent: vectors with no nodes, still
+  answering searches about a module that no longer qualifies. The reverse order leaves
+  nodes with no vectors, which `kb embed` rebuilds. Same reasoning as `kb forget`'s
+  clear order. Note there is no single ordering convention across the five sweep sites:
+  it is load-bearing only where nothing is rewritten afterwards.
+- **A numeric source option set with `--set` works on `kb enrich`, not only `kb connect`.**
+  `--set timeout=900` stores TOML's `timeout = "900"`, because `--set` keeps every value as
+  the string it was typed as (coercing anything that looks numeric would rewrite
+  identifier-shaped values such as group and channel ids). The connect path coerced that
+  on read; the enrich path did not, so the string reached `asyncio.wait_for` and raised
+  `TypeError` on every call. `search_source` catches that, so the run reported zero
+  documents and success. The coercion helper now lives beside the config reader both paths
+  share, and reads through it, so a plain dict and a `SourceCfg` both work.
+- **A scoped key's verdict could be answered from a freed proxy's cache.** The
+  per-request scope memo was keyed on `id(proxy)`, and CPython recycles the address of a
+  freed object, so a `ScopedStore` constructed after another was garbage collected could
+  read the dead one's cached scope. Measured on the affected build: 1988 collisions in
+  2000 trials. The observable symptom was a proxy holding NO principal reporting
+  `is_scoped() == False`, which is the verdict deciding whether the fleet-wide readers
+  (`get_fleet_doc`, `graph_health`) refuse a caller. The memo is now keyed on the proxy
+  object, which cannot collide. Production ran one proxy per server held by a live
+  reference, so no deployment could reach the second-proxy condition; the mechanism was
+  unsound regardless.
+
+## [9.2.1] - 2026-09-08
+
+### Fixed
+
+- **`[kb] max_repo_memory` warned that it was ignored while it was being applied.**
+  `_KB_KEYS` did not list the key, so `_warn_unknown_config` printed
+  `unknown [kb] key 'max_repo_memory' (ignored)` on a run where `load_kb_config`
+  honoured the value. The warning is the dangerous direction of wrong: the setting
+  bounds the estimated peak memory of one repository, and an operator who sets it on a
+  machine that has been crashed by memory exhaustion was told it did nothing. Found by
+  setting it, watching an index reach 14 GB of 15, and checking whether the guard had
+  been dropped. A test now reads the loader's own `kb.get(...)` calls and fails if any
+  key it reads is missing from the allow list, so the next one cannot ship as a
+  contradiction either.
 
 ## [9.2.0] - 2026-09-07
 
@@ -18529,8 +19264,7 @@ consequence, so you can decide rather than guess.
 
 | Extra | Where | If you skip it |
 | --- | --- | --- |
-| Repo lettermark on graph pages | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend |
-| Repo lettermark in the dashboard | `LANG_LABELS` in `kb/dashboard/static/dashboard.js` | the same, in the dashboard. This table is a hand-kept mirror of the Python one and **no test compares them**, so change both or neither |
+| Repo lettermark | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend. The dashboard reads the same table from the server, so one entry covers both |
 | HTTP endpoints and clients | `_FAMILY` in `kb/flow/http.py` | no `endpoint` nodes and no `calls_http` edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do |
 | State machines | `_FAMILY` in `kb/flow/state.py` | no `state` nodes and no state diagram for your language |
 | Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language really hosts a JS-style router |

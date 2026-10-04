@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Configuration · contextlake docs">
 <meta name="twitter:description" content="Config-file precedence and the full settings reference for the mirror layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -162,7 +162,11 @@ you pass to <code>--config</code>:</p>
 </tr>
 <tr>
 <td><code>[[sources]] token_env</code></td>
-<td>the env var read for an api/graphql source's bearer token</td>
+<td>the env var read for an api/graphql source's token</td>
+</tr>
+<tr>
+<td><code>[[sources]] auth</code>, <code>user</code></td>
+<td>how an api source sends that token (<code>bearer</code> or <code>basic</code>) and the username paired with it</td>
 </tr>
 <tr>
 <td><code>[[sources]] auth_dir</code></td>
@@ -221,7 +225,46 @@ credential, in <code>[llm]</code>, <code>[embeddings]</code> or <code>[[sources]
 document source still works from a local file over its <code>url</code>; its <code>command</code> has to live in the
 global file, or be reached with <code>--config</code>. A <strong>connector</strong> source (<code>atlassian</code>, <code>figma</code>, <code>slack</code>)
 reaches its server through <code>mcp</code> / <code>mcp_command</code>, and both of those are now global-only, as are
-<code>token_env</code> and <code>auth_dir</code> on any source.</p>
+<code>token_env</code>, <code>auth</code>, <code>user</code> and <code>auth_dir</code> on any source.</p>
+<h3 id="the-mirror-config-contextlakeini">The mirror config, <code>.contextlake.ini</code><a class="anchor" href="#the-mirror-config-contextlakeini" title="Link to this section">#</a></h3>
+<p>The same rule covers the mirror keys that decide where the forge token goes. A discovered
+<code>.contextlake.ini</code> may not set them. They are honoured only from <code>~/.contextlake.ini</code> or from a path
+you pass to <code>--config</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Reaches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gitlab_host</code></td>
+<td>the GitLab host that gets the REST call, and git's token header on clone and fetch</td>
+</tr>
+<tr>
+<td><code>api_base</code></td>
+<td>the same host for GitHub, Bitbucket and Gitea</td>
+</tr>
+<tr>
+<td><code>token_env</code>, <code>gitlab_token_env</code></td>
+<td>the env var whose value is sent to that host as the token</td>
+</tr>
+</tbody>
+</table>
+<p>Before this gate, a <code>.contextlake.ini</code> inside a cloned repository could set <code>gitlab_host</code> to its own
+server and <code>token_env</code> to any variable in your environment, and the next <code>mirror fetch</code> run from
+inside that tree sent the variable's value there.</p>
+<p>A discovered file that sets one of these keys gets it ignored, with a warning that names the key and
+the file. If nothing you chose sets that key instead (the global file, <code>--config</code>, or the
+<code>GITLAB_HOST</code> env var for <code>gitlab_host</code>), the forge token is also off for that run, and a second
+warning says so. Dropping the key alone would fall back to a built-in default: a <code>gitlab_host</code> meant
+for your own instance would fall back to <code>gitlab.com</code>, and your token would go there. With the token
+off, GitLab enumeration uses <code>glab</code> and its own login, other platforms see public repositories only,
+and clone and fetch run without the token.</p>
+<p><code>work_dir</code>, <code>gitlab_group</code> and <code>platform</code> keep working from a local file. They are all that
+<code>contextlake init --local</code> writes. To clear the warning, delete the keys from the file it names and
+set them in <code>~/.contextlake.ini</code> (or export <code>GITLAB_HOST</code>), or pass <code>--config</code> naming that file.</p>
 <p>Set <code>CONTEXTLAKE_NO_LOCAL_CONFIG=1</code> to skip ancestor discovery entirely, for both <code>.contextlake.ini</code> and
 <code>.contextlake.kb.toml</code>, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, <code>source add --local</code> writes to the global config too, rather than to a local file that
@@ -263,25 +306,25 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 </tr>
 <tr>
 <td><code>token_env</code></td>
-<td>Env var holding the platform token</td>
+<td>Env var holding the platform token. Global config or <code>--config</code> only (see <a href="#workspace-trust">Workspace trust</a>)</td>
 <td>per platform (<code>GITHUB_TOKEN</code>, and so on)</td>
 <td><code>MY_TOKEN</code></td>
 </tr>
 <tr>
 <td><code>gitlab_token_env</code></td>
-<td>GitLab-specific alias for <code>token_env</code>; checked first, then <code>token_env</code>, then <code>GITLAB_TOKEN</code></td>
+<td>GitLab-specific alias for <code>token_env</code>; checked first, then <code>token_env</code>, then <code>GITLAB_TOKEN</code>. Global config or <code>--config</code> only</td>
 <td><code>GITLAB_TOKEN</code></td>
 <td><code>MY_GITLAB_PAT</code></td>
 </tr>
 <tr>
 <td><code>api_base</code></td>
-<td>REST endpoint for self-hosted / enterprise instances</td>
+<td>REST endpoint for self-hosted / enterprise instances. Global config or <code>--config</code> only</td>
 <td>per platform</td>
 <td><code>https://github.example.com/api/v3</code></td>
 </tr>
 <tr>
 <td><code>gitlab_host</code></td>
-<td>GitLab host for the REST API. The <code>GITLAB_HOST</code> env var wins over it</td>
+<td>GitLab host for the REST API. The <code>GITLAB_HOST</code> env var wins over it. Global config or <code>--config</code> only</td>
 <td><code>gitlab.com</code></td>
 <td><code>gitlab.example.com</code></td>
 </tr>
@@ -359,7 +402,7 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 </tr>
 <tr>
 <td><code>clean_corrupted</code></td>
-<td>Auto-remove corrupted directories</td>
+<td>Before a clone, remove an empty directory an interrupted clone left at the destination. A non-empty directory with no <code>.git</code> is never removed: clone reports it as an error and leaves it alone</td>
 <td><code>true</code></td>
 <td><code>false</code></td>
 </tr>
@@ -516,7 +559,10 @@ runs</a>.</p>
 <li><a href="#using-configuration-files">Using configuration files</a></li>
 <li><a href="#overriding-on-the-command-line">Overriding on the command line</a></li>
 <li><a href="#directory-scoped-config">Directory-scoped config</a></li>
-<li><a href="#workspace-trust">Workspace trust</a></li>
+<li><a href="#workspace-trust">Workspace trust</a><ul>
+<li><a href="#the-mirror-config-contextlakeini">The mirror config, .contextlake.ini</a></li>
+</ul>
+</li>
 <li><a href="#settings-reference">Settings reference</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -591,6 +637,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

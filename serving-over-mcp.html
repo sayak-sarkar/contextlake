@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serving over MCP · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -88,6 +88,16 @@ truth is the second. <code>get_neighbors</code> names an id that is not in the g
 it as a node without edges; <code>find_definition</code> says whether a name is absent entirely or merely
 excluded by a <code>kind</code>/<code>repo</code> filter; <code>search_code</code> says whether the query's terms are indexed at
 all, and carries <code>total</code>/<code>truncated</code> like its siblings.</p>
+<p><strong>A node reached through an edge says how far to trust that edge.</strong> <code>find_callers</code>,
+<code>find_callees</code>, <code>find_dependents</code>, the hops of <code>shortest_path</code>, and the callers, dependents and
+subclasses answers of <code>ask</code> return each node with a <code>confidence</code> field: <code>EXTRACTED</code>, <code>INFERRED</code>
+or <code>AMBIGUOUS</code>. It is the confidence of the edge that reached the node, the same edge whose
+line is in <code>call_line</code> or <code>edge_line</code>. Check an <code>INFERRED</code> or <code>AMBIGUOUS</code> entry against that
+line before relying on it. The field is <code>null</code> where the tool names no single edge that reached
+the node: <code>get_node</code>, <code>find_definition</code>, the searches (<code>search_code</code>, <code>semantic_search</code>, and
+<code>hybrid_search</code>, which ranks graph-expanded nodes by PageRank mass rather than by one edge), and
+the first node of a path. <code>null</code> does not mean <code>EXTRACTED</code>. Clients that ignore the field keep
+working.</p>
 <p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote:</p>
 <ul>
 <li><code>kind="api"</code> for the reference, with its real call sites</li>
@@ -146,7 +156,9 @@ server natively:</p>
 <code>.windsurfrules</code>, or <code>.kiro/steering</code>, your content is preserved and only a clearly-delimited
 managed block is appended (and just that block is refreshed on re-runs). <code>.mcp.json</code> and
 <code>.vscode/mcp.json</code> are merged so your other servers stay; a skill file you wrote with the same
-name is kept as-is; custom layers like <code>.devin/</code> are left untouched.</p>
+name is kept as-is; custom layers like <code>.devin/</code> are left untouched. An MCP file that is not valid
+JSON (a comment or a trailing comma is enough) is left exactly as it is: steer says where it did
+not parse, writes everything else, and exits 0. Fix the file, or add the server by hand.</p>
 <h3 id="the-generated-agentsmd-names-the-store-it-was-built-from">The generated <code>AGENTS.md</code> names the store it was built from<a class="anchor" href="#the-generated-agentsmd-names-the-store-it-was-built-from" title="Link to this section">#</a></h3>
 <p>Near the top of the managed block:</p>
 <div class="highlight"><pre><span></span><code>Generated by `contextlake kb steer` from the knowledge store at
@@ -337,6 +349,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

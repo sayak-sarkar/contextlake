@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Indexing the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -264,9 +264,45 @@ run, so they pick up parser fixes.</p>
 <li><strong>stale repos</strong>, where HEAD moved since they were indexed</li>
 <li><strong>dangling edges</strong>, where an edge's endpoint node is missing</li>
 <li>the same <strong>older-parser</strong> repos doctor reports, so the two commands never disagree</li>
+<li><strong>orphan vectors</strong>, where the semantic store holds vectors for a partition that has no nodes
+  in the graph (see below)</li>
+<li><strong>shared file nodes</strong>, where several files in the store share one file node (see
+  <a href="#shared-file-nodes">Shared file nodes</a>)</li>
 </ul>
 <p>Both exit non-zero on problems. For lint that means dangling edges, HEAD-stale repos, or repos
 it cannot read.</p>
+<p>The orphan-vector check is advisory too. For each partition that has vectors and no nodes, lint
+prints a line:</p>
+<div class="highlight"><pre><span></span><code>  orphan vectors: &lt;partition&gt; (vectors with no nodes behind them, so nothing can reach them -- ...)
+</code></pre></div>
+<p>and the summary line ends with <code>N partition(s) with orphaned vectors</code>. Run <code>contextlake kb embed</code>
+to rebuild them, or <code>contextlake kb forget</code> to remove them. Before 9.3.0 an interrupted
+<code>kb forget</code> could leave this state. The check does not affect the exit code.</p>
+<p>It runs only when <code>[embeddings]</code> is enabled and the vector store exists. Otherwise it reports
+none. It also runs in the CLI only: the dashboard's lint view does not include it, because the scan
+reads the vector store.</p>
+<p><code>kb lint --json</code> carries two fields for it, on every run:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orphan_vectors</code></td>
+<td>number</td>
+<td>how many partitions have vectors and no nodes; <code>0</code> when there are none</td>
+</tr>
+<tr>
+<td><code>orphan_vector_partitions</code></td>
+<td>list of strings</td>
+<td>the partition ids, sorted; <code>[]</code> when there are none</td>
+</tr>
+</tbody>
+</table>
 <p>The older-parser count is reported but deliberately kept out of lint's exit code. Otherwise
 upgrading to a build with a new parser could turn a green CI gate red on its own.</p>
 <p>Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
@@ -279,9 +315,63 @@ either of them:</p>
 <li><strong>unreadable</strong> -- the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.</li>
 </ul>
+<h3 id="shared-file-nodes">Shared file nodes<a class="anchor" href="#shared-file-nodes" title="Link to this section">#</a></h3>
+<p>Every file in the graph has a node. Its id is built from the repo id and the file path. The id
+builder lowercases the text and turns every run of punctuation into one <code>_</code>. So these names get
+the same id:</p>
+<ul>
+<li><code>a-b.py</code>, <code>a_b.py</code> and <code>A_B.py</code> in one repo</li>
+<li><code>pkg/__main__.py</code> and <code>pkg/main.py</code></li>
+<li><code>numpy/_core/records.py</code> and <code>numpy/core/records.py</code></li>
+<li>the repos <code>grp/a-b</code> and <code>grp/a/b</code>, for a file with the same path in both</li>
+</ul>
+<p>The store keeps one row per id. The files share one file node, so all but one of them are
+missing from the graph as files. The symbols inside every file are still indexed. They hang off
+the one shared node.</p>
+<p><code>kb lint</code> names each such node, with the repo and every path it can see:</p>
+<div class="highlight"><pre><span></span><code>  shared file node: &lt;repo&gt;: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (known id limitation, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command&#39;s exit code)
+</code></pre></div>
+<p>When two repos share the node, the line says <code>across repos</code> and puts the repo in front of each
+path. The summary line ends with <code>N shared file node(s)</code>.</p>
+<p>This is a known limitation of the id scheme. The check reports it and changes nothing. It does
+not affect the exit code. Re-indexing does not clear it. Renaming a file so that its name differs
+by more than case and punctuation, then re-indexing, takes that file out of the report.</p>
+<p>The check is a lower bound. The tables keep a trace of a file only through its node row and its
+<code>contains</code> edges. A colliding file that has no definitions, and is not the file the node row
+names, leaves no trace, so lint cannot see it.</p>
+<p>It runs in the CLI only, like the orphan-vector check. It reads SQLite, and the dashboard's lint
+view answers from a cache of the shards. On a synthetic store of 700,000 nodes and 1.7 million
+edges it took 0.45 s.</p>
+<p><code>kb lint --json</code> carries three fields for it, on every run:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shared_file_nodes</code></td>
+<td>number or null</td>
+<td>how many file nodes stand for more than one file; <code>0</code> when there are none; <code>null</code> when the check could not run</td>
+</tr>
+<tr>
+<td><code>shared_file_node_repos</code></td>
+<td>list of strings</td>
+<td>every repo that shares a node, sorted; <code>[]</code> when there are none</td>
+</tr>
+<tr>
+<td><code>shared_file_nodes_sample</code></td>
+<td>list of objects</td>
+<td>the first 20 findings. Each has <code>node</code> (the id), <code>repos</code>, <code>cross_repo</code> (true when more than one repo shares it) and <code>files</code> (a list of <code>{repo, path}</code>)</td>
+</tr>
+</tbody>
+</table>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=2dcd9aed"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=b68ad261"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -303,7 +393,10 @@ offline with no network calls.</p>
 <li><a href="#the-per-repository-memory-budget">The per-repository memory budget</a></li>
 </ul>
 </li>
-<li><a href="#health-and-maintenance">Health and maintenance</a></li>
+<li><a href="#health-and-maintenance">Health and maintenance</a><ul>
+<li><a href="#shared-file-nodes">Shared file nodes</a></li>
+</ul>
+</li>
 <li><a href="#the-graph-on-this-page">The graph, on this page</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -398,6 +491,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

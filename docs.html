@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -198,12 +198,14 @@ The knowledge-layer build commands get a page each:
 <p><strong>Two more look global and are not:</strong></p>
 <ul>
 <li><code>--dry-run</code>, which previews without changing anything, belongs to the 8 <code>mirror</code> commands plus
-  <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>.</li>
+  <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>. On <code>bootstrap</code> it prints the stages a real run would
+  perform and runs none of them.</li>
 <li><code>--version</code> belongs to the bare <code>contextlake</code> only. <code>contextlake version</code> is the form that
   works everywhere.</li>
 </ul>
-<p>Pass either somewhere it does not exist, and the command exits <code>2</code> and names the commands that do
-take it.</p>
+<p>Pass either to a command that does not take it, and the command exits <code>2</code>, runs nothing, and names
+the commands that do take it. That holds in every position: <code>contextlake --dry-run kb index</code>,
+<code>contextlake kb --dry-run index</code> and <code>contextlake kb index --dry-run</code> all refuse.</p>
 <p>Output is colourised on a TTY and plain when piped. Set <code>NO_COLOR</code> to force it off.</p>
 <p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/tree/main/examples" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
 second set: <code>--log-format json</code> (one JSON object per line, every line stamped with a run id),
@@ -317,7 +319,7 @@ every upgrade into a red check for something that is working correctly.</p>
 <li><strong><a href="scheduling">docs/scheduling.md</a></strong>, <code>contextlake schedule</code>, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure</li>
 <li><strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>, the map over the four build stages below</li>
 <li><strong><a href="indexing-the-code-graph">docs/indexing-the-code-graph.md</a></strong>, <code>kb index</code>, and what the graph captures</li>
-<li><strong><a href="connecting-and-enriching">docs/connecting-and-enriching.md</a></strong>, <code>kb connect</code> / <code>kb ingest</code> / <code>kb enrich</code>, the nine source types</li>
+<li><strong><a href="connecting-and-enriching">docs/connecting-and-enriching.md</a></strong>, <code>kb connect</code> / <code>kb ingest</code> / <code>kb enrich</code>, the ten source types</li>
 <li><strong><a href="searching-semantically">docs/searching-semantically.md</a></strong>, <code>kb embed</code> / <code>kb eval</code>, vectors and retrieval quality</li>
 <li><strong><a href="generating-the-wiki">docs/generating-the-wiki.md</a></strong>, <code>kb wiki</code>, the review council, per-subsystem pages</li>
 <li><strong><a href="generating-documentation">docs/generating-documentation.md</a></strong>, <code>kb docs</code>, an API reference with real call sites, no model</li>
@@ -395,6 +397,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

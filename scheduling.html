@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Scheduling runs · contextlake docs">
 <meta name="twitter:description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -116,6 +116,26 @@ resolves to: <code>~/.cache/contextlake/&lt;workspace&gt;-&lt;id&gt;</code> by d
 <p><code>install</code> picks systemd if a systemd user session answers, cron otherwise, and prints the
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
 hand. Force a specific platform with <code>--platform systemd</code> or <code>--platform cron</code>.</p>
+<h3 id="how-the-cron-adapter-edits-your-crontab">How the cron adapter edits your crontab<a class="anchor" href="#how-the-cron-adapter-edits-your-crontab" title="Link to this section">#</a></h3>
+<p><code>crontab -</code> replaces the whole crontab, so the cron adapter guards what it writes:</p>
+<ul>
+<li>Only the lines between <code># &gt;&gt;&gt; contextlake (&lt;name&gt;) &gt;&gt;&gt;</code> and <code># &lt;&lt;&lt; contextlake (&lt;name&gt;) &lt;&lt;&lt;</code>
+  change. Every other byte comes back as it was. The one addition: a last line with no newline
+  gains one, because cron treats a crontab whose last line has no newline as broken.</li>
+<li>Before each write, a copy of the crontab as it was is saved to <code>crontab-backups/</code> under the
+  cache root (<code>~/.cache/contextlake/</code>, or <code>$XDG_CACHE_HOME/contextlake/</code> when that is set). The
+  path is printed. Only you can read the file. If the copy cannot be saved, nothing is written.</li>
+<li>If <code>crontab -l</code> fails for any reason other than "no crontab for <user>", the crontab is not
+  changed and the error is printed. <code>install</code> then prints the crontab line so you can add it by
+  hand. <code>uninstall</code> still removes the job record.</li>
+<li>If a <code># &gt;&gt;&gt; contextlake (&lt;name&gt;) &gt;&gt;&gt;</code> line has no matching end line, the crontab is not changed
+  and the error names the line. Fix it with <code>crontab -e</code>, then run <code>install</code> again. <code>uninstall</code>
+  still removes the job record, so <code>schedule list</code> then reports the block as an orphaned unit
+  until you delete it with <code>crontab -e</code>.</li>
+<li>The job's line sends its own output to <code>/dev/null</code>, so cron mails nothing for it. Earlier
+  versions wrote <code>MAILTO=""</code> into the block instead, which cron also applied to every line below
+  it. Running <code>install</code> again removes that line.</li>
+</ul>
 <p>The default job runs <code>contextlake bootstrap</code> on most cycles, and switches to
 <code>contextlake bootstrap --force</code> (a full rebuild: every repository re-parsed, every node
 re-embedded) once <code>schedule_full_every</code> has passed since the last successful full run.</p>
@@ -434,7 +454,10 @@ measured history, and reports every way they disagree:</p>
 <ul>
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#schedule-recommend-what-interval-your-measurements-suggest">schedule recommend: what interval your measurements suggest</a></li>
-<li><a href="#schedule-install-measure-decide-and-install">schedule install: measure, decide, and install</a></li>
+<li><a href="#schedule-install-measure-decide-and-install">schedule install: measure, decide, and install</a><ul>
+<li><a href="#how-the-cron-adapter-edits-your-crontab">How the cron adapter edits your crontab</a></li>
+</ul>
+</li>
 <li><a href="#set-reset-and-unset">Set, reset, and unset</a><ul>
 <li><a href="#discarding-history-is-recoverable">Discarding history is recoverable</a></li>
 </ul>
@@ -480,6 +503,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

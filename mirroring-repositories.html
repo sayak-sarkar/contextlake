@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -224,12 +224,24 @@ locally.</p>
 <li><strong>With a platform token set</strong>, meaning <code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code>,
    <code>GITEA_TOKEN</code>, or whatever <code>token_env</code> names: contextlake clones with plain <code>git</code> and passes
    the token as an auth header through the child environment. Never on the command line, never
-   in the URL, so it cannot leak into <code>ps</code> output or <code>.git/config</code>.</li>
+   in the URL, so it cannot leak into <code>ps</code> output or <code>.git/config</code>. The header is scoped to the
+   forge's own host (<code>https://gitlab.com/</code>, your <code>gitlab_host</code>, <code>https://github.com/</code>, and so on),
+   so git sends it there and nowhere else. <code>update</code> and <code>branches</code> use the same scoped header, so
+   a clone in the workspace whose remote is on another host never receives your forge token.</li>
 <li><strong>Without a token, and with glab installed</strong>: <code>glab repo clone</code>, using glab's own auth. This
    is a GitLab-only path.</li>
 <li><strong>Otherwise</strong>: plain <code>git clone</code> over HTTPS.</li>
 </ol>
 <p>Set <code>clone_method = git</code> or <code>clone_method = glab</code> to force one path.</p>
+<p>A project whose path would land outside the work directory is skipped, with
+<code>Refused: this forge path is not inside the work directory</code> on its line. That covers an absolute
+path, a path with <code>..</code> in it, a path that resolves to the work directory itself, and one that
+passes through a symlink to somewhere else. The check runs before anything on disk is touched.</p>
+<p>Clone never deletes a non-empty directory that has no <code>.git</code>. If one already sits where a
+repository would go, that repository is reported as failed with
+<code>&lt;path&gt; exists, is not a git repository and is not empty, so it was left alone; move it aside to clone here</code>,
+in a dry run too. An empty directory there (an interrupted clone can leave one) is removed and
+cloned into while <code>clean_corrupted</code> is on.</p>
 <h3 id="mirror-update-update-existing-repositories"><code>mirror update</code>: update existing repositories<a class="anchor" href="#mirror-update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>update
@@ -241,6 +253,16 @@ locally.</p>
 <li>Skips a repo on a detached HEAD, there is no branch to fast-forward</li>
 <li>Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand</li>
 <li>Reports repositories that are already up to date</li>
+<li>When the branch it tracks is no longer on <code>origin</code> (merged and deleted, or renamed), switches
+  to the most active remaining branch, the same choice <code>mirror branches</code> makes. It stays on
+  the branch instead, and reports a skip, when that branch has commits no <code>origin</code> branch has,
+  when git cannot say whether it does, or while <code>--auto-stash</code> holds your edits for it.
+  A squash-merged branch whose <code>origin</code> ref git has pruned (<code>fetch.prune</code>) counts as having
+  such commits, because the squash put new commits on <code>origin</code>, not these; move it with
+  <code>mirror branches</code></li>
+<li>Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
+  and anything under <code>node_modules</code> are part of that clone, and are not fetched or switched.
+  <code>mirror verify</code> still reports a repository nested in another one</li>
 </ul>
 <h3 id="mirror-branches-switch-to-most-active-branches"><code>mirror branches</code>: switch to most active branches<a class="anchor" href="#mirror-branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
 <p>Analyzes all repositories and switches them to their most active development branch.</p>
@@ -574,6 +596,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

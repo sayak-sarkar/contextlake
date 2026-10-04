@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="contextlake, explained · contextlake docs">
 <meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -224,8 +224,9 @@ classes of setting are therefore honoured only from a file you named with <code>
 own home config: the ones that make contextlake <em>run a program</em> (<code>[llm] command</code>/<code>args</code>,
 <code>provider = "cli"</code>, <code>[[sources]] command</code>/<code>args</code>/<code>mcp_command</code>), the ones that choose <em>where a
 request goes</em> (<code>base_url</code>, <code>[[sources]] mcp</code>), and the ones that name <em>which environment variable
-holds the credential</em> sent with it (<code>api_key_env</code>, <code>[[sources]] token_env</code>, plus <code>auth_dir</code>, the
-directory an OAuth refresh token is written to).</p>
+holds the credential</em> sent with it (<code>api_key_env</code>, <code>[[sources]] token_env</code>, plus <code>auth</code> and <code>user</code>,
+which choose how that credential is sent, and <code>auth_dir</code>, the directory an OAuth refresh token is
+written to).</p>
 <p>The first class was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
 capability arriving in two pieces.</p>
@@ -592,6 +593,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>

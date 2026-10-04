@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Installing and upgrading · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2dcd9aed">
-<link rel="stylesheet" href="tokens.css?v=2dcd9aed">
-<link rel="stylesheet" href="docs.css?v=2dcd9aed">
-<link rel="stylesheet" href="cmdk.css?v=2dcd9aed">
+<link rel="stylesheet" href="fonts.css?v=b68ad261">
+<link rel="stylesheet" href="tokens.css?v=b68ad261">
+<link rel="stylesheet" href="docs.css?v=b68ad261">
+<link rel="stylesheet" href="cmdk.css?v=b68ad261">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -265,10 +265,25 @@ transparency log.</p>
 file this repository's workflow built and uploaded. It says nothing about the Python payload,
 because the launcher downloads contextlake and its dependencies from PyPI on <em>your</em> machine at
 first run, which happens after any signature here. If you want the payload checked too, install
-with <code>pipx</code> or <code>uv</code> instead: the wheel and sdist on PyPI carry their own
-<a href="https://peps.python.org/pep-0740/" target="_blank" rel="noopener">PEP 740<span class="ext-arrow" aria-hidden="true">↗</span></a> attestations, which pip verifies, and each release
-also publishes a CycloneDX SBOM listing that dependency closure.</p>
-<p>The SBOM does not close the gap on its own, either. Its subject is <code>contextlake[kb-full]</code>, while the
+with <code>pipx</code> or <code>uv</code> instead and check the release yourself. Each release publishes two
+supply-chain records for that install:</p>
+<ul>
+<li><strong>PyPI attestations.</strong> The release workflow publishes through PyPI Trusted Publishing, so the wheel
+  and the sdist of a release carry a <a href="https://peps.python.org/pep-0740/" target="_blank" rel="noopener">PEP 740<span class="ext-arrow" aria-hidden="true">↗</span></a> attestation. It names
+  this repository's <code>release.yml</code> workflow as the builder. Releases 2.1.0 and 4.0.0 have none.</li>
+<li><strong>An SBOM.</strong> Each release also publishes a CycloneDX SBOM listing that dependency closure.</li>
+</ul>
+<p><strong><code>pip install</code>, <code>uv pip install</code> and <code>uv tool install</code> do not check the attestation.</strong> None of
+them has an option for it (<code>--help</code> in pip 26.1.2 and uv 0.12.3 lists none), so an install from PyPI
+does not prove who built the wheel. To check it yourself, use the separate <code>pypi-attestations</code>
+tool. It downloads the file and its attestation from PyPI and fails if a different repository
+built it:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>pypi-attestations
+pypi-attestations<span class="w"> </span>verify<span class="w"> </span>pypi<span class="w"> </span>--repository<span class="w"> </span>https://github.com/sayak-sarkar/contextlake<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>pypi:contextlake-X.Y.Z-py3-none-any.whl
+</code></pre></div>
+<p>Replace <code>X.Y.Z</code> with the release you installed. Use the <code>.tar.gz</code> file name to check the sdist.</p>
+<p>The SBOM does not cover the launcher's whole payload. Its subject is <code>contextlake[kb-full]</code>, while the
 launcher installs <code>contextlake[kb-full,llm-local]</code>, so the wiki-LLM runtime and everything under it
 is outside what the SBOM enumerates.</p>
 <h3 id="from-source">From source<a class="anchor" href="#from-source" title="Link to this section">#</a></h3>
@@ -582,6 +597,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=2dcd9aed"></script>
+<script defer src="cmdk.js?v=b68ad261"></script>
 </body>
 </html>
