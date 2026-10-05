@@ -252,3 +252,10 @@ select = ["E", "F", "W", "I", "UP", "B", "S"]
 # contextlake as subprocesses. Driving the shipped command is the entire point: reading the
 # working tree instead is the mistake this gate exists to catch.
 "benchmarks/g6-cleanroom/run.py" = ["S603", "S607"]
+
+# The stability harness's tier F files. The fixture builder drives `git` to commit the
+# synthetic repos, and the CI adapter drives the INSTALLED contextlake and its venv's
+# python, which is how the oracles see the shipped command. Every argument is a list
+# element, never a shell string. Named per file, like the entries above.
+"scripts/stability/fixture_e.py" = ["S603", "S607"]
+"scripts/stability/ci_runner.py" = ["S603", "S607"]
