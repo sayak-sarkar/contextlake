@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import platform
 import re
 import shutil
@@ -315,8 +314,11 @@ def setup(ctx: Ctx) -> dict:
         heads[ws_name] = fixture_e.git_init(ws)
     model_src = ctx.hf_cache / MODEL
     hf_home = ctx.home / ".cache/huggingface"
-    # Windows: a symlink needs a privilege the process may not hold, so copy the content.
-    shutil.copytree(model_src, hf_home / "hub" / MODEL, symlinks=(os.name != "nt"))
+    # Content, not links, on every OS. huggingface_hub 1.33 stores a large file's blob as a
+    # link into a cache-level `blobs/` directory outside the model directory, so a copy that
+    # keeps links left model.safetensors and onnx/model.onnx dangling (Linux CI cell). On
+    # Windows a symlink also needs a privilege the process may not hold.
+    shutil.copytree(model_src, hf_home / "hub" / MODEL, symlinks=False)
     for name, ws_name, emb in (("main", "ws", False), ("emb", "ws", True),
                                ("emb-nodoc", "ws-nodoc", True)):
         cfg = ctx.root / f"kb-{name}.toml"
