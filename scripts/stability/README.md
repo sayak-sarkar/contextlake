@@ -53,8 +53,9 @@ python scripts/stability/diff_e.py linux/results.json windows/results.json
   `kb-local` gives the builtin `model2vec` embedder that the vector rows (O3, C20) use.
 - The model is `minishlab/potion-base-8M` at revision
   `bf8b056651a2c21b8d2565580b8569da283cab23`, the one the Linux runs used.
-- The CI job downloads it in its own step, which needs network. The tier then copies it into
-  its fake home and runs with `HF_HUB_OFFLINE=1`.
+- The CI job downloads it in its own step, which needs network, and writes `refs/main` with
+  that revision: a download by commit writes none, and an offline lookup needs it. The tier
+  then copies the cache into its fake home and runs with `HF_HUB_OFFLINE=1`.
 - O4 (`kb eval`) runs on the store without embeddings.
 
 ## Windows points, and the evidence the job prints

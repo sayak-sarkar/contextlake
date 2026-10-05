@@ -114,6 +114,13 @@ jobs:
         run: |
           & $env:VPY -c "import sys; from huggingface_hub import snapshot_download; print(snapshot_download('minishlab/potion-base-8M', revision=sys.argv[1], cache_dir=sys.argv[2]))" $env:MODEL_REVISION $env:HFC
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # A download by commit writes no refs/main, and an offline lookup of the default
+          # revision needs it: the first dispatch failed `kb embed` on both cells with
+          # LocalEntryNotFoundError. A developer cache has refs/main from a normal download.
+          $refs = Join-Path $env:HFC "models--minishlab--potion-base-8M/refs"
+          New-Item -ItemType Directory -Force -Path $refs | Out-Null
+          Set-Content -NoNewline -Path (Join-Path $refs "main") -Value $env:MODEL_REVISION
+          Get-Content (Join-Path $refs "main")
       - name: Evidence before the run (home, executables, file-system case, stubs, model)
         run: |
           python scripts/stability/ci_runner.py --venv $env:VENV --root $env:F --hf-cache $env:HFC
