@@ -81,6 +81,41 @@ def test_a_web_address_becomes_one_token_wherever_it_appears():
     assert Anonymizer(b"j" * 16).rewrite(page) != token     # keyed per run
 
 
+def test_an_id_comes_out_the_same_before_and_after_the_links_panel():
+    """The Links panel labels one entry at a time through `label_for`. It used to remember
+    every node it labelled, so a document's id came out as `@ingest:web:url-...` before the
+    panel was served and as `anon:document:...` after it, while its route kept the first
+    form. Which id a client saw depended on the order it asked."""
+    a = _a()
+    doc = "@ingest:web:https://wiki.example/handbook"
+
+    def forms():
+        out = a.rewrite({"id": doc, "href": f"#/symbol/{doc}", "dst": ISSUE["id"],
+                         "nodes": [ISSUE]})
+        return out["id"], out["href"], out["dst"]
+
+    before = forms()
+    assert before[1] == f"#/symbol/{before[0]}" and before[2] != ISSUE["id"]
+    label = a.label_for("document", doc, "@ingest:web")
+    a.label_for("issue", ISSUE["id"], ISSUE["repo"])
+    assert forms() == before
+    assert "://" not in label and label.startswith("document ")
+
+
+def test_an_external_id_that_holds_an_address_matches_its_route():
+    """The id map is keyed on the address-replaced form, the form `_string` looks up. Keyed
+    on the raw id, the entry never matched: the id kept its `url-` form instead of an
+    external id, and `label_for` on it raised KeyError."""
+    a = _a()
+    link = {"id": "web:link:https://t.example/x", "repo": "(external)", "kind": "issue",
+            "name": "x"}
+    out = a.rewrite({"nodes": [link], "href": f"#/symbol/{link['id']}"})
+    new_id = out["nodes"][0]["id"]
+    assert new_id.startswith("anon:issue:") and out["href"] == f"#/symbol/{new_id}"
+    assert "://" not in str(out)
+    assert a.label_for("issue", link["id"], "(external)").startswith("issue ")
+
+
 def test_two_runs_give_different_labels():
     assert (Anonymizer().rewrite({"nodes": [ISSUE]})["nodes"][0]["name"]
             != Anonymizer().rewrite({"nodes": [ISSUE]})["nodes"][0]["name"])

@@ -216,7 +216,7 @@ def _link_entry(n, e, *, anonymize: bool = False) -> dict:
         from ..anonymize import active
 
         anonymizer = active()
-        name = (anonymizer.label_for(n.kind, n.id) if anonymizer is not None
+        name = (anonymizer.label_for(n.kind, n.id, n.repo) if anonymizer is not None
                 else sanitize_label(n.kind))
         title = None
     return {

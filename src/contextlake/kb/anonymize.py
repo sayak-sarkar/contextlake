@@ -17,7 +17,7 @@ Rules, keyed on the node, not on the route:
   original id and name are replaced wherever they appear inside another string.
 - **Document nodes** (``adr``, ``document``, ``wiki``) lose their body text (``doc`` and its
   siblings). Their names stay, as symbol names do.
-- **Every web address** (``scheme://...``) in any string becomes ``url-<8 hex>``, derived from
+- **Every web address** (``scheme://...``) in any string becomes ``url-<12 hex>``, derived from
   the address with the same key. A page with no title is named by its URL, and every ingest
   and enrich id embeds it (``@ingest:web:https://...``), so a rule keyed on the node missed
   both, and a string with no node beside it (a search hit, a health list) could never be
@@ -98,8 +98,9 @@ class Anonymizer:
                                                   and kind in self._external_kinds)
 
     def _remember(self, d: dict) -> None:
-        orig_id = d.get("id") if isinstance(d.get("id"), str) else None
-        name = d.get("name") if isinstance(d.get("name"), str) else None
+        # Keyed on the form `_string` looks up: with every address already replaced.
+        orig_id = self._addresses(d["id"]) if isinstance(d.get("id"), str) else None
+        name = self._addresses(d["name"]) if isinstance(d.get("name"), str) else None
         basis = orig_id or name
         if not basis or basis in self._produced:
             return
@@ -125,19 +126,24 @@ class Anonymizer:
                 self._collect(v)
 
     def _url_token(self, m: re.Match) -> str:
-        return f"url-{self._digest(m.group(0))[:8]}"
+        # 12 hex, as ids: the token is part of document ids, and two addresses that shared
+        # one would merge two documents in the graph with nothing reporting it.
+        return f"url-{self._digest(m.group(0))[:12]}"
+
+    def _addresses(self, s: str) -> str:
+        # The token holds no "://", so a second pass leaves it as it is.
+        return _URL.sub(self._url_token, s) if "://" in s else s
 
     def _string(self, s: str) -> str:
         if s in self._produced:
             return s
+        # First, so the id and name lookups below and the maps `_remember` fills both see
+        # an address in the same replaced form.
+        s = self._addresses(s)
         if s in self._ids:
             return self._ids[s]
         if s in self._names:
             return self._names[s]
-        if "://" in s:
-            # Before the id and name lookups below, which then see the address already
-            # replaced. The token holds no "://", so a second pass leaves it as it is.
-            s = _URL.sub(self._url_token, s)
         # Inside longer strings: chat prose, a "No indexed package named ..." note, a
         # `#/symbol/<id>` route. Only ids and distinctive names: a frame named "Login"
         # replaced inside every string would rewrite symbol names that merely contain it.
@@ -191,12 +197,20 @@ class Anonymizer:
             self._collect(payload)
             return self._rewrite(payload)
 
-    def label_for(self, kind: str, original: str) -> str:
-        """The label an external node with this original id or name gets (for a serializer
-        that builds one entry at a time, such as the Links panel)."""
+    def label_for(self, kind: str, original: str, repo: str | None = None) -> str:
+        """The label a node with this original id gets (for a serializer that builds one
+        entry at a time, such as the Links panel).
+
+        Only an external node is remembered, as `rewrite` would remember it. Remembering
+        any other node here changed how its id came out in every later response, so the
+        same document had one id before the Links panel was served and another after."""
         with self._lock:
-            self._remember({"kind": kind, "id": original, "name": original})
-            return self._names.get(original) or self._ids[original]
+            node = {"kind": kind, "id": original, "name": original, "repo": repo}
+            if not self._is_external(node):
+                return f"{kind} {self._digest(self._addresses(original))[:4]}"
+            self._remember(node)
+            key = self._addresses(original)
+            return self._names.get(key) or self._ids[key]
 
 
 _ACTIVE: contextvars.ContextVar[Anonymizer | None] = contextvars.ContextVar(
