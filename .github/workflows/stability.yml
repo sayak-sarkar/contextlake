@@ -10,8 +10,16 @@ name: stability
 # A control installs an old release from PyPI and expects the check to FAIL on it. It proves
 # the check can see the defect. It stays here so that ci.yml does not depend on PyPI serving
 # an old release on every push.
+#
+# tier-e and tier-e-diff run the stability campaign's tier E output oracles on Linux and on
+# Windows against the release named by the `version` input. Every dispatch runs all jobs.
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "contextlake release from PyPI that the tier-e job tests"
+        type: string
+        default: "9.8.3"
 
 permissions:
   contents: read
@@ -44,3 +52,110 @@ jobs:
           & "$v\Scripts\contextlake.exe" kb query anything --json
           if ($LASTEXITCODE -eq 0) { Write-Error "9.8.0 read its own config: the ci.yml check is blind"; exit 1 }
           exit 0
+
+  tier-e:
+    # Stability campaign tier F: tier E's output oracles (scripts/stability/) on the same
+    # synthetic fixture, on Linux and on Windows, so the two verdict sets compare row by row.
+    # The fixture runs in portable mode on BOTH cells: NTFS is case-insensitive, so the one
+    # pair of names that differ only by case cannot exist on Windows, and Linux drops it too.
+    # A failing oracle is a result, not a job failure: the results artifact is the
+    # deliverable. A harness crash (an exception, a failed index) fails the job.
+    name: tier E oracles (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      # Without this a Windows crash cancels the Linux cell, and the comparison is lost.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        # One script for both cells. pwsh does not stop on a native command's exit code,
+        # so every native call that matters is followed by an explicit check.
+        shell: pwsh
+    env:
+      # Through env, never inline in a script: an input is text, not code.
+      VERSION: ${{ inputs.version }}
+      # The revision of minishlab/potion-base-8M that the Linux runs of tier E used, so
+      # the vector rows (O3, C20) compare the same model on both cells.
+      MODEL_REVISION: bf8b056651a2c21b8d2565580b8569da283cab23
+      # The harness prints repr() of contextlake output; a cp1252 console on Windows
+      # would crash its own print on a character outside that code page.
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install contextlake from PyPI into its own venv
+        # The extras the Linux runs used: [kb] for the parsers and the MCP server, kb-local
+        # for the builtin model2vec embedder (O3, C20), kb-vec, and kb-pdf. The harness
+        # itself runs on the setup-python interpreter and imports no contextlake.
+        run: |
+          $v = Join-Path $env:RUNNER_TEMP "v"
+          python -m venv $v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $py = if ($IsWindows) { Join-Path $v "Scripts/python.exe" } else { Join-Path $v "bin/python" }
+          & $py -m pip install -q --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -m pip install "contextlake[kb-full,kb-pdf]==$env:VERSION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -m pip list
+          "VENV=$v" >> $env:GITHUB_ENV
+          "VPY=$py" >> $env:GITHUB_ENV
+          "F=$(Join-Path $env:RUNNER_TEMP 'f')" >> $env:GITHUB_ENV
+          "OUT=$(Join-Path $env:RUNNER_TEMP 'out')" >> $env:GITHUB_ENV
+          "HFC=$(Join-Path $env:RUNNER_TEMP 'hf')" >> $env:GITHUB_ENV
+      - name: Download the embedding model (network)
+        # The tier itself runs with HF_HUB_OFFLINE=1. It copies this cache into its fake
+        # home, as the Linux runs copied the developer's cache.
+        env:
+          HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+        run: |
+          & $env:VPY -c "import sys; from huggingface_hub import snapshot_download; print(snapshot_download('minishlab/potion-base-8M', revision=sys.argv[1], cache_dir=sys.argv[2]))" $env:MODEL_REVISION $env:HFC
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Evidence before the run (home, executables, file-system case, stubs, model)
+        run: |
+          python scripts/stability/ci_runner.py --venv $env:VENV --root $env:F --hf-cache $env:HFC
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Tier E, portable fixture
+        run: |
+          python scripts/stability/tier_e.py --target $env:VERSION --portable --venv $env:VENV --root $env:F --out $env:OUT --hf-cache $env:HFC
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Evidence after the run (line endings, commit heads, path length)
+        if: always()
+        run: |
+          $ws = Join-Path $env:F "$($env:VERSION)-portable/ws"
+          python scripts/stability/ci_runner.py --venv $env:VENV --root $env:F --fixture $ws
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: tier-e-${{ runner.os }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+
+  tier-e-diff:
+    # One table, Linux verdict beside Windows verdict, with the values where they differ.
+    # Runs when a cell failed too; a missing results file then fails this job, by design.
+    name: tier E, Linux vs Windows
+    needs: tier-e
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: tier-e-*
+          path: results
+      - name: Per-oracle diff
+        run: >-
+          python scripts/stability/diff_e.py
+          "results/tier-e-Linux/$VERSION-portable/results.json"
+          "results/tier-e-Windows/$VERSION-portable/results.json"
