@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=aa95bcb9">
-<link rel="stylesheet" href="tokens.css?v=aa95bcb9">
-<link rel="stylesheet" href="docs.css?v=aa95bcb9">
-<link rel="stylesheet" href="cmdk.css?v=aa95bcb9">
+<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
+<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
+<link rel="stylesheet" href="docs.css?v=fb53dd9c">
+<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -167,11 +167,17 @@ names, their docstrings, and the headings of wiki sections in search results sti
   came from), and every connector item's title, summary and URL.</li>
 <li><strong>Replaced:</strong> author identities become <code>Contributor a1b2</code>, and each connector item (a ticket,
   a merge request, a design, a page, a message) becomes its kind and a short code, such as
-  <code>issue 9cb5</code>. The code comes from a key made fresh for every export and every server start, so
-  labels never match across two of them. An anonymized connector item does not open.</li>
+  <code>issue 9cb5</code>.</li>
+<li><strong>Web addresses:</strong> every web address in any text the dashboard shows becomes <code>url-</code> and a
+  short code, docstrings included. A document with no title is named by its address, so it
+  shows that code.</li>
+<li><strong>The codes</strong> come from a key made fresh for every export and every server start, so they
+  never match across two of them. An anonymized connector item does not open, and neither
+  does a document whose id holds an address.</li>
 <li><strong>Still shows:</strong> repository ids (which name the forge host), symbol names and their
-  docstrings, file paths inside your repositories, the headings of wiki sections, and the
-  titles of documents and decision records (their node names).</li>
+  docstrings (with any web address in them replaced), file paths inside your repositories,
+  the headings of wiki sections, and the titles of documents and decision records (their
+  node names).</li>
 </ul>
 <p>With <code>--llm-chat</code>, the prompt sent to your provider is built from the anonymized result, so the
 provider sees the codes, never a connector item's title or a decision record's body. The question
@@ -625,6 +631,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=aa95bcb9"></script>
+<script defer src="cmdk.js?v=fb53dd9c"></script>
 </body>
 </html>
