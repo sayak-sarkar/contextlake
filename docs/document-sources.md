@@ -227,7 +227,7 @@ Cloud, Jira and Confluence:
 [[sources]]
 type = "api"
 name = "issues"
-url = "https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated"
+url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%3DACME+order+by+updated&fields=summary&maxResults=100"
 items = "issues"
 id_field = "key"
 title_field = "key"
@@ -238,7 +238,16 @@ token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environme
 ```
 
 Create the token under **Account settings → Security → API tokens** in your Atlassian
-profile, then export it as `ATLASSIAN_API_TOKEN`. A bearer header against Atlassian Cloud
+profile, then export it as `ATLASSIAN_API_TOKEN`.
+
+The Jira search address:
+
+- **Use `/rest/api/3/search/jql`.** The older `/rest/api/3/search` now answers 410 Gone.
+- **Restrict the query.** The new address refuses a query with no restriction (400,
+  "Unbounded JQL queries are not allowed"), so name a project or a text match in the `jql`.
+- **Expect one page.** It pages with a `nextPageToken` value in the response body, and
+  `next_field` expects a link, not a token. Set `maxResults` (up to 100) to choose how many
+  issues that page holds. A bearer header against Atlassian Cloud
 returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
 than a preference.
 

@@ -14,12 +14,47 @@ from ._common import (
 )
 
 
+def _print_plan(store_dir, targets, sources) -> int:
+    """`kb enrich --dry-run`: the terms and queries each repo would send, sending none.
+
+    Prints no header and no credential: an `api` source's query URLs carry the search
+    terms only, and its token stays in the environment variable the config names.
+    """
+    from ..connectors.enrich import build_terms, render_search_urls
+    from ..connectors.mcp_query import _cfg_get
+
+    requests = 0
+    log(f"Dry run: {len(targets)} repo(s), {len(sources)} term-searchable source(s). "
+        f"Nothing is sent and nothing is stored.")
+    for repo_id, _path in targets:
+        terms = build_terms(store_dir, repo_id)
+        if not terms:
+            log(f"  {repo_id}: no graph shard, nothing would be searched", inline=True)
+            continue
+        log(f"  {repo_id}: {len(terms)} term(s): {', '.join(terms)}", inline=True)
+        for src in sources:
+            name = _cfg_get(src, "name", "?")
+            if _cfg_get(src, "type") == "api":
+                urls = render_search_urls(_cfg_get(src, "search_url") or "", terms)
+                requests += len(urls)
+                for url in urls:
+                    log(f"    {name}: GET {url}", inline=True)
+                if not urls:
+                    log(f"    {name}: search_url has no {{term}} or {{terms}} "
+                        f"placeholder, so it would be reported unavailable", inline=True)
+            else:
+                requests += 1
+                log(f"    {name}: one search for {' '.join(terms)!r}", inline=True)
+    log(f"Dry run complete: {requests} request(s) would be sent.")
+    return 0
+
+
 def cmd_enrich(args) -> int:
     """Turn each target repo's own codebase into search terms, fan them out to
     every configured term-searchable source (a generic MCP ``tool``, or an
     ``atlassian`` cross-search), and store the results in its isolated
     ``@enrich:<repo>`` partition."""
-    from ..connectors.enrich import run_enrich_repo
+    from ..connectors.enrich import EnrichBudget, run_enrich_repo
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "enrich"):
@@ -28,10 +63,13 @@ def cmd_enrich(args) -> int:
     try:
         cfg = kb_config(args)
         term_searchable = [s for s in cfg.sources
-                           if s.enabled and (s.tool or s.type == "atlassian")]
+                           if s.enabled and (s.tool or s.type == "atlassian"
+                                             or (s.type == "api"
+                                                 and getattr(s, "search_url", None)))]
         if not term_searchable:
             log("No term-searchable sources configured (add an `mcp` source with "
-                "a `tool`, or an `atlassian` source)")
+                "a `tool`, an `atlassian` source, or an `api` source with a "
+                "`search_url`)")
             return 0
 
         targets = _connect_targets(args, store)
@@ -39,6 +77,11 @@ def cmd_enrich(args) -> int:
             log("No repos to enrich (index some first, or pass --workspace, or "
                 "name a repo)")
             return 0
+
+        if getattr(args, "dry_run", False):
+            return _print_plan(store_dir, targets, term_searchable)
+        limit = getattr(args, "max_documents", None)
+        budget = EnrichBudget(limit) if limit is not None else None
 
         embedder = vector_store = None
         if cfg.embeddings.enabled:
@@ -82,10 +125,14 @@ def cmd_enrich(args) -> int:
             # (a source answered empty and the partition was cleared) nor "failed" (a
             # store or shard write raised).
             kept = 0
+            # Repos not searched because `--max-documents` was reached. Their previous
+            # results are kept, as for an unavailable source.
+            capped = 0
             for repo_id, _path in targets:
                 try:
                     counts = run_enrich_repo(store, store_dir, cfg, repo_id,
-                                             embedder=embedder, vector_store=vector_store)
+                                             embedder=embedder, vector_store=vector_store,
+                                             budget=budget)
                 except (OSError, sqlite3.Error) as e:
                     # Narrow on purpose. `search_source` is contractually non-raising,
                     # so the only failures that reach here are the store and shard
@@ -101,6 +148,10 @@ def cmd_enrich(args) -> int:
                     skipped += 1
                     log(f"  {repo_id}: skipped (no graph shard to build terms from, "
                         f"so nothing was searched for; run index first)", inline=True)
+                elif counts.capped:
+                    capped += 1
+                    log(f"  {repo_id}: not searched, the --max-documents cap was "
+                        f"reached; kept the previous results", inline=True)
                 elif counts.unavailable:
                     kept += 1
                     log(f"  {style.warn(repo_id)}: {counts.unavailable} source(s) "
@@ -131,7 +182,8 @@ def cmd_enrich(args) -> int:
             buckets_line = (f"  {planned} repo(s) planned: {enriched} enriched, "
                             f"{nothing_returned} nothing returned, {unattached} "
                             f"returned but unattached, {failed} failed, "
-                            f"{skipped} skipped, {kept} kept previous results")
+                            f"{skipped} skipped, {kept} kept previous results"
+                            + (f", {capped} not searched (cap reached)" if capped else ""))
             degraded = degraded_calls() - degraded_before
             if degraded:
                 log(style.warn(

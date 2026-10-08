@@ -2187,6 +2187,7 @@ you pass to `--config`:
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
+| `[[sources]] search_url` | the host `kb enrich` sends search terms built from your code to |
 | `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
@@ -2241,7 +2242,7 @@ That last point changes what `contextlake kb source add ... --local` can scope. 
 document source still works from a local file over its `url`; its `command` has to live in the
 global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
-`token_env`, `auth`, `user` and `auth_dir` on any source.
+`token_env`, `auth`, `user`, `auth_dir` and `search_url` on any source.
 
 ### The mirror config, `.contextlake.ini`
 
@@ -3298,11 +3299,66 @@ each of the 19 embeddable kinds would leave the ranking two or three slots to de
 **Prerequisites.** Two things must be true:
 
 1. The code graph is indexed, via `contextlake kb index`.
-2. At least one term-searchable source is configured. That means either an `mcp` source with
-   `tool` and `arg_template` keys, or an `atlassian` source.
+2. At least one term-searchable source is configured. That means an `mcp` source with `tool`
+   and `arg_template` keys, an `atlassian` source, or an `api` source with a `search_url`
+   (next section).
 
 Sources without those capabilities, such as a plain `files` or `web` source, are skipped
 gracefully.
+
+### Searching Jira and Confluence with an API token
+
+An `api` source with a `search_url` is searched once per term. Put `{term}` where the term goes;
+it is URL-encoded, and `"` and `\` are removed from it first so it cannot end a quoted JQL or
+CQL string. `{terms}` sends one search with every term joined instead.
+
+```toml
+[[sources]]
+type = "api"
+name = "jira"
+search_url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%20in%20(ACME,OPS)%20AND%20text%20~%20%22{term}%22&fields=summary&maxResults=20"
+items = "issues"
+id_field = "key"
+title_field = "fields.summary"
+text_field = "fields.summary"
+auth = "basic"
+user = "you@example.com"
+token_env = "ATLASSIAN_API_TOKEN"
+
+[[sources]]
+type = "api"
+name = "confluence"
+search_url = "https://your-site.atlassian.net/wiki/rest/api/search?cql=space%20in%20(ENG)%20AND%20text%20~%20%22{term}%22&limit=20"
+items = "results"
+id_field = "content.id"
+title_field = "title"
+text_field = "excerpt"
+auth = "basic"
+user = "you@example.com"
+token_env = "ATLASSIAN_API_TOKEN"
+```
+
+What this path guarantees:
+
+- **It only reads.** Every request is a GET.
+- **One page per search.** `maxResults` or `limit` in the URL sets the size of that page.
+- **The token stays on its host.** A redirect to another origin is followed without it.
+- **A failed search keeps the old results.** A 401, 403, 429 or dead host counts as an
+  unavailable source, so the repo keeps what it had instead of being cleared.
+- **`search_url` is a privileged key.** It decides where search terms built from your code
+  are sent, so only the global config or a file named with `--config` may set it.
+
+Before the first real run, `--dry-run` prints each repo's terms and every URL it would request,
+and sends nothing. `--max-documents N` stops sending searches once N documents were taken in the
+run. Repos it did not reach keep their previous results.
+
+```bash
+contextlake kb enrich --config ~/enrich.toml --dry-run acme/forecast-api
+contextlake kb enrich --config ~/enrich.toml --max-documents 200 acme/forecast-api
+```
+
+A known limit: each stored document links to the search request that found it, not to the
+issue or page itself.
 
 **What you get.** Each repo's enrichment documents live in their own partition, so they can be
 re-fetched without clobbering earlier results.
@@ -3318,8 +3374,8 @@ edges attached to code. Both numbers are reported because they answer different 
 documents returned says whether your sources had anything, edges to code says whether a
 question about the code can reach it.
 
-The closing line puts every targeted repo in one of five buckets, and the five add up to the
-number of repos the run planned to touch:
+The closing line puts every targeted repo in one bucket, and the buckets add up to the number
+of repos the run planned to touch:
 
 | Bucket | What it means |
 |---|---|
@@ -3328,6 +3384,8 @@ number of repos the run planned to touch:
 | `returned but unattached` | Documents came back and none names a symbol in the repo. |
 | `failed` | The store or shard write failed for that repo. The run continues. |
 | `skipped` | No graph shard, so no terms were built. Run `kb index` first. |
+| `kept previous results` | A source could not be reached, so the repo's earlier results stay. |
+| `not searched (cap reached)` | `--max-documents` was reached first; earlier results stay. |
 
 `returned but unattached` is a normal outcome, not a failure, and the run still ends with a
 `✓`. Symbol matching is whole-word and ignores names under three characters, so a ticket that
@@ -3632,7 +3690,7 @@ Cloud, Jira and Confluence:
 [[sources]]
 type = "api"
 name = "issues"
-url = "https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated"
+url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%3DACME+order+by+updated&fields=summary&maxResults=100"
 items = "issues"
 id_field = "key"
 title_field = "key"
@@ -3643,7 +3701,16 @@ token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environme
 ```
 
 Create the token under **Account settings → Security → API tokens** in your Atlassian
-profile, then export it as `ATLASSIAN_API_TOKEN`. A bearer header against Atlassian Cloud
+profile, then export it as `ATLASSIAN_API_TOKEN`.
+
+The Jira search address:
+
+- **Use `/rest/api/3/search/jql`.** The older `/rest/api/3/search` now answers 410 Gone.
+- **Restrict the query.** The new address refuses a query with no restriction (400,
+  "Unbounded JQL queries are not allowed"), so name a project or a text match in the `jql`.
+- **Expect one page.** It pages with a `nextPageToken` value in the response body, and
+  `next_field` expects a link, not a token. Set `maxResults` (up to 100) to choose how many
+  issues that page holds. A bearer header against Atlassian Cloud
 returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
 than a preference.
 
@@ -9352,6 +9419,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`kb enrich` can search Jira and Confluence with an API token.** An `api` source with a
+  `search_url` is searched once per term (`{term}`), or once with every term joined (`{terms}`).
+  Every request is a GET, and each search reads one page. A failed search (401, 403, 429, a dead
+  host) counts as an unavailable source, so the repo keeps its previous results. `search_url` is
+  a privileged key: it decides where search terms built from your code are sent.
+- **`kb enrich --dry-run` and `--max-documents N`.** The dry run prints each repo's terms and every
+  request it would send, and sends none. `--max-documents` stops searching once N documents were
+  taken in the run; repos not reached keep their previous results.
+
+### Fixed
+
+- **The Atlassian `api` example used the retired Jira search address.** `/rest/api/3/search` now
+  answers 410 Gone. The example uses `/rest/api/3/search/jql` with a project restriction, which
+  that address requires.
 
 ## [9.8.3] - 2026-10-05
 

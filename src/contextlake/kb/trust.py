@@ -206,7 +206,10 @@ REFUSE_DISCOVERED_CREDENTIAL_PROVIDER = True
 # key "runs a program", which is true of three of these six and sends the
 # reader of the other three hunting an exec that is not there.
 SOURCE_ARGV_KEYS = frozenset({"command", "args", "mcp_command"})
-SOURCE_EGRESS_KEYS = frozenset({"mcp", "token_env"})
+# `search_url` is gated where `url` is not. `url` is a page an ingest READS; `search_url`
+# is where `kb enrich` SENDS search terms built from the repo's own symbol names, so a
+# discovered file setting it would choose a host that receives code-derived data.
+SOURCE_EGRESS_KEYS = frozenset({"mcp", "token_env", "search_url"})
 # `auth` and `user` join `auth_dir` here rather than being left ungated. Neither is a
 # secret, and that is the point: they decide how the secret named by `token_env` is
 # PRESENTED, so a discovered file could flip a bearer token into the username half of a

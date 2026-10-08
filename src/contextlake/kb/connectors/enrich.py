@@ -13,6 +13,8 @@ never collides with the code shard or the ``@connect:<repo>`` partition.
 
 from __future__ import annotations
 
+import re
+import urllib.parse
 from typing import NamedTuple
 
 from ..model import Node
@@ -99,7 +101,109 @@ def _atlassian_search(cfg, terms: list[str], *, timeout: float | None = None) ->
     return out
 
 
-def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> list[Document]:
+class EnrichBudget:
+    """A cap on documents taken from term-search sources across one `kb enrich` run.
+
+    Per run, not per repo or per source: a per-query limit alone multiplies by terms,
+    sources and repos, and an `api` source would otherwise follow pagination for every
+    term. Once the cap is reached no further query is sent, and a repo not yet searched
+    keeps its previous results rather than being cleared as "nothing returned".
+    ``None`` means no cap.
+    """
+
+    def __init__(self, limit: int | None = None) -> None:
+        self.limit = limit
+        self.used = 0
+
+    @property
+    def exhausted(self) -> bool:
+        return self.limit is not None and self.used >= self.limit
+
+    def take(self) -> bool:
+        """Count one document in; False when the cap is already reached."""
+        if self.exhausted:
+            return False
+        self.used += 1
+        return True
+
+
+# Removed from each term before it is URL-encoded. A symbol name holding `"` or `\`
+# would otherwise end or escape the quoted string in a JQL or CQL search template
+# (`text ~ "{term}"`) and change the query. A stated limit: such a term is searched
+# without those characters.
+_TERM_UNSAFE = re.compile(r'["\\]')
+
+
+def render_search_urls(template: str, terms: list[str]) -> list[str]:
+    """The URLs an `api` source with ``search_url`` sends for ``terms``.
+
+    ``{term}`` sends one request per term; ``{terms}`` (or ``{query}``) sends one request
+    with every term joined, the placeholders `mcp_query._render_args` already uses. Each
+    term is cleaned (`_TERM_UNSAFE`) and URL-encoded. A template with neither placeholder
+    renders nothing: it would send the same query for every repo.
+    """
+    clean = [_TERM_UNSAFE.sub("", t).strip() for t in terms]
+    clean = [t for t in clean if t]
+    if "{term}" in template:
+        return [template.replace("{term}", urllib.parse.quote(t, safe="")) for t in clean]
+    if "{terms}" in template or "{query}" in template:
+        joined = urllib.parse.quote(" ".join(clean), safe="")
+        return [template.replace("{terms}", joined).replace("{query}", joined)] if clean else []
+    return []
+
+
+def _api_search(cfg, terms: list[str], *, timeout: float | None = None,
+                budget: EnrichBudget | None = None) -> list[Document]:
+    """Search an `api` source that has a ``search_url``, one page per query.
+
+    Every request is a GET (`ApiSource` builds no other kind). One page per query, so a
+    paginating API cannot turn ten terms into thousands of items; the run cap in
+    ``budget`` stops further queries once it is reached. A query `ApiSource` could not
+    complete (a 401, 403, 429, a dead host) is reported through `note_unavailable`, so
+    the caller keeps the repo's previous results instead of reading it as an empty
+    answer and clearing them.
+    """
+    from ..sources.api import ApiSource
+
+    name = _cfg_get(cfg, "name", "enrich")
+    template = _cfg_get(cfg, "search_url") or ""
+    urls = render_search_urls(template, terms)
+    if not urls:
+        note_unavailable(f"enrich source {name!r}",
+                         ValueError("search_url has no {term} or {terms} placeholder"))
+        return []
+    options = {k: _cfg_get(cfg, k) for k in ("items", "id_field", "title_field", "text_field",
+                                              "token_env", "auth", "user")
+               if _cfg_get(cfg, k) is not None}
+    if timeout is not None:
+        options["timeout"] = timeout
+    elif _cfg_get(cfg, "timeout") is not None:
+        options["timeout"] = _num(cfg, "timeout", 20, float)
+    out: list[Document] = []
+    seen: set[str] = set()
+    for url in urls:
+        # The cap counts what this call already holds: the caller takes documents into
+        # the budget only after this returns, so checking `exhausted` alone would still
+        # send every remaining query.
+        if budget is not None and budget.limit is not None and \
+                budget.used + len(out) >= budget.limit:
+            break
+        src = ApiSource(url=url, max_pages=1, **options)
+        docs = list(src.iter_documents())
+        for _target, reason in getattr(src, "failures", []) or []:
+            note_unavailable(f"enrich source {name!r}", RuntimeError(reason))
+        for d in docs:
+            if d.id in seen:
+                continue
+            seen.add(d.id)
+            attrs = dict(d.attrs)
+            attrs["source"] = "api"
+            out.append(Document(id=d.id, title=d.title, text=d.text, uri=d.uri, attrs=attrs))
+    return out
+
+
+def search_source(cfg, terms: list[str], *, timeout: float | None = None,
+                  budget: EnrichBudget | None = None) -> list[Document]:
     """Query one connected source with ``terms``, as :class:`Document`s.
 
     Dispatches on the source shape: a generic MCP search ``tool`` (see
@@ -120,6 +224,11 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
             return mcp_tool_query(cfg, terms, timeout=timeout)
         if _cfg_get(cfg, "type") == "atlassian":
             return _atlassian_search(cfg, terms, timeout=timeout)
+        # Only an `api` source that names a `search_url`. One without it is an ingest
+        # source with a fixed URL; fetching it here would re-read the same page for
+        # every repo and store it as that repo's enrichment.
+        if _cfg_get(cfg, "type") == "api" and _cfg_get(cfg, "search_url"):
+            return _api_search(cfg, terms, timeout=timeout, budget=budget)
         return []
     except Exception as e:  # an unreachable/misbehaving source yields nothing
         note_unavailable(f"enrich source {_cfg_get(cfg, 'name', '?')!r}", e)
@@ -157,6 +266,9 @@ class EnrichCounts(NamedTuple):
     documents: int
     edges: int
     unavailable: int = 0
+    # True when the run's document cap was reached before this repo was searched. Its
+    # previous results were left as they were, the same as an unavailable source.
+    capped: bool = False
 
 
 def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
@@ -166,7 +278,8 @@ def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
 
 
 def run_enrich_repo(
-    store, store_dir, cfg, repo_id: str, *, embedder=None, vector_store=None
+    store, store_dir, cfg, repo_id: str, *, embedder=None, vector_store=None,
+    budget: EnrichBudget | None = None,
 ) -> EnrichCounts:
     """Build query terms from ``repo_id``'s codebase, search every enabled source
     in ``cfg.sources``, and store the results in its ``@enrich:<repo_id>``
@@ -192,6 +305,10 @@ def run_enrich_repo(
     terms = build_terms(store_dir, repo_id)
     if not terms:
         return EnrichCounts(0, 0, 0)
+    if budget is not None and budget.exhausted:
+        # Nothing is searched, so nothing may be cleared: an empty answer here would
+        # replace this repo's previous results with none.
+        return EnrichCounts(len(terms), 0, 0, capped=True)
 
     part = enrich_partition(repo_id)
     seen: set[str] = set()
@@ -205,13 +322,15 @@ def run_enrich_repo(
         # "could not be reached". Only the counter `note_unavailable` bumps tells them
         # apart, so it is read around this one call.
         degraded_before = degraded_calls()
-        found = search_source(src, terms)
+        found = search_source(src, terms, budget=budget)
         if degraded_calls() > degraded_before:
             unavailable += 1
             continue
         for doc in found:
             if doc.id in seen:
                 continue
+            if budget is not None and not budget.take():
+                break
             seen.add(doc.id)
             nodes.append(_document_node(part, doc, _cfg_get(src, "type")))
             texts.append(doc.text)

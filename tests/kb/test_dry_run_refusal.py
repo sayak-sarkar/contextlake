@@ -46,7 +46,7 @@ REPO = Path(__file__).resolve().parents[2]
 # test below fails when a command is added or loses the flag without this table following.
 TAILS = {
     "completion": [], "connect": [], "dashboard": [], "docs": [], "embed": [],
-    "enrich": [], "eval": [], "graph": [], "hook": ["status"], "impact": ["x"],
+    "eval": [], "graph": [], "hook": ["status"], "impact": ["x"],
     "index": ["x"], "ingest": [], "init": [], "keys": ["list"], "lint": [],
     "owners": ["x"], "query": ["x"], "refresh": [], "serve": [],
     "source": ["list"], "steer": [], "version": [], "wiki": [],
@@ -54,8 +54,8 @@ TAILS = {
 # Commands whose own parser declares --dry-run, so they read it. `schedule` reads it on
 # `install` only and refuses it on its other actions itself (cmds.FLAG_ACTIONS; see
 # tests/test_schedule_flag_scope.py).
-TAKERS = ["audit", "bootstrap", "branches", "clone", "doctor", "fetch", "forget", "schedule",
-          "status", "sync", "update", "verify"]
+TAKERS = ["audit", "bootstrap", "branches", "clone", "doctor", "enrich", "fetch", "forget",
+          "schedule", "status", "sync", "update", "verify"]
 
 _MIRROR_ENTRY_STAGE = {
     "fetch": "fetch_gitlab_projects", "clone": "clone_missing_repos",
@@ -216,7 +216,7 @@ def test_the_refusal_names_the_qualified_command_and_the_ones_that_work(world, c
     err = capsys.readouterr().err
     assert "'--dry-run' isn't a flag on 'kb index'" in err
     assert "It's used by: " in err
-    assert "bootstrap, doctor, kb forget, mirror audit" in err
+    assert "bootstrap, doctor, kb enrich, kb forget, mirror audit" in err
 
 
 def test_an_alias_is_refused_under_its_canonical_name(world, capsys):

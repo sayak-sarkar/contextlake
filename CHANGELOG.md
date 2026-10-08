@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`kb enrich` can search Jira and Confluence with an API token.** An `api` source with a
+  `search_url` is searched once per term (`{term}`), or once with every term joined (`{terms}`).
+  Every request is a GET, and each search reads one page. A failed search (401, 403, 429, a dead
+  host) counts as an unavailable source, so the repo keeps its previous results. `search_url` is
+  a privileged key: it decides where search terms built from your code are sent.
+- **`kb enrich --dry-run` and `--max-documents N`.** The dry run prints each repo's terms and every
+  request it would send, and sends none. `--max-documents` stops searching once N documents were
+  taken in the run; repos not reached keep their previous results.
+
+### Fixed
+
+- **The Atlassian `api` example used the retired Jira search address.** `/rest/api/3/search` now
+  answers 410 Gone. The example uses `/rest/api/3/search/jql` with a project restriction, which
+  that address requires.
+
 ## [9.8.3] - 2026-10-05
 
 ### Security

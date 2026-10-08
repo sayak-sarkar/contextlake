@@ -146,7 +146,7 @@ def test_enrich_repo_stores_documents_with_provenance(tmp_path, monkeypatch):
             Document(id="d1", title="Runbook", text="how to page", uri="https://x/1"),
             Document(id="d2", title="Design doc", text="architecture notes", uri="https://x/2"),
         ]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
         counts = run_enrich_repo(store, store_dir, cfg, REPO)
@@ -177,7 +177,7 @@ def test_enrich_repo_rerun_is_idempotent_not_cumulative(tmp_path, monkeypatch):
             Document(id="d1", title="Runbook", text="how to page", uri="https://x/1"),
             Document(id="d2", title="Design doc", text="architecture notes", uri="https://x/2"),
         ]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
         assert run_enrich_repo(store, store_dir, cfg, REPO).documents == 2
@@ -196,7 +196,7 @@ def test_enrich_repo_dedupes_documents_across_sources(tmp_path, monkeypatch):
     store = _store(store_dir)
     try:
         docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[
             SourceCfg(type="atlassian", name="site-a"),
             SourceCfg(type="atlassian", name="site-b"),
@@ -254,7 +254,7 @@ def test_enrich_repo_links_documents_to_the_symbols_they_mention(tmp_path, monke
             Document(id="d1", title="Runbook", text="readSensor retries twice", uri="https://x/1"),
             Document(id="d2", title="Offsite", text="lunch is at noon", uri="https://x/2"),
         ]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
         assert run_enrich_repo(store, store_dir, cfg, REPO).documents == 2
@@ -312,7 +312,7 @@ def test_run_enrich_repo_returns_the_edge_count_beside_the_document_count(
             Document(id="d1", title="Runbook", text="readSensor retries twice", uri="https://x/1"),
             Document(id="d2", title="Offsite", text="lunch is at noon", uri="https://x/2"),
         ]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
         counts = run_enrich_repo(store, store_dir, cfg, REPO)
@@ -346,7 +346,7 @@ def test_run_enrich_repo_reports_zero_edges_for_documents_that_name_no_symbol(
                      uri="https://x/1"),
             Document(id="d2", title="Offsite", text="lunch is at noon", uri="https://x/2"),
         ]
-        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
         counts = run_enrich_repo(store, store_dir, cfg, REPO)

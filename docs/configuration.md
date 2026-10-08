@@ -121,6 +121,7 @@ you pass to `--config`:
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
+| `[[sources]] search_url` | the host `kb enrich` sends search terms built from your code to |
 | `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
@@ -175,7 +176,7 @@ That last point changes what `contextlake kb source add ... --local` can scope. 
 document source still works from a local file over its `url`; its `command` has to live in the
 global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
-`token_env`, `auth`, `user` and `auth_dir` on any source.
+`token_env`, `auth`, `user`, `auth_dir` and `search_url` on any source.
 
 ### The mirror config, `.contextlake.ini`
 

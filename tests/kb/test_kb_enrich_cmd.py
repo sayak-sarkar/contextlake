@@ -82,7 +82,7 @@ def test_enrich_persists_documents_from_configured_source(tmp_path, monkeypatch,
         Document(id="d1", title="Runbook", text="how to page", uri="https://x/1"),
         Document(id="d2", title="Design doc", text="architecture notes", uri="https://x/2"),
     ]
-    monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
 
     args = Namespace(config=str(cfg), workspace=None, args=[REPO])
     assert cmd_enrich(args) == 0
@@ -133,7 +133,7 @@ def test_enrich_positional_repo_filters_to_that_repo(tmp_path, monkeypatch):
     store.close()
 
     docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
-    monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
 
     args = Namespace(config=str(cfg), workspace=None, args=[REPO])
     assert cmd_enrich(args) == 0
@@ -202,7 +202,7 @@ def test_enrich_buckets_sum_to_the_planned_total(tmp_path, monkeypatch, gls_logs
 
     monkeypatch.setattr(
         enrich, "search_source",
-        lambda src, terms, timeout=None: _DOCS_BY_REPO_NAME.get(terms[0], []))
+        lambda src, terms, **_kw: _DOCS_BY_REPO_NAME.get(terms[0], []))
 
     real_write_shard = enrich.write_shard
 
@@ -246,7 +246,7 @@ def test_enrich_reports_returned_but_unattached_as_a_state_not_a_failure(
 
     docs = [Document(id="d1", title="Q3 plan", text="the team owns this service",
                      uri="https://x/1")]
-    monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
 
     args = Namespace(config=str(cfg), workspace=None, args=[REPO])
     assert cmd_enrich(args) == 0
@@ -275,7 +275,7 @@ def test_enrich_repo_whose_shard_write_fails_lands_in_the_failed_bucket(
     store.close()
 
     docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
-    monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
 
     def _boom(store_dir, shard):
         raise OSError("no space left on device")

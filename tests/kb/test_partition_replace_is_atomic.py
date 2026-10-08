@@ -147,7 +147,7 @@ def _cfg():
 
 
 def _found(docs):
-    return lambda src, terms, timeout=None: docs
+    return lambda src, terms, **_kw: docs
 
 
 def test_a_failed_enrich_write_keeps_the_previous_partition(tmp_path, monkeypatch):

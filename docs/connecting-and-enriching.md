@@ -147,11 +147,66 @@ each of the 19 embeddable kinds would leave the ranking two or three slots to de
 **Prerequisites.** Two things must be true:
 
 1. The code graph is indexed, via `contextlake kb index`.
-2. At least one term-searchable source is configured. That means either an `mcp` source with
-   `tool` and `arg_template` keys, or an `atlassian` source.
+2. At least one term-searchable source is configured. That means an `mcp` source with `tool`
+   and `arg_template` keys, an `atlassian` source, or an `api` source with a `search_url`
+   (next section).
 
 Sources without those capabilities, such as a plain `files` or `web` source, are skipped
 gracefully.
+
+### Searching Jira and Confluence with an API token
+
+An `api` source with a `search_url` is searched once per term. Put `{term}` where the term goes;
+it is URL-encoded, and `"` and `\` are removed from it first so it cannot end a quoted JQL or
+CQL string. `{terms}` sends one search with every term joined instead.
+
+```toml
+[[sources]]
+type = "api"
+name = "jira"
+search_url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%20in%20(ACME,OPS)%20AND%20text%20~%20%22{term}%22&fields=summary&maxResults=20"
+items = "issues"
+id_field = "key"
+title_field = "fields.summary"
+text_field = "fields.summary"
+auth = "basic"
+user = "you@example.com"
+token_env = "ATLASSIAN_API_TOKEN"
+
+[[sources]]
+type = "api"
+name = "confluence"
+search_url = "https://your-site.atlassian.net/wiki/rest/api/search?cql=space%20in%20(ENG)%20AND%20text%20~%20%22{term}%22&limit=20"
+items = "results"
+id_field = "content.id"
+title_field = "title"
+text_field = "excerpt"
+auth = "basic"
+user = "you@example.com"
+token_env = "ATLASSIAN_API_TOKEN"
+```
+
+What this path guarantees:
+
+- **It only reads.** Every request is a GET.
+- **One page per search.** `maxResults` or `limit` in the URL sets the size of that page.
+- **The token stays on its host.** A redirect to another origin is followed without it.
+- **A failed search keeps the old results.** A 401, 403, 429 or dead host counts as an
+  unavailable source, so the repo keeps what it had instead of being cleared.
+- **`search_url` is a privileged key.** It decides where search terms built from your code
+  are sent, so only the global config or a file named with `--config` may set it.
+
+Before the first real run, `--dry-run` prints each repo's terms and every URL it would request,
+and sends nothing. `--max-documents N` stops sending searches once N documents were taken in the
+run. Repos it did not reach keep their previous results.
+
+```bash
+contextlake kb enrich --config ~/enrich.toml --dry-run acme/forecast-api
+contextlake kb enrich --config ~/enrich.toml --max-documents 200 acme/forecast-api
+```
+
+A known limit: each stored document links to the search request that found it, not to the
+issue or page itself.
 
 **What you get.** Each repo's enrichment documents live in their own partition, so they can be
 re-fetched without clobbering earlier results.
@@ -167,8 +222,8 @@ edges attached to code. Both numbers are reported because they answer different 
 documents returned says whether your sources had anything, edges to code says whether a
 question about the code can reach it.
 
-The closing line puts every targeted repo in one of five buckets, and the five add up to the
-number of repos the run planned to touch:
+The closing line puts every targeted repo in one bucket, and the buckets add up to the number
+of repos the run planned to touch:
 
 | Bucket | What it means |
 |---|---|
@@ -177,6 +232,8 @@ number of repos the run planned to touch:
 | `returned but unattached` | Documents came back and none names a symbol in the repo. |
 | `failed` | The store or shard write failed for that repo. The run continues. |
 | `skipped` | No graph shard, so no terms were built. Run `kb index` first. |
+| `kept previous results` | A source could not be reached, so the repo's earlier results stay. |
+| `not searched (cap reached)` | `--max-documents` was reached first; earlier results stay. |
 
 `returned but unattached` is a normal outcome, not a failure, and the run still ends with a
 `✓`. Symbol matching is whole-word and ignores names under three characters, so a ticket that

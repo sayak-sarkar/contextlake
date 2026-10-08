@@ -1841,17 +1841,26 @@ Examples:
   contextlake kb enrich                    enrich every indexed repo
   contextlake kb enrich group/app          enrich just this repo
   contextlake kb enrich --workspace ~/src  enrich every repo under a mirror
+  contextlake kb enrich --dry-run group/app
+                                           show the searches it would send, send none
 
 Unlike `connect` (which reconciles issue keys/links found *in* a repo), enrich
 never inspects the repo's text -- it turns the repo's own name and top symbols
-into search terms and asks each configured `mcp` (with a `tool`) or `atlassian`
-source what it has. Results land in an isolated `@enrich:<repo>` partition.
+into search terms and asks each configured `mcp` (with a `tool`), `atlassian`,
+or `api` (with a `search_url`) source what it has. Results land in an isolated
+`@enrich:<repo>` partition.
                 """)
     p.add_argument("args", nargs="*", metavar="repo",
                    help="only enrich these repos (default: all indexed)")
     p.add_argument("--workspace", default=_S,
                    help="enrich every git repo under this directory instead of the "
                         "store's indexed repos")
+    p.add_argument("--dry-run", action="store_true", default=_S,
+                   help="print each repo's search terms and the queries it would send; "
+                        "send nothing and store nothing")
+    p.add_argument("--max-documents", type=int, default=None, metavar="N",
+                   help="stop sending queries once N documents were taken in this run; "
+                        "repos not searched keep their previous results")
 
     p = command("dashboard", "the knowledge-system dashboard: fleet / repo / "
                              "relationships / impact / health / search",
