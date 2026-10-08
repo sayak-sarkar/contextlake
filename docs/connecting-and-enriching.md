@@ -164,7 +164,7 @@ CQL string. `{terms}` sends one search with every term joined instead.
 [[sources]]
 type = "api"
 name = "jira"
-search_url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%20in%20(ACME,OPS)%20AND%20text%20~%20%22{term}%22&fields=summary&maxResults=20"
+search_url = "https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%20in%20(%22ACME%22,%22OPS%22)%20AND%20text%20~%20%22{term}%22&fields=summary&maxResults=20"
 items = "issues"
 id_field = "key"
 title_field = "fields.summary"
@@ -185,6 +185,10 @@ auth = "basic"
 user = "you@example.com"
 token_env = "ATLASSIAN_API_TOKEN"
 ```
+
+Put each Jira project key in double quotes (`%22` in the URL). A key that is also a JQL word,
+such as `IN`, otherwise fails every search with a 400, and every repo then keeps its previous
+results.
 
 What this path guarantees:
 
