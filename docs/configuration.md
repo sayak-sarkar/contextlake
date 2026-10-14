@@ -85,6 +85,9 @@ contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml
 contextlake kb source add jira --type atlassian --local   # scopes a source the same way
 ```
 
+`--config PATH` wins over `--local`: `init` writes the mirror config to `PATH` and `kb.toml` in
+the same folder.
+
 Every command run from that directory, or any subdirectory under it, picks up the local config
 automatically. You do not need to pass `--config`, and you do not need to be in the exact
 directory the file lives in.

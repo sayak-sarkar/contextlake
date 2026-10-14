@@ -101,6 +101,8 @@ set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher 
   does not parse already was.
 - **The built-in model's install message called Ollama a hosted model.** It runs on your
   machine; the message now says so.
+- **The `init --local` help says that `--config` wins.** With `--config PATH`, `init` writes the
+  mirror config to `PATH` and `kb.toml` in the same folder.
 - **Two files whose names differ only in case or punctuation are two nodes (D05).** File ids
   were the repo id and path with case folded and every run of punctuation turned into `_`, so
   `a-b.py`, `a_b.py` and `A_B.py` in one repo were one node (all but one file missing from the

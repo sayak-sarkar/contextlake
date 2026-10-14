@@ -980,7 +980,9 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                         "next to the workspace with --local, ~/.contextlake/kb otherwise)")
     p.add_argument("--local", action="store_true", default=_S,
                    help="write config to the current directory instead of ~/ "
-                        "(inherited by every subdirectory underneath it)")
+                        "(inherited by every subdirectory underneath it). --config PATH "
+                        "wins over --local: the mirror config is written to PATH and "
+                        "kb.toml beside it")
     p.add_argument("--kb", dest="kb", action="store_true", default=_S,
                    help="set up the knowledge layer (default: yes)")
     p.add_argument("--no-kb", dest="kb", action="store_false", default=_S,

@@ -2151,6 +2151,9 @@ contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml
 contextlake kb source add jira --type atlassian --local   # scopes a source the same way
 ```
 
+`--config PATH` wins over `--local`: `init` writes the mirror config to `PATH` and `kb.toml` in
+the same folder.
+
 Every command run from that directory, or any subdirectory under it, picks up the local config
 automatically. You do not need to pass `--config`, and you do not need to be in the exact
 directory the file lives in.
@@ -9599,6 +9602,8 @@ set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher 
   does not parse already was.
 - **The built-in model's install message called Ollama a hosted model.** It runs on your
   machine; the message now says so.
+- **The `init --local` help says that `--config` wins.** With `--config PATH`, `init` writes the
+  mirror config to `PATH` and `kb.toml` in the same folder.
 - **Two files whose names differ only in case or punctuation are two nodes (D05).** File ids
   were the repo id and path with case folded and every run of punctuation turned into `_`, so
   `a-b.py`, `a_b.py` and `A_B.py` in one repo were one node (all but one file missing from the
