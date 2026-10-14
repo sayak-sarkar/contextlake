@@ -36,7 +36,7 @@ _MISSING_EXTRA = (
     "  contextlake doctor --fix llm-local\n"
     "or by hand:\n"
     "  pip install 'contextlake[llm-local]'\n"
-    "Or use a hosted model instead: --llm ollama | openai."
+    "Or use another backend: --llm ollama (a local daemon) or --llm openai (a hosted API)."
 )
 
 DEFAULT_CACHE_DIR = "~/.contextlake/models"
