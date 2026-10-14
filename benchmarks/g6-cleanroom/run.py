@@ -295,12 +295,19 @@ class CleanRoom:
         r = self.cl("kb", "index", str(self.bare))
         if r.returncode != 0:
             return r.returncode, None
-        q = self.cl("kb", "query", "only_function", "--repo", self.bare.name, "--json")
+        # Not `--repo no-manifest`: since 8.7.0 a repository with no `origin` is stored as
+        # `name@<root commit>`, and `--repo` takes the exact id, so that guess matched nothing
+        # and the check failed on a correct store (10.0.0rc1). The name part of the id is
+        # matched instead; the product's hash is not re-derived here.
+        q = self.cl("kb", "query", "only_function", "--json")
         try:
             hits = json.loads(q.stdout)
         except (json.JSONDecodeError, AttributeError):
             return r.returncode, None
-        return r.returncode, any(h.get("name") == "only_function" for h in hits)
+        return r.returncode, any(
+            h.get("name") == "only_function"
+            and str(h.get("repo", "")).split("@", 1)[0] == self.bare.name
+            for h in hits)
 
 
 def main(argv: list[str] | None = None) -> int:
