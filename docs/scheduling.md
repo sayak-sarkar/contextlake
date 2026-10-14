@@ -64,7 +64,7 @@ resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
 
 `install` picks systemd if a systemd user session answers, cron otherwise, and prints the
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
-hand. Force a specific platform with `--platform systemd` or `--platform cron`.
+hand, and exits 1 because nothing was scheduled. Force a specific platform with `--platform systemd` or `--platform cron`.
 
 ### How the cron adapter edits your crontab
 

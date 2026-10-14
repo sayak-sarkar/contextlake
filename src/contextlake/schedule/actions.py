@@ -76,8 +76,9 @@ def cmd_install(args, config) -> int:
         written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
                                   on_battery=on_battery)
     except OSError as e:
-        # Degrade, never fail: print the unit and say how to install it.
-        # Same on_battery as the install attempt. A user who set
+        # Print the unit and say how to install it, then exit 1: nothing is scheduled, and
+        # a script or CI step that reads the exit code must see that. It exited 0 until the
+        # owner chose 1 (G-5, 2026-10-09). Same on_battery as the install attempt. A user who set
         # schedule_on_battery=run must not be handed a unit with
         # ConditionACPower=true, which on a read-only home is the only
         # artefact they get.
@@ -89,7 +90,7 @@ def cmd_install(args, config) -> int:
                 continue
             log(f"\n----- {filename} -----\n{text}")
         log("Install these yourself, or run `contextlake schedule run --foreground`.")
-        return 0
+        return 1
     jobstore.write_job(jobs_file, job)
 
     adapters._report_installed(

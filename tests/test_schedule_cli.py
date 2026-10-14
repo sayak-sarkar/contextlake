@@ -367,7 +367,7 @@ def test_the_degrade_path_prints_the_configured_battery_behaviour(tmp_path, monk
     args = argparse.Namespace(job=None, interval=None, platform="systemd")
     rc = cmds.cmd_install(args, config)
     out = capsys.readouterr().out
-    assert rc == 0
+    assert rc == 1    # nothing was scheduled (G-5); the unit is still printed
     assert "ConditionACPower" not in out
 
 
@@ -436,7 +436,7 @@ def test_the_degrade_path_prints_only_artefacts_never_metadata(
     config = {"cache_dir": str(tmp_path), "cache_file": "p.txt"}
     args = argparse.Namespace(job=None, interval=None, platform=platform_name)
     rc = cmds.cmd_install(args, config)
-    assert rc == 0
+    assert rc == 1    # nothing was scheduled (G-5)
 
     out = "\n".join(lines)
     headers = set(re.findall(r"----- (.+?) -----", out))

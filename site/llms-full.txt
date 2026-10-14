@@ -5530,7 +5530,7 @@ resolves to: `~/.cache/contextlake/<workspace>-<id>` by default.
 
 `install` picks systemd if a systemd user session answers, cron otherwise, and prints the
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
-hand. Force a specific platform with `--platform systemd` or `--platform cron`.
+hand, and exits 1 because nothing was scheduled. Force a specific platform with `--platform systemd` or `--platform cron`.
 
 ### How the cron adapter edits your crontab
 
@@ -9165,14 +9165,13 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 | Code | Means | Typical causes |
 | --- | --- | --- |
 | `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
-| `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
+| `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem; a `schedule install` that could not install its unit |
 | `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag (including `--dry-run` on a command that does not take it), a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
 | `130` | `Ctrl-C` on a command that was still working | Interrupted at any point, including during `init`. Not the long-running servers, see below |
 
-**`schedule install` exits `0` when it could not install the unit.** It prints `✗ Could not
-install`, then the unit itself and how to install it by hand, because a read-only home or a
-missing service manager is a situation to work around rather than a failed run. Check for that
-line, not the exit code, if a script needs to know the unit is in place.
+**`schedule install` exits `1` when it could not install the unit.** It still prints `✗ Could
+not install`, then the unit itself and how to install it by hand, so a read-only home or a
+missing service manager can be worked around. Nothing is scheduled until you do.
 
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
 `kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
@@ -9434,6 +9433,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`kb enrich --dry-run` and `--max-documents N`.** The dry run prints each repo's terms and every
   request it would send, and sends none. `--max-documents` stops searching once N documents were
   taken in the run; repos not reached keep their previous results.
+
+### Changed
+
+- **`schedule install` exits 1 when it cannot install the unit.** It still prints the unit and how
+  to install it by hand. It exited 0, so a script or CI step reading the exit code saw a failed
+  install as a success.
 
 ### Fixed
 

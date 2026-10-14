@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   request it would send, and sends none. `--max-documents` stops searching once N documents were
   taken in the run; repos not reached keep their previous results.
 
+### Changed
+
+- **`schedule install` exits 1 when it cannot install the unit.** It still prints the unit and how
+  to install it by hand. It exited 0, so a script or CI step reading the exit code saw a failed
+  install as a success.
+
 ### Fixed
 
 - **The Atlassian `api` example used the retired Jira search address.** `/rest/api/3/search` now
