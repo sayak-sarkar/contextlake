@@ -2136,7 +2136,7 @@ values; use flags for one-off overrides:
 contextlake --work-dir /path/to/workspace mirror sync   # override work_dir
 contextlake --group my-gitlab-group mirror sync          # override the group
 contextlake --config /path/to/custom.ini mirror sync     # use a different config file
-contextlake --work-dir /home/user/dev --group your-gitlab-group mirror status  # combine
+contextlake --work-dir /home/user/dev --group my-gitlab-group mirror status  # combine
 ```
 
 ## Directory-scoped config
