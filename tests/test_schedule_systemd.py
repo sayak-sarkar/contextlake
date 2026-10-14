@@ -228,13 +228,18 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
         while time.time() < deadline:
             result = subprocess.run(
                 ["systemctl", "--user", "show", f"{unit}.service",
-                 "-p", "ExecMainStatus", "-p", "ActiveState"],
+                 "-p", "ExecMainStatus", "-p", "ActiveState", "-p", "ConditionResult"],
                 capture_output=True, text=True, check=False)
             if "ActiveState=inactive" in result.stdout:
                 break
             time.sleep(1)
         else:
             pytest.fail("the unit never completed within 60s")
+        if "ConditionResult=no" in result.stdout:
+            # On battery, `ConditionACPower` skips the unit: nothing ran, and a skipped
+            # unit reports ExecMainStatus=0. That read as a pass for as long as the
+            # machine was unplugged (found 2026-10-14), so it is reported as a skip.
+            pytest.skip("systemd skipped the unit on an unmet condition (on battery?)")
         assert "ExecMainStatus=0" in result.stdout
     finally:
         # delete_job must run even if uninstall raises, or a killed/failed
