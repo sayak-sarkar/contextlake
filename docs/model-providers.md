@@ -161,6 +161,27 @@ The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
 `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
 OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
+**Which size can this machine run?** `contextlake kb wiki --model-check` prints a table and
+generates nothing. It reads the free RAM (a container's own memory limit, where there is one)
+and the free disk, and lists five sizes of the same model family:
+
+| Model | Download | RAM need | One page (draft and 3 reviews) |
+|---|---|---|---|
+| 0.5B (default) | 349 MB | 2.5 GB | about 1 min |
+| 1.5B | 941 MB | 3.9 GB | about 2 min |
+| 3B | 1.8 GB | 5.9 GB | about 5 min |
+| 7B | 4.5 GB | 13 GB | about 11 min (extrapolated) |
+| 14B | 8.5 GB | 23 GB | about 21 min (extrapolated) |
+
+- A model fits when its RAM need is at most 80% of the RAM free now, and its download leaves
+  1 GB of disk free. A model already on disk needs no download.
+- The table also counts the pages the next run would write and multiplies out the whole run.
+- The times were measured on one machine (a WSL2 VM with 22 vCPUs and 16 GB RAM) on a
+  47,838-node repository, so the table shows each as a range. RAM need is the peak of the
+  whole run, store included.
+- To use a size, set `[llm] provider = "builtin"` and `model` to its repo id, for example
+  `OpenVINO/Qwen2.5-Coder-3B-Instruct-int4-ov`.
+
 **A model is downloaded once.** Each load looks on disk first: the pinned commit of the
 default model, then any copy of the same model already in the cache (from an older install,
 or baked into the container image). Only when there is none does it go online, and never

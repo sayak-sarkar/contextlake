@@ -710,6 +710,14 @@ def cmd_wiki(args) -> int:
     from ..wiki.validate import replacement_gate, structural_gate
 
     store, store_dir = _open_store(args)
+    if getattr(args, "model_check", False):
+        # Read-only: no write lock, no embedder, no model loaded.
+        from ..llm.model_check import print_model_check
+
+        try:
+            return print_model_check(store, store_dir, kb_config(args))
+        finally:
+            store.close()
     if not _guard_store(store_dir, "wiki"):
         store.close()
         return 1

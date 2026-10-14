@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`kb wiki --model-check`.** Prints which built-in wiki model this machine can run and
+  generates nothing: five sizes of the default's family (0.5B to 14B), each with its
+  download (or "on disk"), RAM need, whether it fits, and the approximate time per page and
+  for the whole run. RAM is read from the system and from a container's own memory limit.
+  The times were measured on one named machine and are shown as ranges; 7B and 14B are
+  extrapolated and marked so. Each size downloads a pinned commit.
 - **`kb keys create --no-external`.** The key reads no connector content, with or without
   `--repos`: no connector items, enrichment documents, ingested documents, or wiki pages that
   may quote connected sources. A key with no `--repos` becomes limited to every repository

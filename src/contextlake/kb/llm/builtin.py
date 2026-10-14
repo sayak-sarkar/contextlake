@@ -48,9 +48,6 @@ DEFAULT_CACHE_DIR = "~/.contextlake/models"
 # to IR needs optimum-intel, which pulls torch and transformers, and that footprint
 # would be worse than the one this change removes.
 DEFAULT_REPO = "OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov"
-# The default's commit, pinned so a first download is the same bytes on every machine.
-# Read from the Hub API 2026-10-14. A model the user names has no pin.
-DEFAULT_REVISION = "339876973306da551969e2d88991b7053be2029c"
 DEFAULT_DEVICE = "CPU"
 
 
@@ -88,7 +85,11 @@ class BuiltinLlm(LlmClient):
         # A whole directory, not one file: OpenVINO IR is a model pair plus its
         # tokenizer and detokenizer models, and the pipeline opens the directory.
         # The copy on disk first; the network only when there is none (model_cache).
-        revision = DEFAULT_REVISION if self.repo_id == DEFAULT_REPO else None
+        # A catalogue model downloads its pinned commit, so a first download is the same
+        # bytes on every machine. A model the user names outside the catalogue has no pin.
+        from .catalogue import pinned_revision
+
+        revision = pinned_revision(self.repo_id)
         model_dir = fetch_snapshot(self.repo_id, revision)
         try:
             self._pipe = LLMPipeline(model_dir, self.device)

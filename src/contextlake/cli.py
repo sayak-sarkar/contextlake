@@ -1316,6 +1316,9 @@ Examples:
                    help="--namespaces: repo-id prefix depth to group by (default 2)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="regenerate pages even when the graph is unchanged")
+    p.add_argument("--model-check", dest="model_check", action="store_true", default=_S,
+                   help="print which built-in wiki model this machine can run, with the "
+                        "download, RAM and approximate time of each, and generate nothing")
 
     p = command("steer", "write editor steering files (.mcp.json, AGENTS.md, skills, …)")
     p.add_argument("--out", default=_S,
