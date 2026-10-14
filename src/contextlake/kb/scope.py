@@ -57,6 +57,10 @@ WIKI_PREFIX = "@wiki:"
 
 _REPO_PREFIXES = (CONNECT_PREFIX, ENRICH_PREFIX, WIKI_PREFIX)
 
+# The repo-owned partitions that hold connector output. A scoped caller without
+# connector access reads neither (see `owns_partition`).
+CONNECTOR_PREFIXES = (CONNECT_PREFIX, ENRICH_PREFIX)
+
 # The separator `cmds/wiki.py:_module_partition_head` puts between a repo id and
 # a module prefix inside the `@wiki:` partition family. The whole-repo page's own
 # key is `@wiki:<repo>` WITHOUT it, which is why the split below is bounded to
@@ -264,6 +268,12 @@ def owns_partition(partition_id: str, patterns: Iterable[str], *,
         return True
     if partition_id.startswith("("):
         return sentinel_visible(partition_id, patterns, external=external)
+    if partition_id.startswith(CONNECTOR_PREFIXES) and not external:
+        # Connector output stored under a repo: `@enrich:` holds the fetched ticket and
+        # page text, and `@connect:` the links and vectors of `(external)` items. A repo
+        # scope owns both by name, so without this rule a key without connector access
+        # read the text the `(external)` ruling above hides.
+        return False
     owner = partition_repo(partition_id)
     if owner is None:
         return False  # `@ingest:` and anything unrecognised: denied, never guessed

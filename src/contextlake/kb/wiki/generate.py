@@ -1065,6 +1065,8 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None,
 # commit-fresh but field-stale, and a freshness check that only asks about the
 # commit freezes it that way until the commit moves or `--force` is passed.
 _SUBSYSTEM_FOOTER_RE = re.compile(r"Subsystem pages: (`[^*]+`)\.")
+_GENERATED_FOOTER = "\n\n---\n*Generated from the knowledge graph of "
+_CONNECTOR_FOOTER_RE = re.compile(r" Connector items: (\d+)\.")
 
 
 def subsystem_names(subsystem_modules: list[dict] | None) -> str:
@@ -1138,16 +1140,42 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
     # Recorded at all because a page can be commit-fresh and graph-stale: the parser
     # changes what it extracts from an unchanged commit.
     parser = brief.get("parser_version")
+    # How many connected-source items the prompt carried. `may_hold_connector_text`
+    # reads it to decide whether a key without connector access may see this page.
+    connector = f" Connector items: {len(brief.get('external') or [])}."
     return (
-        "\n\n---\n"
-        f"*Generated from the knowledge graph of {scope} at commit "
+        f"{_GENERATED_FOOTER}{scope} at commit "
         f"`{brief['head']}`" + (f" (parser {parser})" if parser else "")
         + f" on {verified_at or date.today()}."
         + (f" Sources: {cites}." if cites else "")
         + coverage
         + subsystems
+        + connector
         + "*"
     )
+
+
+def may_hold_connector_text(page: str) -> bool:
+    """Whether ``page`` may hold text from connected sources (tickets, pages, designs).
+
+    The prompt of a whole-repo page carries the repo's ``@enrich:`` documents, and the
+    model may quote them anywhere in the page, so no section can be cut out. The footer
+    records how many items the prompt carried. Only the LAST generated footer counts:
+    it is written after the model's text, so the model cannot write one below it.
+
+    ``True`` when the footer has no count (a page from before 2026-10-14; module pages
+    from before 2026-07-31 carried the whole repo's items) and for a page this code did
+    not write. A structural page holds none: it is built with no model and no connector
+    text. Fail closed: an unknown page is treated as holding connector text.
+    """
+    page = page or ""
+    at = page.rfind(_GENERATED_FOOTER)
+    if at >= 0:
+        m = _CONNECTOR_FOOTER_RE.search(page, at)
+        return m is None or int(m.group(1)) > 0
+    from .structural import is_structural_page
+
+    return not is_structural_page(page)
 
 
 def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,

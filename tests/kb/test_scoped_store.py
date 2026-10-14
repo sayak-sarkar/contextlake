@@ -200,8 +200,10 @@ def test_the_wildcard_reaches_the_system_sentinel(request_scope):
 
 def test_the_open_ended_wiki_family_is_in_scope(request_scope):
     """The reason this design exists: an `IN (?,...)` list that still covers a
-    family whose members cannot be enumerated from the grant."""
-    visible = _scoped().visible_partitions()
+    family whose members cannot be enumerated from the grant. With connector access:
+    without it, a wiki partition whose page may quote connected sources is hidden
+    (tests/kb/test_connector_access.py), and this fake store records no such flag."""
+    visible = _scoped(external=True).visible_partitions()
     assert "@wiki:acme/api" in visible
     assert "@wiki:acme/api::core" in visible
     assert "@wiki:other/api" not in visible

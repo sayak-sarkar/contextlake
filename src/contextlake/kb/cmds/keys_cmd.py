@@ -92,7 +92,7 @@ _DATE_FORMAT = "%Y-%m-%d"
 # `tools` and `owners` are read by `kb/grants.py` and checked on every call a
 # networked server serves, `rate`, `burst` and `cost_budget` are read by
 # `kb/ratelimit.py` at the gate, and `repos` and `external` are applied by
-# `kb/scoped_store.py` (as of 9.3.0 all seven are in `grants.ENFORCED_AXES`).
+# `kb/scoped_store.py`, with `no_external` (every axis is in `grants.ENFORCED_AXES`).
 # This comment said "`repos` and `external` are still stored and read by
 # nothing" for a release after that stopped being true, and the help text, the
 # epilog, `docs/cli-reference.md` and `_scope_line` all said it with it.
@@ -126,7 +126,7 @@ _ENFORCED = "enforced"
 # meets them in `--help`. Derived against `grants.ENFORCED_AXES` rather than
 # split by hand into two lists, so an axis that starts being enforced moves
 # between the sentences by itself.
-_ALL_AXES = ("tools", "repos", "owners", "external", "rate", "burst",
+_ALL_AXES = ("tools", "repos", "owners", "external", "no_external", "rate", "burst",
              "cost_budget")
 
 
@@ -367,8 +367,15 @@ def _policy(args) -> dict:
         value = getattr(args, flag, None)
         if value not in (None, ""):
             policy[flag] = value
+    if getattr(args, "external", False) and getattr(args, "no_external", False):
+        raise _BadUsage(
+            "external_conflict",
+            "--external grants connector content and --no-external hides it. Pass one "
+            "of them.", value="")
     if getattr(args, "external", False):
         policy["external"] = True
+    if getattr(args, "no_external", False):
+        policy["no_external"] = True
 
     # `--tools ""` and `--repos ""` are REFUSED here rather than dropped above.
     # The drop is what the two lines above still do for every other axis, and it
@@ -449,8 +456,9 @@ def _scope_line(record) -> str:
     policy = record.policy or {}
     parts = [_axis(policy, "tools"), _axis(policy, "repos"),
              _axis(policy, "owners")]
-    if policy.get("external"):
-        parts.append(_axis(policy, "external"))
+    for switch in ("external", "no_external"):
+        if policy.get(switch):
+            parts.append(_axis(policy, switch))
     return "  ".join(parts)
 
 

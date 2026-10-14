@@ -4249,7 +4249,10 @@ When the repo's own checkout is available, it also uses an excerpt of the README
 conventional entry-point or config files exist, such as `package.json`, `Dockerfile` or
 `manage.py`.
 
-Every page carries a provenance footer citing the commit and the sources.
+Every page carries a provenance footer citing the commit and the sources. It also records
+how many connected-source items the prompt carried (`Connector items: N`). A network key
+without connector access does not see a page whose count is above 0 or missing (see
+[`kb keys`](cli-reference.md#kb-keys)).
 
 The draft then goes through a **verification council**. Reviewers score it for accuracy,
 completeness and clarity, and a chairman publishes only pages above a configurable threshold.
@@ -8718,10 +8721,11 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**All seven key flags are enforced, and the marker beside each value says so.** `--tools`
+**All eight key flags are enforced, and the marker beside each value says so.** `--tools`
 and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
-`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos` and
-`--external` are applied inside the store, so they filter what a call can read. The list
+`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos`,
+`--external` and `--no-external` are applied inside the store, so they filter what a call
+can read. The list
 of enforced axes is `ENFORCED_AXES` in `kb/grants.py`, and `kb keys --help` and every
 `kb keys` surface read it, so the help text and the markers follow it.
 
@@ -8750,14 +8754,36 @@ the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `grap
 refuses a scoped key, since it has no repo argument to check. A node id does not carry the
 repository it came from, so the filter runs inside the store and not on the call.
 
-**`--external` GRANTS access.** It is not a label. On a key that has `--repos`,
-connector-fetched content that belongs to no repository (issues, designs and similar items)
-is hidden unless the key was created with `--external`. That content can be more sensitive
-than code, so add the flag only for a holder you would trust with it.
+**`--external` GRANTS access.** It is not a label. A key that has `--repos` and not
+`--external` cannot read connector content:
 
-A key with no `--repos` is not limited by `--external` in search and graph answers: those
-reads skip the filter for an unscoped key, so the content can appear there with or without
-the flag. `get_node` does apply the flag.
+- connector items that belong to no repository (issues, designs and similar items);
+- the documents `kb enrich` fetched for its repositories, and the links and vectors of
+  connector items stored under a repository;
+- a wiki page that may quote connected sources (see below).
+
+That content can be more sensitive than code, so add the flag only for a holder you would
+trust with it.
+
+**`--no-external` hides the same content from a key with no `--repos`.** A key with no
+`--repos` and no `--no-external` reads connector content in every answer, with or without
+`--external`. `--no-external` turns the key into one limited to every repository (`**`), so
+it also loses what any repo-limited key loses: ingested documents (`kb ingest`), and the
+whole-fleet documents and cluster pages (`get_fleet_doc`, `graph_health`), which refuse it.
+`--external` together with `--no-external` exits `2` and writes no key. A hand-edited record
+with both reads as `--no-external`.
+
+**A wiki page that may quote connected sources is withheld from these keys.** The model
+can use connector text anywhere in a generated page, so no section can be cut out.
+
+- The page footer records how many connector items the prompt carried
+  (`Connector items: N`).
+- `get_wiki`, and `ask` through it, answer `found: true` with a note in place of the page
+  text. The page's sections leave search and node answers.
+- A page with no count counts as quoting connected sources: every page generated before
+  the count existed, and any page `kb wiki` did not write. Regenerate it with a language
+  model configured (`kb wiki --force`) to record its count.
+- Structural pages carry no connector text, so these keys read them.
 
 Measured on a live `kb serve --transport http --keys-only` server, not assumed. In an
 earlier release, a key created `--tools none --repos nothing-matches/*` was presented and
@@ -9427,6 +9453,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **A repo-limited key without `--external` no longer reads enrichment documents.** `kb enrich`
+  stores the ticket and page text it fetches under the repository (`@enrich:<repo>`), so a key
+  with `--repos` read that text even though it could not read the connector items themselves.
+  It now reads neither, nor the links and vectors of connector items stored under the
+  repository (`@connect:<repo>`). **Existing keys created with `--repos` and without
+  `--external` lose this content.** Keys with no `--repos`, the default key and the shared
+  token are unchanged.
+- **Wiki pages that may quote connected sources are withheld from keys without connector
+  access.** The prompt of a whole-repo page carries the repo's enrichment documents, and the
+  model may quote them anywhere in the page. The page footer now records how many connector
+  items the prompt carried (`Connector items: N`). For such a key, `get_wiki` (and `ask`)
+  answer `found: true` with a note in place of the page text, and the page's sections leave
+  search and node answers. A page with no count, which includes every page generated before
+  this release, is withheld until it is regenerated with a language model configured
+  (`kb wiki --force`).
 - **Author pseudonyms are keyed per run.** `Contributor a1b2` was 4 hex of an unkeyed SHA-256 of
   the author's email, so anyone with a list of candidate emails could find the person behind it.
   It is now an HMAC under a key made fresh for each export, each dashboard server start and each
@@ -9436,6 +9477,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`kb keys create --no-external`.** The key reads no connector content, with or without
+  `--repos`: no connector items, enrichment documents, ingested documents, or wiki pages that
+  may quote connected sources. A key with no `--repos` becomes limited to every repository
+  (`**`), so the whole-fleet documents and cluster pages refuse it. `--external` with
+  `--no-external` exits 2.
 - **`kb enrich` can search Jira and Confluence with an API token.** An `api` source with a
   `search_url` is searched once per term (`{term}`), or once with every term joined (`{terms}`).
   Every request is a GET, and each search reads one page. A failed search (401, 403, 429, a dead

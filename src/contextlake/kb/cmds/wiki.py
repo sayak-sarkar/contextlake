@@ -57,9 +57,14 @@ def _wiki_section_nodes(repo_id: str, page: str, filename: str, *,
     callers.
     """
     from ..model import Node
+    from ..wiki.generate import may_hold_connector_text
 
     part = _wiki_partition(repo_id)
     attributed_repo = repo_id if source_repo is None else source_repo
+    # Read by `ScopedStore`, which hides the partition from a key without connector
+    # access when the page may quote connected sources. Absent on older partitions,
+    # which the proxy reads as True.
+    connector_text = may_hold_connector_text(page)
     sections, title, buf = [], "Overview", []
     for line in page.splitlines():
         if line.startswith("## "):
@@ -75,7 +80,7 @@ def _wiki_section_nodes(repo_id: str, page: str, filename: str, *,
         nodes.append(Node(id=f"{part}:{i}", repo=part, kind="wiki",
                           name=f"{repo_id} wiki: {t}", file=f"wiki/{filename}",
                           attrs={"advisory": True, "source_repo": attributed_repo,
-                                 "symbol_links": True}))
+                                 "symbol_links": True, "connector_text": connector_text}))
         texts.append(f"{t}\n{body}")
     return nodes, texts
 

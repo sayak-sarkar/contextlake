@@ -620,6 +620,15 @@ class WikiOut(BaseModel):
     kind: str = "repo"           # "repo" | "cluster" (a namespace-level page)
 
 
+# Served IN PLACE OF the page text, with `found` true: the page exists and the caller
+# may read the repository. Not a new field: stdio answers stay byte-identical (P4).
+_CONNECTOR_TEXT_WITHHELD = (
+    "The page text is withheld: it may quote connected sources (tickets, pages, "
+    "designs), and this key has no connector access. A key created with --external "
+    "can read it. Regenerating the page with a language model configured "
+    "(`kb wiki --force`) records whether it does.")
+
+
 class GeneratedDocOut(BaseModel):
     repo: str
     kind: str                    # "api" | "design"
@@ -1774,6 +1783,17 @@ def build_server(
         check = getattr(store, "allows_page_of", None)
         return True if check is None else bool(check(repo))
 
+    def _withholds_connector_text(page: str) -> bool:
+        """Whether ``get_wiki`` must withhold ``page``: it may quote connected sources
+        and the caller has no connector access (``ScopedStore.allows_connector_text``).
+        A bare store has no such method, so stdio and the dashboard are unchanged."""
+        check = getattr(store, "allows_connector_text", None)
+        if check is None or check():
+            return False
+        from .wiki.generate import may_hold_connector_text
+
+        return may_hold_connector_text(page)
+
     def _fleet_readable() -> bool:
         """Whether the caller may read a FLEET-wide document.
 
@@ -1815,10 +1835,12 @@ def build_server(
             cluster_file = wiki_dir / "_clusters" / (slug + ".md") if wiki_dir else None
             if cluster_file and cluster_file.exists():
                 craw = cluster_file.read_text(encoding="utf-8", errors="replace")
+                withheld = _withholds_connector_text(craw)
                 return WikiOut(repo=sanitize_label(repo), found=True,
                                stale=_cluster_is_stale(craw, repo),
                                wiki_commit=None, current_commit=None, kind="cluster",
-                               markdown=sanitize_label(craw, max_len=200_000))
+                               markdown=_CONNECTOR_TEXT_WITHHELD if withheld
+                               else sanitize_label(craw, max_len=200_000))
             return WikiOut(repo=sanitize_label(repo), found=False, stale=True,
                            wiki_commit=None, current_commit=None, markdown="")
         raw = wiki_file.read_text(encoding="utf-8", errors="replace")
@@ -1827,11 +1849,13 @@ def build_server(
         r = store.get_repo(repo)
         current = r.head_commit if r else None
         stale = wiki_commit is None or current is None or wiki_commit != current
+        withheld = _withholds_connector_text(raw)
         return WikiOut(
             repo=sanitize_label(repo), found=True, stale=stale,
             wiki_commit=sanitize_label(wiki_commit) if wiki_commit else None,
             current_commit=sanitize_label(current) if current else None,
-            markdown=sanitize_label(raw, max_len=200_000))
+            markdown=_CONNECTOR_TEXT_WITHHELD if withheld
+            else sanitize_label(raw, max_len=200_000))
 
     @bounded_tool
     def get_generated_doc(repo: str, kind: str = "api") -> GeneratedDocOut:

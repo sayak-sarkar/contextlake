@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **A repo-limited key without `--external` no longer reads enrichment documents.** `kb enrich`
+  stores the ticket and page text it fetches under the repository (`@enrich:<repo>`), so a key
+  with `--repos` read that text even though it could not read the connector items themselves.
+  It now reads neither, nor the links and vectors of connector items stored under the
+  repository (`@connect:<repo>`). **Existing keys created with `--repos` and without
+  `--external` lose this content.** Keys with no `--repos`, the default key and the shared
+  token are unchanged.
+- **Wiki pages that may quote connected sources are withheld from keys without connector
+  access.** The prompt of a whole-repo page carries the repo's enrichment documents, and the
+  model may quote them anywhere in the page. The page footer now records how many connector
+  items the prompt carried (`Connector items: N`). For such a key, `get_wiki` (and `ask`)
+  answer `found: true` with a note in place of the page text, and the page's sections leave
+  search and node answers. A page with no count, which includes every page generated before
+  this release, is withheld until it is regenerated with a language model configured
+  (`kb wiki --force`).
 - **Author pseudonyms are keyed per run.** `Contributor a1b2` was 4 hex of an unkeyed SHA-256 of
   the author's email, so anyone with a list of candidate emails could find the person behind it.
   It is now an HMAC under a key made fresh for each export, each dashboard server start and each
@@ -18,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`kb keys create --no-external`.** The key reads no connector content, with or without
+  `--repos`: no connector items, enrichment documents, ingested documents, or wiki pages that
+  may quote connected sources. A key with no `--repos` becomes limited to every repository
+  (`**`), so the whole-fleet documents and cluster pages refuse it. `--external` with
+  `--no-external` exits 2.
 - **`kb enrich` can search Jira and Confluence with an API token.** An `api` source with a
   `search_url` is searched once per term (`{term}`), or once with every term joined (`{terms}`).
   Every request is a GET, and each search reads one page. A failed search (401, 403, 429, a dead

@@ -182,11 +182,14 @@ def test_partitions_in_scope_reaches_the_open_ended_family():
         "a/c", "@wiki:a/c", "@wiki:a/c::core",
         "@ingest:notes", SHARED_REPO, SYSTEM_REPO,
     ]
-    got = scope.partitions_in_scope(known, ["a/b"])
+    got = scope.partitions_in_scope(known, ["a/b"], external=True)
     assert got == ["a/b", "@wiki:a/b", "@wiki:a/b::src_core", "@wiki:a/b::api",
                    "@connect:a/b", "@enrich:a/b", SHARED_REPO]
     # Nothing belonging to the repo that was not granted.
     assert not [p for p in got if "a/c" in p]
+    # Without connector access the two connector partitions drop out.
+    assert scope.partitions_in_scope(known, ["a/b"]) == [
+        p for p in got if not p.startswith(("@connect:", "@enrich:"))]
 
 
 def test_partitions_in_scope_preserves_order():

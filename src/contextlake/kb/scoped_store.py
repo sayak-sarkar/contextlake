@@ -38,7 +38,7 @@ import logging
 from contextvars import ContextVar
 from weakref import WeakKeyDictionary
 
-from .scope import owns_partition, partitions_in_scope
+from .scope import WIKI_PREFIX, owns_partition, partitions_in_scope
 
 # The per-request memo. One entry per distinct question, discarded when the request
 # ends, following `_DRIFT_PROBE`'s shape and lifetime in `server.py` -- set as the
@@ -165,8 +165,40 @@ class ScopedStore:
         memo = _memo(self).setdefault("partitions", {})
         if partition_id not in memo:
             patterns, external = scope
-            memo[partition_id] = owns_partition(
-                partition_id, patterns, external=external)
+            memo[partition_id] = (
+                owns_partition(partition_id, patterns, external=external)
+                and not self._wiki_hidden(partition_id))
+        return memo[partition_id]
+
+    def allows_connector_text(self) -> bool:
+        """PUBLIC. Whether this caller may read text from connected sources.
+
+        True for a caller with no repo scope (unchanged: the default key and the shared
+        token see it) and for a scoped key created with ``--external``. False for a
+        repo-limited key without it, for a ``--no-external`` key, and for no principal.
+        ``get_wiki`` asks it before serving a page that may quote connected sources.
+        """
+        scope = self._scope()
+        if scope is None:
+            return False
+        patterns, external = scope
+        return not patterns or external
+
+    def _wiki_hidden(self, partition_id: str) -> bool:
+        """Whether a ``@wiki:`` partition is hidden from this caller because its page
+        may quote connected sources.
+
+        Read from the partition's first section node, whose ``connector_text`` attribute
+        is written from the page when the partition is stored. A partition stored before
+        the attribute existed counts as holding connector text: fail closed.
+        """
+        if not partition_id.startswith(WIKI_PREFIX) or self.allows_connector_text():
+            return False
+        memo = _memo(self).setdefault("wiki_hidden", {})
+        if partition_id not in memo:
+            first = self._store.get_node(f"{partition_id}:0")
+            attrs = getattr(first, "attrs", None) or {}
+            memo[partition_id] = attrs.get("connector_text", True) is not False
         return memo[partition_id]
 
     def visible_partitions(self) -> list[str]:
@@ -183,8 +215,10 @@ class ScopedStore:
                 memo["visible"] = []
             else:
                 patterns, external = scope
-                memo["visible"] = partitions_in_scope(
-                    self._store.list_partitions(), patterns, external=external)
+                memo["visible"] = [
+                    p for p in partitions_in_scope(
+                        self._store.list_partitions(), patterns, external=external)
+                    if not self._wiki_hidden(p)]
         return list(memo["visible"])
 
     def allows_repo(self, repo_id: str) -> bool:

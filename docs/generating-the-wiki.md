@@ -107,7 +107,10 @@ When the repo's own checkout is available, it also uses an excerpt of the README
 conventional entry-point or config files exist, such as `package.json`, `Dockerfile` or
 `manage.py`.
 
-Every page carries a provenance footer citing the commit and the sources.
+Every page carries a provenance footer citing the commit and the sources. It also records
+how many connected-source items the prompt carried (`Connector items: N`). A network key
+without connector access does not see a page whose count is above 0 or missing (see
+[`kb keys`](cli-reference.md#kb-keys)).
 
 The draft then goes through a **verification council**. Reviewers score it for accuracy,
 completeness and clarity, and a chairman publishes only pages above a configurable threshold.

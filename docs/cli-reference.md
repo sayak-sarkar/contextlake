@@ -296,10 +296,11 @@ stores, not what a server would allow.
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
 
-**All seven key flags are enforced, and the marker beside each value says so.** `--tools`
+**All eight key flags are enforced, and the marker beside each value says so.** `--tools`
 and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
-`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos` and
-`--external` are applied inside the store, so they filter what a call can read. The list
+`--cost-budget` are checked at the gate, before a call reaches a tool. `--repos`,
+`--external` and `--no-external` are applied inside the store, so they filter what a call
+can read. The list
 of enforced axes is `ENFORCED_AXES` in `kb/grants.py`, and `kb keys --help` and every
 `kb keys` surface read it, so the help text and the markers follow it.
 
@@ -328,14 +329,36 @@ the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `grap
 refuses a scoped key, since it has no repo argument to check. A node id does not carry the
 repository it came from, so the filter runs inside the store and not on the call.
 
-**`--external` GRANTS access.** It is not a label. On a key that has `--repos`,
-connector-fetched content that belongs to no repository (issues, designs and similar items)
-is hidden unless the key was created with `--external`. That content can be more sensitive
-than code, so add the flag only for a holder you would trust with it.
+**`--external` GRANTS access.** It is not a label. A key that has `--repos` and not
+`--external` cannot read connector content:
 
-A key with no `--repos` is not limited by `--external` in search and graph answers: those
-reads skip the filter for an unscoped key, so the content can appear there with or without
-the flag. `get_node` does apply the flag.
+- connector items that belong to no repository (issues, designs and similar items);
+- the documents `kb enrich` fetched for its repositories, and the links and vectors of
+  connector items stored under a repository;
+- a wiki page that may quote connected sources (see below).
+
+That content can be more sensitive than code, so add the flag only for a holder you would
+trust with it.
+
+**`--no-external` hides the same content from a key with no `--repos`.** A key with no
+`--repos` and no `--no-external` reads connector content in every answer, with or without
+`--external`. `--no-external` turns the key into one limited to every repository (`**`), so
+it also loses what any repo-limited key loses: ingested documents (`kb ingest`), and the
+whole-fleet documents and cluster pages (`get_fleet_doc`, `graph_health`), which refuse it.
+`--external` together with `--no-external` exits `2` and writes no key. A hand-edited record
+with both reads as `--no-external`.
+
+**A wiki page that may quote connected sources is withheld from these keys.** The model
+can use connector text anywhere in a generated page, so no section can be cut out.
+
+- The page footer records how many connector items the prompt carried
+  (`Connector items: N`).
+- `get_wiki`, and `ask` through it, answer `found: true` with a note in place of the page
+  text. The page's sections leave search and node answers.
+- A page with no count counts as quoting connected sources: every page generated before
+  the count existed, and any page `kb wiki` did not write. Regenerate it with a language
+  model configured (`kb wiki --force`) to record its count.
+- Structural pages carry no connector text, so these keys read them.
 
 Measured on a live `kb serve --transport http --keys-only` server, not assumed. In an
 earlier release, a key created `--tools none --repos nothing-matches/*` was presented and

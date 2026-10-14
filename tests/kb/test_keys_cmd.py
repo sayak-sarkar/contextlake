@@ -1531,8 +1531,8 @@ def test_the_label_is_pinned_to_the_server_that_enforces_it(run, keys_file):
     from contextlake.kb import grants
     from contextlake.kb.server import GrantDenied, Principal
 
-    assert grants.ENFORCED_AXES == ("tools", "repos", "external", "owners",
-                                    "rate", "burst", "cost_budget"), (
+    assert grants.ENFORCED_AXES == ("tools", "repos", "external", "no_external",
+                                    "owners", "rate", "burst", "cost_budget"), (
         "the enforced axes moved. Re-read _enforcement_note and _axis in "
         "kb/cmds/keys_cmd.py: they render every axis from this list")
 
@@ -1749,10 +1749,9 @@ def test_external_hides_connector_content_from_a_repo_scoped_key():
     `(external)` sentinel) unless it carries `--external`. Both directions, through
     `search` and `get_node`, so a filter that hides everything or nothing fails one row.
 
-    NOT asserted for a key with no `--repos`: `ScopedStore.search` returns the store's
-    rows unfiltered for an unscoped key, so `(external)` nodes appear there with or
-    without the flag while `get_node` hides them. The help and docs say so. That
-    asymmetry is in `kb/scoped_store.py`, not in the CLI text.
+    NOT asserted for a key with no `--repos`: it reads `(external)` nodes through
+    `search` and `get_node` alike, with or without the flag. `--no-external` is what
+    hides them from such a key (tests/kb/test_connector_access.py).
     """
     from contextlake.kb import grants
     from contextlake.kb.scoped_store import (
@@ -1817,6 +1816,23 @@ def test_the_external_marker_follows_enforced_axes(run, keys_file, monkeypatch):
     text = (lambda r: r.out + r.err)(run("show", _only_id(keys_file)))
     line = next((ln for ln in text.splitlines() if "external=" in ln), "")
     assert f"external=on  ({_LABEL})" in line, line
+
+
+def test_no_external_is_stored_and_shown_as_enforced(run, keys_file):
+    assert run("create", "contractor", "--no-external").code == 0
+    record = json.loads(keys_file.read_text())["keys"][-1]
+    assert record["policy"] == {"no_external": True}
+    line = _scope_line_of(run("show", record["id"]).out)
+    assert f"no_external=on  {_ENFORCED_LABEL}" in line, line
+
+
+def test_external_with_no_external_exits_2_and_writes_nothing(run, keys_file):
+    """One grants connector content and the other hides it. Storing both would leave
+    the server to pick one, so the pair is refused before anything is written."""
+    result = run("create", "contractor", "--external", "--no-external")
+    assert result.code == 2
+    assert "--no-external" in result.out + result.err
+    assert not keys_file.exists() or json.loads(keys_file.read_text())["keys"] == []
 
 
 # ---------------------------------------------------------------------------

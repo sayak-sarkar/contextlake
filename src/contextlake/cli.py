@@ -783,8 +783,8 @@ def schedule_actions():
 # for an axis cannot say "nothing enforces it" while the gate enforces it. That is what
 # `--repos`, `--external` and the epilog did for a release after 9.3.0. A test pins
 # this tuple against `keys_cmd._ALL_AXES`.
-_KEY_POLICY_AXES = ("tools", "repos", "owners", "external", "rate", "burst",
-                    "cost_budget")
+_KEY_POLICY_AXES = ("tools", "repos", "owners", "external", "no_external", "rate",
+                    "burst", "cost_budget")
 
 
 def _keys_axis_help(axis, enforced, recorded):
@@ -832,12 +832,19 @@ def _keys_policy_epilog():
     if "external" in ENFORCED_AXES:
         out.append(
             "--external GRANTS access. On a key that has --repos, it lets the key read "
-            "connector-fetched content that belongs to no repository, such as issues "
-            "and designs. Without it that key cannot, so set it only for a holder you "
-            "would trust with that content. On a key with no --repos the flag does not "
-            "hide that content from search and graph answers.")
+            "connector content: items such as issues and designs, the documents "
+            "`kb enrich` fetched for its repositories, and wiki pages that may quote "
+            "connected sources. Without it that key cannot, so set it only for a holder "
+            "you would trust with that content. A key with no --repos reads that "
+            "content unless it was created with --no-external.")
     else:
         out.append("--external is recorded only: it changes nothing the key can read.")
+    if "no_external" in ENFORCED_AXES:
+        out.append(
+            "--no-external hides all connector content from the key, with or without "
+            "--repos: connector items, enrichment documents, ingested documents, and "
+            "wiki pages that may quote connected sources. A key with no --repos then "
+            "reads as limited to every repository, so whole-fleet documents refuse it.")
     return "\n" + textwrap.fill(" ".join(out), 79) + "\n"
 
 
@@ -1527,12 +1534,22 @@ already has the files, so nothing there reads a key or a policy.
     p.add_argument("--external", action="store_true", default=_S,
                    help=_keys_axis_help(
                        "external",
-                       "create: let a key that has --repos also read connector-fetched "
-                       "content that belongs to no repository, such as issues and "
-                       "designs. This GRANTS access: that key cannot read it without "
-                       "the flag. Enforced over the network",
+                       "create: let a key that has --repos also read connector "
+                       "content: items such as issues and designs, the documents "
+                       "`kb enrich` fetched for its repositories, and wiki pages that "
+                       "may quote connected sources. This GRANTS access: that key "
+                       "cannot read it without the flag. Enforced over the network",
                        "create: mark the holder as outside your organisation. "
                        "Recorded on the key; nothing enforces it in this release"))
+    p.add_argument("--no-external", dest="no_external", action="store_true", default=_S,
+                   help=_keys_axis_help(
+                       "no_external",
+                       "create: hide all connector content from this key, with or "
+                       "without --repos, including wiki pages that may quote "
+                       "connected sources. Refused together with --external. "
+                       "Enforced over the network",
+                       "create: recorded on the key; nothing enforces it in this "
+                       "release"))
     p.add_argument("--all", action="store_true", default=_S,
                    help="list: include revoked and expired keys")
     p.add_argument("--out", default=_S, metavar="PATH",

@@ -54,6 +54,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING
 
+from .scope import WILDCARD
+
 if TYPE_CHECKING:  # pragma: no cover - annotations only, never imported at runtime
     from .server import Principal
 
@@ -87,8 +89,8 @@ def _is_shared_token(key_id: str) -> bool:
 # label each axis, so "the CLI says enforced" and "the gate checks it" cannot
 # drift into disagreeing. Adding an axis here without adding its rule below
 # makes the CLI lie; the test that walks both is what stops that.
-ENFORCED_AXES = ("tools", "repos", "external", "owners", "rate", "burst",
-                 "cost_budget")
+ENFORCED_AXES = ("tools", "repos", "external", "no_external", "owners", "rate",
+                 "burst", "cost_budget")
 
 # The `kb://stats` resource, named here because it is gated like a tool but is
 # not one. It is in the `stats` group: what it discloses is the repo, node and
@@ -280,6 +282,12 @@ def repo_scope_of(policy: Mapping[str, object] | None) -> tuple[list[str], bool]
     policy = policy or {}
     raw = policy.get("repos")
     patterns = parse_repos(str(raw)) if raw not in (None, "") else []
+    if policy.get("no_external"):
+        # `--no-external`: no connector content, with or without a repo limit. A key
+        # with no `repos` axis becomes `**`, every repository, because an empty
+        # pattern list is the unscoped state that skips every filter. It wins over
+        # `external` on a hand-edited record that carries both.
+        return patterns or [WILDCARD], False
     return patterns, bool(policy.get("external"))
 
 
