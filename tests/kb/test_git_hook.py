@@ -177,3 +177,34 @@ def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch,
     # read the raw record messages (log()'s actual argument) to see the codes.
     raw = "\n".join(r.getMessage() for r in gls_logs.records)
     assert f"\033[2m·\033[0m {tmp_path.name}" in raw
+
+
+def test_a_directory_alone_means_install(tmp_path, monkeypatch, gls_logs):
+    """August probe #6: `kb hook ./repo` refused with "Unknown hook action", because the
+    order is `[action] [path]`. A lone directory now means install (owner, 2026-10-15)."""
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    target = tmp_path / "app"
+    target.mkdir()
+    _repo(target)
+    monkeypatch.chdir(tmp_path)
+    args = build_parser().parse_args(["kb", "hook", str(target)])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 0
+    assert (target / ".git" / "hooks" / "post-commit").exists()
+
+
+def test_an_unknown_word_is_still_refused(tmp_path, monkeypatch, gls_logs):
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    monkeypatch.chdir(tmp_path)
+    args = build_parser().parse_args(["kb", "hook", "instal"])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 1
+    assert "Unknown hook action 'instal'" in gls_logs.text

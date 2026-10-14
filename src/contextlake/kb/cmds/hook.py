@@ -57,6 +57,12 @@ def cmd_hook(args) -> int:
     from ..parse import discover_repos
 
     action = getattr(args, "action", None) or "install"
+    if (action not in ("install", "uninstall", "status") and not getattr(args, "path", None)
+            and Path(os.path.expanduser(action)).is_dir()):
+        # `kb hook ./repo`: the one argument is a directory, so it is the path and the action
+        # is the default. The order is `[action] [path]`, and a path in the action slot was
+        # refused (August probe #6); the owner chose to read it as install (2026-10-15).
+        args.path, action = action, "install"
     if action not in ("install", "uninstall", "status"):
         log(style.warn(f"Unknown hook action {action!r} — use install | uninstall | status."))
         return 1

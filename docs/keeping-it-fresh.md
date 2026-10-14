@@ -188,6 +188,7 @@ you commit to it:
 
 ```bash
 contextlake kb hook install                     # the repo in the current directory
+contextlake kb hook ~/src/app                   # one directory alone means install
 contextlake kb hook install --workspace ~/src   # every git repo under a mirror
 contextlake kb hook status  --workspace ~/src   # which repos are wired
 contextlake kb hook uninstall                   # remove it (any pre-existing hook is kept)

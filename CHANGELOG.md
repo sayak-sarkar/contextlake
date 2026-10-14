@@ -83,6 +83,8 @@ set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher 
 
 ### Changed
 
+- **`kb hook <directory>` installs the hook.** The order is `kb hook [action] [path]`, so a lone
+  path was refused as an unknown action. A lone directory now means `install`.
 - **`schedule uninstall` keeps the job record when it cannot remove the unit.** It deleted the
   record anyway and exited 0, which left a unit firing at a job that no longer existed. It now
   keeps the record (so `schedule list` still shows it) and exits 1. A platform with no backend
