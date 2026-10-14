@@ -83,6 +83,10 @@ set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher 
 
 ### Changed
 
+- **`schedule uninstall` keeps the job record when it cannot remove the unit.** It deleted the
+  record anyway and exited 0, which left a unit firing at a job that no longer existed. It now
+  keeps the record (so `schedule list` still shows it) and exits 1. A platform with no backend
+  on this machine still removes the record.
 - **`schedule install` exits 1 when it cannot install the unit.** It still prints the unit and how
   to install it by hand. It exited 0, so a script or CI step reading the exit code saw a failed
   install as a success.

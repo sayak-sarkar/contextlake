@@ -181,19 +181,33 @@ def cmd_uninstall(args, config) -> int:
     if missing and not getattr(args, "all", False):
         return 1
 
+    failed = 0
     for name in targets:
         job = mapping[name]
         try:
             adapter = base.get(job.platform or base.detect())
             removed = adapter.uninstall(job)
-        except (base.NoAdapter, OSError) as e:
+        except base.NoAdapter as e:
+            # No backend for this platform on this machine, so no unit of it is here.
             log(f"{style.warn()} Could not remove the {job.platform} unit for "
                 f"{name!r}: {e}. Removing the job record anyway.")
             removed = []
+        except OSError as e:
+            # The unit may still be installed (`crontab -l` failed, a unit file is not
+            # writable). Deleting the record anyway left a unit that fires at a job that
+            # no longer exists, and `schedule list` called it an orphan (stability tier A).
+            # Keep the record so the job stays listed, and fail.
+            log(f"{style.fail('Could not remove')} the {job.platform} unit for {name!r}: "
+                f"{e}. The job record is kept, so `schedule list` still shows it. Fix the "
+                "error and run `contextlake schedule uninstall` again.")
+            failed += 1
+            continue
         jobstore.delete_job(jobs_file, name)
         log(f"{style.ok()} Removed job {name!r}.")
         for path in removed:
             log(f"  removed {path}")
+    if failed:
+        return 1
 
     if getattr(args, "purge", False):
         return _discard_history(args, config)
