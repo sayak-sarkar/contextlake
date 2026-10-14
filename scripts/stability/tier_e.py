@@ -474,10 +474,14 @@ def cli_oracles(ctx: Ctx, X: dict) -> dict:
               check=ck_contains, broken=[{**w, "via": "zz"} for w in want], evidence=[ref])
 
     # ---- O8 D05: every file owns its own file node (SQLite-backed surface) ------------
+    # The fixture pairs this store holds as ONE file node, for O9: D05 before parser 13.
+    merged: list[frozenset] = []
     for label, repo, a, b, token in X["collisions"]:
         hits, ref = ctx.cl_json(f"query-file-{label}", ["kb", "query", token, "--kind", "file",
                                                         "--repo", repo, "--limit", "50", "--json"])
         files = None if hits is None else [h.get("file") for h in hits if h.get("repo") == repo]
+        if files is not None and not {a, b} <= set(files):
+            merged.append(frozenset({(repo, a), (repo, b)}))
         judge(f"O8.file_node.{label}", f"{a} and {b} each have a file node in {repo}",
               audit="D05", expected=[a, b], actual=files, check=ck_superset,
               broken=[a, b, a + ".zz"], evidence=[ref],
@@ -490,12 +494,20 @@ def cli_oracles(ctx: Ctx, X: dict) -> dict:
                                                              "file", "--repo", repo, "--json"])
         refs.append(ref)
         found += [(h.get("repo"), h.get("file")) for h in (hits or [])]
+    cross = frozenset({(r1, path), (r2, path)})
+    if not cross <= set(found):
+        merged.append(cross)
     judge("O8.file_node.cross_repo", f"{path} has a file node in both {r1} and {r2}",
           audit="D05", expected=[(r1, path), (r2, path)], actual=found, check=ck_superset,
           broken=[(r1, path), (r2, path), (r1, path + ".zz")], evidence=refs,
           note=_d05_witness(ctx, r1, (path,), cross=r2))
 
-    # ---- O9 kb lint reports every collision (detect-only, shipped 9.5.0) -------------
+    # ---- O9 kb lint agrees with the graph about D05 (detect-only, shipped 9.5.0) -------
+    # It used to expect every fixture pair to be reported, which held only while the ids
+    # collided. Since parser 13 they do not (O8 passes), so the oracle is agreement: lint
+    # reports exactly the fixture pairs the graph holds as one node, and no other.
+    fixture_pairs = [frozenset({(repo, a), (repo, b)}) for _l, repo, a, b, _t in X["collisions"]]
+    fixture_pairs.append(frozenset({(r1, path), (r2, path)}))
     if lint is None or "shared_file_nodes_sample" not in lint:
         na("O9.lint_shared_file_nodes", "kb lint --json reports each D05 collision",
            audit="D05-lint", evidence=[lint_ref],
@@ -503,12 +515,17 @@ def cli_oracles(ctx: Ctx, X: dict) -> dict:
     else:
         pairs = [frozenset((f["repo"], f["path"]) for f in s["files"])
                  for s in lint["shared_file_nodes_sample"]]
-        want = [frozenset({(repo, a), (repo, b)}) for _l, repo, a, b, _t in X["collisions"]]
-        want.append(frozenset({(r1, path), (r2, path)}))
-        judge("O9.lint_shared_file_nodes", "kb lint --json reports each D05 collision",
-              audit="D05-lint", expected=want, actual=pairs,
-              check=lambda act, exp: [f"not reported: {sorted(w)}" for w in exp
-                                      if not any(w <= p for p in act)],
+        want = merged
+        apart = [fp for fp in fixture_pairs if fp not in merged]
+
+        def _agree(act, exp):
+            return ([f"not reported: {sorted(w)}" for w in exp if not any(w <= p for p in act)]
+                    + [f"reported, but each file has its own node: {sorted(fp)}"
+                       for fp in apart if any(fp <= p for p in act)])
+
+        judge("O9.lint_shared_file_nodes",
+              "kb lint --json reports exactly the D05 collisions the graph holds",
+              audit="D05-lint", expected=want, actual=pairs, check=_agree,
               broken=want + [frozenset({(bc, "zz.py"), (bc, "zz_.py")})], evidence=[lint_ref],
               note=f"shared_file_nodes={lint.get('shared_file_nodes')}")
 

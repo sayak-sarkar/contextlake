@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "contextlake release from PyPI that the tier-e job tests"
+        description: "contextlake release from PyPI that the tier-e job tests, or `checkout` for the dispatched commit"
         type: string
         default: "9.8.3"
 
@@ -98,7 +98,13 @@ jobs:
           $py = if ($IsWindows) { Join-Path $v "Scripts/python.exe" } else { Join-Path $v "bin/python" }
           & $py -m pip install -q --upgrade pip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $py -m pip install "contextlake[kb-full,kb-pdf]==$env:VERSION"
+          # `checkout` installs the dispatched commit itself, so tier F can run on unreleased
+          # main before a release is tagged (the D05/F1 id change, 2026-10-15).
+          if ($env:VERSION -eq "checkout") {
+            & $py -m pip install ".[kb-full,kb-pdf]"
+          } else {
+            & $py -m pip install "contextlake[kb-full,kb-pdf]==$env:VERSION"
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $py -m pip list
           "VENV=$v" >> $env:GITHUB_ENV
