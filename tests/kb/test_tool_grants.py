@@ -572,3 +572,17 @@ def test_kb_keys_does_not_load_the_mcp_server(tmp_path):
     assert out == "- -", (
         f"importing kb keys pulled in {out}; grants must import kb.server "
         "lazily")
+
+
+def test_the_cli_parser_builds_without_the_kb_extra():
+    """The CLI imports `kb.grants` to build its parser, and a core install has no
+    pydantic. A module-scope `from .scope import ...` in `grants` pulled in `kb.model`
+    and crashed every command on the four core CI cells (b6740305). A dev venv has
+    pydantic, so only a run that blocks it sees this."""
+    import subprocess
+    import sys
+
+    code = ("import sys; sys.modules['pydantic'] = None;"
+            "from contextlake.cli import build_parser; build_parser()")
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr[-600:]

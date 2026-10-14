@@ -54,8 +54,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING
 
-from .scope import WILDCARD
-
 if TYPE_CHECKING:  # pragma: no cover - annotations only, never imported at runtime
     from .server import Principal
 
@@ -286,7 +284,11 @@ def repo_scope_of(policy: Mapping[str, object] | None) -> tuple[list[str], bool]
         # `--no-external`: no connector content, with or without a repo limit. A key
         # with no `repos` axis becomes `**`, every repository, because an empty
         # pattern list is the unscoped state that skips every filter. It wins over
-        # `external` on a hand-edited record that carries both.
+        # `external` on a hand-edited record that carries both. Imported here: the CLI
+        # imports this module to build its parser, and `scope` pulls in `kb.model` and
+        # pydantic, which a core install without the kb extra does not have.
+        from .scope import WILDCARD
+
         return patterns or [WILDCARD], False
     return patterns, bool(policy.get("external"))
 
