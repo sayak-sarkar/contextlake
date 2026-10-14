@@ -37,8 +37,13 @@ answered it.
 
 ## Status
 
-**10 of 10 verified** on Python 3.10 and 3.13 against the published 7.30.0 wheel, recorded in
-[`results/cleanroom.json`](results/cleanroom.json).
+**10 of 10 verified** on Python 3.10 and 3.13 against the published 10.0.0rc1 wheel
+(2026-10-15; first against 7.30.0), recorded in [`results/cleanroom.json`](results/cleanroom.json).
+
+The 10.0.0rc1 run first failed two rows on a correct store, because the harness had not run
+since 7.30.0. The no-manifest check queried `--repo no-manifest`. Since 8.7.0 a repository
+with no `origin` is stored as `name@<root commit>`, and `--repo` takes the exact id. The check
+now matches the name part of the id.
 
 That number is only worth reading because of what a review found in the version that first
 reported it. Six checks were wrong, and the harness passed anyway:

@@ -56,8 +56,13 @@ assertion to confirm each one fails for its own reason.
 
 ## Status
 
-**All seven bars verified against the pinned tree**, recorded in
-[`results/derivation.json`](results/derivation.json). Re-run it and diff that file.
+**All seven bars verified against the pinned tree** on 10.0.0rc1 installed from PyPI
+(2026-10-15), recorded in [`results/derivation.json`](results/derivation.json). The file names
+the build it measured (`installed`). Re-run it and diff that file.
+
+On 10.0.0rc1 four bars first came back unverifiable. The harness assumed the repo id was the
+directory name, `tree`. Since 8.7.0 a clone is stored under its `origin` remote
+(`github.com/pallets/click`), so the harness now reads the id from the `kb index` summary line.
 
 Two things about how it got there are worth keeping, because both were caught rather than
 avoided. The harness was first written without being able to run it, and its measurement

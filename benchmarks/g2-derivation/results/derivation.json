@@ -11,12 +11,12 @@
     "diagram_nodes": 7,
     "diagram_rendered_edges": 11,
     "diagram_rendered_nodes": 7,
-    "edges": 7600,
+    "edges": 15003,
     "fleet_dep_repos": 2,
     "fleet_shared": 1,
-    "nodes": 2441,
+    "nodes": 2442,
     "semantic_rank": 2,
-    "wiki_commit": "d9043f2889c89d29dd17595ce1de5af4fc595af7"
+    "wiki_commit": "664a35b87503ea7c2864b5857c2f6869ce8bf606"
   },
   "before": {
     "api_has_symbol": false,
@@ -24,18 +24,22 @@
     "dangling": 0,
     "design_adrs": 1,
     "design_has_dep": false,
-    "edges": 7588,
+    "edges": 14991,
     "fleet_shared": 0,
-    "nodes": 2433,
+    "nodes": 2434,
     "semantic_rank": null,
     "wiki_commit": "b2e30a175449cfda909ee4fbf4a29a6a071cad53"
   },
   "call_sites": 5,
+  "installed": {
+    "from_site_packages": true,
+    "version": "contextlake 10.0.0rc1"
+  },
   "notes": [],
   "ok": true,
   "rows": [
     {
-      "detail": "nodes 2433 -> 2441, edges 7588 -> 7600, 0 dangling",
+      "detail": "nodes 2434 -> 2442, edges 14991 -> 15003, 0 dangling",
       "output": "code graph",
       "status": "verified"
     },
@@ -60,7 +64,7 @@
       "status": "verified"
     },
     {
-      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> d9043f2889c89d29dd17595ce1de5af4fc595af7",
+      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> 664a35b87503ea7c2864b5857c2f6869ce8bf606",
       "output": "wiki",
       "status": "verified"
     },
