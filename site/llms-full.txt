@@ -5001,6 +5001,12 @@ The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
 `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
 OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
+**A model is downloaded once.** Each load looks on disk first: the pinned commit of the
+default model, then any copy of the same model already in the cache (from an older install,
+or baked into the container image). Only when there is none does it go online, and never
+with `--offline`. The built-in embedder follows the same rule. Before this, every load asked
+the Hub for the latest commit, so an upstream change pulled a second copy.
+
 The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
 **neither torch nor transformers**, which is why a local generative tier does not cost you a
 multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
@@ -9499,6 +9505,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A model on disk is no longer downloaded again.** The built-in wiki model asked the Hub for
+  the latest commit on every load, and the built-in embedder did the same (model2vec loads with
+  `force_download=True` unless told otherwise; fastembed checks the Hub unless given
+  `local_files_only`). An upstream commit then pulled a second copy, and a machine with no
+  network could not load a model it held. Each load now uses the copy on disk (the pinned
+  commit of the default model, else any cached copy) and goes online only when there is none,
+  never with `--offline`. A copy left partial by an interrupted download is completed once.
 - **The Atlassian `api` example used the retired Jira search address.** `/rest/api/3/search` now
   answers 410 Gone. The example uses `/rest/api/3/search/jql` with a project restriction, which
   that address requires.

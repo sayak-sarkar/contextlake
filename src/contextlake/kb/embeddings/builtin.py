@@ -75,16 +75,54 @@ class BuiltinEmbedder(Embedder):
                 from model2vec import StaticModel
             except ImportError as e:
                 raise self._missing_extra_error(e) from e
-            self._model = StaticModel.from_pretrained(self.model_id)
+            self._model = self._load_model2vec(StaticModel)
         else:  # fastembed
             try:
                 from fastembed import TextEmbedding
             except ImportError as e:
                 raise self._missing_extra_error(e) from e
-            self._model = TextEmbedding(
-                model_name=self.model_id, cache_dir=str(self.cache_dir)
-            )
+            self._model = self._load_fastembed(TextEmbedding)
         return self._model
+
+    def _load_model2vec(self, static_model):
+        """Load from a FOLDER, so model2vec never contacts the Hub for a model on disk.
+
+        Given a repo id, `from_pretrained` defaults to `force_download=True` and asks
+        the Hub on every load. Given a folder that exists, it reads the folder.
+        """
+        if Path(self.model_id).exists():
+            return static_model.from_pretrained(self.model_id)
+        from ..model_cache import fetch_snapshot
+
+        folder = fetch_snapshot(self.model_id)
+        try:
+            return static_model.from_pretrained(folder)
+        except Exception:
+            # A partial copy from an interrupted download: complete it once online.
+            from ... import netguard
+
+            if netguard.offline():
+                raise
+            return static_model.from_pretrained(fetch_snapshot(self.model_id, complete=True))
+
+    def _load_fastembed(self, text_embedding):
+        """fastembed's own cache first (`local_files_only=True`), then the network.
+
+        fastembed keeps its own cache layout under `cache_dir`, so the lookup stays inside
+        fastembed: moving it to a hub snapshot path would download every user's model
+        again. Without the flag it asks the Hub on every load.
+        """
+        kw = {"model_name": self.model_id, "cache_dir": str(self.cache_dir)}
+        try:
+            return text_embedding(**kw, local_files_only=True)
+        except TypeError:
+            pass   # a fastembed too old for the flag: load as it always did
+        except Exception:
+            from ... import netguard
+
+            if netguard.offline():
+                raise
+        return text_embedding(**kw)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:

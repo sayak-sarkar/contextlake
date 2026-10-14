@@ -161,6 +161,12 @@ The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
 `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
 OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
+**A model is downloaded once.** Each load looks on disk first: the pinned commit of the
+default model, then any copy of the same model already in the cache (from an older install,
+or baked into the container image). Only when there is none does it go online, and never
+with `--offline`. The built-in embedder follows the same rule. Before this, every load asked
+the Hub for the latest commit, so an upstream change pulled a second copy.
+
 The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
 **neither torch nor transformers**, which is why a local generative tier does not cost you a
 multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock

@@ -55,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A model on disk is no longer downloaded again.** The built-in wiki model asked the Hub for
+  the latest commit on every load, and the built-in embedder did the same (model2vec loads with
+  `force_download=True` unless told otherwise; fastembed checks the Hub unless given
+  `local_files_only`). An upstream commit then pulled a second copy, and a machine with no
+  network could not load a model it held. Each load now uses the copy on disk (the pinned
+  commit of the default model, else any cached copy) and goes online only when there is none,
+  never with `--offline`. A copy left partial by an interrupted download is completed once.
 - **The Atlassian `api` example used the retired Jira search address.** `/rest/api/3/search` now
   answers 410 Gone. The example uses `/rest/api/3/search/jql` with a project restriction, which
   that address requires.

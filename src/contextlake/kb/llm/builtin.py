@@ -48,6 +48,9 @@ DEFAULT_CACHE_DIR = "~/.contextlake/models"
 # to IR needs optimum-intel, which pulls torch and transformers, and that footprint
 # would be worse than the one this change removes.
 DEFAULT_REPO = "OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov"
+# The default's commit, pinned so a first download is the same bytes on every machine.
+# Read from the Hub API 2026-10-14. A model the user names has no pin.
+DEFAULT_REVISION = "339876973306da551969e2d88991b7053be2029c"
 DEFAULT_DEVICE = "CPU"
 
 
@@ -80,12 +83,24 @@ class BuiltinLlm(LlmClient):
             from openvino_genai import LLMPipeline
         except ImportError as e:
             raise ImportError(_MISSING_EXTRA) from e
-        from huggingface_hub import snapshot_download
+        from ..model_cache import fetch_snapshot
 
         # A whole directory, not one file: OpenVINO IR is a model pair plus its
         # tokenizer and detokenizer models, and the pipeline opens the directory.
-        model_dir = snapshot_download(repo_id=self.repo_id)
-        self._pipe = LLMPipeline(model_dir, self.device)
+        # The copy on disk first; the network only when there is none (model_cache).
+        revision = DEFAULT_REVISION if self.repo_id == DEFAULT_REPO else None
+        model_dir = fetch_snapshot(self.repo_id, revision)
+        try:
+            self._pipe = LLMPipeline(model_dir, self.device)
+        except Exception:
+            # A copy from disk can be partial (an interrupted download). Complete it
+            # once online and load again; offline, the original error stands.
+            from ... import netguard
+
+            if netguard.offline():
+                raise
+            model_dir = fetch_snapshot(self.repo_id, revision, complete=True)
+            self._pipe = LLMPipeline(model_dir, self.device)
         return self._pipe
 
     def _config(self):
