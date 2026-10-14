@@ -264,15 +264,14 @@ def test_owners_are_absent_rather_than_fatal_when_the_checkout_is_gone(monkeypat
     assert structural.repo_owners(_FakeStore([], {}), "team/app") == []
 
 
-def test_owners_use_the_same_pseudonym_function_as_the_dashboard(monkeypatch):
-    """The property that makes one shared helper worth the move: a reader can carry
-    "Contributor a1b2" from a wiki page to a dashboard panel and know it is one person."""
+def test_the_dashboard_uses_the_one_pseudonym_function():
+    """One implementation for the wiki and the dashboard, so they derive a pseudonym the
+    same way. The labels match only under one key: a wiki run and a server start each make
+    their own (tests/kb/test_author_pseudonym_key.py)."""
     from contextlake.kb.dashboard.data import _anon_author
     from contextlake.kb.ownership import anon_author
 
-    assert anon_author("Ada", "ada@example.invalid") is not None
-    assert _anon_author("Ada", "ada@example.invalid") == anon_author(
-        "Ada", "ada@example.invalid")
+    assert _anon_author is anon_author
 
 
 # --- defects found by reading a page a real install produced --------------------------

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Author pseudonyms are keyed per run.** `Contributor a1b2` was 4 hex of an unkeyed SHA-256 of
+  the author's email, so anyone with a list of candidate emails could find the person behind it.
+  It is now an HMAC under a key made fresh for each export, each dashboard server start and each
+  `kb wiki` run. Within one of those, one person reads the same, so the owners panel and the chat
+  agree. Across two, the labels differ: a wiki page and a dashboard panel no longer share one
+  label for one person, and wiki pages from two runs can name one person differently.
+
 ### Added
 
 - **`kb enrich` can search Jira and Confluence with an API token.** An `api` source with a

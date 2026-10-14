@@ -61,9 +61,10 @@ def _store_dir(store, store_dir=None) -> Path:
     return Path(sp).parent if sp else Path(".")
 
 
-# Re-exported, not reimplemented: `kb.ownership` owns this so the wiki and the dashboard
-# give one person one pseudonym. Kept under the old private name so nothing else in this
-# module has to change, and so the indirection is visible at the point of use.
+# Re-exported, not reimplemented: `kb.ownership` owns this for the wiki and the dashboard.
+# It keys the pseudonym with the active anonymizer, so the owners panel and the chat agree
+# within one server start or export. Kept under the old private name so nothing else in
+# this module has to change, and so the indirection is visible at the point of use.
 _anon_author = anon_author
 
 

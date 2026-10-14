@@ -4191,7 +4191,9 @@ absence never reads as an oversight:
    nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
 3. **Architecture** -- the repository's modules and their sizes.
 4. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
-   scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
+   scoreboard. Pseudonymised when `[kb] anonymize = "always"`, with a key made fresh for each
+   `kb wiki` run: one person reads the same on every page of one run, and can read differently
+   on pages from another run.
 5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
    records any.
 6. **Installation and usage** -- the build and packaging files the repository has.
@@ -6346,9 +6348,9 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 - **Web addresses:** every web address in any text the dashboard shows becomes `url-` and a
   short code, docstrings included. A document with no title is named by its address, so it
   shows that code.
-- **The codes** come from a key made fresh for every export and every server start, so they
-  never match across two of them. An anonymized connector item does not open, and neither
-  does a document whose id holds an address.
+- **The codes**, author pseudonyms included, come from a key made fresh for every export and
+  every server start, so they never match across two of them. An anonymized connector item does
+  not open, and neither does a document whose id holds an address.
 - **Still shows:** repository ids (which name the forge host), symbol names and their
   docstrings (with any web address in them replaced), file paths inside your repositories,
   the headings of wiki sections, and the titles of documents and decision records (their
@@ -9422,6 +9424,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Security
+
+- **Author pseudonyms are keyed per run.** `Contributor a1b2` was 4 hex of an unkeyed SHA-256 of
+  the author's email, so anyone with a list of candidate emails could find the person behind it.
+  It is now an HMAC under a key made fresh for each export, each dashboard server start and each
+  `kb wiki` run. Within one of those, one person reads the same, so the owners panel and the chat
+  agree. Across two, the labels differ: a wiki page and a dashboard panel no longer share one
+  label for one person, and wiki pages from two runs can name one person differently.
 
 ### Added
 

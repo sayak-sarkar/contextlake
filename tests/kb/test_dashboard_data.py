@@ -267,6 +267,23 @@ def test_repo_detail_anonymize_hashes_authors_and_strips_urls(store_dir):
     assert plain["readme_html"] and plain["wiki"]["html"]
 
 
+def test_owner_pseudonyms_follow_the_key_of_the_export(store_dir):
+    """Each export and server start makes its own key, so a pseudonym matches nothing in
+    another one. Fixed keys keep the comparison deterministic."""
+    from contextlake.kb.anonymize import Anonymizer, using
+
+    s, sd = store_dir
+
+    def names(key):
+        with using(Anonymizer(key=key)):
+            return [o["name"] for o in
+                    kbdata.repo_detail(s, sd, "team/app", anonymize=True)["owners"]]
+
+    assert names(b"\x01" * 16), "control: the repo has owners"
+    assert names(b"\x01" * 16) == names(b"\x01" * 16)
+    assert names(b"\x01" * 16) != names(b"\x02" * 16)
+
+
 def test_repo_relationships_dependency_two_hop(store_dir):
     s, _ = store_dir
     rel = kbdata.repo_relationships(s, "team/app")

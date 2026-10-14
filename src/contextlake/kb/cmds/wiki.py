@@ -535,6 +535,12 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     # also means the dashboard, the MCP server and search all reach it with no changes.
     out_dir = wiki_dir
     anonymize = getattr(cfg, "anonymize", "never") == "always"
+    # One key for this run: one person reads the same on the repo page and its module
+    # pages, and differently on the next run. Passed to `repo_owners` rather than made
+    # active: `active()` also drives the graph-payload rewrite in `visualize/payload.py`.
+    from ..anonymize import Anonymizer
+
+    authors = Anonymizer() if anonymize else None
     written = 0
     briefs: dict[tuple[str, str | None], dict] = {}
     pages: dict[tuple[str, str | None], str] = {}
@@ -595,7 +601,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         out_dir.mkdir(parents=True, exist_ok=True)
         page = render_structural_page(
             brief, repo_id=repo_id, modules=modules,
-            owners=repo_owners(store, repo_id, anonymize=anonymize),
+            owners=repo_owners(store, repo_id, anonymize=anonymize, anonymizer=authors),
             dependencies=deps, notes=steering["notes"])
         pages[(repo_id, None)] = page
         whole = out_dir / (repo_slug(repo_id) + ".md")
@@ -629,7 +635,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
             mod_page = render_structural_page(
                 scoped, repo_id=repo_id, path_prefix=prefix,
                 owners=repo_owners(store, repo_id, path_prefix=prefix,
-                                   anonymize=anonymize),
+                                   anonymize=anonymize, anonymizer=authors),
                 dependencies=deps)
             pages[(repo_id, prefix)] = mod_page
             mod_file = _module_page_file(out_dir, repo_id, prefix)

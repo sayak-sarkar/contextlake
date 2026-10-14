@@ -14,7 +14,6 @@ in the examined history (not wall-clock), keeping results deterministic and maki
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -69,21 +68,23 @@ class Owner:
     score: float
 
 
-def anon_author(name: str | None, email: str | None) -> str:
-    """A stable, non-reversible pseudonym for a git author.
+def anon_author(name: str | None, email: str | None, anonymizer=None) -> str:
+    """A non-reversible pseudonym for a git author, ``Contributor`` and 4 hex.
 
-    Lives here rather than in the dashboard, where it started, because two surfaces now
-    need it: the served dashboard and the generated wiki. One implementation is not only
-    tidier, it is a correctness property -- the same person gets the SAME pseudonym on
-    both, so a reader can carry "Contributor a1b2" from a page to a panel and know it is
-    one person. Two copies would drift the moment either changed its hash length.
+    The hex is keyed: by ``anonymizer`` when given (one ``kb wiki`` run), else by the
+    anonymizer of the output being built (one export or one server start), else by a key
+    made once per process. The same person reads the same within one of those and
+    differently across two. Until 2026-10 it was 4 hex of an unkeyed SHA-256 of the email:
+    65,536 values, so anyone with a list of candidate emails could match a pseudonym to a
+    person, and to the same person in every export.
 
-    Keyed on the EMAIL first: a contributor whose display name changes across commits
-    (a rename, a different git config on a second machine) stays one pseudonym, which is
-    the whole point of a stable identifier for "who knows this area".
+    One implementation serves the dashboard, the chat and the wiki, so the panel and the
+    chat agree within one server start. Keyed on the email first: a contributor whose
+    display name changes stays one pseudonym.
     """
-    h = hashlib.sha256((email or name or "").encode("utf-8")).hexdigest()[:4]
-    return f"Contributor {h}"
+    from .anonymize import active, process_anonymizer
+
+    return (anonymizer or active() or process_anonymizer()).author_label(name, email)
 
 
 def _parse_log(out: str):

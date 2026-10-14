@@ -49,7 +49,9 @@ absence never reads as an oversight:
    nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
 3. **Architecture** -- the repository's modules and their sizes.
 4. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
-   scoreboard. Pseudonymised when `[kb] anonymize = "always"`.
+   scoreboard. Pseudonymised when `[kb] anonymize = "always"`, with a key made fresh for each
+   `kb wiki` run: one person reads the same on every page of one run, and can read differently
+   on pages from another run.
 5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
    records any.
 6. **Installation and usage** -- the build and packaging files the repository has.

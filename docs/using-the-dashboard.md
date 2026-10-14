@@ -91,9 +91,9 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 - **Web addresses:** every web address in any text the dashboard shows becomes `url-` and a
   short code, docstrings included. A document with no title is named by its address, so it
   shows that code.
-- **The codes** come from a key made fresh for every export and every server start, so they
-  never match across two of them. An anonymized connector item does not open, and neither
-  does a document whose id holds an address.
+- **The codes**, author pseudonyms included, come from a key made fresh for every export and
+  every server start, so they never match across two of them. An anonymized connector item does
+  not open, and neither does a document whose id holds an address.
 - **Still shows:** repository ids (which name the forge host), symbol names and their
   docstrings (with any web address in them replaced), file paths inside your repositories,
   the headings of wiki sections, and the titles of documents and decision records (their

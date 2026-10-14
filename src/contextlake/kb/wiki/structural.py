@@ -485,7 +485,7 @@ def repo_dependencies(store, repo_id: str) -> dict:
 
 
 def repo_owners(store, repo_id: str, *, path_prefix: str | None = None,
-                anonymize: bool = False, limit: int = 10) -> list[dict]:
+                anonymize: bool = False, anonymizer=None, limit: int = 10) -> list[dict]:
     """Recency-weighted contributors for a repo or one of its sub-paths, or ``[]``.
 
     Returns ``[]`` rather than raising when the checkout is gone: a repository can be
@@ -493,8 +493,9 @@ def repo_owners(store, repo_id: str, *, path_prefix: str | None = None,
     relocated a directory would be a worse outcome than one whose ownership section is
     honestly absent. The omitted-sections line then names it, so the absence is visible.
 
-    ``anonymize`` uses the SAME pseudonym function the dashboard uses, so one person
-    reads as one "Contributor a1b2" across both surfaces.
+    ``anonymize`` replaces each name with a pseudonym keyed by ``anonymizer``. The caller
+    passes one per ``kb wiki`` run, so the repo page and its module pages agree, and the
+    next run uses a new key.
     """
     from ..ownership import anon_author, compute_owners
 
@@ -506,5 +507,5 @@ def repo_owners(store, repo_id: str, *, path_prefix: str | None = None,
         owners = compute_owners(path, subpath=path_prefix, limit=max(1, min(limit, 50)))
     except Exception:  # noqa: BLE001 - a missing/odd checkout must not fail the page
         return []
-    return [{"name": anon_author(o.name, o.email) if anonymize else o.name,
+    return [{"name": anon_author(o.name, o.email, anonymizer) if anonymize else o.name,
              "share": o.share, "last_active": o.last_active} for o in owners]

@@ -212,6 +212,13 @@ class Anonymizer:
             key = self._addresses(original)
             return self._names.get(key) or self._ids[key]
 
+    def author_label(self, name: str | None, email: str | None) -> str:
+        """The pseudonym of a git author: ``Contributor`` and 4 hex of this run's key over
+        the email, or over the name when there is no email. Keyed on the email first, so a
+        contributor whose display name changes stays one pseudonym. The ``author:`` prefix
+        keeps the hex apart from a node label made from the same text."""
+        return f"Contributor {self._digest('author:' + (email or name or ''))[:4]}"
+
 
 _ACTIVE: contextvars.ContextVar[Anonymizer | None] = contextvars.ContextVar(
     "contextlake_anonymizer", default=None)
@@ -220,6 +227,21 @@ _ACTIVE: contextvars.ContextVar[Anonymizer | None] = contextvars.ContextVar(
 def active() -> Anonymizer | None:
     """The anonymizer for the output being built in this context, or None."""
     return _ACTIVE.get()
+
+
+_PROCESS: Anonymizer | None = None
+_PROCESS_LOCK = threading.Lock()
+
+
+def process_anonymizer() -> Anonymizer:
+    """One anonymizer per process, made on first use, for a pseudonym asked for outside any
+    export, server start or wiki run (a direct library call). Never a fixed key: an unkeyed
+    hash of an email is matched by anyone with a list of candidate emails."""
+    global _PROCESS
+    with _PROCESS_LOCK:
+        if _PROCESS is None:
+            _PROCESS = Anonymizer()
+        return _PROCESS
 
 
 @contextlib.contextmanager
