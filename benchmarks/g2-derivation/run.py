@@ -67,6 +67,7 @@ class Harness:
         self.config = work / "kb.toml"
         self.cli = [sys.executable, "-m", "contextlake"]
         self.repo_id = self.tree.name
+        self.indexed_id: str | None = None  # set from `kb index` output
         self.notes: list[str] = []
 
     # --- setup ---------------------------------------------------------------
@@ -140,12 +141,26 @@ class Harness:
         if r.returncode != 0:
             self.notes.append(f"index failed: {(r.stderr or r.stdout).strip()[-200:]}")
             return None, None
-        m = re.search(rf"Indexed {re.escape(self.repo_id)}: (\d+) nodes?, (\d+) edges?",
-                      (r.stdout or "") + (r.stderr or ""))
-        if not m:
-            self.notes.append("could not read the node/edge counts from `kb index` output")
+        # The repo id is READ from this line, not assumed. Since 8.7.0 a clone is stored under
+        # its normalized `origin` remote (`github.com/pallets/click`), not its directory name,
+        # and a guessed `tree` matched nothing: four bars went unverifiable on 10.0.0rc1.
+        found = re.findall(r"Indexed (\S+): (\d+) nodes?, (\d+) edges?",
+                           (r.stdout or "") + (r.stderr or ""))
+        if len(found) != 1:
+            self.notes.append(f"expected one `Indexed <repo>:` line from `kb index` of the "
+                              f"tree, found {len(found)}")
             return None, None
-        return int(m.group(1)), int(m.group(2))
+        repo_id, nodes, edges = found[0]
+        if self.indexed_id is not None and repo_id != self.indexed_id:
+            self.notes.append(f"the tree was indexed as {self.indexed_id}, then as {repo_id}")
+            return None, None
+        self.indexed_id = self.repo_id = repo_id
+        return int(nodes), int(edges)
+
+    @property
+    def page_name(self) -> str:
+        """The store's file name for this repo's pages: `/` becomes `__` (`kb/cmds/wiki.py`)."""
+        return self.repo_id.replace("/", "__") + ".md"
 
     # --- the probe -----------------------------------------------------------
 
@@ -188,7 +203,7 @@ class Harness:
         return m.group(1) if m else None
 
     def _doc(self, kind: str) -> str | None:
-        path = self.store / "docs" / kind / f"{self.repo_id}.md"
+        path = self.store / "docs" / kind / self.page_name
         return path.read_text(encoding="utf-8") if path.exists() else None
 
     def measure(self, nodes: int | None, edges: int | None) -> dict:
@@ -282,7 +297,7 @@ class Harness:
                 re.findall(r"^\s*\w+\s*--", body, re.M))
 
         self.cl("kb", "wiki")
-        page = self.store / "wiki" / f"{self.repo_id}.md"
+        page = self.store / "wiki" / self.page_name
         if page.exists():
             text = page.read_text(encoding="utf-8")
             stamp = self._stamp(text) or (
