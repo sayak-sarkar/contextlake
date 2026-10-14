@@ -62,9 +62,12 @@ def _spawn(argv, env, timeout=None) -> int:
     this process's group, and killing the group would kill the scheduler too.
     """
     try:
+        # stdin from /dev/null: a scheduled run has no one to answer a prompt. Started by
+        # `schedule run --foreground` in a terminal, the child would otherwise inherit it,
+        # and `kb wiki` would stop at its first-run model question until someone typed.
         proc = subprocess.Popen(
             [sys.executable, "-m", "contextlake"] + list(argv),
-            env=env, start_new_session=True)
+            env=env, start_new_session=True, stdin=subprocess.DEVNULL)
     except OSError as e:
         log(f"Could not start the scheduled run: {e}")
         return 127

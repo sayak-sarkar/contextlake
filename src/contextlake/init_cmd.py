@@ -103,7 +103,7 @@ def _toml_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def _kb_toml(enable_embeddings: bool, store_dir: str) -> str:
+def _kb_toml(enable_embeddings: bool, store_dir: str, wiki_model: str | None = None) -> str:
     lines = [
         "# contextlake knowledge-layer configuration (written by `contextlake init`).",
         "",
@@ -123,13 +123,48 @@ def _kb_toml(enable_embeddings: bool, store_dir: str) -> str:
         "# \"openai\" to opt into a paid API (key by env var, never stored here).",
         'provider = "builtin"',
         "",
-        "# Curated wiki (LLM tier), off by default. Enable with a provider:",
-        "# [llm]",
-        "# enabled = true",
-        '# provider = "builtin"   # in-process CPU model; "ollama" for a local daemon',
-        "",
     ]
+    if wiki_model:
+        lines += [
+            "# Curated wiki (LLM tier): the built-in CPU model chosen at setup. See the",
+            "# sizes this machine can run with `contextlake kb wiki --model-check`.",
+            "[llm]",
+            "enabled = true",
+            'provider = "builtin"',
+            f"builtin_model = {_toml_str(wiki_model)}",
+            "",
+        ]
+    else:
+        lines += [
+            "# Curated wiki (LLM tier), off by default. Enable with a provider:",
+            "# [llm]",
+            "# enabled = true",
+            '# provider = "builtin"   # in-process CPU model; "ollama" for a local daemon',
+            "",
+        ]
     return "\n".join(lines)
+
+
+def _pick_wiki_model() -> str:
+    """Owner decision 5, at setup: the --model-check table (no store yet, so no page
+    totals) and a pick. Enter takes the largest model that fits."""
+    import importlib.util
+
+    from .kb.llm import model_check
+    from .kb.llm.catalogue import largest_fitting
+    from .kb.llm.machine import read_machine
+    from .kb.llm.model_choice import pick_on_a_terminal
+
+    cache_dir = "~/.contextlake/models"
+    machine = read_machine(cache_dir)
+    disk = model_check.on_disk(cache_dir)
+    for line in model_check.render(machine, disk, None, council_size=3):
+        log(line)
+    model = pick_on_a_terminal(largest_fitting(machine, disk), machine, disk, log)
+    if importlib.util.find_spec("openvino_genai") is None:
+        log("  The built-in model needs the llm-local extra: "
+            "`contextlake doctor --fix llm-local`.")
+    return model.repo_id
 
 
 def _write(path: str, content: str, *, force: bool) -> bool:
@@ -417,6 +452,7 @@ def cmd_init(args) -> int:
         if interactive else kb_default
     enable_embeddings = True
     store_dir = None
+    wiki_model = None
     if want_kb:
         # Both paths default to ON, and they must agree. The interactive prompt
         # defaulted to yes while `--skip-interactive` defaulted to NO, so the
@@ -437,6 +473,11 @@ def cmd_init(args) -> int:
         )
         store_dir = _ask("  Knowledge-layer store directory", default_store) \
             if interactive else default_store
+        # Asked on a terminal only, default no: the wiki model is a download and slower
+        # runs, so pressing Enter keeps the setup this command always wrote.
+        if interactive and _kb_installed() and _ask_yn(
+                "  Generate wiki pages with a built-in model on this machine?", False):
+            wiki_model = _pick_wiki_model()
 
     # --- write --------------------------------------------------------------
     log("")
@@ -451,7 +492,8 @@ def cmd_init(args) -> int:
     else:
         want_kb = True          # the knowledge layer IS the point of this path
     if want_kb:
-        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir), force=force)
+        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir, wiki_model),
+                            force=force)
 
     # --- optional data source(s) ---------------------------------------------
     # Purely optional and skippable: default is "no", and --skip-interactive

@@ -175,12 +175,33 @@ and the free disk, and lists five sizes of the same model family:
 
 - A model fits when its RAM need is at most 80% of the RAM free now, and its download leaves
   1 GB of disk free. A model already on disk needs no download.
-- The table also counts the pages the next run would write and multiplies out the whole run.
+- The table also counts the pages the next run would write (for the repos you name, else all
+  of them) and multiplies out the whole run. Counting builds a brief per repository: 5 s for
+  a 47,838-node repository, so a large fleet takes longer.
 - The times were measured on one machine (a WSL2 VM with 22 vCPUs and 16 GB RAM) on a
   47,838-node repository, so the table shows each as a range. RAM need is the peak of the
   whole run, store included.
-- To use a size, set `[llm] provider = "builtin"` and `model` to its repo id, for example
-  `OpenVINO/Qwen2.5-Coder-3B-Instruct-int4-ov`.
+- To use a size, set `[llm] builtin_model` to its repo id, for example
+  `OpenVINO/Qwen2.5-Coder-3B-Instruct-int4-ov`. `builtin_model` is read by the built-in
+  model only, so it never reaches Ollama or a hosted provider. An `[llm] model` you set
+  yourself still wins.
+
+**The first run picks a size when you have not.** When `kb wiki` will use the built-in model
+and neither `[llm] builtin_model` nor `[llm] model` is set:
+
+- On a terminal, it prints the table and asks for a number. Enter takes the largest size that
+  fits. A size that does not fit needs a yes.
+- With no terminal (a script, CI, a scheduled run), it takes the largest size that fits and
+  prints its name and download size before anything is downloaded. If no size fits, it takes
+  the default and says so. With `--offline`, only a size already on disk is a candidate.
+- Either way the pick is saved as `[llm] builtin_model`, so later runs ask nothing and an
+  unattended run keeps the same size when the free RAM changes. It is saved to the file
+  passed with `--config`, else to the global `~/.contextlake/kb.toml`, never to a file found
+  by walking up folders. Only that key is written; your other `[llm]` settings stay as they
+  are. To change it, run `kb wiki --model-check` and edit the key.
+- A scheduled run never waits at the question: its child process gets no terminal.
+- `contextlake init` asks the same question during setup (default no), without the page
+  totals: there is no store yet.
 
 **A model is downloaded once.** Each load looks on disk first: the pinned commit of the
 default model, then any copy of the same model already in the cache (from an older install,

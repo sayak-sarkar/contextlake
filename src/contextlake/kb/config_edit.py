@@ -148,3 +148,21 @@ def read_sources(config_path: str | None) -> list[dict]:
     if aot is None:
         return []
     return [item.unwrap() for item in aot]
+
+
+def set_builtin_model(path, repo_id: str) -> None:
+    """Set ``[llm] builtin_model`` in the config file at ``path``, keeping its comments.
+
+    Creates the file and the table when absent, and changes no other key: the provider and
+    whether the tier is on stay the user's own. The caller passes the global config or a
+    ``--config`` path, never a file found by walking up folders
+    (``kb/llm/model_choice.py``).
+    """
+    path = Path(path)
+    doc = _load_document(path)
+    llm = doc.get("llm")
+    if llm is None:
+        llm = tomlkit.table()
+        doc["llm"] = llm
+    llm["builtin_model"] = repo_id
+    _write_document(path, doc)

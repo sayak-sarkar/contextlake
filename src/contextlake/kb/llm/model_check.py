@@ -27,19 +27,22 @@ def on_disk(cache_dir: str | os.PathLike) -> dict[str, bool]:
         return {m.repo_id: False for m in MODELS}
 
 
-def planned_pages(store, store_dir) -> tuple[int, int]:
-    """``(repo pages, module pages)`` a `kb wiki` run would generate.
+def planned_pages(store, store_dir, repo_ids=None) -> tuple[int, int]:
+    """``(repo pages, module pages)`` a `kb wiki` run would generate, over ``repo_ids``
+    when the run names some (``kb wiki <repo>``), else over every indexed repository.
 
     Repo pages: the ones whose commit moved or that have no page
     (``wiki_generate_estimate``, a lower bound). Module pages: an upper bound, the
-    qualifying modules of every repository, at most the per-run cap each.
+    qualifying modules of each repository, at most the per-run cap each.
     """
     from ..cmds.wiki import _MAX_MODULE_PAGES_PER_REPO, _module_page_plan
     from ..dashboard.mutations import wiki_generate_estimate
 
-    repo_pages = wiki_generate_estimate(store, store_dir)["would_regenerate"]
+    repos = [r for r in store.list_repos() if not repo_ids or r.id in repo_ids]
+    repo_pages = sum(wiki_generate_estimate(store, store_dir, repo_id=r.id)["would_regenerate"]
+                     for r in repos)
     module_pages = 0
-    for repo in store.list_repos():
+    for repo in repos:
         nodes, _edges = store.repo_counts(repo.id)
         modules, _prune = _module_page_plan(store, repo.id, nodes)
         module_pages += min(len(modules), _MAX_MODULE_PAGES_PER_REPO)
@@ -102,13 +105,13 @@ def render(machine, disk: dict[str, bool], pages: tuple[int, int] | None,
     return lines
 
 
-def print_model_check(store, store_dir, cfg) -> int:
+def print_model_check(store, store_dir, cfg, repo_ids=None) -> int:
     from ...logging_setup import log
     from .machine import read_machine
 
     cache_dir = getattr(cfg.llm, "cache_dir", None) or "~/.contextlake/models"
     machine = read_machine(cache_dir)
-    pages = planned_pages(store, store_dir)
+    pages = planned_pages(store, store_dir, repo_ids)
     for line in render(machine, on_disk(cache_dir), pages,
                        int(getattr(cfg.llm, "council_size", 3) or 3)):
         log(line)

@@ -122,3 +122,22 @@ def test_the_loader_downloads_the_catalogue_commit(monkeypatch):
     BuiltinLlm(repo_id=MODELS[2].repo_id)._ensure_model()
     BuiltinLlm(repo_id="someone/their-own-model")._ensure_model()
     assert asked == [(MODELS[2].repo_id, MODELS[2].revision), ("someone/their-own-model", None)]
+
+
+def test_planned_pages_follow_the_runs_repo_filter(monkeypatch):
+    """`kb wiki <repo>` counts that repo's pages, not the whole fleet's."""
+    import types
+
+    import contextlake.kb.cmds.wiki as wiki
+    import contextlake.kb.dashboard.mutations as mutations
+
+    asked = []
+    monkeypatch.setattr(mutations, "wiki_generate_estimate",
+                        lambda store, d, repo_id=None: asked.append(repo_id)
+                        or {"would_regenerate": 1})
+    monkeypatch.setattr(wiki, "_module_page_plan", lambda store, rid, n: ([{"prefix": "m"}], True))
+    store = types.SimpleNamespace(
+        list_repos=lambda: [types.SimpleNamespace(id=r) for r in ("a/x", "a/y", "b/z")],
+        repo_counts=lambda rid: (10, 0))
+    assert model_check.planned_pages(store, "/s", {"a/y"}) == (1, 1) and asked == ["a/y"]
+    assert model_check.planned_pages(store, "/s") == (3, 3)

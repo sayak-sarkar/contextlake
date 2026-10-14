@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for the whole run. RAM is read from the system and from a container's own memory limit.
   The times were measured on one named machine and are shown as ranges; 7B and 14B are
   extrapolated and marked so. Each size downloads a pinned commit.
+- **The first `kb wiki` run picks the built-in model size when none is set.** On a terminal
+  it shows the `--model-check` table and asks; with no terminal it takes the largest size
+  that fits and names it, with its download size, before downloading. The pick is saved as
+  `[llm] builtin_model` in the `--config` file or the global config (never a discovered
+  file), so later and unattended runs keep it. The key is read by the built-in model only;
+  an explicit `[llm] model` still wins. `contextlake init` offers the same choice (default
+  no). A scheduled run's child process now gets no terminal (stdin from `/dev/null`), so it
+  never waits at a prompt.
 - **`kb keys create --no-external`.** The key reads no connector content, with or without
   `--repos`: no connector items, enrichment documents, ingested documents, or wiki pages that
   may quote connected sources. A key with no `--repos` becomes limited to every repository

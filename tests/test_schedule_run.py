@@ -653,3 +653,23 @@ def test_one_cycle_decides_the_kind_from_this_jobs_history_alone(tmp_path, monke
     # This job has never run a full rebuild, so it must run one now. Unscoped,
     # the other job's rebuild answered for it and this was the incremental argv.
     assert chosen[0] == ["mirror", "sync", "--full"], chosen[0]
+
+
+def test_a_scheduled_child_gets_no_terminal(monkeypatch):
+    """`schedule run --foreground` in a terminal: the child must not inherit stdin, or
+    `kb wiki` stops at its first-run model question with no one to answer."""
+    seen = {}
+
+    class _Done:
+        pid = 1
+
+        def wait(self, timeout=None):
+            return 0
+
+    def popen(argv, **kw):
+        seen.update(kw)
+        return _Done()
+
+    monkeypatch.setattr(runner.subprocess, "Popen", popen)
+    assert runner._spawn(["kb", "wiki"], env={}) == 0
+    assert seen.get("stdin") is runner.subprocess.DEVNULL

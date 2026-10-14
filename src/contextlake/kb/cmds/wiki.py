@@ -715,7 +715,7 @@ def cmd_wiki(args) -> int:
         from ..llm.model_check import print_model_check
 
         try:
-            return print_model_check(store, store_dir, kb_config(args))
+            return print_model_check(store, store_dir, kb_config(args), _wanted_repo_ids(args))
         finally:
             store.close()
     if not _guard_store(store_dir, "wiki"):
@@ -831,7 +831,22 @@ def cmd_wiki(args) -> int:
                 log(f"Cannot generate: the {role} backend "
                     f"({getattr(client, 'name', '?')}) is not usable.\n{e}")
                 return 1
-        if review_llm.name == "builtin":
+        from ..llm.builtin import DEFAULT_REPO, BuiltinLlm
+
+        if isinstance(llm, BuiltinLlm) and not (getattr(cfg.llm, "model", None)
+                                                or getattr(cfg.llm, "builtin_model", None)):
+            # Owner decision 5: no wiki model is set. Pick one now (on a terminal the user
+            # picks from the --model-check table; otherwise the largest that fits) and save
+            # it, so later runs, the unattended ones included, keep using it. After the
+            # preflight, so nobody is asked to pick a model this install cannot run.
+            from ..llm.model_choice import choose_wiki_model, interactive
+
+            llm.repo_id = choose_wiki_model(
+                store, store_dir, cfg, config_path=getattr(args, "config", None),
+                ask=interactive(), log=log, repo_ids=_wanted_repo_ids(args)).repo_id
+        if review_llm.name == "builtin" and \
+                getattr(review_llm, "repo_id", DEFAULT_REPO) == DEFAULT_REPO:
+            # Said for the default size only, which is the one measured as rubber-stamping.
             # The builtin 0.5B is a weak reviewer (near-constant ~0.95 scores, mostly
             # rubber-stamping) -- still functional, but a real backend gates meaningfully.
             log("Note: the builtin model is a weak council reviewer (tends to accept "

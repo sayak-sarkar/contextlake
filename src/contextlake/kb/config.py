@@ -180,6 +180,11 @@ class LlmCfg(BaseModel):
     # Ollama, else the built-in CPU LLM (needs the `llm-local` extra), else skips.
     provider: str = "auto"
     model: str | None = None
+    # The built-in CPU model's size, saved by the first `kb wiki` run or by `init` (owner
+    # decision 5). A key of its own because `model` is read by every provider: saved there,
+    # `--llm ollama` sent an OpenVINO repo id as the Ollama model name, and `auto` asked
+    # Ollama for it and never picked Ollama again. An explicit `model` still wins.
+    builtin_model: str | None = None
     # the API endpoint. None means "not explicitly set" -> resolved per-provider
     # at read time (see llm.base.default_base_url), for the same reason as
     # api_key_env below. A declared default can't work here: one literal wins for

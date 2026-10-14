@@ -186,8 +186,10 @@ def _build_builtin_llm(cfg):
     from .builtin import BuiltinLlm
 
     kw = {}
-    if getattr(cfg, "model", None):
-        kw["repo_id"] = cfg.model
+    # An explicit `model` (the config's or `--llm-model`) wins over the saved pick.
+    repo_id = getattr(cfg, "model", None) or getattr(cfg, "builtin_model", None)
+    if repo_id:
+        kw["repo_id"] = repo_id
     if getattr(cfg, "cache_dir", None):
         kw["cache_dir"] = cfg.cache_dir
     return BuiltinLlm(**kw)

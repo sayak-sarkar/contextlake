@@ -73,6 +73,7 @@ def test_init_local_refuses_an_mcp_url_the_loader_would_drop(
         "y",                # set up the knowledge layer
         "n",                # semantic search off (keeps the run offline)
         str(project / "store"),
+        "n",                # no built-in wiki model
         "y",                # connect a data source now
         "atlassian",        # source type
         "jira",             # source name
@@ -120,7 +121,7 @@ def test_init_with_an_explicit_config_keeps_the_mcp_url_through_the_loader(
     monkeypatch.chdir(project)
     mirror_ini = project / "contextlake.ini"
     _answer_with(monkeypatch, [
-        "", "", "y", "n", str(project / "store"),
+        "", "", "y", "n", str(project / "store"), "n",
         "y", "atlassian", "jira", _INTERNAL_MCP, "n",
     ])
 
