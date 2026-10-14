@@ -51,11 +51,13 @@ def _fake_openvino(monkeypatch, *, with_class=True):
         mod.GenerationConfig = FakeConfig
     monkeypatch.setitem(sys.modules, "openvino_genai", mod)
 
-    # The model directory is fetched with huggingface_hub, which the fake pipeline
-    # never opens -- stubbed so the test needs no network and no 349 MB download.
-    hub = types.ModuleType("huggingface_hub")
-    hub.snapshot_download = lambda **kw: "/nonexistent/model-dir"
-    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    # The model directory comes from `model_cache.fetch_snapshot`, which the fake
+    # pipeline never opens -- stubbed so the test needs no huggingface_hub, no network
+    # and no 349 MB download.
+    from contextlake.kb import model_cache
+
+    monkeypatch.setattr(model_cache, "fetch_snapshot",
+                        lambda *a, **kw: "/nonexistent/model-dir")
 
 
 def test_build_llm_disabled_returns_none():

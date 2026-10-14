@@ -10,12 +10,15 @@ from __future__ import annotations
 import sys
 import types
 
-import huggingface_hub
 import pytest
-from huggingface_hub import constants
 
 from contextlake import netguard
 from contextlake.kb import model_cache
+
+# The model extras bring huggingface_hub; the knowledge-layer CI cells do not install
+# them, and the extras cell runs this file.
+huggingface_hub = pytest.importorskip("huggingface_hub")
+constants = pytest.importorskip("huggingface_hub.constants")
 
 REPO = "acme/tiny-model"
 PIN = "a" * 40

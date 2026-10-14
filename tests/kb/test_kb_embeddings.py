@@ -33,6 +33,12 @@ def _fake_model2vec(monkeypatch, *, with_class=True):
 
         mod.StaticModel = FakeStatic
     monkeypatch.setitem(sys.modules, "model2vec", mod)
+    # The folder comes from `model_cache.fetch_snapshot`: stubbed, so the test needs
+    # no huggingface_hub and no download.
+    from contextlake.kb import model_cache
+
+    monkeypatch.setattr(model_cache, "fetch_snapshot",
+                        lambda *a, **kw: "/nonexistent/model-dir")
 
 
 def test_build_embedder_disabled_returns_none():
