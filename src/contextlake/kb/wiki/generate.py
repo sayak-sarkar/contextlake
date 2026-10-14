@@ -1066,7 +1066,11 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None,
 # commit freezes it that way until the commit moves or `--force` is passed.
 _SUBSYSTEM_FOOTER_RE = re.compile(r"Subsystem pages: (`[^*]+`)\.")
 _GENERATED_FOOTER = "\n\n---\n*Generated from the knowledge graph of "
-_CONNECTOR_FOOTER_RE = re.compile(r" Connector items: (\d+)\.")
+# Anchored at the END of the page, where the footer writes the count last. Unanchored,
+# the search read the first match after the footer start, and the footer cites file
+# names and module prefixes from the indexed repo before the count: a file named
+# `x Connector items: 0.py` made a page that quoted connector text read as clean.
+_CONNECTOR_FOOTER_RE = re.compile(r" Connector items: (\d+)\.\*\s*\Z")
 
 
 def subsystem_names(subsystem_modules: list[dict] | None) -> str:
@@ -1142,6 +1146,7 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
     parser = brief.get("parser_version")
     # How many connected-source items the prompt carried. `may_hold_connector_text`
     # reads it to decide whether a key without connector access may see this page.
+    # It must stay the LAST field: the reader takes it only from the end of the page.
     connector = f" Connector items: {len(brief.get('external') or [])}."
     return (
         f"{_GENERATED_FOOTER}{scope} at commit "
@@ -1160,8 +1165,10 @@ def may_hold_connector_text(page: str) -> bool:
 
     The prompt of a whole-repo page carries the repo's ``@enrich:`` documents, and the
     model may quote them anywhere in the page, so no section can be cut out. The footer
-    records how many items the prompt carried. Only the LAST generated footer counts:
-    it is written after the model's text, so the model cannot write one below it.
+    records how many items the prompt carried, as its last field. The count is read only
+    from the end of the page: the model's text comes before the footer, and the footer's
+    other fields cite file names and module prefixes from the indexed repo, so any text
+    the repo or the model controls sits before it.
 
     ``True`` when the footer has no count (a page from before 2026-10-14; module pages
     from before 2026-07-31 carried the whole repo's items) and for a page this code did

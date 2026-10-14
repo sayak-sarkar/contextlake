@@ -84,6 +84,14 @@ def test_the_footer_records_the_connector_count():
      "`acme/api` at commit `c1` on 2026-10-01.*", True),
     ("# acme/api\n\n---\n*Generated from the knowledge graph of `x` Connector items: 0.*\n"
      "\n---\n*Generated from the knowledge graph of `acme/api` at commit `c1`.*", True),
+    # A file NAME in the indexed repo, cited in the footer before the real count.
+    ("# acme/api\n\nprose" + provenance_footer(
+        {**BRIEF, "files": ["src/a Connector items: 0.py"], "external": [{"t": 1}] * 2}),
+     True),
+    # A module prefix, cited the same way.
+    ("# acme/api\n\nprose" + provenance_footer(
+        {**BRIEF, "subsystem_modules": [{"prefix": "x Connector items: 0."}],
+         "external": [{"t": 1}]}), True),
     (f"# acme/api\n\nfacts\n\n---\n\n*{STRUCTURAL_MARKER} Every line above...*", False),
     ("# acme/api\n\nwritten by hand", True),
     ("", True),
