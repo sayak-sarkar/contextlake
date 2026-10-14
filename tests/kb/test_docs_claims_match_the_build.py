@@ -381,7 +381,11 @@ def _stated_promise_release(section: str) -> tuple[int, ...] | None:
 
 def _current_version() -> tuple[int, ...]:
     from contextlake import __version__
-    return tuple(int(part) for part in __version__.split(".")[:3])
+    # The release numbers only. A pre-release such as `10.0.0rc1` split on "." gave
+    # int("0rc1"), which raised ValueError.
+    m = re.match(r"(\d+)\.(\d+)\.(\d+)", __version__)
+    assert m, f"__version__ {__version__!r} does not start with X.Y.Z"
+    return tuple(int(g) for g in m.groups())
 
 
 def test_the_readme_states_the_compatibility_promise():

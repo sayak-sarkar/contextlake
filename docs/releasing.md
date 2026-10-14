@@ -205,6 +205,30 @@ pip install -e ".[release]"        # build + twine
     leaves the site describing an older release: 9.3.0 to 9.6.0 shipped without it, and the
     live site still carried docs those releases had corrected.
 
+## Release candidates
+
+A release candidate (rc) is a pre-release. `pip install contextlake` does not install it;
+`pip install contextlake==X.Y.ZrcN` and `pip install --pre contextlake` do. Use one to test a
+release as PyPI serves it before the full release.
+
+Follow the steps above, with these changes:
+
+- **Version.** `X.Y.ZrcN` in `src/contextlake/__init__.py` (the PEP 440 form) and the tag
+  `vX.Y.ZrcN`. Do not use `X.Y.Z-rc.N`: the release gate compares the tag with the version
+  string, and the two must be equal.
+- **CHANGELOG.** The heading is `## [X.Y.ZrcN] - YYYY-MM-DD`. The GitHub Release notes come
+  from that heading.
+- **What the workflows do.** A tag that is not three numbers is a pre-release. `release.yml`
+  and `binaries.yml` mark its GitHub Release as a pre-release, and `release.yml` publishes no
+  container image, so `latest` stays on the last full release.
+- **Skip steps 9 and 10.** The artefacts and the docs site would show the rc as the current
+  release.
+- **A defect in an rc.** PyPI does not take the same version twice. Fix the defect and cut the
+  next rc. Do not delete a published version.
+- **The full release.** Change the heading `## [X.Y.ZrcN]` to `## [X.Y.Z] - YYYY-MM-DD` and add
+  the changes made after the rc. The notes of the full release then list every change since the
+  last full release.
+
 ## Tokenless publishing via GitHub Actions (recommended)
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to

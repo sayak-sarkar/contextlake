@@ -145,6 +145,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The same test as release.yml's "Full release or pre-release" step: only X.Y.Z is a
+          # full release. Whichever workflow creates the release first sets the flag.
+          v="${GITHUB_REF_NAME#v}"
+          if [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then pre=false; else pre=true; fi
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" out/* --clobber
           else
@@ -153,5 +157,6 @@ jobs:
             # rather than fail on a 422 (release already exists).
             gh release create "$GITHUB_REF_NAME" out/* \
               --title "contextlake ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." --verify-tag \
+              --prerelease="$pre" \
               || gh release upload "$GITHUB_REF_NAME" out/* --clobber
           fi

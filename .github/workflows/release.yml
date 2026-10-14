@@ -64,6 +64,9 @@ jobs:
       # which expires.
       wheel_sha256: ${{ steps.wheel-digest.outputs.sha256 }}
       sdist_sha256: ${{ steps.wheel-digest.outputs.sdist_sha256 }}
+      # "true" for a tag that is not three numbers, such as v10.0.0rc1. `docker` and
+      # `github-release` read it, so a pre-release does not move `latest`.
+      prerelease: ${{ steps.kind.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -87,6 +90,17 @@ jobs:
             echo "::error::tag v$tag does not match package version $pkg — bump src/contextlake/__init__.py before tagging"
             exit 1
           fi
+
+      - name: Full release or pre-release
+        id: kind
+        shell: bash
+        # Anchored at both ends: only X.Y.Z is a full release. Any other form, an rc, a dev
+        # or a post release, is treated as a pre-release, which is the side that moves nothing.
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          if [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then pre=false; else pre=true; fi
+          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+          echo "$GITHUB_REF_NAME: prerelease=$pre"
 
       - name: Lint + full test suite, including tests/kb (release gate)
         run: |
@@ -261,6 +275,9 @@ jobs:
   docker:
     name: publish image (ghcr.io)
     needs: build
+    # The tags below include `latest`, `latest-slim` and `slim` with no condition, so an rc
+    # image would replace the last full release. A pre-release publishes no image.
+    if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -410,6 +427,9 @@ jobs:
       - name: Create GitHub Release from the CHANGELOG
         env:
           GH_TOKEN: ${{ github.token }}
+          # Empty only if `build` set no output; `gh` then refuses `--prerelease=` and the job
+          # stops, so an rc cannot be published as the latest release.
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           # Pull this version's section out of CHANGELOG.md for the release notes.
@@ -417,9 +437,11 @@ jobs:
             CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "Release $GITHUB_REF_NAME" > notes.md
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --title "contextlake $version" --notes-file notes.md
+            gh release edit "$GITHUB_REF_NAME" --title "contextlake $version" --notes-file notes.md \
+              --prerelease="$PRERELEASE"
             gh release upload "$GITHUB_REF_NAME" dist/* sbom/* --clobber
           else
             gh release create "$GITHUB_REF_NAME" dist/* sbom/* \
-              --title "contextlake $version" --notes-file notes.md --verify-tag
+              --title "contextlake $version" --notes-file notes.md --verify-tag \
+              --prerelease="$PRERELEASE"
           fi
