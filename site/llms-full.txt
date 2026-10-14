@@ -9586,6 +9586,10 @@ set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher 
 
 ### Fixed
 
+- **`kb steer` no longer exits 1 on a config file that is not UTF-8.** A non-UTF-8 byte in
+  `.mcp.json`, `.vscode/mcp.json` or `.claude/settings.json` stopped the command after it had
+  written the markdown files. Such a file is now left as it is, with a warning, as a file that
+  does not parse already was.
 - **Two files whose names differ only in case or punctuation are two nodes (D05).** File ids
   were the repo id and path with case folded and every run of punctuation turned into `_`, so
   `a-b.py`, `a_b.py` and `A_B.py` in one repo were one node (all but one file missing from the

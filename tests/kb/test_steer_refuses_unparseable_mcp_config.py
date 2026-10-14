@@ -159,3 +159,22 @@ def test_agents_md_keeps_its_line_endings_and_bytes(repo, tmp_path):
     after = (repo / "AGENTS.md").read_bytes()
     assert after.startswith(user)
     assert b"\n" not in after.replace(b"\r\n", b""), "the appended block mixed line endings"
+
+
+@pytest.mark.parametrize("rel", sorted(WRAPPER) + [".claude/settings.json"])
+def test_a_file_that_is_not_utf8_is_left_unchanged_and_steer_exits_0(tmp_path, repo,
+                                                                    gls_logs, rel):
+    """A non-UTF-8 byte raised UnicodeDecodeError out of the merge, so `kb steer` exited 1
+    after it had already written the markdown files (stability tier A). Now it is refused
+    like a file that does not parse: left byte-identical, a warning, exit 0."""
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    raw = b'{"mcpServers": {"other": {"command": "caf\xe9"}}}\n'
+    path.write_bytes(raw)
+
+    rc = _steer(tmp_path, repo)
+
+    assert rc == 0
+    assert path.read_bytes() == raw, "the file was rewritten"
+    assert "UTF-8" in gls_logs.text
+    assert (repo / "AGENTS.md").exists(), "control: the rest of steer ran"

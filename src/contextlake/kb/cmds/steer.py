@@ -210,7 +210,7 @@ def cmd_steer(args) -> int:
             data = {}
             if path.exists():
                 try:
-                    parsed = _json.loads(path.read_text())
+                    parsed = _json.loads(path.read_text(encoding="utf-8"))
                     # Parsed, but not the shape we merge into: a top-level array, or a
                     # server map that is a list. Rewriting it as ours would drop what it
                     # holds, so it is refused like a file that does not parse. An EMPTY
@@ -232,6 +232,16 @@ def cmd_steer(args) -> int:
                         "server was not added. contextlake reads it as plain JSON, which "
                         "has no comments and no trailing commas. Remove those and re-run "
                         "`contextlake kb steer`, or add the server by hand."))
+                    refused.append(rel)
+                    return
+                except UnicodeDecodeError:
+                    # JSON is UTF-8. A file that is not UTF-8 raised UnicodeDecodeError out of
+                    # this function, so `kb steer` exited 1 after it had already written the
+                    # markdown files (stability tier A). Same rule as a file that does not parse.
+                    log(style.warn(
+                        f"  {rel} is not UTF-8 text, so it was left as it is and the "
+                        "contextlake-kb MCP server was not added. Save it as UTF-8 and "
+                        "re-run `contextlake kb steer`, or add the server by hand."))
                     refused.append(rel)
                     return
             if not isinstance(data.get(wrapper_key), dict):
@@ -261,7 +271,7 @@ def cmd_steer(args) -> int:
             data = {}
             if path.exists():
                 try:
-                    parsed = _json.loads(path.read_text())
+                    parsed = _json.loads(path.read_text(encoding="utf-8"))
                     # Empty wrong shapes (`null`, `[]`) hold nothing and are healed, as
                     # the MCP merge does; a wrong shape that holds something is refused.
                     hooks_in = parsed.get("hooks") if isinstance(parsed, dict) else None
@@ -277,11 +287,11 @@ def cmd_steer(args) -> int:
                                        "session hook was not installed"))
                         return
                     data = parsed if isinstance(parsed, dict) else {}
-                except _json.JSONDecodeError:
+                except (_json.JSONDecodeError, UnicodeDecodeError):
                     # Not ours to repair, and overwriting somebody's settings because we
                     # could not parse them would be the worst outcome here.
-                    log(style.warn("  .claude/settings.json is not valid JSON — leaving "
-                                    "it alone; the session hook was not installed"))
+                    log(style.warn("  .claude/settings.json is not valid UTF-8 JSON, so it "
+                                   "was left as it is; the session hook was not installed"))
                     return
             hooks = data.get("hooks")
             if not isinstance(hooks, dict):
