@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc1] - 2026-10-15
+
 ### Upgrading: node ids change, so index and embed again once
 
 Parser version 13 changes the ids of files and of the names inside them (see Fixed: D05 and
