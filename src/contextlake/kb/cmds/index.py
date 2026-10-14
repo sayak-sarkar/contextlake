@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from ... import observability, style
 from ...logging_setup import log
 from .._util import _or_default
-from ..model import Repo
+from ..model import PACKAGES_REPO, Repo
 from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from ._common import (
@@ -911,4 +911,22 @@ def _cmd_index_once(args) -> int:
                             rebuilt={shard.repo})
         return rc
     finally:
+        _prune_unreferenced_packages(store)
         store.close()
+
+
+def _prune_unreferenced_packages(store) -> None:
+    """Drop package nodes no edge references any more.
+
+    They live in the shared ``(packages)`` partition, which re-indexing a repo does not
+    clear, so a package nobody depends on or publishes any more stayed for good. The D05/F1
+    id change would have left every old package id behind as a node with no edges. A
+    package with no edge has no reason to be in the graph, so this is safe at any time.
+    """
+    prune = getattr(store, "prune_orphan_nodes", None)
+    if prune is None:
+        return
+    try:
+        prune(PACKAGES_REPO)
+    except Exception as e:  # noqa: BLE001 - housekeeping must not hide the run's own result
+        log(style.warn(f"Could not remove unreferenced package nodes: {e}"))

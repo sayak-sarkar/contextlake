@@ -1,10 +1,13 @@
 from contextlake.kb.flow.data import extract_data_refs
+from contextlake.kb.ids import file_node_id
+
+DAO = file_node_id("r", "dao.py")
 
 
 def test_select_from_is_a_read():
     src = b'cursor.execute("SELECT id, status FROM orders WHERE id = ?", (id,))'
     reads, writes = extract_data_refs("r", "dao.py", src)
-    assert reads == [("r_dao_py", "orders", "dao.py", 1)]
+    assert reads == [(DAO, "orders", "dao.py", 1)]
     assert writes == []
 
 
@@ -17,7 +20,7 @@ db.exec("DELETE FROM orders WHERE id = 1")
     reads, writes = extract_data_refs("r", "dao.py", src)
     assert reads == []
     # same table hit three ways in one file -> one write ref, not three
-    assert writes == [("r_dao_py", "orders", "dao.py", 2)]
+    assert writes == [(DAO, "orders", "dao.py", 2)]
 
 
 def test_bracket_and_schema_qualified_names_normalize_like_sql_py():
@@ -93,7 +96,7 @@ def f():
 '''
     reads, writes = extract_data_refs("r", "dao.py", src)
     assert writes == []
-    assert reads == [("r_dao_py", "widgets", "dao.py", 4)]
+    assert reads == [(DAO, "widgets", "dao.py", 4)]
 
 
 def test_source_bytes_and_str_are_equivalent():

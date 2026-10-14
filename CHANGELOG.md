@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading: node ids change, so index and embed again once
+
+Parser version 13 changes the ids of files and of the names inside them (see Fixed: D05 and
+F1). After upgrading:
+
+1. `contextlake kb index` re-indexes every repository (the version change makes it do so).
+2. `contextlake kb embed` re-embeds, if you use semantic search.
+3. Re-run `kb connect` and `kb enrich` if you use them. Their links to files, tables and routes
+   are stored apart from the repository and point at the old ids until they run again. Both
+   need the network, and an API source may cost.
+4. Generated wiki pages are regenerated on the next `kb wiki`, because the parser version
+   moved. With a hosted model that costs model time.
+
+Until step 3 runs, `kb lint` reports those links as dangling edges and exits non-zero. A CI step
+that runs `kb lint` fails for that reason alone, and the same commands clear it.
+
+Ids saved outside the store stop resolving: an MCP client that kept node ids, an eval golden
+set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher exports.
+`--as-of` matches by name and keeps working.
+
 ### Security
 
 - **A repo-limited key without `--external` no longer reads enrichment documents.** `kb enrich`
@@ -69,6 +89,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Two files whose names differ only in case or punctuation are two nodes (D05).** File ids
+  were the repo id and path with case folded and every run of punctuation turned into `_`, so
+  `a-b.py`, `a_b.py` and `A_B.py` in one repo were one node (all but one file missing from the
+  graph), and repos `grp/a-b` and `grp/a/b` shared file ids. A file id now keeps that readable
+  form and adds 8 hex of a hash over the exact repo id and path; the same holds for tables,
+  config keys, Terraform resources, XSD and XSL items, ADRs, entry points and web routes. The
+  path is written one way on every system, so Linux and Windows build the same graph. SQL
+  object names still ignore case, as SQL does. `kb lint`'s shared-file-node check now reports
+  only rows left by an older version.
+- **Package names follow their ecosystem's rule (F1).** npm `@acme/billing-js`,
+  `acme-billing-js` and `acme/billing-js` were one package node, which invented dependents and
+  repo edges between them. PyPI names still fold case and `-_.` (PEP 503), NuGet ids fold
+  case, and npm and Maven names are exact.
+- **`kb index` removes package nodes no repository references.** They live in a shared
+  partition that re-indexing a repository does not clear, so a dropped dependency stayed in
+  the graph for good.
 - **A model on disk is no longer downloaded again.** The built-in wiki model asked the Hub for
   the latest commit on every load, and the built-in embedder did the same (model2vec loads with
   `force_download=True` unless told otherwise; fastembed checks the Hub unless given

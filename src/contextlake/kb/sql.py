@@ -16,7 +16,7 @@ import re
 from datetime import date
 
 from ._lines import LineIndex
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 
 # One identifier: bare, "double-quoted" (PostgreSQL, SQLite, Oracle), `backticked` (MySQL)
@@ -187,7 +187,7 @@ def parse_sql(
             name = _norm_name(m.group(1))
             if not name:
                 continue
-            nid = make_id(repo_id, rel_path, kind, name)
+            nid = scoped_id(repo_id, rel_path, kind, name)
             nodes.append(Node(
                 id=nid, repo=repo_id, kind=kind, name=name,
                 qualified_name=f"{rel_path}::{name}", file=rel_path,
@@ -210,7 +210,7 @@ def parse_sql(
         name = _norm_name(m.group(1))
         if not name:
             continue
-        nid = make_id(repo_id, rel_path, "trigger", name)
+        nid = scoped_id(repo_id, rel_path, "trigger", name)
         nodes.append(Node(
             id=nid, repo=repo_id, kind="trigger", name=name,
             qualified_name=f"{rel_path}::{name}", file=rel_path,
@@ -229,7 +229,7 @@ def parse_sql(
         name = _norm_name(m.group(1))
         if not name:
             continue
-        nid = make_id(repo_id, rel_path, "table", name)
+        nid = scoped_id(repo_id, rel_path, "table", name)
         nodes.append(Node(
             id=nid, repo=repo_id, kind="table", name=name,
             qualified_name=f"{rel_path}::{name}", file=rel_path,

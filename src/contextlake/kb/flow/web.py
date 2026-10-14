@@ -4,7 +4,7 @@ Finds, per file, the frontend **routes** a repo defines and emits them as
 ``route`` graph nodes (embeddable, like ``endpoint``) with a ``file -> route``
 edge (``defines_route``). Unlike ``endpoint``/``topic``, a route has no
 cross-repo caller/exposer pair, so route node ids are **repo-scoped**
-(``make_id(repo_id, "route", norm)``): two apps that both define ``/orders`` are
+(``scoped_id(repo_id, "", "route", ...)``): two apps that both define ``/orders`` are
 distinct nodes, not one shared node. There is deliberately no two-hop join.
 
 Framework-targeted, so every edge is ``INFERRED``, a likely undercount never
@@ -27,7 +27,7 @@ import re
 from datetime import date
 
 from .._lines import LineIndex
-from ..ids import make_id
+from ..ids import file_node_id, scoped_id
 from ..model import Confidence, Edge, Node, Provenance
 from .data import strip_code_noise
 
@@ -164,13 +164,14 @@ def _route_id(repo_id: str, route: str) -> str:
     ("/orders/{}") would merge distinct routes ("/orders" and "/orders/{}") into
     one id. Feeding each segment as its own word part keeps depth and param
     positions distinct; the dynamic ``{}`` and catch-all ``*`` map to separate
-    reserved tokens so "/" vs "/*" vs "/{}" stay distinct. (Two routes whose
-    literal segments differ only by slash-vs-underscore, or that literally use a
-    reserved word, can still share an id; that is rare and always repo-local.)
+    reserved tokens so "/" vs "/*" vs "/{}" stay distinct. ``scoped_id`` (no file: a
+    route is repo-level) hashes the exact segments, so ``/orders`` and ``/Orders``, or
+    ``/a-b`` and ``/a_b``, are distinct routes too (D05). Only a literal segment named
+    ``param`` or ``splat`` can still meet a dynamic one.
     """
     tokens = {"{}": "param", "*": "splat"}
     segs = [tokens.get(s, s) for s in route.split("/") if s]
-    return make_id(repo_id, "route", *segs)
+    return scoped_id(repo_id, "", "route", *segs)
 
 
 def _nextjs_app_root(parts: list[str]) -> int | None:
@@ -382,7 +383,7 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
     if lang not in _WEB_LANGS:
         return [], []
     verified_at = verified_at or date.today()
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     nodes: list[Node] = []
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()

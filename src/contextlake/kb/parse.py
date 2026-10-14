@@ -34,7 +34,7 @@ from .flow.http import extract_http_flow
 from .flow.state import extract_state_flow
 from .flow.web import extract_web_flow
 from .hcl import parse_hcl
-from .ids import make_id
+from .ids import file_node_id, make_id
 from .kinds import KIND_REGISTRY
 from .manifest import is_manifest, parse_manifest
 from .model import (
@@ -387,7 +387,13 @@ def _has_generated_header(source: bytes) -> bool:
 # already-indexed repository reports "unchanged" and never gains a single setting.
 # That is the whole reason this constant exists, and it was nearly missed: the
 # extraction change and the bump are one piece of work, not two.
-PARSER_VERSION = "12"
+# "13" changes ids, not extraction (D05 and F1). File ids and the ids of names inside a
+# file (tables, config keys, HCL resources, XSD/XSL items, ADRs, entry points, routes)
+# hashed the exact repo id and path instead of folding case and punctuation, so `a-b.py`
+# and `a_b.py` stop sharing a node; package ids fold by each ecosystem's own rule. Every
+# stored id of those kinds changes, so every repository must be indexed again, and an
+# unchanged commit would otherwise keep the merged nodes forever.
+PARSER_VERSION = "13"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -1146,7 +1152,7 @@ def parse_source(
     verified_at = verified_at or date.today()
     def_types = set(_DEF_TYPES[lang])
 
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     file_node = Node(id=file_id, repo=repo_id, kind="file", name=rel_path, file=rel_path, lang=lang)
     nodes: list[Node] = [file_node]
     edges: list[Edge] = []
@@ -2340,7 +2346,7 @@ def extract_style_refs(repo_id: str, rel_path: str, source: bytes,
     if lang != "html":
         return []
     out: list[tuple[str, str, str, int]] = []
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     tree = _parser("html").parse(source)
     stack = [tree.root_node]
     while stack:
@@ -2744,7 +2750,7 @@ def _parse_sfc(repo_id: str, sf: SourceFile, refs: RefCollector,
     if not nodes:
         # No blocks at all (a template-only component). The file still belongs in the
         # graph, and saying so beats a file that silently is not there.
-        file_id = make_id(repo_id, sf.rel)
+        file_id = file_node_id(repo_id, sf.rel)
         nodes.append(Node(id=file_id, repo=repo_id, kind="file", name=sf.rel,
                           file=sf.rel, lang=sf.lang))
     return nodes, edges
@@ -2913,7 +2919,7 @@ def extract_constant_uses(repo_id: str, rel_path: str, source: bytes, lang: str,
         tree = _parser(lang).parse(source)
     except Exception:  # noqa: BLE001 - one unparseable file must not stop the walk
         return []
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     out: list[tuple[str, str, str, int]] = []
     stack = [tree.root_node]
     while stack:
@@ -3033,7 +3039,7 @@ def _with_file_containment(repo_id: str, sf: SourceFile, nodes: list[Node],
     """
     if not nodes:
         return nodes, edges
-    file_id = make_id(repo_id, sf.rel)
+    file_id = file_node_id(repo_id, sf.rel)
     file_node = Node(id=file_id, repo=repo_id, kind="file", name=sf.rel, file=sf.rel)
     verified_at = date.today()
     contains = [

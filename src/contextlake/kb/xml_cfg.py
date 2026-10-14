@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import re
 
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 
 # A setting node. Registered in the dashboard's kind vocabulary and legend --
@@ -143,7 +143,7 @@ def parse_xml_config(repo_id: str, rel_path: str, source: bytes) -> list[Node]:
         if not name or len(nodes) >= _MAX_NODES_PER_FILE:
             return
         qual = "/".join([*parent, name])
-        nid = make_id(repo_id, rel_path, CONFIG_KIND, qual)
+        nid = scoped_id(repo_id, rel_path, CONFIG_KIND, qual)
         if nid in seen:
             return
         seen.add(nid)

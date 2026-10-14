@@ -17,7 +17,7 @@ from datetime import date
 
 import tree_sitter as ts
 
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 
 # Block keywords that introduce a top-level definition. ``locals`` is special:
@@ -201,7 +201,7 @@ def parse_hcl(
             address = _address_for_block(keyword, _labels(block))
             if address is None:
                 continue
-            nid = make_id(repo_id, rel_path, address)
+            nid = scoped_id(repo_id, rel_path, address)
             nodes.append(Node(
                 id=nid, repo=repo_id, kind=keyword, name=address,
                 qualified_name=f"{rel_path}::{address}", file=rel_path,
@@ -220,7 +220,7 @@ def parse_hcl(
                 if name_node is None:
                     continue
                 address = f"local.{_text(name_node)}"
-                nid = make_id(repo_id, rel_path, address)
+                nid = scoped_id(repo_id, rel_path, address)
                 nodes.append(Node(
                     id=nid, repo=repo_id, kind="local", name=address,
                     qualified_name=f"{rel_path}::{address}", file=rel_path,
@@ -244,7 +244,7 @@ def parse_hcl(
                 local_attr.named_child(0) if local_attr.named_child_count else None)
             if name_node is None:
                 return None
-            return make_id(repo_id, rel_path, f"local.{_text(name_node)}")
+            return scoped_id(repo_id, rel_path, f"local.{_text(name_node)}")
         return block_to_id.get(top_block.id)
 
     seen: set[tuple[str, str]] = set()

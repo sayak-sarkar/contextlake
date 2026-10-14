@@ -26,7 +26,7 @@ from bisect import bisect_right
 from datetime import date
 
 from .._lines import LineIndex
-from ..ids import make_id
+from ..ids import file_node_id, make_id
 from ..model import Confidence, Edge, Node, Provenance
 
 # language (from LANG_BY_EXT) -> pattern family, same split as flow/http.py
@@ -167,7 +167,7 @@ def extract_state_flow(repo_id: str, rel_path: str, source, lang: str,
         return [], []
     text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
     verified_at = verified_at or date.today()
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     line_of = LineIndex(text).line_of
     nearest_class = _NearestBefore(_CLASS, text)
     nearest_method = _NearestBefore(_METHOD_NAME[fam], text)

@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import re
 
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 from .xml_cfg import mask_non_markup
 
@@ -146,15 +146,14 @@ def parse_xsd(
     def emit(kind: str, name: str, where: int, attrs: dict[str, str]) -> str | None:
         if not name or len(nodes) >= _MAX_NODES_PER_FILE:
             return None
-        nid = make_id(repo_id, rel_path, kind, name)
+        nid = scoped_id(repo_id, rel_path, kind, name)
         if nid in seen:
-            # Node ids are casefolded (`ids.normalize_id`), and XML names are not. So
-            # `Order` and `order` -- both legal, and different components -- arrive here
-            # with one id. Returning it would hand the second component's references to
-            # the first, which is a wrong edge stated confidently. The second is skipped
-            # WITHOUT an owner instead, so its references are dropped rather than
-            # misattributed. A repeated declaration of the SAME name is a genuine
-            # duplicate and keeps the node it already has.
+            # A repeated declaration of the SAME name is a genuine duplicate and keeps the
+            # node it already has. Before parser 13 ids were casefolded, so `Order` and
+            # `order` (both legal, different components) also met here; `scoped_id` hashes
+            # the exact name now, so they do not. Any other clash (in principle, a hash
+            # clash) is still skipped WITHOUT an owner, so its references are dropped
+            # rather than handed to the wrong component.
             return nid if seen[nid] == name else None
         seen[nid] = name
         nodes.append(Node(

@@ -13,7 +13,7 @@ import time
 import pytest
 
 from contextlake.kb.flow.data import extract_data_refs
-from contextlake.kb.ids import make_id
+from contextlake.kb.ids import scoped_id
 from contextlake.kb.sql import _norm_name, parse_sql
 
 
@@ -214,7 +214,7 @@ def test_routine_and_trigger_names_skip_if_not_exists():
 # ------------------------------------------------------------------ id stability
 
 def test_ids_of_already_correct_tables_do_not_change():
-    expected = make_id("r", "s.sql", "table", "orders")
+    expected = scoped_id("r", "s.sql", "table", "orders")
     for ddl in ("CREATE TABLE orders (id int);",
                 "CREATE TABLE Orders (id int);",
                 "CREATE TABLE [dbo].[Orders] (id int);",
@@ -229,7 +229,7 @@ def test_a_quoted_and_a_bare_spelling_share_one_id():
                 "CREATE TABLE IF NOT EXISTS orders (id int);"):
         nodes, _ = _parse(ddl)
         ids |= {n.id for n in nodes}
-    assert ids == {make_id("r", "s.sql", "table", "orders")}
+    assert ids == {scoped_id("r", "s.sql", "table", "orders")}
 
 
 @pytest.mark.parametrize("raw,expected", [

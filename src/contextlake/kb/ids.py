@@ -25,10 +25,11 @@ Copyright (c) 2026 Safi Shamsi.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 
-__all__ = ["normalize_id", "make_id"]
+__all__ = ["normalize_id", "make_id", "canonical_path", "scoped_id", "file_node_id"]
 
 
 def normalize_id(s: str) -> str:
@@ -50,3 +51,37 @@ def make_id(*parts: str) -> str:
     would produce from the joined string.
     """
     return normalize_id("_".join(p.strip("_.") for p in parts if p))
+
+
+def canonical_path(rel_path: str) -> str:
+    """One spelling of a repo-relative path, the same on every OS.
+
+    ``\\`` to ``/``, a leading ``./`` or ``/`` removed, repeated ``/`` merged, NFC. Case is
+    KEPT: ``A_B.py`` and ``a_b.py`` are two files. ``make_id`` used to hide any difference in
+    how producers spelled a path; an exact id must not split one file into two nodes.
+    """
+    path = unicodedata.normalize("NFC", rel_path.replace("\\", "/"))
+    path = re.sub(r"/{2,}", "/", path)
+    while path.startswith("./"):
+        path = path[2:]
+    return path.lstrip("/")
+
+
+def scoped_id(repo_id: str, rel_path: str, *name_parts: str) -> str:
+    """The id of a file, or of a name inside a file, in one repository (D05).
+
+    The readable ``make_id`` prefix plus 8 hex of a SHA-256 over the EXACT repo id, path and
+    names. ``make_id`` alone casefolds and folds punctuation, so ``a-b.py``, ``a_b.py`` and
+    ``A_B.py`` were one node, and repos ``grp/a-b`` and ``grp/a/b`` shared file ids. The
+    suffix only has to separate ids whose readable prefix already matches, so 8 hex is
+    enough. ``v1`` versions the hash input: changing it changes every id.
+    """
+    path = canonical_path(rel_path)
+    exact = "\x1f".join(["v1", repo_id, path, *name_parts])
+    digest = hashlib.sha256(exact.encode("utf-8")).hexdigest()[:8]
+    return f"{make_id(repo_id, path, *name_parts)}_{digest}"
+
+
+def file_node_id(repo_id: str, rel_path: str) -> str:
+    """The node id of a file. Every producer of file nodes calls this, so they agree."""
+    return scoped_id(repo_id, rel_path)

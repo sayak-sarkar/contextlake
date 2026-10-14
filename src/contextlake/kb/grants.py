@@ -28,8 +28,9 @@ axis is live that this module does not check.
 ``repos`` and ``external`` ARE enforced as of 9.3.0, and NOT by this module. The
 reason they took a separate story is a fact about the data: a node id does not
 carry its repo. ``parse.symbol_id`` puts the repo inside a SHA-256 digest, and
-``make_id(repo_id, rel_path)`` runs ``ids.normalize_id``, which collapses ``/``
-to ``_``, so ``team/api`` and ``team_api`` are indistinguishable in an id. A
+a file id starts with ``make_id(repo_id, rel_path)``, which collapses ``/`` to
+``_``, so ``team/api`` and ``team_api`` read the same in an id (the hash after it
+cannot be read back either). A
 predicate over a node id cannot recover a repo from it, and a prefix test on one
 is an unanchored string match deciding an authorization question.
 

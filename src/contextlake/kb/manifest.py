@@ -12,12 +12,13 @@ Supported: ``pyproject.toml`` (PyPI), ``package.json`` (npm), ``*.csproj`` (NuGe
 from __future__ import annotations
 
 import bisect
+import hashlib
 import json
 import re
 from datetime import date
 from typing import NamedTuple
 
-from .ids import make_id
+from .ids import file_node_id, make_id, scoped_id
 from .model import PACKAGES_REPO, Confidence, Edge, Node, Provenance
 
 try:  # Python 3.11+
@@ -253,14 +254,34 @@ def _maven_project_coord(text: str) -> str | None:
 
 
 # Every ecosystem `parse_manifest` assigns. A package's node id is
-# ``package_id(ecosystem, name)``, which folds case and punctuation, so one PyPI package
-# written `acme-ledger-client` and `acme_ledger_client` is one node.
+# ``package_id(ecosystem, name)``: two repos naming one package meet on one node.
 PACKAGE_ECOSYSTEMS = ("pypi", "npm", "nuget", "maven")
 
 
+def canonical_package_name(ecosystem: str, name: str) -> str:
+    """The one spelling of a package name, by the ecosystem's own rule (F1).
+
+    PyPI folds case and treats runs of ``-``, ``_`` and ``.`` as one (PEP 503), so
+    `acme-ledger-client` and `Acme_Ledger.Client` are one package. NuGet ids ignore case.
+    npm and Maven names are exact: npm `@acme/billing-js` and `acme-billing-js` are two
+    packages. ``make_id`` folded all four alike, which merged npm packages and invented
+    dependents and repo edges between them.
+    """
+    name = name.strip()
+    if ecosystem == "pypi":
+        return re.sub(r"[-_.]+", "-", name).lower()
+    if ecosystem == "nuget":
+        return name.lower()
+    return name
+
+
 def package_id(ecosystem: str, name: str) -> str:
-    """The node id a package of ``ecosystem`` named ``name`` is stored under."""
-    return make_id("pkg", ecosystem, name)
+    """The node id a package of ``ecosystem`` named ``name`` is stored under: the readable
+    ``make_id`` prefix plus 8 hex of the canonical name, so packages the prefix folds
+    together stay apart."""
+    canonical = canonical_package_name(ecosystem, name)
+    digest = hashlib.sha256(f"pkg\x1f{ecosystem}\x1f{canonical}".encode()).hexdigest()[:8]
+    return f"{make_id('pkg', ecosystem, canonical)}_{digest}"
 
 
 def _package_node(name: str, ecosystem: str) -> Node:
@@ -382,7 +403,7 @@ def parse_manifest(
     else:
         return [], []
 
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     nodes = [Node(id=file_id, repo=repo_id, kind="file", name=rel_path, file=rel_path,
                   lang="manifest")]
     edges = []
@@ -411,7 +432,7 @@ def parse_manifest(
     # purpose: `serve` is a command THIS project installs, and two repos that both
     # install one named `serve` install two different programs.
     for command in dict.fromkeys(c for c in scripts if c):
-        eid = make_id(repo_id, f"{rel_path}#{command}")
+        eid = scoped_id(repo_id, rel_path, "#", command)
         nodes.append(Node(id=eid, repo=repo_id, kind="entry_point", name=command,
                           file=rel_path, line_start=1))
         edges.append(Edge(src=file_id, dst=eid, relation="contains",

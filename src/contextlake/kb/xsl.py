@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import re
 
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 from .xml_cfg import mask_non_markup
 
@@ -112,11 +112,12 @@ def parse_xsl(
     def emit(kind: str, name: str, where: int, attrs: dict[str, str]) -> str | None:
         if not name or len(nodes) >= _MAX_NODES_PER_FILE:
             return None
-        nid = make_id(repo_id, rel_path, kind, name)
+        nid = scoped_id(repo_id, rel_path, kind, name)
         if nid in seen:
-            # Ids are casefolded and XML names are not, so two templates differing only by
-            # case arrive with one id. The second is skipped without becoming the owner,
-            # so its calls are dropped rather than attributed to the first.
+            # A repeated declaration of the same name keeps its node. Two templates that
+            # differ only by case met here before parser 13 (casefolded ids); `scoped_id`
+            # keeps them apart now. Any other clash is skipped without becoming the owner,
+            # so its calls are dropped rather than attributed to the wrong template.
             return nid if seen[nid] == name else None
         seen[nid] = name
         nodes.append(Node(

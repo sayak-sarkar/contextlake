@@ -119,7 +119,9 @@ jobs:
   windows:
     # W02 built repo-relative paths with the OS separator, which on Windows lost every ADR and
     # nested manifest and changed symbol ids. Its tests simulate Windows paths on Linux and run
-    # unpatched here; the rest of these files walk real paths on disk. Joined from
+    # unpatched here; the rest of these files walk real paths on disk.
+    # The D05 id tests run here too: their pinned ids must come out the same on Windows, and a
+    # real index must give each file one node with no dangling edge. Joined from
     # stability.yml on 2026-10-05; the 9.8.0 control for the init step stays there.
     name: windows (py3.12, path handling)
     runs-on: windows-latest
@@ -141,6 +143,7 @@ jobs:
           tests/kb/test_windows_relative_paths.py tests/kb/test_kb_parse.py
           tests/kb/test_kb_adr.py tests/kb/test_kb_manifest.py
           tests/kb/test_kb_index_nested_dirs.py
+          tests/kb/test_scoped_ids.py tests/kb/test_d05_ids_over_an_index.py
       - name: init --local writes a kb.toml that kb reads
         # 9.8.1: init wrote the store path into TOML unescaped, and on Windows the backslashes
         # of a local path are invalid escapes, so no kb command could read the config.

@@ -18,7 +18,7 @@ import re
 from datetime import date
 
 from .._lines import LineIndex
-from ..ids import make_id
+from ..ids import file_node_id, make_id
 from ..model import SHARED_REPO, Confidence, Edge, Node, Provenance
 
 # Producer side: a function/file publishes to a named topic. Each regex captures
@@ -60,7 +60,7 @@ def extract_event_flow(repo_id: str, rel_path: str, source, lang: str,
     """Topic nodes + ``publishes_event`` / ``consumes_event`` edges for one file."""
     text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
     verified_at = verified_at or date.today()
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     line_of = LineIndex(text).line_of
     nodes: list[Node] = []
     edges: list[Edge] = []

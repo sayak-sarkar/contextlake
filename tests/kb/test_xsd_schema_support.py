@@ -186,10 +186,10 @@ def test_a_self_closing_global_component_does_not_own_the_next_ones_references()
     }
 
 
-def test_two_components_colliding_only_by_case_do_not_share_references():
-    """Node ids are casefolded and XML names are not, so `Order` and `order` -- both legal
-    and distinct -- arrive with one id. The second is skipped without an owner, so its
-    references are dropped rather than handed to the first."""
+def test_two_components_differing_only_by_case_are_two_nodes_with_their_own_references():
+    """XML names are case-sensitive, so `Order` and `order` are two components. Before
+    parser 13 their ids collided (casefolded), the second was skipped and its references
+    dropped. Ids now hash the exact name (D05), so each keeps its own."""
     src = b"""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
       <xs:complexType name="Order"><xs:sequence>
         <xs:element name="A" type="tns:First"/></xs:sequence></xs:complexType>
@@ -197,8 +197,10 @@ def test_two_components_colliding_only_by_case_do_not_share_references():
         <xs:element name="B" type="tns:Second"/></xs:sequence></xs:complexType>
     </xs:schema>"""
     nodes, refs = parse_xsd("demo", "c.xsd", src)
-    assert len(nodes) == 1, [n.name for n in nodes]
-    assert _targets(refs) == {"First"}, refs
+    names = {n.id: n.name for n in nodes}
+    assert sorted(names.values()) == ["Order", "order"]
+    assert {(names[s], t) for s, t, _rel, _line in refs} == {("Order", "First"),
+                                                             ("order", "Second")}, refs
 
 
 # --- the cross-file constraint ---------------------------------------------------------

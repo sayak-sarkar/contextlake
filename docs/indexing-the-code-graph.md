@@ -265,31 +265,36 @@ either of them:
 
 ### Shared file nodes
 
-Every file in the graph has a node. Its id is built from the repo id and the file path. The id
-builder lowercases the text and turns every run of punctuation into one `_`. So these names get
-the same id:
+Every file in the graph has a node. Before parser version 13, its id was built from the repo id
+and the file path by lowercasing the text and turning every run of punctuation into one `_`. So
+these names got the same id:
 
 - `a-b.py`, `a_b.py` and `A_B.py` in one repo
 - `pkg/__main__.py` and `pkg/main.py`
 - `numpy/_core/records.py` and `numpy/core/records.py`
 - the repos `grp/a-b` and `grp/a/b`, for a file with the same path in both
 
-The store keeps one row per id. The files share one file node, so all but one of them are
-missing from the graph as files. The symbols inside every file are still indexed. They hang off
-the one shared node.
+The store keeps one row per id, so all but one of those files were missing from the graph.
+
+**Since parser version 13, each of them has its own node.** A file id keeps the readable form
+above and adds 8 hex of a hash over the exact repo id and path. The same holds for the names
+inside a file: tables, config keys, Terraform resources, XSD and XSL items, ADRs, entry points
+and web routes. The path is written one way on every system (`/` separators, no leading `./`),
+so Linux and Windows give a file the same id. SQL object names still ignore case, as SQL does.
 
 `kb lint` names each such node, with the repo and every path it can see:
 
 ```text
-  shared file node: <repo>: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (known id limitation, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command's exit code)
+  shared file node: <repo>: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (indexed before parser 13; `kb index` re-indexes it, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command's exit code)
 ```
 
 When two repos share the node, the line says `across repos` and puts the repo in front of each
 path. The summary line ends with `N shared file node(s)`.
 
-This is a known limitation of the id scheme. The check reports it and changes nothing. It does
-not affect the exit code. Re-indexing does not clear it. Renaming a file so that its name differs
-by more than case and punctuation, then re-indexing, takes that file out of the report.
+On a store indexed by parser version 13 or later the check reports nothing. A report means a
+repo was last indexed by an older version: `kb index` re-indexes it (the version change makes it
+do so) and the report clears. The check changes nothing itself and does not affect the exit
+code.
 
 The check is a lower bound. The tables keep a trace of a file only through its node row and its
 `contains` edges. A colliding file that has no definitions, and is not the file the node row

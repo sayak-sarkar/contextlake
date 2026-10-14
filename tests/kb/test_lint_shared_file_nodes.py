@@ -1,10 +1,11 @@
 """`kb lint` reports file nodes that stand for more than one file.
 
-File node ids are ``make_id(repo_id, rel_path)``, and ``make_id`` casefolds and folds every
-run of non-word characters to ``_``. So ``a-b.py``, ``a_b.py`` and ``A_B.py`` in one repo
-share ONE node, and so do the repos ``grp/a-b`` and ``grp/a/b``. The store keeps one row per
-id, so the other files are missing from the graph. The id scheme is a known limitation and
-this check changes no id. It tells a user whether their own store is affected.
+Before parser version 13, file node ids were ``make_id(repo_id, rel_path)``, which casefolds
+and folds every run of non-word characters to ``_``. So ``a-b.py``, ``a_b.py`` and ``A_B.py``
+in one repo shared ONE node, and so did the repos ``grp/a-b`` and ``grp/a/b``. Since 13 the
+id hashes the exact path (D05, tests/kb/test_d05_ids_over_an_index.py), so the check now
+reports a store that still holds rows from an older version. The tests that need a collision
+index with the old file ids (the ``pre13_ids`` fixture), which is how such a store was built.
 
 What this file pins:
 
@@ -78,8 +79,29 @@ def _config(tmp_path):
 
 
 def _index_workspace(cfg, ws):
+    # One worker: indexing then runs in this process, where `pre13_ids` applies.
     assert cmd_index(cli.build_parser().parse_args(
-        ["kb", "index", "--config", str(cfg), "--workspace", str(ws), "--no-docs"])) == 0
+        ["kb", "index", "--config", str(cfg), "--workspace", str(ws), "--no-docs",
+         "--workers", "1"])) == 0
+
+
+@pytest.fixture
+def pre13_ids(monkeypatch):
+    """Index with the file ids parser 12 wrote, `make_id(repo_id, rel_path)`."""
+    import contextlake.kb.flow.data
+    import contextlake.kb.flow.events
+    import contextlake.kb.flow.http
+    import contextlake.kb.flow.state
+    import contextlake.kb.flow.web
+    import contextlake.kb.manifest
+    import contextlake.kb.parse
+    from contextlake.kb.ids import make_id
+
+    for mod in (contextlake.kb.parse, contextlake.kb.manifest, contextlake.kb.flow.data,
+                contextlake.kb.flow.events, contextlake.kb.flow.http,
+                contextlake.kb.flow.state, contextlake.kb.flow.web):
+        monkeypatch.setattr(mod, "file_node_id",
+                            lambda repo_id, rel_path: make_id(repo_id, rel_path))
 
 
 def _index_source(cfg, path, repo_id):
@@ -116,7 +138,7 @@ def _prefilter(store):
 # --- a store built by the real `kb index` -----------------------------------------------
 
 def test_colliding_names_in_one_repo_are_named_and_the_clean_repo_is_not(
-        tmp_path, monkeypatch, capsys, logs):
+        tmp_path, monkeypatch, capsys, logs, pre13_ids):
     monkeypatch.setenv("HOME", str(tmp_path))
     ws = tmp_path / "ws"
     _repo(ws / "dup", {"a-b.py": "def one():\n    return 1\n",
@@ -153,7 +175,7 @@ def test_colliding_names_in_one_repo_are_named_and_the_clean_repo_is_not(
     for path in ("a-b.py", "a_b.py", "A_B.py"):
         assert path in line
     assert "share one node" in line and "2 of them are missing from the graph" in line
-    assert "known id limitation" in line and SHARED_FILE_NODES_DOC in line
+    assert "indexed before parser 13" in line and SHARED_FILE_NODES_DOC in line
     assert clean_id not in line
     summary = next(m for m in logs if "Lint:" in m)
     assert "1 shared file node(s)" in summary
@@ -203,7 +225,7 @@ def test_a_repo_that_exercises_many_file_node_producers_is_not_reported(
 
 
 def test_repos_whose_ids_differ_only_in_punctuation_are_reported_as_cross_repo(
-        tmp_path, monkeypatch, capsys, logs):
+        tmp_path, monkeypatch, capsys, logs, pre13_ids):
     """`grp/a-b` and `grp/a/b` fold to one id, so the second index takes the file node
     from the first. Both repos' `contains` edges still point at it, and each carries its
     own repo_id: that is what makes this measurable from the tables."""

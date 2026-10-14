@@ -28,7 +28,7 @@ import re
 
 from .. import sql as _sql
 from .._lines import LineIndex
-from ..ids import make_id
+from ..ids import file_node_id
 
 _SELECT = re.compile(r"\bSELECT\b.*?\bFROM\s+" + _sql._NAME, re.IGNORECASE | re.DOTALL)
 _INSERT = re.compile(r"\bINSERT\s+INTO\s+" + _sql._NAME, re.IGNORECASE)
@@ -73,7 +73,7 @@ def extract_data_refs(
     """
     text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
     text = strip_code_noise(text)
-    file_id = make_id(repo_id, rel_path)
+    file_id = file_node_id(repo_id, rel_path)
     reads: list[tuple[str, str, str, int]] = []
     writes: list[tuple[str, str, str, int]] = []
     seen: set[tuple[str, str]] = set()

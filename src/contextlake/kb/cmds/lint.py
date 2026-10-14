@@ -271,12 +271,12 @@ _SHARED_PATHS_SHOWN = 10  # paths named on one text line
 def shared_file_nodes(store) -> list[dict] | None:
     """File nodes that stand for more than one file. ``None`` means "could not check".
 
-    File node ids are ``make_id(repo_id, rel_path)``, and ``make_id`` casefolds and folds
-    every run of non-word characters to ``_``. So ``a-b.py``, ``a_b.py`` and ``A_B.py``
-    in one repo get ONE node id, and so do the repos ``grp/a-b`` and ``grp/a/b``. The
-    store keeps one row per id, so one of the files is missing from the graph, and the
-    symbols of every file still hang off the one node. This is a known id limitation.
-    This function only reports it. It changes no id and fixes nothing.
+    Before parser version 13, file node ids were ``make_id(repo_id, rel_path)``, which
+    casefolds and folds every run of non-word characters to ``_``. So ``a-b.py``,
+    ``a_b.py`` and ``A_B.py`` in one repo got ONE node id, and so did the repos
+    ``grp/a-b`` and ``grp/a/b``. Since 13 they are ``ids.file_node_id``, which hashes the
+    exact path (D05), so a store indexed by 13 or later reports nothing here: a report
+    means a repo still holds rows from an older version. This function only reports.
 
     One entry per node: ``node`` (the id), ``repos`` (sorted), ``cross_repo`` (more than
     one repo is involved) and ``files`` (sorted ``{"repo", "path"}`` dicts, every file
@@ -338,8 +338,9 @@ def _shared_file_node_line(f: dict) -> str:
     verb = "is" if missing == 1 else "are"
     where = "across repos" if f["cross_repo"] else f["repos"][0]
     return (f"  shared file node: {where}: {shown} share one node, so {missing} of them "
-            f"{verb} missing from the graph (known id limitation, see "
-            f"{SHARED_FILE_NODES_DOC}; not counted in this command's exit code)")
+            f"{verb} missing from the graph (indexed before parser 13; `kb index` "
+            f"re-indexes it, see {SHARED_FILE_NODES_DOC}; not counted in this command's "
+            "exit code)")
 
 
 def cmd_lint(args) -> int:

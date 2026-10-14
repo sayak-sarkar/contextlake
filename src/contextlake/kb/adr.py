@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from pathlib import PurePosixPath
 
-from .ids import make_id
+from .ids import scoped_id
 from .model import Node
 
 _ADR_DIRS = {"adr", "adrs", "decisions"}
@@ -62,7 +62,7 @@ def parse_adr(repo_id: str, rel_path: str, source: bytes) -> list[Node]:
         return []
     title = _title(text, rel_path)
     body = " ".join(text.split())  # collapse whitespace/newlines for the doc attr
-    nid = make_id(repo_id, rel_path, "adr", title)
+    nid = scoped_id(repo_id, rel_path, "adr", title)
     return [Node(id=nid, repo=repo_id, kind="adr", name=title,
                 qualified_name=rel_path, file=rel_path,
                 attrs={"doc": body[:_MAX_DOC_CHARS]})]

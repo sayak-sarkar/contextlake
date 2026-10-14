@@ -126,14 +126,16 @@ def test_a_call_outside_any_template_is_dropped_not_given_to_the_file():
     assert calls == []
 
 
-def test_two_templates_colliding_only_by_case_do_not_share_calls():
+def test_two_templates_differing_only_by_case_keep_their_own_calls():
+    """`Row` and `row` are two templates. Their ids collided before parser 13 (D05)."""
     src = b"""<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
       <xsl:template name="Row"><xsl:call-template name="first"/></xsl:template>
       <xsl:template name="row"><xsl:call-template name="second"/></xsl:template>
     </xsl:stylesheet>"""
     nodes, calls, _uses = parse_xsl("demo", "c.xsl", src)
-    assert len(nodes) == 1, [n.name for n in nodes]
-    assert {t for _s, t, _r, _l in calls} == {"first"}
+    names = {n.id: n.name for n in nodes}
+    assert sorted(names.values()) == ["Row", "row"]
+    assert {(names[s], t) for s, t, _r, _l in calls} == {("Row", "first"), ("row", "second")}
 
 
 # --- resolution ------------------------------------------------------------------------

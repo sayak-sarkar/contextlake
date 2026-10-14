@@ -54,6 +54,9 @@ from .store import set_embedded_head, set_embedded_parser_version
 #      halves of the staleness rule above apply at once: the text a vector is built from
 #      changed, AND every stored key changed shape. A store left at 4 holds one averaged
 #      vector per document under a key nothing writes any more.
+#   6: file-scoped node ids (tables, routes, ADRs, HCL resources, schema items) gained an
+#      exact-path hash suffix (D05, `ids.scoped_id`). The text is unchanged; every stored
+#      KEY of those kinds names a node that no longer exists, as in 3.
 #
 #      This is the first bump made on a measurement rather than a judgement. On 29 real
 #      documents with 53 position-selected queries: hit rate 71.7% -> 94.3%, MRR
@@ -65,7 +68,7 @@ from .store import set_embedded_head, set_embedded_parser_version
 #      it marks an old store stale but does not itself re-embed a document. `kb ingest`
 #      rewrites document vectors, and sweeps the partition first so the old whole-document
 #      vector cannot linger next to the new chunks.
-EMBED_CONTENT_VERSION = 5
+EMBED_CONTENT_VERSION = 6
 
 # Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose
 # docstring can't drown the identifying tokens (name/signature) in the vector.
