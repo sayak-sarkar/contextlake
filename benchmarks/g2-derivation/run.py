@@ -157,6 +157,17 @@ class Harness:
         self.indexed_id = self.repo_id = repo_id
         return int(nodes), int(edges)
 
+    def installed(self) -> dict:
+        """The build the bars measured, read through the same `-m contextlake` path and CWD.
+
+        An editable install has hidden a version mismatch twice (`g6-cleanroom/README.md`),
+        so the evidence names the version and whether the module came from site-packages.
+        """
+        v = run([*self.cli, "--version"])
+        f = run([sys.executable, "-c", "import contextlake; print(contextlake.__file__)"])
+        return {"version": v.stdout.strip() or None,
+                "from_site_packages": "site-packages" in (f.stdout or "")}
+
     @property
     def page_name(self) -> str:
         """The store's file name for this repo's pages: `/` becomes `__` (`kb/cmds/wiki.py`)."""
@@ -388,13 +399,16 @@ def main(argv: list[str] | None = None) -> int:
     for n in h.notes:
         print("  note:", n)
 
+    installed = h.installed()
+    print(f"  measured: {installed['version']}, from site-packages: "
+          f"{installed['from_site_packages']}")
     RESULTS.mkdir(exist_ok=True)
     name = "derivation-local.json" if tree else "derivation.json"
     (RESULTS / name).write_text(json.dumps({
         "tree": str(tree) if tree else spec["tree"], "call_sites": sites,
         "before": before, "after": after,
         "rows": [{"output": n, "status": s, "detail": d} for n, s, d in rows],
-        "ok": ok, "notes": h.notes,
+        "ok": ok, "notes": h.notes, "installed": installed,
     }, indent=2, sort_keys=True), encoding="utf-8")
     print(f"wrote {RESULTS / name}")
 
