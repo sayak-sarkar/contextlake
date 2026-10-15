@@ -225,9 +225,9 @@ Follow the steps above, with these changes:
   release.
 - **A defect in an rc.** PyPI does not take the same version twice. Fix the defect and cut the
   next rc. Do not delete a published version.
-- **The full release.** Change the heading `## [X.Y.ZrcN]` to `## [X.Y.Z] - YYYY-MM-DD` and add
-  the changes made after the rc. The notes of the full release then list every change since the
-  last full release.
+- **The full release.** Merge every rc section into one `## [X.Y.Z] - YYYY-MM-DD` section, and
+  add the changes made after the last rc. The notes of the full release then list every change
+  since the last full release. Skip no step: run steps 9 and 10.
 
 ## Tokenless publishing via GitHub Actions (recommended)
 
