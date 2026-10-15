@@ -161,18 +161,30 @@ def _repo_id_suggestions(store, target: str, n: int = 3) -> list[str]:
     Covers typos (fuzzy match) and a partial/suffix id: repo_id is now canonical
     (host/namespace/path, see repo_identity.py), so a user typing just the
     namespace/path tail -- ``team/billing/api`` -- should still point at the
-    stored ``gitlab.example.com/acme/team/billing/api``.
+    stored ``gitlab.example.com/acme/team/billing/api``. And the directory name: a repo
+    with no ``origin`` is stored as ``name@<root commit>``, so ``no-manifest`` points at
+    ``no-manifest@6e880550eedc``. That is an equality on the name, not a substring.
     """
     import difflib
 
     ids = [r.id for r in store.list_repos()]
     tail = [i for i in ids if i == target or i.endswith("/" + target)]
+    named = [i for i in ids if i.rsplit("/", 1)[-1].split("@", 1)[0].lower() == target.lower()]
     close = difflib.get_close_matches(target, ids, n=n, cutoff=0.5)
     out: list[str] = []
-    for i in tail + close:
+    for i in tail + named + close:
         if i not in out:
             out.append(i)
     return out[:n]
+
+
+def repo_is_known(store, repo_id: str) -> bool:
+    """Whether ``repo_id`` names a repo this caller may read: a repo row, or a partition
+    that holds nodes. ``(packages)``, ``(shared)`` and ``@wiki:<repo>`` hold nodes and have
+    no row, and a ``--repo`` filter on them works. A ``ScopedStore`` answers both reads for
+    the caller's scope, so a repo outside it is unknown, with the same message as one that
+    does not exist. The same test as ``get_generated_doc`` in ``server.py``."""
+    return store.get_repo(repo_id) is not None or any(store.repo_counts(repo_id))
 
 
 def _unknown_repo_msg(store, target: str) -> str:
@@ -181,11 +193,17 @@ def _unknown_repo_msg(store, target: str) -> str:
         return f"Unknown repo {target!r}. Did you mean: {', '.join(sugg)}?"
     # It used to end "or pass a path on disk". Measured: no path form resolves here --
     # not `.`, not an absolute path to the checkout -- so the message advertised a way
-    # in that does not exist and sent the reader off to try it. Naming where the ids
-    # come from is the thing that actually unblocks them.
+    # in that does not exist and sent the reader off to try it. It then pointed at
+    # `contextlake kb doctor` to list the ids: that is not a command, `contextlake doctor`
+    # prints a count and no ids, and no command lists them (2026-10-15). So the ids are
+    # here, from `list_repos`, which a scoped store narrows to what the caller may read.
+    known = sorted(r.id for r in store.list_repos())
+    if not known:
+        return (f"Unknown repo {target!r}: this store holds no repositories. "
+                f"Run `contextlake kb index <path>` first.")
+    more = f" (+{len(known) - 5} more)" if len(known) > 5 else ""
     return (f"Unknown repo {target!r}: nothing is indexed under that id. "
-            f"Run `contextlake kb index <path>` first, or `contextlake kb doctor` to "
-            f"list the ids this store holds.")
+            f"Indexed ids include: {', '.join(known[:5])}{more}.")
 
 
 def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.sleep) -> int:

@@ -9,7 +9,10 @@ from ...logging_setup import log
 from .._util import _or_default
 from ._common import (
     _open_store,
+    _repo_id_suggestions,
+    _unknown_repo_msg,
     kb_config,
+    repo_is_known,
 )
 
 
@@ -175,6 +178,19 @@ def cmd_query(args) -> int:
         return _query_as_of(args, as_of, as_json=as_json)
     store, store_dir = _open_store(args)
     try:
+        repo = getattr(args, "repo", None)
+        if repo and not repo_is_known(store, repo):
+            # It printed "No matches" and exited 0. Since 8.7.0 an id is the `origin`
+            # remote or `name@<root commit>`, so the directory name a user types is often
+            # not one, and the answer read as "no such symbol" (G2 and G6, 10.0.0rc1).
+            # `--as-of` has its own check, in `_query_as_of`.
+            if as_json:
+                print(json.dumps({"error": "unknown_repo", "target": repo,
+                                  "suggestions": _repo_id_suggestions(store, repo)},
+                                 indent=2))
+            else:
+                log(_unknown_repo_msg(store, repo))
+            return 1
         limit = _or_default(getattr(args, "limit", None), 20)
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
         results = None
@@ -217,7 +233,7 @@ def cmd_query(args) -> int:
             # half: the usual cause is the right command against the wrong store.
             if store.stats().nodes == 0:
                 log(style.warn(f"This store is empty (no repositories indexed): {store_dir}"))
-                log("  Run `contextlake kb index <path>` first, or `contextlake kb doctor` "
+                log("  Run `contextlake kb index <path>` first, or `contextlake doctor` "
                     "to see which store this config resolves to.")
                 return 0
             # A multi-word phrase reads as a natural-language question; a plain fts

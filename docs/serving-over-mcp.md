@@ -51,6 +51,10 @@ second.
   filter.
 - `search_code` says whether the query's terms are indexed at all, and carries `total`/`truncated`
   like its siblings.
+- A `repo` filter that names no indexed repository is answered with an empty result and a `note`
+  that starts `Unknown repo` and names the ids that match, in `search_code`, `find_definition`,
+  `find_dependents`, `semantic_search`, `hybrid_search` and `ask`. A repo outside the key's scope
+  gets the same note as one that does not exist.
 
 **A node reached through an edge says how far to trust that edge.** `find_callers`,
 `find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and

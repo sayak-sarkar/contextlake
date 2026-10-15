@@ -1366,6 +1366,20 @@ def build_server(
         return NeighborsOut(edges=[_edge_out(e) for e in kept], total=total,
                             truncated=truncated, note=note)
 
+    def _unknown_repo_note(repo: str | None) -> str | None:
+        """The note for a ``repo`` filter that names no repo this caller may read, or None.
+
+        Checked before the search. An unknown id answered like a real miss:
+        ``search_code`` and ``find_definition`` said to drop the filter, ``find_dependents``
+        returned ``[]`` with no note, and ``ask`` ignored it. The CLI refuses the same id
+        with the same message (``cmds._common``), and through the same scoped ``store``, so
+        a repo outside a key's scope reads as one that does not exist.
+        """
+        if not repo:
+            return None
+        from .cmds._common import _unknown_repo_msg, repo_is_known
+        return None if repo_is_known(store, repo) else _unknown_repo_msg(store, repo)
+
     @bounded_tool
     def search_code(
         query: str, kind: str | None = None, repo: str | None = None, limit: int = 20
@@ -1377,6 +1391,8 @@ def build_server(
         not in the index at all, or a filter that excluded everything. A bare list said none
         of that: the caller could not tell a real miss from a mistyped filter, and cannot see
         the store to find out."""
+        if (unknown := _unknown_repo_note(repo)):
+            return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
         # Same defect as _budget/list_repos, reached a third way: sqlite_store.search
         # puts `limit` straight into a `LIMIT ?` with no +1/truncated bookkeeping at
         # all, so a negative value (SQLite treats a negative LIMIT as unbounded,
@@ -1422,6 +1438,8 @@ def build_server(
         graph at all, or it is but the kind/repo filter excluded every match. A bare list
         made those identical, and "X is not defined anywhere" is the answer an agent
         reports onward."""
+        if (unknown := _unknown_repo_note(repo)):
+            return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
         found = store.nodes_by_name(name, kind=kind, repo=repo)
         note = None
         if not found:
@@ -1560,6 +1578,8 @@ def build_server(
         An unknown package returns `note` saying so, rather than an empty list that
         reads as "nothing depends on it".
         """
+        if (unknown := _unknown_repo_note(repo)):
+            return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
         pkgs = list(store.nodes_by_name(package, kind="package"))
         # The node's id folds spellings (`acme-ledger-client` and `acme_ledger_client`
         # are one PyPI package), but its `name` keeps whichever spelling the last
@@ -2252,6 +2272,8 @@ def build_server(
             and would otherwise return its k nearest regardless.
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
             ingested), not extracted code facts — verify against the cited file."""
+            if (unknown := _unknown_repo_note(repo)):
+                return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
             if not query.strip():
                 return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
@@ -2282,6 +2304,8 @@ def build_server(
             cosine). Empty when nothing in the query is indexed at all."""
             from .embeddings.hybrid import hybrid_search as _hybrid
 
+            if (unknown := _unknown_repo_note(repo)):
+                return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
             if not query.strip():
                 return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
@@ -2332,6 +2356,9 @@ def build_server(
 
         def _out(note, **kw):
             return AskOut(question=question, route=route, target=target, note=note, **kw)
+
+        if (unknown := _unknown_repo_note(repo)):
+            return _out(unknown, answered=False)
 
         def _resolve_id(name):
             """A question names a symbol; callers/impact need a node id."""

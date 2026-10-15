@@ -9,6 +9,9 @@ from ...logging_setup import log
 from .._util import _or_default
 from ._common import (
     _open_store,
+    _repo_id_suggestions,
+    _unknown_repo_msg,
+    repo_is_known,
 )
 
 
@@ -40,6 +43,16 @@ def cmd_impact(args) -> int:
         return 2
     store, _ = _open_store(args)
     try:
+        if repo and not repo_is_known(store, repo):
+            # It answered "No node matches '<symbol>' -- index first", which blames the
+            # symbol for a wrong id.
+            if as_json:
+                print(json.dumps({"error": "unknown_repo", "target": repo,
+                                  "suggestions": _repo_id_suggestions(store, repo)},
+                                 indent=2))
+            else:
+                log(_unknown_repo_msg(store, repo))
+            return 1
         node, candidates = resolve_target(store, target, repo=repo)
         if node is None and candidates:        # same name in several repos — disambiguate
             by_repo: dict = {}

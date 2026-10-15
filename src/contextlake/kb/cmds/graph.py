@@ -10,6 +10,7 @@ from .._util import _or_default
 from ._common import (
     _open_store,
     _unknown_repo_msg,
+    repo_is_known,
 )
 
 
@@ -190,6 +191,12 @@ def cmd_graph(args) -> int:
                 print(text)
             return 0
 
+        # An unknown --repo, before any view is built. It was checked only on the repo
+        # view; with a seed (`kb graph echo --repo nope`) the answer was "Nothing in the
+        # graph matches 'echo'", which blames the term for a wrong id.
+        if getattr(args, "repo", None) and not repo_is_known(store, args.repo):
+            log(_unknown_repo_msg(store, args.repo))
+            return 1
         # Kept as "unset or a number": a seeded view has always defaulted this to
         # 50, while a --repo view has no default (capping a repo's containment
         # fan-out by default would silently hide a file's own symbols). Passing it
@@ -239,17 +246,16 @@ def cmd_graph(args) -> int:
                     log(f"  For that repository's own symbols: "
                         f"contextlake kb graph --repo {repos[0]}")
                 else:
+                    # It said "(ids: contextlake kb doctor)": not a command, and no command
+                    # lists ids, so the ids are named here.
+                    more = f" (+{len(repos) - 5} more)" if len(repos) > 5 else ""
                     log("  For one repository's own symbols: "
-                        "contextlake kb graph --repo <id>  (ids: contextlake kb doctor)")
+                        f"contextlake kb graph --repo <id>  (ids: "
+                        f"{', '.join(sorted(repos)[:5])}{more})")
         elif getattr(args, "repo", None) and not _has_seed(args):
             nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes,
                                              max_edges=max_edges, max_fanout=fanout_arg,
                                              meta=meta)
-            # empty AND not a known repo -> the id is wrong; suggest close ones
-            # (a real repo with nodes renders even without a repos-table row).
-            if not nodes and store.get_repo(args.repo) is None:
-                log(_unknown_repo_msg(store, args.repo))
-                return 1
             meta.update(mode="repo", repo=args.repo)
         else:
             seeds = viz.seed_ids_from_args(store, args)

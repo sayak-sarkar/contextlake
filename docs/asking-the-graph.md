@@ -56,7 +56,7 @@ Each hit prints as `repo · file:line · kind · name`, so every result is a pla
 | Flag | What it does | Default |
 | --- | --- | --- |
 | `--kind KIND` | Only nodes of this kind (`function`, `class`, `table`, …) | all kinds |
-| `--repo REPO` | Only this repository | all repos |
+| `--repo REPO` | Only this repository. An id that is not indexed exits `1` and names the ids to try | all repos |
 | `--limit N` | Most results to print | `20` |
 | `--retriever fts\|semantic\|hybrid` | Which retrieval mode to use | `fts` |
 | `--as-of COMMIT` | Search a repo's snapshot at a previously-indexed commit (needs `--repo`) | latest |
@@ -280,7 +280,9 @@ Three behaviours that bite scripts:
 
 - **An empty result is exit `0`**, in all three. Test the payload, not the exit code, to detect
   "found nothing". Exit `2` means you gave no search term; exit `1` means the target could not be
-  resolved.
+  resolved, or `--repo` names no indexed repository. A repo id is the `origin` remote
+  (`github.com/acme/app`) or `name@<root commit>`, not the directory name; the message names the
+  ids that match.
 - **`--limit 0` and `--hops 0` are refused**, with the argument error and exit `2`: `--limit` takes
   1 to 1,000,000 and `--hops` takes 1 to 1,000. Zero used to be read as "unset" and quietly became
   the default, which is why it is now an error. Neither ever meant "no limit".

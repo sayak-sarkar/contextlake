@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`kb query --repo` with an id that is not indexed exits 1 and names the ids to try.** It
+  printed "No matches" and exited 0, so a wrong id read as "no such symbol". Since 8.7.0 a repo
+  id is the `origin` remote (`github.com/acme/app`) or `name@<root commit>`, not the directory
+  name, so this is an easy mistake. `kb impact --repo` and `kb graph --repo` already exited 1,
+  but blamed the symbol; they now say the id is unknown. `--json` prints
+  `{"error": "unknown_repo", "target": ..., "suggestions": [...]}`, as `kb owners` does.
+- **The MCP tools with a `repo` filter answer an unknown id with a note.** `search_code`,
+  `find_definition`, `find_dependents`, `semantic_search`, `hybrid_search` and `ask` return an
+  empty result and a note naming the ids that match. `find_dependents` returned `[]` with no
+  note. A repo outside a key's scope gets the same note as one that does not exist.
+
+### Fixed
+
+- **An unknown-repo message pointed at `contextlake kb doctor` to list the ids.** That is not a
+  command, and `contextlake doctor` prints no ids. The message now lists them. The same pointer in
+  the `kb graph --overview` hint now lists the ids, and the empty-store hint of `kb query` names
+  `contextlake doctor`.
+- **A directory name now finds a repo stored as `name@<root commit>`.** The "Did you mean" list
+  matched the end of an `origin` id, not the name part of a repo with no `origin`.
+
 ## [10.0.0rc1] - 2026-10-15
 
 ### Upgrading: node ids change, so index and embed again once
