@@ -2517,6 +2517,13 @@ All of that is derived noise rather than real source, and **every skip is report
 are no silent gaps. To index them anyway, set `[kb] skip_generated = false` or raise
 `max_file_bytes`.
 
+**A symlinked file is read only when it points at another file of the same repository.** A link
+to a file outside the repository, or into its `.git` directory, is skipped and logged as
+`skip <path>: a symlink to a file outside the repository or in .git`. No setting changes this:
+anyone who can commit to a repository can commit a link, and the index must not read files the
+repository does not contain. The README, wiki steering file and code-snippet readers follow the
+same rule.
+
 ### The per-repository memory budget
 
 `max_file_bytes` bounds one FILE. It cannot bound a repository that is wide rather than deep,
@@ -9513,6 +9520,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Security
+
+- **A symlink in an indexed repository could make contextlake read a file outside it, or the
+  repository's own `.git` directory.** `kb index` read a symlinked source file wherever it
+  pointed, and the README, wiki steering file and code-snippet readers accepted a link into
+  `.git`. The content could then appear in the graph, wiki pages, generated docs and MCP
+  answers. Every release before 10.0.0rc3 is affected when it indexes a repository that
+  someone else can commit to. Such links are now skipped and logged; a link to another file
+  of the same repository is still read. Found by the stability campaign (probe B4).
 
 ## [10.0.0rc2] - 2026-10-15
 

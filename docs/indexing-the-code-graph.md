@@ -151,6 +151,13 @@ All of that is derived noise rather than real source, and **every skip is report
 are no silent gaps. To index them anyway, set `[kb] skip_generated = false` or raise
 `max_file_bytes`.
 
+**A symlinked file is read only when it points at another file of the same repository.** A link
+to a file outside the repository, or into its `.git` directory, is skipped and logged as
+`skip <path>: a symlink to a file outside the repository or in .git`. No setting changes this:
+anyone who can commit to a repository can commit a link, and the index must not read files the
+repository does not contain. The README, wiki steering file and code-snippet readers follow the
+same rule.
+
 ### The per-repository memory budget
 
 `max_file_bytes` bounds one FILE. It cannot bound a repository that is wide rather than deep,

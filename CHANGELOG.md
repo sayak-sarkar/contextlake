@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **A symlink in an indexed repository could make contextlake read a file outside it, or the
+  repository's own `.git` directory.** `kb index` read a symlinked source file wherever it
+  pointed, and the README, wiki steering file and code-snippet readers accepted a link into
+  `.git`. The content could then appear in the graph, wiki pages, generated docs and MCP
+  answers. Every release before 10.0.0rc3 is affected when it indexes a repository that
+  someone else can commit to. Such links are now skipped and logged; a link to another file
+  of the same repository is still read. Found by the stability campaign (probe B4).
+
 ## [10.0.0rc2] - 2026-10-15
 
 ### Changed

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..paths import within
+from ..paths import inside_clone
 from ..store.drift import parse_indexed_at
 
 # How much of one line to quote. A minified bundle or a generated table is one enormous line,
@@ -101,15 +101,16 @@ class SnippetReader:
         """``rel_path`` resolved under the repository root, or None if it escapes it.
 
         A `..` in a stored path, an absolute path, or a symlink pointing out of the tree all
-        read a file this document has no business quoting. `paths.within` owns the check, and
-        is shared with the dashboard rather than reimplemented here: the version written here
+        read a file this document has no business quoting, and so does a link into `.git`.
+        `paths.inside_clone` owns the check. It is shared with the other clone readers, not
+        reimplemented here: the version written here
         first compared correctly but caught only `OSError`, missing the `ValueError` that
         `resolve()` raises for an embedded NUL byte.
         """
         if self._root is None:
             return None
         path = self._root / rel_path
-        return path if within(self._root, path) else None
+        return path if inside_clone(self._root, path) else None
 
     def _file(self, rel_path: str) -> list[str] | None:
         if rel_path not in self._lines:
