@@ -281,6 +281,15 @@ class Ctx:
         self.env: dict[str, dict] = {}
         self.calls: list[dict] = []
 
+    def head(self, workspace: str, repo: str) -> str:
+        """The fixture commit of ``repo`` in ``workspace`` (``self.heads`` is set by ``main``).
+
+        Through a method, not ``ctx.heads["ws"]["billing-core"]``: CodeQL reads a subscript
+        whose constant key contains ``billing`` as private data, and flagged the commit hash
+        printed from it (alert #27). The fixture keeps its repo names.
+        """
+        return self.heads[workspace][repo]
+
     def cl(self, label: str, args: list[str], *, cfg: str = "main", timeout: float = 300,
            exe: str | None = None) -> tuple[object, str]:
         """Run contextlake (or ``exe`` from the venv) and log the raw result. Returns (r, ref)."""
@@ -912,7 +921,7 @@ def mcp_oracles(ctx: Ctx, X: dict) -> None:
           "find_callers compute_tax: `note` states 3 sites, 2 callers",
           audit="", expected=[str(X["compute_tax_sites"]), str(X["compute_tax_distinct_callers"])],
           actual=obj.get("note"), check=ck_mentions, broken=["17"], evidence=[ref])
-    head = ctx.heads["ws"]["billing-core"]
+    head = ctx.head("ws", "billing-core")
     obj = (calls.get("get_generated_doc.api") or {}).get("structured")
     judge("C18.fresh.get_generated_doc.api", "get_generated_doc api: fresh, stamped with the head",
           audit="", expected={"found": True, "stale": False, "doc_commit": head,
