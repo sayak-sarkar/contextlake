@@ -366,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         "tree": {"url": TREE_URL, "ref": TREE_REF, "commit": TREE_COMMIT},
         "rows": [{"python": p, "check": c, "status": s, "detail": d} for p, c, s, d in rows],
         "ok": ok, "notes": notes,
-    }, indent=2, sort_keys=True), encoding="utf-8")
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")  # the end-of-file hook wants it
     print(f"wrote {RESULTS / 'cleanroom.json'}")
     return 0 if ok else 1
 

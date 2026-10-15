@@ -409,7 +409,7 @@ def main(argv: list[str] | None = None) -> int:
         "before": before, "after": after,
         "rows": [{"output": n, "status": s, "detail": d} for n, s, d in rows],
         "ok": ok, "notes": h.notes, "installed": installed,
-    }, indent=2, sort_keys=True), encoding="utf-8")
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")  # the end-of-file hook wants it
     print(f"wrote {RESULTS / name}")
 
     if not args.keep and tree is None:
