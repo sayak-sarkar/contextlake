@@ -9514,6 +9514,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc2] - 2026-10-15
+
 ### Changed
 
 - **`kb query --repo` with an id that is not indexed exits 1 and names the ids to try.** It
