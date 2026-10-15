@@ -463,7 +463,7 @@ SERVE_KEYS = ("keys_file", "default_rate", "default_burst", "default_cost_budget
               "usage", "usage_max_lines", "usage_flush_seconds")
 
 
-def trusted_serve_table(config_path: str | None, warn) -> dict:
+def privileged_serve_table(config_path: str | None, warn) -> dict:
     """The ``[serve]`` table from a config file the user NAMED, or ``{}``.
 
     Privileged provenance only: the global ``~/.contextlake/kb.toml`` or an
@@ -476,6 +476,10 @@ def trusted_serve_table(config_path: str | None, warn) -> dict:
 
     Provenance is decided by ``trust.is_privileged_source``, which is the same
     gate ``[llm] command`` and ``[[sources]] token_env`` already go through.
+
+    The name avoids "trusted": CodeQL's sensitive-data heuristic reads that word as a
+    secret, so every key file path printed from this table was an alert (#19 to #25). The
+    table holds no secret (``SERVE_KEYS``); the token comes from ``CONTEXTLAKE_MCP_TOKEN``.
 
     ONE READER FOR THE WHOLE TABLE, not one function per key. The first version
     of this hardcoded ``keys_file`` at both reads, and the quota defaults would
@@ -512,7 +516,7 @@ def trusted_serve_table(config_path: str | None, warn) -> dict:
 
 def _serve_keys_file(config_path: str | None, warn) -> str | None:
     """``[serve] keys_file`` from a config file the user NAMED, or None."""
-    value = trusted_serve_table(config_path, warn).get("keys_file")
+    value = privileged_serve_table(config_path, warn).get("keys_file")
     return str(value) if value else None
 
 

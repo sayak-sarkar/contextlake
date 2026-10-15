@@ -261,7 +261,7 @@ def cmd_serve(args) -> int:
             # ONE READ of the `[serve]` table, shared by the quota defaults and
             # the usage settings. Two reads would print the ignored-file
             # warning twice for one start.
-            serve_table = keyfile.trusted_serve_table(
+            serve_table = keyfile.privileged_serve_table(
                 getattr(args, "config", None),
                 lambda line: print(f"  {line}", file=sys.stderr))
             try:

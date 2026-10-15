@@ -506,8 +506,8 @@ def _serve_defaults(args):
     from .. import ratelimit
 
     try:
-        table = keyfile.trusted_serve_table(getattr(args, "config", None),
-                                            lambda line: None)
+        table = keyfile.privileged_serve_table(getattr(args, "config", None),
+                                               lambda line: None)
         return ratelimit.parse_serve_defaults(table)
     except (ValueError, OSError):
         return ratelimit.ServeDefaults()

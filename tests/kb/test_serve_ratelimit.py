@@ -624,7 +624,7 @@ def test_a_config_found_by_walking_up_cannot_set_a_quota(tmp_path, monkeypatch):
     monkeypatch.setattr(kb_config, "find_ancestor_config", lambda name: str(local))
     monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(tmp_path / "absent.toml"))
     warned: list = []
-    table = keyfile.trusted_serve_table(None, warned.append)
+    table = keyfile.privileged_serve_table(None, warned.append)
     assert table == {}, table
     assert warned and "default_rate" in warned[0], warned
 

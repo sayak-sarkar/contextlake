@@ -410,7 +410,7 @@ SERVE_KEYS = ("usage", "usage_max_lines", "usage_flush_seconds")
 def parse_serve_options(table) -> UsageOptions:
     """Read the three `[serve]` usage keys out of an already-trusted table.
 
-    The table comes from ``keyfile.trusted_serve_table``, which is the same
+    The table comes from ``keyfile.privileged_serve_table``, which is the same
     privileged-provenance gate ``keys_file`` and the quota defaults go through:
     a ``.contextlake.kb.toml`` found by walking up from the cwd sits inside a
     repository checkout, and a retention cap a checkout can rewrite is not a
