@@ -273,9 +273,9 @@ def _readme_html(store, repo_id: str) -> str | None:
     r = store.get_repo(repo_id)
     base = Path(r.path) if r and getattr(r, "path", None) else None
     if base and base.is_dir():
-        # Containment-checked: this panel rendered a symlinked README's target verbatim.
+        # A README linked out of the clone is followed: the dashboard is the user's own view.
         hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
-                                    "readme.md"))
+                                    "readme.md"), contained=False)
         if hit:
             return _md_to_html(sanitize_label(hit[1], max_len=200_000))
     return None

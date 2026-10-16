@@ -18,6 +18,7 @@ import importlib
 import logging
 import os
 import re
+import stat
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import date
@@ -87,9 +88,9 @@ _IGNORE_FILE = ".contextlakeignore"
 
 
 def load_ignore_patterns(root: Path) -> list[str]:
-    # The clone is untrusted: a `.contextlakeignore` can be a symlink to a file elsewhere on
-    # the machine. `read_repo_file` reads it only if it resolves inside the clone.
-    got = read_repo_file(root, [_IGNORE_FILE])
+    # A `.contextlakeignore` linked out of the clone is followed. `read_repo_file` skips a
+    # symlink loop and anything that is not a regular file.
+    got = read_repo_file(root, [_IGNORE_FILE], contained=False)
     if got is None:
         return []
     lines = got[1].splitlines()
@@ -2598,6 +2599,20 @@ def _oversize(fpath: Path, kind: str, max_file_bytes: int) -> bool:
         return False
 
 
+def _not_regular(fpath: Path) -> bool:
+    """Whether ``fpath`` exists and is not a regular file, after following links.
+
+    A symlink is followed wherever it points, so a committed link can name `/dev/zero`,
+    which `read_bytes` read until memory ran out, or a FIFO, which blocked the index with no
+    end. Both report size 0, so `_oversize` passes them. An unstattable path is not reported
+    here: the read below produces the one, accurate skip message for it.
+    """
+    try:
+        return not stat.S_ISREG(fpath.stat().st_mode)
+    except OSError:
+        return False
+
+
 def _generated(kind: str, skip_generated: bool, probe: Callable[[], bool]) -> bool:
     """Whether generated/derived code should be skipped, deferring the (possibly
     expensive) ``probe`` until the cheap guards have passed."""
@@ -2633,6 +2648,9 @@ def _select_file(
     # reading the file.
     if _generated(kind, skip_generated, lambda: _is_generated_name(fn)):
         counts.generated += 1
+        return None
+    if _not_regular(fpath):
+        log(f"  skip {rel}: not a regular file")
         return None
     if _oversize(fpath, kind, max_file_bytes):
         counts.oversize += 1

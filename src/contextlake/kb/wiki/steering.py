@@ -60,10 +60,9 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
     if not repo_path:
         return empty
     path = steering_file(repo_path)
-    # Containment-checked: `wiki.toml` is a file in an untrusted clone, so a symlink to a file
-    # outside it must not have its target's `notes` quoted into a page. Read as text with the
-    # same replacement decode this function applied to the bytes before.
-    hit = read_repo_file(Path(repo_path), ["/".join(STEERING_PATH)])
+    # A `wiki.toml` linked out of the clone is followed wherever it points. Read as text with
+    # the same replacement decode this function applied to the bytes before.
+    hit = read_repo_file(Path(repo_path), ["/".join(STEERING_PATH)], contained=False)
     if hit is None:
         return empty
     text = hit[1]

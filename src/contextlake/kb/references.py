@@ -73,9 +73,9 @@ def scrape_links(repo_path: str, patterns: list[str], max_files: int = 500) -> l
         if not f.is_file() or f.suffix.lower() not in _DOC_SUFFIXES:
             continue
         scanned += 1
-        # The clone is untrusted, and a doc can be a symlink to a file anywhere on the
-        # machine. `read_repo_file` reads only a path that resolves inside the clone.
-        got = read_repo_file(root, [f.relative_to(root).as_posix()])
+        # A doc linked out of the clone is followed. `read_repo_file` skips a symlink loop
+        # and anything that is not a regular file.
+        got = read_repo_file(root, [f.relative_to(root).as_posix()], contained=False)
         if got is None:
             continue
         for rx in compiled:

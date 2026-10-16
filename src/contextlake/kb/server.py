@@ -2032,11 +2032,13 @@ def build_server(
         r = store.get_repo(repo)
         base = Path(r.path) if r and getattr(r, "path", None) else None
         if base and base.is_dir():
-            # `read_repo_file`, not `base / name` + `is_file()` + `read_text()`: those follow
-            # symlinks, so a README.md committed as a link to a file outside the clone (on an
-            # HTTP server, `/proc/self/environ`) was returned to a key scoped to one repo.
+            # A scoped key reads only inside the clone: a README.md linked to
+            # `/proc/self/environ` returned the server's shared token to a key scoped to one
+            # repo. Stdio and an unscoped key follow the link wherever it points.
+            scoped = getattr(store, "is_scoped", None)
             hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
-                                        "readme.md"))
+                                        "readme.md"),
+                                 contained=scoped is not None and scoped())
             if hit:
                 name, raw = hit
                 return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,

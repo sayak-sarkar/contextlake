@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A clone's README, steering file, doc files, `.contextlakeignore` and quoted source lines
+  follow a symlink wherever it points.** contextlake reads data wherever a configured source
+  points. 9.3.0, 9.4.0 and 7.13.0 made these readers refuse a link out of the clone; that
+  limit is removed. The source walk always followed links. Two readers still
+  read only inside the clone, because their text reaches a caller narrower than the user:
+  - `get_readme` for a scoped MCP key. A `README.md` linked to `/proc/self/environ` would return
+    the server's shared token to a key scoped to one repository. Stdio and an unscoped key
+    follow the link.
+  - The wiki README excerpt. The page is stored and served to every key that may read the
+    repository.
+
+  The quoted-line reader still refuses a stored path with a `..` segment or an absolute path,
+  because that names a file outside the repository by its name, not by a link. The doc-file
+  link scan does not enter a symlinked directory.
+
+### Fixed
+
+- **`kb index` no longer runs out of memory or hangs on a symlink to a device or a FIFO.** A
+  source file linked to `/dev/zero` was read until memory ran out: a 1 GB cap stopped the index
+  in 2 s. A source file linked to a FIFO blocked the index with no end. The walk and the
+  quoted-line reader now read only a regular file, as the README readers already did, and the
+  walk logs `skip <file>: not a regular file`. Every earlier release is affected.
+
 ## [10.0.0rc2] - 2026-10-15
 
 ### Changed

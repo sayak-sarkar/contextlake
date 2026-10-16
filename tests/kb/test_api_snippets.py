@@ -266,28 +266,35 @@ def test_one_unquotable_site_among_quotable_ones_is_marked_not_blank():
 OUTSIDE_TEXT = "do not quote me"
 
 
-@pytest.mark.parametrize("how", ["dotdot", "absolute", "symlink"])
+@pytest.mark.parametrize("how", ["dotdot", "absolute"])
 def test_a_path_escaping_the_tree_is_not_quoted(fresh, tmp_path, how):
-    """Three ways a stored path can name a file outside the repository. None may be quoted.
+    """Two ways a stored path can NAME a file outside the repository. Neither may be quoted.
 
     Found by the `dotdot` case, which read the file: `root / "../secret.txt"` resolves upward.
-    The other two are the same hole reached differently, and each is checked because a fix that
-    handles one spelling and not the others reads as complete.
+    The absolute case is the same hole spelled differently, and each is checked because a fix
+    that handles one spelling and not the other reads as complete. A symlink is not a third
+    spelling: it is followed (the test below).
     """
     store, root = fresh
     outside = tmp_path / "secret.txt"
     outside.write_text(OUTSIDE_TEXT + "\n", encoding="utf-8")
     _aged(outside)
 
-    if how == "dotdot":
-        rel = "../secret.txt"
-    elif how == "absolute":
-        rel = str(outside)
-    else:
-        (root / "link.txt").symlink_to(outside)
-        rel = "link.txt"
+    rel = "../secret.txt" if how == "dotdot" else str(outside)
 
     assert SnippetReader(store, REPO).line(rel, 1) != OUTSIDE_TEXT
+
+
+def test_a_symlink_out_of_the_tree_is_followed_and_quoted(fresh, tmp_path):
+    """contextlake reads data wherever a configured source points (owner, 2026-10-15), so a
+    file linked from outside the repository is quoted like any other."""
+    store, root = fresh
+    outside = tmp_path / "secret.txt"
+    outside.write_text(OUTSIDE_TEXT + "\n", encoding="utf-8")
+    _aged(outside)
+    (root / "link.txt").symlink_to(outside)
+
+    assert SnippetReader(store, REPO).line("link.txt", 1) == OUTSIDE_TEXT
 
 
 def test_a_path_with_a_nul_byte_is_refused_not_raised(fresh):

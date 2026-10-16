@@ -233,9 +233,11 @@ def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None
     base = Path(r.path) if r and getattr(r, "path", None) else None
     if not base or not base.is_dir():
         return None
-    # Containment-checked: a README symlinked to a file outside the clone must not be quoted
-    # into a wiki page and an LLM prompt (see `read_repo_file`).
-    hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README", "readme.md"))
+    # Contained: the page is stored and served to every key that may read the repo, and it is
+    # written with no caller in hand to check, so a README linked out of the clone is not
+    # quoted into it or into the LLM prompt (owner, 2026-10-15; see `read_repo_file`).
+    hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README", "readme.md"),
+                         contained=True)
     return hit[1][:max_chars] if hit else None
 
 

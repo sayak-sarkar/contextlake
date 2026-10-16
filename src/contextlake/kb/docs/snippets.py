@@ -22,9 +22,10 @@ freshness is decided should not mean two answers.
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
-from ..paths import within
+from ..paths import is_plain_id
 from ..store.drift import parse_indexed_at
 
 # How much of one line to quote. A minified bundle or a generated table is one enormous line,
@@ -98,18 +99,16 @@ class SnippetReader:
         return text[:MAX_LINE_CHARS] + " [line truncated]"
 
     def _inside(self, rel_path: str) -> Path | None:
-        """``rel_path`` resolved under the repository root, or None if it escapes it.
+        """``rel_path`` joined under the repository root, or None if its name leaves it.
 
-        A `..` in a stored path, an absolute path, or a symlink pointing out of the tree all
-        read a file this document has no business quoting. `paths.within` owns the check, and
-        is shared with the dashboard rather than reimplemented here: the version written here
-        first compared correctly but caught only `OSError`, missing the `ValueError` that
-        `resolve()` raises for an embedded NUL byte.
+        A `.` or `..` segment, an absolute path or a drive in a stored path names a file
+        outside the repository, so it is refused by name: `paths.is_plain_id` applies the
+        same rule to a repo id joined under the store. A symlink is followed wherever it
+        points (owner, 2026-10-15), and `_read` reads only a regular file.
         """
-        if self._root is None:
+        if self._root is None or not is_plain_id(rel_path):
             return None
-        path = self._root / rel_path
-        return path if within(self._root, path) else None
+        return self._root / rel_path
 
     def _file(self, rel_path: str) -> list[str] | None:
         if rel_path not in self._lines:
@@ -121,11 +120,15 @@ class SnippetReader:
         if path is None:
             return None
         try:
-            if path.stat().st_mtime_ns > (self._baseline or 0):
+            st = path.stat()
+            if not stat.S_ISREG(st.st_mode):
+                # A link to `/dev/zero` reads until memory runs out, and a FIFO blocks.
+                return None
+            if st.st_mtime_ns > (self._baseline or 0):
                 # Written after the graph was built. Every line number the graph holds for
                 # this file is now a candidate for having moved, so none of them is quotable.
                 return None
             return path.read_text(encoding="utf-8", errors="strict").splitlines()
         except (OSError, ValueError, UnicodeDecodeError):
-            # Missing, a directory, outside the tree, or not text. All of them are "no line".
+            # Missing, not a regular file, or not text. All of them are "no line".
             return None
