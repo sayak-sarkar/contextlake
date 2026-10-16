@@ -68,24 +68,6 @@ def within(base: Path, candidate: Path) -> bool:
         return False
 
 
-def inside_clone(base: Path, candidate: Path) -> bool:
-    """True if ``candidate`` resolves inside the clone ``base`` and not into its ``.git``.
-
-    ``within`` alone let a link that stays inside the clone point at ``.git/config``, which
-    holds the remote URL and any credentials written into it: a linked ``leak.py`` or
-    ``README.md`` put them into the graph, a wiki page or an MCP answer (2026-10-15, probe
-    B4). Nothing reads ``.git`` on purpose, and the source walk prunes it, so a target there
-    is refused. Compared without case, for the file systems that ignore it.
-    """
-    if not within(base, candidate):
-        return False
-    try:
-        rel = candidate.resolve().relative_to(base.resolve())
-    except (OSError, ValueError, RuntimeError):
-        return False
-    return not any(part.lower() == ".git" for part in rel.parts)
-
-
 def read_repo_file(base: Path, names: Iterable[str]) -> tuple[str, str] | None:
     """``(name, text)`` of the first of ``names`` that is a regular file INSIDE ``base``.
 
@@ -113,10 +95,10 @@ def read_repo_file(base: Path, names: Iterable[str]) -> tuple[str, str] | None:
         candidate = base / name
         try:
             resolved = candidate.resolve()
-            if not inside_clone(base, resolved):
+            if not within(base, resolved):
                 if candidate.is_symlink() or candidate.exists():
-                    log(f"refused {name!r} under {base}: it resolves outside the clone or "
-                        "into its .git directory", level=logging.WARNING)
+                    log(f"refused {name!r} under {base}: it resolves outside the clone",
+                        level=logging.WARNING)
                 continue
             if not resolved.is_file():
                 continue

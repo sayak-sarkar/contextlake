@@ -45,7 +45,7 @@ from .model import (
     Node,
     Provenance,
 )
-from .paths import inside_clone, read_repo_file
+from .paths import read_repo_file
 from .proc import mask_embedded_sql
 from .sql import parse_sql
 from .store.shards import GraphShard
@@ -2674,15 +2674,6 @@ def _walk_source_files(
             # recognised by relative path, not by name, so rel is built for every
             # candidate before anything is classified or skipped.
             rel = _rel_posix(fpath, root)
-            # A clone is untrusted, and a symlink is one commit away. `os.walk` does not
-            # descend a symlinked directory, but it lists a symlinked FILE, and
-            # `_select_file` reads it: a `leak.py` linked to a file outside the clone, or to
-            # `.git/config`, put that file into the graph and every answer built on it
-            # (2026-10-15, probe B4; the README readers had the same defect, S01). A link to
-            # another file of the clone is kept.
-            if fpath.is_symlink() and not inside_clone(root, fpath):
-                log(f"  skip {rel}: a symlink to a file outside the repository or in .git")
-                continue
             sf = _select_file(fpath, rel, fn, allowed_exts=allowed_exts,
                               allowed_names=allowed_names,
                               index_hcl=index_hcl, index_sql=index_sql, ignore=ignore,
