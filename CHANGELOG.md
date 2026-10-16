@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A clone's README, steering file, doc files, `.contextlakeignore` and quoted source lines
   follow a symlink wherever it points.** contextlake reads data wherever a configured source
   points. 9.3.0, 9.4.0 and 7.13.0 made these readers refuse a link out of the clone; that
-  limit is removed. The source walk always followed links. Two readers still
+  limit is removed. The source walk always followed a linked file. Two readers still
   read only inside the clone, because their text reaches a caller narrower than the user:
   - `get_readme` for a scoped MCP key. A `README.md` linked to `/proc/self/environ` would return
     the server's shared token to a key scoped to one repository. Stdio and an unscoped key
@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     repository.
 
   The quoted-line reader still refuses a stored path with a `..` segment or an absolute path,
-  because that names a file outside the repository by its name, not by a link. The doc-file
-  link scan does not enter a symlinked directory.
+  because that names a file outside the repository by its name, not by a link. The source
+  walk and the doc-file link scan do not enter a symlinked directory.
 
 ### Fixed
 
