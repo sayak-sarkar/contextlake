@@ -9521,8 +9521,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.0.0rc3] - 2026-10-15
-
 ### Security
 
 - **A symlink in an indexed repository could make contextlake read a file outside it, or the
