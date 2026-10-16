@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc3] - 2026-10-16
+
 ### Changed
 
 - **A clone's README, steering file, doc files, `.contextlakeignore` and quoted source lines
