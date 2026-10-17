@@ -9865,6 +9865,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc4] - 2026-10-17
+
 ### Changed
 
 - **The wiki steering file reads only inside the clone.** A `.contextlake/wiki.toml` that is a
@@ -9882,6 +9884,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   return the server's shared token. Stdio, the shared token and a key with no limit still follow
   the link. A `[serve]` default such as `default_rate` belongs to the server, not the key, and
   does not count.
+- **`mirror update` and `mirror branches` no longer treat a branch deleted on origin as still
+  there.** Both ran `git fetch --all` without `--prune`, so the clone kept `origin/<branch>` for
+  a branch that was merged and deleted. `update` then re-selected the deleted branch itself,
+  reported "auto-switched" with a green exit, and stayed on it on every later run. The same
+  stale ref made commits that no server branch has look pushed, so the "left in place (N
+  commit(s) not on any origin branch)" guard was skipped. `branches` could move a clone onto a
+  branch that was gone from the server. Both fetches now prune. A `fetch.prune = true` in your
+  git config had hidden all three. 10.0.0rc3 did not prune. A squash-merged branch, whose
+  commits are on no origin branch, is now left in place by `update` the way the docs already
+  described; `mirror branches` moves it.
+- **`branch_strategy = recency` no longer detaches HEAD on a fresh clone.** `branches` listed
+  the symbolic ref `origin/HEAD` as a branch named `origin`, because git prints it that way and
+  the code skipped a name equal to `origin/HEAD`. When the default branch held the newest
+  commit, the run checked out `origin`, left HEAD detached, and every later `branches` and
+  `update` run skipped that clone. A branch name that holds `origin/`, such as
+  `hotfix/origin/x`, was also read with that part cut out. The extra `origin` entry also set the
+  lowest commit count to 0 in the default `hybrid` scoring, so `branches` now scores the real
+  branches, and a clone can move to a different branch than before. Working-branch protection
+  still applies.
+- **`clone`, `update` and `branches` no longer stop at a git password prompt.** git printed
+  `Username for ...` on the terminal when a server answered 401, for example after a token was
+  revoked or a project turned private, and waited. Up to 8 workers prompted at once over the
+  progress bar, each blocked for the full timeout, and the timeout was retried: about 3 minutes
+  a repository for a fetch. git now runs with `GIT_TERMINAL_PROMPT=0` and fails at once with
+  `terminal prompts disabled`. A credential helper still works. If you typed a password at that
+  prompt, use a platform token or a credential helper, or set `GIT_TERMINAL_PROMPT=1` to get the
+  prompt back.
+- **`kb graph --site DIR` no longer overwrites a directory it did not write.** It wrote
+  `index.html` and the shared assets over any directory, and with `--anonymize` deleted its
+  `wiki-*.html`, so pointing it at a hand-kept docs site replaced files and reported success. It
+  now writes into a new or empty directory, or one an earlier export marked with a
+  `.contextlake-export` file, and refuses any other directory that holds files, naming what it
+  found and writing nothing. File names do not show who wrote a file, so a directory holding a
+  single `index.html` is refused too. `kb dashboard --site` refused foreign files at its top
+  level only; it now needs the marker there and in its `graph/` folder, and checks both before
+  it writes anything. A folder made by an earlier version has no marker: run
+  `touch DIR/.contextlake-export` once, and for a dashboard export
+  `touch DIR/graph/.contextlake-export` too. `kb graph --site` has had no check since it was
+  added in 2.4.0.
 
 ### Fixed
 
@@ -9951,16 +9992,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upload that landed first made `verify-published` fail. It is now marked as hand publishing
   only. The runbook also named a maintainer's local directory and a private note, and both are
   gone.
-- **`mirror update` and `mirror branches` no longer treat a branch deleted on origin as still
-  there.** Both ran `git fetch --all` without `--prune`, so the clone kept `origin/<branch>` for
-  a branch that was merged and deleted. `update` then re-selected the deleted branch itself,
-  reported "auto-switched" with a green exit, and stayed on it on every later run. The same
-  stale ref made commits that no server branch has look pushed, so the "left in place (N
-  commit(s) not on any origin branch)" guard was skipped. `branches` could move a clone onto a
-  branch that was gone from the server. Both fetches now prune. A `fetch.prune = true` in your
-  git config had hidden all three. 10.0.0rc3 did not prune. A squash-merged branch, whose
-  commits are on no origin branch, is now left in place by `update` the way the docs already
-  described; `mirror branches` moves it.
 - **The yes/no settings in `.contextlake.ini` accept `yes`, `no`, `on`, `off`, `1` and `0`.**
   `dry_run`, `clean_corrupted`, `adaptive_workers`, `protect_working_branches`,
   `require_clean_workspace` and `auto_stash` were on only for the literal `true`. `dry_run =
@@ -9969,15 +10000,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stops the run with an error that names the key, before any repository is touched. An unknown
   `branch_strategy` also exits 1 with its message instead of a traceback. 10.0.0rc3 read only
   `true`.
-- **`branch_strategy = recency` no longer detaches HEAD on a fresh clone.** `branches` listed
-  the symbolic ref `origin/HEAD` as a branch named `origin`, because git prints it that way and
-  the code skipped a name equal to `origin/HEAD`. When the default branch held the newest
-  commit, the run checked out `origin`, left HEAD detached, and every later `branches` and
-  `update` run skipped that clone. A branch name that holds `origin/`, such as
-  `hotfix/origin/x`, was also read with that part cut out. The extra `origin` entry also set the
-  lowest commit count to 0 in the default `hybrid` scoring, so `branches` now scores the real
-  branches, and a clone can move to a different branch than before. Working-branch protection
-  still applies.
 - **`--config=~/x.ini` and `--config '$DIR/x.ini'` read the file they name.** The existence
   check expanded `~` and `$VAR` but the read used the text as typed, so the check passed and the
   file was ignored. `mirror update` then ran against the default work directory with one
@@ -9991,14 +10013,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--auto-stash` is put back, and the rest are skipped. The run prints one line saying so.
   `clone` was affected when `adaptive_workers = false`. The default adaptive pool starts one
   batch at a time.
-- **`clone`, `update` and `branches` no longer stop at a git password prompt.** git printed
-  `Username for ...` on the terminal when a server answered 401, for example after a token was
-  revoked or a project turned private, and waited. Up to 8 workers prompted at once over the
-  progress bar, each blocked for the full timeout, and the timeout was retried: about 3 minutes
-  a repository for a fetch. git now runs with `GIT_TERMINAL_PROMPT=0` and fails at once with
-  `terminal prompts disabled`. A credential helper still works. If you typed a password at that
-  prompt, use a platform token or a credential helper, or set `GIT_TERMINAL_PROMPT=1` to get the
-  prompt back.
 - **`ask` no longer runs the embedder for a key that may not use `semantic_search`.** A key made
   with `--tools read` is refused `semantic_search`, but `ask` embedded its question and searched
   the vectors anyway, using the operator's embedder (which can be a billed remote model). This
@@ -10096,18 +10110,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`app@c9ec633beaa9`), which no ticket or page contains. The repo name was never searched, and
   each source got one wasted lead term per run. `kb enrich` now drops the `@<root commit>` tail.
   Present since 2.47.0.
-- **`kb graph --site DIR` no longer overwrites a directory it did not write.** It wrote
-  `index.html` and the shared assets over any directory, and with `--anonymize` deleted its
-  `wiki-*.html`, so pointing it at a hand-kept docs site replaced files and reported success. It
-  now writes into a new or empty directory, or one an earlier export marked with a
-  `.contextlake-export` file, and refuses any other directory that holds files, naming what it
-  found and writing nothing. File names do not show who wrote a file, so a directory holding a
-  single `index.html` is refused too. `kb dashboard --site` refused foreign files at its top
-  level only; it now needs the marker there and in its `graph/` folder, and checks both before
-  it writes anything. A folder made by an earlier version has no marker: run
-  `touch DIR/.contextlake-export` once, and for a dashboard export
-  `touch DIR/graph/.contextlake-export` too. `kb graph --site` has had no check since it was
-  added in 2.4.0.
 - **Wiki pages and generated documents show tables, numbered lists and quoted text instead of
   raw Markdown.** The default `kb wiki` page (since 10.0.0rc1), the API reference and the design
   notes are built from tables, a numbered "Getting started" list and a quoted README excerpt.
@@ -10213,6 +10215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed checkout a running `kb serve` or dashboard kept reporting `stale: 0` and
   `unreadable: 0` until it restarted. `kb lint` in a new process reported both. The git state
   of each checkout is now read on every call; only the shard walk stays cached.
+  The extra cost is one git read a checkout per call, about 2 ms each on a local disk.
 - **`kb impact <symbol> --repo R` finds a fuzzy match inside `R`.** The fuzzy search kept the
   top 10 hits across all repos and then dropped the ones outside `R`, so a symbol that ranked
   below ten hits from other repos was reported as "No node matches", while `kb query --repo R`
