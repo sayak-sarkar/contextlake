@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refused. Both now say the store could not be read and exit 1. `list` skips the orphan check.
   With `--json`, both add `_job_store_unreadable` (`path`, `reason`); `list` names every
   platform in `_unchecked_platforms`. An absent store still means no jobs.
+- **`kb hook ~/missing/dir` says `No such directory: ~/missing/dir`** and exits 1. It said
+  "Unknown hook action" for a path that does not exist.
 
 ## [10.0.0rc3] - 2026-10-16
 

@@ -64,7 +64,12 @@ def cmd_hook(args) -> int:
         # refused (August probe #6); the owner chose to read it as install (2026-10-15).
         args.path, action = action, "install"
     if action not in ("install", "uninstall", "status"):
-        log(style.warn(f"Unknown hook action {action!r} — use install | uninstall | status."))
+        if (("/" in action or os.sep in action or action.startswith(("~", ".")))
+                and not Path(os.path.expanduser(action)).is_dir()):
+            # A path-shaped word that is not a directory is a missing path, not a mistyped action.
+            log(style.warn(f"No such directory: {action}"))
+            return 1
+        log(style.warn(f"Unknown hook action {action!r}. Use install | uninstall | status."))
         return 1
     config = getattr(args, "config", None)
     workspace = getattr(args, "workspace", None)

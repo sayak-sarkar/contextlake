@@ -208,3 +208,25 @@ def test_an_unknown_word_is_still_refused(tmp_path, monkeypatch, gls_logs):
             setattr(args, k, v)
     assert kb.dispatch("hook", args) == 1
     assert "Unknown hook action 'instal'" in gls_logs.text
+    assert "No such directory" not in gls_logs.text
+    assert "\u2014" not in gls_logs.text
+
+
+@pytest.mark.parametrize("word", ["{tmp}/missing/dir", "~/missing/dir", "./missing", ".missing"])
+def test_a_missing_path_says_no_such_directory(word, tmp_path, monkeypatch, gls_logs):
+    """G-obs3: `kb hook ~/missing/dir` said "Unknown hook action", which blamed the word
+    when the real fault is a path that does not exist. A path-shaped word (a separator,
+    or a leading `~` or `.`) gets the directory message."""
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    word = word.replace("{tmp}", str(tmp_path))
+    args = build_parser().parse_args(["kb", "hook", word])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 1
+    assert f"No such directory: {word}" in gls_logs.text
+    assert "Unknown hook action" not in gls_logs.text

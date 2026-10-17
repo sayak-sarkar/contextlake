@@ -194,6 +194,9 @@ contextlake kb hook status  --workspace ~/src   # which repos are wired
 contextlake kb hook uninstall                   # remove it (any pre-existing hook is kept)
 ```
 
+A path that does not exist (for example `kb hook ~/missing/dir`) prints `No such directory: <path>`
+and exits 1. A plain word that is not an action prints the list of actions and exits 1.
+
 The hook runs `contextlake kb index <repo>` detached, so the commit returns immediately, and it
 re-uses the repo's stored id so it updates the same graph node rather than creating a duplicate. It
 is written inside a delimited managed block, so a hook you already had is appended to rather than
