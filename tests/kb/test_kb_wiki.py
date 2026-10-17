@@ -2257,6 +2257,46 @@ def test_module_partition_lookup_uses_the_repo_id_index(tmp_path):
         store.close()
 
 
+def test_prune_deletes_only_inside_wiki_modules_whatever_a_stored_node_cites(tmp_path):
+    """`nodes.file` of a module-page partition is text a graph shard can carry
+    (`kb index --source shard.json`). The prune used to unlink `store_dir / file`: an
+    absolute path replaced the store directory and `..` walked out of it, so a shard
+    named `@wiki:<repo>::zzz` deleted any file the user could. Only a page under
+    `wiki/_modules/` may be removed, and a real orphan page there still must be."""
+    from contextlake.kb.cmds.wiki import _prune_orphan_module_pages
+
+    store_dir = tmp_path / "kb"
+    modules = store_dir / "wiki" / "_modules"
+    modules.mkdir(parents=True)
+    outside_abs = tmp_path / "victim-abs.txt"
+    outside_dots = tmp_path / "victim-dots.txt"
+    inside_store = store_dir / "wiki" / "other-repo.md"     # in the store, not a module page
+    for f in (outside_abs, outside_dots, inside_store, modules / "r__gone.md"):
+        f.write_text("data")
+    cites = {"gone": "wiki/_modules/r__gone.md",             # a real orphan page
+             "abs": str(outside_abs),                        # replaces the store directory
+             "dots": "../victim-dots.txt",                   # walks out of it
+             "other": "wiki/other-repo.md"}                  # in the store, wrong folder
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    try:
+        store.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
+        for prefix, cited in cites.items():
+            part = f"@wiki:r::{prefix}"
+            store.upsert_nodes(part, [Node(id=f"{part}:0", repo=part, kind="wiki",
+                                           name=part, file=cited)])
+        assert _prune_orphan_module_pages(store, store_dir, store_dir / "wiki", "r", []) == 4
+        assert store.get_node("@wiki:r::abs:0") is None, "the orphan partition was not cleared"
+    finally:
+        store.close()
+
+    assert not (modules / "r__gone.md").exists(), "a real orphan module page was not pruned"
+    assert outside_abs.is_file(), "an absolute citation deleted a file"
+    assert outside_dots.is_file(), "a `..` citation deleted a file"
+    assert inside_store.is_file(), "a citation outside wiki/_modules deleted a page"
+
+
 @pytest.mark.slow
 def test_cmd_wiki_does_not_prune_when_the_index_reports_no_modules_at_all(tmp_path, monkeypatch):
     """`node_count` comes from the shard and `repo_modules()` from the SQLite

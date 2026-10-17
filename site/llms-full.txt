@@ -9937,6 +9937,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default `api.openai.com` and `api.anthropic.com` hosts do not redirect; this needed a
   `base_url` that does. The OpenAI clients did this from 2.0.0 at least; the Anthropic client
   from 2.36.0.
+- **`kb wiki` no longer deletes a file outside `wiki/_modules` when it prunes a module page.**
+  The prune of a module that stopped qualifying joined the `file` field of the stored page node
+  under the store directory and deleted the result. A graph shard indexed with `kb index
+  --source` can carry any `file` text, so a shard named `@wiki:<repo>::zzz` with an absolute or
+  `..` path made the next `kb wiki` run (with an LLM) delete that file, wherever it was. The
+  path is now used only when it is a relative path under `wiki/_modules`; any other value is
+  logged and ignored. The path was trusted unchecked from 3.0.0, when the prune was added.
 
 ## [10.0.0rc3] - 2026-10-16
 

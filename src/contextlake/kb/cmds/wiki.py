@@ -9,7 +9,7 @@ from ... import style
 from ...logging_setup import log
 from ..config import apply_llm_overrides
 from ..connectors.text_match import link_documents_to_symbols
-from ..paths import is_plain_id
+from ..paths import is_plain_id, within
 from ..store.shards import GraphShard, read_shard, shard_path, store_partition, write_shard
 from ._common import (
     _connect_targets,
@@ -365,8 +365,21 @@ def _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id: str,
         # lives; `_module_wiki_filename`'s "/" -> "__" mapping is lossy, so
         # re-deriving the name is only the fallback for a partition that
         # somehow has no file recorded.
-        page = ((store_dir / cited_file) if cited_file
-                else _module_page_file(wiki_dir, repo_id, prefix))
+        #
+        # The citation is a string a graph shard can carry (`kb index --source` takes
+        # one), so it is trusted only when it names a file under `wiki/_modules/`, where
+        # every module page lives. An absolute path replaces the store directory when
+        # joined, and `..` walks out of it; either would make this unlink delete any
+        # file the user can. `within` checks the parent, so a link in `_modules/` is
+        # removed as a link and its target is never touched.
+        page = _module_page_file(wiki_dir, repo_id, prefix)
+        if cited_file:
+            cited = store_dir / cited_file
+            if is_plain_id(cited_file) and within(wiki_dir / "_modules", cited.parent):
+                page = cited
+            else:
+                log(f"  {repo_id}: ignored the page path stored for `{prefix}` "
+                    f"({cited_file!r}), which is not under wiki/_modules", inline=True)
         page.unlink(missing_ok=True)
         # Vectors BEFORE nodes, and here the order is load-bearing rather than a
         # convention: this is a prune, so nothing rewrites either side afterwards and
