@@ -5533,7 +5533,9 @@ The hook runs `contextlake kb index <repo>` detached, so the commit returns imme
 re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
 the store does not hold the repo yet, it uses the id the repo's `origin` gives, the same id a plain
 `kb index PATH` files it under. It is written inside a delimited managed block, so a hook you
-already had is appended to, not overwritten, and only that block is refreshed on re-runs.
+already had is appended to, not overwritten, and only that block is refreshed on re-runs. A
+`--config` path is stored as an absolute path, because git runs the hook from the repo root.
+`kb refresh --refresh` does the same for the background update it starts.
 
 `kb index` rewrites that repo's API reference and design notes along with the graph, so the
 documents move with the commit. No model runs, and a repo whose head commit has not moved is
@@ -10222,6 +10224,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both now say a wiki run can still download a model, and `releasing.md` names the offline
   switches. The pull request checklist in `.github/pull_request_template.md` said `ruff check
   src tests`. It now shows the `src tests scripts benchmarks` command CI runs.
+- **A relative `--config` now works with the commit hook and `kb refresh --refresh`.** `kb hook
+  install --config kb.toml` stored the path as typed, and `kb refresh --refresh` passed it to
+  its background child as typed. Git runs the hook from the repo root and the child starts in
+  the store directory, so both exited at once with "--config path not found" while the command
+  that started them reported success. Nothing was re-indexed. The path is now stored as an
+  absolute path.
 
 ### Security
 

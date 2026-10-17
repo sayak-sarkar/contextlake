@@ -80,6 +80,10 @@ def cmd_hook(args) -> int:
         log(style.warn(f"Unknown hook action {action!r}. Use install | uninstall | status."))
         return 1
     config = getattr(args, "config", None)
+    if config:
+        # The hook stores this path, and git runs it from the repo root, so a relative
+        # path would be looked up in a directory that never had the file.
+        config = str(Path(config).expanduser().resolve())
     workspace = getattr(args, "workspace", None)
 
     # Resolve targets as (repo_id, repo_path) pairs.

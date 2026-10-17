@@ -69,7 +69,8 @@ def _spawn_refresh(store_dir: Path, config: str | None,
     """
     logfile = Path(store_dir) / _LOG_NAME
     base = [sys.executable, "-m", "contextlake", "kb"]
-    cfg = ["--config", config] if config else []
+    # Absolute: the child runs with cwd=store_dir, where a relative path is not found.
+    cfg = ["--config", str(Path(config).expanduser().resolve())] if config else []
     steps = [base + cfg + ["index", "--source", t] for t in targets]
     if embed:
         # Stale vectors are not repaired by indexing; `embed` is their repair. Before

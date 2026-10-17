@@ -259,3 +259,23 @@ def test_refresh_with_nothing_to_repair_does_not_claim_to_be_updating(
     ok, _ = refresh_mod._spawn_refresh(tmp_path, None, [], embed=False)
     assert ok is False
     assert "argv" not in seen, "a process was spawned with nothing to do"
+
+
+def test_refresh_child_gets_an_absolute_config_path(tmp_path, monkeypatch):
+    """The detached child runs with cwd=store_dir. `kb --config kb.toml refresh --refresh`
+    passed `--config kb.toml` on, the child exited with "--config path not found", and the
+    parent had already printed "Updating in the background"."""
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    cfg_dir = tmp_path / "cfg"
+    cfg_dir.mkdir()
+    (cfg_dir / "kb.toml").write_text("")
+    monkeypatch.chdir(cfg_dir)
+    store_dir = tmp_path / "store"
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(store_dir, "kb.toml", ["alpha"])
+    assert ok
+    script = seen["argv"][-1]
+    assert f"--config {cfg_dir / 'kb.toml'} index --source alpha" in script
+    assert f"--config {cfg_dir / 'kb.toml'} steer" in script

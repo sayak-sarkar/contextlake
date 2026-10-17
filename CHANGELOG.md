@@ -446,6 +446,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both now say a wiki run can still download a model, and `releasing.md` names the offline
   switches. The pull request checklist in `.github/pull_request_template.md` said `ruff check
   src tests`. It now shows the `src tests scripts benchmarks` command CI runs.
+- **A relative `--config` now works with the commit hook and `kb refresh --refresh`.** `kb hook
+  install --config kb.toml` stored the path as typed, and `kb refresh --refresh` passed it to
+  its background child as typed. Git runs the hook from the repo root and the child starts in
+  the store directory, so both exited at once with "--config path not found" while the command
+  that started them reported success. Nothing was re-indexed. The path is now stored as an
+  absolute path.
 
 ### Security
 

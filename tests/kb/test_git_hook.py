@@ -159,6 +159,31 @@ def test_hook_install_warns_on_unresolved_repo_id(tmp_path, monkeypatch, gls_log
     assert f"--repo {shlex.quote(repo.name)}" in hook.read_text()
 
 
+def test_hook_install_stores_an_absolute_config_path(tmp_path, monkeypatch, gls_logs):
+    """`kb --config kb.toml hook install` wrote `--config kb.toml` into the hook. Git runs
+    the hook from the repo root, so every commit then failed with "--config path not found"
+    in contextlake-index.log, and install had already said each commit now re-indexes."""
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    repo = tmp_path / "widget-api"
+    _repo(repo)
+    cfg_dir = tmp_path / "cfg"
+    cfg_dir.mkdir()
+    (cfg_dir / "kb.toml").write_text("")
+    monkeypatch.chdir(cfg_dir)
+
+    args = build_parser().parse_args(
+        ["kb", "hook", "install", str(repo), "--config", "kb.toml"])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 0
+
+    body = (repo / ".git" / "hooks" / "post-commit").read_text()
+    assert f"--config {shlex.quote(str(cfg_dir / 'kb.toml'))} kb index" in body
+
+
 def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch, gls_logs):
     """H3: the 'not installed' glyph must come from style.dim('·'), not a bare '·'."""
     monkeypatch.delenv("NO_COLOR", raising=False)
