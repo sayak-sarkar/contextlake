@@ -102,7 +102,8 @@ def _previous_documents(store_dir, repo_id: str, fresh: list) -> tuple[list, lis
 # The option each source type reads its target from. `files` reads `path`; the network
 # sources read `url`. `--path https://...` used to be passed as `path` for every type, which
 # `web` and `api` swallow in `**_`, so the run dialled nothing and ended "complete".
-_URL_TARGET_TYPES = frozenset({"web", "api", "graphql"})
+# `graphql` is left out: it needs a `query` as well, and `--path` cannot supply one.
+_URL_TARGET_TYPES = frozenset({"web", "api"})
 
 
 def _cli_target_key(source_type: str, target: str) -> str:
@@ -273,8 +274,16 @@ def cmd_ingest(args) -> int:
                     elif getattr(src, "no_request_reason", None):
                         # No request went out, so nothing was shown about the endpoint.
                         # "Reachable" is a claim about one, and only a request makes it.
-                        log(f"  {name}: nothing to ingest: {src.no_request_reason}",
-                            inline=True)
+                        if cli_path:
+                            # The target was typed on the command line, so dropping it is a
+                            # failure. A [[sources]] entry may sit idle on purpose.
+                            log(f"  {name}: FAILED, nothing was sent for {cli_path!r}: "
+                                f"{src.no_request_reason}. `--path` sets one option; use a "
+                                "[[sources]] entry in kb.toml to set more", inline=True)
+                            failed += 1
+                        else:
+                            log(f"  {name}: nothing to ingest: {src.no_request_reason}",
+                                inline=True)
                     else:
                         log(f"  {name}: no documents (source reachable, nothing to ingest)",
                             inline=True)

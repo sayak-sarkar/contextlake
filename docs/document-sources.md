@@ -22,9 +22,11 @@ contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to t
 contextlake kb ingest --path https://example.com/changelog --source-type web   # one web page
 ```
 
-`--path` sets the `path` of a `files` source. For `--source-type web`, `api` or `graphql` it sets the
-`url`. A `graphql` source also needs a `query`, so give it in `kb.toml`. For `--source-type mcp` it sets
-the `url` when the value starts with `http://` or `https://`.
+`--path` sets the `path` of a `files` source. For `--source-type web` or `api` it sets the `url`. For
+`--source-type mcp` it sets the `url` when the value starts with `http://` or `https://`. It sets one
+option only, so it cannot drive a `graphql` source, which needs a `query` as well. Use a `[[sources]]`
+entry in `kb.toml` for that. When `--path` names a target and no request goes out for it, the source's
+line reads `cli: FAILED, nothing was sent for '...'` with the reason, and the run exits 1.
 
 `--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
 by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
@@ -233,6 +235,9 @@ for it and exits 0. The line `no documents (source reachable, nothing to ingest)
 source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` source that
 sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
 missing `url`, `query` or `command`, and a URL that is not http or https.
+
+A target you name with `--path` is different. If nothing is sent for it, the line reads `FAILED` and the
+run exits 1.
 
 **A target that cannot be read does not delete its document.** Say some targets of a source answer and
 others fail (a page that returns a 500, a file that cannot be opened). `kb ingest` then stores the new

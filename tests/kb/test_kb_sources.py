@@ -480,7 +480,7 @@ def test_cmd_ingest_path_url_reaches_a_network_source(
     ("files", "./docs", "path"),
     ("web", "https://a.invalid/x", "url"),
     ("api", "https://a.invalid/x", "url"),
-    ("graphql", "https://a.invalid/g", "url"),
+    ("graphql", "https://a.invalid/g", "path"),   # needs a query too, which --path cannot give
     ("mcp", "https://a.invalid/m", "url"),
     ("mcp", "./tools", "path"),
     ("confluence", "SPACE", "path"),    # a plugin type keeps the key it always got
@@ -491,23 +491,36 @@ def test_cli_path_is_passed_under_the_key_the_source_type_reads(source_type, tar
     assert _cli_target_key(source_type, target) == key
 
 
-def test_cmd_ingest_path_that_a_type_cannot_use_says_nothing_was_sent(
-        tmp_path, capsys, monkeypatch):
-    """`mcp` takes a URL or a command. A plain path is neither, so no server is
-    contacted, and the run says so instead of calling the source reachable."""
+@pytest.mark.parametrize("source_type, target, reason", [
+    ("mcp", "./tools", "this mcp source has no command or url"),
+    ("graphql", "{base}/g", "this graphql source needs both url and query"),
+    ("web", "./docs", "only http and https URLs are fetched"),
+])
+def test_cmd_ingest_path_that_a_type_cannot_use_fails_the_run(
+        tmp_path, capsys, monkeypatch, loopback_pages, source_type, target, reason):
+    """A target typed with `--path` that the type cannot use sends no request. The run
+    names the reason and exits 1, instead of calling the source reachable or ending
+    "Ingest complete: 0 document(s)" with exit 0. A graphql source needs a `query`, which
+    `--path` cannot give, so it fails the same way."""
     monkeypatch.setenv("HOME", str(tmp_path))
+    base, asked = loopback_pages
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
 
     with pytest.raises(SystemExit) as e:
-        main(["kb", "ingest", "--path", "./tools", "--source-type", "mcp",
-              "--config", str(cfg)])
+        main(["kb", "ingest", "--path", target.format(base=base), "--source-type",
+              source_type, "--config", str(cfg)])
 
     out = capsys.readouterr()
     printed = out.out + out.err
-    assert e.value.code == 0
-    assert "cli: nothing to ingest: this mcp source has no command or url" in printed
+    assert e.value.code == 1
+    assert asked == [], "no request should have been sent"
+    assert "cli: FAILED, nothing was sent for" in printed
+    assert reason in printed
+    assert "[[sources]]" in printed
+    assert "Ingest incomplete: 0 document(s) aggregated" in printed
     assert "source reachable" not in printed
+    assert "Ingest complete" not in printed
 
 
 def _seed_indexed_symbol(store_dir, repo_id="team/api"):
