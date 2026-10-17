@@ -412,6 +412,10 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > to the same topic produce the identical node, which the store dedupes to one row. Its `repo`
 > reads as a pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design:
 > which repos touch it is a question the cross-repo edges answer, not the node itself.
+>
+> A `kb index` run removes a shared node once no edge from any repo reaches it. A deleted import,
+> route or topic then leaves the graph and the search results, and a node another repo still uses
+> stays.
 
 ### Manifests and cross-repo dependencies
 

@@ -398,6 +398,53 @@ def test_a_moved_clone_updates_its_path_when_indexed_by_source(tmp_path, logs):
         store.close()
 
 
+def test_reindexing_drops_the_shared_nodes_a_removed_import_and_route_left_behind(
+        tmp_path, logs):
+    """The `(shared)` partition holds module, endpoint and topic nodes, and only `(packages)`
+    was pruned after an index run. A route and an import removed in a commit kept their
+    nodes with no edges: still in `kb query`, and in the MCP search, as if they existed.
+    A node another repo still reaches must stay, so one import is shared with a second repo."""
+    from contextlake.kb.commands import cmd_index
+
+    ws = tmp_path / "ws"
+    app = ws / "app"
+    _git_repo(app, "import zzunique_dep\nfrom flask import Flask\napp = Flask(__name__)\n\n"
+                   "@app.route('/legacy-endpoint-xyz')\ndef legacy():\n    return 1\n")
+    _git_repo(ws / "other", "import zzunique_dep\n")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+    args = Namespace(config=str(cfg), workspace=str(ws), source=None, repo=None, force=False)
+
+    def _shared():
+        store = SqliteStore(store_dir / "index.sqlite")
+        try:
+            rows = store.conn.execute(
+                "SELECT kind, name FROM nodes WHERE repo_id='(shared)'").fetchall()
+            found = store.search("legacy-endpoint-xyz")
+            return {(r["kind"], r["name"]) for r in rows}, found
+        finally:
+            store.close()
+
+    assert cmd_index(args) == 0
+    names, found = _shared()
+    # Without these the assertions below would hold for a store that never held the nodes.
+    assert {("module", "zzunique_dep"), ("module", "flask"),
+            ("endpoint", "/legacy-endpoint-xyz")} <= names
+    assert found
+
+    (app / "m.py").write_text("def nothing():\n    return 0\n")
+    _git(["add", "-A"], app)
+    _git(["commit", "-q", "-m", "drop the route and the imports"], app)
+    assert cmd_index(args) == 0
+    names, found = _shared()
+    assert ("module", "flask") not in names, "a removed import's node is still in the graph"
+    assert ("endpoint", "/legacy-endpoint-xyz") not in names, "a removed route's node survived"
+    assert not found, "the removed route is still returned by search"
+    assert ("module", "zzunique_dep") in names, "deleted a module the other repo still imports"
+
+
 def test_a_non_git_directory_does_not_inherit_an_ancestor_repos_head(tmp_path, logs):
     """`git -C <dir> rev-parse HEAD` walks UP, so a plain directory sitting
     inside another working tree was recorded as a repository at THAT tree's

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from ... import observability, style
 from ...logging_setup import log
 from .._util import _or_default
-from ..model import PACKAGES_REPO, Repo
+from ..model import PACKAGES_REPO, SHARED_REPO, Repo
 from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from ._common import (
@@ -933,22 +933,26 @@ def _cmd_index_once(args) -> int:
                             rebuilt={shard.repo})
         return rc
     finally:
-        _prune_unreferenced_packages(store)
+        _prune_unreferenced_shared_nodes(store)
         store.close()
 
 
-def _prune_unreferenced_packages(store) -> None:
-    """Drop package nodes no edge references any more.
+def _prune_unreferenced_shared_nodes(store) -> None:
+    """Drop ``(packages)`` and ``(shared)`` nodes that no edge references any more.
 
-    They live in the shared ``(packages)`` partition, which re-indexing a repo does not
-    clear, so a package nobody depends on or publishes any more stayed for good. The D05/F1
-    id change would have left every old package id behind as a node with no edges. A
-    package with no edge has no reason to be in the graph, so this is safe at any time.
+    Both partitions hold nodes that no single repo owns, so re-indexing a repo does not
+    clear them. A package nobody depends on or publishes any more stayed for good, and the
+    D05/F1 id change would have left every old package id behind as a node with no edges.
+    The same went for the ``(shared)`` module, endpoint and topic nodes: a removed import,
+    route or topic left its node behind, still found by ``kb query`` and the MCP search
+    tools. A node with no edge from any repo has no reason to be in the graph, so this is
+    safe at any time. ``(external)`` is left out: ``connect`` writes and prunes it.
     """
     prune = getattr(store, "prune_orphan_nodes", None)
     if prune is None:
         return
-    try:
-        prune(PACKAGES_REPO)
-    except Exception as e:  # noqa: BLE001 - housekeeping must not hide the run's own result
-        log(style.warn(f"Could not remove unreferenced package nodes: {e}"))
+    for partition in (PACKAGES_REPO, SHARED_REPO):
+        try:
+            prune(partition)
+        except Exception as e:  # noqa: BLE001 - housekeeping must not hide the run's own result
+            log(style.warn(f"Could not remove unreferenced {partition} nodes: {e}"))

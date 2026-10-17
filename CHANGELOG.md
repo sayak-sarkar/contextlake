@@ -334,6 +334,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   marked every citation from those repos unverifiable. `kb index --source NEW/repo` did the same
   for one repo. The path healed when HEAD moved or with `--force`. The path is now updated on
   its own, without a re-parse. Since 1.8.0, when `--workspace` became incremental.
+- **Removed imports, routes and topics no longer stay searchable after a re-index.** An index
+  run pruned only the `(packages)` partition. The `(shared)` module, endpoint and topic nodes of
+  a removed import, Flask route or topic stayed in the graph with no edges, still matched by `kb
+  query` and the MCP `search_code` tool as if the endpoint existed, and the litter grew with
+  every removal. An index run now removes a shared node once no edge from any repo references
+  it, and keeps one that another repo still uses. `kb forget` has swept the same nodes since
+  6.5.0.
 
 ### Security
 
