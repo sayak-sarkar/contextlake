@@ -187,7 +187,9 @@ def test_query_semantic_kind_filter_looks_past_the_limit(tmp_path, capsys, monke
                  retriever, "--kind", "class", "--limit", limit, "--json"]) == 0
     out = capsys.readouterr()
     assert [h["name"] for h in json.loads(out.out)] == ["Widget"]
-    assert "unavailable" not in out.err
+    # The fallback to fts says so on stderr. Other warnings, such as the ANN backend one when
+    # the kb-vec extra is absent, may also say "unavailable" and are not a fallback.
+    assert "showing fts results instead" not in out.err.lower()
 
 
 def test_query_semantic_kind_filter_still_cuts_to_the_limit(tmp_path, capsys, monkeypatch):
