@@ -40,6 +40,19 @@ no wiki exists yet). An agent that would rather not choose among the tools can c
 `get_fleet_doc`, `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`,
 `graph_health`, plus a `kb://stats` resource with the store counts.
 
+**`get_readme` follows a symlinked README, unless the key was created with an access flag.** It
+reads the README from the local clone and follows a link wherever it points. A key created with any
+of `--tools`, `--repos`, `--owners`, `--external`, `--no-external`, `--rate`, `--cost-budget`, or a
+`--burst` set beside a `--rate` reads only inside the clone, and a README linked to a file outside
+it is skipped. These callers follow the link:
+
+- stdio
+- the shared token
+- a key created with none of those flags
+
+A `[serve]` default such as `default_rate` is a property of the server, not of the key, so it does
+not change this.
+
 **Every list-returning tool says why a result is empty.** An empty list on its own carries two
 opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
 cannot see the store, so it reports the first as a fact about the codebase when the truth is the

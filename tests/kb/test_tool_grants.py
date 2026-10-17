@@ -374,6 +374,50 @@ def test_no_principal_denies_rather_than_returning():
         grants.check_tool_grant(None, "graph_stats", {"tools": "all"})
 
 
+# One policy per enforced axis, each the shape `kb keys create` writes. A `burst` is
+# enforced only beside a `rate`, so its row carries one.
+_AXIS_POLICIES = {
+    "tools": {"tools": "docs"},
+    "repos": {"repos": "team/*"},
+    "external": {"external": True},
+    "no_external": {"no_external": True},
+    "owners": {"owners": "real"},
+    "rate": {"rate": "60/min"},
+    "burst": {"rate": "60/min", "burst": "20"},
+    "cost_budget": {"cost_budget": "30s/min"},
+}
+
+
+def test_every_enforced_axis_has_a_limited_policy_row():
+    assert set(_AXIS_POLICIES) == set(grants.ENFORCED_AXES)
+
+
+@pytest.mark.parametrize("axis", list(_AXIS_POLICIES))
+def test_a_key_with_any_enforced_axis_is_limited(axis):
+    """`repo_scope` reads every axis but `repos` and `no_external` as unscoped, so it
+    cannot answer this. `get_readme` decides whether to follow a link out of the clone
+    from `is_limited`."""
+    policy = _AXIS_POLICIES[axis]
+    assert grants.enforced_axes(policy), "the row is not an enforced policy"
+    assert grants.GrantCheck(_Ring({PRINCIPAL.key_id: policy})).is_limited(PRINCIPAL)
+
+
+def test_a_key_with_no_enforced_axis_and_the_shared_token_are_not_limited():
+    """The positive control: a check that called everyone limited would pass the rows
+    above. A `burst` with no `rate` binds nothing, so it does not limit."""
+    for policy in ({}, {"burst": "20"}):
+        assert not grants.GrantCheck(_Ring({PRINCIPAL.key_id: policy})).is_limited(
+            PRINCIPAL)
+    assert not grants.GrantCheck(_Ring({})).is_limited(Principal(SHARED_TOKEN_KEY_ID))
+
+
+def test_a_missing_record_and_no_principal_are_limited():
+    """An unknown caller is never served as a full-access one."""
+    check = grants.GrantCheck(_Ring({}))
+    assert check.is_limited(PRINCIPAL)
+    assert check.is_limited(None)
+
+
 # ==========================================================================
 # The three surfaces, on a built server
 # ==========================================================================

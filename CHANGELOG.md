@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A `kb dashboard --site` export reads a README only from inside the clone.** A `README.md`
   linked out of the clone is skipped, because the export is made to be shared. The live
   dashboard (`--serve`) still follows the link. 10.0.0rc3 followed it in both.
+- **`get_readme` reads only inside the clone for any limited key, not only a repo-scoped one.**
+  A key created with `--tools`, `--owners`, `--external`, `--no-external`, `--rate`,
+  `--cost-budget` or `--burst` (beside a `--rate`) has no repo scope, so 10.0.0rc3 served it as
+  unscoped: its `get_readme` followed a `README.md` linked to `/proc/self/environ` and could
+  return the server's shared token. Stdio, the shared token and a key with no limit still follow
+  the link. A `[serve]` default such as `default_rate` belongs to the server, not the key, and
+  does not count.
 
 ## [10.0.0rc3] - 2026-10-16
 

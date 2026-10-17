@@ -2032,13 +2032,20 @@ def build_server(
         r = store.get_repo(repo)
         base = Path(r.path) if r and getattr(r, "path", None) else None
         if base and base.is_dir():
-            # A scoped key reads only inside the clone: a README.md linked to
+            # A limited key reads only inside the clone: a README.md linked to
             # `/proc/self/environ` returned the server's shared token to a key scoped to one
-            # repo. Stdio and an unscoped key follow the link wherever it points.
+            # repo. Limited means a repo scope, or any other enforced axis (tools, rate,
+            # burst, cost_budget, owners, external), or a key record that is gone. Stdio, the
+            # shared token and a key with no enforced axis follow the link wherever it
+            # points. `store.is_scoped` is the repo axis alone and stays as it is: the
+            # fleet readers use it to refuse a repo-scoped caller.
             scoped = getattr(store, "is_scoped", None)
+            contained = scoped is not None and scoped()
+            if not contained and _enforcing:
+                contained = grant_source.is_limited(current_principal())
             hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
                                         "readme.md"),
-                                 contained=scoped is not None and scoped())
+                                 contained=contained)
             if hit:
                 name, raw = hit
                 return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,

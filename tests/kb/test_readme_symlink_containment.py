@@ -1,11 +1,15 @@
 """Which clone readers follow a symlink out of the clone, and which stay inside it.
 
 contextlake reads data wherever a configured source points (owner, 2026-10-15), so
-``get_readme`` on stdio or for an unscoped key and the live dashboard's README panel follow a
-link out of the clone. Four readers stay inside the clone:
+``get_readme`` on stdio, for the shared token or for a key with no enforced axis, and the
+live dashboard's README panel follow a link out of the clone. Four readers stay inside the
+clone:
 
-- ``get_readme`` for a scoped key. A ``README.md`` linked to ``/proc/self/environ`` returned
-  the server's environment, and the shared token in it, to a key scoped to one repository.
+- ``get_readme`` for a limited key (owner decision 17, 2026-10-17). A ``README.md`` linked to
+  ``/proc/self/environ`` returned the server's environment, and the shared token in it, to
+  a key scoped to one repository. A key limited only on tools, rate, burst, cost budget,
+  owners or external has no repo scope and read the same file until the check asked about
+  every enforced axis.
 - the wiki README excerpt. The page is stored and served to every key that may read the
   repo, and it is written with no caller in hand to check.
 - the wiki steering file (``.contextlake/wiki.toml``, owner decision 16, 2026-10-17). Its
@@ -24,11 +28,13 @@ import os
 import pytest
 from mcp import Client
 
+from contextlake.kb import server as server_mod
 from contextlake.kb.dashboard.data import _readme_html
+from contextlake.kb.grants import GrantCheck
 from contextlake.kb.model import Repo
 from contextlake.kb.paths import read_repo_file
 from contextlake.kb.scoped_store import ScopedStore
-from contextlake.kb.server import build_server
+from contextlake.kb.server import SHARED_TOKEN_KEY_ID, Principal, build_server
 from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.wiki.generate import _readme_excerpt
 from contextlake.kb.wiki.steering import read_wiki_steering
@@ -149,31 +155,78 @@ def _get_readme(srv):
     return out
 
 
-# The store each kind of caller is served: stdio and a token-only server get the bare
-# store; a key server wraps it in `ScopedStore` with the key's scope. `None` is a key whose
-# scope could not be resolved. The proxy fails closed, so `get_repo` returns nothing to it
-# and it is refused before the README is read; the case pins that, not the containment.
+# The store each kind of caller is served. Three shapes:
+#
+# - `None` is stdio, which gets the bare store.
+# - A function is a repo scope handed straight to `ScopedStore`. `None` from it is a scope
+#   that could not be resolved: the proxy fails closed, so `get_repo` returns nothing to it
+#   and it is refused before the README is read; that case pins the refusal, not the
+#   containment.
+# - A `(principal, key records)` pair is a key server as `build_http_app` builds one: a
+#   `GrantCheck` over the records, and a `ScopedStore` whose scope it resolves from the
+#   principal. The records are policy blocks, so these cases reach the README with the
+#   same grant data a live key carries.
+_KEY = Principal("k_test")
 CALLERS = {
     "stdio": None,
     "unscoped-key": lambda: ([], False),
     "scoped-key": lambda: (["r"], False),
     "unresolved-scope": lambda: None,
+    "tools-only-key": (_KEY, {_KEY.key_id: {"tools": "docs"}}),
+    "rate-only-key": (_KEY, {_KEY.key_id: {"rate": "60/min"}}),
+    "owners-only-key": (_KEY, {_KEY.key_id: {"owners": "real"}}),
+    "cost-budget-only-key": (_KEY, {_KEY.key_id: {"cost_budget": "30s/min"}}),
+    "external-only-key": (_KEY, {_KEY.key_id: {"external": True}}),
+    "no-axis-key": (_KEY, {_KEY.key_id: {}}),
+    "burst-without-rate-key": (_KEY, {_KEY.key_id: {"burst": "20"}}),
+    "shared-token": (Principal(SHARED_TOKEN_KEY_ID), {}),
 }
-FOLLOWS = {"stdio": True, "unscoped-key": True, "scoped-key": False, "unresolved-scope": False}
+FOLLOWS = {
+    "stdio": True, "unscoped-key": True, "scoped-key": False, "unresolved-scope": False,
+    "tools-only-key": False, "rate-only-key": False, "owners-only-key": False,
+    "cost-budget-only-key": False, "external-only-key": False,
+    "no-axis-key": True,
+    # A burst with no rate binds nothing (`enforced_axes`), so the key limits nothing.
+    "burst-without-rate-key": True,
+    "shared-token": True,
+}
 
 
-def _served(s, caller):
-    scope = CALLERS[caller]
-    return build_server(s if scope is None else ScopedStore(s, scope))
+class _Ring:
+    """The one method `GrantCheck` reads off a keyring."""
+
+    def __init__(self, records):
+        self._records = records
+
+    def policy_for(self, key_id):
+        return self._records.get(key_id)
+
+
+def _served(s, caller, monkeypatch):
+    who = CALLERS[caller]
+    if who is None:
+        return build_server(s)
+    if callable(who):
+        return build_server(ScopedStore(s, who))
+    principal, records = who
+    monkeypatch.setattr(server_mod, "current_principal", lambda: principal)
+    grants = GrantCheck(_Ring(records))
+    scoped = ScopedStore(s, lambda: grants.repo_scope(server_mod.current_principal()))
+    return build_server(scoped, networked=True, grant_source=grants)
+
+
+def test_every_caller_has_a_verdict():
+    assert set(CALLERS) == set(FOLLOWS)
 
 
 @pytest.mark.parametrize("caller", list(CALLERS))
-def test_mcp_get_readme_follows_a_link_out_only_for_an_unscoped_caller(world, caller):
+def test_mcp_get_readme_follows_a_link_out_only_for_a_full_access_caller(world, caller,
+                                                                        monkeypatch):
     tmp, clone, outside = world
     (clone / "README.md").symlink_to(outside / "secret.txt")
     s = _store(tmp, clone)
     try:
-        out = _get_readme(_served(s, caller))
+        out = _get_readme(_served(s, caller, monkeypatch))
     finally:
         s.close()
     if FOLLOWS[caller]:
@@ -182,28 +235,35 @@ def test_mcp_get_readme_follows_a_link_out_only_for_an_unscoped_caller(world, ca
         assert out["found"] is False and SECRET not in out["markdown"]
 
 
-@pytest.mark.parametrize("caller", ["stdio", "unscoped-key", "scoped-key"])
-def test_mcp_get_readme_reads_a_normal_readme_for_every_caller(world, caller):
-    """The positive control for the refusals above: a scoped key still gets a real README."""
+@pytest.mark.parametrize("caller", list(CALLERS))
+def test_mcp_get_readme_reads_a_normal_readme_for_every_caller(world, caller, monkeypatch):
+    """The positive control for the refusals above: a limited key still gets a real README.
+
+    An unresolved scope is refused before the file is read, so it has nothing to read."""
     tmp, clone, _ = world
     (clone / "README.md").write_text("# Svc\nDoes the thing.\n")
     s = _store(tmp, clone)
     try:
-        out = _get_readme(_served(s, caller))
+        out = _get_readme(_served(s, caller, monkeypatch))
     finally:
         s.close()
+    if caller == "unresolved-scope":
+        assert out["found"] is False
+        return
     assert out["found"] is True and out["path"] == "README.md"
     assert "Does the thing" in out["markdown"]
 
 
-def test_mcp_get_readme_reads_a_symlink_that_stays_inside_for_a_scoped_key(world):
+@pytest.mark.parametrize("caller", ["scoped-key", "tools-only-key", "rate-only-key"])
+def test_mcp_get_readme_reads_a_symlink_that_stays_inside_for_a_limited_key(
+        world, caller, monkeypatch):
     tmp, clone, _ = world
     (clone / "docs").mkdir()
     (clone / "docs" / "intro.md").write_text("# Inside\n")
     (clone / "README.md").symlink_to(clone / "docs" / "intro.md")
     s = _store(tmp, clone)
     try:
-        out = _get_readme(_served(s, "scoped-key"))
+        out = _get_readme(_served(s, caller, monkeypatch))
     finally:
         s.close()
     assert out["found"] is True and "Inside" in out["markdown"]

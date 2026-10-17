@@ -492,6 +492,29 @@ class GrantCheck:
             return None
         return repo_scope_of(policy)
 
+    def is_limited(self, principal: Principal | None) -> bool:
+        """Whether this principal is anything but a full-access caller.
+
+        Full access is the shared token, or a live key record with no enforced axis
+        (:func:`enforced_axes`). Everything else is limited: a key with any enforced
+        axis, a key whose record is gone, and no principal at all. The last two read as
+        limited for the reason :meth:`repo_scope` gives, so an unknown caller is never
+        served as a trusted one.
+
+        ``repo_scope`` cannot answer this. It reads a key limited on tools, rate, burst,
+        cost budget or owners as ``([], False)``, the same as an unlimited key, because
+        none of those axes narrows the repositories. A reader of local files that
+        decides containment from the repo scope alone therefore serves such a key as
+        trusted. Server-wide ``[serve]`` defaults are not part of the key's record and
+        do not count.
+        """
+        if principal is None:
+            return True
+        if _is_shared_token(principal.key_id):
+            return False
+        policy = self._policy(principal)
+        return policy is None or bool(enforced_axes(policy))
+
     def visible(self, principal: Principal | None,
                 names: Iterable[str]) -> list[str]:
         """The subset of ``names`` this principal may call.

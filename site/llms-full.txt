@@ -6889,6 +6889,19 @@ no wiki exists yet). An agent that would rather not choose among the tools can c
 `get_fleet_doc`, `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`,
 `graph_health`, plus a `kb://stats` resource with the store counts.
 
+**`get_readme` follows a symlinked README, unless the key was created with an access flag.** It
+reads the README from the local clone and follows a link wherever it points. A key created with any
+of `--tools`, `--repos`, `--owners`, `--external`, `--no-external`, `--rate`, `--cost-budget`, or a
+`--burst` set beside a `--rate` reads only inside the clone, and a README linked to a file outside
+it is skipped. These callers follow the link:
+
+- stdio
+- the shared token
+- a key created with none of those flags
+
+A `[serve]` default such as `default_rate` is a property of the server, not of the key, so it does
+not change this.
+
 **Every list-returning tool says why a result is empty.** An empty list on its own carries two
 opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
 cannot see the store, so it reports the first as a fact about the codebase when the truth is the
@@ -9534,6 +9547,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A `kb dashboard --site` export reads a README only from inside the clone.** A `README.md`
   linked out of the clone is skipped, because the export is made to be shared. The live
   dashboard (`--serve`) still follows the link. 10.0.0rc3 followed it in both.
+- **`get_readme` reads only inside the clone for any limited key, not only a repo-scoped one.**
+  A key created with `--tools`, `--owners`, `--external`, `--no-external`, `--rate`,
+  `--cost-budget` or `--burst` (beside a `--rate`) has no repo scope, so 10.0.0rc3 served it as
+  unscoped: its `get_readme` followed a `README.md` linked to `/proc/self/environ` and could
+  return the server's shared token. Stdio, the shared token and a key with no limit still follow
+  the link. A `[serve]` default such as `default_rate` belongs to the server, not the key, and
+  does not count.
 
 ## [10.0.0rc3] - 2026-10-16
 
