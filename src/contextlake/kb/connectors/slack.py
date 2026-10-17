@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import re
 
+from .._util import as_list
 from ..ids import make_id
 from ..mcp_client import call_tool
 from ..model import EXTERNAL_REPO, Node
@@ -94,7 +95,7 @@ class SlackConnector:
         self.name = name
         self.mcp_url = mcp_url
         self.mcp_command = mcp_command
-        self.hosts = tuple(hosts)
+        self.hosts = tuple(as_list(hosts))
         self.verify_tool = verify_tool
         self.history_tool = history_tool
         self.auth_dir = auth_dir

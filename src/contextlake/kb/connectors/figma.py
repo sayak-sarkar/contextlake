@@ -14,6 +14,7 @@ import os
 import re
 from urllib.parse import unquote
 
+from .._util import as_list
 from ..embeddings.index import EMBEDDABLE_KINDS
 from ..ids import make_id
 from ..mcp_client import call_tool
@@ -149,7 +150,7 @@ class FigmaConnector:
         self.name = name
         self.mcp_url = mcp_url
         self.mcp_command = mcp_command
-        self.hosts = tuple(hosts)
+        self.hosts = tuple(as_list(hosts))
         self.auth_dir = auth_dir
         self.timeout = timeout
 

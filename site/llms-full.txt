@@ -3273,6 +3273,10 @@ The commands:
 
     `--mcp URL` sets the MCP server URL and `--local` targets a project-level file (`--help`
     shows all). `--set KEY=VALUE` (repeatable) writes any other connector option `kb.toml` accepts.
+    It writes the value as a string. A number such as `timeout` is read from that string
+    (`--set timeout=2.5` works). A list option (`include`, `hosts`, `urls`, `args`) set this
+    way holds one item, so `--set include='*.md'` means the one glob `*.md`. To give two or
+    more, edit `kb.toml` and write a list.
 
     **A credential never goes on the command line.** Store the name of the environment variable that holds
     it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.
@@ -3555,7 +3559,8 @@ pip install "contextlake[kb-pdf]"
 
 `[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
 table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
-in it, a custom `include` replaces the defaults rather than adding to them.
+in it, a custom `include` replaces the defaults; it does not add to them. A single string, such as
+`--set include='*.md'`, is read as one glob.
 
 What the PDF path does **not** do is the load-bearing half:
 
@@ -3827,7 +3832,7 @@ accept:
 - `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
   `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
 - `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
-  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`).
+  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`). A single string is read as one hostname.
 - `verify_tool`: the Slack MCP tool name used for reachability checks (default `conversations_info`).
 - `history_tool`: the Slack MCP tool name used to read a channel's messages (default
   `conversations_history`).
@@ -9797,6 +9802,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   case-sensitive, so a key made from the example read no repository and raised no error. The
   reference and the `--repos` help now show `gitlab.example.com/acme/*` and say how an id is
   built.
+- **`--set` list and number options on sources and connectors now work.** `kb source add --set
+  include='*.md'` stores a string, and the `files` source split it into the characters `*`, `.`,
+  `m` and `d`. The `*` glob in that set matched every file, so `.env`, code and other files you
+  meant to leave out were ingested into the graph, the wiki and MCP answers. `hosts` on a
+  Figma, Slack or Zendesk source, `urls` on `web` and `args` on `mcp` broke the same way: a
+  Zendesk source set with `--set hosts=help.example.com` claimed no link, and `kb connect`
+  stored 0 links and exited 0. A bare string is now one item. `--set timeout=2.5` on a `web`,
+  `api`, `graphql` or `mcp` source stopped `kb ingest` with `invalid literal for int() with base
+  10: '2.5'`; a timeout now takes decimals, and a value that is no number is logged by key and
+  the default is used. A source that still cannot be built is named in the output and counted
+  as failed, and the sources after it run. To give two or more list items, write a list in
+  `kb.toml`. Present since 2.38.0, when `--set` was added.
 
 ### Security
 

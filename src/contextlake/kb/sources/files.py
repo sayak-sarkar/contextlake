@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 
 from ...logging_setup import log
+from .._util import as_list
 from .base import Document, FetchFailures
 
 _DEFAULT_GLOBS = ("*.md", "*.markdown", "*.mdx", "*.rst", "*.txt", "*.pdf",
@@ -74,7 +75,7 @@ class FilesSource(FetchFailures):
 
     def __init__(self, path: str = ".", include=None, max_bytes: int = _MAX_BYTES, **_):
         self.path = path
-        self.include = tuple(include) if include else _DEFAULT_GLOBS
+        self.include = tuple(as_list(include)) or _DEFAULT_GLOBS
         self.max_bytes = int(max_bytes)
 
     def _record_missing(self, target: str, reason: str) -> None:

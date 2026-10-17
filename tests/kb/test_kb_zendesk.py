@@ -104,6 +104,28 @@ def test_hosts_are_configurable_for_a_vanity_domain():
     assert len(edges) == 1
 
 
+def test_a_hosts_string_from_set_is_one_host_not_its_characters():
+    """`--set hosts=help.example.invalid` writes `hosts = "help.example.invalid"`.
+
+    `tuple("help...")` is `('h', 'e', 'l', 'p', '.', ...)`, so the source claimed no link
+    and `kb connect` stored 0 links and exited 0. Figma and Slack build the same tuple.
+    """
+    from contextlake.kb.config import SourceCfg
+    from contextlake.kb.connectors.figma import FigmaConnector
+    from contextlake.kb.connectors.orchestrate import zendesk_hosts
+    from contextlake.kb.connectors.slack import SlackConnector
+
+    host = "help.example.invalid"
+    cfg = SourceCfg(type="zendesk", name="zd", hosts=host)
+
+    assert zendesk_hosts(cfg) == (host,)
+    assert FigmaConnector("f", hosts=host).hosts == (host,)
+    assert SlackConnector("s", hosts=host).hosts == (host,)
+
+    url = f"https://{host}/agent/tickets/9"
+    assert len(associate_tickets("team/app", links=[url], site_hosts=zendesk_hosts(cfg))[1]) == 1
+
+
 def test_the_connector_reaches_no_network_at_all():
     """The distinguishing property, asserted rather than documented. Every socket entry
     point raises; association must still produce the same graph."""

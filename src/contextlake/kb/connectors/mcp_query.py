@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .._util import num_option
 from ..capabilities import explain_tool_failure
 from ..mcp_client import McpToolError, call_tool
 from ..resilience import find_in_chain, note_unavailable
@@ -71,13 +72,7 @@ def _num(cfg: Any, key: str, default, cast):
     ``_cfg_get`` so a plain dict and a ``SourceCfg`` both work: the two callers
     disagree on which they hold, and that disagreement is what split them before.
     """
-    value = _cfg_get(cfg, key, default)
-    try:
-        return cast(value)
-    except (TypeError, ValueError):
-        from ...logging_setup import log
-        log(f"  source option {key}={value!r} is not a number; using {default}")
-        return default
+    return num_option(_cfg_get(cfg, key, default), key, default, cast)
 
 
 def _first_str(d: dict, keys: tuple[str, ...]) -> str:

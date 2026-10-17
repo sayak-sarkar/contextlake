@@ -186,7 +186,12 @@ def cmd_ingest(args) -> int:
         failed = len(unavailable)
         try:
             for name, stype, options, for_repo in jobs:
-                src = build_source(stype, **options)
+                try:
+                    src = build_source(stype, **options)
+                except Exception as e:  # noqa: BLE001 - one bad option must not stop the other sources
+                    log(f"  {name}: source failed ({e})", inline=True)
+                    failed += 1
+                    continue
                 if src is None:
                     log(f"  {name}: unknown source type {stype!r}, skipping", inline=True)
                     failed += 1

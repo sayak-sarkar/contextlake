@@ -37,6 +37,62 @@ def test_files_source_single_file(tmp_path):
     assert len(docs) == 1 and docs[0].text == "solo"
 
 
+def test_a_string_include_from_set_is_one_glob_not_its_characters(tmp_path):
+    """`--set include='*.md'` writes `include = "*.md"`, a string.
+
+    `tuple("*.md")` is `('*', '.', 'm', 'd')`, and the `*` glob in it matched every file,
+    so a source restricted to markdown ingested `code.py` and the dotfile `.env`.
+    """
+    from contextlake.kb.source_cmd import _parse_set_flags
+
+    (tmp_path / "keep.md").write_text("# Keep\nbody")
+    (tmp_path / "skip.txt").write_text("not markdown")
+    (tmp_path / "code.py").write_text("x = 1")
+    (tmp_path / ".env").write_text("TOKEN=not-a-real-secret")
+
+    opts = _parse_set_flags([f"path={tmp_path}", "include=*.md"])
+    assert opts["include"] == "*.md", "the fixture should hold what --set really writes"
+    src = FilesSource(**opts)
+
+    assert src.include == ("*.md",)
+    assert [d.id for d in src.iter_documents()] == ["keep.md"]
+
+
+@pytest.mark.parametrize("module, cls, option, string", [
+    ("files", "FilesSource", "include", "*.rst"),
+    ("web", "WebSource", "urls", "https://a.invalid/x"),
+    ("mcp", "McpSource", "args", "--stdio"),
+])
+def test_a_list_option_given_as_a_string_is_one_item(module, cls, option, string):
+    import importlib
+
+    make = getattr(importlib.import_module(f"contextlake.kb.sources.{module}"), cls)
+    from_string = getattr(make(**{option: string}), option)
+    from_list = getattr(make(**{option: [string]}), option)
+
+    assert list(from_string) == [string]
+    assert from_string == from_list, "a real list must read the same as the string"
+
+
+@pytest.mark.parametrize("module, cls, kwargs, default", [
+    ("web", "WebSource", {"url": "https://a.invalid/x"}, 20),
+    ("api", "ApiSource", {"url": "https://a.invalid/x"}, 20),
+    ("graphql", "GraphQLSource", {"url": "https://a.invalid/g", "query": "{ x }"}, 20),
+    ("mcp", "McpSource", {"url": "https://a.invalid/m"}, 60),
+])
+def test_a_fractional_timeout_from_set_is_kept_and_a_bad_one_falls_back(
+        module, cls, kwargs, default):
+    """`--set timeout=2.5` writes `"2.5"`; `int("2.5")` raised, so building the source
+    aborted `kb ingest`. A value that is no number now logs its key and uses the default."""
+    import importlib
+
+    make = getattr(importlib.import_module(f"contextlake.kb.sources.{module}"), cls)
+
+    assert make(timeout="2.5", **kwargs).timeout == 2.5
+    assert make(timeout="30", **kwargs).timeout == 30
+    assert make(timeout="soon", **kwargs).timeout == default
+
+
 def test_registry_builtin_and_build_source():
     reg = discover_sources()
     assert {"files", "web"} <= set(reg)

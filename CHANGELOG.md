@@ -178,6 +178,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   case-sensitive, so a key made from the example read no repository and raised no error. The
   reference and the `--repos` help now show `gitlab.example.com/acme/*` and say how an id is
   built.
+- **`--set` list and number options on sources and connectors now work.** `kb source add --set
+  include='*.md'` stores a string, and the `files` source split it into the characters `*`, `.`,
+  `m` and `d`. The `*` glob in that set matched every file, so `.env`, code and other files you
+  meant to leave out were ingested into the graph, the wiki and MCP answers. `hosts` on a
+  Figma, Slack or Zendesk source, `urls` on `web` and `args` on `mcp` broke the same way: a
+  Zendesk source set with `--set hosts=help.example.com` claimed no link, and `kb connect`
+  stored 0 links and exited 0. A bare string is now one item. `--set timeout=2.5` on a `web`,
+  `api`, `graphql` or `mcp` source stopped `kb ingest` with `invalid literal for int() with base
+  10: '2.5'`; a timeout now takes decimals, and a value that is no number is logged by key and
+  the default is used. A source that still cannot be built is named in the output and counted
+  as failed, and the sources after it run. To give two or more list items, write a list in
+  `kb.toml`. Present since 2.38.0, when `--set` was added.
 
 ### Security
 

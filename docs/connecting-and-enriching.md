@@ -87,6 +87,10 @@ The commands:
 
     `--mcp URL` sets the MCP server URL and `--local` targets a project-level file (`--help`
     shows all). `--set KEY=VALUE` (repeatable) writes any other connector option `kb.toml` accepts.
+    It writes the value as a string. A number such as `timeout` is read from that string
+    (`--set timeout=2.5` works). A list option (`include`, `hosts`, `urls`, `args`) set this
+    way holds one item, so `--set include='*.md'` means the one glob `*.md`. To give two or
+    more, edit `kb.toml` and write a list.
 
     **A credential never goes on the command line.** Store the name of the environment variable that holds
     it, and contextlake reads the value from your environment at run time: `--set token_env=MY_TOKEN`.

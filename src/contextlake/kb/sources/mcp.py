@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
+from .._util import as_list, num_option
 from .base import Document, FetchFailures
 
 
@@ -34,10 +35,10 @@ class McpSource(FetchFailures):
 
     def __init__(self, command=None, args=None, url=None, env=None, timeout=60, **_):
         self.command = command
-        self.args = list(args) if args else []
+        self.args = as_list(args)
         self.url = url
         self.env = dict(env) if env else None
-        self.timeout = int(timeout)
+        self.timeout = num_option(timeout, "timeout", 60, float)
 
     def iter_documents(self):
         self._reset_failures()

@@ -16,6 +16,7 @@ import urllib.parse
 import urllib.request
 
 from ...logging_setup import log
+from .._util import num_option
 from .base import (
     _OPENER,
     NOT_HTTP_REASON,
@@ -148,7 +149,7 @@ class ApiSource(FetchFailures):
         # inventing a scheme.
         self.auth = (auth or "bearer").strip().lower()
         self.user = user
-        self.timeout = int(timeout)
+        self.timeout = num_option(timeout, "timeout", 20, float)
         self.next_field = next_field
         # A cap, not a target. An API that always returns a `next` link would otherwise
         # loop until the process died; reaching the cap is reported rather than silent.

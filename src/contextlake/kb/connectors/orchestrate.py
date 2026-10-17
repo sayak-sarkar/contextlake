@@ -8,6 +8,7 @@ re-indexing a repo's code never clobbers its connector links and vice versa.
 
 from __future__ import annotations
 
+from .._util import as_list
 from ..cmds.ingest import _embed_documents
 from ..ids import make_id
 from ..model import Confidence, Node
@@ -211,7 +212,7 @@ def zendesk_hosts(src):
     from .zendesk import DEFAULT_HOSTS
 
     extra = getattr(src, "model_extra", None) or {}
-    return tuple(extra.get("hosts", DEFAULT_HOSTS))
+    return tuple(as_list(extra.get("hosts", DEFAULT_HOSTS)))
 
 
 def enrich_repo_zendesk(hosts, repo_id, store, *, links=(), embedder=None,

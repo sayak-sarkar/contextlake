@@ -215,6 +215,28 @@ def test_ingest_still_says_reachable_when_a_request_was_sent_and_found_nothing(
     assert "nothing to ingest:" not in printed
 
 
+def test_ingest_names_a_source_that_cannot_be_built_and_runs_the_rest(
+        tmp_path, monkeypatch, capsys):
+    """`build_source` ran outside the per-source `try`, so one source whose constructor
+    raised stopped `kb ingest` with an error that named no source, and the valid source
+    after it never ran. An `mcp` `env` that is a string makes `dict(env)` raise."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text("# Alpha\nbody")
+    cfg = _ingest_config(tmp_path, (
+        '\n[[sources]]\nname = "broken"\ntype = "mcp"\nurl = "http://t.invalid/m"\n'
+        'env = "not-a-table"\n'
+        f'\n[[sources]]\nname = "notes"\ntype = "files"\npath = "{docs}"\n'))
+
+    code, printed = _run_ingest(cfg, capsys)
+
+    assert "broken: source failed" in printed, printed
+    assert code == 1, "a source that could not run is a failed run"
+    assert "Ingest incomplete: 1 document(s)" in printed, (
+        "the source after the broken one did not run")
+
+
 @pytest.mark.parametrize(("make", "expect"), [
     (lambda: ApiSource(search_url="https://t.invalid/s?q={term}"), _SEARCH_ONLY),
     (lambda: ApiSource(), "no url"),

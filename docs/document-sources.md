@@ -50,7 +50,8 @@ pip install "contextlake[kb-pdf]"
 
 `[kb-pdf]` is deliberately not part of `[kb-full]`; see [the extras
 table](installing.md#the-extras-and-which-one-you-want). If you set `include` yourself, list `"*.pdf"`
-in it, a custom `include` replaces the defaults rather than adding to them.
+in it, a custom `include` replaces the defaults; it does not add to them. A single string, such as
+`--set include='*.md'`, is read as one glob.
 
 What the PDF path does **not** do is the load-bearing half:
 
@@ -322,7 +323,7 @@ accept:
 - `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
   `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
 - `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
-  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`).
+  `["figma.com"]`, `["slack.com"]` and `["zendesk.com"]`). A single string is read as one hostname.
 - `verify_tool`: the Slack MCP tool name used for reachability checks (default `conversations_info`).
 - `history_tool`: the Slack MCP tool name used to read a channel's messages (default
   `conversations_history`).

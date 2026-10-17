@@ -14,6 +14,7 @@ import os
 import urllib.request
 
 from ...logging_setup import log
+from .._util import num_option
 from .api import _dig
 from .base import _OPENER, NOT_HTTP_REASON, Document, FetchFailures, url_is_fetchable
 
@@ -63,7 +64,7 @@ class GraphQLSource(FetchFailures):
         self.title_field = title_field
         self.text_field = text_field
         self.token_env = token_env
-        self.timeout = int(timeout)
+        self.timeout = num_option(timeout, "timeout", 20, float)
 
     def _fetch(self):
         headers = {"User-Agent": "contextlake-ingest", "Accept": "application/json",

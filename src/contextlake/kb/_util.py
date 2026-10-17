@@ -32,6 +32,33 @@ def _or_default(value, default):
     return default if value is None else value
 
 
+def as_list(value) -> list:
+    """A list option as a list: ``None`` and ``""`` are empty, a bare string is one item.
+
+    ``--set KEY=VALUE`` stores a string, so ``--set include='*.md'`` writes
+    ``include = "*.md"``. ``tuple("*.md")`` is ``('*', '.', 'm', 'd')``, and the ``*``
+    glob in it matches every file, dotfiles included. A string is never iterated.
+    """
+    if isinstance(value, str):
+        return [value] if value else []
+    return [] if value is None else list(value)
+
+
+def num_option(value, key: str, default, cast):
+    """A numeric config option, coerced from however it was written.
+
+    ``--set timeout=2.5`` stores the string ``"2.5"``, and ``int("2.5")`` raises. A value
+    that cannot be a number is reported with its key and ``default`` is used. The coercion
+    is on the read side on purpose: ``--set`` cannot tell a number from an id that looks
+    like one, so it stores every value as a string.
+    """
+    try:
+        return cast(value)
+    except (TypeError, ValueError):
+        log(f"  source option {key}={value!r} is not a number; using {default}")
+        return default
+
+
 def hush_hf_hub() -> None:
     """Quiet Hugging Face Hub download noise before a model fetch.
 

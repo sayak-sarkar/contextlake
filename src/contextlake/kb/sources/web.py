@@ -11,6 +11,7 @@ import re
 import urllib.request
 from html.parser import HTMLParser
 
+from .._util import as_list, num_option
 from .base import NOT_HTTP_REASON, Document, FetchFailures, url_is_fetchable
 
 # Note: do NOT drop <head> wholesale — <title> lives there; script/style/etc. inside
@@ -73,8 +74,8 @@ class WebSource(FetchFailures):
     """
 
     def __init__(self, url: str | None = None, urls=None, timeout: int = 20, **_):
-        self.urls = list(urls) if urls else ([url] if url else [])
-        self.timeout = int(timeout)
+        self.urls = as_list(urls) or ([url] if url else [])
+        self.timeout = num_option(timeout, "timeout", 20, float)
 
     def iter_documents(self):
         self._reset_failures()
