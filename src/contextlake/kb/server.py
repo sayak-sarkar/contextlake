@@ -1830,6 +1830,14 @@ def build_server(
         shared token are unchanged."""
         return _enforcing and not grant_source.allows_owner_identity(current_principal())
 
+    def _may_embed() -> bool:
+        """Whether the caller may use the semantic group, which ``ask`` needs before it
+        embeds the question. ``ask`` runs the embedder and the vector search itself,
+        below the wrapper that checks a grant, so a key denied ``semantic_search`` would
+        otherwise reach both through it and spend the operator's embedder."""
+        return not _enforcing or bool(
+            grant_source.visible(current_principal(), ["semantic_search"]))
+
     def _fleet_readable() -> bool:
         """Whether the caller may read a FLEET-wide document.
 
@@ -2604,8 +2612,12 @@ def build_server(
         # and says which of the two it was.
         unpopulated = (_unpopulated_reason(vector_store, repo)
                        if vector_store is not None else None)
+        # A key whose grant leaves out `semantic` is routed to full-text too. Its
+        # `semantic_search` is refused, and this branch is the same search.
+        no_semantic = (embedder is not None and vector_store is not None
+                       and not _may_embed())
         if (question.strip() and embedder is not None and vector_store is not None
-                and not unpopulated):
+                and not unpopulated and not no_semantic):
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
             # Count what the vector store returned but the graph could not resolve. A
@@ -2635,7 +2647,9 @@ def build_server(
             # fact, and stating it twice in one answer reads as two findings.
             out = search_code(question, repo=repo, limit=k).nodes
             found = ("Full-text search over node names ("
-                     + (unpopulated or "no embeddings configured") + ").")
+                     + (unpopulated or ("this key's tool grant has no semantic group"
+                                        if no_semantic else "no embeddings configured"))
+                     + ").")
 
         # The unmatched terms are named on every path that reaches here, so the same
         # question gets the same disclosure whether it arrived as an open search or as

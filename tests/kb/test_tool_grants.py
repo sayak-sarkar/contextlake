@@ -194,6 +194,62 @@ def test_the_ask_legs_match_the_tools_ask_actually_calls(store):
         f"denies `ask` for nothing: {sorted(grants.ASK_LEGS - called)}")
 
 
+class _CountingEmbedder:
+    """Counts the questions it is asked to embed."""
+
+    def __init__(self) -> None:
+        self.texts: list[str] = []
+
+    def embed(self, texts):
+        self.texts.extend(texts)
+        return [[1.0, 0.0] for _ in texts]
+
+
+class _CountingVectors:
+    """A populated vector store that records its searches and finds nothing."""
+
+    def __init__(self) -> None:
+        self.searches = 0
+
+    def has_any(self, repo_ids=None):
+        return True
+
+    def search(self, query, k=10, repo=None):
+        self.searches += 1
+        return []
+
+
+@pytest.mark.parametrize("tools, embeds", [
+    ("read", False),
+    ("read,semantic", True),
+    (None, True),
+])
+def test_ask_embeds_the_question_only_for_a_key_that_may_use_semantic(
+        store, monkeypatch, tools, embeds):
+    """`ask` has its own embedder and vector search inline, below the wrapper.
+
+    `--tools read` leaves out `semantic` and refuses `semantic_search`, but `ask`
+    took the vector branch for any key granted `ask`, so the key could embed at
+    will, charged to the operator's embedder. The positive controls are a key that
+    names `semantic` and a key with no tools axis: the same question, embedded.
+    """
+    embedder, vectors = _CountingEmbedder(), _CountingVectors()
+    monkeypatch.setattr(server_mod, "current_principal", lambda: PRINCIPAL)
+    policy = {} if tools is None else {"tools": tools}
+    server = build_server(store, networked=True, grant_source=_check(policy),
+                          embedder=embedder, vector_store=vectors)
+
+    async def call():
+        async with Client(server) as client:
+            return await client.call_tool("ask", {"question": "refund handling flow"})
+
+    out = asyncio.run(call())
+    assert not out.is_error, out.content[0].text
+    assert out.structured_content["route"] == "search", out.structured_content
+    assert bool(embedder.texts) is embeds, embedder.texts
+    assert bool(vectors.searches) is embeds, vectors.searches
+
+
 # ==========================================================================
 # The tools axis
 # ==========================================================================

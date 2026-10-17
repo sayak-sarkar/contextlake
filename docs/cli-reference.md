@@ -317,7 +317,8 @@ outside the grant is refused with a message naming the group that would allow it
 
 `ask` needs every tool it routes to. It dispatches to eight siblings by calling them
 directly, below the wrapper that checks a grant, so it is refused unless all eight are
-granted. `--tools read` covers them.
+granted. `--tools read` covers them. Its search route embeds the question only for a key that
+may call `semantic_search`. A key without the `semantic` group gets full-text search from `ask`.
 
 `--owners real` allows `who_knows`. `--owners pseudonymous` and `--owners hidden` **refuse**
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
@@ -329,9 +330,11 @@ place of the page text for those two keys. Add `--owners real` to read the pages
 repositories that match one of its globs. Search, graph, repo-list and stats answers leave
 the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
 refuses a scoped key, since it has no repo argument to check. A node id does not carry the
-repository it came from, so the filter runs inside the store and not on the call. A value that
-names no repository, such as `""`, `,` or a space, is refused at `create`: the server would read
-it as no limit. A key file edited by hand to hold such a value reads nothing.
+repository it came from, so the filter runs inside the store and not on the call.
+
+A `--repos` value that names no repository, such as `""`, `,` or a space, is refused at
+`create`: the server would read it as no limit. A key file edited by hand to hold such a value
+reads nothing.
 
 **`--external` GRANTS access.** It is not a label. A key that has `--repos` and not
 `--external` cannot read connector content:

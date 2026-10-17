@@ -146,6 +146,8 @@ RESERVED = (ALL, READ, NONE)
 # wrapper. Counted from `kb/server.py` on 2026-09-06; the comment at the access
 # control anchor names the same eight. `test_the_ask_legs_match_what_ask_calls`
 # reads the source so a ninth route added later cannot slip past this list.
+# The embedder and vector search `ask` runs inline are not a leg. A key without the
+# `semantic` group is stopped at that branch (`_may_embed` in `kb/server.py`).
 ASK_LEGS = frozenset({
     "find_definition", "find_callers", "find_dependents", "blast_radius",
     "who_knows", "get_wiki", "get_repo_brief", "search_code",

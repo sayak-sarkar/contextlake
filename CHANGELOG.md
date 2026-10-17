@@ -141,6 +141,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `terminal prompts disabled`. A credential helper still works. If you typed a password at that
   prompt, use a platform token or a credential helper, or set `GIT_TERMINAL_PROMPT=1` to get the
   prompt back.
+- **`ask` no longer runs the embedder for a key that may not use `semantic_search`.** A key made
+  with `--tools read` is refused `semantic_search`, but `ask` embedded its question and searched
+  the vectors anyway, using the operator's embedder (which can be a billed remote model). This
+  held since `--tools` was enforced in 9.2.0. Such a key now gets full-text search from `ask`.
 
 ### Security
 
