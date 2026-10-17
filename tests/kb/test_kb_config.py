@@ -177,6 +177,37 @@ def test_shipped_example_parses(tmp_path, monkeypatch):
     assert any(s.type == "slack" for s in c.sources)
 
 
+def test_shipped_example_builtin_llm_block_is_the_openvino_one(tmp_path, monkeypatch):
+    """The built-in LLM has been OpenVINO IR via openvino-genai since 7.0.0. The example
+    still told users to set a GGUF repo id and a `model_file` that nothing reads, and to
+    install llama-cpp. Uncomment the block it documents: it must build the built-in LLM on a
+    catalogue size, and the example must not name the old backend."""
+    import re
+
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        import tomli as tomllib
+
+    from contextlake.kb.config import LlmCfg
+    from contextlake.kb.llm.base import build_llm
+    from contextlake.kb.llm.catalogue import by_repo
+
+    text = (__import__("pathlib").Path(__file__).resolve().parents[2]
+            / "examples" / "kb.toml.example").read_text(encoding="utf-8")
+    for old in ("gguf", "llama-cpp", "model_file"):
+        assert old not in text.lower(), f"the example still mentions {old}"
+    lines = text.splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.startswith('# provider = "builtin"'))
+    block = []
+    for ln in lines[start:]:
+        if not re.match(r"# \w+ = ", ln):
+            break
+        block.append(ln[2:])
+    llm = build_llm(LlmCfg(enabled=True, **tomllib.loads("\n".join(block))))
+    assert llm.name == "builtin" and by_repo(llm.repo_id), llm.repo_id
+
+
 def test_kb_config_wires_indexing_keys(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     p = tmp_path / "kb.toml"

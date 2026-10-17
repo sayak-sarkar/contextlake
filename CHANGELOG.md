@@ -401,6 +401,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already on disk, so it can download up to 8.5 GB. The image bakes only the 0.5B. Since
   10.0.0rc1 the pages were wrong on this. They now say so and name three ways to stay on the
   baked model: `--llm-model`, `CONTEXTLAKE_OFFLINE=1`, or `[llm] builtin_model`.
+- **`examples/kb.toml.example` no longer documents the built-in LLM as a GGUF.** The `[llm]`
+  block said `builtin` runs a small GGUF through llama-cpp-python and showed a GGUF repo id as
+  `model` plus a `model_file` key. The built-in LLM has been int4 OpenVINO IR run by
+  openvino-genai since 7.0.0, and nothing reads `model_file`. Uncommenting the block sent the
+  GGUF repo id to the OpenVINO loader, which is not one of its sizes. The block now shows
+  `builtin_model` with the default OpenVINO repo id and points to `kb wiki --model-check`.
 
 ### Security
 
