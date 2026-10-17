@@ -68,3 +68,47 @@ def test_a_tilde_path_is_read_from_the_home_directory(tmp_path, monkeypatch):
 
     assert [d.id for d in docs] == ["runbook.md"]
     assert src.failures == [], src.failures
+
+
+def test_a_text_file_that_is_skipped_is_named(tmp_path, gls_logs):
+    """A text file over `max_bytes`, or not UTF-8, was skipped with no message: its
+    document left the index and the run printed "Ingest complete". The PDF and image
+    paths already name what they skip. Neither is a failure, because `include` can be
+    widened to globs that match binaries."""
+    (tmp_path / "ok.md").write_text("# Ok\n\nbody\n")
+    (tmp_path / "huge.md").write_text("# Huge\n\n" + "x" * 500)
+    (tmp_path / "latin1.md").write_bytes("# Caf\xe9\n".encode("latin-1"))
+
+    src = FilesSource(path=str(tmp_path), max_bytes=100)
+    assert [d.id for d in src.iter_documents()] == ["ok.md"]
+
+    assert src.failures == [], "a skipped file is not a failed run"
+    text = gls_logs.text
+    assert "over max_bytes (100)" in text and "huge.md" in text
+    assert "not valid UTF-8" in text and "latin1.md" in text
+    assert "ok.md" not in text
+
+
+def test_a_text_file_that_cannot_be_opened_is_a_failure(tmp_path, monkeypatch):
+    """A file that is there and cannot be opened is a miss, so `kb ingest` keeps the
+    document an earlier run stored for it. One that vanished mid-run is not."""
+    from pathlib import Path
+
+    (tmp_path / "ok.md").write_text("# Ok\n\nbody\n")
+    (tmp_path / "locked.md").write_text("# Locked\n\nbody\n")
+    (tmp_path / "gone.md").write_text("# Gone\n\nbody\n")
+    real = Path.read_text
+
+    def read_text(self, *a, **k):
+        if self.name == "locked.md":
+            raise PermissionError(13, "Permission denied")
+        if self.name == "gone.md":
+            raise FileNotFoundError(2, "No such file or directory")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    src = FilesSource(path=str(tmp_path))
+
+    assert [d.id for d in src.iter_documents()] == ["ok.md"]
+    assert [t for t, _ in src.failures] == [str(tmp_path / "locked.md")]
+    assert "PermissionError" in src.failures[0][1]

@@ -289,3 +289,127 @@ def test_a_source_that_sent_a_request_leaves_no_request_reason_unset(monkeypatch
     src.url = "http://t.invalid/x"
     list(src.iter_documents())
     assert src.no_request_reason is None, "a reason from the previous run carried over"
+
+
+# --- a missed target must not delete the document the last run stored for it ---------
+#
+# `kb ingest` rewrote a source's partition from whatever came back, so one page that
+# answered 500 deleted its document from the graph and the vectors, while the run said
+# "Nothing was silently dropped". `kb connect` and `kb enrich` keep what they had.
+
+_PAGES = {
+    "http://pages.test/a": "<html><title>Alpha page</title><body>alpha body</body></html>",
+    "http://pages.test/flip": "<html><title>Flip page</title><body>flip body</body></html>",
+}
+
+
+class _Page:
+    class headers:                                           # noqa: N801 - mimics a message
+        @staticmethod
+        def get_content_charset():
+            return "utf-8"
+
+    def __init__(self, html):
+        self._html = html
+
+    def read(self):
+        return self._html.encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _serve_pages(monkeypatch, down):
+    """A stand-in for the network: every page in `_PAGES` answers, except those in `down`."""
+    import contextlake.kb.sources.web as webmod
+
+    def urlopen(req, timeout=None):
+        if req.full_url in down:
+            raise OSError("HTTP Error 500: Internal Server Error")
+        return _Page(_PAGES[req.full_url])
+
+    monkeypatch.setattr(webmod, "url_is_fetchable", lambda *a, **k: True)
+    monkeypatch.setattr(webmod.urllib.request, "urlopen", urlopen)
+
+
+def _web_config(tmp_path, urls):
+    listed = ", ".join(f'"{u}"' for u in urls)
+    return _ingest_config(tmp_path, (
+        f'\n[[sources]]\nname = "site"\ntype = "web"\nurls = [{listed}]\n'))
+
+
+def _stored_titles(tmp_path):
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    try:
+        return sorted(r[0] for r in store.conn.execute(
+            "SELECT name FROM nodes WHERE repo_id=?", ("@ingest:site",)))
+    finally:
+        store.close()
+
+
+def test_a_missed_target_keeps_the_document_the_last_run_stored(
+        tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    down: set = set()
+    _serve_pages(monkeypatch, down)
+    cfg = _web_config(tmp_path, list(_PAGES))
+
+    code, _ = _run_ingest(cfg, capsys)
+    assert code == 0
+    assert _stored_titles(tmp_path) == ["Alpha page", "Flip page"]
+
+    down.add("http://pages.test/flip")
+    code, printed = _run_ingest(cfg, capsys)
+    assert code == 1, "an unreadable target is still an incomplete run"
+    assert _stored_titles(tmp_path) == ["Alpha page", "Flip page"], (
+        "the page that answered 500 lost its document")
+    assert "site: 1 document(s), kept 1 from the last run, 1 target(s) unreadable" in printed
+
+    # A run that reads every target replaces the partition, so a page dropped from the
+    # config does not stay for good.
+    down.clear()
+    code, _ = _run_ingest(_web_config(tmp_path, ["http://pages.test/a"]), capsys)
+    assert code == 0
+    assert _stored_titles(tmp_path) == ["Alpha page"]
+
+
+def test_a_missed_target_keeps_the_vectors_of_the_documents_it_keeps(
+        tmp_path, monkeypatch, capsys):
+    """Sweeping the partition's vectors before the write would delete the vector of the
+    document the graph just kept, and semantic search would stop finding it."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    class _Embedder:
+        name = "fake-embedder"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("contextlake.kb.embeddings.build_embedder", lambda cfg_: _Embedder())
+    monkeypatch.setattr("contextlake.kb.embeddings.store.build_vector_store",
+                        lambda path, **kw: VectorStore(path))
+    down: set = set()
+    _serve_pages(monkeypatch, down)
+    cfg = _web_config(tmp_path, list(_PAGES))
+    cfg.write_text(cfg.read_text().replace("enabled = false", "enabled = true"))
+
+    def vector_rows():
+        vs = VectorStore(tmp_path / "kb" / "embeddings.sqlite")
+        try:
+            return vs.conn.execute("SELECT COUNT(*) FROM embeddings WHERE repo_id=?",
+                                   ("@ingest:site",)).fetchone()[0]
+        finally:
+            vs.close()
+
+    assert _run_ingest(cfg, capsys)[0] == 0
+    assert vector_rows() == 2
+
+    down.add("http://pages.test/flip")
+    assert _run_ingest(cfg, capsys)[0] == 1
+    assert vector_rows() == 2, "the kept document lost its vector"

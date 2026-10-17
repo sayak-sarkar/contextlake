@@ -75,6 +75,30 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
     return len(embedded_nodes), written_vectors, stopped_early
 
 
+def _previous_documents(store_dir, repo_id: str, fresh: list) -> tuple[list, list]:
+    """The documents and edges a source's last run stored that ``fresh`` does not replace.
+
+    Used when a run could not read every target. The partition is rewritten from what came
+    back, so a page that failed this time (one 500 is enough) would lose the document the
+    last run stored for it, and its vectors with it. Keeping the rest by id leaves that
+    document in place until a run reads every target. A document that was removed from the
+    source stays for as long as some target keeps failing, and goes on the next clean run.
+    Returns ``([], [])`` when there is no earlier shard, or one that cannot be read.
+    """
+    from ..store.shards import read_shard
+
+    try:
+        previous = read_shard(store_dir, repo_id)
+    except (OSError, ValueError):
+        return [], []
+    if previous is None:
+        return [], []
+    replaced = {n.id for n in fresh}
+    nodes = [n for n in previous.nodes if n.id not in replaced]
+    kept = {n.id for n in nodes}
+    return nodes, [e for e in previous.edges if e.dst in kept]
+
+
 # The option each source type reads its target from. `files` reads `path`; the network
 # sources read `url`. `--path https://...` used to be passed as `path` for every type, which
 # `web` and `api` swallow in `**_`, so the run dialled nothing and ended "complete".
@@ -281,13 +305,22 @@ def cmd_ingest(args) -> int:
                 # documents with no vectors, which re-embedding repairs and which shows as
                 # a missing semantic hit. The old order (rows first) left vectors that
                 # answer queries for documents the partition no longer holds.
-                if vs is not None:
+                # A run that missed targets keeps the documents it did not re-read (see
+                # `_previous_documents`), so it must not sweep their vectors either. Each
+                # fresh document overwrites its own chunk keys; a document that shrank
+                # keeps its trailing chunks until the next run that reads every target.
+                kept_nodes, kept_edges = (
+                    _previous_documents(store_dir, repo_id, nodes) if misses else ([], []))
+                if vs is not None and not kept_nodes:
                     vs.clear_repo(repo_id)
                 write_shard(store_dir, GraphShard(repo=repo_id, head_commit="ingest",
-                                                  nodes=nodes, edges=edges))
-                store_partition(store, repo_id, nodes, edges)
+                                                  nodes=nodes + kept_nodes,
+                                                  edges=edges + kept_edges))
+                store_partition(store, repo_id, nodes + kept_nodes, edges + kept_edges)
                 total += len(nodes)
                 msg = f"  {name}: {len(nodes)} document(s)"
+                if kept_nodes:
+                    msg += f", kept {len(kept_nodes)} from the last run"
                 if misses:
                     # Partial: real documents came back AND targets were missed. Counted
                     # so the summary cannot call the run clean.

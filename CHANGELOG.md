@@ -215,6 +215,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer mentions, and the run printed `0 external link(s) stored`. The partition is now
   cleared, with its vectors, and the run logs `cleared the previous links`. A repo folder that
   is missing keeps its links. Present since `kb connect` shipped (1.4.0 at least).
+- **`kb ingest` no longer deletes the document of a page or file it could not read.** When
+  some targets of a source answered and others failed (a web page that returned a 500, a file
+  with no read permission), the source's whole partition was rewritten from the documents that
+  came back. The failed target lost its stored document, in the graph and in the vectors, and
+  the run still said `Nothing was silently dropped`. `kb ingest` now keeps the documents the
+  last run stored that it did not read again, with their links and vectors, as `kb connect` and
+  `kb enrich` already did. The run still exits 1, and a run that reads every target replaces
+  the whole set. The `files` source also skipped a text file that was over `max_bytes`, not
+  valid UTF-8 or unreadable with no message. The first two now log a warning that names the
+  files, and an unreadable file counts as an unreadable target. Present since 2.15.0.
 
 ### Security
 

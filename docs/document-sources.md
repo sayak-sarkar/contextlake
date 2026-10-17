@@ -45,6 +45,10 @@ include = ["*.md", "*.txt"]
 
 A leading `~` in `path` means your home directory.
 
+A text file is skipped, with a warning that names it, when it is over `max_bytes` or is not valid
+UTF-8. Neither fails the run. A file that exists but cannot be opened (a permission error) is
+reported as unreadable, and the run exits 1.
+
 ### PDFs: the text layer, and nothing pretending to be more
 
 Design docs, RFCs and architecture decisions arrive as PDFs, so the `files` source reads
@@ -229,6 +233,16 @@ for it and exits 0. The line `no documents (source reachable, nothing to ingest)
 source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` source that
 sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
 missing `url`, `query` or `command`, and a URL that is not http or https.
+
+**A target that cannot be read does not delete its document.** Say some targets of a source answer and
+others fail (a page that returns a 500, a file that cannot be opened). `kb ingest` then stores the new
+documents and keeps what the last run stored for everything it did not read again. The source's line
+says so, for example `site: 1 document(s), kept 1 from the last run, 1 target(s) unreadable`, and the
+run exits 1.
+
+- A run that reads every target replaces the whole set, so a page you removed from the config leaves
+  on that run.
+- If no target answers, the earlier documents stay as they were.
 
 **The credential stays on one host.** The `Authorization` header goes only to the origin
 (scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different

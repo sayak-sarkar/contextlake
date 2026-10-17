@@ -81,9 +81,10 @@ class FilesSource(FetchFailures):
         self.max_bytes = int(max_bytes)
 
     def _record_missing(self, target: str, reason: str) -> None:
-        """Record a whole-root failure. `_record_failure` takes an exception because the
-        network sources catch one; here nothing is raised, so the reason is written
-        directly rather than manufacturing an exception to unwrap."""
+        """Record a failure: the whole root, or one file that could not be opened.
+        `_record_failure` takes an exception because the network sources catch one; here
+        nothing is raised, so the reason is written directly rather than manufacturing
+        an exception to unwrap."""
         self.failures.append((target, reason))
         log(f"files: could not read {target} -- {reason}", level=logging.WARNING)
 
@@ -117,6 +118,8 @@ class FilesSource(FetchFailures):
         needs_ocr: list[str] = []     # images skipped because the OCR engine is not
         needs_video: list[str] = []       # videos skipped: no decoder
         needs_transcribe: list[str] = []  # videos read WITHOUT their audio
+        too_big: list[str] = []       # text files over max_bytes
+        not_utf8: list[str] = []      # text files that are not valid UTF-8
         for p in files:
             if not p.is_file():
                 continue
@@ -145,14 +148,37 @@ class FilesSource(FetchFailures):
                 continue
             try:
                 if p.stat().st_size > self.max_bytes:
+                    too_big.append(rel)
                     continue
                 text = p.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue  # skip binaries / unreadable / vanished files
+            except FileNotFoundError:
+                continue  # vanished under us
+            except UnicodeDecodeError:
+                # Named, not recorded as a failure: `include` can be widened to globs that
+                # match binaries, and every such file would make the run exit 1.
+                not_utf8.append(rel)
+                continue
+            except OSError as e:
+                # A file that exists and cannot be opened (permissions) is a failure, so
+                # `kb ingest` keeps the document an earlier run stored for it.
+                self._record_missing(str(p), f"{type(e).__name__}: {e}")
+                continue
             if not text.strip():
                 continue
             yield Document(id=rel, title=_title(text, rel), text=text,
                            uri=str(p.resolve()), attrs={"chars": len(text)})
+        if too_big:
+            shown = ", ".join(too_big[:3])
+            more = f" (and {len(too_big) - 3} more)" if len(too_big) > 3 else ""
+            log(f"files: skipped {len(too_big)} text file(s) over max_bytes "
+                f"({self.max_bytes}); raise `max_bytes` on this source to ingest them. "
+                f"Skipped: {shown}{more}", level=logging.WARNING)
+        if not_utf8:
+            shown = ", ".join(not_utf8[:3])
+            more = f" (and {len(not_utf8) - 3} more)" if len(not_utf8) > 3 else ""
+            log(f"files: skipped {len(not_utf8)} file(s) that are not valid UTF-8 and "
+                f"cannot be read as text. Save them as UTF-8, or narrow `include`. "
+                f"Skipped: {shown}{more}", level=logging.WARNING)
         if needs_extra:
             shown = ", ".join(needs_extra[:3])
             more = f" (and {len(needs_extra) - 3} more)" if len(needs_extra) > 3 else ""
