@@ -232,12 +232,9 @@ An `api` source with a `search_url` and no `url` sends no request at ingest time
 queries it (see [Connecting and enriching](connecting-and-enriching.md)). `kb ingest` prints
 `<name>: nothing to ingest: an api source with only search_url is queried by kb enrich, not kb ingest`
 for it and exits 0. The line `no documents (source reachable, nothing to ingest)` is kept for a
-source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` source that
-sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
+source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` `[[sources]]`
+entry that sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
 missing `url`, `query` or `command`, and a URL that is not http or https.
-
-A target you name with `--path` is different. If nothing is sent for it, the line reads `FAILED` and the
-run exits 1.
 
 **A target that cannot be read does not delete its document.** Say some targets of a source answer and
 others fail (a page that returns a 500, a file that cannot be opened). `kb ingest` then stores the new
