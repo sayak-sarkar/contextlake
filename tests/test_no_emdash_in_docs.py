@@ -46,12 +46,16 @@ def _prose_files() -> list[Path]:
     From `git ls-files`, not the filesystem: `rglob` reaches `.venv/`, `.pytest_cache/` and
     the cloned benchmark corpora under `benchmarks/`, which together outnumber this project's
     own prose thirty to one.
+
+    Returns `[]` when the set cannot be derived (an sdist, no git on PATH, git refusing the
+    directory). This runs at import. A `pytest.skip` here is a collection error, and that
+    stops the whole session. An empty list makes the parametrised test below skip itself.
     """
     try:
         listing = subprocess.run(["git", "-C", str(REPO), "ls-files", "*.md"],
                                  capture_output=True, text=True, check=True).stdout.split()
     except (OSError, subprocess.CalledProcessError):  # sdist, or no git on PATH
-        pytest.skip("not a git checkout, so the tracked-file set cannot be derived")
+        return []
     out = [REPO / rel for rel in listing
            if "tests" not in Path(rel).parts and rel not in _EXCLUDED]
     # A listing that silently comes back empty passes every parametrised case below.
@@ -71,6 +75,23 @@ def _prose_lines(text: str):
             continue
         if not fenced:
             yield n, line
+
+
+@pytest.mark.parametrize("failure", [
+    FileNotFoundError("git"),                           # no git on PATH
+    subprocess.CalledProcessError(128, ["git"]),        # not a checkout, or "dubious ownership"
+], ids=["no-git", "git-refuses"])
+def test_an_underivable_file_set_is_empty_not_a_collection_error(monkeypatch, failure):
+    """`_prose_files()` runs at import, where a skip aborts the whole pytest session."""
+    def fail(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    try:
+        listing = _prose_files()
+    except pytest.skip.Exception:
+        pytest.fail("_prose_files() skipped; at import that is a collection error")
+    assert listing == []
 
 
 @pytest.mark.parametrize("path", DOC_FILES, ids=lambda p: p.name)

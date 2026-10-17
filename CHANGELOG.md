@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sdist and SBOM was never created in the one case it was meant to cover. The release now runs
   when `publish` failed or `verify-published` passed. A publish that succeeded and then served
   other bytes still skips it. The old condition shipped in 7.25.0.
+- **Running the tests without git no longer aborts the whole pytest session.**
+  `tests/test_no_emdash_in_docs.py` called `pytest.skip` while pytest was still collecting
+  tests. With no `git` on PATH, a repository git refuses ("dubious ownership") or an unpacked
+  sdist, that is a collection error, so pytest stopped with `Interrupted: 1 error during
+  collection` and ran nothing else. The file now skips its own cases and the rest of the suite
+  runs. The defect has been there since 8.6.1.
 
 ## [10.0.0rc3] - 2026-10-16
 
