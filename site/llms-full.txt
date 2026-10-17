@@ -1777,8 +1777,8 @@ This command:
 - When the branch it tracks is no longer on `origin` (merged and deleted, or renamed), switches
   to the most active remaining branch, the same choice `mirror branches` makes. It stays on
   the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
-  when git cannot say whether it does, or while `--auto-stash` holds your edits for it.
-  A squash-merged branch counts as having such commits, because the squash put new commits
+  when git cannot say whether it does, or while `--auto-stash` holds your edits for it
+- A squash-merged branch counts as having such commits, because the squash put new commits
   on `origin`, not these; move it with `mirror branches`. The check runs after a fetch that
   prunes, so the deleted branch's old `origin` ref is not counted as an `origin` branch
 - Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
@@ -3161,10 +3161,10 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > to the same topic produce the identical node, which the store dedupes to one row. Its `repo`
 > reads as a pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design:
 > which repos touch it is a question the cross-repo edges answer, not the node itself.
->
-> A `kb index` run removes a shared node once no edge from any repo reaches it. A deleted import,
-> route or topic then leaves the graph and the search results, and a node another repo still uses
-> stays.
+
+A `kb index` run removes a shared node once no edge from any repo reaches it. A deleted import,
+route or topic then leaves the graph and the search results, and a node another repo still uses
+stays.
 
 ### Manifests and cross-repo dependencies
 
@@ -6440,15 +6440,16 @@ recent commit.
 > `owners` reads history from the root of a git checkout only. A folder inside another repo ranks
 > nothing, because git would report the outer repo's authors. Use `--path` for a sub-tree.
 >
-> It first runs `git log --no-merges --numstat --since="2160 days ago"`. If that finds no
-> commits, it runs the same walk over the whole history, so a repo that has been dormant for
-> longer still gets owners. Each walk has a 30-second limit. A timed-out walk is not retried over
-> the whole history, and it logs `owners: git history for <repo> could not be read within 30s`,
-> then `This is a timeout, not an empty history.`
->
-> An empty result prints `No commit history found for <scope>` and exits `0`. The line ends with a
-> reason when git could not be asked: `git` missing, not a checkout root, or no repository or no
-> commits yet.
+> - It first runs `git log --no-merges --numstat --since="2160 days ago"`. If that finds no
+>   commits, it walks the whole history, so a dormant repo still gets owners.
+> - Each walk has a 30-second limit. A timed-out walk is not retried. It logs `owners: git
+>   history for <repo> could not be read within 30s`, then `This is a timeout, not an empty
+>   history.`
+> - With `git` missing from PATH, it logs `owners: git could not be run for <repo>, so no owners
+>   are reported.`
+> - An empty result prints `No commit history found for <scope>` and exits `0`. The line ends
+>   with a reason when git could not be asked: `git` missing, not a checkout root, or no
+>   repository or no commits yet.
 
 ### Verification
 
@@ -7848,10 +7849,11 @@ Output is chosen with `--format`:
       renders each node as an HTML card instead of a dot.
     - `--site DIR` writes into a new or empty folder, or into a folder an earlier `--site` export
       made. Each export leaves a `.contextlake-export` file in the folders it writes and looks
-      for it on the next run. A folder that holds files and has no such file is refused and
+      for it on the next run.
+    - A folder that holds files and has no such file is refused and
       nothing is written, even when its files are named like the export's own, such as
-      `index.html`. A folder that holds a file the export does not write is refused too. For a
-      folder an older version made, run `touch DIR/.contextlake-export` once. Other dotfiles,
+      `index.html`. A folder that holds a file the export does not write is refused too.
+    - For a folder an older version made, run `touch DIR/.contextlake-export` once. Other dotfiles,
       such as `.nojekyll`, are ignored. `kb dashboard --site` follows the same rule for its top
       level and for its `graph/` folder, so an older dashboard export needs the marker in both.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).

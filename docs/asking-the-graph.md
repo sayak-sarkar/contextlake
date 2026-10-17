@@ -271,15 +271,16 @@ recent commit.
 > `owners` reads history from the root of a git checkout only. A folder inside another repo ranks
 > nothing, because git would report the outer repo's authors. Use `--path` for a sub-tree.
 >
-> It first runs `git log --no-merges --numstat --since="2160 days ago"`. If that finds no
-> commits, it runs the same walk over the whole history, so a repo that has been dormant for
-> longer still gets owners. Each walk has a 30-second limit. A timed-out walk is not retried over
-> the whole history, and it logs `owners: git history for <repo> could not be read within 30s`,
-> then `This is a timeout, not an empty history.`
->
-> An empty result prints `No commit history found for <scope>` and exits `0`. The line ends with a
-> reason when git could not be asked: `git` missing, not a checkout root, or no repository or no
-> commits yet.
+> - It first runs `git log --no-merges --numstat --since="2160 days ago"`. If that finds no
+>   commits, it walks the whole history, so a dormant repo still gets owners.
+> - Each walk has a 30-second limit. A timed-out walk is not retried. It logs `owners: git
+>   history for <repo> could not be read within 30s`, then `This is a timeout, not an empty
+>   history.`
+> - With `git` missing from PATH, it logs `owners: git could not be run for <repo>, so no owners
+>   are reported.`
+> - An empty result prints `No commit history found for <scope>` and exits `0`. The line ends
+>   with a reason when git could not be asked: `git` missing, not a checkout root, or no
+>   repository or no commits yet.
 
 ### Verification
 

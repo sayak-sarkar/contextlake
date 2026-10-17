@@ -246,8 +246,8 @@ This command:
 - When the branch it tracks is no longer on `origin` (merged and deleted, or renamed), switches
   to the most active remaining branch, the same choice `mirror branches` makes. It stays on
   the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
-  when git cannot say whether it does, or while `--auto-stash` holds your edits for it.
-  A squash-merged branch counts as having such commits, because the squash put new commits
+  when git cannot say whether it does, or while `--auto-stash` holds your edits for it
+- A squash-merged branch counts as having such commits, because the squash put new commits
   on `origin`, not these; move it with `mirror branches`. The check runs after a fetch that
   prunes, so the deleted branch's old `origin` ref is not counted as an `origin` branch
 - Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
