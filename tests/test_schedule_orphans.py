@@ -12,6 +12,10 @@ of them either monkeypatches the adapter's reader or points it at tmp_path.
 from __future__ import annotations
 
 import argparse
+import json
+from pathlib import Path
+
+import pytest
 
 from contextlake.schedule import jobs as jobstore
 from contextlake.schedule import report
@@ -187,6 +191,101 @@ def test_schedule_list_says_which_platform_it_could_not_check(tmp_path, monkeypa
     assert "cron" in out
 
 
+def _counting_adapter(monkeypatch, installed):
+    """Like `_only`, and records every call, so a test can prove nothing was enumerated."""
+    calls = []
+
+    def installed_names():
+        calls.append("installed_names")
+        return installed
+
+    adapter = base.Adapter()
+    adapter.installed_names = installed_names
+    monkeypatch.setattr(base, "registered", lambda: ["cron"])
+    monkeypatch.setattr(base, "get", lambda _n: adapter)
+    return calls
+
+
+def _unreadable_store(tmp_path, kind):
+    config = _config(tmp_path)
+    store = Path(jobstore.jobs_path(config))
+    store.parent.mkdir(parents=True, exist_ok=True)
+    if kind == "directory":
+        store.mkdir()
+    elif kind == "invalid-json":
+        store.write_text('{"jobs": {"nightly": {"argv": ["mirror", "sync"], "interval": "1h"}}}x')
+    else:
+        store.write_text('{"jobs": []}')
+    return config, store
+
+
+_UNREADABLE = ["invalid-json", "directory", "not-a-mapping"]
+
+
+@pytest.mark.parametrize("kind", _UNREADABLE)
+def test_schedule_list_skips_the_orphan_check_when_the_store_is_unreadable(
+        tmp_path, monkeypatch, capsys, kind):
+    """With the store unreadable, no unit can be matched to a record, so naming any unit an
+    orphan is a guess. `list` used to read the store as empty, print "No scheduled jobs" and
+    advise recreating a record that may still exist."""
+    calls = _counting_adapter(monkeypatch, ["ghost"])
+    seen = []
+    monkeypatch.setattr(report, "log", lambda m="", *a, **k: seen.append(str(m)))
+    config, store = _unreadable_store(tmp_path, kind)
+
+    assert report.cmd_list(argparse.Namespace(json=False), config) == 1
+    out = capsys.readouterr().out
+
+    assert "skipped" in out and "could not be read" in out
+    assert "No scheduled jobs" not in out
+    assert "ghost" not in out and "no job record" not in out
+    assert "recreating" not in out and "uninstall" not in out
+    assert any(str(store) in m for m in seen), seen
+    assert calls == [], "no platform may be asked for its units"
+
+
+@pytest.mark.parametrize("kind", _UNREADABLE)
+def test_schedule_list_json_marks_an_unreadable_store(tmp_path, monkeypatch, capsys, kind):
+    calls = _counting_adapter(monkeypatch, ["ghost"])
+    monkeypatch.setattr(report, "log", lambda m="", *a, **k: None)
+    config, store = _unreadable_store(tmp_path, kind)
+
+    assert report.cmd_list(argparse.Namespace(json=True), config) == 1
+    payload = json.loads(capsys.readouterr().out)
+
+    # Additive: the same underscore keys as the readable case, plus one that says the empty
+    # orphan list is not an answer. A script that reads only the two older keys must not
+    # see "checked, clean", so every registered platform is named as unchecked.
+    assert set(payload) == {"_job_store_unreadable", "_orphaned_units", "_unchecked_platforms"}
+    assert payload["_job_store_unreadable"]["path"] == str(store)
+    assert payload["_job_store_unreadable"]["reason"]
+    assert payload["_orphaned_units"] == []
+    assert payload["_unchecked_platforms"] == ["cron"]
+    assert calls == []
+
+
+@pytest.mark.parametrize("state", ["absent", "readable"])
+def test_schedule_list_does_not_call_an_absent_or_readable_store_unreadable(
+        tmp_path, monkeypatch, capsys, state):
+    """An absent store is no jobs, not an error. Only a store that exists and cannot be
+    parsed changes the exit code and skips the orphan check."""
+    _only(monkeypatch, "cron", ["default"] if state == "readable" else [])
+    config = _config(tmp_path)
+    if state == "readable":
+        jobstore.write_job(jobstore.jobs_path(config),
+                           jobstore.new_job("default", ["bootstrap"], "auto", "cron"))
+
+    assert report.cmd_list(argparse.Namespace(json=False), config) == 0
+    out = capsys.readouterr().out
+    assert "skipped" not in out
+    assert ("default" in out) if state == "readable" else ("No scheduled jobs" in out)
+
+    assert report.cmd_list(argparse.Namespace(json=True), config) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert "_job_store_unreadable" not in payload
+    assert payload["_orphaned_units"] == []
+
+
 def test_an_unusable_platform_is_still_checked_for_orphans(monkeypatch):
     """The case filtering on usable() would have missed, and the one most worth
     reporting: a unit installed under systemd stays a unit after the machine
@@ -217,3 +316,22 @@ def test_the_new_json_keys_cannot_collide_with_a_job_name():
 
     # ...and the unprefixed forms ARE legal job names, which is the whole point.
     assert check_name("orphaned_units") == "orphaned_units"
+
+
+@pytest.mark.parametrize("kind", _UNREADABLE)
+def test_schedule_status_does_not_say_no_schedule_when_the_store_is_unreadable(
+        tmp_path, monkeypatch, capsys, kind):
+    """`status` read the unreadable store as empty too, printed "No schedule installed" and
+    the install command, which `install` then refused on the same store."""
+    monkeypatch.setattr(report, "log", lambda m="", *a, **k: None)
+    config, store = _unreadable_store(tmp_path, kind)
+
+    assert report.cmd_status(argparse.Namespace(json=False, job=None), config) == 1
+    out = capsys.readouterr().out
+    assert "could not be read" in out
+    assert "No schedule installed" not in out and "schedule install" not in out
+
+    assert report.cmd_status(argparse.Namespace(json=True, job=None), config) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["_job_store_unreadable"]["path"] == str(store)
+    assert payload["jobs"] == []

@@ -364,6 +364,14 @@ measured history, and reports every way they disagree:
 7. **Nothing has fired yet at all.** Check the platform directly: `systemctl --user list-timers`
    for systemd, `crontab -l` for cron. A gap between what `status` reports and what the platform
    shows is the bug to chase.
+8. **`schedule list` says the job store could not be read.** `schedule-jobs.json` exists and is
+   not valid (bad JSON, no mapping of jobs, or not a file). Without records, `list` cannot tell
+   an orphaned unit from a job. An absent file is not an error: it means no jobs.
+   - `list` names the file, skips the orphan check, and exits 1. With `--json`, it adds
+     `_job_store_unreadable` (`path` and `reason`), an empty `_orphaned_units`, and every
+     registered platform in `_unchecked_platforms`, because none was checked.
+   - `schedule status` also exits 1, and does not say "No schedule installed".
+   - Repair or move the file, then run the command again.
 
 ## See also
 

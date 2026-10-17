@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the new reason `not_a_file`, counted as broken the way `file_missing` is, and never open the
   path. The drift check called such a path `verified` when its time stamp was older than the
   index; it is now stale. Neither check ever read or blocked on such a file.
+- **`schedule list` and `schedule status` no longer misreport an unreadable job store.** `list`
+  read it as empty, called every installed unit an orphan and advised recreating its record;
+  `status` printed "No schedule installed" and the install command, which `install` then
+  refused. Both now say the store could not be read and exit 1. `list` skips the orphan check.
+  With `--json`, both add `_job_store_unreadable` (`path`, `reason`); `list` names every
+  platform in `_unchecked_platforms`. An absent store still means no jobs.
 
 ## [10.0.0rc3] - 2026-10-16
 

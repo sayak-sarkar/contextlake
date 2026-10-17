@@ -120,20 +120,23 @@ def orphaned_units(known_names):
     return sorted(found), sorted(unchecked)
 
 
-def _read_jobs_or_warn(path) -> dict:
-    """The job records, or ``{}`` with a warning that names the file when it cannot be read.
+def _read_jobs_or_warn(path) -> tuple:
+    """``(jobs, reason)``. ``reason`` is ``None`` when the store was read, and an absent
+    store is read (no jobs). When it cannot be read, ``jobs`` is ``{}``, ``reason`` says why,
+    and a warning names the file.
 
     Read quietly as empty, an unreadable store made `list` call every installed job an
     orphan and advise recreating its record, while `install` (correctly) refused to touch it.
+    The reason lets a caller tell "no jobs" from "jobs it could not read".
     """
     from . import jobs as jobstore
 
     try:
-        return jobstore.read_jobs(path, strict=True)
+        return jobstore.read_jobs(path, strict=True), None
     except jobstore.JobStoreUnreadable as e:
         log(f"WARNING: {e}. Its jobs cannot be listed until it is repaired or moved; "
             f"commands that would change it refuse until then.")
-        return {}
+        return {}, str(e)
 
 
 def cmd_list(args, config) -> int:
@@ -141,7 +144,30 @@ def cmd_list(args, config) -> int:
     from . import jobs as jobstore
 
     path = jobstore.jobs_path(config)
-    mapping = _read_jobs_or_warn(path)
+    mapping, unreadable = _read_jobs_or_warn(path)
+    if unreadable is not None:
+        # An orphan is a unit with no record. With the store unreadable, no record can be
+        # matched to any unit, so every installed unit would be called an orphan and the
+        # advice would be to recreate a record that may still exist. Say what was skipped
+        # instead, and exit 1 because `list` could not do its job.
+        if getattr(args, "json", False):
+            from .platform import base
+
+            # The same keys as the readable case, so a script reading them still gets
+            # lists. No platform was asked, so every registered one is unchecked: an
+            # empty `_unchecked_platforms` would tell a script written before this key
+            # that all of them were checked and are clean. `registered()` only names the
+            # adapters, it does not enumerate units. The underscore on
+            # `_job_store_unreadable` keeps it from colliding with a job name.
+            print(jsonlib.dumps({
+                "_job_store_unreadable": {"path": path, "reason": unreadable},
+                "_orphaned_units": [],
+                "_unchecked_platforms": sorted(base.registered()),
+            }, indent=2, sort_keys=True))
+        else:
+            print("Orphaned-unit check skipped: the job store could not be read, so "
+                  "installed units cannot be matched to job records.")
+        return 1
     orphans, unchecked = orphaned_units(set(mapping))
     if getattr(args, "json", False):
         # Jobs stay at the TOP LEVEL, where 8.8.0 put them. Nesting them under a
@@ -213,7 +239,18 @@ def cmd_status(args, config) -> int:
     from .. import style
     from . import jobs as jobstore
 
-    mapping = _read_jobs_or_warn(jobstore.jobs_path(config))
+    path = jobstore.jobs_path(config)
+    mapping, unreadable = _read_jobs_or_warn(path)
+    if unreadable is not None:
+        # The same case as in `list`: "No schedule installed" plus an install command would
+        # invite a reinstall over jobs that may still be installed and only unreadable here.
+        if getattr(args, "json", False):
+            print(jsonlib.dumps({"_job_store_unreadable": {"path": path, "reason": unreadable},
+                                 "jobs": []}, indent=2, sort_keys=True))
+        else:
+            print("Job status not shown: the job store could not be read, so installed jobs "
+                  "cannot be listed.")
+        return 1
     only = getattr(args, "job", None)
     all_names = sorted(mapping)
     if only:
