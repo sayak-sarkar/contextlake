@@ -47,7 +47,10 @@ _CALL: dict[str, list[tuple[re.Pattern, object, int]]] = {
 
 
 def _is_param(seg: str) -> bool:
+    # `<id>` and `<int:id>` are the Flask and Django spellings; the rest are `{id}`,
+    # `:id`, `$id`, `${id}` and a literal id.
     return (seg.startswith(("{", ":", "$")) or "${" in seg or seg.isdigit()
+            or bool(re.fullmatch(r"<[^<>]+>", seg))
             or bool(re.fullmatch(r"[0-9a-fA-F]{8,}|[0-9a-fA-F-]{16,}", seg)))
 
 

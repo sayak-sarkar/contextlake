@@ -272,6 +272,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   regenerate, and also counts a page whose parser stamp differs from the index. The page count
   in `kb wiki --model-check` uses the same function and was low by the same amount. This dates
   from 7.12.0, which added the structural page.
+- **Flask routes with `<param>` segments now join the callers of those routes.** A route such as
+  `@app.route("/users/<int:user_id>")` was stored as `/users/<int:user_id>`, while a caller's
+  `/users/${id}` or `/users/42` was stored as `/users/{}`, so the two never became one HTTP
+  flow. Every parameterised Flask route was missing from the repo-to-repo flow, the dashboard
+  Relationships tab, the C4 diagram and the cluster wiki. FastAPI `{id}`, Express `:id` and
+  ASP.NET `{id}` routes were not affected. This dates from 2.4.0, which added HTTP flow
+  detection. Run `kb index --force` to rebuild a repository now, or wait for its next commit.
 
 ### Security
 

@@ -4,7 +4,7 @@ import pytest
 
 from contextlake.kb.arch.resolve import repo_external_system_edges, repo_http_flow_edges
 from contextlake.kb.flow.http import _useful, extract_http_flow, normalize_path, raw_host
-from contextlake.kb.ids import make_id
+from contextlake.kb.ids import file_node_id, make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
 from contextlake.kb.store.sqlite_store import SqliteStore
 
@@ -25,6 +25,35 @@ def test_normalize_path_strips_host_and_collapses_params():
     assert normalize_path("/orders/{id}") == "/orders/{}"
     assert normalize_path("orders/:orderId/items") == "/orders/{}/items"
     assert normalize_path("/orders/${id}") == "/orders/{}"
+
+
+def test_normalize_path_collapses_flask_and_django_converters():
+    assert normalize_path("/users/<user_id>") == "/users/{}"
+    assert normalize_path("/users/<int:user_id>") == "/users/{}"
+    assert normalize_path("/files/<path:p>/meta") == "/files/{}/meta"
+    # text around the brackets is a literal segment, and so is an unclosed one
+    assert normalize_path("/a/<b>x") == "/a/<b>x"
+    assert normalize_path("/a/<b") == "/a/<b"
+
+
+def test_a_flask_route_joins_the_caller_that_uses_a_template_or_a_literal_id(store):
+    server = b'''
+@app.route("/users/<int:user_id>")
+def get_user(user_id): ...
+'''
+    client = b"""
+fetch(`/users/${id}`);
+fetch("/users/42");
+"""
+    for repo, path, src, lang in (("svc", "app.py", server, "python"),
+                                  ("client", "app.js", client, "javascript")):
+        nodes, edges = extract_http_flow(repo, path, src, lang)
+        assert {n.name for n in nodes} == {"/users/{}"}
+        store.upsert_nodes(repo, nodes + [Node(id=file_node_id(repo, path), repo=repo,
+                                               kind="file", name=path)])
+        store.upsert_edges(repo, edges)
+    flow = repo_http_flow_edges(store)
+    assert [(e["src"], e["dst"], e["weight"]) for e in flow] == [("client", "svc", 1)]
 
 
 def test_raw_host_extracts_the_host_from_an_absolute_url():

@@ -371,6 +371,8 @@ Two web-topology layers sit on top of the definitions.
 so read the list as what is matched:
 
 - **Python**: FastAPI and Flask decorator routing (`@app.get("...")`, `@router.route("...")`).
+  A path parameter written `{id}`, `:id`, `${id}`, `<id>` or `<int:id>` becomes `{}`, so a Flask
+  route and a caller's `/users/42` land on the same endpoint.
 - **JavaScript and TypeScript**: the Express-shaped call form,
   `app`/`router`/`api`/`server` `.get|.post|.put|.delete|.patch("...")`. Fastify code that happens to
   use one of those variable names is caught incidentally. **NestJS is not supported**: its
