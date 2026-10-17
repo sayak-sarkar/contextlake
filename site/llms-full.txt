@@ -10072,6 +10072,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed checkout a running `kb serve` or dashboard kept reporting `stale: 0` and
   `unreadable: 0` until it restarted. `kb lint` in a new process reported both. The git state
   of each checkout is now read on every call; only the shard walk stays cached.
+- **`kb impact <symbol> --repo R` finds a fuzzy match inside `R`.** The fuzzy search kept the
+  top 10 hits across all repos and then dropped the ones outside `R`, so a symbol that ranked
+  below ten hits from other repos was reported as "No node matches", while `kb query --repo R`
+  found it. The dashboard impact and path views had the same fault.
 
 ### Security
 

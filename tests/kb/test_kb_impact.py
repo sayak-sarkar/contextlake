@@ -192,6 +192,27 @@ def test_resolve_fuzzy_fallback_for_partial_name(tmp_path):
         s.close()
 
 
+def test_resolve_fuzzy_fallback_searches_inside_the_repo(tmp_path):
+    """`--repo` has to narrow the search, not filter its global top 10.
+
+    Repo ``many`` holds 40 short names that match "fetch" and fill the top 10; repo
+    ``late`` holds one long name that ranks below all of them. `kb query fetch --repo late`
+    finds it, so `kb impact fetch --repo late` has to as well."""
+    s = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        s.upsert_nodes("many", [
+            Node(id=f"many:{i}", repo="many", kind="function", name=f"fetch_thing_{i}",
+                 file="m.py") for i in range(40)])
+        s.upsert_nodes("late", [
+            Node(id="late:1", repo="late", kind="function", file="l.py",
+                 name="fetch_the_long_descriptive_name_of_one_late_item")])
+        assert all(n.repo == "many" for n in s.search("fetch", limit=10))   # the setup holds
+        node, cands = resolve_target(s, "fetch", repo="late")
+        assert node is not None and node.id == "late:1" and cands == []
+    finally:
+        s.close()
+
+
 def test_cmd_impact_ambiguous_name_lists_repos(tmp_path, capsys):
     _multi_repo_store(tmp_path).close()
     cfg = tmp_path / "kb.toml"

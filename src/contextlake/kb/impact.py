@@ -161,7 +161,7 @@ def resolve_target(store, target: str, *, repo: str | None = None):
             return named[0], []                  # only one repo defines this name
         return None, named                       # ambiguous across repos
 
-    matches = store.search(target, limit=10)
-    if repo:
-        matches = [m for m in matches if m.repo == repo]
+    # The repo goes into the query, not after it: a filter on the global top 10 loses a
+    # repo whose hits rank below ten other repos' hits, though `kb query --repo` finds it.
+    matches = store.search(target, repo=repo, limit=10)
     return (matches[0], []) if matches else (None, [])
