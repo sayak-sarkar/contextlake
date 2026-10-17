@@ -490,6 +490,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `default` namespace that `install` applies to, instead of the namespace of the current
   `kubectl` context. On azure, `uninstall` and `status` name the `contextlake` resource group
   that `install` creates the job in, where before they named none.
+- **A venv under a path with a space no longer breaks the systemd schedule.** The unit joined
+  its command with plain spaces, so systemd split `/mnt/c/Users/First Last/venv/bin/python` at
+  the space and ran `/mnt/c/Users/First` on every fire. `schedule install` printed success, and
+  `schedule status` named the cut-off path as the missing interpreter. The unit now quotes the
+  path (and doubles `%` and `$`), and `status` reads the whole path back. Run `schedule install`
+  again to rewrite an existing unit.
 
 ### Security
 

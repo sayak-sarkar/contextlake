@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 
 from .base import Adapter, check_name, systemd_is_init
@@ -24,7 +25,25 @@ def unit_dir() -> str:
     return os.path.join(base, "systemd", "user")
 
 
-_EXEC_PATH_RE = re.compile(r"path=(\S+)")
+# The path ends at the " ;" or " }" that follows it, not at the first space: a path can have one.
+_EXEC_PATH_RE = re.compile(r"path=(.+?)(?= ;| \}|$)")
+
+_PLAIN_WORD = re.compile(r"[^\s\"'\\]+")
+
+
+def _exec_word(word) -> str:
+    """One argv word, written so that systemd reads back the same word in ``ExecStart=``.
+
+    systemd splits the line on white space, so an interpreter under ``/mnt/c/Users/First Last``
+    became two words and the unit failed on every fire. It also expands ``%x`` specifiers and
+    ``$VAR`` in the line, and reads a backslash as an escape. ``%`` and ``$`` are doubled in
+    every word. A word with white space, a quote or a backslash is also put in double quotes, so
+    a plain path such as ``/venv/bin/python`` is written as it always was.
+    """
+    word = str(word).replace("%", "%%").replace("$", "$$")
+    if _PLAIN_WORD.fullmatch(word):
+        return word
+    return '"' + word.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _exec_path_from_show(value) -> str | None:
@@ -47,7 +66,10 @@ def _exec_path_from_show(value) -> str | None:
         # A structured value with no ``path=`` inside it: unparseable, not a
         # bare command that happens to start with a brace.
         return None
-    parts = value.split()
+    try:
+        parts = shlex.split(value)   # a bare command line may quote its first word
+    except ValueError:
+        parts = value.split()
     return parts[0] if parts else None
 
 
@@ -91,7 +113,7 @@ class SystemdAdapter(Adapter):
     def render(self, job, interval_s, exec_argv, on_battery="skip", **_options) -> dict:
         name = check_name(job.name)
         seconds = max(1, int(round(float(interval_s))))
-        exec_line = " ".join(exec_argv)
+        exec_line = " ".join(_exec_word(word) for word in exec_argv)
         condition = ("ConditionACPower=true\n"
                      if str(on_battery).lower() != "run" else "")
         service = (

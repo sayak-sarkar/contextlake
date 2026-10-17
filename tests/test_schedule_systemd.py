@@ -70,6 +70,40 @@ def test_the_service_runs_the_resolved_interpreter_not_a_bare_name():
     assert f"ExecStart={sys.executable} -m contextlake schedule run --job default" in service
 
 
+def _exec_start(argv):
+    service = systemd.SystemdAdapter().render(_job(), 3600.0, argv)[
+        "contextlake-default.service"]
+    return next(line for line in service.splitlines() if line.startswith("ExecStart="))
+
+
+_RUN = ["-m", "contextlake", "schedule", "run", "--job", "default"]
+
+
+def test_an_interpreter_path_with_a_space_is_quoted_so_systemd_keeps_it_one_word():
+    """systemd splits ExecStart= on white space. A venv under `/mnt/c/Users/First Last`
+    ran `/mnt/c/Users/First` on every fire, while install printed success."""
+    line = _exec_start(["/tmp/my project/.venv/bin/python", *_RUN])
+    assert line == ('ExecStart="/tmp/my project/.venv/bin/python" '
+                    '-m contextlake schedule run --job default')
+
+
+def test_percent_and_dollar_are_doubled_so_systemd_does_not_expand_them():
+    """`%d` is a specifier and `$HOME` a variable in ExecStart=. Unescaped, the path
+    systemd runs is not the path that was written."""
+    line = _exec_start(["/opt/p%d/$HOME/py", *_RUN])
+    assert line == "ExecStart=/opt/p%%d/$$HOME/py -m contextlake schedule run --job default"
+
+
+def test_quotes_and_backslashes_in_a_path_are_escaped_inside_the_quotes():
+    line = _exec_start(['/tmp/a"b\\c d/py', *_RUN])
+    assert line == 'ExecStart="/tmp/a\\"b\\\\c d/py" -m contextlake schedule run --job default'
+
+
+def test_a_plain_path_is_written_unquoted_as_it_always_was():
+    assert _exec_start(["/venv/bin/python3.12", *_RUN]) == (
+        "ExecStart=/venv/bin/python3.12 -m contextlake schedule run --job default")
+
+
 def test_a_job_name_with_a_slash_or_a_space_is_refused():
     """The name becomes a filename and a unit name. Anything that could escape
     the directory or split the unit name is refused at render time."""
@@ -127,6 +161,20 @@ def test_exec_path_from_show_parses_the_modern_structured_form():
              "-m contextlake schedule run --job default ; ignore_errors=no ; "
              "start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }")
     assert systemd._exec_path_from_show(value) == "/home/x/.venv/bin/python3"
+
+
+def test_exec_path_from_show_keeps_a_path_that_has_a_space():
+    """`schedule status` read `/tmp/my` out of `path=/tmp/my project/...` and reported the
+    interpreter as moved or deleted."""
+    value = ("{ path=/tmp/my project/.venv/bin/python ; argv[]=/tmp/my project/.venv/bin/python "
+             "-m contextlake schedule run --job default ; ignore_errors=no ; pid=0 }")
+    assert systemd._exec_path_from_show(value) == "/tmp/my project/.venv/bin/python"
+    assert systemd._exec_path_from_show("{ path=/tmp/my project/py }") == "/tmp/my project/py"
+
+
+def test_exec_path_from_show_reads_a_quoted_first_word_of_a_plain_command_line():
+    assert (systemd._exec_path_from_show('"/tmp/my project/py" -m contextlake')
+            == "/tmp/my project/py")
 
 
 def test_exec_path_from_show_parses_a_plain_command_line():
