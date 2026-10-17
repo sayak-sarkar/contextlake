@@ -371,6 +371,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory was dropped and the setting fell back to `"never"`, so a dashboard showed
   contributor names. The same value in a `--config` file already resolved to `"always"`. A
   discovered file is still refused when it says `"never"`.
+- **`kb query --retriever semantic|hybrid --kind K` no longer depends on `--limit`.** The search
+  fetched `--limit` nodes and filtered by kind afterwards, so `--kind class --limit 20` printed
+  "No matches" when 20 functions ranked ahead of the one class, and `--limit 100` found it. With
+  `--kind` set the search now looks at 10 times `--limit` nodes (200 to 512), keeps the nodes of
+  that kind and cuts to `--limit`. When none has the kind, the output says how many nodes it
+  looked at. `kb eval` still ignores a golden `kind` with these retrievers.
 
 ### Security
 

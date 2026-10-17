@@ -38,6 +38,11 @@ CHUNK_SEP = "\x1f"
 #: enough that the extra rows cost nothing measurable.
 _CHUNK_OVERFETCH = 8
 
+#: The largest k `search` can honour on every backend. sqlite-vec refuses a KNN window over
+#: 4096 rows and the window is `k * _CHUNK_OVERFETCH`, so a larger k does not return more
+#: nodes, it raises.
+MAX_SEARCH_K = 4096 // _CHUNK_OVERFETCH
+
 
 def _norm(vec) -> float:
     return math.sqrt(sum(x * x for x in vec)) or 1.0

@@ -127,6 +127,119 @@ def test_query_retriever_semantic_respects_kind_filter(tmp_path, capsys, monkeyp
     assert "load_readings" in out and "ForecastService" not in out
 
 
+def _semantic_kind_store(tmp_path, monkeypatch):
+    """A store whose nearest vectors are 30 functions, with one class ranked after all
+    of them, behind the real vector store and a fake embedder.
+
+    The class is the only node of its kind and sits at rank 31 of 31, so any search that
+    asks for fewer than 31 nodes and filters by kind afterwards cannot see it. The first
+    function calls it, which is the only way `hybrid` reaches it: its seeds are the 20
+    nearest vectors, then their graph neighbours."""
+    from datetime import date
+
+    import contextlake.kb.embeddings as emb_pkg
+    from contextlake.kb.embeddings.store import build_vector_store
+    from contextlake.kb.model import Confidence, Edge, Node, Provenance
+    from contextlake.kb.state import check_schema
+
+    class _FakeEmbedder:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda cfg: _FakeEmbedder())
+    cfg = _embeddings_enabled_config(tmp_path)
+    store_dir = tmp_path / "kb"
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    nodes = [Node(id=f"f{i}", repo="r", kind="function", name=f"fetch_thing_{i}",
+                  file="a.py", line_start=i + 1) for i in range(30)]
+    nodes.append(Node(id="w", repo="r", kind="class", name="Widget",
+                      file="a.py", line_start=40))
+    s.upsert_nodes("r", nodes)
+    s.upsert_edges("r", [Edge(src="f0", dst="w", relation="calls",
+                              confidence=Confidence.EXTRACTED,
+                              provenance=Provenance(source_file="a.py",
+                                                    verified_at=date(2026, 1, 1)))])
+    s.close()
+    # The SAME backend the command opens: the default, not a pinned one.
+    vs = build_vector_store(store_dir / "embeddings.sqlite")
+    vs.upsert([(f"f{i}", "r", [1.0, 0.01 * i]) for i in range(30)]
+              + [("w", "r", [0.2, 1.0])])
+    vs.close()
+    return cfg
+
+
+@pytest.mark.parametrize("limit", ["5", "100"])
+@pytest.mark.parametrize("retriever", ["semantic", "hybrid"])
+def test_query_semantic_kind_filter_looks_past_the_limit(tmp_path, capsys, monkeypatch,
+                                                         retriever, limit):
+    """`--kind class --limit 5` asked the vector search for 5 nodes, got 5 functions, kept
+    the classes among them (none) and printed "No matches". The answer depended on
+    `--limit`, and nothing said so. With a kind set the search now looks wider, then
+    cuts to `--limit`."""
+    import json
+
+    cfg = _semantic_kind_store(tmp_path, monkeypatch)
+    capsys.readouterr()
+    assert _run(["kb", "query", "fetch Widget", "--config", str(cfg), "--retriever",
+                 retriever, "--kind", "class", "--limit", limit, "--json"]) == 0
+    out = capsys.readouterr()
+    assert [h["name"] for h in json.loads(out.out)] == ["Widget"]
+    assert "unavailable" not in out.err
+
+
+def test_query_semantic_kind_filter_still_cuts_to_the_limit(tmp_path, capsys, monkeypatch):
+    import json
+
+    cfg = _semantic_kind_store(tmp_path, monkeypatch)
+    capsys.readouterr()
+    assert _run(["kb", "query", "fetch Widget", "--config", str(cfg), "--retriever",
+                 "semantic", "--kind", "function", "--limit", "5", "--json"]) == 0
+    hits = json.loads(capsys.readouterr().out)
+    assert [h["name"] for h in hits] == [f"fetch_thing_{i}" for i in range(5)]
+
+
+def test_query_semantic_kind_with_no_match_says_what_was_searched(tmp_path, capsys,
+                                                                  monkeypatch):
+    cfg = _semantic_kind_store(tmp_path, monkeypatch)
+    capsys.readouterr()
+    assert _run(["kb", "query", "fetch Widget", "--config", str(cfg), "--retriever",
+                 "semantic", "--kind", "interface"]) == 0
+    out = capsys.readouterr()
+    text = out.out + out.err
+    assert "No matches" in text
+    assert "--kind interface filters the 31 nearest nodes" in text
+
+
+@pytest.mark.parametrize("limit", [1, 20, 100, 600])
+def test_query_semantic_kind_window_stays_within_what_the_store_accepts(
+        tmp_path, capsys, monkeypatch, limit):
+    """sqlite-vec raises on a window over 4096 rows (k * 8), and `_semantic_results`
+    turns any such error into a silent switch to fts. Widening for --kind must not
+    cross that line, or `--limit 100 --kind class` would quietly stop being semantic."""
+    from contextlake.kb.cmds import query as query_mod
+    from contextlake.kb.embeddings.store import MAX_SEARCH_K
+
+    cfg = _semantic_kind_store(tmp_path, monkeypatch)
+    asked = []
+
+    def spy(args, store, text, window):
+        asked.append(window)
+        return []
+
+    monkeypatch.setattr(query_mod, "_semantic_results", spy)
+    capsys.readouterr()
+    _run(["kb", "query", "fetch Widget", "--config", str(cfg), "--retriever", "semantic",
+          "--kind", "class", "--limit", str(limit)])
+    assert asked and limit <= asked[0] <= max(limit, MAX_SEARCH_K)
+    assert asked[0] >= min(200, MAX_SEARCH_K)
+    _run(["kb", "query", "fetch Widget", "--config", str(cfg), "--retriever", "semantic",
+          "--limit", str(limit)])
+    assert asked[1] == limit   # no kind: the window is the limit, as before
+
+
 def test_index_workspace_indexes_each_repo(tmp_path):
     ws = tmp_path / "ws"
     _bare_git_repo(ws / "r1")

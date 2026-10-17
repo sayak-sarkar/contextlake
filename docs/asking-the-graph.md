@@ -83,9 +83,15 @@ unavailable, so there is no fallback and no warning. An unexpectedly empty
 `--retriever semantic` run usually means `contextlake kb embed` has not run yet.
 
 **`--kind` is applied differently per mode.** On `fts` it is part of the SQL, so `--limit 20` gives
-you up to 20 matching nodes. On `semantic` and `hybrid` it is a filter applied *after* the retriever
-has already cut to `--limit`, so `--retriever semantic --kind function --limit 20` can return
-fewer than 20 functions even when the repo has hundreds.
+you up to 20 matching nodes. On `semantic` and `hybrid` it is a filter applied *after* the search:
+
+- The search looks at 10 times `--limit` nodes (at least 200, at most 512, or `--limit` itself
+  when that is larger), keeps the ones of that kind, and cuts to `--limit`.
+- `--retriever semantic --kind function --limit 20` can still return fewer than 20 functions,
+  and a node of that kind ranked past the window is not found.
+- When nothing of that kind is in the window, the output says how many nodes it looked at.
+- `hybrid` starts from the 20 nearest vectors and their graph neighbours, so a node of that kind
+  outside both is not found either.
 
 **`--as-of` is a different search, not the same search over old data.** It reads the repo's stored
 shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor

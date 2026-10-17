@@ -122,6 +122,26 @@ def _refuse_below_floor(store, text: str, *, as_json: bool) -> bool:
     return True
 
 
+_KIND_WINDOW_FACTOR = 10
+_KIND_WINDOW_MIN = 200
+
+
+def _vector_window(limit: int, kind) -> int:
+    """How many nearest nodes to ask the vector search for.
+
+    `--kind` is applied after that search. Asking for `limit` nodes kept only the matches
+    among the `limit` nearest of any kind, so 20 functions ranked ahead of the one class
+    gave "No matches". With a kind set, look at ten times as many (200 at least), then cut
+    to `limit`. The cap is what the vector store accepts: sqlite-vec raises on a larger
+    window, and that would send the whole query to fts.
+    """
+    from ..embeddings.store import MAX_SEARCH_K
+
+    if not kind:
+        return limit
+    return max(limit, min(max(limit * _KIND_WINDOW_FACTOR, _KIND_WINDOW_MIN), MAX_SEARCH_K))
+
+
 def _semantic_results(args, store, text, limit):
     """Node ids from the semantic/hybrid retriever, or ``None`` to fall back to fts
     (embedder/vector store unavailable, or the retriever itself failed) -- reuses
@@ -193,7 +213,9 @@ def cmd_query(args) -> int:
             return 1
         limit = _or_default(getattr(args, "limit", None), 20)
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
+        kind = getattr(args, "kind", None)
         results = None
+        nearest = 0   # nodes the vector search returned, before --kind filtered them
         if retr_kind in ("semantic", "hybrid"):
             # Before the retriever, not inside it: the factories are the ones
             # `kb eval --retriever` scores, and a floor applied there would silently
@@ -210,15 +232,14 @@ def cmd_query(args) -> int:
             if (kb_config(args).embeddings.enabled
                     and _refuse_below_floor(store, text, as_json=as_json)):
                 return 0
-            ids = _semantic_results(args, store, text, limit)
+            ids = _semantic_results(args, store, text, _vector_window(limit, kind))
             if ids is not None:
-                kind = getattr(args, "kind", None)
+                nearest = len(ids)
                 results = [n for nid in ids if (n := store.get_node(nid)) is not None
-                          and (kind is None or n.kind == kind)]
+                           and (kind is None or n.kind == kind)][:limit]
         if results is None:
             results = store.search(
-                text, kind=getattr(args, "kind", None), repo=getattr(args, "repo", None),
-                limit=limit,
+                text, kind=kind, repo=getattr(args, "repo", None), limit=limit,
             )
         if as_json:
             print(json.dumps([_hit_json(n) for n in results], indent=2))
@@ -235,6 +256,11 @@ def cmd_query(args) -> int:
                 log(style.warn(f"This store is empty (no repositories indexed): {store_dir}"))
                 log("  Run `contextlake kb index <path>` first, or `contextlake doctor` "
                     "to see which store this config resolves to.")
+                return 0
+            if nearest and kind:
+                log(f"  (--kind {kind} filters the {nearest} nearest nodes after the semantic "
+                    "search, and none has that kind. `--retriever fts` applies --kind "
+                    "inside the search.)")
                 return 0
             # A multi-word phrase reads as a natural-language question; a plain fts
             # query is keyword search, so point at --retriever semantic instead of a
