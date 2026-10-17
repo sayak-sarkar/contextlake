@@ -2583,3 +2583,25 @@ def test_keys_verb_count_is_eight(run):
     dispatches nowhere is what the pin exists to catch."""
     assert len(_verbs()) == 8
     assert "usage" in _verbs()
+
+
+def test_a_record_of_the_wrong_type_is_named_not_crashed_on(run, keys_file):
+    """`"policy": "tools=read"` made every verb end in `Error: 'str' object has no
+    attribute 'get'`, which names neither the file nor the key, so the operator
+    could not tell which hand-edit had broken it."""
+    run("create", "alice")
+    assert run("list").code == 0
+    document = json.loads(keys_file.read_text())
+    key_id = document["keys"][0]["id"]
+    document["keys"][0]["policy"] = "tools=read"
+    keys_file.write_text(json.dumps(document))
+
+    result = run("list")
+    text = result.out + result.err
+    assert result.code == 1, text
+    assert key_id in text and "policy must be an object" in text, text
+    assert str(keys_file) in text, text
+    assert "has no attribute" not in text, text
+
+    as_json = json.loads(run("list", "--json").out)
+    assert as_json["error"] == "key_file_error"

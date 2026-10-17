@@ -306,7 +306,15 @@ def _load(path, *, write: bool) -> _Loaded:
     if report.skipped:
         log(style.warn(report.skipped))
     doc = keyfile.load_document(path, state=state, check_permissions=False)
-    records = [keys_mod.KeyRecord.from_dict(data) for data in doc.keys]
+    try:
+        records = [keys_mod.KeyRecord.from_dict(data) for data in doc.keys]
+    except (ValueError, TypeError) as exc:
+        # A hand-edited record this version cannot read. As a KeyFileError it
+        # names the file and the key, and `--json` gets its error document,
+        # where the bare error reached the top-level "Error: ..." line.
+        raise keyfile.KeyFileError(
+            f"the key file {path} holds a record this version cannot read: "
+            f"{exc}") from exc
     return _Loaded(records, doc, warnings, report.skipped)
 
 

@@ -498,6 +498,12 @@ class KeyRecord:
         goes missing and a revoked key comes back to life. The version gate on
         the file catches this first; this is the second check, and it costs a
         set difference.
+
+        A hand-edited ``policy`` that is not an object, or a ``digest`` that is
+        not a string, is refused here too, by key id. Left alone, ``policy``
+        reached ``dict.get`` in the rate check and the AttributeError ended as a
+        500 on every request, for every key, on a running server. ``None`` stays
+        legal for ``policy``: every reader treats it as ``{}``.
         """
         unknown = set(data) - set(RECORD_FIELDS)
         if unknown:
@@ -505,6 +511,15 @@ class KeyRecord:
         missing = {"id", "name", "digest", "created_at"} - set(data)
         if missing:
             raise ValueError(f"key record is missing fields: {sorted(missing)}")
+        if not isinstance(data["digest"], str):
+            raise ValueError(
+                f"key record {data['id']!r}: digest must be a string, "
+                f"found {type(data['digest']).__name__}")
+        policy = data.get("policy")
+        if policy is not None and not isinstance(policy, dict):
+            raise ValueError(
+                f"key record {data['id']!r}: policy must be an object, "
+                f"found {type(policy).__name__}")
         return cls(**copy.deepcopy(data))
 
 

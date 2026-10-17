@@ -8887,9 +8887,9 @@ may call `semantic_search`. A key without the `semantic` group gets full-text se
 
 `--owners real` allows `who_knows`. `--owners pseudonymous` and `--owners hidden` **refuse**
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
-so a key that asked for pseudonyms gets no names rather than real ones.
-A wiki page lists the people who commit to its repository, so `get_wiki` returns a notice in
-place of the page text for those two keys. Add `--owners real` to read the pages.
+so a key that asked for pseudonyms gets no names, not real ones. A wiki page lists
+the people who commit to its repository, so `get_wiki` returns a notice in place of the page
+text for those two keys. Add `--owners real` to read the pages.
 
 **`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
 repositories that match one of its globs. Search, graph, repo-list and stats answers leave
@@ -9750,6 +9750,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   denied repositories. This held since `--repos` was enforced in 9.3.0. The server now asks the
   vector store for more hits until it has enough readable ones. A store that is stale for every
   key is still reported.
+- **A key file with a wrong-typed `policy` or `digest` no longer breaks every key.** A
+  hand-edited record such as `"policy": "tools=read"` made every request from every key,
+  including untouched ones, answer 500 on a running server. `kb keys list` and `kb serve` ended
+  in `Error: 'str' object has no attribute 'get'`. The record is now refused by key id. A
+  running server keeps the keys it loaded before the edit and warns once, and the CLI names the
+  file and the key.
 
 ### Security
 

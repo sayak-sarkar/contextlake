@@ -590,6 +590,71 @@ def test_a_bad_rate_introduced_by_a_live_edit_keeps_the_previous_keyring(
         "a typo in one record locked out every key on a running server")
 
 
+def _two_key_ring(tmp_path):
+    """One file with two live keys, and the second key's record to damage."""
+    ring = Ring(tmp_path / "keys.json")
+    second, _value = keys_mod.create(ring.records, "beta")
+    return ring, second
+
+
+def _write_with(ring, second, field, value):
+    """Rewrite the key file with ONE field of the second record hand-edited."""
+    documents = [r.to_dict() for r in ring.records]
+    documents[1][field] = value
+    keyfile.write_document(ring.path, documents)
+    assert documents[1]["id"] == second.id
+
+
+_WRONG_SHAPES = [
+    ("policy", "tools=read"),
+    ("policy", ["tools", "read"]),
+    ("digest", ["not", "a", "digest"]),
+]
+
+
+@pytest.mark.parametrize("field,value", _WRONG_SHAPES)
+def test_a_record_field_of_the_wrong_type_is_refused_at_load_by_key_id(
+        tmp_path, field, value):
+    """The defect: `"policy": "tools=read"` died in `dict.get` with an AttributeError
+    that named no file and no key, and a list `digest` died as a TypeError."""
+    ring, second = _two_key_ring(tmp_path)
+    _write_with(ring, second, field, value)
+    with pytest.raises(keyfile.KeyFileError) as raised:
+        keyfile.Keyring.load(ring.path)
+    assert second.id in str(raised.value), str(raised.value)
+    assert f"{field} must be" in str(raised.value), str(raised.value)
+
+
+@pytest.mark.parametrize("field,value", _WRONG_SHAPES)
+def test_a_wrong_type_in_one_record_keeps_every_live_key_working(
+        tmp_path, field, value):
+    """The defect: the same hand-edit on a RUNNING server raised out of
+    `reload_if_changed` into the auth middleware, so every request from every
+    key, including the one nobody edited, answered 500 until the file was fixed.
+
+    The warning must name the key and the field. A widened `except` alone would
+    keep the snapshot and still fail that half.
+    """
+    warnings: list = []
+    ring, second = _two_key_ring(tmp_path)
+    keyring = keyfile.Keyring.load(ring.path, warn=warnings.append)
+    _write_with(ring, second, field, value)
+
+    assert keyring.reload_if_changed() is False
+    assert warnings and second.id in warnings[0], warnings
+    assert f"{field} must be" in warnings[0], warnings
+    # THE HALF THAT MATTERS: the key nobody edited still authenticates.
+    assert keyring.resolve(ring.value) is not None
+
+
+def test_a_null_policy_is_still_read_as_no_scope(tmp_path):
+    """The positive control for the two tests above: `None` stays legal, because
+    every reader treats it as `{}`. A check that refused it would pass them."""
+    ring, second = _two_key_ring(tmp_path)
+    _write_with(ring, second, "policy", None)
+    assert keyfile.Keyring.load(ring.path).policy_for(second.id) == {}
+
+
 def test_a_typo_in_the_serve_table_is_warned_about(tmp_path, monkeypatch, caplog):
     """The defect: `default_rat = "60/min"` silently leaving every key unlimited.
 
