@@ -202,3 +202,41 @@ def test_mcp_tool_query_reads_the_sources_own_timeout(monkeypatch):
                             timeout=300), ["Order"])
 
     assert seen == [300.0, 300.0, 60, 5, 300.0], seen
+
+
+def test_a_string_args_from_set_reaches_the_server_as_one_argument(monkeypatch):
+    """`--set args=--stdio` stores a string. `call_tool` runs `list(args)` on it, so the
+    server was spawned under `kb enrich` with one argument per character."""
+    from contextlake.kb.config import SourceCfg
+    seen = []
+
+    def fake_call_tool(**kwargs):
+        seen.append(kwargs["args"])
+        return []
+
+    monkeypatch.setattr(mcp_query, "call_tool", fake_call_tool)
+    base = {"command": "srv", "tool": "search"}
+    mcp_tool_query({**base, "args": "--stdio"}, ["Order"])
+    mcp_tool_query({**base, "args": ["--stdio", "--quiet"]}, ["Order"])
+    mcp_tool_query(base, ["Order"])
+    # The way `kb enrich` reaches it: a SourceCfg with the key as an extra.
+    mcp_tool_query(SourceCfg(type="mcp", name="wiki", tool="search", command="srv",
+                             args="--stdio"), ["Order"])
+
+    assert seen == [["--stdio"], ["--stdio", "--quiet"], [], ["--stdio"]], seen
+
+
+def test_a_string_args_reaches_the_tool_failure_probe_as_one_argument(monkeypatch):
+    """The re-ask after a rejected call builds its own server key from `args`."""
+    from contextlake.kb.mcp_client import McpToolError
+    seen = []
+
+    def fake_call_tool(**kwargs):
+        raise McpToolError("search", "no such tool")
+
+    monkeypatch.setattr(mcp_query, "call_tool", fake_call_tool)
+    monkeypatch.setattr(mcp_query, "explain_tool_failure",
+                        lambda **kwargs: seen.append(kwargs["args"]))
+    mcp_tool_query({"command": "srv", "args": "--stdio", "tool": "search"}, ["Order"])
+
+    assert seen == [["--stdio"]], seen

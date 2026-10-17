@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .._util import num_option
+from .._util import as_list, num_option
 from ..capabilities import explain_tool_failure
 from ..mcp_client import McpToolError, call_tool
 from ..resilience import find_in_chain, note_unavailable
@@ -157,7 +157,9 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
     for the run, because this runs once per repo.
     """
     command = _cfg_get(cfg, "command")
-    args_cfg = _cfg_get(cfg, "args") or ()
+    # `--set args=--stdio` stores a string; list(str) would spawn the server with one argument
+    # per character. The `mcp` source reads the same option through `as_list`.
+    args_cfg = as_list(_cfg_get(cfg, "args"))
     url = _cfg_get(cfg, "url")
     tool = _cfg_get(cfg, "tool")
     if not tool:
