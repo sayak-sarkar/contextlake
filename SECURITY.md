@@ -79,9 +79,12 @@ environment variable holds that request's credential:
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the environment variable read for the credential sent to that host |
 | `.contextlake.ini`: `gitlab_host`, `api_base` | the forge host the mirror's API calls and git fetches send the forge token to |
 | `.contextlake.ini`: `token_env`, `gitlab_token_env` | the environment variable read for that forge token |
+| `.contextlake.ini`: `cache_dir`, `cache_file`, `cache_json` | the file `mirror fetch` overwrites with the project list |
 
 The first three rows run a program. The rest are gated for a different reason: an
 endpoint and a secret to send to it are the same capability arriving in two pieces.
+The last row is a third reason: those keys name the file that `mirror fetch` truncates
+and rewrites, so a planted path could replace a file such as `~/.gitconfig`.
 
 `[embeddings]` is on by default with `provider = "auto"`, and `bootstrap` runs
 `kb embed` as a stage, so one planted `base_url` line, with no provider line, was

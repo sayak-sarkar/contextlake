@@ -18,7 +18,13 @@ import pytest
 
 from contextlake import config as cfgmod
 from contextlake import core
-from contextlake.config import FORGE_CREDENTIAL_KEYS, FORGE_TOKEN_REFUSED, load_config
+from contextlake.config import (
+    CACHE_LOCATION_KEYS,
+    FORGE_CREDENTIAL_KEYS,
+    FORGE_TOKEN_REFUSED,
+    get_cache_paths,
+    load_config,
+)
 
 PLANTED = (
     "[contextlake]\n"
@@ -224,3 +230,98 @@ def test_warning_text(tree, gls_logs):
         "and fetches run without the token. To use it here, delete those keys from "
         f"{tree} and set those keys in {cfg_file}, or pass `--config {tree}`.",
     ]
+
+
+# --- a discovered file may not choose where the project cache is written ------
+
+@pytest.fixture
+def victim(tmp_path):
+    """A file the user did not choose to have rewritten, with known contents."""
+    path = tmp_path / "victim.gitconfig"
+    path.write_text("ORIGINAL\n")
+    return path
+
+
+def _write_the_caches(config):
+    """What `mirror fetch` does last: write the project list to the configured paths."""
+    cache_file, cache_json = get_cache_paths(config)
+    core._write_caches({"demo/svc": {"ssh": "s", "http": "h", "default_branch": "main",
+                                     "archived": False}}, cache_json, cache_file)
+    return cache_file, cache_json
+
+
+def test_discovered_file_cannot_point_the_cache_at_another_file(tmp_path, tree, victim):
+    """An absolute cache_json used to win `os.path.join`, and the fetch replaced the file."""
+    explicit = tmp_path / "explicit.ini"
+    explicit.write_text(f"[contextlake]\ngitlab_group = acme\ncache_dir = {tmp_path / 'chosen'}\n")
+    tree.write_text(f"[contextlake]\ngitlab_group = acme\ncache_json = {victim}\n"
+                    f"cache_file = {victim}.txt\n")
+
+    config = load_config(str(explicit))
+    cache_file, cache_json = _write_the_caches(config)
+
+    assert victim.read_text() == "ORIGINAL\n"
+    assert not (tmp_path / "victim.gitconfig.txt").exists()
+    assert cache_json == str(tmp_path / "chosen" / "gitlab_projects.json")
+    assert cache_file == str(tmp_path / "chosen" / "gitlab_projects.txt")
+
+
+def test_discovered_file_cannot_move_the_cache_directory_either(tmp_path, tree, victim):
+    """cache_dir plus a bare name reaches the same file, so the name alone is not the gate."""
+    tree.write_text(f"[contextlake]\ngitlab_group = acme\ncache_dir = {tmp_path}\n"
+                    f"cache_json = {victim.name}\n")
+
+    config = load_config()
+    cache_file, cache_json = _write_the_caches(config)
+
+    assert victim.read_text() == "ORIGINAL\n"
+    assert cache_json.startswith(str(tmp_path / "isolated-home" / ".cache" / "contextlake"))
+    assert cache_file.startswith(str(tmp_path / "isolated-home" / ".cache" / "contextlake"))
+
+
+def test_refused_cache_keys_are_named_without_their_values_and_the_token_stays_on(
+        tmp_path, tree, victim, gls_logs):
+    tree.write_text(f"[contextlake]\ngitlab_group = acme\n"
+                    f"cache_dir = {tmp_path / 'planted-cache-dir'}\n"
+                    f"cache_json = {victim}\ncache_file = {victim}.txt\n")
+
+    config = load_config()
+
+    warned = _warnings(gls_logs)
+    for key in CACHE_LOCATION_KEYS:
+        assert any(f"ignoring {key} from {tree}" in w for w in warned), key
+    assert not any("victim" in w or "planted-cache-dir" in w for w in warned)
+    assert not any("forge token is off" in w for w in warned)
+    assert FORGE_TOKEN_REFUSED not in config
+    assert core._gitlab_token(config) == "dummy-gitlab"
+
+
+def test_files_the_user_chose_keep_their_cache_keys(tmp_path, tree, gls_logs, monkeypatch):
+    """Naming the discovered file with --config, or setting the keys globally, still works."""
+    tree.write_text(f"[contextlake]\ngitlab_group = acme\ncache_dir = {tmp_path / 'proj'}\n"
+                    "cache_json = proj.json\ncache_file = proj.txt\n")
+
+    config = load_config(str(tree))
+    assert get_cache_paths(config) == (str(tmp_path / "proj" / "proj.txt"),
+                                       str(tmp_path / "proj" / "proj.json"))
+    assert not any("ignoring" in w for w in _warnings(gls_logs))
+
+    global_ini = tmp_path / "isolated-home-global.ini"
+    global_ini.write_text(f"[contextlake]\ncache_dir = {tmp_path / 'mine'}\n"
+                          "cache_json = mine.json\ncache_file = mine.txt\n")
+    monkeypatch.setattr(cfgmod, "CONFIG_FILE", str(global_ini))
+    config = load_config()
+    assert get_cache_paths(config) == (str(tmp_path / "mine" / "mine.txt"),
+                                       str(tmp_path / "mine" / "mine.json"))
+    warned = _warnings(gls_logs)
+    for key in CACHE_LOCATION_KEYS:   # the discovered file is still refused beside the global one
+        assert any(f"ignoring {key} from {tree}" in w for w in warned), key
+
+
+def test_the_docs_trust_table_names_every_gated_cache_key():
+    page = (Path(__file__).resolve().parents[1] / "docs" / "configuration.md").read_text(
+        encoding="utf-8")
+    section = page.split("### The mirror config, `.contextlake.ini`", 1)[1].split("\n## ", 1)[0]
+    rows = [ln for ln in section.splitlines() if ln.lstrip().startswith("|")]
+    missing = [k for k in CACHE_LOCATION_KEYS if not any(f"`{k}`" in r for r in rows)]
+    assert rows and not missing, missing

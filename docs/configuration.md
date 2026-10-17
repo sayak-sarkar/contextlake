@@ -183,15 +183,17 @@ reaches its server through `mcp` / `mcp_command`, and both of those are now glob
 
 ### The mirror config, `.contextlake.ini`
 
-The same rule covers the mirror keys that decide where the forge token goes. A discovered
-`.contextlake.ini` may not set them. They are honoured only from `~/.contextlake.ini` or from a path
-you pass to `--config`:
+The same rule covers the mirror keys that decide where the forge token goes, and the keys that decide
+where the project cache is written. A discovered `.contextlake.ini` may not set them. They are honoured
+only from `~/.contextlake.ini` or from a path you pass to `--config`:
 
 | Key | Reaches |
 | --- | --- |
 | `gitlab_host` | the GitLab host that gets the REST call, and git's token header on clone and fetch |
 | `api_base` | the same host for GitHub, Bitbucket and Gitea |
 | `token_env`, `gitlab_token_env` | the env var whose value is sent to that host as the token |
+| `cache_dir` | the directory that holds the project cache, the audit report and the schedule history |
+| `cache_file`, `cache_json` | the names of the two project cache files, which `mirror fetch` overwrites |
 
 Before this gate, a `.contextlake.ini` inside a cloned repository could set `gitlab_host` to its own
 server and `token_env` to any variable in your environment, and the next `mirror fetch` run from
@@ -208,6 +210,12 @@ instance would fall back to `gitlab.com`, and your token would go there. With th
 - GitLab enumeration uses `glab` and its own login.
 - Other platforms see public repositories only.
 - Clone and fetch run without the token.
+
+The three cache keys are ignored the same way, with a warning that names the key and the file. The
+forge token stays on, and the cache goes to the default location unless `~/.contextlake.ini` or
+`--config` sets it. Before this gate, a `.contextlake.ini` inside a cloned repository could set
+`cache_json` to an absolute path such as `~/.gitconfig`, or set `cache_dir` to your home directory,
+and the next `mirror fetch` run from inside that tree replaced that file with the project list.
 
 `work_dir`, `gitlab_group` and `platform` keep working from a local file. They are all that
 `contextlake init --local` writes. To clear the warning, delete the keys from the file it names and
@@ -234,9 +242,9 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `network_timeout` | HTTP timeout (seconds) for REST API enumeration | `30` | `60` |
 | `dns_timeout` | Per-lookup DNS timeout (seconds) for child git operations, applied through `RES_OPTIONS`; skipped entirely if you already export `RES_OPTIONS` | `15` | `30` |
 | `dns_attempts` | DNS retry attempts, set alongside `dns_timeout` and subject to the same `RES_OPTIONS` rule | `3` | `5` |
-| `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
-| `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
-| `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
+| `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. Global config or `--config` only | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
+| `cache_file` | Name of projects cache file. Global config or `--config` only | `gitlab_projects.txt` | `projects.txt` |
+| `cache_json` | Name of JSON cache file. Global config or `--config` only | `gitlab_projects.json` | `projects.json` |
 | `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |
 | `fetch_timeout` | Fetch operation timeout (seconds) | `60` | `120` |
 | `branch_timeout` | Branch operation timeout (seconds) | `30` | `60` |

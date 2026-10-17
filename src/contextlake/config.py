@@ -188,6 +188,16 @@ def find_ancestor_config(filename, start=None):
 # and all that `contextlake init --local` writes.
 FORGE_CREDENTIAL_KEYS = ('gitlab_host', 'api_base', 'token_env', 'gitlab_token_env')
 
+# The mirror keys that decide where files are written. get_cache_paths joins them into the
+# path of the project-list cache, and core._write_caches opens that path for writing and
+# truncates it. `os.path.join` keeps an absolute second part and any `..`, and `cache_dir`
+# can be any directory, so a planted `cache_json = /home/me/.gitconfig` (or `cache_dir =
+# /home/me` with `cache_json = .gitconfig`) replaced a file the user did not choose with
+# the JSON project list. The audit report and the schedule history sit in the same
+# directory. Like FORGE_CREDENTIAL_KEYS, these are honoured only from the global
+# ~/.contextlake.ini or a file passed to --config. They do not touch the forge token.
+CACHE_LOCATION_KEYS = ('cache_dir', 'cache_file', 'cache_json')
+
 # Set in the merged config when a refused key leaves a built-in default in its
 # place. core reads it and sends no forge token for the run. Dropping the key is
 # not enough on its own: a refused `gitlab_host = gitlab.corp` falls back to
@@ -241,6 +251,15 @@ def _warn_untrusted_forge_key(key, source):
         f"meant this file.{hint}", level=logging.WARNING)
 
 
+def _warn_untrusted_cache_key(key, source):
+    """Report one refused cache key by name and file. Never the value: it is text the
+    file's author chose, and it can be a path."""
+    log(f"config: ignoring {key} from {source} -- a config file found by walking up "
+        "from the current directory may not choose where the project cache is written. "
+        f"Set it in {CONFIG_FILE} instead, or pass `--config {source}` to say you "
+        "meant this file.", level=logging.WARNING)
+
+
 def _warn_forge_token_off(keys, source):
     """Report that the run sends no forge token, and what turns it back on."""
     names = ', '.join(keys)
@@ -274,7 +293,8 @@ def load_config(config_path=None, cli_group=None):
     are dropped with a warning naming the key and the file, unless that file is
     also the global one or the ``--config`` one. When a dropped key leaves a
     built-in default in its place, :data:`FORGE_TOKEN_REFUSED` is set and the
-    run sends no forge token.
+    run sends no forge token. :data:`CACHE_LOCATION_KEYS` are dropped the same
+    way, and the token stays on.
     """
     if config_path and not os.path.exists(expand_path(config_path)):
         raise ConfigError(
@@ -299,6 +319,10 @@ def load_config(config_path=None, cli_group=None):
         for key in refused:
             del local_values[key]
             _warn_untrusted_forge_key(key, local_config_file)
+        for key in CACHE_LOCATION_KEYS:
+            if key in local_values:
+                del local_values[key]
+                _warn_untrusted_cache_key(key, local_config_file)
     config.update(global_values)              # global (~/.contextlake.ini)
     config.update(local_values)               # nearest ancestor's local config
     config.update(explicit_values)            # explicit --config path

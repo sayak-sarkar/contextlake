@@ -102,6 +102,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   redirect on it, that answered with a redirect to another origin received the token. The header
   is now dropped when the scheme, host or port changes, which includes a move from https to
   http. A redirect inside the same origin keeps it. 10.0.0rc3 sent it.
+- **A `.contextlake.ini` found by walking up can no longer choose where `mirror fetch` writes
+  the project cache.** `cache_dir`, `cache_file` and `cache_json` were honoured from any
+  discovered file, and an absolute path (or `cache_dir` set to your home directory) made the
+  next `mirror fetch` replace a file such as `~/.gitconfig` with the JSON project list. A
+  repository you cloned could carry such a file. These keys are now honoured only from
+  `~/.contextlake.ini` or a file passed to `--config`. A discovered file that sets one gets it
+  ignored, with a warning that names the key and the file. The forge token stays on. 10.0.0rc3
+  honoured them.
 
 ## [10.0.0rc3] - 2026-10-16
 
