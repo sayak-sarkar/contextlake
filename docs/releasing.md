@@ -135,7 +135,10 @@ pip install -e ".[release]"        # build + twine
    rm -rf /tmp/cltest
    ```
 
-6. **Publish:**
+6. **Publish by hand, only if the tag push in step 4 is not already publishing.** That push
+   starts `release.yml`, which publishes through Trusted Publishing. A local upload that lands
+   first is kept (`skip-existing`), so the index serves a wheel the workflow did not build.
+   `verify-published` then fails and the GitHub Release is skipped.
 
    ```bash
    twine upload dist/*
@@ -168,9 +171,12 @@ pip install -e ".[release]"        # build + twine
 
    It reports three states, never two. `????` means the check could not RUN -- no network,
    the version not on the index yet, or no expected digest supplied -- and exits non-zero,
-   because "I could not look" must not read as "I looked and it was fine". `--tag` alone is
-   a useful subset: it reads git only, needs no network, and still exits non-zero to say the
-   rest was unchecked.
+   because "I could not look" must not read as "I looked and it was fine".
+
+   `--tag` does not make the run offline. The script always queries the index first. It
+   retries the wheel download for 50 s, then the sdist download for 50 s, before it gives up
+   (`--no-sdist` drops the second wait). It then reports the tag row, which needs only git,
+   beside the `????` rows, and exits non-zero to say the rest was unchecked.
 
    Re-running a published tag rebuilds the files with different bytes, and PyPI keeps the first
    upload. The workflow passes the time its `build` job began as `--run-started-at`. A differing
@@ -182,9 +188,9 @@ pip install -e ".[release]"        # build + twine
    says `v8.3.0` after 8.4.0 has shipped is not merely stale: it is a claim about which
    release it describes, and it is now false.
 
-   Source for these lives under `~/Work/ContextLake/decks/`, one directory per artefact, so
-   the file survives the session that published it. Publish with the artefact's **existing
-   URL** -- publishing without it creates a second artefact instead of updating the first.
+   Keep the source for each one in its own directory outside this repository, so the file
+   survives the session that published it. Publish with the artefact's **existing URL**,
+   because publishing without it creates a second artefact instead of updating the first.
 
    Two rules, both learned the hard way:
 
@@ -197,7 +203,7 @@ pip install -e ".[release]"        # build + twine
      honestly labelled v8.3.0.
 
    Re-measure any figure the page states (test counts, line counts, node counts) rather than
-   carrying it forward -- see `measurement-baselines-go-stale`.
+   carrying it forward from the last release.
 
 10. **Deploy the docs site.** No workflow publishes it: the live pages change only when
     `site/deploy.sh` runs, which builds the site and pushes the `gh-pages` branch. Run it from

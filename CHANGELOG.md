@@ -86,6 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `binaries.yml` said it had the same gate but made one call, so a tag pushed soon after a green
   CI run published to PyPI and then failed to build the launchers until the job was re-run.
   It now has the same loop. The loop in `release.yml` shipped in 7.25.0.
+- **The release runbook is corrected on three points.** `docs/releasing.md` said
+  `verify-published-release.py --tag` reads git only and needs no network. The script queries
+  PyPI first and, with the index unreachable, waits 100 s before it reports the tag row. Step 6
+  showed `twine upload` as a normal step after the tag push, which already publishes, so a local
+  upload that landed first made `verify-published` fail. It is now marked as hand publishing
+  only. The runbook also named a maintainer's local directory and a private note, and both are
+  gone.
 
 ## [10.0.0rc3] - 2026-10-16
 

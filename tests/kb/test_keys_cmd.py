@@ -92,7 +92,7 @@ class Result:
 def keys_file(tmp_path, monkeypatch):
     """The key file every test writes, named through $CONTEXTLAKE_KEYS_FILE.
 
-    Under `tmp_path` only. The live store at ~/Work/ContextLake/workspace/kb is
+    Under `tmp_path` only. A real knowledge-base store is
     never read and never written, and `resolve_keys_file` reads the environment
     tier ahead of the config tier, so nothing here can reach a real key file.
     """

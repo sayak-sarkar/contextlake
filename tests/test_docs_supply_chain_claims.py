@@ -14,11 +14,13 @@ These checks pin the parts that live in this repository:
 
 Later checks hold other repository text to the workflows it describes: SECURITY.md's list of
 extras no audit job covers, and the lint paths and kb install that the Makefile, CONTRIBUTING.md
-and the PR template give a contributor.
+and the PR template give a contributor. The last ones hold the release runbook to the workflows
+and to the verifier script it describes.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import re
 from pathlib import Path
 
@@ -216,3 +218,38 @@ def test_the_runbook_says_how_long_the_ci_gate_waits() -> None:
     releasing = _flat(REPO / "docs" / "releasing.md")
     assert f"{(looks - 1) * pause} s" in releasing, "releasing.md omits the gate's wait"
     assert "fail immediately" not in releasing
+
+
+def _releasing() -> str:
+    return _flat(REPO / "docs" / "releasing.md")
+
+
+def test_the_runbook_does_not_call_the_tag_check_offline() -> None:
+    """`--tag` reads git, but the script queries the index first, so it was never offline."""
+    spec = importlib.util.spec_from_file_location(
+        "verify_published_release", REPO / "scripts" / "verify-published-release.py")
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    wait = (verifier._DOWNLOAD_ATTEMPTS - 1) * verifier._DOWNLOAD_PAUSE_S
+    releasing = _releasing()
+    assert "needs no network" not in releasing
+    assert f"retries the wheel download for {wait} s" in releasing
+
+
+def test_the_runbook_marks_the_manual_publish_step_as_manual() -> None:
+    """The tag push in step 4 already publishes. An unqualified `twine upload` after it can
+    land first, and `skip-existing` then keeps a wheel the workflow did not build."""
+    step = re.search(r"\b6\. \*\*(.*?)\*\*", _releasing())
+    assert step, "releasing.md no longer has a numbered step 6"
+    assert "by hand" in step.group(1)
+    assert "twine upload" in _releasing()
+
+
+def test_no_page_or_test_names_the_maintainers_workspace() -> None:
+    """A reader of the public runbook cannot open a maintainer's home directory or a private
+    note. The needles are built from pieces so this file does not match itself."""
+    needles = ("Work/" "ContextLake", "measurement-" "baselines")
+    files = [*_pages(), *sorted((REPO / "tests").rglob("*.py"))]
+    bad = [f"{f.relative_to(REPO)}: {needle}" for f in files
+           for needle in needles if needle in f.read_text(encoding="utf-8")]
+    assert not bad, "a tracked file names a private path or note:\n  " + "\n  ".join(bad)

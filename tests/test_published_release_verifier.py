@@ -204,6 +204,25 @@ def test_the_tag_check_runs_even_when_the_index_is_unreachable(monkeypatch):
     assert row[1] == verifier.VERIFIED
 
 
+def test_the_tag_check_still_queries_the_index_first(monkeypatch):
+    """`releasing.md` tells an operator `--tag` is not an offline check. It is not: the download
+    comes first, with its retries, and only then is git read."""
+    order = []
+
+    def _fake_download(version, into, sdist=False):
+        order.append("sdist" if sdist else "wheel")
+        return None, "offline"
+
+    def _fake_git(args):
+        order.append("git")
+        return 1, "no tag"
+
+    monkeypatch.setattr(verifier, "_download", _fake_download)
+    monkeypatch.setattr(verifier, "_git", _fake_git)
+    verifier.verify("7.24.0", expect_sha256="abc", tag="v7.24.0")
+    assert order[0] == "wheel" and order[-1] == "git", order
+
+
 def test_a_tag_that_packages_another_version_is_broken(monkeypatch):
     monkeypatch.setattr(verifier, "_download",
                         lambda version, into, sdist=False: (None, "offline"))
