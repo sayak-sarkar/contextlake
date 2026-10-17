@@ -102,10 +102,11 @@ pip install -e ".[release]"        # build + twine
    gate that asks the API for a **completed** `ci.yml` run on the tagged commit and
    refuses to publish otherwise.
 
-   Push the tag while CI is still running and that gate reads `missing`, both
-   workflows fail immediately, and every real job is skipped. This is the gate doing
-   its job. It trips when the tag lands before the matrix finishes, because the tag
-   push is fast and the matrix is not.
+   Push the tag while CI is still running and that gate reads `missing`. Both
+   workflows ask up to 6 times, 15 s apart (75 s in all), because the listing can lag
+   a run that has finished. If it still reads `missing` they fail, and every real job
+   is skipped. This is the gate doing its job. It trips when the tag lands before the
+   matrix finishes, because the tag push is fast and the matrix is not.
 
    Nothing is broken and nothing is published: re-run the two failed runs once CI is
    green (`gh run rerun <id> --failed`) and they proceed normally.

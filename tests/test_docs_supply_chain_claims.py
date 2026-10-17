@@ -181,3 +181,38 @@ def test_make_install_ci_is_the_kb_job_install() -> None:
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
     recipe = re.search(r"\ninstall-ci:[^\n]*\n\t(.*)\n", makefile).group(1)
     assert recipe == f'$(PIP) install -e "{in_ci[0]}"'
+
+
+def _ci_gate(name: str) -> list[str]:
+    """The shell lines of one workflow's `verify-ci` step, without comments or the refusal.
+
+    The refusal line names what is being refused ("to release", "to build binaries"), so it
+    differs on purpose.
+    """
+    text = (_WORKFLOWS / name).read_text(encoding="utf-8")
+    start = text.index("\n  verify-ci:\n")
+    nxt = re.search(r"\n  [a-z][a-z0-9-]*:\n", text[start + 1:])
+    job = text[start:start + 1 + nxt.start()]
+    body = job.split("        run: |\n", 1)[1]
+    lines = [ln.strip() for ln in body.splitlines()]
+    return [ln for ln in lines if ln and not ln.startswith(("#", 'echo "::error::'))]
+
+
+def test_both_workflows_open_with_the_same_ci_gate() -> None:
+    """`releasing.md` says both open with one gate. `release.yml` asks again when the answer is
+    `missing`, because the commit-filtered listing lags a finished run (measured on v7.24.0).
+    `binaries.yml` kept a single call and refused the same green commit."""
+    release, binaries = _ci_gate("release.yml"), _ci_gate("binaries.yml")
+    assert any(ln.startswith("for attempt in") for ln in release), (
+        "release.yml no longer retries a `missing` answer, so this test compares nothing")
+    assert binaries == release, "binaries.yml and release.yml gate on different shell"
+
+
+def test_the_runbook_says_how_long_the_ci_gate_waits() -> None:
+    gate = " ".join(_ci_gate("release.yml"))
+    loop, nap = re.search(r"for attempt in ([\d ]+);", gate), re.search(r"sleep (\d+)", gate)
+    assert loop and nap, "release.yml's gate has no retry loop with a pause"
+    looks, pause = len(loop.group(1).split()), int(nap.group(1))
+    releasing = _flat(REPO / "docs" / "releasing.md")
+    assert f"{(looks - 1) * pause} s" in releasing, "releasing.md omits the gate's wait"
+    assert "fail immediately" not in releasing

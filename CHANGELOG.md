@@ -80,6 +80,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `build` job now records its own start time and the check reads that. A re-run still exits
   non-zero, but it now says the file was uploaded before the run began. `--run-started-at` also
   accepts Unix seconds. The old value shipped in 7.25.0.
+- **The binaries workflow no longer refuses a green commit because the CI run is not listed
+  yet.** `release.yml` asks again, up to 6 times 15 s apart, when the lookup for the commit's
+  `ci.yml` run answers "missing", since the listing lags a finished run (measured on v7.24.0).
+  `binaries.yml` said it had the same gate but made one call, so a tag pushed soon after a green
+  CI run published to PyPI and then failed to build the launchers until the job was re-run.
+  It now has the same loop. The loop in `release.yml` shipped in 7.25.0.
 
 ## [10.0.0rc3] - 2026-10-16
 
