@@ -364,7 +364,7 @@ python -m pytest tests/kb/test_kb_parse.py tests/kb/test_kind_registry_parity.py
   tests/kb/test_retrieval_quality.py tests/kb/test_dashboard_kind_glyph_parity.py -q
 python -m pytest tests/test_llms_full_is_in_sync.py tests/test_no_emdash_in_docs.py \
   tests/test_doc_links_resolve.py -q
-ruff check src tests
+ruff check src tests scripts benchmarks
 ```
 
 The golden and retrieval-quality tests are in that list not because they should change, but as proof

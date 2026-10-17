@@ -15,7 +15,7 @@ Closes #
 
 ## Checklist
 
-- [ ] `ruff check src tests` passes
+- [ ] `ruff check src tests scripts benchmarks` passes
 - [ ] `pytest` passes (new behaviour is covered by a test)
 - [ ] No real network calls in tests (`git`/`glab` are faked)
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` (if user-visible)

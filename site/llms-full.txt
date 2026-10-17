@@ -9623,6 +9623,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   red. The `pip-audit-resolved` job now resolves `kb-dockerfile` and `kb-pdf`. SECURITY.md names
   the three left out, and a test fails if that list and `security.yml` disagree. The sentence
   dates from 7.0.0.
+- **`make lint` and the documented lint command now cover what CI lints.** The Makefile,
+  CONTRIBUTING.md, the PR template and three more files gave `ruff check src tests`, while CI
+  runs `ruff check src tests scripts benchmarks`. A finding under `scripts/` or `benchmarks/`
+  passed locally and failed every CI lint step. `make install` also claimed to match CI's
+  knowledge-layer job but left out `kb-dockerfile` and `kb-vec`, so the tests for them skipped.
+  It is unchanged, since `kb-dockerfile` has no wheel on every platform. A new `make install-ci`
+  runs CI's install, and tests keep the Makefile and the docs in step with the workflows. Since
+  7.30.0.
 
 ## [10.0.0rc3] - 2026-10-16
 
@@ -20262,7 +20270,7 @@ python -m pytest tests/kb/test_kb_parse.py tests/kb/test_kind_registry_parity.py
   tests/kb/test_retrieval_quality.py tests/kb/test_dashboard_kind_glyph_parity.py -q
 python -m pytest tests/test_llms_full_is_in_sync.py tests/test_no_emdash_in_docs.py \
   tests/test_doc_links_resolve.py -q
-ruff check src tests
+ruff check src tests scripts benchmarks
 ```
 
 The golden and retrieval-quality tests are in that list not because they should change, but as proof

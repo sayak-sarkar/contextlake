@@ -11,6 +11,10 @@ These checks pin the parts that live in this repository:
 - the repository named in the user-facing verify command is the one the release workflow
   publishes from, and the workflow file the docs name exists and publishes through Trusted
   Publishing.
+
+Later checks hold other repository text to the workflows it describes: SECURITY.md's list of
+extras no audit job covers, and the lint paths and kb install that the Makefile, CONTRIBUTING.md
+and the PR template give a contributor.
 """
 
 from __future__ import annotations
@@ -128,3 +132,52 @@ def test_security_md_names_exactly_the_extras_no_audit_job_covers() -> None:
     assert named == _unaudited_extras(), (
         "SECURITY.md and security.yml disagree about which extras are audited")
     assert "every shipped extra" not in security
+
+
+_WORKFLOWS = REPO / ".github" / "workflows"
+
+
+def _ci_lint_paths() -> str:
+    """The path list after `ruff check` in the workflow steps that lint (ci.yml, release.yml)."""
+    found = {m.strip() for name in ("ci.yml", "release.yml")
+             for m in re.findall(r"ruff check (src[^\n]*)",
+                                 (_WORKFLOWS / name).read_text(encoding="utf-8"))}
+    assert len(found) == 1, f"ci.yml and release.yml lint different paths: {sorted(found)}"
+    return found.pop()
+
+
+def test_the_makefile_lints_what_ci_lints() -> None:
+    """`make lint` ran `src tests`; CI also lints `scripts` and `benchmarks`, so a finding there
+    passed locally and went red in every CI lint step."""
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert f"LINT_PATHS := {_ci_lint_paths()}\n" in makefile
+    assert "$(RUFF) check $(LINT_PATHS)\n" in makefile
+    assert "$(RUFF) check --fix $(LINT_PATHS)\n" in makefile
+
+
+@pytest.mark.parametrize("page,must_show", [
+    ("CONTRIBUTING.md", True),
+    (".github/pull_request_template.md", True),
+    ("docs/adding-a-language.md", False),
+    (".pre-commit-config.yaml", False),
+    ("pyproject.toml", False),
+])
+def test_every_lint_command_a_contributor_is_shown_is_the_one_ci_runs(
+        page: str, must_show: bool) -> None:
+    shown = [m.strip() for m in re.findall(
+        r"ruff check (?:--fix )?(src tests[^\n`#]*)", (REPO / page).read_text(encoding="utf-8"))]
+    assert shown or not must_show, f"{page} no longer shows the lint command"
+    assert all(paths == _ci_lint_paths() for paths in shown), (
+        f"{page} shows a lint command narrower than CI's: {shown}")
+
+
+def test_make_install_ci_is_the_kb_job_install() -> None:
+    """The kb job also installs kb-dockerfile and kb-vec. Without them the tests that need them
+    skip, so a local green was not the green CI gives."""
+    ci = (_WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    kb_job = re.search(r"\n  kb:\n(.*?)\n  [a-z-]+:\n", ci, re.S).group(1)
+    in_ci = re.findall(r'pip install -e "(\.\[[^\]]+\])"', kb_job)
+    assert len(in_ci) == 1, "ci.yml's kb job no longer has one `pip install -e` line"
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    recipe = re.search(r"\ninstall-ci:[^\n]*\n\t(.*)\n", makefile).group(1)
+    assert recipe == f'$(PIP) install -e "{in_ci[0]}"'

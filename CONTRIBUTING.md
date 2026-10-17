@@ -36,6 +36,9 @@ git clone https://github.com/sayak-sarkar/contextlake.git
 cd contextlake
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the kb tests need
+# CI's knowledge-layer job also installs kb-dockerfile and kb-vec (`make install-ci`). The tests
+# that need them skip without them. kb-dockerfile has wheels for macOS arm64 and Linux x86_64 only.
+# pip install -e ".[dev,kb,kb-dockerfile,kb-vec]"
 # core-only (no kb deps): pip install -e ".[dev]" and run pytest --ignore=tests/kb
 ```
 
@@ -90,8 +93,8 @@ leave the distro copy alone with `pip install -e ".[dev,kb]" --ignore-installed 
 ## The loop
 
 ```bash
-ruff check src tests          # lint
-ruff check --fix src tests    # …and auto-fix what it can
+ruff check src tests scripts benchmarks          # lint (the four paths CI lints)
+ruff check --fix src tests scripts benchmarks    # …and auto-fix what it can
 pytest                        # run the suite
 pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test

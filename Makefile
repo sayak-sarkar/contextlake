@@ -15,13 +15,24 @@ PIP       := $(VENV)/bin/pip
 PYTEST    := $(VENV)/bin/pytest
 RUFF      := $(VENV)/bin/ruff
 
-.PHONY: install install-core lint lint-fix test test-core test-fast coverage clean distclean
+# The paths CI lints (ci.yml's `core` and `kb` jobs, release.yml's gate).
+# tests/test_docs_supply_chain_claims.py fails if this drifts from them.
+LINT_PATHS := src tests scripts benchmarks
+
+.PHONY: install install-ci install-core lint lint-fix test test-core test-fast coverage clean distclean
 
 # Full dev setup: the CLI + pytest/ruff + the knowledge layer the kb tests
-# need. Matches CONTRIBUTING.md's primary "Getting set up" command and CI's
-# kb job install step.
+# need. Matches CONTRIBUTING.md's primary "Getting set up" command. It is not
+# CI's kb job install: that also adds kb-dockerfile and kb-vec (`install-ci`),
+# and the tests that need them skip here.
 install: $(VENV)/.stamp
 	$(PIP) install -e ".[dev,kb]"
+
+# CI's kb job install step, so the tests that need kb-dockerfile and kb-vec run
+# here too. It fails where tree-sitter-dockerfile has no wheel (it has macOS arm64
+# and Linux x86_64 only, see pyproject.toml), so it is not the default `install`.
+install-ci: $(VENV)/.stamp
+	$(PIP) install -e ".[dev,kb,kb-dockerfile,kb-vec]"
 
 # Core-only setup (no knowledge-layer deps): matches CI's core job install
 # step and CONTRIBUTING.md's Python-3.9 / core-only alternative. Use with
@@ -34,16 +45,18 @@ $(VENV)/.stamp:
 	$(PIP) install --upgrade pip
 	touch $@
 
-# CI: `ruff check src tests` (core job and kb job both run this, identically).
+# CI: `ruff check src tests scripts benchmarks` (core job and kb job both run this,
+# identically, and release.yml's gate runs it again).
 lint:
-	$(RUFF) check src tests
+	$(RUFF) check $(LINT_PATHS)
 
 # Not a CI step -- the auto-fix half of CONTRIBUTING.md's documented loop.
 lint-fix:
-	$(RUFF) check --fix src tests
+	$(RUFF) check --fix $(LINT_PATHS)
 
 # CI: the kb job's full-suite step, coverage floor included. Requires
-# `make install` (needs the [kb] extra); use `make test-core` if you only
+# `make install` (needs the [kb] extra; `make install-ci` also runs the tests
+# that need kb-dockerfile and kb-vec); use `make test-core` if you only
 # ran `make install-core`. Deliberately serial, matching CI exactly -- don't
 # add -n here (see test-fast for why xdist stays opt-in, not the default).
 test:

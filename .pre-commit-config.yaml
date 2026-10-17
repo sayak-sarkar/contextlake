@@ -3,7 +3,7 @@
 # not a replacement for it. `rev` is pinned to the ruff release `pip install
 # -e ".[dev]"` currently resolves for `ruff>=0.4` (see pyproject.toml), and
 # ruff-check reads pyproject.toml's `[tool.ruff]` config directly (same rules
-# as CI's `ruff check src tests`), so this file and CI can't silently
+# as CI's `ruff check src tests scripts benchmarks`), so this file and CI can't silently
 # disagree on lint rules -- only on which *version* of ruff runs, and this
 # rev should be bumped whenever that drifts.
 #
