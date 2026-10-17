@@ -171,6 +171,11 @@ pip install -e ".[release]"        # build + twine
    a useful subset: it reads git only, needs no network, and still exits non-zero to say the
    rest was unchecked.
 
+   Re-running a published tag rebuilds the files with different bytes, and PyPI keeps the first
+   upload. The workflow passes the time its `build` job began as `--run-started-at`. A differing
+   file uploaded before that time is reported as `????` (a re-publish). A differing file
+   uploaded after it is `FAIL`. The run still exits non-zero in both cases.
+
 9. **Refresh the published artefacts that state a version.** Several published pages carry
    a version label and a set of measured figures, and neither updates itself. A page that
    says `v8.3.0` after 8.4.0 has shipped is not merely stale: it is a claim about which

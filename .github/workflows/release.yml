@@ -67,7 +67,13 @@ jobs:
       # "true" for a tag that is not three numbers, such as v10.0.0rc1. `docker` and
       # `github-release` read it, so a pre-release does not move `latest`.
       prerelease: ${{ steps.kind.outputs.prerelease }}
+      # When this attempt began, for `verify-published`. Read from the run, because the event
+      # payload is frozen: a re-run of this tag is a new attempt on the same event.
+      started_at: ${{ steps.began.outputs.at }}
     steps:
+      - name: Record when this attempt began
+        id: began
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
@@ -388,11 +394,14 @@ jobs:
             --expect-sdist-sha256 "${{ needs.build.outputs.sdist_sha256 }}" \
             --run-started-at "$RUN_STARTED_AT"
         env:
-          # A file uploaded BEFORE this run began was published by an earlier one. A rebuild
-          # is not byte-identical (the archives carry build timestamps) and `skip-existing`
-          # keeps the original, so re-running a published tag would otherwise report a
-          # digest mismatch in the same words a tampered file would get.
-          RUN_STARTED_AT: ${{ github.event.repository.pushed_at }}
+          # A file uploaded BEFORE this attempt began was published by an earlier one. A
+          # rebuild is not byte-identical (the archives carry build timestamps) and
+          # `skip-existing` keeps the original, so re-running a published tag would otherwise
+          # report a digest mismatch in the same words a tampered file would get.
+          # The value is taken by the `build` job of THIS attempt. The push time in the event
+          # payload does not work: a re-run reuses the payload, so an upload made by the first
+          # attempt is later than it and reads as made by this one.
+          RUN_STARTED_AT: ${{ needs.build.outputs.started_at }}
 
   github-release:
     name: github release

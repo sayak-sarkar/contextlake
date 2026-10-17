@@ -9631,6 +9631,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It is unchanged, since `kb-dockerfile` has no wheel on every platform. A new `make install-ci`
   runs CI's install, and tests keep the Makefile and the docs in step with the workflows. Since
   7.30.0.
+- **A re-run of a published release tag no longer reads as tamper evidence.** `release.yml` gave
+  `verify-published` the push time from the event payload as the time the run began. A re-run
+  reuses that payload, so a file uploaded by the first attempt looked newer than the run, and
+  the digest difference was reported as a mismatch, in the words meant for a swapped file. The
+  `build` job now records its own start time and the check reads that. A re-run still exits
+  non-zero, but it now says the file was uploaded before the run began. `--run-started-at` also
+  accepts Unix seconds. The old value shipped in 7.25.0.
 
 ## [10.0.0rc3] - 2026-10-16
 

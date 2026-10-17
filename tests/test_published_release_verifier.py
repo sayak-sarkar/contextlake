@@ -294,3 +294,73 @@ def test_the_github_release_survives_a_failed_publish_but_not_a_byte_mismatch(
     index, so every row is unverifiable. Gating on its result alone skipped the release in
     the case the job exists to cover (4.0.0)."""
     assert _release_runs(build, publish, verify) is runs
+
+
+# --- a re-run of a published tag ----------------------------------------------------
+#
+# Timeline of "Re-run all jobs" on one tag: the first attempt uploads at 12:10 and PyPI keeps
+# that file (`skip-existing`); the second attempt starts building at 14:00. The only
+# difference between a re-publish and a swapped file is which side of the run start the
+# upload falls on, so the run start has to be taken from THIS attempt.
+
+_FIRST_UPLOAD = "2026-10-17T12:10:00.000000Z"
+_ATTEMPT_2_ISO, _ATTEMPT_2_EPOCH = "2026-10-17T14:00:00Z", "1792245600"
+
+
+@pytest.mark.parametrize("started", [_ATTEMPT_2_ISO, _ATTEMPT_2_EPOCH])
+def test_an_upload_from_the_first_attempt_is_a_republish_in_either_spelling(
+        served, monkeypatch, started):
+    monkeypatch.setattr(verifier, "_upload_time", lambda version, filename: (_FIRST_UPLOAD, ""))
+    res = verifier.verify("7.24.0", expect_sha256="deadbeef", tag=None, check_sdist=False,
+                          run_started_at=started)
+    row = [r for r in res.rows if "matches the wheel CI built" in r[0]][0]
+    # Both "could not compare" and "re-publish" are UNVERIFIABLE, so the status alone would
+    # pass for the wrong reason. The wording is what separates them.
+    assert row[1] == verifier.UNVERIFIABLE
+    assert "before this run began" in row[2], row[2]
+
+
+@pytest.mark.parametrize("started", [_ATTEMPT_2_ISO, _ATTEMPT_2_EPOCH])
+def test_an_upload_after_this_attempt_began_is_broken_in_either_spelling(
+        served, monkeypatch, started):
+    monkeypatch.setattr(verifier, "_upload_time",
+                        lambda version, filename: ("2026-10-17T14:20:00.000000Z", ""))
+    res = verifier.verify("7.24.0", expect_sha256="deadbeef", tag=None, check_sdist=False,
+                          run_started_at=started)
+    row = [r for r in res.rows if "matches the wheel CI built" in r[0]][0]
+    assert row[1] == verifier.BROKEN, row
+
+
+@pytest.mark.parametrize("junk", ["", "not a time", "99999999999999999999", "2026-10-17"])
+def test_a_run_start_that_cannot_be_read_compares_nothing(junk):
+    """None, not an exception and not a guess. `2026-10-17` has no zone, so it is refused."""
+    assert verifier._uploaded_before(_FIRST_UPLOAD, junk) is None
+
+
+def _release_job(job: str) -> str:
+    text = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+            / "release.yml").read_text(encoding="utf-8")
+    start = text.index(f"\n  {job}:\n")
+    nxt = re.search(r"\n  [a-z][a-z0-9-]*:\n", text[start + 1:])
+    return text[start:start + 1 + nxt.start()] if nxt else text[start:]
+
+
+def test_the_run_start_is_read_from_this_attempt_and_not_from_the_event():
+    """An empty value would not fail anywhere: the script reads "" as "no time given" and
+    reports a plain mismatch. So follow the value through every hop it takes."""
+    verify = _release_job("verify-published")
+    env = re.search(r"RUN_STARTED_AT: \$\{\{ (.+?) \}\}", verify).group(1)
+    assert "github.event" not in env, (
+        "the event payload is reused by a re-run, so an upload from the first attempt "
+        "is later than it")
+    job, output = re.fullmatch(r"needs\.([a-z-]+)\.outputs\.(\w+)", env).groups()
+    needs = re.search(r"\n    needs: \[([^\]]*)\]", verify).group(1)
+    assert job in [n.strip() for n in needs.split(",")], f"verify-published does not need {job}"
+
+    producer = _release_job(job)
+    step_id, key = re.search(
+        rf"\n      {output}: \$\{{\{{ steps\.(\w+)\.outputs\.(\w+) \}}\}}\n", producer).groups()
+    step = [s for s in producer.split("\n      - ") if f"id: {step_id}\n" in s]
+    assert len(step) == 1, f"{job} has no single step with id {step_id}"
+    assert re.search(rf'echo "{key}=\$\(date -u \+%Y-%m-%dT%H:%M:%SZ\)" >> "\$GITHUB_OUTPUT"',
+                     step[0]), step[0]

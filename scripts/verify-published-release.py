@@ -131,14 +131,19 @@ def _upload_time(version: str, filename: str) -> tuple[str | None, str]:
 
 
 def _uploaded_before(stamp: str, run_started_at: str) -> bool | None:
-    """Was the file uploaded before this run started? ``None`` if unparseable."""
-    from datetime import datetime
+    """Was the file uploaded before this run started? ``None`` if unparseable.
+
+    Either time may be ISO 8601 or whole Unix seconds (UTC), such as `date +%s` prints.
+    """
+    from datetime import datetime, timezone
 
     def _parse(s: str):
         s = s.strip().replace("Z", "+00:00")
         try:
+            if s.isdigit():
+                return datetime.fromtimestamp(int(s), timezone.utc)
             return datetime.fromisoformat(s)
-        except ValueError:
+        except (ValueError, OverflowError, OSError):
             return None
 
     a, b = _parse(stamp), _parse(run_started_at)
@@ -290,9 +295,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="sha256 of the sdist the release workflow built")
     ap.add_argument("--tag", default=None, help="the git tag, e.g. v7.24.0")
     ap.add_argument("--run-started-at", default=None,
-                    help="ISO timestamp this release run began; a file uploaded before it "
-                         "was published by an earlier run, so a digest difference is a "
-                         "re-publish rather than a mismatch")
+                    help="ISO timestamp (or Unix seconds) when this attempt of the release "
+                         "run began; a file uploaded before it was published by an earlier "
+                         "attempt, so a digest difference is a re-publish rather than a "
+                         "mismatch")
     ap.add_argument("--skip-install", action="store_true",
                     help="hash and compare only; do not build a venv")
     ap.add_argument("--no-sdist", action="store_true", help="check the wheel only")
