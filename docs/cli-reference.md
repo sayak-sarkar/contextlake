@@ -326,11 +326,23 @@ so a key that asked for pseudonyms gets no names, not real ones. A wiki page lis
 the people who commit to its repository, so `get_wiki` returns a notice in place of the page
 text for those two keys. Add `--owners real` to read the pages.
 
-**`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
-repositories that match one of its globs. Search, graph, repo-list and stats answers leave
-the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
+**`--repos` limits what the key can read.** A key created `--repos 'gitlab.example.com/acme/*'`
+sees only repositories that match one of its globs. Search, graph, repo-list and stats answers
+leave the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
 refuses a scoped key, since it has no repo argument to check. A node id does not carry the
 repository it came from, so the filter runs inside the store and not on the call.
+
+A glob is matched against the repository id, not the folder name:
+
+- A repository with an `origin` remote has that remote's host and path, in lowercase, as its id:
+  `gitlab.example.com/acme/forecast-api`. A repository with no `origin` remote has the id
+  `name@<root commit>`.
+- `*` stops at a `/`. `acme/*` does not match `gitlab.example.com/acme/forecast-api`, and
+  `*/acme/*` does, for any host.
+- Matching is case-sensitive, so `GitLab.Example.com/acme/*` matches nothing.
+- A glob that matches no repository is not an error. The key reads nothing. `list_repos` shows
+  the ids.
+- The `mirror --repos` filter is different. It ignores case and does not see the host.
 
 A `--repos` value that names no repository, such as `""`, `,` or a space, is refused at
 `create`: the server would read it as no limit. A key file edited by hand to hold such a value

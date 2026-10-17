@@ -1518,6 +1518,10 @@ already has the files, so nothing there reads a key or a policy.
                    help=_keys_axis_help(
                        "repos",
                        "create: the repo globs this key may read, comma-separated. "
+                       "A glob is matched against the repo id. An id from an origin "
+                       "remote names the forge host and is lowercase "
+                       "(gitlab.example.com/acme/*, or */acme/* for any host), and "
+                       "matching is case-sensitive. "
                        "Enforced over the network; answers leave out every other "
                        "repository",
                        "create: the repo globs this key is meant to read. Recorded "

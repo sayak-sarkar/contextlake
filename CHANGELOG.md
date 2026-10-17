@@ -172,6 +172,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installed. `ranking_gap` and `kb owners` now give the reason. `kb owners` run on a subfolder
   of a repository now prints no owners and says why. Run it at the repo root with `--path` for a
   sub-tree.
+- **The documented `kb keys create --repos` example now matches a real repository id.** The
+  reference showed `--repos acme/*`, but an id from an `origin` remote starts with the forge
+  host (`gitlab.example.com/acme/forecast-api`), `*` stops at a `/`, and matching is
+  case-sensitive, so a key made from the example read no repository and raised no error. The
+  reference and the `--repos` help now show `gitlab.example.com/acme/*` and say how an id is
+  built.
 
 ### Security
 

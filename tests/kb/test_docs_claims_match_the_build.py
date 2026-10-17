@@ -343,6 +343,32 @@ def test_the_embeddings_pair_really_is_the_conditional_two():
         f"_TOOL_COUNT_PATTERNS assumes exactly two, so both must be updated together")
 
 
+def test_the_documented_key_repos_example_matches_a_real_repo_id():
+    """The cli reference taught `--repos acme/*`. A repo id from an `origin` remote names the
+    forge host (`gitlab.example.com/acme/forecast-api`), `*` stops at a `/`, and matching is
+    case-sensitive, so a key made from the example read nothing and raised no error.
+
+    The id is built by `normalize_remote_url`, the function the indexer builds it with, so a
+    change to the id shape fails here instead of leaving the example wrong.
+    """
+    from contextlake.kb.repo_identity import normalize_remote_url
+    from contextlake.kb.scope import match_repo
+
+    repo_id = normalize_remote_url("https://GitLab.Example.com/acme/forecast-api.git")
+    assert repo_id == "gitlab.example.com/acme/forecast-api"
+
+    example = re.search(r"A key created `--repos '([^']+)'`\s+sees only",
+                        _text("docs/cli-reference.md"))
+    assert example, "docs/cli-reference.md no longer gives a quoted `--repos` example for a key"
+    assert match_repo(example.group(1), repo_id), (
+        f"the documented key example {example.group(1)!r} matches no repo id of the real shape "
+        f"{repo_id!r}")
+    # The sentences beside the example: any host, and the two ways to match nothing.
+    assert match_repo("*/acme/*", repo_id)
+    assert not match_repo("acme/*", repo_id)
+    assert not match_repo("GitLab.Example.com/acme/*", repo_id)
+
+
 def test_every_documented_cli_verb_exists():
     """A verb in the reference table that the dispatcher does not know is a broken promise.
 

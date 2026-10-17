@@ -2578,6 +2578,14 @@ def test_keys_list_says_what_never_does_not_mean(run, keys_file, usage_store):
     assert "retained window" in out
 
 
+def test_the_repos_help_says_ids_name_the_host(run):
+    """`--repos acme/*` matches nothing for an id like gitlab.example.com/acme/forecast-api,
+    and the help never said an id carries the host. The key is made and reads no repository."""
+    help_text = " ".join(run("--help").out.split())
+    assert "gitlab.example.com/acme/*" in help_text, "the --repos help does not name the host"
+    assert "case-sensitive" in help_text, "the --repos help does not say matching is case-sensitive"
+
+
 def test_keys_verb_count_is_eight(run):
     """Read off the built parser, never a literal. A ninth verb that parses and
     dispatches nowhere is what the pin exists to catch."""
