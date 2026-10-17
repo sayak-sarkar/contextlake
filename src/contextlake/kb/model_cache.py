@@ -17,7 +17,30 @@ The lookup order, so no install downloads a model it already holds:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+
+def hub_dir(cache_dir) -> Path:
+    """The ``hub`` folder Hugging Face reads models from, worked out from the environment.
+
+    Same order as ``huggingface_hub``: ``HF_HUB_CACHE``, the older ``HUGGINGFACE_HUB_CACHE``,
+    then ``HF_HOME/hub``. A loader sets ``HF_HOME`` to its ``cache_dir`` only when the
+    variable is unset (the Docker image sets it to the folder its models are baked into),
+    so ``cache_dir/hub`` is the last choice. Reads ``os.environ`` instead of
+    ``huggingface_hub.constants`` so a caller such as ``doctor`` imports nothing heavy and
+    sees the environment as it is now, not as it was when that module was first imported.
+    """
+    hub = os.environ.get("HF_HUB_CACHE") or os.environ.get("HUGGINGFACE_HUB_CACHE")
+    if not hub:
+        hub = os.path.join(os.environ.get("HF_HOME") or str(cache_dir), "hub")
+    return Path(os.path.expandvars(os.path.expanduser(hub)))
+
+
+def is_cached(cache_dir, repo_id: str) -> bool:
+    """True if a folder for ``repo_id`` exists in the hub cache the loader reads. No import,
+    no network. It does not check that the folder holds a complete copy."""
+    return (hub_dir(cache_dir) / f"models--{repo_id.replace('/', '--')}").is_dir()
 
 
 def local_snapshot(repo_id: str, revision: str | None = None) -> str | None:

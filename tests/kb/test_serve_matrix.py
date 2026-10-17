@@ -486,6 +486,8 @@ def _semantic_serve_args(tmp_path, monkeypatch):
     absent from it -- otherwise the answer depends on whatever the developer
     running the suite happens to have downloaded.
     """
+    for name in ("HF_HOME", "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE"):
+        monkeypatch.delenv(name, raising=False)   # the model lookup follows these
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
@@ -585,6 +587,8 @@ def test_embedder_runtime_state_separates_not_downloaded_from_not_installed(
     from contextlake.kb.embeddings import embedder_runtime_state
     from contextlake.kb.embeddings.builtin import BuiltinEmbedder
 
+    for name in ("HF_HOME", "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE"):
+        monkeypatch.delenv(name, raising=False)   # the model lookup follows these
     emb = BuiltinEmbedder(engine="model2vec", cache_dir=str(tmp_path))
     monkeypatch.setattr(_u, "find_spec", lambda name, *a, **k: object())
 
@@ -594,6 +598,27 @@ def test_embedder_runtime_state_separates_not_downloaded_from_not_installed(
 
     cached = tmp_path / "hub" / ("models--" + emb.model_id.replace("/", "--"))
     cached.mkdir(parents=True)
+    assert embedder_runtime_state(emb) == (True, "")
+
+
+def test_embedder_runtime_state_finds_a_model_baked_into_hf_home(tmp_path, monkeypatch):
+    """The serve banner had the same lookup as `doctor`: only cache_dir/hub. In the Docker
+    image, where HF_HOME holds the models, it said the model "is not downloaded yet" and
+    "fails if this machine is offline" about a model the loader reads from disk."""
+    import importlib.util as _u
+
+    from contextlake.kb.embeddings import embedder_runtime_state
+    from contextlake.kb.embeddings.builtin import BuiltinEmbedder
+
+    monkeypatch.delenv("HF_HUB_CACHE", raising=False)
+    monkeypatch.delenv("HUGGINGFACE_HUB_CACHE", raising=False)
+    emb = BuiltinEmbedder(engine="model2vec", cache_dir=str(tmp_path / "models"))
+    monkeypatch.setattr(_u, "find_spec", lambda name, *a, **k: object())
+    baked = tmp_path / "baked"
+    monkeypatch.setenv("HF_HOME", str(baked))
+    assert embedder_runtime_state(emb)[0] is None     # nothing there yet
+
+    (baked / "hub" / ("models--" + emb.model_id.replace("/", "--"))).mkdir(parents=True)
     assert embedder_runtime_state(emb) == (True, "")
 
 

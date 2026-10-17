@@ -75,10 +75,9 @@ def embedder_runtime_state(embedder) -> tuple[bool | None, str]:
         extra = _ENGINE_EXTRA.get(engine, "kb-local")
         return False, (f"the {engine!r} engine is not installed "
                        f"(pip install 'contextlake[{extra}]')")
-    from pathlib import Path
+    from ..model_cache import is_cached
 
-    hub = Path(cache_dir).expanduser() / "hub"
-    if not (hub / ("models--" + model_id.replace("/", "--"))).is_dir():
+    if not is_cached(cache_dir, model_id):
         return None, (f"model {model_id} is not downloaded yet; the first query "
                       "fetches it, and fails if this machine is offline")
     return True, ""

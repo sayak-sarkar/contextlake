@@ -6,7 +6,6 @@ import importlib.util
 import os
 import shutil
 import sqlite3
-from pathlib import Path
 
 from ... import style
 from ...logging_setup import report_line
@@ -122,11 +121,13 @@ def _refused_tier_detail(table: str) -> str:
 
 
 def _builtin_model_present(cache_dir, model_id: str) -> bool:
-    """True if a HuggingFace-cached model dir exists under ``cache_dir/hub``.
+    """True if a HuggingFace-cached model dir exists where the loader looks for it:
+    ``HF_HUB_CACHE``, ``HF_HOME/hub``, else ``cache_dir/hub`` (see ``model_cache.hub_dir``).
 
     Filesystem-only — never imports the heavy dep or triggers a download."""
-    hub = Path(cache_dir).expanduser() / "hub"
-    return (hub / ("models--" + model_id.replace("/", "--"))).is_dir()
+    from ..model_cache import is_cached
+
+    return is_cached(cache_dir, model_id)
 
 
 def cmd_doctor(args) -> int:
@@ -284,11 +285,13 @@ def cmd_doctor(args) -> int:
                 be = BuiltinEmbedder(engine=getattr(emb, "engine", "model2vec"),
                                      model=getattr(emb, "model", None),
                                      cache_dir=getattr(emb, "cache_dir", None))
+                from ..model_cache import hub_dir
+
                 present = _builtin_model_present(be.cache_dir, be.model_id)
                 _check("  built-in embedder model", True,
                        f"{be.model_id} · "
                        f"{'downloaded' if present else 'not downloaded (run embed to fetch)'}"
-                       f" · {be.cache_dir}")
+                       f" · {hub_dir(be.cache_dir)}")
 
             # ANN capability: can sqlite-vec actually load here? (else semantic
             # search silently uses brute-force cosine — fine small, slow at scale)

@@ -338,6 +338,10 @@ Four things do not, so "delete the store" is not the same as "delete everything"
   `src/contextlake/kb/embeddings/builtin.py` and `src/contextlake/kb/llm/builtin.py`). That is a
   *sibling* of the default store, not a directory inside it, so a store pointed elsewhere does not
   move the models. Both also set `HF_HOME` to that directory unless you already set it.
+  `doctor` and the `serve` banner look in the folder the loader reads: `HF_HUB_CACHE`, else
+  `HF_HOME/hub`, else `<cache_dir>/hub`. The Docker image sets `HF_HOME` to
+  `/opt/contextlake/models`, where its models are baked in, and `doctor` prints the `hub` folder
+  it checked.
 - **The mirror's repository-list cache**, under `cache_dir` as described above.
 - **The mirror audit report**, written next to that cache as `repo_audit.json` and a matching
   `.csv`, or wherever `--report` points.

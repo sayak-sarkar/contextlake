@@ -388,6 +388,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through to the HTML renderer, so `--output c4.graphml` held an HTML page while the log said
   "Wrote graphml c4 diagram". Without `--output` the HTML went to stdout. The command now exits
   1 and writes nothing.
+- **`doctor` and the `serve` banner now find a model in `HF_HOME` or `HF_HUB_CACHE`.** They
+  looked under the configured `cache_dir` and nowhere else, so the Docker image (which bakes its
+  models into `HF_HOME`) printed "not downloaded (run embed to fetch)" for a model `kb embed`
+  loads from disk, and `serve` warned that the model would fail offline. Both now look where
+  the loader looks: `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, `HF_HOME/hub`, then
+  `cache_dir/hub`. The `doctor` line ends with the folder it checked.
 
 ### Security
 

@@ -379,7 +379,17 @@ def test_doctor_reports_ok(tmp_path, capsys):
     assert code == 0  # git + fts5 present in the test environment
 
 
-def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
+_HF_ENV = ("HF_HOME", "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE")
+
+
+def _clear_hf_env(monkeypatch) -> None:
+    """doctor now looks where the loader looks, which these variables can move."""
+    for name in _HF_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_doctor_reports_builtin_model_presence(tmp_path, capsys, monkeypatch):
+    _clear_hf_env(monkeypatch)
     store_dir = tmp_path / "kb"
     # Point the model cache at an empty temp dir so the presence report is deterministic:
     # otherwise doctor inspects the machine-global default (~/.contextlake/models) and a
@@ -398,6 +408,72 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     assert "potion-base-8M" in out
     assert "Qwen2.5-Coder-0.5B-Instruct-int4-ov" in out
     assert "not downloaded" in out
+
+
+def _doctor_embedder_line(tmp_path, capsys) -> str:
+    """The `built-in embedder model` line of a doctor run whose configured cache_dir holds
+    no model."""
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        f'[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        f'cache_dir = "{tmp_path / "models"}"\n'
+    )
+    capsys.readouterr()
+    _run(["doctor", "--config", str(cfg)])
+    lines = [ln for ln in capsys.readouterr().out.splitlines()
+             if "built-in embedder model" in ln]
+    assert len(lines) == 1
+    return lines[0]
+
+
+def _baked_hub(root: Path) -> Path:
+    """A Hugging Face hub folder holding the default built-in model, laid out as the
+    Docker image's prefetch step leaves it."""
+    hub = root / "hub"
+    snap = hub / "models--minishlab--potion-base-8M" / "snapshots" / "abc123"
+    snap.mkdir(parents=True)
+    (snap / "config.json").write_text("{}")
+    return hub
+
+
+@pytest.mark.parametrize("variable", ["HF_HOME", "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE"])
+def test_doctor_finds_a_model_in_the_hugging_face_cache_the_loader_reads(
+        tmp_path, capsys, monkeypatch, variable):
+    """The Docker image sets HF_HOME to the folder its models are baked into and runs
+    `doctor` by default. doctor looked only under the configured cache_dir and printed
+    "not downloaded (run embed to fetch)" for a model `kb embed` loads from disk with no
+    network."""
+    _clear_hf_env(monkeypatch)
+    baked = tmp_path / "baked"
+    hub = _baked_hub(baked)
+    monkeypatch.setenv(variable, str(baked if variable == "HF_HOME" else hub))
+
+    line = _doctor_embedder_line(tmp_path, capsys)
+    assert "not downloaded" not in line
+    assert "downloaded" in line
+    assert str(hub) in line     # the folder it looked in, not the configured cache_dir
+
+
+def test_doctor_does_not_credit_a_model_the_loader_would_not_look_for(
+        tmp_path, capsys, monkeypatch):
+    """With HF_HOME set elsewhere the loader never reads cache_dir/hub, so a model there
+    is not one it can use offline."""
+    _clear_hf_env(monkeypatch)
+    _baked_hub(tmp_path / "models")                  # in the configured cache_dir
+    (tmp_path / "elsewhere").mkdir()
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "elsewhere"))
+
+    assert "not downloaded" in _doctor_embedder_line(tmp_path, capsys)
+
+
+def test_doctor_still_looks_in_cache_dir_when_no_hugging_face_variable_is_set(
+        tmp_path, capsys, monkeypatch):
+    _clear_hf_env(monkeypatch)
+    _baked_hub(tmp_path / "models")
+
+    line = _doctor_embedder_line(tmp_path, capsys)
+    assert "not downloaded" not in line and "downloaded" in line
 
 
 def test_doctor_warns_when_builtin_llm_runtime_missing(tmp_path, capsys, monkeypatch):
