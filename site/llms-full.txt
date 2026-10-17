@@ -5550,10 +5550,12 @@ replace it.
 The hook runs `contextlake kb index <repo>` detached, so the commit returns immediately, and it
 re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
 the store does not hold the repo yet, it uses the id the repo's `origin` gives, the same id a plain
-`kb index PATH` files it under. It is written inside a delimited managed block, so a hook you
-already had is appended to, not overwritten, and only that block is refreshed on re-runs. A
-`--config` path is stored as an absolute path, because git runs the hook from the repo root.
-`kb refresh --refresh` does the same for the background update it starts.
+`kb index PATH` files it under.
+
+It is written inside a delimited managed block, so a hook you already had is appended to, not
+overwritten, and only that block is refreshed on re-runs. A `--config` path is stored as an
+absolute path, because git runs the hook from the repo root. `kb refresh --refresh` does the same
+for the background update it starts.
 
 `kb index` rewrites that repo's API reference and design notes along with the graph, so the
 documents move with the commit. No model runs, and a repo whose head commit has not moved is
