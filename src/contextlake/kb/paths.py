@@ -75,8 +75,9 @@ def read_repo_file(base: Path, names: Iterable[str], *,
     A symlink is followed wherever it points: contextlake reads data wherever a configured
     source points (owner, 2026-10-15). ``contained=True`` is the one exception, for a reader
     whose text reaches a caller narrower than the user. ``get_readme`` passes it for a
-    scoped key; the wiki README excerpt and the wiki steering file pass it always (decision
-    16, 2026-10-17: both land in a stored page). With links followed, a
+    scoped key; the wiki README excerpt, the wiki steering file and the README panel of a
+    ``kb dashboard --site`` export pass it always (decision 16, 2026-10-17: their text lands
+    in a stored or shared page). With links followed, a
     ``README.md`` linking to ``/proc/self/environ`` returned the server's environment, and
     with it the shared token, to a key scoped to one repository.
 

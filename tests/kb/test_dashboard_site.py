@@ -141,6 +141,74 @@ def test_anonymize_build_drops_prose_and_external_urls(tmp_path):
     assert "jane doe" not in data_js
 
 
+def _link_the_readme_out_of_the_clone(store_dir, outside):
+    """Replace the clone's README.md with a link to ``outside`` (a file beyond the clone)."""
+    readme = store_dir / "clone" / "README.md"
+    readme.unlink()
+    readme.symlink_to(outside)
+
+
+def test_the_export_does_not_read_a_readme_linked_out_of_its_clone(tmp_path):
+    """A `--site` export is made to be shared, so its README panel reads only inside the clone.
+
+    A README.md that is a link to a file elsewhere on the disk is followed by the live
+    dashboard (the user's own view) and refused here. The marker is an invented string.
+    """
+    marker = "EXPORT-README-MARKER-3b9d41-not-a-real-credential"
+    outside = tmp_path / "outside.txt"
+    outside.write_text(marker, encoding="utf-8")
+    _real_store_with_readme(tmp_path / "store", readme="# demo/app\n")
+    _link_the_readme_out_of_the_clone(tmp_path / "store", outside)
+    # Precondition: the link resolves, so an absent marker is the guard's doing.
+    assert (tmp_path / "store" / "clone" / "README.md").read_text(encoding="utf-8") == marker
+
+    out = build_dashboard_site(tmp_path / "store", tmp_path / "site")
+
+    assert json.loads((out / "data.json").read_text(encoding="utf-8"))[
+        "repos"]["demo/app"]["readme_html"] is None
+    for name in ("data.json", "data.js", "index.html"):
+        assert marker not in (out / name).read_text(encoding="utf-8"), name
+
+
+def test_the_export_still_reads_a_readme_inside_its_clone(tmp_path):
+    """The positive control for the refusal above: a guard that dropped every README
+    would pass that test alone. A real README, and a link that stays inside the clone,
+    both reach the export."""
+    _real_store_with_readme(tmp_path / "store", readme="# demo/app\n\nPlain real text.\n")
+    out = build_dashboard_site(tmp_path / "store", tmp_path / "site")
+    html = json.loads((out / "data.json").read_text(encoding="utf-8"))[
+        "repos"]["demo/app"]["readme_html"]
+    assert html and "Plain real text." in html
+
+    inside = tmp_path / "store" / "clone" / "intro.md"
+    inside.write_text("Linked but inside.\n", encoding="utf-8")
+    _link_the_readme_out_of_the_clone(tmp_path / "store", inside)
+    out2 = build_dashboard_site(tmp_path / "store", tmp_path / "site2")
+    html2 = json.loads((out2 / "data.json").read_text(encoding="utf-8"))[
+        "repos"]["demo/app"]["readme_html"]
+    assert html2 and "Linked but inside." in html2
+
+
+def test_the_live_repo_detail_still_follows_a_readme_linked_out_of_its_clone(tmp_path):
+    """The live dashboard keeps following the link (owner rule: read where a source points).
+    `contained=True` is the export's switch, and the default is the live view."""
+    from contextlake.kb.dashboard import data as kbdata
+
+    marker = "LIVE-README-MARKER-8e27c5-not-a-real-credential"
+    outside = tmp_path / "outside.txt"
+    outside.write_text(marker, encoding="utf-8")
+    _real_store_with_readme(tmp_path / "store", readme="# demo/app\n")
+    _link_the_readme_out_of_the_clone(tmp_path / "store", outside)
+    s = SqliteStore(tmp_path / "store" / "index.sqlite")
+    try:
+        live = kbdata.repo_detail(s, tmp_path / "store", "demo/app")
+        shared = kbdata.repo_detail(s, tmp_path / "store", "demo/app", contained=True)
+    finally:
+        s.close()
+    assert marker in live["readme_html"]
+    assert shared["readme_html"] is None
+
+
 def test_demo_fixture_ships_inside_the_package():
     # The fixture behind --sample must live under the installed package (package-data),
     # not at the repo root — a repo-root path 404s for every pip/wheel install.

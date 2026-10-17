@@ -6481,6 +6481,10 @@ Click any repo for its **anatomy** (node kinds and top symbols) plus README, cur
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click **Blast radius**, and every fact carries its provenance.
 
+The README panel in `--serve` follows a `README.md` that is a link to a file elsewhere on your
+disk. A `--site` export reads a README only from inside the repo's clone and skips a link that
+leads out, because an export is made to be shared.
+
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
 Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two
@@ -9527,6 +9531,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read; the page is planned as if the file were absent. Its `notes` go into a stored wiki page
   that every key that may read the repository sees. A link that stays inside the clone is read.
   10.0.0rc3 followed the link.
+- **A `kb dashboard --site` export reads a README only from inside the clone.** A `README.md`
+  linked out of the clone is skipped, because the export is made to be shared. The live
+  dashboard (`--serve`) still follows the link. 10.0.0rc3 followed it in both.
 
 ## [10.0.0rc3] - 2026-10-16
 

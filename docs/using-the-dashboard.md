@@ -156,6 +156,10 @@ Click any repo for its **anatomy** (node kinds and top symbols) plus README, cur
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click **Blast radius**, and every fact carries its provenance.
 
+The README panel in `--serve` follows a `README.md` that is a link to a file elsewhere on your
+disk. A `--site` export reads a README only from inside the repo's clone and skips a link that
+leads out, because an export is made to be shared.
+
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
 Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two

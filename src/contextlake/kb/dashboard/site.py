@@ -199,7 +199,10 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
         node_counts = {r["id"]: (r.get("node_count") or 0) for r in overview["repos"]}
         with_content = [rid for rid in repo_ids if node_counts.get(rid)] or repo_ids
         detail_ids = with_content[:_DETAIL_CAP]
-    details = {rid: kbdata.repo_detail(store, store_dir, rid, anonymize=anonymize)
+    # `contained`: the export is made to be shared, so a README linked out of its clone is
+    # not read into it. The live server keeps following the link.
+    details = {rid: kbdata.repo_detail(store, store_dir, rid, anonymize=anonymize,
+                                       contained=True)
                for rid in detail_ids}
     # One bucketed edge scan for all repos, not one full scan per repo (O(repos x edges)).
     relationships = kbdata.repo_relationships_bulk(store, detail_ids)

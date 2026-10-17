@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read; the page is planned as if the file were absent. Its `notes` go into a stored wiki page
   that every key that may read the repository sees. A link that stays inside the clone is read.
   10.0.0rc3 followed the link.
+- **A `kb dashboard --site` export reads a README only from inside the clone.** A `README.md`
+  linked out of the clone is skipped, because the export is made to be shared. The live
+  dashboard (`--serve`) still follows the link. 10.0.0rc3 followed it in both.
 
 ## [10.0.0rc3] - 2026-10-16
 

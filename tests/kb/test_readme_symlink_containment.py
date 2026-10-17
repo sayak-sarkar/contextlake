@@ -1,8 +1,8 @@
 """Which clone readers follow a symlink out of the clone, and which stay inside it.
 
 contextlake reads data wherever a configured source points (owner, 2026-10-15), so
-``get_readme`` on stdio or for an unscoped key and the dashboard's README panel follow a
-link out of the clone. Three readers stay inside the clone:
+``get_readme`` on stdio or for an unscoped key and the live dashboard's README panel follow a
+link out of the clone. Four readers stay inside the clone:
 
 - ``get_readme`` for a scoped key. A ``README.md`` linked to ``/proc/self/environ`` returned
   the server's environment, and the shared token in it, to a key scoped to one repository.
@@ -11,6 +11,8 @@ link out of the clone. Three readers stay inside the clone:
 - the wiki steering file (``.contextlake/wiki.toml``, owner decision 16, 2026-10-17). Its
   notes go into the same stored page, so a file or parent directory linked out of the clone
   is not read. A link that stays inside the clone is read.
+- the README panel of a ``kb dashboard --site`` export (decision 16). The export is made to
+  be shared.
 
 The marker is an invented string in a scratch file. Each refusal has a positive control: a
 guard that refused everything would pass the refusal half alone.
@@ -237,6 +239,20 @@ def test_dashboard_readme_html_follows_a_symlink_out_of_the_clone(world):
     s = _store(tmp, clone)
     try:
         assert SECRET in _readme_html(s, "r")
+    finally:
+        s.close()
+
+
+def test_dashboard_readme_html_contained_refuses_a_symlink_out_of_the_clone(world):
+    """The static export's switch. A link out is refused and a real README still renders."""
+    tmp, clone, outside = world
+    (clone / "README.md").symlink_to(outside / "secret.txt")
+    s = _store(tmp, clone)
+    try:
+        assert _readme_html(s, "r", contained=True) is None
+        (clone / "README.md").unlink()
+        (clone / "README.md").write_text("# Widget\nRun make test.\n")
+        assert "make test" in _readme_html(s, "r", contained=True)
     finally:
         s.close()
 

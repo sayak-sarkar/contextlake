@@ -265,17 +265,19 @@ def _symbol_tickets(store, node_id: str, *, anonymize: bool = False) -> list[dic
     return out
 
 
-def _readme_html(store, repo_id: str) -> str | None:
+def _readme_html(store, repo_id: str, *, contained: bool = False) -> str | None:
     """Render the repo's own README to sanitized HTML (reuses ``get_readme`` +
-    ``visualize._md_to_html``)."""
+    ``visualize._md_to_html``). ``contained`` refuses a README that is a link out of the
+    clone; the live dashboard leaves it off, the shareable static export turns it on."""
     from ..visualize import _md_to_html
 
     r = store.get_repo(repo_id)
     base = Path(r.path) if r and getattr(r, "path", None) else None
     if base and base.is_dir():
-        # A README linked out of the clone is followed: the dashboard is the user's own view.
+        # A README linked out of the clone is followed unless `contained`: the live dashboard
+        # is the user's own view, but a static export is made to be shared.
         hit = read_repo_file(base, ("README.md", "README.rst", "README.txt", "README",
-                                    "readme.md"), contained=False)
+                                    "readme.md"), contained=contained)
         if hit:
             return _md_to_html(sanitize_label(hit[1], max_len=200_000))
     return None
@@ -450,13 +452,15 @@ def cluster_index(store, store_dir, repo_ids, *, cap: int = 50,
     return out
 
 
-def repo_detail(store, store_dir, repo_id: str, *, anonymize: bool = False) -> dict:
+def repo_detail(store, store_dir, repo_id: str, *, anonymize: bool = False,
+                contained: bool = False) -> dict:
     """A repo's full detail panel: anatomy brief, rendered README + wiki, owners, links.
 
     README/wiki are rendered to sanitized HTML server-side. ``anonymize`` hashes author
     identities, drops external link URLs, and DROPS the README/wiki prose bodies (which
     can carry author names / internal URLs as live anchors) — keeping only the wiki
-    ``found`` / ``stale`` flags.
+    ``found`` / ``stale`` flags. ``contained`` reads the README only from inside the clone
+    (a README linked out of it is skipped); the static export sets it.
     """
     from ..wiki.generate import repo_brief
 
@@ -467,7 +471,7 @@ def repo_detail(store, store_dir, repo_id: str, *, anonymize: bool = False) -> d
         readme_html = None
         wiki = {"found": wiki["found"], "stale": wiki["stale"], "html": None}
     else:
-        readme_html = _readme_html(store, repo_id)
+        readme_html = _readme_html(store, repo_id, contained=contained)
     return {
         "repo": sanitize_label(repo_id),
         "brief": _brief_out(repo_brief(sd, repo_id, store=store), anonymize=anonymize),
