@@ -98,6 +98,27 @@ def test_a_directory_discovered_config_may_NOT_turn_it_OFF(tmp_path, monkeypatch
     assert "never, but" not in gls_logs.text.lower()
 
 
+@pytest.mark.parametrize("written", ['"alway"', '"always "', "true", "false", "1"])
+def test_a_discovered_unreadable_value_fails_SAFE_as_a_named_one_does(
+        tmp_path, monkeypatch, written):
+    """The unreadable-value rule holds for a discovered file too. A typo is not a request
+    to show identities, so it is kept and resolves to "always". It used to be judged as
+    "not exactly always", dropped as a weakening, and the setting fell back to "never"."""
+    cfg = _cfg(tmp_path, monkeypatch, f"[kb]\nanonymize = {written}\n", named=False)
+    assert cfg.anonymize == "always"
+
+
+@pytest.mark.parametrize("written", ['"never"', '" never "', '"NEVER"'])
+def test_every_spelling_of_never_is_still_refused_from_a_discovered_file(
+        tmp_path, monkeypatch, written):
+    """The other half: the fix must not let a spelling of "never" through."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    _write(tmp_path / "home" / ".contextlake" / "kb.toml",
+           '[kb]\nanonymize = "always"\n')
+    cfg = _cfg(tmp_path, monkeypatch, f"[kb]\nanonymize = {written}\n", named=False)
+    assert cfg.anonymize == "always"
+
+
 def test_the_same_bytes_are_honoured_from_a_named_config(tmp_path, monkeypatch):
     """The other half of the pair. Without this, the test above would also pass on a
     build that ignored `anonymize = "never"` from EVERY file, including the user's own,

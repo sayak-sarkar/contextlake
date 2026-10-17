@@ -168,7 +168,8 @@ project-local file.
 
 - `[kb] anonymize`: a discovered file may set it to `"always"` and may not set it to `"never"`.
   Turning anonymising on is always allowed; turning off the setting that hides contributor
-  identities on a dashboard you are about to share is not.
+  identities on a dashboard you are about to share is not. A value that is not `"never"`, such as
+  the typo `"alway"` or `true`, anonymises, the same as in any other file.
 - `[[sources]] scopes`: a discovered file may narrow the OAuth scopes the Atlassian connector asks
   for, and may not widen them. A value that is not a subset of the read-only default is dropped,
   and the connector falls back to that default.

@@ -505,8 +505,13 @@ def _drop_untrusted_keys(table: str, values, source: str):
         # in that directory, and contextlake clones repositories into the workspace
         # itself. Dropping the key outright would break honest directory-scoped config,
         # so only the weakening direction is refused; "always" from any file is honoured.
+        #
+        # "Weakening" is judged on the value as `_anonymize_value` reads it (strip, lower
+        # case). Anything that is not "never" there, a typo or a boolean included, resolves
+        # to "always", so keeping it can only raise anonymising. Comparing the raw text with
+        # "always" dropped `anonymize = "alway"` here, and the setting fell back to "never".
         weakens_privacy = (
-            table == "kb" and str(values.get("anonymize", "always")).lower() != "always")
+            table == "kb" and str(values.get("anonymize")).strip().lower() == "never")
         if not dropped and not weakens_privacy:
             return values
         for key in dropped:

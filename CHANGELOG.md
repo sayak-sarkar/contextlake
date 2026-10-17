@@ -366,6 +366,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now lock `kb.toml.lock` beside the config while they edit (a project file gets
   `.contextlake.kb.toml.lock`) and use a new temp file each time. A command that cannot get
   the lock in 10 seconds exits 1 and changes nothing.
+- **A mistyped `[kb] anonymize` in a project `.contextlake.kb.toml` now anonymises.** A value
+  such as `"alway"`, `"always "` or `true` in a file found by walking up from the current
+  directory was dropped and the setting fell back to `"never"`, so a dashboard showed
+  contributor names. The same value in a `--config` file already resolved to `"always"`. A
+  discovered file is still refused when it says `"never"`.
 
 ### Security
 
