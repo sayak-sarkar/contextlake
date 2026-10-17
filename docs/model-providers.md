@@ -141,6 +141,10 @@ API key that happens to be in your environment. See
 `base_url` is resolved per provider, so you only set it to reach a proxy or a local
 openai-compatible server, never just to make `anthropic`/`openai` work.
 
+The API key goes only to the origin (scheme, host and port) of `base_url`. If a proxy or gateway
+answers with a redirect to a different origin, contextlake follows it without the `Authorization`
+or `x-api-key` header. The same rule covers `[embeddings]` with `provider = "openai"`.
+
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 

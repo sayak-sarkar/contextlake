@@ -206,6 +206,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was stored and shown as `repos=, (enforced)`, but the server read it as no limit. This held
   since `--repos` was enforced in 9.3.0. `create` now refuses it, and a key file that already
   holds such a value limits the key to no repository.
+- **The OpenAI and Anthropic clients no longer send their API key to a redirect target.** An
+  `[llm]` or `[embeddings]` `base_url` that points at a gateway or proxy which answers 301, 302
+  or 303 made urllib re-send the request to the new host with the original headers. The
+  `Authorization` bearer (OpenAI LLM and embeddings) or `x-api-key` (Anthropic) went to a host
+  you did not choose. The `api` and `graphql` sources already dropped the header on a redirect
+  to another origin, and the model clients did not. All of them now share one opener that drops
+  `Authorization`, `x-api-key` and `Proxy-Authorization` when a redirect leaves the origin
+  (scheme, host and port). The redirect is still followed, and the reply it returns is still
+  read, but the request carries no key. A redirect within the same origin keeps them. The
+  default `api.openai.com` and `api.anthropic.com` hosts do not redirect; this needed a
+  `base_url` that does. The OpenAI clients did this from 2.0.0 at least; the Anthropic client
+  from 2.36.0.
 
 ## [10.0.0rc3] - 2026-10-16
 

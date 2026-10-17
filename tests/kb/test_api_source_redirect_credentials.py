@@ -13,6 +13,10 @@ real APIs redirect within their own host. Anything that differs drops it.
 Two real local servers on different ports stand in for the two origins. The assertion is on
 what the SECOND server actually receives, which a mocked `urlopen` cannot show, and each
 case asserts the second server was reached so a refused redirect cannot pass as a strip.
+
+The hosted LLM and embeddings clients (`post_json`) are the same exposure: a `base_url`
+that names a gateway which redirects sent `Authorization` (OpenAI) or `x-api-key`
+(Anthropic) to the redirect target. The guarded opener drops both.
 """
 
 from __future__ import annotations
@@ -37,19 +41,21 @@ class _Server:
         self.seen: list[dict] = []
         self.redirect_to: dict[str, str] = {}   # path -> absolute Location
         self.next_link: dict[str, str] = {}     # path -> absolute Link rel=next target
+        self.body = RECORDS                     # what a non-redirect request is answered with
         outer = self
 
         class H(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
                 outer.seen.append({"path": self.path,
-                                   "authorization": self.headers.get("Authorization")})
+                                   "authorization": self.headers.get("Authorization"),
+                                   "x_api_key": self.headers.get("x-api-key")})
                 if self.path in outer.redirect_to:
                     self.send_response(302)
                     self.send_header("Location", outer.redirect_to[self.path])
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                     return
-                body = json.dumps(RECORDS).encode()
+                body = json.dumps(outer.body).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 if self.path in outer.next_link:
@@ -188,3 +194,70 @@ def test_a_graphql_source_does_not_send_its_token_across_origins(two_origins, mo
     assert _auths(a, "/graphql") == ["Bearer s3cr3t"], "the first hop must still authenticate"
     assert _auths(b, "/final") == [None], (
         "a different origin received the GraphQL source's bearer token")
+
+
+# --- the hosted LLM and embeddings clients (`post_json`) ----------------------------------
+
+def _openai_llm(base):
+    from contextlake.kb.llm.openai import OpenAILlm
+    OpenAILlm(base_url=base, api_key_env="CL_TEST_API_TOKEN").generate("hi")
+
+
+def _anthropic_llm(base):
+    from contextlake.kb.llm.anthropic import AnthropicLlm
+    AnthropicLlm(base_url=base, api_key_env="CL_TEST_API_TOKEN").generate("hi")
+
+
+def _openai_embedder(base):
+    from contextlake.kb.embeddings.openai import OpenAIEmbedder
+    OpenAIEmbedder(base_url=base, api_key_env="CL_TEST_API_TOKEN").embed(["hi"])
+
+
+# (call, path the client posts to, header carrying the key, a reply the client can parse)
+_HOSTED = [
+    pytest.param(_openai_llm, "/chat/completions", "authorization",
+                 {"choices": [{"message": {"content": "ok"}}]}, id="openai-llm"),
+    pytest.param(_anthropic_llm, "/v1/messages", "x_api_key",
+                 {"content": [{"type": "text", "text": "ok"}]}, id="anthropic-llm"),
+    pytest.param(_openai_embedder, "/embeddings", "authorization",
+                 {"data": [{"index": 0, "embedding": [0.1]}]}, id="openai-embeddings"),
+]
+
+
+@pytest.mark.parametrize("call, path, header, reply", _HOSTED)
+def test_a_hosted_client_does_not_send_its_key_across_origins(
+        two_origins, monkeypatch, call, path, header, reply):
+    """FAILS before this change: the second server received the API key.
+
+    `post_json` called `urlopen`, which re-issues a 302'd POST as a GET to the new
+    location with the original headers. The Anthropic key travels in `x-api-key`, which
+    urllib stores as `X-api-key`, so a guard that only pops `Authorization` still leaks it.
+    """
+    a, b = two_origins
+    a.redirect_to[path] = f"{b.base}/final"
+    b.body = reply
+    monkeypatch.setenv("CL_TEST_API_TOKEN", "s3cr3t")
+
+    call(a.base)
+
+    first = [s[header] for s in a.seen if s["path"] == path]
+    assert first and first[0] and "s3cr3t" in first[0], "the first hop must still authenticate"
+    second = [s for s in b.seen if s["path"] == "/final"]
+    assert second, "the redirect was not followed, so the strip was never exercised"
+    assert second[0]["authorization"] is None and second[0]["x_api_key"] is None, (
+        "a different origin received the API key")
+
+
+@pytest.mark.parametrize("call, path, header, reply", _HOSTED)
+def test_a_hosted_client_keeps_its_key_on_a_same_origin_redirect(
+        two_origins, monkeypatch, call, path, header, reply):
+    """The strip must not break a gateway that redirects within its own host."""
+    a, _ = two_origins
+    a.redirect_to[path] = f"{a.base}/final"
+    a.body = reply
+    monkeypatch.setenv("CL_TEST_API_TOKEN", "s3cr3t")
+
+    call(a.base)
+
+    hop = [s[header] for s in a.seen if s["path"] == "/final"]
+    assert hop and "s3cr3t" in hop[0]

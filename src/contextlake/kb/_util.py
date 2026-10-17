@@ -7,8 +7,12 @@ connectors; kept here as the single source of truth.
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
+import urllib.parse
 import urllib.request
+
+from ..logging_setup import log
 
 
 def chunks(seq, n):
@@ -107,6 +111,69 @@ def ollama_has_model(base_url: str, model: str, timeout: float = 1.5) -> bool:
     return any(_bare(m) == wanted for m in ollama_list_models(base_url, timeout))
 
 
+# The opener every credential-bearing HTTP client uses: the ingest sources and `post_json`
+# (the hosted LLM and embeddings clients). `urlopen` follows a redirect and copies the
+# request's headers onto it, so a redirect from the configured endpoint to another host
+# carried the API key there.
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+# Lower-case names of the headers contextlake puts a secret in. `Request` stores a name
+# capitalised (`x-api-key` becomes `X-api-key`), so the comparison lower-cases both sides.
+_CREDENTIAL_HEADERS = frozenset({"authorization", "x-api-key", "proxy-authorization"})
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    """``(scheme, host, port)`` of ``url``, lower-cased, with the default port filled in,
+    so ``http://h`` and ``http://H:80/x`` compare equal."""
+    parts = urllib.parse.urlsplit(url)
+    scheme = (parts.scheme or "").lower()
+    try:
+        port = parts.port or _DEFAULT_PORTS.get(scheme)
+    except ValueError:      # a malformed port is its own origin, never a match
+        port = -1
+    return scheme, (parts.hostname or "").lower(), port
+
+
+def _same_origin(a: str, b: str) -> bool:
+    """True when both URLs share scheme, host and port: the unit a credential may travel in."""
+    return _origin(a) == _origin(b)
+
+
+class _OriginGuardedRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow redirects, but drop every credential header when the target is a different origin.
+
+    urllib builds the redirected request from the original's headers, so the credential
+    went wherever a ``Location`` pointed. An open redirect on the API host, or a
+    compromised endpoint, then received the token (for ``auth="basic"`` on Atlassian that
+    is an account-wide ``email:token``). A same-origin redirect keeps the headers, because
+    APIs do redirect within their own host and that request still needs to authenticate.
+    The check is on the header names in ``_CREDENTIAL_HEADERS``, so one handler covers the
+    bearer sources, the OpenAI clients (``Authorization``) and the Anthropic client
+    (``x-api-key``).
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and not _same_origin(req.full_url, new.full_url):
+            dropped = False
+            for store in (new.headers, new.unredirected_hdrs):
+                for name in [k for k in store if k.lower() in _CREDENTIAL_HEADERS]:
+                    del store[name]
+                    dropped = True
+            if dropped:
+                log(f"a redirect left {_origin(req.full_url)[1]} for "
+                    f"{_origin(new.full_url)[1]}; the credential header was not sent there",
+                    level=logging.WARNING)
+        return new
+
+
+# Built once: an opener carries no per-request state, and `urlopen` builds a default one
+# per call anyway. Same proxy and HTTPS handling as `urlopen`; only the redirect handler
+# differs.
+_OPENER = urllib.request.build_opener(_OriginGuardedRedirect)
+
+
 def post_json(url: str, payload: dict, timeout: float, headers: dict | None = None) -> dict:
     """POST ``payload`` as JSON and return the decoded JSON response.
 
@@ -116,7 +183,9 @@ def post_json(url: str, payload: dict, timeout: float, headers: dict | None = No
     body = json.dumps(payload).encode()
     head = {"Content-Type": "application/json", **(headers or {})}
     req = urllib.request.Request(url, data=body, headers=head)  # noqa: S310 - URL from trusted config
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
+    # The shared opener, not `urlopen`: urlopen follows a redirect WITH the key, so a
+    # gateway that redirected to another host received `Authorization` or `x-api-key`.
+    with _OPENER.open(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
         return json.loads(resp.read().decode())
 
 
