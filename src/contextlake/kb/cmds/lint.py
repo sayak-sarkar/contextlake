@@ -112,44 +112,34 @@ def lint_result(store, store_dir) -> dict:
 
     _ensure_invalidator_registered()
 
-    # Answer from cache when every shard is byte-for-byte the file we last walked.
-    # The dashboard calls this on EVERY request and the walk costs a full parse per
-    # repo plus a `get_node` per endpoint -- measured at seconds on a large store,
-    # paid again on each refresh of a page nobody had changed anything behind.
+    # Answer the shard part from cache when every shard is byte-for-byte the file we last
+    # walked. The dashboard calls this on EVERY request and the shard walk costs a full
+    # parse per repo plus a `get_node` per endpoint -- measured at seconds on a large
+    # store, paid again on each refresh of a page nobody had changed anything behind.
     #
     # Keyed on the same `(path, mtime_ns, size)` identity the shard cache already
     # uses, for every repo at once: if any shard has been rewritten, the whole
-    # answer is recomputed. That is deliberately coarse. A per-repo cache would be
+    # shard part is recomputed. That is deliberately coarse. A per-repo cache would be
     # cheaper to invalidate and would also let a stale count for repo A sit beside
     # a fresh one for repo B in a single reported total, which is the kind of
     # quietly-mixed number this codebase keeps having to fix.
+    #
+    # Only what the shards decide is cached: `checked`, `dangling` and `parser_stale`.
+    # Staleness is NOT in the fingerprint. A `git pull` moves a repo's HEAD, and a
+    # deleted checkout makes it unreadable, with every shard unchanged, so those
+    # counts come from the git state of each checkout on every call. A long-lived
+    # `kb serve` or dashboard would otherwise keep saying `stale: 0` until restart.
     #
     # NOT computed from SQLite instead, though the edges are there and it would be
     # faster still: a store was observed during this investigation whose shards had
     # been deleted while `edges` held 0 rows, where a SQL anti-join answers
     # "0 dangling edges" about a graph with no edges left. This cache changes WHEN
     # the walk happens, never WHAT it measures.
-    fingerprint = _store_fingerprint(store, store_dir, resolve_shard)
-    if fingerprint is not None:
-        cached = _lint_cache.get(_lint_cache_key(store_dir))
-        if cached is not None and cached[0] == fingerprint:
-            return copy.deepcopy(cached[1])
-
     repos = store.list_repos()
     stale_repos: list[str] = []
     empty_repos: list[str] = []
     shard_repos: list[str] = []
     unreadable_repos: list[dict] = []
-    parser_stale_repos: list[str] = []
-    dangling: list[dict] = []
-    checked = 0
-    node_cache: dict[str, bool] = {}
-
-    def _exists(node_id: str) -> bool:
-        if node_id not in node_cache:
-            node_cache[node_id] = store.get_node(node_id) is not None
-        return node_cache[node_id]
-
     for r in repos:
         head = _git_head(Path(r.path)) if r.path else None
         if needs_reindex(store, r.id, head):
@@ -165,22 +155,53 @@ def lint_result(store, store_dir) -> dict:
                                          "path": r.path or ""})
             else:
                 stale_repos.append(r.id)
-        shard = read_shard(store_dir, r.id)
-        if shard is None:
-            continue
-        # Read off the shard, not the repos row, for two reasons: the shard is
-        # already in hand for the dangling-edge walk below (so this costs
-        # nothing), and it is the same source doctor reads, so the two commands
-        # cannot report different numbers for the same store.
-        if shard.parser_version != PARSER_VERSION:
-            parser_stale_repos.append(r.id)
-        for e in shard.edges:
-            checked += 1
-            if not _exists(e.src) or not _exists(e.dst):
-                dangling.append({"repo": r.id, "src": e.src,
-                                 "relation": e.relation, "dst": e.dst})
-    result = {"repos": len(repos), "checked": checked,
-            "stale": len(stale_repos), "dangling": len(dangling),
+
+    fingerprint = _store_fingerprint(store, store_dir, resolve_shard)
+    walked = None
+    if fingerprint is not None:
+        cached = _lint_cache.get(_lint_cache_key(store_dir))
+        if cached is not None and cached[0] == fingerprint:
+            walked = copy.deepcopy(cached[1])
+    if walked is None:
+        parser_stale_repos: list[str] = []
+        dangling: list[dict] = []
+        checked = 0
+        node_cache: dict[str, bool] = {}
+
+        def _exists(node_id: str) -> bool:
+            if node_id not in node_cache:
+                node_cache[node_id] = store.get_node(node_id) is not None
+            return node_cache[node_id]
+
+        for r in repos:
+            shard = read_shard(store_dir, r.id)
+            if shard is None:
+                continue
+            # Read off the shard, not the repos row, for two reasons: the shard is
+            # already in hand for the dangling-edge walk below (so this costs
+            # nothing), and it is the same source doctor reads, so the two commands
+            # cannot report different numbers for the same store.
+            if shard.parser_version != PARSER_VERSION:
+                parser_stale_repos.append(r.id)
+            for e in shard.edges:
+                checked += 1
+                if not _exists(e.src) or not _exists(e.dst):
+                    dangling.append({"repo": r.id, "src": e.src,
+                                     "relation": e.relation, "dst": e.dst})
+        # The count and the first 20, as before: a store with many dangling edges must
+        # not make every cache hit copy the whole list.
+        walked = {"checked": checked, "dangling": len(dangling),
+                  "dangling_sample": dangling[:20],
+                  "parser_stale_repos": parser_stale_repos}
+        if fingerprint is not None:
+            # Copied in and out, so a caller that mutates the dict it was handed cannot
+            # corrupt the entry the next caller receives.
+            _lint_cache[_lint_cache_key(store_dir)] = (fingerprint, copy.deepcopy(walked))
+            while len(_lint_cache) > _LINT_CACHE_MAX:
+                _lint_cache.pop(next(iter(_lint_cache)))
+    parser_stale_repos = walked["parser_stale_repos"]
+    return {"repos": len(repos), "checked": walked["checked"],
+            "stale": len(stale_repos), "dangling": walked["dangling"],
             "parser_stale": len(parser_stale_repos),
             "empty": len(empty_repos), "unreadable": len(unreadable_repos),
             "shard": len(shard_repos),
@@ -189,14 +210,7 @@ def lint_result(store, store_dir) -> dict:
             "shard_repos": shard_repos,
             "unreadable_repos": unreadable_repos,
             "parser_stale_repos": parser_stale_repos,
-            "dangling_sample": dangling[:20]}
-    if fingerprint is not None:
-        # Copied in and out, so a caller that mutates the dict it was handed cannot
-        # corrupt the entry the next caller receives.
-        _lint_cache[_lint_cache_key(store_dir)] = (fingerprint, copy.deepcopy(result))
-        while len(_lint_cache) > _LINT_CACHE_MAX:
-            _lint_cache.pop(next(iter(_lint_cache)))
-    return result
+            "dangling_sample": walked["dangling_sample"]}
 
 
 def orphan_vector_partitions(store, store_dir, cfg) -> list[str]:

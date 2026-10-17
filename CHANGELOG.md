@@ -350,6 +350,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on one store. The check and the take now run as one step under an OS lock on
   `.contextlake.lock.guard`, and the lock file is renamed into place with its content. The lock
   file format and `CONTEXTLAKE_ALLOW_CONCURRENT` are unchanged. Since 2.35.0.
+- **`graph_health` and the dashboard health panel now notice a moved HEAD or a deleted
+  checkout.** The answer was cached on the shard files alone, so after a `git pull` or a
+  removed checkout a running `kb serve` or dashboard kept reporting `stale: 0` and
+  `unreadable: 0` until it restarted. `kb lint` in a new process reported both. The git state
+  of each checkout is now read on every call; only the shard walk stays cached.
 
 ### Security
 

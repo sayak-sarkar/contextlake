@@ -11,6 +11,9 @@ fully observe, or it is not actually caching anything and the whole thing is dec
 """
 
 import json
+import os
+import shutil
+import subprocess
 from datetime import date
 
 from contextlake.kb.cmds import lint as lint_mod
@@ -123,3 +126,83 @@ def test_the_answer_survives_a_caller_mutating_it(tmp_path):
     assert "injected" not in second["stale_repos"]
     # ...and it is still JSON-serialisable, which is how the MCP tool returns it.
     json.dumps(second)
+
+
+_ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def _git(args, cwd):
+    return subprocess.run(["git", *args], cwd=cwd, env=_ENV, check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _checkout_store(tmp_path):
+    """A store whose one repo is a real checkout, indexed at its current HEAD."""
+    repo = tmp_path / "checkout"
+    repo.mkdir()
+    (repo / "a.py").write_text("def a():\n    return 1\n")
+    _git(["init", "-q", "-b", "main"], repo)
+    _git(["add", "-A"], repo)
+    _git(["commit", "-q", "-m", "c"], repo)
+    head = _git(["rev-parse", "HEAD"], repo)
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="r", path=str(repo), head_commit=head))
+    nodes = [Node(id="a", repo="r", kind="function", name="a", file="a.py", line_start=1),
+             Node(id="b", repo="r", kind="function", name="b", file="b.py", line_start=1)]
+    edges = [_edge("a", "b")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit=head, nodes=nodes, edges=edges))
+    store.upsert_nodes("r", nodes)
+    store.upsert_edges("r", edges)
+    return store, repo
+
+
+def test_a_head_that_moves_is_reported_while_the_shards_are_unchanged(tmp_path):
+    """`git pull` moves HEAD and rewrites no shard, so the shard fingerprint cannot see it.
+    A long-lived `kb serve` or dashboard has to report the stale repo on its next call, not
+    after a restart."""
+    lint_mod._lint_cache.clear()
+    store, repo = _checkout_store(tmp_path)
+    assert lint_result(store, tmp_path)["stale"] == 0
+
+    (repo / "a.py").write_text("def a():\n    return 2\n")
+    _git(["commit", "-q", "-am", "c2"], repo)
+
+    res = lint_result(store, tmp_path)
+    assert res["stale"] == 1 and res["stale_repos"] == ["r"], (
+        "a moved HEAD was answered from cache: staleness is being read from the shard "
+        "fingerprint, which does not see git")
+
+
+def test_a_checkout_that_disappears_is_reported_while_the_shards_are_unchanged(tmp_path):
+    lint_mod._lint_cache.clear()
+    store, repo = _checkout_store(tmp_path)
+    first = lint_result(store, tmp_path)
+    assert first["unreadable"] == 0 and first["checked"] == 1
+
+    shutil.rmtree(repo)
+
+    res = lint_result(store, tmp_path)
+    assert res["unreadable"] == 1 and res["unreadable_repos"][0]["reason"] == "missing"
+    assert res["checked"] == 1   # the shard part still comes from the cache
+
+
+def test_the_cache_holds_the_count_and_a_capped_sample_of_dangling_edges(tmp_path):
+    """A store with many dangling edges must not put the whole list in the cache, or every
+    hit deep-copies it. The count stays whole and the sample stays at 20."""
+    lint_mod._lint_cache.clear()
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="r", path=str(tmp_path / "checkout")))
+    nodes = [Node(id="a", repo="r", kind="function", name="a", file="a.py", line_start=1)]
+    edges = [_edge("a", f"ghost{i}") for i in range(25)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+    store.upsert_nodes("r", nodes)
+    store.upsert_edges("r", edges)
+
+    first = lint_result(store, tmp_path)
+    second = lint_result(store, tmp_path)
+
+    assert first["dangling"] == second["dangling"] == 25
+    assert len(second["dangling_sample"]) == 20
+    [(_, held)] = lint_mod._lint_cache.values()
+    assert max(len(v) for v in held.values() if isinstance(v, list)) <= 20
