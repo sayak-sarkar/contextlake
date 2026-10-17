@@ -75,6 +75,22 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
     return len(embedded_nodes), written_vectors, stopped_early
 
 
+# The option each source type reads its target from. `files` reads `path`; the network
+# sources read `url`. `--path https://...` used to be passed as `path` for every type, which
+# `web` and `api` swallow in `**_`, so the run dialled nothing and ended "complete".
+_URL_TARGET_TYPES = frozenset({"web", "api", "graphql"})
+
+
+def _cli_target_key(source_type: str, target: str) -> str:
+    """The source option that ``--path TARGET`` sets for ``source_type``."""
+    if source_type in _URL_TARGET_TYPES:
+        return "url"
+    # `mcp` takes a URL or a command; only a URL can be told from a plain path.
+    if source_type == "mcp" and target.lower().startswith(("http://", "https://")):
+        return "url"
+    return "path"
+
+
 def cmd_ingest(args) -> int:
     """Aggregate external documents (built-in + plugin sources) into the graph and,
     when embeddings are enabled, the semantic store.
@@ -99,8 +115,9 @@ def cmd_ingest(args) -> int:
         jobs = []  # (name, type, options, for_repo)
         cli_path = getattr(args, "path", None)
         if cli_path:
-            jobs.append(("cli", getattr(args, "source_type", None) or "files",
-                         {"path": cli_path}, getattr(args, "for_repo", None) or None))
+            cli_type = getattr(args, "source_type", None) or "files"
+            jobs.append(("cli", cli_type, {_cli_target_key(cli_type, cli_path): cli_path},
+                         getattr(args, "for_repo", None) or None))
         # An enabled source whose type this build cannot construct. `source add` now
         # refuses an unknown type at write time, but that does nothing for a config
         # written earlier, edited by hand, or authored ahead of installing the plugin

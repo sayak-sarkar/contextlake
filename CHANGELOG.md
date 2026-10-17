@@ -190,6 +190,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the default is used. A source that still cannot be built is named in the output and counted
   as failed, and the sources after it run. To give two or more list items, write a list in
   `kb.toml`. Present since 2.38.0, when `--set` was added.
+- **`kb ingest --path URL --source-type web` (or `api`) now fetches the URL, and a `--path`
+  target that sends no request now fails the run.** The flag is described as "the path (or
+  URL/endpoint) to ingest", but the URL was passed to the source as `path`, which these sources
+  ignore. No request went out, and the run ended with `Ingest complete: 0 document(s)` and exit
+  0, so a scheduled job built on it never ingested anything. `--path` now sets `url` for `web`
+  and `api`, and for `mcp` when the value starts with `http://` or `https://`. A target that
+  still sends no request, such as a directory with `--source-type mcp`, any `graphql` target, or
+  a non-http value, now prints `cli: FAILED, nothing was sent for ...` with the reason and exits
+  1. `--path` cannot drive a `graphql` source, which needs a `query`; use a `[[sources]]` entry
+  for that. Present since `--source-type` was added in 2.15.0. The `[[sources]]` form was not
+  affected.
 
 ### Security
 

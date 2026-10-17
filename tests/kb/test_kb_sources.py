@@ -1,7 +1,9 @@
 """Source/plugin seam: built-in FilesSource, entry-point discovery, and `ingest`."""
 
+import http.server
 import importlib.metadata as importlib_metadata
 import json
+import threading
 
 import pytest
 
@@ -413,6 +415,99 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "2 document(s)" in out
     assert "✓ Ingest complete: 2 document(s) aggregated" in out   # glyph-prefixed summary
+
+
+@pytest.fixture
+def loopback_pages():
+    """A loopback server: ``/page`` is HTML, ``/records`` a JSON list. Yields its base URL
+    and the list of paths it was asked for, so a test can see whether a request arrived."""
+    asked: list[str] = []
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            asked.append(self.path)
+            if self.path == "/records":
+                body = json.dumps([{"id": "1", "title": "Rec", "text": "api body"}]).encode()
+                ctype = "application/json"
+            else:
+                body = b"<html><head><title>Page</title></head><body>web body</body></html>"
+                ctype = "text/html"
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_address[1]}", asked
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.mark.parametrize("source_type, route, title", [
+    ("web", "/page", "Page"),
+    ("api", "/records", "Rec"),
+])
+def test_cmd_ingest_path_url_reaches_a_network_source(
+        tmp_path, capsys, monkeypatch, loopback_pages, source_type, route, title):
+    """`--path` is "the path (or URL/endpoint) to ingest", but the job passed it as
+    `path`, which `web` and `api` swallow in `**_`: no request was made and the run
+    ended in "Ingest complete: 0 document(s)", exit 0."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    base, asked = loopback_pages
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "ingest", "--path", base + route, "--source-type", source_type,
+              "--config", str(cfg)])
+
+    assert e.value.code == 0
+    assert asked == [route], "the server should have seen exactly one request"
+    assert "✓ Ingest complete: 1 document(s) aggregated" in capsys.readouterr().out
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    try:
+        assert any(h.name == title for h in store.search(title.lower()))
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("source_type, target, key", [
+    ("files", "./docs", "path"),
+    ("web", "https://a.invalid/x", "url"),
+    ("api", "https://a.invalid/x", "url"),
+    ("graphql", "https://a.invalid/g", "url"),
+    ("mcp", "https://a.invalid/m", "url"),
+    ("mcp", "./tools", "path"),
+    ("confluence", "SPACE", "path"),    # a plugin type keeps the key it always got
+])
+def test_cli_path_is_passed_under_the_key_the_source_type_reads(source_type, target, key):
+    from contextlake.kb.cmds.ingest import _cli_target_key
+
+    assert _cli_target_key(source_type, target) == key
+
+
+def test_cmd_ingest_path_that_a_type_cannot_use_says_nothing_was_sent(
+        tmp_path, capsys, monkeypatch):
+    """`mcp` takes a URL or a command. A plain path is neither, so no server is
+    contacted, and the run says so instead of calling the source reachable."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n{_EMBEDDINGS_OFF}')
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "ingest", "--path", "./tools", "--source-type", "mcp",
+              "--config", str(cfg)])
+
+    out = capsys.readouterr()
+    printed = out.out + out.err
+    assert e.value.code == 0
+    assert "cli: nothing to ingest: this mcp source has no command or url" in printed
+    assert "source reachable" not in printed
 
 
 def _seed_indexed_symbol(store_dir, repo_id="team/api"):

@@ -19,7 +19,12 @@ semantic search spans code *and* docs together:
 ```bash
 contextlake kb ingest --path ./docs        # zero-config: ingest a folder of files
 contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to that repo's code
+contextlake kb ingest --path https://example.com/changelog --source-type web   # one web page
 ```
+
+`--path` sets the `path` of a `files` source. For `--source-type web`, `api` or `graphql` it sets the
+`url`. A `graphql` source also needs a `query`, so give it in `kb.toml`. For `--source-type mcp` it sets
+the `url` when the value starts with `http://` or `https://`.
 
 `--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
 by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
