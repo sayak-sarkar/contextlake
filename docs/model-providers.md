@@ -206,6 +206,11 @@ and neither `[llm] builtin_model` nor `[llm] model` is set:
 - A scheduled run never waits at the question: its child process gets no terminal.
 - `contextlake init` asks the same question during setup (default no), without the page
   totals: there is no store yet.
+- The full Docker image holds only the 0.5B, and the pick does not prefer a size already on
+  disk. So a run with no model set can download a larger size, and on a host with no network
+  that download fails. To stay on the baked 0.5B, pass
+  `--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`, set `CONTEXTLAKE_OFFLINE=1` (only
+  a size on disk is a candidate), or set `[llm] builtin_model` to that id.
 
 **A model is downloaded once.** Each load looks on disk first: the pinned commit of the
 default model, then any copy of the same model already in the cache (from an older install,
@@ -323,8 +328,9 @@ are left.
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the
-mismatch. The prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles these models so nothing
-downloads at runtime. See `examples/kb.toml.example`.
+mismatch. The prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles the embedder and the
+0.5B wiki model; see [The first run picks a size](#installing-the-built-in-llm) for when it still
+downloads. See `examples/kb.toml.example`.
 
 ## See also
 

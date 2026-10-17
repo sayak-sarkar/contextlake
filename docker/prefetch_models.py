@@ -1,7 +1,7 @@
 """Bake the built-in models into the image's HuggingFace cache (Docker build step).
 
-Runs at image-build time so a `docker run` needs no model download at runtime —
-which also sidesteps corporate-proxy TLS issues for end users entirely.
+Runs at image-build time so a `docker run` that uses these models needs no download at
+runtime. That also avoids corporate-proxy TLS issues for end users.
 
 Shared by both Docker image variants (see Dockerfile): the embedder is always
 warmed (pure Python + numpy, no toolchain needed); the wiki-LLM model is only

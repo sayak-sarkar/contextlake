@@ -5,9 +5,11 @@
 #
 #   full (default) — ships the [kb,kb-local,llm-local] extras and BAKES IN the
 #                     pinned models (model2vec embedder + a small Qwen2.5-0.5B
-#                     wiki LLM), so `docker run` needs no Ollama, no API
-#                     key, and no model download at runtime. Large: bundles a
-#                     openvino-genai runtime + the model.
+#                     wiki LLM), so `docker run` needs no Ollama and no API
+#                     key, and the baked 0.5B needs no download. A wiki run with
+#                     no model set can pick a larger size, which does download
+#                     (docs/model-providers.md). Large: bundles a openvino-genai
+#                     runtime + the model.
 #   slim            — ships [kb,kb-local,kb-vec] only: no openvino-genai (so
 #                     no C++ toolchain needed to build it), no baked model.
 #                     Semantic search still works out of the box (model2vec is

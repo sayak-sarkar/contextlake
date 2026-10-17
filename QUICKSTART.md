@@ -96,9 +96,11 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder, downloaded once) via
 the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
-first run) and the **full Docker image** ships it baked in, so neither needs anything here.
+first run) and the **full Docker image** ships it baked in with the 0.5B model, so neither
+needs the install step here. With no model set, the first wiki run picks a size from the free
+RAM (0.5B to 14B) and prints its download size first; on a terminal it asks you.
 On a pip install:
 
 ```bash
@@ -107,7 +109,7 @@ contextlake doctor --fix llm-local
 
 That installs into the interpreter contextlake is running in and prints the exact command
 before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
-index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
+index URL. The model itself downloads on the first wiki run (349 MB for the 0.5B). See [Install and
 upgrade](docs/installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm).
 

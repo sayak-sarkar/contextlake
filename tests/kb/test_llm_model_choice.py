@@ -5,7 +5,9 @@ Owner decision 5. The machine and the model cache are faked; the config file is 
 
 from __future__ import annotations
 
+import re
 from argparse import Namespace
+from pathlib import Path
 
 import pytest
 
@@ -82,6 +84,36 @@ def test_nothing_fits_falls_back_to_the_default_and_says_so(world):
     world["machine"] = Machine(8, 2 * GB, 1 * GB, 500 * GB)
     chosen, out = _choose(world, ask=False)
     assert chosen is DEFAULT and "no model fits" in out
+
+
+def test_no_terminal_pick_does_not_prefer_the_model_on_disk(world):
+    """The full Docker image bakes only the 0.5B. An unattended run still takes the largest
+    size that fits and downloads it (owner decision 5), and the docs below say so."""
+    world["disk"] = {DEFAULT.repo_id: True}
+    chosen, out = _choose(world, ask=False)
+    assert chosen is THREE_B and "a 1.8 GB download" in out
+
+
+_REPO = Path(__file__).resolve().parents[2]
+
+
+def _flat(rel: str) -> str:
+    """A file as one line of words, so a sentence wrapped over lines or `#` comments matches."""
+    return re.sub(r"\s+", " ", (_REPO / rel).read_text(encoding="utf-8").replace("#", " "))
+
+
+def test_the_docs_say_the_docker_image_can_still_download_a_model():
+    """A page that says the full image needs no model download at runtime sent a host with no
+    network to a failed 3B download, which was then saved as its wiki model."""
+    pages = [*sorted(p.relative_to(_REPO).as_posix() for p in (_REPO / "docs").glob("*.md")),
+             "README.md", "QUICKSTART.md", "Dockerfile", "docker/prefetch_models.py"]
+    claim = re.compile(r"no (?:wiki )?model download at runtime|nothing downloads at runtime",
+                       re.I)
+    bad = [f"{rel}: {m.group(0)}" for rel in pages for m in [claim.search(_flat(rel))] if m]
+    assert not bad, "a page says the image never downloads a model:\n  " + "\n  ".join(bad)
+    way_out = f"--llm-model {DEFAULT.repo_id}"
+    for rel in ("docs/installing.md", "docs/model-providers.md"):
+        assert way_out in _flat(rel), f"{rel} does not say how to stay on the baked model"
 
 
 def test_on_a_terminal_enter_takes_the_largest_that_fits(world, monkeypatch):

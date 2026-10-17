@@ -1011,18 +1011,25 @@ pip install "contextlake[llm-local]"
 ```
 
 No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
-first run, and the full Docker image ships the runtime and the model baked in.
+first run, and the full Docker image ships the runtime and the 0.5B model baked in.
 
-The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
-which backend to choose and why, see
+The model itself downloads on the first wiki run, not at install time. With no model set, that
+run picks a size from the free RAM and prints the download size before it starts: 349 MB
+(Apache-2.0) for the 0.5B, up to 8.5 GB for the largest. For which backend to choose and why, see
 [Installing the built-in LLM](model-providers.md#installing-the-built-in-llm).
 
 ### Docker
 
 The published image at `ghcr.io/sayak-sarkar/contextlake` carries the knowledge layer plus
-the built-in CPU models (the embedder and a small wiki LLM), so it runs with no Ollama, no
-API key, and no model download at runtime. Reach for it on locked-down or offline machines;
-the PyPI wheel stays the primary install. It runs as a non-root user.
+the built-in CPU models (the embedder and the 0.5B wiki LLM), so it runs with no Ollama and
+no API key. Reach for it on locked-down or offline machines; the PyPI wheel stays the primary
+install. It runs as a non-root user.
+
+The image holds only the 0.5B. A `kb wiki` run with no model set picks the largest size that
+fits the free RAM and does not prefer the copy on disk, so it can download a larger one. To
+stay on the baked model, pass `--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`, set
+`CONTEXTLAKE_OFFLINE=1`, or set `[llm] builtin_model` to that id. See
+[The first run picks a size](model-providers.md#installing-the-built-in-llm).
 
 One thing the default image does **not** carry is the `sqlite-vec` ANN backend (`[kb-vec]`): it is
 built from `[kb,kb-local,llm-local]`. Semantic search still works there, on the pure-Python exact
@@ -1454,9 +1461,11 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder, downloaded once) via
 the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
-first run) and the **full Docker image** ships it baked in, so neither needs anything here.
+first run) and the **full Docker image** ships it baked in with the 0.5B model, so neither
+needs the install step here. With no model set, the first wiki run picks a size from the free
+RAM (0.5B to 14B) and prints its download size first; on a terminal it asks you.
 On a pip install:
 
 ```bash
@@ -1465,7 +1474,7 @@ contextlake doctor --fix llm-local
 
 That installs into the interpreter contextlake is running in and prints the exact command
 before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
-index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
+index URL. The model itself downloads on the first wiki run (349 MB for the 0.5B). See [Install and
 upgrade](docs/installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm).
 
@@ -5176,6 +5185,11 @@ and neither `[llm] builtin_model` nor `[llm] model` is set:
 - A scheduled run never waits at the question: its child process gets no terminal.
 - `contextlake init` asks the same question during setup (default no), without the page
   totals: there is no store yet.
+- The full Docker image holds only the 0.5B, and the pick does not prefer a size already on
+  disk. So a run with no model set can download a larger size, and on a host with no network
+  that download fails. To stay on the baked 0.5B, pass
+  `--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`, set `CONTEXTLAKE_OFFLINE=1` (only
+  a size on disk is a candidate), or set `[llm] builtin_model` to that id.
 
 **A model is downloaded once.** Each load looks on disk first: the pinned commit of the
 default model, then any copy of the same model already in the cache (from an older install,
@@ -5293,8 +5307,9 @@ are left.
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the
-mismatch. The prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles these models so nothing
-downloads at runtime. See `examples/kb.toml.example`.
+mismatch. The prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles the embedder and the
+0.5B wiki model; see [The first run picks a size](#installing-the-built-in-llm) for when it still
+downloads. See `examples/kb.toml.example`.
 
 ## See also
 
@@ -10126,6 +10141,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loads from disk, and `serve` warned that the model would fail offline. Both now look where
   the loader looks: `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, `HF_HOME/hub`, then
   `cache_dir/hub`. The `doctor` line ends with the folder it checked.
+- **The docs no longer promise that the full Docker image never downloads a model.**
+  `installing.md`, `QUICKSTART.md` and `releasing.md` said the image needs no model download
+  at runtime and that the wiki model is 349 MB. With no wiki model set, an unattended
+  `kb wiki` run takes the largest size that fits the free RAM and does not prefer a size
+  already on disk, so it can download up to 8.5 GB. The image bakes only the 0.5B. Since
+  10.0.0rc1 the pages were wrong on this. They now say so and name three ways to stay on the
+  baked model: `--llm-model`, `CONTEXTLAKE_OFFLINE=1`, or `[llm] builtin_model`.
 
 ### Security
 

@@ -105,18 +105,25 @@ pip install "contextlake[llm-local]"
 ```
 
 No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
-first run, and the full Docker image ships the runtime and the model baked in.
+first run, and the full Docker image ships the runtime and the 0.5B model baked in.
 
-The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
-which backend to choose and why, see
+The model itself downloads on the first wiki run, not at install time. With no model set, that
+run picks a size from the free RAM and prints the download size before it starts: 349 MB
+(Apache-2.0) for the 0.5B, up to 8.5 GB for the largest. For which backend to choose and why, see
 [Installing the built-in LLM](model-providers.md#installing-the-built-in-llm).
 
 ### Docker
 
 The published image at `ghcr.io/sayak-sarkar/contextlake` carries the knowledge layer plus
-the built-in CPU models (the embedder and a small wiki LLM), so it runs with no Ollama, no
-API key, and no model download at runtime. Reach for it on locked-down or offline machines;
-the PyPI wheel stays the primary install. It runs as a non-root user.
+the built-in CPU models (the embedder and the 0.5B wiki LLM), so it runs with no Ollama and
+no API key. Reach for it on locked-down or offline machines; the PyPI wheel stays the primary
+install. It runs as a non-root user.
+
+The image holds only the 0.5B. A `kb wiki` run with no model set picks the largest size that
+fits the free RAM and does not prefer the copy on disk, so it can download a larger one. To
+stay on the baked model, pass `--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`, set
+`CONTEXTLAKE_OFFLINE=1`, or set `[llm] builtin_model` to that id. See
+[The first run picks a size](model-providers.md#installing-the-built-in-llm).
 
 One thing the default image does **not** carry is the `sqlite-vec` ANN backend (`[kb-vec]`): it is
 built from `[kb,kb-local,llm-local]`. Semantic search still works there, on the pure-Python exact

@@ -275,9 +275,11 @@ the same multi-stage [`Dockerfile`](../Dockerfile) (see also
 [`docker/prefetch_models.py`](../docker/prefetch_models.py)), non-root, with no
 compiler toolchain in the final image:
 
-- **full** (`--target full`), the `[kb,kb-local,llm-local]` extras with the pinned
-  models **baked in** (model2vec embedder + a small OpenVINO wiki LLM), so `docker run`
-  needs no Ollama, no API key, and no model download at runtime. Useful for
+- **full** (`--target full`), the `[kb,kb-local,llm-local]` extras with the default
+  models **baked in** (model2vec embedder + the 0.5B OpenVINO wiki LLM), so `docker run`
+  needs no Ollama and no API key, and the baked 0.5B needs no download. A wiki run with
+  no model set picks a size by free RAM and can download a larger one (see
+  [Installing the built-in LLM](model-providers.md#installing-the-built-in-llm)). Useful for
   zero-config or air-gapped use, at the cost of a larger pull.
 - **slim** (`--target slim`), the `[kb,kb-local,kb-vec]` extras only: no
   `openvino-genai`, no baked model, smaller pull. Semantic search still works

@@ -394,6 +394,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loads from disk, and `serve` warned that the model would fail offline. Both now look where
   the loader looks: `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, `HF_HOME/hub`, then
   `cache_dir/hub`. The `doctor` line ends with the folder it checked.
+- **The docs no longer promise that the full Docker image never downloads a model.**
+  `installing.md`, `QUICKSTART.md` and `releasing.md` said the image needs no model download
+  at runtime and that the wiki model is 349 MB. With no wiki model set, an unattended
+  `kb wiki` run takes the largest size that fits the free RAM and does not prefer a size
+  already on disk, so it can download up to 8.5 GB. The image bakes only the 0.5B. Since
+  10.0.0rc1 the pages were wrong on this. They now say so and name three ways to stay on the
+  baked model: `--llm-model`, `CONTEXTLAKE_OFFLINE=1`, or `[llm] builtin_model`.
 
 ### Security
 
