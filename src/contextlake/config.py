@@ -325,6 +325,9 @@ def load_config(config_path=None, cli_group=None):
             ".contextlake.ini), which may point at a different workspace than "
             "the one you meant to use."
         )
+    # A `~` or `$VAR` that the shell did not expand (`--config=~/x.ini`, a quoted value, a
+    # systemd line) is expanded for the check above, so it must be expanded for the read.
+    config_path = expand_path(config_path)
     config = DEFAULT_CONFIG.copy()
     local_config_file = find_ancestor_config(LOCAL_CONFIG_FILE)
     global_values = _read_section(CONFIG_FILE)

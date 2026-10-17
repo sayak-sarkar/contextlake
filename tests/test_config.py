@@ -55,6 +55,24 @@ def test_config_path_values_are_tilde_expanded(tmp_path, monkeypatch):
     assert "~" not in config["work_dir"]
 
 
+@pytest.mark.parametrize("given", ["~/ws/cfg.ini", "$CFG_DIR/cfg.ini"])
+def test_explicit_config_path_is_expanded_before_it_is_read(tmp_path, monkeypatch, given):
+    """The existence check expanded `~` and `$VAR`, but the read used the text as typed. The
+    check passed, the file was ignored, and the run used the defaults (work_dir ~/work) with
+    a warning. `--config=~/ws/cfg.ini` reaches the program unexpanded in bash."""
+    _isolate_globals(monkeypatch, tmp_path)
+    home = tmp_path / "home"
+    (home / "ws").mkdir(parents=True)
+    (home / "ws" / "cfg.ini").write_text(
+        "[contextlake]\ngitlab_group = my-group\nwork_dir = /srv/ws\n")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("CFG_DIR", str(home / "ws"))
+
+    config = load_config(given)
+
+    assert (config["gitlab_group"], config["work_dir"]) == ("my-group", "/srv/ws")
+
+
 def test_missing_explicit_config_path_is_a_hard_error(tmp_path, monkeypatch):
     """A --config path that doesn't exist must fail loudly, not silently fall
     through the precedence chain to ~/.contextlake.ini -- which can point at a

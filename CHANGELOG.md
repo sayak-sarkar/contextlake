@@ -120,6 +120,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lowest commit count to 0 in the default `hybrid` scoring, so `branches` now scores the real
   branches, and a clone can move to a different branch than before. Working-branch protection
   still applies.
+- **`--config=~/x.ini` and `--config '$DIR/x.ini'` read the file they name.** The existence
+  check expanded `~` and `$VAR` but the read used the text as typed, so the check passed and the
+  file was ignored. `mirror update` then ran against the default work directory with one
+  warning, exited 0, and updated the clones it found there. A path that the shell leaves
+  unexpanded reaches the program with `--config=~/x.ini` in bash, in a quoted value, and in a
+  systemd `ExecStart` line.
 
 ### Security
 

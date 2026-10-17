@@ -73,6 +73,10 @@ contextlake --config /path/to/custom.ini mirror sync     # use a different confi
 contextlake --work-dir /home/user/dev --group my-gitlab-group mirror status  # combine
 ```
 
+The `--config` path may start with `~` or hold `$VAR`. contextlake expands it, so
+`--config=~/ws/cfg.ini` works where the shell leaves the `~` as typed (after `=`, inside quotes, or in a
+systemd `ExecStart` line).
+
 ## Directory-scoped config
 
 A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
