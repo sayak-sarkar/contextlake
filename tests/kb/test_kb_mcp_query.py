@@ -177,3 +177,28 @@ def test_mcp_tool_query_single_dict_no_content_keys_returns_empty(monkeypatch):
     docs = mcp_tool_query(cfg, ["Order"])
     # Dict with no recognized content keys is discarded per Fix 1 spec
     assert docs == []
+
+
+def test_mcp_tool_query_reads_the_sources_own_timeout(monkeypatch):
+    """`kb enrich` passes no timeout, so `timeout or 60` ignored the source's `timeout`
+    key and the documented remedy for a slow server ("raise `timeout` on the source")
+    did nothing there. `--set timeout=300` stores a string, so it is coerced."""
+    seen = []
+
+    def fake_call_tool(**kwargs):
+        seen.append(kwargs["timeout"])
+        return []
+
+    monkeypatch.setattr(mcp_query, "call_tool", fake_call_tool)
+    base = {"command": "srv", "tool": "search"}
+    mcp_tool_query({**base, "timeout": 300}, ["Order"])
+    mcp_tool_query({**base, "timeout": "300"}, ["Order"])
+    mcp_tool_query(base, ["Order"])
+    mcp_tool_query({**base, "timeout": 300}, ["Order"], timeout=5)
+    # The way `kb enrich` reaches it: a SourceCfg with the key as an extra.
+    from contextlake.kb.config import SourceCfg
+    from contextlake.kb.connectors.enrich import search_source
+    search_source(SourceCfg(type="mcp", name="wiki", tool="search", command="srv",
+                            timeout=300), ["Order"])
+
+    assert seen == [300.0, 300.0, 60, 5, 300.0], seen

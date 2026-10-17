@@ -225,6 +225,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole set. The `files` source also skipped a text file that was over `max_bytes`, not
   valid UTF-8 or unreadable with no message. The first two now log a warning that names the
   files, and an unreadable file counts as an unreadable target. Present since 2.15.0.
+- **`kb enrich` now reads a source's `scopes` and `timeout`.** `kb connect` passed an Atlassian
+  source's `scopes` to the connector, and `kb enrich` did not. It asked `mcp-remote` for the
+  default scopes, which include Confluence read scopes, on the token cache `connect` had
+  narrowed, so it asked for or failed against a wider grant than the one written in the config.
+  An `mcp` source with a `tool` also ignored its `timeout` in `kb enrich`, which always waited
+  60 seconds, so raising `timeout` for a slow server, the documented remedy, had no effect
+  there. `kb enrich` now reads both options, as `kb connect` already read `scopes`. The `scopes`
+  gap dates from 6.2.0.
 
 ### Security
 

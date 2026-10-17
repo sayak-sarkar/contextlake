@@ -282,7 +282,8 @@ since a hosted MCP endpoint can carry a token in its path or query.
 
 Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
-source if the server is merely slow.
+source if the server is merely slow. `kb enrich` reads it for an Atlassian source and for an `mcp` source
+with a `tool`.
 
 ## When one repository is unreadable
 

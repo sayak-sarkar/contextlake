@@ -341,6 +341,12 @@ accept:
 
 - `auth_dir`: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
   `mcp-remote` caches never collide.
+- `scopes`: the OAuth scopes an Atlassian source asks for, as one space-separated string. The default is
+  the read-only set. `connect` and `enrich` both pass it to the connector. A discovered config file may
+  only narrow it (see [Configuration](configuration.md)).
+- `timeout`: seconds to wait for one call to the source. The default is `120` for an Atlassian, Figma or
+  Slack source, `30` for a GitLab source, `60` for an `mcp` source and `20` for an `api`, `web` or
+  `graphql` source.
 - `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
   `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
 - `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to

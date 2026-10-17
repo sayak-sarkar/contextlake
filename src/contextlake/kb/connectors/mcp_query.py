@@ -170,7 +170,9 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
             url=url,
             tool=tool,
             arguments=args,
-            timeout=timeout or 60,
+            # The source's own `timeout` when the caller passes none, which `kb enrich` does
+            # not. Without this the documented remedy (raise `timeout`) did nothing there.
+            timeout=timeout if timeout is not None else _num(cfg, "timeout", 60, float),
             env=_cfg_get(cfg, "env"),
         )
         return _normalize(result, tool)

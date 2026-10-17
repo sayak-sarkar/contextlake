@@ -494,3 +494,26 @@ def test_an_unusable_timeout_falls_back_instead_of_failing_every_call(monkeypatc
     search_source(SourceCfg(type="atlassian", name="site-a", timeout="soon"), ["Reading"])
 
     assert seen.get("timeout") == 120
+
+
+def test_enrich_gives_the_atlassian_connector_the_sources_scopes(monkeypatch):
+    """`kb connect` builds the connector with the source's `scopes`; `kb enrich` did not,
+    so it asked for the full default grant on the token cache `connect` had narrowed."""
+    seen = []
+
+    class _Stub:
+        def __init__(self, *a, **k):
+            seen.append(k.get("scopes"))
+
+        def search(self, query):
+            return []
+
+    import contextlake.kb.connectors.atlassian as atlassian_mod
+    monkeypatch.setattr(atlassian_mod, "AtlassianConnector", _Stub)
+
+    narrow = "read:jira-work offline_access"
+    search_source(SourceCfg(type="atlassian", name="site-a", scopes=narrow), ["Reading"])
+    search_source({"type": "atlassian", "name": "site-a", "scopes": narrow}, ["Reading"])
+    search_source(SourceCfg(type="atlassian", name="site-a"), ["Reading"])
+
+    assert seen == [narrow, narrow, None], seen

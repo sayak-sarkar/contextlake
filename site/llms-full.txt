@@ -3468,7 +3468,8 @@ since a hosted MCP endpoint can carry a token in its path or query.
 
 Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
-source if the server is merely slow.
+source if the server is merely slow. `kb enrich` reads it for an Atlassian source and for an `mcp` source
+with a `tool`.
 
 ## When one repository is unreadable
 
@@ -3854,6 +3855,12 @@ accept:
 
 - `auth_dir`: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
   `mcp-remote` caches never collide.
+- `scopes`: the OAuth scopes an Atlassian source asks for, as one space-separated string. The default is
+  the read-only set. `connect` and `enrich` both pass it to the connector. A discovered config file may
+  only narrow it (see [Configuration](configuration.md)).
+- `timeout`: seconds to wait for one call to the source. The default is `120` for an Atlassian, Figma or
+  Slack source, `30` for a GitLab source, `60` for an `mcp` source and `20` for an `api`, `web` or
+  `graphql` source.
 - `mcp_command`: a local stdio MCP command to launch instead of a remote endpoint (for example
   `"figma-mcp --stdio"` or `"slack-mcp --stdio"`).
 - `hosts`: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
@@ -9875,6 +9882,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole set. The `files` source also skipped a text file that was over `max_bytes`, not
   valid UTF-8 or unreadable with no message. The first two now log a warning that names the
   files, and an unreadable file counts as an unreadable target. Present since 2.15.0.
+- **`kb enrich` now reads a source's `scopes` and `timeout`.** `kb connect` passed an Atlassian
+  source's `scopes` to the connector, and `kb enrich` did not. It asked `mcp-remote` for the
+  default scopes, which include Confluence read scopes, on the token cache `connect` had
+  narrowed, so it asked for or failed against a wider grant than the one written in the config.
+  An `mcp` source with a `tool` also ignored its `timeout` in `kb enrich`, which always waited
+  60 seconds, so raising `timeout` for a slow server, the documented remedy, had no effect
+  there. `kb enrich` now reads both options, as `kb connect` already read `scopes`. The `scopes`
+  gap dates from 6.2.0.
 
 ### Security
 

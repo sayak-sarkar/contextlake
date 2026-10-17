@@ -90,6 +90,9 @@ def _atlassian_search(cfg, terms: list[str], *, timeout: float | None = None) ->
         # Coerced, not read raw: `--set timeout=900` stores a STRING, and a string
         # reaches `asyncio.wait_for` and raises on every call. See `_num`.
         timeout=timeout if timeout is not None else _num(cfg, "timeout", 120, float),
+        # Read as `orchestrate.build_atlassian` reads it. Without it `kb enrich` asked
+        # for the default scopes on the same token cache that `kb connect` narrowed.
+        scopes=_cfg_get(cfg, "scopes"),
     )
     result = connector.search(" ".join(terms))
     docs = _normalize(result, "atlassian")
