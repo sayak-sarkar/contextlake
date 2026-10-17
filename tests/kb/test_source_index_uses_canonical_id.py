@@ -47,7 +47,7 @@ def _make_repo(root: Path, *, remote: str | None) -> Path:
     return root
 
 
-def _index(src: Path, store: Path, *extra: str) -> None:
+def _index(src: Path, store: Path, *extra: str) -> str:
     store.parent.mkdir(parents=True, exist_ok=True)
     cfg = store.parent / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{store}"\n')
@@ -56,6 +56,7 @@ def _index(src: Path, store: Path, *extra: str) -> None:
          *extra, "--config", str(cfg), "--plain"],
         capture_output=True, text=True, timeout=300, cwd=REPO, stdin=subprocess.DEVNULL)
     assert r.returncode == 0, r.stdout + r.stderr
+    return r.stdout + r.stderr
 
 
 def _repo_ids(store: Path) -> list[str]:
@@ -116,3 +117,34 @@ def test_an_old_directory_name_row_is_re_filed_not_orphaned(tmp_path):
     assert _repo_ids(store) == ["gitlab.example.com/acme/widgets"], (
         "the stale directory-name row must be cleared, not left beside the new one")
 
+
+
+@pytest.mark.slow
+def test_an_explicit_repo_id_is_not_migrated_away_on_the_next_run(tmp_path):
+    """`--repo ID` files a repo under a name the user chose, and that row is not stale.
+
+    The migration compared the stored id with the one the origin remote gives, saw a
+    difference, and deleted the row, its shard and its history snapshots. The run then
+    filed the repo under the same `--repo` id again. Every run did a full index, the
+    unchanged gate never fired, and `query --as-of <old commit>` had nothing to read.
+    """
+    src = _make_repo(tmp_path / "named", remote=REMOTE)
+    store = tmp_path / "s5" / "store"
+    history = store / "history" / "team" / "widgets"
+    _index(src, store, "--repo", "team/widgets")
+    first = sorted(history.glob("*.json"))
+    assert len(first) == 1
+
+    out = _index(src, store, "--repo", "team/widgets")
+    assert "moving to canonical ids" not in out, out
+    assert "unchanged" in out, out
+    assert sorted(history.glob("*.json")) == first
+
+    (src / "b.py").write_text("def more():\n    return 2\n")
+    _git(src, "add", "-A")
+    _git(src, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "two")
+    out = _index(src, store, "--repo", "team/widgets")
+    assert "moving to canonical ids" not in out, out
+    assert first[0] in set(history.glob("*.json")), "the older snapshot was deleted"
+    assert len(list(history.glob("*.json"))) == 2
+    assert _repo_ids(store) == ["team/widgets"]

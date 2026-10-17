@@ -24,18 +24,23 @@ def _git_root(path: Path) -> Path | None:
 
 
 def _canonical_repo_id(root: Path, args) -> str:
-    """The id the store already uses for this path, else the directory name.
+    """The id the store already uses for this path, else the id its origin gives.
 
     Matching the stored id keeps the hook's re-index updating the SAME node rather
-    than creating a duplicate under a bare basename.
+    than creating a duplicate under a bare basename. A repo the store does not hold yet
+    gets the id `kb index` would file it under, never the directory name: the hook
+    writes that id into the script, and a directory name is not what a plain
+    `kb index PATH` files the repo under, so the two commands made two rows.
     """
     store = None
+    unstored = False
     try:
         store, _ = _open_store(args)
         rp = root.resolve()
         for repo in store.list_repos():
             if repo.path and Path(repo.path).resolve() == rp:
                 return repo.id
+        unstored = True
     except Exception as e:  # noqa: BLE001 - store is optional here; fall back to the dir name
         # A brand-new store (never indexed) doesn't raise here -- SqliteStore creates
         # it on open -- so anything landing in this branch is a real problem (a bad
@@ -48,6 +53,9 @@ def _canonical_repo_id(root: Path, args) -> str:
     finally:
         if store is not None:
             store.close()
+    if unstored:
+        from ..repo_identity import resolve_repo_id
+        return resolve_repo_id(str(root))
     return root.name
 
 

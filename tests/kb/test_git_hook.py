@@ -230,3 +230,28 @@ def test_a_missing_path_says_no_such_directory(word, tmp_path, monkeypatch, gls_
     assert kb.dispatch("hook", args) == 1
     assert f"No such directory: {word}" in gls_logs.text
     assert "Unknown hook action" not in gls_logs.text
+
+
+def test_hook_install_on_an_empty_store_pins_the_origin_id_not_the_directory_name(
+        tmp_path, monkeypatch, gls_logs):
+    """The hook writes `--repo <id>` into the script. On a store that does not hold the
+    repo yet the id was the directory name, which is not what a plain `kb index PATH`
+    files the repo under, so the hook and the command made two rows for one checkout."""
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    repo = tmp_path / "gamma"
+    _repo(repo)
+    subprocess.run(["git", "-C", str(repo), "remote", "add", "origin",
+                    "https://git.example.org/team/gamma.git"], check=True)
+    monkeypatch.chdir(repo)
+
+    args = build_parser().parse_args(["kb", "hook", "install"])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 0
+
+    hook = repo / ".git" / "hooks" / "post-commit"
+    assert "--repo git.example.org/team/gamma" in hook.read_text()
+    assert "--repo gamma" not in hook.read_text()

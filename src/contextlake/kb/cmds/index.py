@@ -855,9 +855,13 @@ def _cmd_index_once(args) -> int:
             # that reason. `in_scope` is the one path this run is about to index, which
             # is the promise the migration's safety rests on -- it clears a stale row
             # only because the caller re-indexes it immediately, and only for paths the
-            # caller will actually touch.
+            # caller will actually touch. `keep` is the id this run files the repo under:
+            # a row under it is not stale, even when it is not the id the origin gives
+            # (`--repo team/widgets` is that id). Without it the migration deleted that
+            # row, and its history snapshots, on every run, and the run then filed the
+            # repo under the same id again.
             from ..repo_migrate import migrate_stale_repo_ids
-            migrate_stale_repo_ids(store, store_dir, in_scope=[str(src)])
+            migrate_stale_repo_ids(store, store_dir, in_scope=[str(src)], keep=repo_id)
             head = _git_head(src)
             # Same incremental gate --workspace applies, for the same reasons and
             # in the same order: HEAD unmoved AND the graph built by this parser

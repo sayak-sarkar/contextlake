@@ -300,6 +300,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the ranking are unchanged. A page already on disk keeps its old wording until the next
   `kb wiki` run. The prompt and the dashboard date from 2.64.0, and the Getting started step
   from 8.4.0.
+- **`kb index --repo ID` keeps the id you name, and its history.** The id migration treated any
+  stored id that differs from the one the `origin` remote gives as stale. A repo filed with
+  `--repo team/widgets` was deleted on the next run, with its shard, history snapshots and
+  vectors, then filed under the same id again. Each run was a full index, the unchanged gate
+  never fired, and `query --as-of <older commit>` found nothing. `kb hook install` on a store
+  that did not hold the repo yet wrote the directory name into the hook, so every commit did
+  the same. The named id is now kept, and the hook writes the id the `origin` gives, as a plain
+  `kb index PATH` does. Since 8.7.0.
 
 ### Security
 

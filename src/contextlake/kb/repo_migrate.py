@@ -24,6 +24,7 @@ class MigrationResult:
     cleared: list[tuple[str, str]] = field(default_factory=list)  # (old_id, new_id)
     skipped_missing_path: list[str] = field(default_factory=list)
     skipped_out_of_scope: list[str] = field(default_factory=list)
+    skipped_kept: list[str] = field(default_factory=list)
 
 
 # Once a store has nothing left to clear, remember it for this process's lifetime
@@ -65,7 +66,7 @@ def _clear_vectors(store_dir, repo_id: str) -> None:
         log(f"  note: could not clear stale embeddings for {repo_id}: {e}")
 
 
-def migrate_stale_repo_ids(store, store_dir, in_scope=None) -> MigrationResult:
+def migrate_stale_repo_ids(store, store_dir, in_scope=None, keep=None) -> MigrationResult:
     """Clear any existing repo whose stored id no longer matches the canonical
     id its path resolves to today. Idempotent: a store with nothing stale is a
     fast no-op (one ``list_repos`` + one canonical-id resolve per row).
@@ -79,6 +80,12 @@ def migrate_stale_repo_ids(store, store_dir, in_scope=None) -> MigrationResult:
     is left alone, because deleting it trades real data for a rename nothing is about
     to perform. Omitting the argument keeps the old whole-store behaviour and should
     only be done by a caller that really does index every repo in the store.
+
+    ``keep`` is the id this run will file the checkout under when the caller chose it
+    (``kb index --repo ID``, or the id a hook was installed with). A row under that id
+    is not stale, whatever the origin remote says. Clearing it would only delete the
+    row, its shard and its history snapshots, and the run would then file the repo under
+    the same id again, so every run did a full re-index and no old snapshot survived.
 
     This was not hypothetical. A store built from one workspace, then indexed with
     ``--workspace`` pointing somewhere else, had every non-canonically-named repo in
@@ -138,6 +145,9 @@ def migrate_stale_repo_ids(store, store_dir, in_scope=None) -> MigrationResult:
         new_id = resolve_repo_id(repo.path)
         if new_id == repo.id:
             continue  # already canonical
+        if keep is not None and repo.id == keep:
+            result.skipped_kept.append(repo.id)  # not canonical, but the caller named it
+            continue
         store.delete_repo(repo.id)  # drops the repos row too, not just its content --
         # clear_repo alone would leave a zero-node ghost row whose id still
         # mismatches its path, so migration would "re-migrate" it forever.
@@ -156,7 +166,8 @@ def migrate_stale_repo_ids(store, store_dir, in_scope=None) -> MigrationResult:
     # Only remember the store as clean when this pass could actually see all of it.
     # Skipped-out-of-scope repos may still need migrating, and this cache lasts the
     # whole process: marking clean here would make a later run that DOES include them
-    # skip the migration entirely, which is how a fix for one bug plants another.
-    if not result.cleared and not result.skipped_out_of_scope:
+    # skip the migration entirely, which is how a fix for one bug plants another. A row
+    # kept because the caller named its id is the same case: it was not checked.
+    if not result.cleared and not result.skipped_out_of_scope and not result.skipped_kept:
         _clean_store_dirs.add(key)
     return result

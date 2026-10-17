@@ -129,6 +129,11 @@ Without it, the id falls back to the directory name. That is exactly the fragile
 id this section exists to avoid. Name it once, rather than living with a repo filed as `widgets`
 because that is what the folder happened to be called.
 
+A named id is kept. Each later `kb index ... --repo team/widgets` updates the same row and keeps
+its history snapshots, so `--as-of` still reaches old commits. A later run that names no id (a plain
+`kb index PATH` or a `--workspace` run) files the checkout under the id its `origin` gives and
+replaces the row you named.
+
 ## Parallelism and noise-pruning
 
 Repositories are parsed across **worker processes** (CPU-bound work) while the SQLite store is written

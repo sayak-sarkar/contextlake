@@ -198,9 +198,10 @@ A path that does not exist (for example `kb hook ~/missing/dir`) prints `No such
 and exits 1. A plain word that is not an action prints the list of actions and exits 1.
 
 The hook runs `contextlake kb index <repo>` detached, so the commit returns immediately, and it
-re-uses the repo's stored id so it updates the same graph node rather than creating a duplicate. It
-is written inside a delimited managed block, so a hook you already had is appended to rather than
-overwritten, and only that block is refreshed on re-runs.
+re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
+the store does not hold the repo yet, it uses the id the repo's `origin` gives, the same id a plain
+`kb index PATH` files it under. It is written inside a delimited managed block, so a hook you
+already had is appended to, not overwritten, and only that block is refreshed on re-runs.
 
 `kb index` rewrites that repo's API reference and design notes along with the graph, so the
 documents move with the commit. No model runs, and a repo whose head commit has not moved is

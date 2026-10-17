@@ -135,3 +135,48 @@ def test_migrate_is_idempotent_no_ghost_row_on_second_run(tmp_path):
         assert second.cleared == []   # nothing left to migrate -- not re-cleared forever
     finally:
         store.close()
+
+
+def test_migrate_keeps_a_row_under_the_id_the_caller_named(tmp_path):
+    """`kb index --repo ID` files a checkout under an id the origin does not give. That
+    row is not stale: clearing it deleted its shard and history, and the run then filed
+    the repo under the same id again."""
+    from contextlake.kb import repo_migrate
+
+    repo_dir = tmp_path / "clone"
+    _git_repo(repo_dir, remote="https://example.com/acme/widgets.git")
+    store, store_dir = _store(tmp_path)
+    try:
+        store.upsert_repo(Repo(id="team/widgets", path=str(repo_dir)))
+        write_shard(store_dir, GraphShard(repo="team/widgets", nodes=[], edges=[]))
+        repo_migrate._clean_store_dirs.discard(str(store_dir))
+
+        result = migrate_stale_repo_ids(store, store_dir, in_scope=[str(repo_dir)],
+                                        keep="team/widgets")
+
+        assert result.cleared == []
+        assert result.skipped_kept == ["team/widgets"]
+        assert store.get_repo("team/widgets") is not None
+        assert shard_path(store_dir, "team/widgets").exists()
+        # not remembered as clean: a later run that names no id must still migrate it
+        assert str(store_dir) not in repo_migrate._clean_store_dirs
+        later = migrate_stale_repo_ids(store, store_dir, in_scope=[str(repo_dir)])
+        assert later.cleared == [("team/widgets", "example.com/acme/widgets")]
+    finally:
+        store.close()
+
+
+def test_migrate_still_clears_another_stale_row_beside_the_kept_id(tmp_path):
+    """`keep` protects the named id only. A row under a different stale id for the same
+    checkout is still cleared, so renaming with `--repo` does not leave two rows."""
+    repo_dir = tmp_path / "clone"
+    _git_repo(repo_dir, remote="https://example.com/acme/widgets.git")
+    store, store_dir = _store(tmp_path)
+    try:
+        store.upsert_repo(Repo(id="old-name", path=str(repo_dir)))
+        result = migrate_stale_repo_ids(store, store_dir, in_scope=[str(repo_dir)],
+                                        keep="team/widgets")
+        assert [old for old, _new in result.cleared] == ["old-name"]
+        assert store.get_repo("old-name") is None
+    finally:
+        store.close()
