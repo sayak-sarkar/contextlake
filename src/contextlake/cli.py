@@ -1528,7 +1528,8 @@ already has the files, so nothing there reads a key or a policy.
                    # that asked for pseudonyms is the fail-open this axis prevents.
                    help="create: how much author identity this key may see. Enforced: "
                         "`real` allows who_knows, and `pseudonymous` or `hidden` "
-                        "refuse it (and `ask`, which routes to it)")
+                        "refuse it (and `ask`, which routes to it) and withhold the "
+                        "text of wiki pages, which list contributors")
     p.add_argument("--rate", default=_S, metavar="RATE",
                    help="create: a request rate, e.g. 60/min, 5/sec, 200/hour. "
                         "Enforced over the network; over it the server answers "

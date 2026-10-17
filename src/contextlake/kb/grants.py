@@ -164,7 +164,9 @@ OWNERS_CHOICES = (OWNERS_REAL, OWNERS_PSEUDONYMOUS, OWNERS_HIDDEN)
 # What the owners axis gates. `who_knows` is the identity tool. `ask` rides with
 # it because `ask` routes to `who_knows` by its bare name and this module cannot
 # see which route a question took; denying at the tool name is decidable from
-# the name alone and is the fail-closed answer.
+# the name alone and is the fail-closed answer. A wiki page also names the
+# contributors, so `get_wiki` is not refused but withholds the page text for the
+# same keys: see `GrantCheck.allows_owner_identity`.
 _IDENTITY_TOOLS = frozenset({"who_knows", "ask"})
 
 # The methods a grant source calls on the keyring, checked once at build time.
@@ -491,6 +493,28 @@ class GrantCheck:
         if policy is None:
             return None
         return repo_scope_of(policy)
+
+    def allows_owner_identity(self, principal: Principal | None) -> bool:
+        """Whether this principal may be shown author names that no identity tool carries.
+
+        A generated wiki page lists the people who commit to its repository, so
+        ``get_wiki`` asks this before it serves a page. It applies the rule ``check``
+        applies to ``who_knows``, so the tool and the page cannot disagree about one
+        key: only ``owners=real`` (or no owners axis) allows names. The shared token
+        has no record and is allowed. No principal and a record that is gone are not.
+        """
+        if principal is None:
+            return False
+        if _is_shared_token(principal.key_id):
+            return True
+        policy = self._policy(principal)
+        if policy is None:
+            return False
+        try:
+            _check_owners(policy, "who_knows")
+        except _server().GrantDenied:
+            return False
+        return True
 
     def is_limited(self, principal: Principal | None) -> bool:
         """Whether this principal is anything but a full-access caller.

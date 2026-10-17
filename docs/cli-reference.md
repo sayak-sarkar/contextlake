@@ -322,6 +322,8 @@ granted. `--tools read` covers them.
 `--owners real` allows `who_knows`. `--owners pseudonymous` and `--owners hidden` **refuse**
 it, and refuse `ask` with it. There is no anonymiser on the network path in this release,
 so a key that asked for pseudonyms gets no names rather than real ones.
+A wiki page lists the people who commit to its repository, so `get_wiki` returns a notice in
+place of the page text for those two keys. Add `--owners real` to read the pages.
 
 **`--repos` limits what the key can read.** A key created `--repos acme/*` sees only
 repositories that match one of its globs. Search, graph, repo-list and stats answers leave

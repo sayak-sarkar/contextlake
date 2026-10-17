@@ -158,6 +158,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/.contextlake.ini` or a file passed to `--config`. A discovered file that sets one gets it
   ignored, with a warning that names the key and the file. The forge token stays on. 10.0.0rc3
   honoured them.
+- **`get_wiki` no longer shows contributor names to a key created with `--owners hidden` or
+  `--owners pseudonymous`.** Those keys were refused `who_knows` and `ask` since 9.2.0, but
+  `get_wiki` returned the generated page, which lists the repository's contributors in a table
+  and in an "Ask <name>" step. With the default `[kb] anonymize = never` these are real names.
+  Such a key now gets a notice in place of the page text. A key with `--owners real` or no
+  owners setting is unchanged.
 
 ## [10.0.0rc3] - 2026-10-16
 

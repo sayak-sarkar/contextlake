@@ -333,6 +333,67 @@ def test_an_owners_value_outside_the_three_refuses():
         _check({"owners": "anonymised"}).check(PRINCIPAL, "who_knows")
 
 
+@pytest.mark.parametrize("policy, expected", [
+    ({"owners": "real"}, True),
+    ({}, True),
+    ({"owners": "hidden"}, False),
+    ({"owners": "pseudonymous"}, False),
+    ({"owners": "anonymised"}, False),
+    (None, False),
+])
+def test_only_real_or_no_owners_axis_allows_owner_identity(policy, expected):
+    """The page rule and the `who_knows` rule are one rule, so they cannot disagree.
+
+    A missing record and an unrecognised value deny, as they do for `who_knows`.
+    """
+    assert _check(policy).allows_owner_identity(PRINCIPAL) is expected
+    assert _check({}).allows_owner_identity(Principal(SHARED_TOKEN_KEY_ID)) is True
+    assert _check({}).allows_owner_identity(None) is False
+
+
+_WIKI_PAGE = (
+    "# team/api\n\n## Getting started\n\n1. **Ask Jane Q. Fictional** -- 80% of "
+    "recent work here.\n\n## Ownership and activity\n\n| Contributor | Share |\n"
+    "| --- | --- |\n| Jane Q. Fictional | 80% |\n")
+
+
+@pytest.mark.parametrize("repo", ["team/api", "team"])
+@pytest.mark.parametrize("policy, served", [
+    ({"tools": "read", "owners": "hidden"}, False),
+    ({"tools": "read", "owners": "pseudonymous"}, False),
+    ({"tools": "read", "owners": "real"}, True),
+    ({"tools": "read"}, True),
+])
+def test_get_wiki_withholds_contributor_names_from_a_key_that_may_not_see_them(
+        store, tmp_path, monkeypatch, policy, served, repo):
+    """`--owners hidden` and `pseudonymous` refuse `who_knows` and `ask`. The wiki
+    page lists the same people, so `get_wiki` must not hand the page over.
+
+    Both the repo page and the namespace (cluster) page are checked. The positive
+    controls are `owners=real` and no owners axis: the same page is served whole.
+    """
+    wiki = tmp_path / "wiki"
+    (wiki / "_clusters").mkdir(parents=True)
+    (wiki / "team__api.md").write_text(_WIKI_PAGE, encoding="utf-8")
+    (wiki / "_clusters" / "team.md").write_text(_WIKI_PAGE, encoding="utf-8")
+    monkeypatch.setattr(server_mod, "current_principal", lambda: PRINCIPAL)
+    server = _networked(store, policy)
+
+    async def call():
+        async with Client(server) as client:
+            return await client.call_tool("get_wiki", {"repo": repo})
+
+    out = asyncio.run(call())
+    assert not out.is_error, out.content[0].text
+    body = out.structured_content
+    assert body["found"] is True
+    if served:
+        assert "Jane Q. Fictional" in body["markdown"]
+    else:
+        assert "Jane" not in body["markdown"], body["markdown"]
+        assert "withheld" in body["markdown"] and "owners" in body["markdown"]
+
+
 # ==========================================================================
 # The two branches where "no policy" is the whole question
 # ==========================================================================

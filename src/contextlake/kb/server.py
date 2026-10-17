@@ -629,6 +629,14 @@ _CONNECTOR_TEXT_WITHHELD = (
     "(`kb wiki --force`) records whether it does.")
 
 
+# Served in place of the page text for a key whose owners axis does not allow author
+# identity. Same shape as the connector notice above: `found` stays true.
+_OWNER_TEXT_WITHHELD = (
+    "The page text is withheld: a wiki page can name the people who commit to the "
+    "repository, and this key's owners setting does not allow author identity. A key "
+    "created with --owners real can read it.")
+
+
 class GeneratedDocOut(BaseModel):
     repo: str
     kind: str                    # "api" | "design"
@@ -1814,6 +1822,14 @@ def build_server(
 
         return may_hold_connector_text(page)
 
+    def _withholds_owner_text() -> bool:
+        """Whether ``get_wiki`` must withhold every page: a page lists contributor names
+        and the caller's owners axis does not allow author identity (``who_knows`` and
+        ``ask`` are refused for the same key). The page is generated, so a name can
+        sit anywhere in it and no section can be cut out. Stdio, the dashboard and the
+        shared token are unchanged."""
+        return _enforcing and not grant_source.allows_owner_identity(current_principal())
+
     def _fleet_readable() -> bool:
         """Whether the caller may read a FLEET-wide document.
 
@@ -1859,7 +1875,8 @@ def build_server(
                 return WikiOut(repo=sanitize_label(repo), found=True,
                                stale=_cluster_is_stale(craw, repo),
                                wiki_commit=None, current_commit=None, kind="cluster",
-                               markdown=_CONNECTOR_TEXT_WITHHELD if withheld
+                               markdown=_OWNER_TEXT_WITHHELD if _withholds_owner_text()
+                               else _CONNECTOR_TEXT_WITHHELD if withheld
                                else sanitize_label(craw, max_len=200_000))
             return WikiOut(repo=sanitize_label(repo), found=False, stale=True,
                            wiki_commit=None, current_commit=None, markdown="")
@@ -1874,7 +1891,8 @@ def build_server(
             repo=sanitize_label(repo), found=True, stale=stale,
             wiki_commit=sanitize_label(wiki_commit) if wiki_commit else None,
             current_commit=sanitize_label(current) if current else None,
-            markdown=_CONNECTOR_TEXT_WITHHELD if withheld
+            markdown=_OWNER_TEXT_WITHHELD if _withholds_owner_text()
+            else _CONNECTOR_TEXT_WITHHELD if withheld
             else sanitize_label(raw, max_len=200_000))
 
     @bounded_tool

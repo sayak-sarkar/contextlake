@@ -486,7 +486,8 @@ def _axis(policy, axis: str) -> str:
         # key that asked for anything but real identity is REFUSED the identity
         # tools rather than served real names, and `(enforced)` on its own would
         # let an operator believe they are getting pseudonyms.
-        return f"{axis}={value}  ({_ENFORCED}: who_knows and ask are refused)"
+        return (f"{axis}={value}  ({_ENFORCED}: who_knows and ask are refused, "
+                "wiki page text is withheld)")
     return f"{axis}={value}  ({_ENFORCED})"
 
 
