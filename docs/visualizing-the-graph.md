@@ -112,6 +112,14 @@ Output is chosen with `--format`:
       `grid`, `dagre`) in the page. Set the initial one with `--layout`.
     - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
       renders each node as an HTML card instead of a dot.
+    - `--site DIR` writes into a new or empty folder, or into a folder an earlier `--site` export
+      made. Each export leaves a `.contextlake-export` file in the folders it writes and looks
+      for it on the next run. A folder that holds files and has no such file is refused and
+      nothing is written, even when its files are named like the export's own, such as
+      `index.html`. A folder that holds a file the export does not write is refused too. For a
+      folder an older version made, run `touch DIR/.contextlake-export` once. Other dotfiles,
+      such as `.nojekyll`, are ignored. `kb dashboard --site` follows the same rule for its top
+      level and for its `graph/` folder, so an older dashboard export needs the marker in both.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces

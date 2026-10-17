@@ -238,6 +238,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`app@c9ec633beaa9`), which no ticket or page contains. The repo name was never searched, and
   each source got one wasted lead term per run. `kb enrich` now drops the `@<root commit>` tail.
   Present since 2.47.0.
+- **`kb graph --site DIR` no longer overwrites a directory it did not write.** It wrote
+  `index.html` and the shared assets over any directory, and with `--anonymize` deleted its
+  `wiki-*.html`, so pointing it at a hand-kept docs site replaced files and reported success. It
+  now writes into a new or empty directory, or one an earlier export marked with a
+  `.contextlake-export` file, and refuses any other directory that holds files, naming what it
+  found and writing nothing. File names do not show who wrote a file, so a directory holding a
+  single `index.html` is refused too. `kb dashboard --site` refused foreign files at its top
+  level only; it now needs the marker there and in its `graph/` folder, and checks both before
+  it writes anything. A folder made by an earlier version has no marker: run
+  `touch DIR/.contextlake-export` once, and for a dashboard export
+  `touch DIR/graph/.contextlake-export` too. `kb graph --site` has had no check since it was
+  added in 2.4.0.
 
 ### Security
 

@@ -574,6 +574,62 @@ def _match_repo(repo_id: str, patterns: list[str]) -> bool:
     return any(fnmatch(repo_id, p) or p in repo_id for p in patterns)
 
 
+# A dotfile every export writes into the folder it owns. File names prove nothing: a
+# hand-kept docs site has an `index.html` too, and `wiki-*.html` and `repo-*.html` are
+# patterns anyone can match. This file is the proof that an earlier export made the folder.
+EXPORT_MARKER = ".contextlake-export"
+
+
+def refuse_foreign_dir(out: Path, is_own) -> None:
+    """Refuse to write an export into a directory it cannot show it made.
+
+    ``is_own(name)`` says whether a top-level entry is one the export produces. An export
+    may overwrite its own output and nothing else, so a folder is accepted when it is new,
+    empty or holds only dotfiles, or when it holds :data:`EXPORT_MARKER` and every other
+    entry is one the export writes. Those names alone are not enough: a folder with a
+    hand-kept ``index.html`` and no marker is refused, so it is not overwritten. A re-run
+    into an earlier export stays idempotent and needs no flag. Other dotfiles
+    (``.gitignore``, ``.nojekyll``) are ignored. Raises ``SystemExit`` with a message that
+    names what it found.
+    """
+    if not out.is_dir():
+        return
+    entries = sorted(p.name for p in out.iterdir() if not p.name.startswith("."))
+    foreign = [n for n in entries if not is_own(n)]
+    unproven = bool(entries) and not (out / EXPORT_MARKER).is_file()
+    if not (foreign or unproven):
+        return
+    if foreign:
+        shown = ", ".join(foreign[:6]) + (", ..." if len(foreign) > 6 else "")
+        found = f"it already holds files this export does not write ({shown}).\n"
+        how = ""
+    else:
+        shown = ", ".join(entries[:6]) + (", ..." if len(entries) > 6 else "")
+        found = (f"it already holds files ({shown}) and no {EXPORT_MARKER} file, so there "
+                 f"is no sign that an export wrote them.\n")
+        how = (f" If an export made this folder before the marker existed, run "
+               f"`touch {out / EXPORT_MARKER}` and try again.")
+    raise SystemExit(
+        f"refusing to build into {out}: {found}"
+        f"An export overwrites its own output and nothing else. Point --site at a new "
+        f"or previously-exported directory, or move those files aside first.{how}")
+
+
+def mark_export_dir(out: Path) -> None:
+    """Create ``out`` and write the marker the next run looks for."""
+    out.mkdir(parents=True, exist_ok=True)
+    marker = out / EXPORT_MARKER
+    if not marker.exists():
+        marker.write_text("A contextlake --site export wrote this folder and may "
+                          "overwrite it.\n", encoding="utf-8")
+
+
+def is_site_file(name: str) -> bool:
+    """True for a file name :func:`build_site` writes into its folder."""
+    return (name in ("index.html", "overview.html", "app.css", "app.js", *_LIB_FILES)
+            or (name.endswith(".html") and name.startswith(("repo-", "wiki-"))))
+
+
 def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                repo_max_nodes: int = 500, overview_layout: str = "concentric",
                repo_layout: str = "cose", repos: list[str] | None = None,
@@ -603,6 +659,10 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     prose, and prose can carry author names and internal URLs, so it is withheld the
     same way the dashboard's README and wiki routes withhold it. Wiki pages an earlier
     plain export left in this folder are deleted, since the folder is written in place.
+
+    A folder is refused before anything is written unless it is new, empty or holds
+    :data:`EXPORT_MARKER` from an earlier export and nothing this function does not write
+    (see :func:`refuse_foreign_dir`).
     """
     if anonymize:
         # Every page below is built through viz.to_payload, which rewrites only while an
@@ -617,7 +677,10 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                                   overview_layout=overview_layout, repo_layout=repo_layout,
                                   repos=repos, cdn=cdn, anonymize=anonymize, log=log)
     out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
+    # Before anything is written or deleted: the files below replace same-named files, and
+    # an anonymised build deletes every `wiki-*.html`.
+    refuse_foreign_dir(out, is_site_file)
+    mark_export_dir(out)
     if anonymize:
         for stale in out.glob("wiki-*.html"):
             stale.unlink()

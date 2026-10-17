@@ -1284,6 +1284,40 @@ def test_cli_graph_site_defaults_to_the_offline_build(tmp_path):
     assert _CDN_URL not in (out / "overview.html").read_text(encoding="utf-8")
 
 
+def test_cli_graph_site_refuses_a_directory_holding_other_files(tmp_path):
+    """`--site DIR` wrote index.html and its assets over a hand-kept site. It now refuses a
+    directory that holds a file it does not write, and writes nothing."""
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    out = tmp_path / "docs-site"
+    out.mkdir()
+    (out / "index.html").write_text("<h1>my landing page</h1>")
+    (out / "quickstart.html").write_text("docs")
+    code = _run(["kb", "graph", "--config", str(cfg), "--site", str(out)])
+    assert "refusing to build into" in str(code) and "quickstart.html" in str(code)
+    assert (out / "index.html").read_text() == "<h1>my landing page</h1>"
+    assert not (out / "app.js").exists()
+
+
+def test_cli_graph_site_refuses_a_lone_index_html(tmp_path):
+    """`index.html` is a name the export writes, so a folder holding only that passed the
+    first guard and was overwritten. Without the marker file nothing shows an export made
+    it."""
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    out = tmp_path / "docs-site"
+    out.mkdir()
+    (out / "index.html").write_text("<h1>my landing page</h1>")
+    code = _run(["kb", "graph", "--config", str(cfg), "--site", str(out)])
+    assert "refusing to build into" in str(code) and ".contextlake-export" in str(code)
+    assert (out / "index.html").read_text() == "<h1>my landing page</h1>"
+    assert sorted(p.name for p in out.iterdir()) == ["index.html"]
+    # and a second run into the folder the command itself made is accepted
+    new = tmp_path / "made-by-the-command"
+    assert _run(["kb", "graph", "--config", str(cfg), "--site", str(new)]) == 0
+    assert _run(["kb", "graph", "--config", str(cfg), "--site", str(new)]) == 0
+
+
 def test_cli_graph_requires_a_seed(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0

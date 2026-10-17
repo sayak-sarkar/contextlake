@@ -57,7 +57,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | Flag | What it does |
 |---|---|
 | `--serve` | Run it **live** against your store (everything on demand, no caps). |
-| `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
+| `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). Writes into a new, empty or earlier-exported directory (the export leaves a `.contextlake-export` file to mark it). Refuses any other directory that holds files, and writes nothing; for an export made by an older version, run `touch DIR/.contextlake-export` and `touch DIR/graph/.contextlake-export`. |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
 | `--anonymize` | Hash author identities, drop external URLs and README/wiki prose, and replace connector items with neutral labels. Works on **both** `--site` and `--serve`. See below for what still shows. |

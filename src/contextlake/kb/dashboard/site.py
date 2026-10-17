@@ -233,8 +233,8 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
     }
 
 
-# What this export writes at the top level. A directory holding only these (or nothing)
-# is one of ours to overwrite; anything else is someone's own folder.
+# What this export writes at the top level. A directory is one of ours to overwrite when it
+# is empty, or holds the export marker and only these; anything else is someone's own folder.
 _OWN_FILES = frozenset({
     "index.html", "data.js", "data.json", "dashboard.js", "dashboard.css",
     "mermaid.min.js", "cmdk.js", "graph",
@@ -251,20 +251,13 @@ def _refuse_foreign_dir(out: Path) -> None:
     on 2026-08-25 and was found a week later.
 
     So the rule is about ownership, not emptiness: an export may overwrite its own output
-    and nothing else. Re-running into the same directory stays idempotent, which is the
-    normal case and must not need a flag.
+    and nothing else. File names do not show ownership, since a hand-kept site has an
+    ``index.html`` too, so the export leaves a marker file and looks for it. Re-running into
+    the same directory stays idempotent, which is the normal case and must not need a flag.
     """
-    if not out.exists():
-        return
-    foreign = sorted(p.name for p in out.iterdir()
-                     if not p.name.startswith(".") and p.name not in _OWN_FILES)
-    if foreign:
-        shown = ", ".join(foreign[:6]) + (", ..." if len(foreign) > 6 else "")
-        raise SystemExit(
-            f"refusing to build into {out}: it already holds files this export does not "
-            f"write ({shown}).\n"
-            f"An export overwrites its own output and nothing else. Point --site at a new "
-            f"or previously-exported directory, or move those files aside first.")
+    from ..visualize.html_render import refuse_foreign_dir
+
+    refuse_foreign_dir(out, lambda name: name in _OWN_FILES)
 
 
 def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos, *,
@@ -273,6 +266,12 @@ def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos, *,
     from .. import visualize as viz
 
     _refuse_foreign_dir(out)
+    # `graph` passes the check above by name, so look inside it too, with the same marker
+    # rule. `build_site` makes the same check, but only after the top-level files are
+    # written; asked here, a refusal leaves the directory as it was.
+    from ..visualize.html_render import is_site_file, mark_export_dir, refuse_foreign_dir
+
+    refuse_foreign_dir(out / "graph", is_site_file)
     if anonymize:
         # The output-side rewrite (kb/anonymize.py), on the snapshot and, through
         # viz.to_payload, on every graph page below. Fails closed: an anonymized export
@@ -283,7 +282,7 @@ def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos, *,
         if anonymizer is None:
             raise RuntimeError("an anonymized export was built with no active anonymizer")
         snapshot = anonymizer.rewrite(snapshot)
-    out.mkdir(parents=True, exist_ok=True)
+    mark_export_dir(out)
     (out / "data.json").write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
     (out / "dashboard.js").write_text(_static("dashboard.js"), encoding="utf-8")
     (out / "dashboard.css").write_text(_static("dashboard.css"), encoding="utf-8")

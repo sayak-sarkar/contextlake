@@ -6482,7 +6482,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | Flag | What it does |
 |---|---|
 | `--serve` | Run it **live** against your store (everything on demand, no caps). |
-| `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). |
+| `--site DIR` | Export a **static** `file://`-safe copy (a representative slice). Writes into a new, empty or earlier-exported directory (the export leaves a `.contextlake-export` file to mark it). Refuses any other directory that holds files, and writes nothing; for an export made by an older version, run `touch DIR/.contextlake-export` and `touch DIR/graph/.contextlake-export`. |
 | `--repos PATTERN` | `--site` only: include just the repos whose id matches a comma-separated glob/substring pattern. |
 | `--sample` | Build from the **bundled demo fleet**, guaranteed generic, safe to share. |
 | `--anonymize` | Hash author identities, drop external URLs and README/wiki prose, and replace connector items with neutral labels. Works on **both** `--site` and `--serve`. See below for what still shows. |
@@ -7748,6 +7748,14 @@ Output is chosen with `--format`:
       `grid`, `dagre`) in the page. Set the initial one with `--layout`.
     - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
       renders each node as an HTML card instead of a dot.
+    - `--site DIR` writes into a new or empty folder, or into a folder an earlier `--site` export
+      made. Each export leaves a `.contextlake-export` file in the folders it writes and looks
+      for it on the next run. A folder that holds files and has no such file is refused and
+      nothing is written, even when its files are named like the export's own, such as
+      `index.html`. A folder that holds a file the export does not write is refused too. For a
+      folder an older version made, run `touch DIR/.contextlake-export` once. Other dotfiles,
+      such as `.nojekyll`, are ignored. `kb dashboard --site` follows the same rule for its top
+      level and for its `graph/` folder, so an older dashboard export needs the marker in both.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
@@ -9897,6 +9905,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`app@c9ec633beaa9`), which no ticket or page contains. The repo name was never searched, and
   each source got one wasted lead term per run. `kb enrich` now drops the `@<root commit>` tail.
   Present since 2.47.0.
+- **`kb graph --site DIR` no longer overwrites a directory it did not write.** It wrote
+  `index.html` and the shared assets over any directory, and with `--anonymize` deleted its
+  `wiki-*.html`, so pointing it at a hand-kept docs site replaced files and reported success. It
+  now writes into a new or empty directory, or one an earlier export marked with a
+  `.contextlake-export` file, and refuses any other directory that holds files, naming what it
+  found and writing nothing. File names do not show who wrote a file, so a directory holding a
+  single `index.html` is refused too. `kb dashboard --site` refused foreign files at its top
+  level only; it now needs the marker there and in its `graph/` folder, and checks both before
+  it writes anything. A folder made by an earlier version has no marker: run
+  `touch DIR/.contextlake-export` once, and for a dashboard export
+  `touch DIR/graph/.contextlake-export` too. `kb graph --site` has had no check since it was
+  added in 2.4.0.
 
 ### Security
 
