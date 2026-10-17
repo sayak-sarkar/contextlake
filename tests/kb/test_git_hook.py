@@ -158,6 +158,73 @@ def test_core_hookspath_naming_the_repos_own_hooks_directory_is_not_a_redirect(t
     assert git_hook.is_installed(str(tmp_path))
 
 
+# --- a repo path that is relative ------------------------------------------------
+#
+# `kb hook --workspace ws` gets relative paths from `discover_repos` when `ws` is relative.
+# The git calls run inside the repo, and git reads a relative `--git-dir` from there, so
+# `app/.git` named `app/app/.git`. The call failed, the failure read as "no
+# core.hooksPath", and install wrote a hook that git never runs.
+
+def _set_hookspath(repo, value):
+    subprocess.run(["git", "-C", str(repo), "config", "core.hooksPath", value], check=True)
+
+
+def test_a_relative_repo_path_with_core_hookspath_is_refused_and_nothing_is_written(
+        tmp_path, monkeypatch):
+    repo = _repo(tmp_path / "app")
+    _set_hookspath(repo, ".husky/_")
+    monkeypatch.chdir(tmp_path)
+
+    assert git_hook.install("app", "app") == "hooks-path"
+    assert not (repo / ".git" / "hooks" / "post-commit").exists()
+    assert str(repo.resolve() / ".husky" / "_") in git_hook.refusal("app", "hooks-path")
+
+
+def test_a_relative_repo_path_is_not_reported_present_after_core_hookspath_is_set(
+        tmp_path, monkeypatch):
+    repo = _repo(tmp_path / "app")
+    git_hook.install(str(repo), "app")
+    _set_hookspath(repo, "elsewhere")
+    monkeypatch.chdir(tmp_path)
+
+    assert not git_hook.is_installed("app")
+
+
+def test_a_relative_repo_path_installs_checks_and_removes_the_hook_in_the_repo(
+        tmp_path, monkeypatch):
+    repo = _repo(tmp_path / "app")
+    monkeypatch.chdir(tmp_path)
+
+    assert git_hook.install("app", "app") == "installed"
+    assert (repo / ".git" / "hooks" / "post-commit").exists()
+    assert str(repo.resolve()) in (repo / ".git" / "hooks" / "post-commit").read_text()
+    assert git_hook.is_installed("app")
+    assert git_hook.uninstall("app") == "removed"
+    assert not git_hook.is_installed("app")
+
+
+def test_a_relative_workspace_refuses_a_repo_with_core_hookspath(
+        tmp_path, monkeypatch, gls_logs):
+    repo = _repo(tmp_path / "ws" / "app")
+    _set_hookspath(repo, ".husky/_")
+    monkeypatch.chdir(tmp_path)
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    def run(action):
+        args = build_parser().parse_args(["kb", "hook", action, "--workspace", "ws"])
+        for k, v in _DEFAULTS.items():
+            if not hasattr(args, k):
+                setattr(args, k, v)
+        return kb.dispatch("hook", args)
+
+    assert run("install") == 1
+    assert not (repo / ".git" / "hooks" / "post-commit").exists()
+    assert "core.hooksPath" in gls_logs.text
+    assert run("status") == 0
+    assert "present on 0/1 repo(s)" in gls_logs.text
+
+
 def _stub_command(tmp_path, monkeypatch):
     """Make the managed block run a stub that writes a file, and return that file's path.
     The block detaches the command with `&`, so callers wait for the file with

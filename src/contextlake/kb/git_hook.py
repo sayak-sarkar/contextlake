@@ -78,6 +78,11 @@ REFUSED = {
 def _git(repo_path: Path, gd: Path, *args: str) -> str:
     """Stdout of a git command pinned to ``gd`` with ``repo_path`` as the working directory.
 
+    Both must be absolute. git reads a relative ``--git-dir`` from the working directory, so
+    ``app/.git`` run in ``app`` names ``app/app/.git``, the command fails, and the caller
+    reads that as "no override". :func:`install`, :func:`uninstall`, :func:`is_installed`
+    and :func:`refusal` make the path absolute before they call this.
+
     ``--git-dir`` and not ``-C``: with a broken ``.git``, ``-C`` walks up and answers for a
     parent repository (see ``repo_identity.is_own_gitdir``). Empty when git cannot be run
     or exits non-zero, which callers read as "no override".
@@ -160,8 +165,9 @@ def refusal(repo_path: str, status: str) -> str:
     """The sentence that explains one of the :data:`REFUSED` statuses."""
     where = ""
     if status == "hooks-path":
-        gd = git_dir(Path(repo_path))
-        found = hooks_path_override(Path(repo_path), gd) if gd else None
+        repo = Path(repo_path).resolve()
+        gd = git_dir(repo)
+        found = hooks_path_override(repo, gd) if gd else None
         where = str(found) if found else "another directory"
     return REFUSED[status].format(where=where)
 
@@ -227,14 +233,15 @@ def install(repo_path: str, repo_id: str, config: str | None = None) -> str:
     ``installed`` (new file), ``refreshed`` (our block updated), ``appended``
     (added to a pre-existing hook), ``not-a-repo``, or one of :data:`REFUSED` when
     no hook was written."""
-    gd = git_dir(Path(repo_path))
+    repo = Path(repo_path).resolve()
+    gd = git_dir(repo)
     if gd is None:
         return "not-a-repo"
-    if hooks_path_override(Path(repo_path), gd) is not None:
+    if hooks_path_override(repo, gd) is not None:
         return "hooks-path"
-    where = hooks_dir(Path(repo_path), gd)
+    where = hooks_dir(repo, gd)
     hook = where / "post-commit"
-    repo_str = str(Path(repo_path).resolve())
+    repo_str = str(repo)
     block = _block(repo_str, repo_id, config)
 
     if hook.exists():
@@ -272,11 +279,12 @@ def uninstall(repo_path: str) -> str:
 
     Looks in the directory git reads and in ``<gitdir>/hooks``, where a linked worktree's
     block was written before git's own answer was used."""
-    gd = git_dir(Path(repo_path))
+    repo = Path(repo_path).resolve()
+    gd = git_dir(repo)
     if gd is None:
         return "not-a-repo"
     found = False
-    for hook in dict.fromkeys([hooks_dir(Path(repo_path), gd) / "post-commit",
+    for hook in dict.fromkeys([hooks_dir(repo, gd) / "post-commit",
                                gd / "hooks" / "post-commit"]):
         if not hook.exists() or MARK_BEGIN not in hook.read_text(encoding="utf-8"):
             continue
@@ -291,10 +299,11 @@ def uninstall(repo_path: str) -> str:
 
 def is_installed(repo_path: str) -> bool:
     """Whether a commit in this repo will run our block, not merely whether the file has it."""
-    gd = git_dir(Path(repo_path))
-    if gd is None or hooks_path_override(Path(repo_path), gd) is not None:
+    repo = Path(repo_path).resolve()
+    gd = git_dir(repo)
+    if gd is None or hooks_path_override(repo, gd) is not None:
         return False
-    hook = hooks_dir(Path(repo_path), gd) / "post-commit"
+    hook = hooks_dir(repo, gd) / "post-commit"
     if not hook.exists():
         return False
     text = hook.read_text(encoding="utf-8")
