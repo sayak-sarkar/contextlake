@@ -251,10 +251,23 @@ $ contextlake kb refresh
   checked 12/12 in 0.06s
 ```
 
-It reads only. Add `--refresh` and it starts `kb index` then `kb steer` **in the background** and
-returns immediately, so nothing waits on a re-index. `--budget` caps how long the check itself may
+It reads only. Add `--refresh` and it starts `kb index` **in the background** and returns
+immediately, so nothing waits on a re-index. `--budget` caps how long the check itself may
 take on a large fleet; whatever it did not reach is reported as unchecked rather than passed over
 silently.
+
+After the index step, the background update runs `kb steer --out <the directory you ran it from>`.
+It does this only when that directory already holds steering from an earlier `kb steer`:
+
+- a contextlake block in `AGENTS.md` or `CLAUDE.md`, or
+- the session hook in `.claude/settings.json`.
+
+In any other directory it skips that step, so a refresh never creates steering files, or a session
+hook, where you did not ask for them.
+
+The update starts in the store directory. It cannot find a `.contextlake.kb.toml` that sits
+elsewhere and chose the store. In that case `kb refresh --refresh` says so and starts nothing.
+Pass `--config` with that file to run it in the background.
 
 `contextlake kb steer` installs this as a **Claude Code `SessionStart` hook**, so every session
 opens with one line saying whether the graph describes today's code, and the update already running:

@@ -64,6 +64,11 @@ def _spawn_refresh(store_dir: Path, config: str | None,
     decide what gets indexed. ``cwd`` is the store directory now -- a path that is
     guaranteed to exist and that no command interprets as a source.
 
+    ``steer`` is the one step that does read its working directory (it writes there), so it
+    gets ``--out`` with the caller's directory. It runs only where steering already exists
+    (:func:`_holds_steering`). It used to write ``AGENTS.md``, ``.mcp.json`` and a session
+    hook into the store directory and never touched the workspace it was meant to refresh.
+
     Returns ``(False, logfile)`` when there is nothing this function can repair, so the
     caller reports honestly rather than promising an update that will not happen.
     """
@@ -78,7 +83,19 @@ def _spawn_refresh(store_dir: Path, config: str | None,
         steps.append(base + cfg + ["embed"])
     if not steps:
         return False, logfile
-    steps.append(base + cfg + ["steer"])
+    lost = _unreachable_store_config(Path(store_dir), config)
+    if lost:
+        log(style.warn(f"Not updating in the background: the store comes from {lost}, which "
+                       "was found by walking up from this directory. The background process "
+                       "starts in the store directory and would not find it, so it would "
+                       "open a different store. Pass --config with that file to allow it."))
+        return False, logfile
+    try:
+        here = Path.cwd()
+    except OSError:   # the directory was removed under us
+        here = None
+    if here is not None and _holds_steering(here):
+        steps.append(base + cfg + ["steer", "--out", str(here)])
     script = " && ".join(" ".join(_quote(s)) for s in steps)
     try:
         logfile.parent.mkdir(parents=True, exist_ok=True)
@@ -102,6 +119,49 @@ def _spawn_refresh(store_dir: Path, config: str | None,
     # The child holds its own dup of the descriptor; this one has done its job.
     fh.close()
     return True, logfile
+
+
+def _holds_steering(directory: Path) -> bool:
+    """Whether ``directory`` already has steering that ``kb steer`` wrote.
+
+    The background ``steer`` refreshes steering that exists. Started where there is none,
+    it would create ``AGENTS.md`` and the other files and merge a session hook into
+    ``.claude/settings.json``. Run from ``$HOME``, that hook applies to every session on
+    the machine.
+    """
+    from ..steer.generate import BEGIN, SESSION_HOOK_MARK
+
+    for rel, mark in (("AGENTS.md", BEGIN), ("CLAUDE.md", BEGIN),
+                      (".claude/settings.json", SESSION_HOOK_MARK)):
+        try:
+            if mark in (directory / rel).read_text(encoding="utf-8", errors="replace"):
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def _unreachable_store_config(store_dir: Path, config: str | None) -> str | None:
+    """The config file that chose this store but that a child started in the store dir
+    will not find, else None.
+
+    A config found by walking up from the current directory is not forwarded as
+    ``--config``: naming a file on the command line is what makes its gated keys trusted
+    (``kb/trust.py``), and nobody named this one. Started in the store directory, the
+    child walks up from there instead, and when the file is not on that path it opens
+    ``~/.contextlake/kb`` (creating it if it is missing).
+    """
+    from ...config import find_ancestor_config
+    from ..config import LOCAL_CONFIG, _read_toml
+
+    local = find_ancestor_config(LOCAL_CONFIG)
+    if not local or find_ancestor_config(LOCAL_CONFIG, start=str(store_dir)) == local:
+        return None
+
+    def sets_store(path: str | None) -> bool:
+        return "store_dir" in (_read_toml(path).get("kb") or {})
+
+    return local if sets_store(local) and not sets_store(config) else None
 
 
 def _quote(parts: list[str]) -> list[str]:

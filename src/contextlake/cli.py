@@ -1347,9 +1347,9 @@ Examples:
                                                  Claude Code SessionStart hook
 """)
     p.add_argument("--refresh", action="store_true", default=_S,
-                   help="when something is stale, start `kb index` then `kb steer` in the "
-                        "background (detached, so nothing waits on it) instead of only "
-                        "reporting")
+                   help="when something is stale, start `kb index` in the background "
+                        "(detached, so nothing waits on it) instead of only reporting, then "
+                        "`kb steer` here if this directory already has steering")
     p.add_argument("--budget", type=float, default=_S,
                    help="seconds the freshness check may spend (default 3); repos left "
                         "unchecked are reported as unchecked")

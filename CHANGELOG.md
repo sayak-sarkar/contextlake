@@ -473,6 +473,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bootstrap` job. The `CronJob` also mounted its volume at `/var/lib/contextlake`, where the
   image writes nothing, so every run was refused as ephemeral. It now mounts at `/work`, and the
   install output names the `<cronjob>-state` claim you must create first.
+- **`kb refresh --refresh` now refreshes the steering in the directory you ran it from.** The
+  background update ran `kb steer` with the store directory as its working directory, so
+  `AGENTS.md`, `CLAUDE.md`, `.mcp.json` and a session hook were written into the store while the
+  workspace steering stayed stale. It now passes `--out` for the current directory, and only
+  when that directory already has steering from an earlier `kb steer`. A `.contextlake.kb.toml`
+  found by walking up, which the background process cannot find from the store directory, now
+  stops the update with a message. Before, the process opened `~/.contextlake/kb`, created it if
+  it was missing, and indexed nothing.
 
 ### Security
 

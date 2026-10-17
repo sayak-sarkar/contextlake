@@ -14,6 +14,7 @@ from types import SimpleNamespace
 
 from contextlake.kb import freshness
 from contextlake.kb.model import Repo
+from contextlake.kb.steer.generate import BEGIN, END
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 
@@ -196,6 +197,9 @@ def _captured_spawn(monkeypatch):
         return real_popen(argv, **kw)
 
     monkeypatch.setattr(refresh_mod.subprocess, "Popen", fake_popen)
+    # A `.contextlake.kb.toml` in a parent of the checkout would otherwise decide these
+    # tests. The ones that need discovery switch it back on.
+    monkeypatch.setenv("CONTEXTLAKE_NO_LOCAL_CONFIG", "1")
     return seen
 
 
@@ -270,6 +274,7 @@ def test_refresh_child_gets_an_absolute_config_path(tmp_path, monkeypatch):
     cfg_dir = tmp_path / "cfg"
     cfg_dir.mkdir()
     (cfg_dir / "kb.toml").write_text("")
+    (cfg_dir / "AGENTS.md").write_text(_STEERED)
     monkeypatch.chdir(cfg_dir)
     store_dir = tmp_path / "store"
 
@@ -279,3 +284,124 @@ def test_refresh_child_gets_an_absolute_config_path(tmp_path, monkeypatch):
     script = seen["argv"][-1]
     assert f"--config {cfg_dir / 'kb.toml'} index --source alpha" in script
     assert f"--config {cfg_dir / 'kb.toml'} steer" in script
+
+
+# --- the steer step writes where the session is, and only where steering already is ---
+#
+# The bug these pin: the detached child runs with cwd=store_dir, and `kb steer` writes into
+# its cwd. So AGENTS.md, CLAUDE.md, .mcp.json and a SessionStart hook landed in the store
+# directory, and the workspace steering the step exists to refresh was never touched.
+
+_STEERED = f"{BEGIN}\nold facts\n{END}\n"
+
+
+def test_refresh_steers_the_callers_directory_and_not_the_store(tmp_path, monkeypatch):
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "AGENTS.md").write_text(_STEERED)
+    store_dir = tmp_path / "store"
+    monkeypatch.chdir(work)
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(store_dir, None, ["alpha"])
+    assert ok
+    assert f"kb steer --out {work}" in seen["argv"][-1]
+    # The index steps still run in the store directory, where no id can be read as a path.
+    assert seen["cwd"] == str(store_dir)
+
+
+def test_refresh_does_not_start_steering_in_a_directory_that_has_none(
+        tmp_path, monkeypatch):
+    """Run from $HOME, a steer step would merge a SessionStart hook into
+    ~/.claude/settings.json, which applies to every session on the machine."""
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "AGENTS.md").write_text("# my own notes, no contextlake block\n")
+    monkeypatch.chdir(work)
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(tmp_path / "store", None, ["alpha"])
+    assert ok
+    script = seen["argv"][-1]
+    assert "--source alpha" in script
+    assert "steer" not in script
+
+
+def test_refresh_steers_a_directory_whose_only_sign_is_the_session_hook(
+        tmp_path, monkeypatch):
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    work = tmp_path / "work"
+    (work / ".claude").mkdir(parents=True)
+    (work / ".claude" / "settings.json").write_text(
+        '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", '
+        '"command": "contextlake kb refresh --hook --refresh"}]}]}}')
+    monkeypatch.chdir(work)
+
+    seen = _captured_spawn(monkeypatch)
+    ok, _ = refresh_mod._spawn_refresh(tmp_path / "store", None, ["alpha"])
+    assert ok
+    assert f"kb steer --out {work}" in seen["argv"][-1]
+
+
+# --- a config found by walking up cannot be handed to the child ---
+#
+# The child starts in the store directory and walks up from there. A `.contextlake.kb.toml`
+# that chose the store from somewhere else is not on that path, so the child opened
+# `~/.contextlake/kb` (creating it) and failed with "Nothing is indexed in this store yet".
+# Forwarding the file as `--config` would make its gated keys trusted, so the parent says no.
+
+def _discovered_config_tree(tmp_path, monkeypatch, store_dir):
+    ws = tmp_path / "wsA"
+    ws.mkdir(exist_ok=True)
+    (ws / ".contextlake.kb.toml").write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    monkeypatch.chdir(ws)
+    seen = _captured_spawn(monkeypatch)
+    monkeypatch.delenv("CONTEXTLAKE_NO_LOCAL_CONFIG")
+    return ws, seen
+
+
+def test_refresh_does_not_spawn_a_child_that_cannot_find_the_config_that_chose_the_store(
+        tmp_path, monkeypatch, gls_logs):
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    store_dir = tmp_path / "elsewhere" / "store"
+    _, seen = _discovered_config_tree(tmp_path, monkeypatch, store_dir)
+
+    ok, _ = refresh_mod._spawn_refresh(store_dir, None, ["alpha"])
+
+    assert ok is False
+    assert "argv" not in seen, "a child was started that would open a different store"
+    assert ".contextlake.kb.toml" in gls_logs.text
+    assert "--config" in gls_logs.text
+
+
+def test_refresh_spawns_when_the_child_walks_up_to_the_same_config(tmp_path, monkeypatch):
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    store_dir = tmp_path / "wsA" / "store"
+    store_dir.mkdir(parents=True)
+    _, seen = _discovered_config_tree(tmp_path, monkeypatch, store_dir)
+
+    ok, _ = refresh_mod._spawn_refresh(store_dir, None, ["alpha"])
+
+    assert ok
+    assert "--source alpha" in seen["argv"][-1]
+
+
+def test_refresh_spawns_when_a_named_config_sets_the_store(tmp_path, monkeypatch):
+    from contextlake.kb.cmds import refresh as refresh_mod
+
+    store_dir = tmp_path / "elsewhere" / "store"
+    ws, seen = _discovered_config_tree(tmp_path, monkeypatch, tmp_path / "other")
+    named = tmp_path / "named.toml"
+    named.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    ok, _ = refresh_mod._spawn_refresh(store_dir, str(named), ["alpha"])
+
+    assert ok
+    assert f"--config {named} index --source alpha" in seen["argv"][-1]
