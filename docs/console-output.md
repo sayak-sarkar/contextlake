@@ -287,6 +287,12 @@ Four codes across the CLI, plus one that only `kb serve` can produce.
 not install`, then the unit itself and how to install it by hand, so a read-only home or a
 missing service manager can be worked around. Nothing is scheduled until you do.
 
+**`Ctrl-C` during `mirror clone`, `update` or `branches` stops the queue.** The same holds for those
+stages of `sync`. Repositories already running finish that repository, so an `--auto-stash` is put
+back. Repositories not yet started are skipped. The run prints `Stopping: repositories already in
+progress will finish first`, then `Operation cancelled by user`, and exits `130`. The audit at the end
+of `sync` is not covered: it finishes its scan first.
+
 **The long-running commands are the exception, and deliberately so.** `kb serve`,
 `kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
 you. Each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport

@@ -2,6 +2,7 @@
 
 import json
 import re
+import threading
 
 import pytest
 
@@ -536,3 +537,78 @@ def test_mirror_banner_names_the_configured_forge(monkeypatch, capsys):
     assert "Mirror repositories from GitHub" in out, (
         f"the mirror banner did not name the configured forge:\n{out[:600]}")
     assert "Mirror repositories from GitLab" not in out
+
+
+def _ctrl_c_after_the_first_repo(monkeypatch, tmp_path, base_config, command):
+    """Run ``command`` over 10 repositories with one worker, and press Ctrl-C once the first
+    repository has been reported. Returns ``(started, finished)``: the repositories whose
+    worker began and ended.
+
+    The first worker call returns at once. Every later one waits on a gate that opens 0.3 s
+    after the interrupt, long enough for the pool to cancel the queue first. A pool that
+    keeps its queue then runs the other nine, so ``started`` tells the two apart. The
+    interrupt is raised from ``Progress.advance``, which every loop calls from inside its
+    ``with`` block. ``clone-adaptive`` is the default clone path, which submits one batch at
+    a time, so it never queues work; it is here for the line the pool logs.
+    """
+    names = [f"g/r{i}" for i in range(10)]
+    projects = {n: {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}
+                for n in names}
+    cfg = {**base_config, "max_workers": "1",
+           "adaptive_workers": "true" if command == "clone-adaptive" else "false"}
+    gate, started, finished = threading.Event(), [], []
+
+    def worker(path, *args, **kwargs):
+        started.append(path)
+        if len(started) > 1:
+            gate.wait(5)
+        finished.append(path)
+        return ("ok", path, "done")
+
+    class CtrlC:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def advance(self, *args, **kwargs):
+            threading.Timer(0.3, gate.set).start()
+            raise KeyboardInterrupt
+
+        def done(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr(core.style, "Progress", CtrlC)
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: dict(projects))
+    if not command.startswith("clone"):
+        for n in names:
+            make_local_repo(tmp_path, n)
+    monkeypatch.setattr(core, "update_repository", worker)
+    monkeypatch.setattr(core, "switch_repository_branch", worker)
+    monkeypatch.setattr(core, "clone_repository", worker)
+    run = {
+        "update": lambda: core.update_repositories(str(tmp_path), cfg),
+        "branches": lambda: core.switch_repository_branches(str(tmp_path), cfg, "g"),
+        "clone": lambda: core.clone_missing_repos(str(tmp_path), cfg, "g"),
+        "clone-adaptive": lambda: core.clone_missing_repos(str(tmp_path), cfg, "g"),
+    }[command]
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            run()
+    finally:
+        gate.set()
+    return started, finished
+
+
+@pytest.mark.parametrize("command", ["update", "branches", "clone", "clone-adaptive"])
+def test_ctrl_c_drops_the_repositories_that_have_not_started(
+        monkeypatch, tmp_path, base_config, gls_logs, command):
+    """All repositories are queued up front, and the pool's exit waited for every one of
+    them. After Ctrl-C the run went on through the whole fleet, and "Operation cancelled
+    by user" came only when the queue was empty. A repository already running still ends,
+    so its auto-stash is put back. The run says it is waiting for those."""
+    started, finished = _ctrl_c_after_the_first_repo(monkeypatch, tmp_path, base_config,
+                                                     command)
+
+    assert started, "the first repository never ran, so this proves nothing"
+    assert len(started) <= 2, f"{len(started)} of 10 repositories started: {started}"
+    assert finished == started, "a repository that began must be allowed to end"
+    assert "Stopping: repositories already in progress will finish first" in gls_logs.text

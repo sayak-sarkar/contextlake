@@ -1884,6 +1884,23 @@ def _summarize(buckets):
     return ", ".join(f"{len(v)} {k}" for k, v in buckets.items())
 
 
+class _InterruptiblePool(ThreadPoolExecutor):
+    """A thread pool whose ``with`` block, left on Ctrl-C, drops the work not yet started.
+
+    ``ThreadPoolExecutor.__exit__`` waits for every submitted future. The loops below
+    submit every repository up front, so after Ctrl-C the run went on fetching, stashing
+    and switching each remaining clone, and printed "Operation cancelled by user" only when
+    the queue was empty. A worker already inside a repository still finishes it, so its
+    auto-stash is put back.
+    """
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None and issubclass(exc_type, KeyboardInterrupt):
+            log("Stopping: repositories already in progress will finish first")
+            self.shutdown(wait=False, cancel_futures=True)
+        return super().__exit__(exc_type, exc, tb)
+
+
 def _timed(fn, *args):
     """Run a per-repo worker and return ``(its result, elapsed milliseconds)``.
 
@@ -2004,7 +2021,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
         while remaining:
             batch_size = max(1, pool.get_worker_count())
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
-            with ThreadPoolExecutor(max_workers=batch_size) as ex:
+            with _InterruptiblePool(max_workers=batch_size) as ex:
                 futures = [
                     ex.submit(_timed, clone_repository, it["local_path"], it["gitlab_path"],
                               it["http"], it["ssh"], work_dir, config)
@@ -2013,7 +2030,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
                 for fut in as_completed(futures):
                     pool.record_result(handle(*fut.result()))
     else:
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        with _InterruptiblePool(max_workers=max_workers) as ex:
             futures = [
                 ex.submit(_timed, clone_repository, it["local_path"], it["gitlab_path"],
                           it["http"], it["ssh"], work_dir, config)
@@ -2053,7 +2070,7 @@ def update_repositories(work_dir, config):
     total = len(local_repos)
     progress = style.Progress(total, label="update")
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+    with _InterruptiblePool(max_workers=max_workers) as ex:
         futures = {ex.submit(_timed, update_repository, p, work_dir, config): p
                    for p in local_repos}
         for i, fut in enumerate(as_completed(futures), 1):
@@ -2124,7 +2141,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     total = len(local_repos)
     progress = style.Progress(total, label="branches")
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+    with _InterruptiblePool(max_workers=max_workers) as ex:
         futures = {
             ex.submit(_timed, switch_repository_branch, p, projects, work_dir, config): p
             for p in local_repos

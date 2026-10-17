@@ -126,6 +126,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning, exited 0, and updated the clones it found there. A path that the shell leaves
   unexpanded reaches the program with `--config=~/x.ini` in bash, in a quoted value, and in a
   systemd `ExecStart` line.
+- **`Ctrl-C` stops `mirror update`, `branches` and `clone` from starting more repositories.**
+  Every repository was queued up front and the queue ran to the end after the interrupt, so a
+  long fleet run kept fetching, fast-forwarding and auto-stashing, and printed `Operation
+  cancelled by user` once it was done. Repositories already in progress now finish, so an
+  `--auto-stash` is put back, and the rest are skipped. The run prints one line saying so.
+  `clone` was affected when `adaptive_workers = false`. The default adaptive pool starts one
+  batch at a time.
 
 ### Security
 
