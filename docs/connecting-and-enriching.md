@@ -43,7 +43,8 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
 - **GitLab**: links each repo to its open **merge requests and issues** (read through your authenticated
-  `glab`).
+  `glab`). contextlake drops the host from the repo id and passes none to `glab`, so `glab` chooses the
+  host. Use it with repos from one GitLab host.
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
   (`repo --documented_by--> document`).

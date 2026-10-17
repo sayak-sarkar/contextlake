@@ -327,7 +327,8 @@ accept:
 - `verify_tool`: the Slack MCP tool name used for reachability checks (default `conversations_info`).
 - `history_tool`: the Slack MCP tool name used to read a channel's messages (default
   `conversations_history`).
-- `group`: a GitLab group prefixed to each repo's path to form the project id.
+- `group`: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
+  The group is not added to the path. Other repos are skipped with no message.
 - `per_page`: the API page size (default `50`).
 
 ## See also

@@ -3,7 +3,8 @@
 Uses the authenticated ``glab`` CLI (the same auth the mirror uses) to read a
 project's open MRs/issues, then maps them onto graph nodes/edges. The command
 runner is injectable so the mapping is testable without GitLab. Generic: the
-group/host come from config.
+optional ``group`` comes from config and only filters which repos are read. The
+repo id's host is dropped and no host is passed to ``glab``, so ``glab`` picks it.
 """
 
 from __future__ import annotations
