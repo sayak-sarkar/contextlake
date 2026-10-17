@@ -222,7 +222,8 @@ checker's first job is not to invent defects."""
 _CITE_MAX_LINES = 200_000
 """Give up rather than read an unbounded file into memory. Generated headers and
 god-files in legacy trees really do run past this, and a checker that can hang on one
-node is a checker nobody runs."""
+node is a checker nobody runs. A citation whose window reaches past it is reported
+``unverifiable`` (``file_too_large``), not ``broken``."""
 
 
 @dataclass
@@ -263,12 +264,14 @@ def verify_citations(store: Store, node_ids: list, *,
     and a FIFO blocks the reader with no end, and this runs inside the MCP server, so
     ``not_a_file`` is decided from ``stat`` before any ``open``.
 
-    Two reasons are *unverifiable* rather than broken. ``checkout_missing`` is the one
+    Three reasons are *unverifiable* rather than broken. ``checkout_missing`` is the one
     that matters: the recorded clone path is not on this machine, which ``doctor``
     already reports as an ``unreadable`` repo. It has to be separated from
     ``file_missing``, because when the whole checkout is gone every file under it is
     gone too -- calling that a stale graph would manufacture a defect per result.
-    ``file_unreadable`` (an unreadable mode) is the same kind of "could not look".
+    ``file_unreadable`` (an unreadable mode) is the same kind of "could not look", and so
+    is ``file_too_large``: the cited line is past ``_CITE_MAX_LINES``, where the read
+    stops, so the file is not opened.
     """
     out: list[CitationCheck] = []
     roots: dict[str, Path | None] = {}
@@ -308,6 +311,12 @@ def verify_citations(store: Store, node_ids: list, *,
             out.append(CitationCheck(nid, status, reason, cite))
             continue
         want = node.line_start + window
+        if want > _CITE_MAX_LINES:
+            # The read stops at the cap, so a line past it cannot be told apart from a
+            # line the file does not have. "Could not look" is not "broken": a generated
+            # header with the symbol on line 250,001 was reported as line_out_of_range.
+            out.append(CitationCheck(nid, "unverifiable", "file_too_large", cite))
+            continue
         key = (str(path), want)
         if key not in file_cache:
             file_cache[key] = _read_upto(path, want)

@@ -152,6 +152,24 @@ def test_registered_but_never_indexed_is_unverifiable(tmp_path, clone):
     s.close()
 
 
+def test_a_cited_line_past_the_read_cap_is_unverifiable_not_stale(store, clone, monkeypatch):
+    """The confirming read stops at `_CITE_MAX_LINES`. A line past it used to come back as
+    `line_out_of_range`, which this guard reports as stale with a note saying the file was
+    edited and is now shorter. Nothing was edited: the read never got that far."""
+    from contextlake.kb import eval as kb_eval
+
+    monkeypatch.setattr(kb_eval, "_CITE_MAX_LINES", 10)
+    body = "\n".join(f"# padding {i}" for i in range(20)) + "\ndef omega():\n    return 1\n"
+    (clone / SOURCE).write_text(body, encoding="utf-8")
+    os.utime(clone / SOURCE, ns=_at(+3600))
+    store.upsert_nodes(REPO, [Node(id="far", repo=REPO, kind="function", name="omega",
+                                   file=SOURCE, line_start=21, line_end=22, lang="python")])
+    _, check = _check(store, "far")
+    assert check.status == "unverifiable"
+    assert check.reason == "file_too_large"
+    assert check.note == _NOTES["file_too_large"]
+
+
 def test_deleted_file_is_stale_not_unverifiable(store, clone):
     """A checkout that exists with the file gone is a fact about the graph, not a gap in
     the machine -- the opposite reading from `checkout_missing` above."""

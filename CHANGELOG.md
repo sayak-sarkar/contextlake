@@ -377,6 +377,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--kind` set the search now looks at 10 times `--limit` nodes (200 to 512), keeps the nodes of
   that kind and cuts to `--limit`. When none has the kind, the output says how many nodes it
   looked at. `kb eval` still ignores a golden `kind` with these retrievers.
+- **`kb eval --verify-citations` no longer calls a correct citation past line 200,000 broken.**
+  The check reads at most 200,000 lines, so a symbol on line 250,001 of a generated file came
+  back as `line_out_of_range` and lowered `verified_rate`. Such a citation is now `unverifiable`
+  with the reason `file_too_large`. In the MCP guard, a file written after indexing moves from
+  `stale` (with a note saying the file had shrunk) to `unverifiable`; an unchanged file stays
+  `verified`.
 
 ### Security
 

@@ -164,7 +164,8 @@ there:
 ```console
 $ contextlake kb eval --golden queries.json --verify-citations
 Citations: 178/180 verified (98.9%) of 184 distinct nodes
-  4 unverifiable (no local checkout for the repo)
+  4 unverifiable (not checked; the reasons are below)
+  checkout_missing: 4
   name_absent: 2
     src/ingest/backfill.py:88  (name_absent)
 ```
@@ -177,8 +178,10 @@ Failures are named, not counted:
 - `name_absent`: the line exists, the symbol is not on it.
 - `no_citation`: a symbol node carrying no file or line at all.
 
-A repository whose recorded clone is not on this machine is reported as **unverifiable** and kept out of the
-rate, so a run without the mirror reads as "nothing was checked", not as a pass.
+A citation that could not be checked is reported as **unverifiable** and kept out of the rate, so a run
+without the mirror reads as "nothing was checked", not as a pass. The reasons are `checkout_missing` (the
+recorded clone is not on this machine), `file_unreadable`, and `file_too_large` (the cited line is past
+line 200,000, where the check stops reading).
 
 It is off by default: it does filesystem work proportional to the results and needs the checkout present.
 

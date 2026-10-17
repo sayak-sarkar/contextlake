@@ -207,6 +207,42 @@ def test_a_huge_file_is_not_read_past_the_cited_line(tmp_path, monkeypatch):
     assert seen["upto"] == 6      # line_start + window, not 50,000
 
 
+def test_a_citation_past_the_read_cap_is_unverifiable_not_broken(tmp_path, monkeypatch):
+    """The read stops at `_CITE_MAX_LINES`. A correct citation on line 250,001 of a
+    generated file used to land past the end of what was read, so it was reported as
+    `line_out_of_range`, a defect in the graph that is not there. A CI gate on
+    verified_rate failed on citations that were right."""
+    from contextlake.kb import eval as kb_eval
+
+    monkeypatch.setattr(kb_eval, "_CITE_MAX_LINES", 10)
+    root = tmp_path / "gen"
+    root.mkdir()
+    body = [f"# generated {i}" for i in range(1, 16)] + ["def far_below():", "    pass"]
+    (root / "g.py").write_text("\n".join(body) + "\n", encoding="utf-8")
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="gen", path=str(root), host=None,
+                           default_branch="main", head_commit="a1"))
+    store.upsert_nodes("gen", [
+        Node(id="n_far", repo="gen", kind="function", name="far_below",
+             file="g.py", line_start=16, line_end=17, lang="python"),
+        Node(id="n_near", repo="gen", kind="function", name="generated",
+             file="g.py", line_start=2, line_end=2, lang="python"),
+        # Past the end of a file that IS fully read: still a real defect.
+        Node(id="n_short", repo="gen", kind="function", name="far_below",
+             file="small.py", line_start=3, line_end=3, lang="python"),
+    ])
+    (root / "small.py").write_text("x = 1\n", encoding="utf-8")
+
+    got = _by_id(verify_citations(store, ["n_far", "n_near", "n_short"]))
+    assert (got["n_far"].status, got["n_far"].reason) == ("unverifiable", "file_too_large")
+    assert got["n_far"].cite == "g.py:16"
+    assert got["n_near"].status == "verified"
+    assert (got["n_short"].status, got["n_short"].reason) == ("broken", "line_out_of_range")
+    s = citation_summary(list(got.values()))
+    assert (s["verified"], s["broken"], s["unverifiable"]) == (1, 1, 1)
+    assert s["verified_rate"] == 0.5     # the unverifiable one is outside the rate
+
+
 # --- only a regular file is opened ----------------------------------------------------
 
 needs_special_files = pytest.mark.skipif(

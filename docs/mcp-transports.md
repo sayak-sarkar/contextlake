@@ -361,7 +361,7 @@ as the answer is built:
 |---|---|
 | `verified` | the file has not been written since the repo was indexed |
 | `stale` | it has, and the line number may have moved. The **file is still the right one**, so find the symbol by name |
-| `unverifiable` | the citation could not be checked at all: no local checkout, an unreadable file, or a repo that carries no index timestamp |
+| `unverifiable` | the citation could not be checked at all: no local checkout, an unreadable file, a cited line past line 200,000, or a repo that carries no index timestamp |
 
 When the status is not `verified` a **`citation_note`** says which of those it is, in a sentence
 meant for the agent reading it. `unverifiable` is not a polite `verified`: it means nothing was

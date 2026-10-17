@@ -34,7 +34,8 @@ and never indexed -- is ``unverifiable``, and folding that into either one is ho
 starts lying: called stale it invents drift on a machine that simply lacks the mirror,
 called verified it certifies a check that never ran. The vocabulary is deliberately
 ``eval.py``'s (``checkout_missing``, ``file_missing``, ``not_a_file``, ``file_unreadable``,
-``line_out_of_range``, ``name_absent``) so one reason means one thing in both places.
+``file_too_large``, ``line_out_of_range``, ``name_absent``) so one reason means one thing in
+both places.
 """
 
 from __future__ import annotations
@@ -116,6 +117,8 @@ _NOTES = {
                          "citation was NOT checked against disk"),
     "file_unreadable": ("the file could not be read, so this citation was NOT checked "
                         "against disk"),
+    "file_too_large": ("the cited line is past the point where a check stops reading a "
+                       "file, so this citation was NOT checked against disk"),
     "index_time_unknown": ("this repo carries no index timestamp, so there is no baseline "
                            "to compare the file against -- this citation was NOT checked"),
     "confirm_inconclusive": ("the citation could not be re-checked against disk"),

@@ -117,7 +117,7 @@ def cmd_eval(args) -> int:
         log(style.ok(head) if cit["broken"] == 0 else style.warn(head))
         if cit["unverifiable"]:
             # Said out loud rather than folded into the rate: these were not checked.
-            log(f"  {cit['unverifiable']} unverifiable (no local checkout for the repo)")
+            log(f"  {cit['unverifiable']} unverifiable (not checked; the reasons are below)")
         for reason, count in cit["reasons"].items():
             log(f"  {reason}: {count}")
         for ex in cit["broken_examples"]:
