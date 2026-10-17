@@ -140,3 +140,47 @@ def test_the_check_is_a_probe_not_a_count(tmp_path):
     assert unpopulated_reason(guarded) is None
     assert unpopulated_reason(guarded, "svc-billing") is None
     assert unpopulated_reason(guarded, "svc-orders") is not None
+
+
+def test_a_semantic_query_on_an_empty_vector_store_warns_and_shows_fts_hits(tmp_path, capsys):
+    """docs/asking-the-graph.md said an empty vector store gave "no fallback and no
+    warning". The CLI prints the reason and falls back to `fts`. The page must quote what
+    the command prints, so the quoted line is taken from the real output."""
+    import re
+    from pathlib import Path
+
+    import pytest
+
+    from contextlake.cli import main
+
+    repo = Path(__file__).resolve().parents[2]
+    cfg = tmp_path / "kb.toml"
+    # ollama: building the embedder opens no connection, and the empty-store check
+    # comes before the first embed() call. The base_url points at a port nothing listens
+    # on, so a developer's running Ollama can never answer even if that check is broken.
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n\n'
+                   '[embeddings]\nenabled = true\nprovider = "ollama"\n'
+                   'base_url = "http://127.0.0.1:9"\n')
+
+    def run(argv):
+        with pytest.raises(SystemExit) as e:
+            main(argv)
+        return e.value.code
+
+    fixture = repo / "examples" / "fixtures" / "sample-graph.json"
+    assert run(["kb", "index", "--config", str(cfg), "--source", str(fixture)]) == 0
+    capsys.readouterr()
+    assert run(["kb", "query", "ForecastService", "--config", str(cfg),
+                "--retriever", "semantic"]) == 0
+    # Both streams: an earlier `--json` test in the same process leaves the console handler
+    # on stderr, so stdout alone makes this depend on test order.
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "ForecastService" in out, "the fts fallback shows the hit"
+    notice = re.search(r"Semantic search cannot answer: .*", out)
+    assert notice, f"an empty vector store was not reported:\n{out}"
+
+    page = (repo / "docs" / "asking-the-graph.md").read_text(encoding="utf-8")
+    assert " ".join(notice.group(0).split()) in " ".join(page.split()), (
+        "docs/asking-the-graph.md does not quote the notice the command prints")
+    assert "there is no fallback and no warning" not in page

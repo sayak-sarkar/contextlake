@@ -424,6 +424,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2026-08-15. The stage table also left out the API reference stage and its `--no-docs` switch,
   one page called the audit "stage 2 of 8", and `docs/cli-reference.md` said every stage has a
   `--no-<stage>` switch, which `index` and `steer` do not.
+- **`docs/asking-the-graph.md` describes what `kb owners` and `kb query` print.**
+  Three notes contradicted the code. `owners` has run a bounded git walk since 2026-08-12, and a
+  full one only if the first finds nothing. It has told a missing git from a timeout since
+  2026-08-13, with a warning for each before `No commit history found`. `--retriever semantic`
+  on an empty vector store has printed `Semantic search cannot answer` and shown `fts` results
+  since 2026-08-18, where the page said there was no fallback and no warning. A text-mode
+  `kb query` on an empty store has printed `This store is empty` and the store path since
+  2026-08-16.
 
 ### Security
 

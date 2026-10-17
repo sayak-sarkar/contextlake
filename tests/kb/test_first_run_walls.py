@@ -80,6 +80,24 @@ def test_a_query_against_an_empty_store_says_so(tmp_path):
         f"against the wrong store, and the path is what shows it. Got:\n{out}")
 
 
+def test_the_docs_describe_the_empty_store_line(tmp_path):
+    """docs/asking-the-graph.md said "nothing tells you the index was never built". The
+    text-mode line is quoted from the real output, and `--json` stays silent as the page
+    now says."""
+    home, _ = _home(tmp_path, "docs")
+    out = (lambda r: r.stdout + r.stderr)(_run(["kb", "query", "Serializer"], home))
+    line = next((ln for ln in out.splitlines() if "This store is empty" in ln), None)
+    assert line, f"an empty store printed no hint:\n{out}"
+    quoted = line[line.index("This store is empty"):].split(":")[0]
+    page = " ".join((REPO / "docs" / "asking-the-graph.md").read_text(encoding="utf-8").split())
+    assert quoted in page, f"asking-the-graph.md does not quote {quoted!r}"
+    assert "nothing tells you the index was never built" not in page
+
+    as_json = _run(["kb", "query", "Serializer", "--json"], home)
+    assert as_json.stdout.strip() == "[]"
+    assert "This store is empty" not in as_json.stdout + as_json.stderr
+
+
 def test_a_real_miss_on_a_populated_store_stays_quiet(tmp_path):
     """The negative case. Without this the test above passes on a note that fires
     always, which would train the reader to skip it."""

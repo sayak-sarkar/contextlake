@@ -36,11 +36,17 @@ than a path and it does open the store, only to find the clone.
   [Semantic search](searching-semantically.md).
 
 > [!IMPORTANT]
-> Query an empty store and you get `No matches`, exit `0`, which looks exactly like a genuine miss.
+> Query an empty store and you get `No matches`, exit `0`, the same first line as a genuine miss.
 > Opening the store creates it if it is absent (`SqliteStore.__init__` in
 > `src/contextlake/kb/store/sqlite_store.py` runs `mkdir(parents=True, exist_ok=True)` and applies a
-> `CREATE TABLE IF NOT EXISTS` schema), so nothing tells you the index was never built. Run
-> `contextlake doctor` if the counts look wrong; it reports the store's real node and edge totals.
+> `CREATE TABLE IF NOT EXISTS` schema), so a store you never indexed answers as if it were built.
+>
+> - Text mode adds a second line, `This store is empty (no repositories indexed)`, with the store
+>   path. The usual cause is the right command against the wrong store.
+> - `--json` adds nothing. The output is `[]`, so a script cannot tell an empty store from a miss.
+>
+> Run `contextlake doctor` if the counts look wrong; it reports the store's real node and edge
+> totals.
 
 ## Find something: `kb query`
 
@@ -75,12 +81,16 @@ so `Forecast` finds `ForecastService` and `Service` does not
 (`_fts_query` in `src/contextlake/kb/store/sqlite_store.py`). Multiple words are an implicit AND of
 prefix terms. That is the single most common reason a query that "should" match comes back empty.
 
-**Semantic and hybrid degrade to `fts` rather than failing**, and say so on stderr, when there is no
-embedder configured or the vector store cannot be opened
-(`src/contextlake/kb/cmds/query.py`, the `_semantic_results` fallbacks). One gap is worth knowing:
-if the vector store opens but is *empty*, the retriever returns no results rather than being
-unavailable, so there is no fallback and no warning. An unexpectedly empty
-`--retriever semantic` run usually means `contextlake kb embed` has not run yet.
+**Semantic and hybrid degrade to `fts` and do not fail**, and say so (on stdout in text mode,
+on stderr with `--json`). That happens when there is no embedder configured, the vector store cannot
+be opened, or the vector store is *empty* (`src/contextlake/kb/cmds/query.py`, the
+`_semantic_results` fallbacks).
+
+On an empty vector store the notice is `Semantic search cannot answer: no vectors are stored, so
+semantic search has nothing to search -- run `contextlake kb embed` first. Showing fts results
+instead.` With `--repo`, a repo that has no vectors while others do gets a notice that names that
+repo. When you see either notice, the hits after it are `fts` hits and `contextlake kb embed` has
+not covered the store (or that repo) yet.
 
 **`--kind` is applied differently per mode.** On `fts` it is part of the SQL, so `--limit 20` gives
 you up to 20 matching nodes. On `semantic` and `hybrid` it is a filter applied *after* the search:
@@ -260,9 +270,16 @@ recent commit.
 > [!NOTE]
 > `owners` reads history from the root of a git checkout only. A folder inside another repo ranks
 > nothing, because git would report the outer repo's authors. Use `--path` for a sub-tree.
+>
+> It first runs `git log --no-merges --numstat --since="2160 days ago"`. If that finds no
+> commits, it runs the same walk over the whole history, so a repo that has been dormant for
+> longer still gets owners. Each walk has a 30-second limit. A timed-out walk is not retried over
+> the whole history, and it logs `owners: git history for <repo> could not be read within 30s`,
+> then `This is a timeout, not an empty history.`
+>
 > An empty result prints `No commit history found for <scope>` and exits `0`. The line ends with a
-> reason when git could not be asked: `git` missing, not a checkout root, no commits yet, or the
-> 30-second timeout.
+> reason when git could not be asked: `git` missing, not a checkout root, or no repository or no
+> commits yet.
 
 ### Verification
 

@@ -193,6 +193,45 @@ def test_a_real_timeout_is_still_narrated_as_one(repo, monkeypatch):
         "the one failure worth 30 seconds of a user's time went unreported")
 
 
+def test_a_missing_git_is_named_and_is_not_a_timeout(repo, monkeypatch):
+    """The third cause. docs/asking-the-graph.md says a missing `git` prints its own warning
+    before `No commit history found`, so the warning has to exist and has to name git."""
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    ownership._CACHE.clear()
+
+    def no_git(cmd, *a, **kw):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(ownership.subprocess, "run", no_git)
+    said = _warnings(monkeypatch, lambda: ownership.compute_owners(repo))
+    assert "git could not be run" in said
+    assert "timeout" not in said.lower()
+
+
+def test_the_docs_describe_the_owners_walk_the_code_runs():
+    """The note said `owners` runs exactly one `git log` and prints the same line for a
+    missing git and a timeout. It runs a bounded walk then a full one, and two of the
+    causes print their own warning first. The phrases are checked against the source too,
+    so a reworded warning fails here until the page follows."""
+    import inspect
+    import re
+    from pathlib import Path
+
+    from contextlake.kb import ownership
+
+    page = Path(__file__).resolve().parents[2] / "docs" / "asking-the-graph.md"
+    text = re.sub(r"\s+", " ", re.sub(r"^> ?", "", page.read_text(encoding="utf-8"), flags=re.M))
+    source = re.sub(r"\s+", " ", inspect.getsource(ownership.compute_owners))
+    assert "runs exactly one `git log" not in text
+    assert f'--since="{int(ownership._WALK_DAYS)} days ago"' in text
+    for phrase in ("git could not be run for", "This is a timeout, not an empty history."):
+        assert phrase in text, f"asking-the-graph.md does not mention: {phrase}"
+        # The timeout message is two adjacent string literals; drop the join between them.
+        assert phrase in source.replace('" "', ""), f"the code no longer says: {phrase}"
+
+
 def test_cmd_owners_cli_lists_contributors(repo, capsys):
     _commit(repo, "a.py", 3, "Alice", "alice@x.io", "2026-05-01 10:00:00 +0000")
     with pytest.raises(SystemExit) as e:
