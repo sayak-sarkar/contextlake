@@ -117,7 +117,7 @@ class LaunchdAdapter(Adapter):
         path = os.path.join(agent_dir(), plist_name(job.name))
         try:
             os.unlink(path)
-        except OSError:
+        except FileNotFoundError:
             return []       # Already gone. Not an error.
         return [path]
 

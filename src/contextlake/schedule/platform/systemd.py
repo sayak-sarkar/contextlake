@@ -155,16 +155,23 @@ class SystemdAdapter(Adapter):
         unit = unit_name(job.name)
         names = [unit + ".service", unit + ".timer"]
         _systemctl("disable", "--now", self.timer_unit(job))
+        failure = None
         for filename in names:
             path = os.path.join(unit_dir(), filename)
             try:
                 os.unlink(path)
                 removed.append(path)
-            except OSError:
+            except FileNotFoundError:
                 pass  # Already gone. Not an error.
+            except OSError as e:
+                # A read-only or unwritable unit directory. The unit is still there, and
+                # saying "removed" would leave a timer firing at a job with no record.
+                failure = failure or e
         if removed:
             _systemctl("daemon-reload")
             _systemctl("reset-failed")
+        if failure:
+            raise failure
         return removed
 
     def installed_names(self):

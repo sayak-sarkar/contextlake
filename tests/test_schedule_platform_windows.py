@@ -138,12 +138,68 @@ def test_install_raises_when_schtasks_refuses(monkeypatch):
         windows.WindowsAdapter().install(_job(), 3600, _argv())
 
 
-def test_uninstall_deletes_the_task_and_tolerates_a_missing_one(monkeypatch):
-    monkeypatch.setattr(windows, "_schtasks", lambda *a: _ok())
-    assert windows.WindowsAdapter().uninstall(_job()) == [r"\contextlake\default"]
+def _schtasks_stub(monkeypatch, delete, listing):
+    """Answer /Delete with ``delete`` and the unscoped /Query with ``listing``, and return the
+    calls made."""
+    calls = []
 
-    monkeypatch.setattr(windows, "_schtasks", lambda *a: _ok(returncode=1))
+    def _fake(*argv):
+        calls.append(argv)
+        return delete if argv[0] == "/Delete" else listing
+
+    monkeypatch.setattr(windows, "_schtasks", _fake)
+    return calls
+
+
+# The text of a failed schtasks call is localised, so these stubs use a German one on
+# purpose: the adapter must decide from the listing, not from the words.
+_DENIED = _ok(returncode=1, stderr="FEHLER: Zugriff verweigert.")
+_NOT_FOUND = _ok(returncode=1, stderr="FEHLER: Das System kann die angegebene Datei "
+                                      "nicht finden.")
+
+
+def test_uninstall_deletes_the_task(monkeypatch):
+    calls = _schtasks_stub(monkeypatch, _ok(), _ok())
+    assert windows.WindowsAdapter().uninstall(_job()) == [r"\contextlake\default"]
+    assert [c[0] for c in calls] == ["/Delete"]
+
+
+def test_uninstall_tolerates_a_task_that_is_not_in_the_listing(monkeypatch):
+    """The delete failed and the task is in no listing, so it was already gone. The listing
+    names no /TN: a missing \\contextlake folder is then an empty answer, not a failed query."""
+    calls = _schtasks_stub(monkeypatch, _NOT_FOUND, _ok(stdout=(
+        '"\\contextlake\\nightly","N/A","Bereit"\n'
+        '"\\Microsoft\\Windows\\Defrag\\ScheduledDefrag","N/A","Bereit"\n')))
+
     assert windows.WindowsAdapter().uninstall(_job()) == []
+    query = list(calls[1])
+    assert query[0] == "/Query" and "/TN" not in query
+    assert query[query.index("/FO") + 1] == "CSV"
+
+
+def test_uninstall_raises_when_the_delete_failed_and_the_task_is_still_listed(monkeypatch):
+    """A denied delete leaves the task firing. Read as "already gone", `schedule uninstall`
+    dropped the job record and printed success."""
+    _schtasks_stub(monkeypatch, _DENIED,
+                   _ok(stdout='"\\contextlake\\default","N/A","Bereit"\n'))
+    with pytest.raises(OSError, match=r"schtasks /Delete \\contextlake\\default failed"):
+        windows.WindowsAdapter().uninstall(_job())
+
+
+def test_uninstall_compares_the_task_name_without_regard_to_case(monkeypatch):
+    """Task names are case-insensitive. A listing that spells the name differently still
+    holds the task."""
+    _schtasks_stub(monkeypatch, _DENIED,
+                   _ok(stdout='"\\contextlake\\Default","N/A","Bereit"\n'))
+    with pytest.raises(OSError, match="schtasks /Delete"):
+        windows.WindowsAdapter().uninstall(_job())
+
+
+def test_uninstall_raises_when_the_listing_fails_too(monkeypatch):
+    """A listing that failed cannot say the task is gone."""
+    _schtasks_stub(monkeypatch, _DENIED, _ok(returncode=1, stderr="FEHLER: Zugriff verweigert."))
+    with pytest.raises(OSError, match="Zugriff verweigert"):
+        windows.WindowsAdapter().uninstall(_job())
 
 
 # ---- enumeration ---------------------------------------------------------

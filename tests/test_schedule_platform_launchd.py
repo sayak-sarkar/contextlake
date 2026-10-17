@@ -142,6 +142,29 @@ def test_uninstalling_what_is_not_there_is_not_an_error(tmp_path, monkeypatch):
     assert launchd.LaunchdAdapter().uninstall(_job()) == []
 
 
+def test_uninstall_fails_when_the_plist_cannot_be_deleted(tmp_path, monkeypatch):
+    """An unwritable agent directory is not "already gone": the agent is still installed.
+    Raising keeps the job record, where returning [] deleted it and printed "Removed job"."""
+    import os
+
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(launchd, "_launchctl", lambda *a: _ok())
+    path = tmp_path / launchd.plist_name("default")
+    path.write_text("x", encoding="utf-8")
+    real = os.unlink
+
+    def _unlink(p, *a, **kw):
+        if str(p) == str(path):
+            raise PermissionError(13, "Permission denied", str(p))
+        return real(p, *a, **kw)
+
+    monkeypatch.setattr(os, "unlink", _unlink)
+
+    with pytest.raises(PermissionError):
+        launchd.LaunchdAdapter().uninstall(_job())
+    assert path.exists()
+
+
 # ---- state and enumeration ----------------------------------------------
 
 def test_state_reads_the_interval_back_off_the_installed_plist(tmp_path, monkeypatch):

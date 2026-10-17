@@ -313,6 +313,44 @@ def test_render_install_uninstall_and_state_agree_on_the_filename(monkeypatch, t
     assert list(tmp_path.iterdir()) == []
 
 
+def _deny_unlink_in(monkeypatch, directory):
+    """Make unlink fail with EACCES for files under `directory` only. chmod does nothing as
+    root, which is how CI runs; the rest of the process keeps a working unlink."""
+    real = os.unlink
+
+    def _unlink(path, *a, **kw):
+        if str(path).startswith(str(directory)):
+            raise PermissionError(13, "Permission denied", str(path))
+        return real(path, *a, **kw)
+
+    monkeypatch.setattr(os, "unlink", _unlink)
+
+
+def test_uninstall_fails_when_the_unit_files_cannot_be_deleted(monkeypatch, tmp_path):
+    """An unwritable unit directory is not "already gone". The files stay and the timer
+    still fires, so uninstall must raise: cmd_uninstall then keeps the job record and exits
+    1, where a swallowed error deleted the record and printed "Removed job"."""
+    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(systemd, "_systemctl",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""))
+    adapter = systemd.SystemdAdapter()
+    job = _job(name="locked")
+    adapter.install(job, 3600.0, _exec_argv("locked"))
+    _deny_unlink_in(monkeypatch, tmp_path)
+
+    with pytest.raises(PermissionError):
+        adapter.uninstall(job)
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "contextlake-locked.service", "contextlake-locked.timer"]
+
+
+def test_uninstalling_units_that_are_not_on_disk_is_not_an_error(monkeypatch, tmp_path):
+    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(systemd, "_systemctl",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""))
+    assert systemd.SystemdAdapter().uninstall(_job(name="never-installed")) == []
+
+
 @needs_systemd
 def test_state_reports_linger_when_it_is_off(monkeypatch):
     """A user timer does not fire while logged out unless linger is on, so the

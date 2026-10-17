@@ -31,7 +31,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from .base import Adapter, check_name
+from .base import Adapter, check_name, removed_or_gone
 from .cron import nearest_expressible
 
 #: Cheap to change, and named once so the manifest and the argv agree.
@@ -203,12 +203,19 @@ spec:
         NOT ``--ignore-not-found``: that exits 0 whether or not anything
         matched, so uninstall would report removing a CronJob that never
         existed. systemd returns [] when no file was unlinked and cron returns
-        [] when the crontab text did not change; a non-zero exit here means
-        already gone, which is not an error and is not a removal either.
+        [] when the crontab text did not change; a ``NotFound`` from the API
+        means already gone, which is not an error and is not a removal either.
+        Any other failure (no route to the cluster, expired credentials, a
+        Forbidden) raises ``OSError``, because the CronJob is still there.
+
+        ``-n`` is the namespace ``install`` applied to. Without it kubectl uses
+        the current context's namespace, which is not that one on a cluster
+        where the context points elsewhere.
         """
         name = resource_name(job.name)
-        result = _run("delete", "cronjob", name)
-        return [f"cronjob/{name}"] if result.returncode == 0 else []
+        result = _run("delete", "cronjob", name, "-n", DEFAULT_NAMESPACE)
+        gone = removed_or_gone(result, f"kubectl delete for {name}", "(NotFound)")
+        return [f"cronjob/{name}"] if gone else []
 
     def installed_names(self):
         """CronJobs carrying this tool's label.
@@ -224,7 +231,8 @@ spec:
         try:
             selector = "app.kubernetes.io/name=contextlake"
             path = "jsonpath={.items[*].metadata.labels.app\\.kubernetes\\.io/instance}"
-            result = _run("get", "cronjobs", "-l", selector, "-o", path)
+            result = _run("get", "cronjobs", "-n", DEFAULT_NAMESPACE, "-l", selector,
+                          "-o", path)
         except OSError:
             return None
         if result.returncode != 0:
@@ -235,7 +243,7 @@ spec:
         name = resource_name(job.name)
         notes, interval_s, next_run, exec_path = [], None, None, None
         try:
-            result = _run("get", "cronjob", name,
+            result = _run("get", "cronjob", name, "-n", DEFAULT_NAMESPACE,
                           "-o", "jsonpath={.spec.schedule}|{.status.lastScheduleTime}")
         except OSError as e:
             return {"installed": False, "interval_s": None, "next_run": None,

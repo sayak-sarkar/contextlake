@@ -481,6 +481,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   found by walking up, which the background process cannot find from the store directory, now
   stops the update with a message. Before, the process opened `~/.contextlake/kb`, created it if
   it was missing, and indexed nothing.
+- **`schedule uninstall` no longer says it removed a schedule it could not remove.** On systemd
+  and launchd a unit directory you could not write to, on k8s, aws and azure a dead network,
+  expired credentials or a missing permission, and on windows a denied delete, were read as
+  "already gone". The job record was deleted, "Removed job" was printed with exit 0, and the
+  schedule kept firing. It now keeps the record, prints the error and exits 1. A unit that is
+  not there still counts as removed. On k8s, `uninstall`, `status` and `list` also use the
+  `default` namespace that `install` applies to, instead of the namespace of the current
+  `kubectl` context. On azure, `uninstall` and `status` name the `contextlake` resource group
+  that `install` creates the job in, where before they named none.
 
 ### Security
 

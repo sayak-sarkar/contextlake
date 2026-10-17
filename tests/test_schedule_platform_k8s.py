@@ -242,8 +242,38 @@ def test_uninstall_reports_a_removal_only_when_something_was_removed(monkeypatch
         "removed one")
 
     # Already gone: not an error, and not a removal either.
-    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(returncode=1))
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(
+        returncode=1,
+        stderr='Error from server (NotFound): cronjobs.batch "contextlake-default" not found'))
     assert k8s.K8sAdapter().uninstall(_job()) == []
+
+
+def test_uninstall_raises_when_the_cluster_could_not_be_asked(monkeypatch):
+    """A dead route, expired credentials and a Forbidden all exit non-zero, like a missing
+    CronJob does. Only NotFound means gone. Read as gone, `schedule uninstall` deleted the job
+    record and printed "Removed job" while the CronJob kept firing."""
+    for stderr in ("Unable to connect to the server: dial tcp: lookup api.example.invalid: "
+                   "no such host",
+                   'Error from server (Forbidden): cronjobs.batch "contextlake-default" is '
+                   "forbidden: User cannot delete resource"):
+        monkeypatch.setattr(k8s, "_run", lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        with pytest.raises(OSError, match="kubectl delete for contextlake-default failed"):
+            k8s.K8sAdapter().uninstall(_job())
+
+
+def test_every_query_names_the_namespace_that_install_applied_to(monkeypatch):
+    """`apply -n default` put the CronJob there. delete and get without -n use the current
+    context's namespace, so on a context pointing elsewhere uninstall, status and list
+    never found it."""
+    calls = []
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: calls.append(a) or _ok())
+    adapter = k8s.K8sAdapter()
+    adapter.uninstall(_job())
+    adapter.state(_job())
+    adapter.installed_names()
+    assert len(calls) == 3
+    for argv in calls:
+        assert list(argv)[list(argv).index("-n") + 1] == k8s.DEFAULT_NAMESPACE, argv
 
 
 def test_the_client_prefers_kubectl_then_falls_back_to_oc(monkeypatch):

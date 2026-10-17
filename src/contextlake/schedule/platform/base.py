@@ -47,6 +47,26 @@ def check_name(name) -> str:
     return str(name)
 
 
+def removed_or_gone(result, label, marker) -> bool:
+    """Read the result of a delete command run through a subprocess.
+
+    True when it removed the unit. False when it failed and its output carries ``marker``,
+    the identifier the service uses for "not found", so the unit was not there. ``marker``
+    is one identifier or a tuple of them. Anything else raises ``OSError``: a dead network,
+    expired credentials or a missing permission all exit non-zero too, and reading them as
+    "already gone" made ``schedule uninstall`` delete the job record and print success while
+    the schedule kept firing.
+    """
+    if result.returncode == 0:
+        return True
+    markers = (marker,) if isinstance(marker, str) else marker
+    output = f"{result.stderr}\n{result.stdout}"
+    if any(m in output for m in markers):
+        return False
+    raise OSError(f"{label} failed: "
+                  f"{result.stderr.strip() or result.stdout.strip() or 'no output'}")
+
+
 class Adapter:
     """The interface. See the plan for the contract of each method."""
 
@@ -89,6 +109,8 @@ class Adapter:
         raise NotImplementedError
 
     def uninstall(self, job) -> list:
+        """The units removed, ``[]`` when none was there. Raises ``OSError`` when one is there
+        and could not be removed, so ``cmd_uninstall`` keeps the job record and exits 1."""
         raise NotImplementedError
 
     def state(self, job) -> dict:

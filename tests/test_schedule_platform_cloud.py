@@ -134,8 +134,25 @@ def test_aws_uninstall_reports_a_removal_only_when_something_was_removed(monkeyp
     monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok())
     assert cloud.AwsAdapter().uninstall(_job()) == ["schedule/contextlake-default"]
 
-    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok(returncode=1))
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok(
+        returncode=254, stderr="An error occurred (ResourceNotFoundException) when calling "
+                               "the DeleteSchedule operation: Schedule contextlake-default "
+                               "does not exist."))
     assert cloud.AwsAdapter().uninstall(_job()) == []
+
+
+def test_aws_uninstall_raises_for_a_failure_that_is_not_a_missing_schedule(monkeypatch):
+    """Expired credentials and AccessDenied exit non-zero too. Read as "already gone", the
+    job record was deleted and the schedule kept firing."""
+    for stderr in ("An error occurred (ExpiredTokenException) when calling the "
+                   "DeleteSchedule operation: The security token included in the request "
+                   "is expired",
+                   "An error occurred (AccessDeniedException) when calling the DeleteSchedule "
+                   "operation: User is not authorized"):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=254, stderr=_e))
+        with pytest.raises(OSError, match="delete-schedule for contextlake-default failed"):
+            cloud.AwsAdapter().uninstall(_job())
 
 
 def test_aws_installed_names_strips_the_prefix_and_claims_nothing_else(monkeypatch):
@@ -210,8 +227,52 @@ def test_azure_uninstall_reports_a_removal_only_when_something_was_removed(monke
     assert cloud.AzureAdapter().uninstall(_job(platform="azure")) == [
         "containerapp-job/contextlake-default"]
 
-    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok(returncode=1))
-    assert cloud.AzureAdapter().uninstall(_job(platform="azure")) == []
+    for stderr in ("ERROR: (ResourceNotFound) The Resource 'Microsoft.App/jobs/"
+                   "contextlake-default' under resource group 'contextlake' was not found.",
+                   "ERROR: (ResourceGroupNotFound) Resource group 'contextlake' could not "
+                   "be found."):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        assert cloud.AzureAdapter().uninstall(_job(platform="azure")) == []
+
+
+def test_azure_uninstall_raises_for_a_failure_that_is_not_a_missing_job(monkeypatch):
+    """A missing permission, a login that expired and a dead network exit non-zero too. Read
+    as "already gone", the job record was deleted and the job kept running. A failure with
+    no output at all is not a not-found code either."""
+    for stderr in ("ERROR: (AuthorizationFailed) The client does not have authorization to "
+                   "perform action 'Microsoft.App/jobs/delete'.",
+                   "ERROR: Please run 'az login' to setup account.",
+                   "ERROR: HTTPSConnectionPool: Max retries exceeded, Failed to resolve "
+                   "'management.azure.com'",
+                   ""):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        with pytest.raises(OSError,
+                           match="az containerapp job delete for contextlake-default failed"):
+            cloud.AzureAdapter().uninstall(_job(platform="azure"))
+
+
+def test_every_azure_call_for_a_job_names_the_resource_group_install_used(monkeypatch):
+    """`az containerapp job delete` and `show` take a resource group. Install passes one and
+    the CLI has no flag for another, so a call that leaves it out only works for a user with
+    a default group set in `az configure`. Anyone else got a missing-argument error, which
+    uninstall read as "already gone"."""
+    calls = []
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: calls.append(a) or _ok())
+    adapter = cloud.AzureAdapter()
+    job = _job(platform="azure")
+    adapter.install(job, 3600, _argv())
+    adapter.uninstall(job)
+    adapter.state(job)
+    assert len(calls) == 3
+
+    def group(argv):
+        argv = list(argv)
+        return argv[argv.index("--resource-group") + 1]
+
+    assert group(calls[1]) == group(calls[0]) == cloud.DEFAULT_RESOURCE_GROUP
+    assert group(calls[2]) == group(calls[0])
 
 
 def test_azure_installed_names_is_none_when_the_cli_is_absent(monkeypatch):

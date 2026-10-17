@@ -28,10 +28,20 @@ import json
 import shutil
 import subprocess
 
-from .base import Adapter, check_name
+from .base import Adapter, check_name, removed_or_gone
 
 #: EventBridge Scheduler and Container Apps Jobs both take whole minutes.
 MIN_MINUTES = 1
+
+#: The resource group `install` creates the job in. The CLI has no flag for another one, so
+#: every call that names the job names this group too. Without it `az` needs a default group
+#: from `az configure`, and a call made without one fails on the missing argument.
+DEFAULT_RESOURCE_GROUP = "contextlake"
+
+#: What `az` prints when the job, or the group it would sit in, is not there. These are
+#: Azure Resource Manager error codes, the identifiers and not the prose. They come from the
+#: ARM error list, not from a captured run: there is no `az` on the build machine.
+AZURE_NOT_FOUND = ("ResourceNotFound", "ResourceGroupNotFound")
 
 
 def schedule_name(job_name) -> str:
@@ -150,9 +160,11 @@ class AwsAdapter(Adapter):
     def uninstall(self, job) -> list:
         name = schedule_name(job.name)
         result = _cli("aws", "scheduler", "delete-schedule", "--name", name)
-        # Non-zero means it was not there. Not an error, and not a removal:
-        # the same rule every other adapter follows.
-        return [f"schedule/{name}"] if result.returncode == 0 else []
+        # ResourceNotFoundException means it was not there. Not an error, and not a
+        # removal: the same rule every other adapter follows. Any other failure raises.
+        gone = removed_or_gone(result, f"aws scheduler delete-schedule for {name}",
+                               "ResourceNotFoundException")
+        return [f"schedule/{name}"] if gone else []
 
     def installed_names(self):
         try:
@@ -203,7 +215,7 @@ class AzureAdapter(Adapter):
     def usable(self) -> bool:
         return shutil.which("az") is not None
 
-    def render(self, job, interval_s, exec_argv, resource_group="contextlake",
+    def render(self, job, interval_s, exec_argv, resource_group=DEFAULT_RESOURCE_GROUP,
                environment="contextlake", image="", **_options) -> dict:
         from .cron import nearest_expressible as cron_nearest
         from .k8s import DEFAULT_IMAGE, _container_args
@@ -246,7 +258,7 @@ class AzureAdapter(Adapter):
 
         argv = self._create_argv(
             rendered["name"], rendered["cron"],
-            options.get("resource_group", "contextlake"),
+            options.get("resource_group", DEFAULT_RESOURCE_GROUP),
             options.get("environment", "contextlake"),
             options.get("image") or DEFAULT_IMAGE,
             _container_args(exec_argv))
@@ -259,8 +271,14 @@ class AzureAdapter(Adapter):
 
     def uninstall(self, job) -> list:
         name = schedule_name(job.name)
-        result = _cli("az", "containerapp", "job", "delete", "--name", name, "--yes")
-        return [f"containerapp-job/{name}"] if result.returncode == 0 else []
+        result = _cli("az", "containerapp", "job", "delete", "--name", name,
+                      "--resource-group", DEFAULT_RESOURCE_GROUP, "--yes")
+        # A not-found code means the job was not there. Not an error, and not a removal.
+        # Expired credentials, a missing permission or a dead network exit non-zero too,
+        # and they raise so the job record is kept.
+        gone = removed_or_gone(result, f"az containerapp job delete for {name}",
+                               AZURE_NOT_FOUND)
+        return [f"containerapp-job/{name}"] if gone else []
 
     def installed_names(self):
         try:
@@ -278,6 +296,7 @@ class AzureAdapter(Adapter):
         name = schedule_name(job.name)
         try:
             result = _cli("az", "containerapp", "job", "show", "--name", name,
+                          "--resource-group", DEFAULT_RESOURCE_GROUP,
                           "--query", "properties.configuration.scheduleTriggerConfig"
                                      ".cronExpression", "--output", "tsv")
         except OSError as e:

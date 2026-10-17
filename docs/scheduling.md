@@ -78,11 +78,10 @@ hand, and exits 1 because nothing was scheduled. Force a specific platform with 
   path is printed. Only you can read the file. If the copy cannot be saved, nothing is written.
 - If `crontab -l` fails for any reason other than "no crontab for <user>", the crontab is not
   changed and the error is printed. `install` then prints the crontab line so you can add it by
-  hand. `uninstall` still removes the job record.
+  hand. `uninstall` keeps the job record and exits 1, so run it again once the error is fixed.
 - If a `# >>> contextlake (<name>) >>>` line has no matching end line, the crontab is not changed
-  and the error names the line. Fix it with `crontab -e`, then run `install` again. `uninstall`
-  still removes the job record, so `schedule list` then reports the block as an orphaned unit
-  until you delete it with `crontab -e`.
+  and the error names the line. Fix it with `crontab -e`, then run `install` or `uninstall`
+  again. `uninstall` keeps the job record until then.
 - The job's line sends its own output to `/dev/null`, so cron mails nothing for it. Earlier
   versions wrote `MAILTO=""` into the block instead, which cron also applied to every line below
   it. Running `install` again removes that line.
@@ -114,6 +113,16 @@ Three commands change the job record:
 - **Unset** with `contextlake schedule uninstall`. Removes the job record and the installed unit.
   Add `--purge` to also discard the measurements. Without `--purge`, the history is kept, so
   installing again later starts warm instead of cold.
+- If the unit cannot be removed, `uninstall` keeps the job record, prints the error and exits 1.
+  Examples are a unit directory you cannot write to, expired credentials, or a cluster you
+  cannot reach. Fix the cause and run it again. A unit that is already gone counts as removed.
+- How `uninstall` tells "already gone" from a real failure depends on the backend. `systemd`,
+  `launchd` and `cron` look at the unit file or the crontab. `k8s`, `aws` and `azure` look for
+  the service's own not-found code in the error: `NotFound`, `ResourceNotFoundException`, and
+  `ResourceNotFound` or `ResourceGroupNotFound`. Any other error keeps the job record.
+- `windows` cannot match text, because `schtasks` messages follow the language of Windows.
+  After a failed delete it lists every task. The unit counts as gone only when that listing
+  works and does not hold the task. If the listing fails too, `uninstall` keeps the job record.
 
 ### Discarding history is recoverable
 
@@ -245,6 +254,10 @@ Nothing is patched in the cluster on its own: changing an interval means re-runn
 cluster-write rights for the life of the schedule, which is more authority than the benefit is
 worth.
 
+The `CronJob` goes into the `default` namespace, and `uninstall`, `status` and `list` name that
+namespace too. Before, they used the namespace of your current `kubectl` context, so on a context
+pointing elsewhere they never found it.
+
 ### AWS and Azure
 
 ```bash
@@ -274,6 +287,9 @@ The two round differently, and that is not an inconsistency. EventBridge takes
 cron expression, so Azure rounds the way cron does and cannot express 70 minutes at all.
 
 Neither adapter ships an SDK. Both shell out to an already-authenticated `aws` or `az`.
+
+The Azure job goes into the `contextlake` resource group, and `uninstall` and `status` name that
+group too. Before, they named none, so they worked only when `az configure` held a default group.
 
 ## Configuration
 

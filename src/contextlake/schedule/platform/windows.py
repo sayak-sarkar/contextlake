@@ -54,6 +54,23 @@ def _schtasks(*argv):
                           errors="replace", check=False)
 
 
+def _task_names(csv_output) -> list:
+    """The names of the tasks under the contextlake folder in ``/Query /FO CSV /NH`` output.
+
+    The first column is the full task path. ``/NH`` drops the header row, which is the part
+    that is localised.
+    """
+    names = []
+    for line in csv_output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        first = line.split(",")[0].strip().strip('"')
+        if first.startswith(TASK_FOLDER + "\\"):
+            names.append(first[len(TASK_FOLDER) + 1:])
+    return names
+
+
 class WindowsAdapter(Adapter):
     id = "windows"
     # schtasks has no StartWhenAvailable. A run missed while the machine was
@@ -116,9 +133,22 @@ class WindowsAdapter(Adapter):
     def uninstall(self, job) -> list:
         task = task_name(job.name)
         result = _schtasks("/Delete", "/TN", task, "/F")
-        # A task that was already gone is not an error, the same as an
-        # already-removed unit file or crontab block.
-        return [task] if result.returncode == 0 else []
+        if result.returncode == 0:
+            return [task]
+        # A task that was already gone is not an error, the same as an already-removed
+        # unit file or crontab block. A denied delete is: the task still fires, and
+        # returning [] made `schedule uninstall` drop the job record. The failure text is
+        # localised, so it cannot be matched for "not found". List every task and read
+        # the answer: gone only when the listing worked and the task is not in it. The
+        # listing names no folder, so a missing \contextlake folder is an empty answer
+        # and not a failure. A listing that fails cannot say, so the task counts as there.
+        listing = _schtasks("/Query", "/FO", "CSV", "/NH")
+        if listing.returncode == 0 and not any(
+                n.casefold() == job.name.casefold() for n in _task_names(listing.stdout)):
+            return []
+        raise OSError(
+            f"schtasks /Delete {task} failed: "
+            f"{result.stderr.strip() or result.stdout.strip() or 'no output'}")
 
     def installed_names(self):
         """Every task under the contextlake folder.
@@ -140,15 +170,7 @@ class WindowsAdapter(Adapter):
             # this stays the conservative reading: report none rather than
             # claim the platform could not be checked.
             return []
-        names = []
-        for line in result.stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            first = line.split(",")[0].strip().strip('"')
-            if first.startswith(TASK_FOLDER + "\\"):
-                names.append(first[len(TASK_FOLDER) + 1:])
-        return sorted(names)
+        return sorted(_task_names(result.stdout))
 
     def state(self, job) -> dict:
         task = task_name(job.name)
