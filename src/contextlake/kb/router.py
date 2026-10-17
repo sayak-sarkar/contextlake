@@ -31,8 +31,8 @@ SEARCH = "search"
 
 # Ordered (most specific first). The first pattern that matches wins, so a
 # change-verb question routes to impact before the bare "depends on" would send
-# it to dependents. Each pattern is matched case-insensitively against the whole
-# question.
+# it to dependents, and "what does X depend on" routes to search before it.
+# Each pattern is matched case-insensitively against the whole question.
 _RULES: list[tuple[str, re.Pattern]] = [
     (IMPACT, re.compile(
         r"\b(blast\s*radius|what\s+breaks|breaks?\s+if|impact\s+of|affected\s+by|"
@@ -45,6 +45,17 @@ _RULES: list[tuple[str, re.Pattern]] = [
         r"\b(subclasses?\s+of|subtypes?\s+of|what\s+(extends|implements|subclasses)|"
         r"who\s+(extends|implements)|classes?\s+that\s+(extend|implement)|"
         r"implementations?\s+of|derived\s+(from|classes)|extended\s+by)\b", re.I)),
+    # "What does X depend ON" asks for X's dependencies, and the bare `depends on` in the
+    # next rule cannot tell it from "who depends on X": it sent both to find_dependents,
+    # which answers the opposite set. `ask` has no route for outgoing dependencies, so
+    # they go to search. The wh-word before the verb is what marks the object, and a
+    # comma ends the clause, so "which repos depend on X, and what does it do" is
+    # untouched. "Do not" is skipped: "which repos do not depend on X" is still about X.
+    # So is a relative clause, "which repos do we have that depend on X": the lookbehind
+    # leaves a "depend" whose subject is "that", "which" or "who" to the next rule.
+    (SEARCH, re.compile(
+        r"\b(what|which|who|how\s+(many|much))\b[^?.!,;:]*?\b(does|do|did)\b(?!\s+not\b)"
+        r"[^?.!,;:]*?(?<!that )(?<!which )(?<!who )\bdepends?\s+on\b", re.I)),
     (DEPENDENTS, re.compile(
         r"\b(what\s+depends\s+on|who\s+depends\s+on|depends?\s+on|dependents?\s+of|"
         r"which\s+repos?\s+(use|depend)|reverse\s+depend|consumers?\s+of\s+the\s+"

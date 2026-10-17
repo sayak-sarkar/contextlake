@@ -31,6 +31,8 @@ _CASES = [
     ("what depends on requests", DEPENDENTS, "requests"),
     ("which repos use shared-core", DEPENDENTS, "shared-core"),
     ("dependents of the readings package", DEPENDENTS, "readings"),
+    ("who depends on payments-api", DEPENDENTS, "payments-api"),
+    ("what does payments-api depend on", SEARCH, "payments-api"),
     ("what extends BaseController", SUBCLASSES, "BaseController"),
     ("subclasses of Embedder", SUBCLASSES, "Embedder"),
     ("who implements Store", SUBCLASSES, "Store"),
@@ -65,6 +67,57 @@ def test_classifier_route_accuracy_is_perfect_on_the_golden_set():
     # A single aggregate gate: routing regressions surface as this number dropping.
     hits = sum(1 for q, r, _ in _CASES if classify(q)[0] == r)
     assert hits == len(_CASES), f"routing {hits}/{len(_CASES)}"
+
+
+# "depends on" runs in two directions. The bare `depends on` in the DEPENDENTS rule sent
+# "What does X depend on?" to find_dependents, which answers the OPPOSITE question (what
+# depends on X) and labelled it answered. Outgoing questions have no graph route in `ask`
+# and go to SEARCH; `repo_dependencies(direction="out")` is the tool that answers them.
+_OUTGOING_DEPENDENCY_QUESTIONS = [
+    "What does payments-api depend on?",
+    "what does the billing service depend on",
+    "Which packages does checkout-ui depend on?",
+    "what else does payments-api depend on",
+    "what do we depend on",
+    "what packages do all services depend on",
+    "how many packages does checkout-ui depend on?",
+    "Who does payments-api depend on?",
+    "What does payments-api depend on in production?",
+    "What does payments-api depend on? Name the packages.",
+]
+
+
+@pytest.mark.parametrize("question", _OUTGOING_DEPENDENCY_QUESTIONS)
+def test_what_x_depends_on_is_not_routed_to_dependents(question):
+    route, _target = classify(question)
+    assert route == SEARCH, f"{question!r} routed to {route}, want {SEARCH}"
+
+
+# The positive control: the same words in the incoming direction keep their route. A rule
+# that sent every "depend on" question to SEARCH would pass the cases above.
+_INCOMING_DEPENDENCY_QUESTIONS = [
+    ("who depends on payments-api", "payments-api"),
+    ("Who depends on payments-api?", "payments-api"),
+    ("which repos depend on payments-api", "payments-api"),
+    ("which packages depend on requests", "requests"),
+    ("what services depend on payments-api?", "payments-api"),
+    ("what else depends on payments-api", "payments-api"),
+    ("does anything depend on payments-api?", "payments-api"),
+    ("do any repos depend on payments-api", "payments-api"),
+    ("which repos do not depend on payments-api", "payments-api"),
+    ("which of our repos still depend on requests", "requests"),
+    ("Which repos depend on payments-api, and what does it do?", "payments-api"),
+    ("what does payments-api do, and which repos depend on it", "payments-api"),
+    ("which repos do we have that depend on payments-api", "payments-api"),
+    ("which repos does the team own that depend on payments-api", "payments-api"),
+]
+
+
+@pytest.mark.parametrize("question,target", _INCOMING_DEPENDENCY_QUESTIONS)
+def test_who_depends_on_x_still_routes_to_dependents(question, target):
+    route, found = classify(question)
+    assert route == DEPENDENTS, f"{question!r} routed to {route}, want {DEPENDENTS}"
+    assert found == target, f"{question!r} target {found!r}, want {target!r}"
 
 
 def test_backticked_span_wins_as_target():

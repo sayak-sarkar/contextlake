@@ -1176,6 +1176,40 @@ def test_ask_dependents_reports_an_unknown_package_as_unknown(tmp_path):
         s.close()
 
 
+def test_ask_does_not_answer_what_x_depends_on_with_the_dependents_of_x(tmp_path):
+    """`ask("What does known-pkg depend on?")` went to find_dependents and came back
+    answered, listing the files that depend ON known-pkg: the opposite set, under a
+    note that read like an answer. The question has no graph route in `ask`, so it
+    is a search, and the same words in the other direction still list the dependents.
+    """
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    prov = Provenance(source_file="p.json", source_line=1, verified_at=date(2026, 6, 21))
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    nodes = [
+        Node(id="pkg:known", repo="r", kind="package", name="known-pkg"),
+        Node(id="f:a", repo="r", kind="file", name="a.py", file="a.py"),
+    ]
+    edges = [Edge(src="f:a", dst="pkg:known", relation="depends_on",
+                  confidence=Confidence.INFERRED, provenance=prov)]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    srv = build_server(s)
+    try:
+        outgoing = asyncio.run(_call(srv, "ask", {
+            "question": "What does known-pkg depend on?"})).structured_content
+        assert outgoing["route"] == "search"
+        assert "INFERRED from manifests" not in outgoing["note"]
+        assert "a.py" not in [n["name"] for n in outgoing["nodes"]]
+
+        incoming = asyncio.run(_call(srv, "ask", {
+            "question": "Who depends on known-pkg?"})).structured_content
+        assert incoming["route"] == "dependents"
+        assert [n["name"] for n in incoming["nodes"]] == ["a.py"]
+    finally:
+        s.close()
+
+
 def test_find_dependents_honours_repo_scope_and_reports_an_unknown_package(tmp_path):
     """`ask` advertises a `repo` parameter and scopes five routes by it, but
     find_dependents had no repo parameter at all, so this one route silently

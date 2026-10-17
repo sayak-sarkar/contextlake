@@ -33,6 +33,10 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can call `ask`.
 
+`ask` has no route for what a repository depends on. "What does X depend on?" is answered by
+search. For the list, call `repo_dependencies` with `direction` set to `out`. "Who depends on X?"
+goes to `find_dependents`.
+
 **Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,

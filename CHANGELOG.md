@@ -159,6 +159,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `Error: 'str' object has no attribute 'get'`. The record is now refused by key id. A
   running server keeps the keys it loaded before the edit and warns once, and the CLI names the
   file and the key.
+- **`ask` no longer answers "What does X depend on?" with the dependents of X.** The question
+  was routed to `find_dependents`, which lists what depends on X, the opposite set, and returned
+  it as an answer. Such questions, for example "which packages does checkout-ui depend on", now
+  go to search. `repo_dependencies` with `direction` set to `out` lists the dependencies. "Who
+  depends on X?" is unchanged.
 
 ### Security
 

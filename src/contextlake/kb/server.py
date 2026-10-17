@@ -2369,7 +2369,8 @@ def build_server(
         single labeled answer. Graph routes are cited and confidence-tagged; the
         'explain' route returns ADVISORY wiki prose. When unsure, prefer the specific
         tool (find_definition, find_callers, blast_radius, …) — this is the convenience
-        front door over them, not a replacement."""
+        front door over them, not a replacement. "What does X depend on?" has no route
+        and is a search; for that, use repo_dependencies with direction "out"."""
         from .router import (
             CALLERS,
             DEFINITION,
