@@ -257,6 +257,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pages drew none of them, so each table appeared as one line of `| --- |` text and the list
   steps ran together. It now draws all three, escapes cell text like any other text, and keeps
   `\|` inside its cell so a signature such as `int | None` stays in one column.
+- **A stray `select` no longer hides the next real query from the data-flow scan, and no longer
+  makes indexing slow.** The `reads` edge for `SELECT ... FROM <table>` was missing whenever an
+  earlier `SELECT` with no `FROM` in range (a `SELECT 1` health check, a word in a string) sat
+  more than 300 characters before the real query, because the scan consumed the real query along
+  with it. Each such `SELECT` also scanned to the end of the file, so a file of 8000 lines of
+  `SELECT 1;` took 37 s to scan; it now takes 0.4 s. Both date from 2.48.0, which added the
+  data-flow scan. The missing edges return when a repo is next indexed after upgrading.
 
 ### Security
 

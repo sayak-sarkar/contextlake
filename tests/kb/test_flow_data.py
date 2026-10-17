@@ -1,7 +1,10 @@
+import pytest
+
 from contextlake.kb.flow.data import extract_data_refs
 from contextlake.kb.ids import file_node_id
 
 DAO = file_node_id("r", "dao.py")
+DAO_A = file_node_id("r", "a.py")
 
 
 def test_select_from_is_a_read():
@@ -38,6 +41,46 @@ def test_a_select_with_no_from_within_range_is_not_matched():
     src = f'run("SELECT name") \n{filler}\nother("FROM users")'.encode()
     reads, _ = extract_data_refs("r", "far.py", src)
     assert reads == []
+
+
+def test_a_stray_select_does_not_hide_a_later_real_query():
+    """A word "select" with no FROM near it (a `SELECT 1` health check, a comment) used to
+    run its lazy `.*?` to the first FROM anywhere later in the file. When that was past the
+    300-character bound the match was dropped, but the scan resumed AFTER it, so the real
+    query inside the consumed span was never examined and its `reads` edge was missing."""
+    src = ('ping = "SELECT 1"\n' + 'logging.info("doing the thing now")\n' * 20
+           + 'rows = db.query("SELECT id FROM users")\n').encode()
+    reads, _ = extract_data_refs("r", "a.py", src)
+    assert reads == [(DAO_A, "users", "a.py", 22)]
+
+
+def test_many_stray_selects_do_not_hide_a_later_real_query():
+    src = ('x = "SELECT 1"\n' * 50 + 'rows = db.query("SELECT id FROM users")\n').encode()
+    reads, _ = extract_data_refs("r", "a.py", src)
+    assert [name for _f, name, _p, _l in reads] == ["users"]
+
+
+@pytest.mark.parametrize("gap", [100, 290, 300, 301, 450])
+def test_a_stray_select_never_hides_a_query_whatever_the_distance(gap):
+    """The old code lost the query for any gap from 290 up: at 290 a stray's match spans 306
+    characters (SELECT, the gap, FROM and the name), which was dropped after it had consumed
+    the real query. The fixture checks its own distance, so the numbers cannot drift."""
+    real = 'db.query("SELECT id FROM users")'
+    # characters between the end of the stray `SELECT` and the real `FROM`
+    fixed = len(' 1"\n') + len("z = \n") + len('db.query("SELECT id ')
+    src = 'a = "SELECT 1"\n' + "z = " + "x" * (gap - fixed) + "\n" + real
+    assert src.index("FROM") - (src.index("SELECT") + len("SELECT")) == gap
+    reads, _ = extract_data_refs("r", "a.py", src.encode())
+    assert [name for _f, name, _p, _l in reads] == ["users"]
+
+
+def test_a_long_column_list_is_still_one_statement():
+    """The bound must not be so tight that an ordinary wide query stops matching."""
+    cols = ", ".join(f"col_{i:02d}" for i in range(35))        # 278 characters, under the bound
+    src = f'cur.execute("SELECT {cols} FROM orders")'.encode()
+    assert 270 < len(cols) < 300
+    reads, _ = extract_data_refs("r", "q.py", src)
+    assert [name for _f, name, _p, _l in reads] == ["orders"]
 
 
 def test_different_tables_produce_separate_refs():

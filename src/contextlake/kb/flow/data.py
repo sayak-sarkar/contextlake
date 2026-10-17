@@ -30,15 +30,18 @@ from .. import sql as _sql
 from .._lines import LineIndex
 from ..ids import file_node_id
 
-_SELECT = re.compile(r"\bSELECT\b.*?\bFROM\s+" + _sql._NAME, re.IGNORECASE | re.DOTALL)
+# A SELECT's FROM must follow within this many characters to count as the
+# same statement. The bound is IN the pattern, not checked after a match:
+# an unbounded lazy `.*?` ran to the first FROM anywhere later in the file, so
+# a stray "select" (a `SELECT 1` health check, a word in a comment) consumed
+# the next real query when the two were further apart than this, and a SELECT
+# with no FROM after it scanned to the end of the file, once per SELECT.
+_MAX_SELECT_GAP = 300
+_SELECT = re.compile(r"\bSELECT\b.{0," + str(_MAX_SELECT_GAP) + r"}?\bFROM\s+" + _sql._NAME,
+                     re.IGNORECASE | re.DOTALL)
 _INSERT = re.compile(r"\bINSERT\s+INTO\s+" + _sql._NAME, re.IGNORECASE)
 _UPDATE = re.compile(r"\bUPDATE\s+" + _sql._NAME + r"\s+SET\b", re.IGNORECASE)
 _DELETE = re.compile(r"\bDELETE\s+FROM\s+" + _sql._NAME, re.IGNORECASE)
-
-# A SELECT's FROM must follow within this many characters to count as the
-# same statement -- bounds the DOTALL '.*?' scan so it can't leap across
-# unrelated code to the next SELECT's FROM in the file.
-_MAX_SELECT_SPAN = 300
 
 # Commented-out or docstring-quoted SQL reads as a live statement to a regex
 # that doesn't know what a comment is -- and a dead `# DELETE FROM orders` or a
@@ -80,17 +83,15 @@ def extract_data_refs(
 
     line_of = LineIndex(text).line_of
 
-    def scan(rx: re.Pattern, bucket: list, tag: str, max_span: int | None = None) -> None:
+    def scan(rx: re.Pattern, bucket: list, tag: str) -> None:
         for m in rx.finditer(text):
-            if max_span is not None and (m.end() - m.start()) > max_span:
-                continue  # spans past this statement into unrelated code -- not trustworthy
             name = _sql._norm_name(m.group(1))
             if not name or (tag, name) in seen:
                 continue
             seen.add((tag, name))
             bucket.append((file_id, name, rel_path, line_of(m.start())))
 
-    scan(_SELECT, reads, "r", max_span=_MAX_SELECT_SPAN)
+    scan(_SELECT, reads, "r")
     scan(_INSERT, writes, "w")
     scan(_UPDATE, writes, "w")
     scan(_DELETE, writes, "w")

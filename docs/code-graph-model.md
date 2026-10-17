@@ -326,7 +326,8 @@ Application code that queries a table it never imports still shows up in the gra
 A literal `SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET` or `DELETE FROM` inside a string
 becomes a `reads` or `writes` edge, from the file to the `table` or `view` node the SQL DDL
 extractor already found. This works in any language, because embedded SQL text looks the same
-wherever it sits. Names resolve across the whole repo, the same way a foreign-key `references`
+wherever it sits. A `SELECT` and its `FROM` must sit within 300 characters of each other to count
+as one statement. Names resolve across the whole repo, the same way a foreign-key `references`
 edge does.
 
 A query against a table this repo never defines is left unlinked. That is an honest miss, not a
