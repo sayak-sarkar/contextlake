@@ -2061,10 +2061,10 @@
         ? ("Running — pid " + status.pid + " on " + status.host + ":" + status.port)
         : "Stopped"));
     card.appendChild(row);
-    // The HTTP transport requires Authorization: Bearer <token>. The server was
-    // spawned with its stderr discarded, so this card is the only place that
-    // token is ever shown -- omitting it would leave a "Running" server no
-    // client could actually connect to.
+    // The HTTP transport requires Authorization: Bearer <token>. The server is
+    // given the token through its environment and never prints it, so this card is
+    // the only place that token is ever shown -- omitting it would leave a
+    // "Running" server no client could actually connect to.
     // Endpoint shown scheme-less on purpose: the static-site export asserts
     // dashboard.js contains no absolute URL at all (nothing may be fetched off
     // the machine), and the card's own text already says this is the plain-HTTP
@@ -2083,8 +2083,14 @@
       btn.addEventListener("click", function () {
         if (!window.confirm(confirmMsg)) return;
         btn.disabled = true;
-        CL.data.mcpServe(action).then(function () { viewMcp(); })
-          .catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
+        // A refused or failed action answers 200 with ok:false, so it is read here and
+        // not left to .catch. A failed start puts the server's own reason in log_tail.
+        CL.data.mcpServe(action).then(function (r) {
+          if (r && r.ok === false) {
+            window.alert("Failed: " + r.error + (r.log_tail ? "\n\n" + r.log_tail : ""));
+          }
+          viewMcp();
+        }).catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
       });
       actions.appendChild(btn);
     }

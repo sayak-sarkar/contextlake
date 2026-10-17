@@ -19,6 +19,7 @@ import os
 import re
 import secrets
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -219,6 +220,10 @@ def _mcp_pidfile(store_dir) -> Path:
     return Path(store_dir) / "dashboard" / "mcp-server.pid"
 
 
+def _mcp_logfile(store_dir) -> Path:
+    return Path(store_dir) / "dashboard" / "mcp-server.log"
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -231,14 +236,34 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
+def _port_accepts(host: str, port: int) -> bool:
+    """True when something already accepts a connection on ``host:port``.
+
+    ``mcp_start`` asks this twice: before the spawn, so a listener that is not our
+    child is refused up front, and after it, as the sign that the child bound. The
+    first use is what makes the second one trustworthy. ``LOOPBACK_HOSTS`` holds
+    ``[::1]`` with its brackets, which ``create_connection`` cannot resolve.
+    """
+    try:
+        socket.create_connection((host.strip("[]"), port), timeout=0.2).close()
+    except OSError:
+        return False
+    return True
+
+
 def mcp_status(store_dir) -> dict:
     """Liveness + connection details for a dashboard-started HTTP MCP server.
 
-    Includes the server's bearer ``token``: the spawned child's stderr is
-    discarded, so the pidfile is the only place that value survives, and without
-    it a user who reloads the page can never authenticate to the server the
-    dashboard started for them. server.py only calls this behind
+    Includes the server's bearer ``token``: the child is given it through its
+    environment and never prints it, so the pidfile is the only place that value
+    survives, and without it a user who reloads the page can never authenticate to
+    the server the dashboard started for them. server.py only calls this behind
     ``allow_mutations``, which is already loopback-only.
+
+    Liveness is :func:`_pid_finished`, not ``os.kill(pid, 0)``. This process never
+    waits on the child, so one that died on a bind failure stays a zombie, and a
+    zombie still answers ``kill(pid, 0)``: the card kept showing "Running" for a
+    server that did not exist.
     """
     pf = _mcp_pidfile(store_dir)
     if not pf.exists():
@@ -248,9 +273,39 @@ def mcp_status(store_dir) -> dict:
     except (OSError, json.JSONDecodeError):
         return {"running": False}
     pid = info.get("pid")
-    if not isinstance(pid, int) or not _pid_alive(pid):
+    if not isinstance(pid, int) or _pid_finished(pid):
         return {"running": False}
     return {"running": True, **info}
+
+
+# How long mcp_start waits for the child to bind, in 0.1 s steps. The child needs about
+# 1 s to import the server, whether it then binds or fails on a taken port, so the old
+# single 0.3 s look saw neither. A healthy start returns as soon as the port
+# accepts; only a start that neither binds nor exits uses the whole 5 s, and it is then
+# reported as started: a slow machine is not a failure, and mcp_status catches a child
+# that dies later.
+_MCP_START_STEPS = 50
+
+
+def _open_mcp_log(path: Path) -> int | None:
+    """A file descriptor for the child's output, or None when it cannot be opened.
+
+    ``O_NOFOLLOW`` so a link planted at this path is refused, not written through:
+    the open truncates, and through a link it would truncate a file outside the store.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        return os.open(path, flags, 0o600)
+    except OSError:
+        return None
+
+
+def _log_tail(path: Path, lines: int = 12) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return "\n".join(text.splitlines()[-lines:])
 
 
 def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
@@ -258,15 +313,19 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
     status = mcp_status(store_dir)
     if status["running"]:
         return {"ok": False, "error": "already running", **status}
+    if _port_accepts(host, port):
+        return {"ok": False, "error": f"something is already listening on {host}:{port}"}
     cmd = [sys.executable, "-m", "contextlake", "kb", "serve", "--transport", "http",
           "--host", host, "--port", str(port)]
     if config_path:
         cmd += ["--config", config_path]
 
     # The HTTP transport requires a bearer token, and the child announces its own
-    # on stderr -- which is DEVNULL'd here, so letting it mint one would start a
-    # server nobody could authenticate to, this dashboard included. Mint it on
-    # this side and pin it through the child's environment instead.
+    # on stderr, which this dashboard does not show. Letting it mint one would start
+    # a server nobody could authenticate to, this dashboard included. Mint it on
+    # this side and pin it through the child's environment instead. A pinned token
+    # is announced as "read from $CONTEXTLAKE_MCP_TOKEN", never echoed, so the
+    # stderr log below holds no credential.
     from ..server import TOKEN_ENV
 
     token = secrets.token_urlsafe(32)
@@ -276,12 +335,28 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
     # turn from a hosted provider.
     from ... import netguard
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                            start_new_session=True,
-                            env={**netguard.child_env(), TOKEN_ENV: token})
-    time.sleep(0.3)
-    if proc.poll() is not None:
-        return {"ok": False, "error": f"process exited immediately (code {proc.returncode})"}
+    log_path = _mcp_logfile(store_dir)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_fd = _open_mcp_log(log_path)
+    try:
+        # Both streams: the server's config and store errors print to stdout, and
+        # the bind failure to stderr.
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.DEVNULL if log_fd is None else log_fd,
+            stderr=subprocess.STDOUT, start_new_session=True,
+            env={**netguard.child_env(), TOKEN_ENV: token})
+    finally:
+        if log_fd is not None:
+            os.close(log_fd)
+    for _ in range(_MCP_START_STEPS):
+        time.sleep(0.1)
+        # `poll`, not `_pid_finished`: a bare waitpid would take the exit status
+        # away from the Popen, and the error below would lose its code.
+        if proc.poll() is not None:
+            return {"ok": False, "error": f"server exited with code {proc.returncode}",
+                    "log_tail": _log_tail(log_path)}
+        if _port_accepts(host, port):
+            break
     pf = _mcp_pidfile(store_dir)
     pf.parent.mkdir(parents=True, exist_ok=True)
     # The pidfile now carries a credential, so it is a secret file: created 0600
@@ -306,7 +381,7 @@ def mcp_stop(store_dir) -> dict:
     except OSError as e:
         return {"ok": False, "error": str(e)}
     for _ in range(20):
-        if not _pid_alive(pid):
+        if _pid_finished(pid):
             break
         time.sleep(0.1)
     _mcp_pidfile(store_dir).unlink(missing_ok=True)
@@ -338,8 +413,8 @@ def _wiki_logfile(store_dir) -> Path:
 def _pid_finished(pid: int) -> bool:
     """True once ``pid`` has exited.
 
-    ``wiki_generate_start`` never waits on its child (the point is to return
-    immediately), so an exited child is a zombie until reaped -- and
+    ``wiki_generate_start`` and ``mcp_start`` never wait on their child (the point
+    is to return immediately), so an exited child is a zombie until reaped -- and
     ``os.kill(pid, 0)`` reports a zombie as alive forever, since the pid is
     still allocated. Reap it via a non-blocking ``waitpid`` first (this IS
     our child, spawned by this same process); fall back to the plain

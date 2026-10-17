@@ -279,6 +279,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Relationships tab, the C4 diagram and the cluster wiki. FastAPI `{id}`, Express `:id` and
   ASP.NET `{id}` routes were not affected. This dates from 2.4.0, which added HTTP flow
   detection. Run `kb index --force` to rebuild a repository now, or wait for its next commit.
+- **The dashboard no longer shows an exited MCP server as running.** Start waited 0.3 s and
+  looked once. The server needs about 1 s to start, whether it then listens or fails on a bind
+  error, so the failure was never seen. The dashboard never collects the exit of the server it
+  starts, so a server that died stayed in the process table (a zombie), and the liveness check
+  (`kill(pid, 0)`) counts a zombie as alive. The card kept showing Running with the old pid,
+  host, port and token, Start answered "already running", and the server's output went to
+  `/dev/null`. Status and Stop now collect the exit. Start refuses a port that already has a
+  listener, waits up to 5 s for the new server to listen, and on an early exit shows the exit
+  code and the end of the server's output in an alert. That output is kept in
+  `<store>/dashboard/mcp-server.log`. Stop also waited the full 2 s on a child it had already
+  stopped. This dates from 2.57.0, which added the MCP card.
 
 ### Security
 

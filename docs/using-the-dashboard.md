@@ -429,9 +429,9 @@ The MCP server this card starts is authenticated. Its HTTP transport needs
 `Authorization: Bearer <token>` on every request. See
 [Authenticating the network transports](mcp-transports.md#authenticating-the-network-transports).
 
-The dashboard spawns that server with its output discarded, so the server cannot print a token
-where you would see it. The dashboard mints the token itself and shows it on the card, next to
-the endpoint. **That card is the only place it appears.**
+The dashboard mints the token itself and hands it to the server through its environment. The
+server reads it and never prints it. The card shows the token next to the endpoint. **That card
+is the only place it appears.**
 
 Two things follow:
 
@@ -439,6 +439,16 @@ Two things follow:
   value the card then shows.
 - The token lives in `<store>/dashboard/mcp-server.pid`, created `0600`, so it survives a page
   reload.
+
+What **Start** does:
+
+1. It refuses a port that already has a listener.
+2. It waits up to 5 seconds for the new server to listen on its port.
+3. If the server exits first, the card shows an alert with the exit code and the end of the
+   server's output.
+
+The server's output goes to `<store>/dashboard/mcp-server.log`, created `0600` and replaced on
+each start. A server that dies after Start returned shows as **Stopped** on the next refresh.
 
 Mutating routes are refused in two cases:
 

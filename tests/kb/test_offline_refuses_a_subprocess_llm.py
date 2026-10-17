@@ -350,6 +350,7 @@ def test_the_dashboard_mcp_spawn_carries_offline_to_its_child(
 
     monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
     monkeypatch.setattr(mut.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(mut, "_port_accepts", lambda _h, _p: False)
 
     started = mut.mcp_start(tmp_path, port=8799)
 

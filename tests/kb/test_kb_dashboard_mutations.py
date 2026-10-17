@@ -5,7 +5,10 @@ prove specific malicious inputs get rejected before they reach subprocess argv.
 """
 
 import json
+import os
+import socket
 import subprocess
+import sys
 import time
 
 import pytest
@@ -187,8 +190,8 @@ def test_mcp_status_ignores_stale_pidfile(tmp_path):
 
 
 def test_mcp_start_pins_a_token_the_dashboard_can_show(tmp_path, monkeypatch):
-    """The child's stderr is DEVNULL'd, so if it minted its own bearer token the
-    dashboard would start a server nobody could authenticate to. The token must
+    """The dashboard never shows the child's stderr, so if it minted its own bearer
+    token the dashboard would start a server nobody could authenticate to. The token must
     be minted here, passed through the child's env, and survive in the pidfile so
     the card still has it after a page reload."""
     from contextlake.kb.server import TOKEN_ENV
@@ -207,6 +210,7 @@ def test_mcp_start_pins_a_token_the_dashboard_can_show(tmp_path, monkeypatch):
 
     monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
     monkeypatch.setattr(mut.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(mut, "_port_accepts", lambda _h, _p: False)
 
     started = mut.mcp_start(tmp_path, port=8766)
 
@@ -221,8 +225,148 @@ def test_mcp_start_pins_a_token_the_dashboard_can_show(tmp_path, monkeypatch):
 
 def _alive_pid():
     """A pid guaranteed alive for the duration of the test: our own process."""
-    import os
     return os.getpid()
+
+
+class _FakeServer:
+    """A child that runs for ``polls`` checks, then has exited with ``code``.
+
+    Writes ``output`` into the log descriptor ``mcp_start`` hands the spawn, the way
+    the real child's output lands there."""
+
+    pid = _alive_pid()
+
+    def __init__(self, polls=0, code=1, output=b""):
+        self._left, self.returncode, self._code, self.output = polls, None, code, output
+
+    def poll(self):
+        if self._left > 0:
+            self._left -= 1
+            return None
+        self.returncode = self._code
+        return self._code
+
+
+def _spawn_fake(monkeypatch, server, *, port_accepts):
+    """Replace the spawn and the port probe. ``port_accepts`` answers the pre-spawn
+    probe first, then each probe in the wait. Returns the list of sleeps made."""
+    seen, sleeps, answers = {}, [], iter(port_accepts)
+
+    def _fake_popen(cmd, **kw):
+        seen["kw"] = kw
+        if kw["stdout"] >= 0:  # a descriptor, not subprocess.DEVNULL
+            os.write(kw["stdout"], server.output)
+        return server
+
+    monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(mut.time, "sleep", sleeps.append)
+    monkeypatch.setattr(mut, "_port_accepts", lambda _h, _p: next(answers, False))
+    return seen, sleeps
+
+
+def test_mcp_start_reports_a_server_that_dies_after_the_first_look(tmp_path, monkeypatch):
+    """The child needs about 1 s to import, whether it then binds or fails on a bind
+    error, so a single look at 0.3 s saw a live process and answered "running". The
+    wait keeps looking, and the reason the server gave comes back with the error."""
+    bind_error = b"ERROR: [Errno 98] error while attempting to bind: address already in use\n"
+    _spawn_fake(monkeypatch, _FakeServer(polls=12, code=3, output=bind_error),
+                port_accepts=[False])
+
+    result = mut.mcp_start(tmp_path, port=8766)
+
+    assert result["ok"] is False
+    assert result["error"] == "server exited with code 3"
+    assert "address already in use" in result["log_tail"]
+    # Not recorded as a server, so nothing later reports it as running.
+    assert not mut._mcp_pidfile(tmp_path).exists()
+    # The log holds the output, and it is not world-readable.
+    assert mut._mcp_logfile(tmp_path).read_bytes() == bind_error
+    assert (mut._mcp_logfile(tmp_path).stat().st_mode & 0o077) == 0
+
+
+def test_mcp_start_returns_as_soon_as_the_port_accepts(tmp_path, monkeypatch):
+    """The wait is for a bound port, not a fixed delay: a healthy server is reported
+    on the first look that finds it listening."""
+    _, sleeps = _spawn_fake(monkeypatch, _FakeServer(polls=10**6),
+                            port_accepts=[False, False, False, True])
+
+    result = mut.mcp_start(tmp_path, port=8766)
+
+    assert result["ok"] is True and result["running"] is True
+    assert len(sleeps) == 3
+
+
+def test_mcp_start_refuses_a_port_that_already_has_a_listener(tmp_path, monkeypatch):
+    """A listener that is not our child would read as "the child bound" and hide the
+    real bind failure, so it is refused before anything is spawned."""
+    def _never(*a, **kw):
+        raise AssertionError("the server must not be spawned onto a taken port")
+
+    monkeypatch.setattr(mut.subprocess, "Popen", _never)
+    with socket.socket() as other:
+        other.bind(("127.0.0.1", 0))
+        other.listen(1)
+        result = mut.mcp_start(tmp_path, port=other.getsockname()[1])
+
+    assert result["ok"] is False
+    assert "already listening" in result["error"]
+    assert not mut._mcp_pidfile(tmp_path).exists()
+
+
+@pytest.mark.skipif(not hasattr(os, "O_NOFOLLOW"), reason="needs O_NOFOLLOW")
+def test_mcp_start_does_not_write_the_log_through_a_link(tmp_path, monkeypatch):
+    """The log is opened with truncation, and through a link that would empty a file
+    outside the store. The link is refused and the server still starts."""
+    victim = tmp_path / "outside.txt"
+    victim.write_text("keep me")
+    log = mut._mcp_logfile(tmp_path / "store")
+    log.parent.mkdir(parents=True)
+    log.symlink_to(victim)
+    seen, _ = _spawn_fake(monkeypatch, _FakeServer(polls=10**6), port_accepts=[False, True])
+
+    result = mut.mcp_start(tmp_path / "store", port=8766)
+
+    assert result["ok"] is True
+    assert victim.read_text() == "keep me"
+    assert seen["kw"]["stdout"] == subprocess.DEVNULL
+
+
+@pytest.mark.skipif(not hasattr(os, "waitid"), reason="needs os.waitid to leave a zombie")
+def test_mcp_status_does_not_count_a_dead_child_as_running(tmp_path):
+    """The dashboard never waits on the server it starts, so one that died stays a
+    zombie, and ``kill(pid, 0)`` still succeeds on a zombie. Status kept answering
+    "running" with that pid, host, port and token until some later spawn reaped it."""
+    child = subprocess.Popen([sys.executable, "-c", ""])
+    # Wait for the exit without reaping it. `child` stays referenced: a dropped Popen
+    # is reaped by the next Popen anywhere in this process, which hides the defect.
+    os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+    assert mut._pid_alive(child.pid)  # the premise: a zombie still looks alive
+    pf = mut._mcp_pidfile(tmp_path)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text(json.dumps({"pid": child.pid, "host": "127.0.0.1", "port": 8766,
+                              "token": "t"}))
+
+    assert mut.mcp_status(tmp_path) == {"running": False}
+    child.poll()
+
+
+def test_mcp_stop_does_not_wait_out_the_clock_on_a_child_it_just_killed(tmp_path, monkeypatch):
+    """The stopped child is ours and is a zombie until reaped, so waiting for
+    ``kill(pid, 0)`` to fail used up all 20 steps (2 s) on every stop."""
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        pf = mut._mcp_pidfile(tmp_path)
+        pf.parent.mkdir(parents=True, exist_ok=True)
+        pf.write_text(json.dumps({"pid": child.pid, "host": "127.0.0.1", "port": 8766}))
+        real_sleep, sleeps = time.sleep, []
+        monkeypatch.setattr(mut.time, "sleep", lambda s: (sleeps.append(s), real_sleep(s)))
+
+        assert mut.mcp_stop(tmp_path) == {"ok": True, "running": False}
+
+        assert len(sleeps) < 20
+    finally:
+        child.kill()
+        child.poll()
 
 
 # --- Live wiki generation ----------------------------------------------------
