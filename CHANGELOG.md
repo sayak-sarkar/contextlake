@@ -432,6 +432,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   since 2026-08-18, where the page said there was no fallback and no warning. A text-mode
   `kb query` on an empty store has printed `This store is empty` and the store path since
   2026-08-16.
+- **A docs page missing from the site page list now fails a test.** `CONTRIBUTING.md` said
+  the docs build fails for such a page. It did not: the build exited `0` and the page was
+  missing from the site nav, sitemap, `llms.txt` and search.
 
 ### Security
 

@@ -70,3 +70,17 @@ def test_llms_full_matches_the_docs_it_was_generated_from():
         f"{detail}\n"
         "Regenerate it with: .venv/bin/python site/build_docs.py"
     )
+
+
+def test_every_docs_page_is_in_the_site_page_list_or_marked_github_only():
+    """CONTRIBUTING.md said the build fails for a `docs/*.md` that is in neither `PAGES` nor
+    `TO_GH`. The build never looked: it exited 0 and the page was missing from the nav, the
+    sitemap, `llms.txt`, `llms-full.txt` and search. This is the check, so the sentence is true."""
+    bd = _build_docs()
+    registered = {src for _out, src, *_ in bd.PAGES} | set(bd.TO_GH)
+    on_disk = {p.relative_to(REPO).as_posix() for p in (REPO / "docs").glob("*.md")}
+    assert len(on_disk) > 20, "the docs directory scan found almost nothing"
+    unregistered = sorted(on_disk - registered)
+    assert not unregistered, (
+        f"add these to PAGES (or to TO_GH if they stay on GitHub) in site/build_docs.py: "
+        f"{unregistered}")
