@@ -50,11 +50,19 @@ _MAX_VALUE = 200
 _MAX_NODES_PER_FILE = 2000
 
 # Regions whose contents are not markup and must not mint settings or move the
-# element path: comments, CDATA, doctype/processing instructions.
-_MASKED = re.compile(r"<!--.*?-->|<!\[CDATA\[.*?\]\]>|<\?.*?\?>|<!DOCTYPE[^>]*>",
-                     re.DOTALL | re.IGNORECASE)
+# element path: comments, CDATA, doctype/processing instructions. Each one ends at
+# its closer or at the end of the text. An unclosed one (a truncated file) hides the
+# rest of the file, because what follows its opener is not markup. Without the `\Z`
+# branch, every unclosed opener scanned to the end of the text and failed, so the work
+# grew with the square of the file size.
+_MASKED = re.compile(
+    r"<!--.*?(?:-->|\Z)|<!\[CDATA\[.*?(?:\]\]>|\Z)|<\?.*?(?:\?>|\Z)|<!DOCTYPE[^>]*(?:>|\Z)",
+    re.DOTALL | re.IGNORECASE)
 
-_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*)>")
+# `[^<>"']` and not `[^>"']`: no well-formed tag holds a raw `<` outside a quoted value, and
+# letting the pattern run over `<` made every `<x` with no `>` after it scan to the end of
+# the text, so the work grew with the square of the file size. Same fix as manifest.py.
+_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^<>\"']|\"[^\"]*\"|'[^']*')*)>")
 
 # A value is never stored when the setting's NAME says it is a credential. This is
 # deliberate, not incidental: contextlake writes its store to disk and serves it
@@ -74,9 +82,13 @@ _SECRET_VALUE = re.compile(
     r"(?:pass(?:word)?|pwd|secret|token|api[_-]?key|auth)\s*[=:]|"
     r"\b(?:bearer|basic)\s+\S+|"
     r"\b[A-Za-z0-9+/_-]{40,}={0,2}\b", re.I)
-_ATTR = re.compile(r"([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
+# A name starts only where the character before it cannot continue a name. From inside a
+# long run of name characters, every start scanned to the end of the run and failed on the
+# missing `=`, so one 20 KB run took 5 s. A name that starts with a digit, `.`, `-` or a
+# non-ASCII letter is no longer read from its middle (it was cut to its ASCII tail before).
+_ATTR = re.compile(r"(?<![\w.:-])([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
 # <Timeout>30</Timeout> -- a leaf element carrying its value as text.
-_LEAF = re.compile(r"<([A-Za-z_][\w.:-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*)>"
+_LEAF = re.compile(r"<([A-Za-z_][\w.:-]*)((?:[^<>\"']|\"[^\"]*\"|'[^']*')*)>"
                    r"([^<>]*?)</\1\s*>")
 
 # The conventional "this attribute names the setting" attributes, in priority
@@ -184,7 +196,7 @@ def parse_xml_config(repo_id: str, rel_path: str, source: bytes) -> list[Node]:
         pos = m.start()
         closing, tag, attr_raw = m.group(1), m.group(2), m.group(3)
         # Self-closing is decided HERE and not by a trailing `(/?)` group in the
-        # pattern: `/` satisfies the attribute group's `[^>"']`, so a greedy match
+        # pattern: `/` satisfies the attribute group's `[^<>"']`, so a greedy match
         # swallows it and the group is always empty. That silently pushed every
         # `<add key=.. />` onto the path, and because the stack only pops on a
         # matching close tag, the corruption compounded down the file --

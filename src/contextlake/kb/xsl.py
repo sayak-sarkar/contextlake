@@ -49,8 +49,11 @@ EMITTED_KINDS = frozenset({TEMPLATE_KIND, VARIABLE_KIND})
 # Bounds one generated stylesheet, matching the other XML extractors.
 _MAX_NODES_PER_FILE = 2000
 
-_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*)>")
-_ATTR = re.compile(r"([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
+# `[^<>"']`, not `[^>"']`: see xml_cfg._TAG. A raw `<` in the pattern made a tag-less run
+# of `<x` scan to the end of the text from every start.
+_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^<>\"']|\"[^\"]*\"|'[^']*')*)>")
+# `(?<![\w.:-])`: a name starts at a name boundary only; see xml_cfg._ATTR.
+_ATTR = re.compile(r"(?<![\w.:-])([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
 
 # `$name` in an attribute value: a variable or parameter being read. `$` is not otherwise
 # meaningful in XPath, so this needs no context beyond the attribute it sits in.

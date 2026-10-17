@@ -315,6 +315,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "re-indexing now", indexed 0 repos for it, and exited 0, so the repo was missing until an
   unfiltered run and its history was gone. A filter that matched no repo did the same to every
   stale-id repo, then exited 1. The migration now sees the repos the run indexes. Since 2.47.0.
+- **A truncated or hostile `.xml`, `.xsd`, `.xsl` or `.sql` file no longer stalls an index
+  run.** The scanners for these files used patterns whose cost grew with the square of the file
+  size when a comment, CDATA section or processing instruction was never closed, when a tag held
+  a stray `<` or a long run of name characters, when a trigger repeated `AFTER` or `BEFORE`, or
+  when a table was followed by blank lines. 18 KB of `<a ` repeated took 6.4 s to parse, and
+  there is no per-file time limit, so a 105 KB file held the store lock past 120 s and every
+  hook and cron run was refused. Each pattern now ends where its input ends. An unclosed
+  comment, CDATA section or processing instruction now hides the rest of the file, where it was
+  parsed as settings before. An attribute name that starts with a digit, `.`, `-` or a non-ASCII
+  letter is no longer read from its middle. Since 7.0.0 for `.xml`, 8.0.0 for SQL triggers and
+  8.1.0 for `.xsd` and `.xsl`.
 
 ### Security
 

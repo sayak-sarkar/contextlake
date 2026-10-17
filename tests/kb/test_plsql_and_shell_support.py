@@ -181,3 +181,18 @@ def test_a_database_package_is_not_the_dependency_kind():
     assert KIND_REGISTRY["package"].group != KIND_REGISTRY["db_package"].group
     nodes, _ = parse_sql("demo", "p.pks", b"CREATE OR REPLACE PACKAGE p AS END;")
     assert {n.kind for n in nodes} == {"db_package"}
+
+
+def test_a_trigger_reference_reports_the_line_of_its_event_word():
+    """The table is read after the event word (BEFORE, AFTER, INSTEAD OF), and the
+    reference keeps the event word's line, not the line of the `ON` that follows it."""
+    src = b"""CREATE TRIGGER t_audit
+  BEFORE
+  UPDATE
+  ON orders
+  FOR EACH ROW
+BEGIN NULL; END;
+"""
+    nodes, refs = parse_sql("demo", "t.sql", src)
+    trigger = next(n for n in nodes if n.name == "t_audit")
+    assert [(t, line) for s, t, _p, line in refs if s == trigger.id] == [("orders", 2)]

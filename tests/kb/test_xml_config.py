@@ -7,7 +7,7 @@ cases a line scanner exists to survive.
 """
 
 from contextlake.kb.parse import XML_EXTS, is_indexable_name
-from contextlake.kb.xml_cfg import CONFIG_KIND, parse_xml_config
+from contextlake.kb.xml_cfg import CONFIG_KIND, mask_non_markup, parse_xml_config
 
 
 def _by_name(nodes):
@@ -83,6 +83,26 @@ def test_commented_out_and_cdata_settings_are_not_extracted():
   <add key="Live" value="z"/>
 </c>""")
     assert [n.name for n in nodes] == ["Live"]
+
+
+def test_an_unclosed_comment_hides_the_rest_of_the_file():
+    """A truncated file ends inside a comment, CDATA section or processing instruction.
+    What follows the opener is not markup, so it mints nothing. The mask used to ignore an
+    unclosed opener, which parsed the rest of the file as settings and made every opener
+    rescan the whole tail."""
+    for opener in (b"<!--", b"<![CDATA[", b"<?"):
+        src = b'<c><add key="Live" value="1"/>' + opener + b' cut <add key="Gone" value="2"/>'
+        nodes = parse_xml_config("r", "a.xml", src)
+        assert [n.name for n in nodes] == ["Live"], opener
+    # A doctype with no `>` after it ends the same way, though no setting can follow it.
+    assert mask_non_markup("<a/><!DOCTYPE cut") == "<a/>" + " " * len("<!DOCTYPE cut")
+
+
+def test_a_tag_cut_off_before_its_close_does_not_swallow_the_next_tag():
+    """No well-formed tag holds a raw `<` outside a quoted value. A tag with no `>` before
+    the next `<` is dropped, and the next tag is read on its own line."""
+    src = b'<c>\n<a \n<add key="K" value="v"/>\n</c>'
+    assert _by_name(parse_xml_config("r", "a.xml", src))["K"].line_start == 3
 
 
 def test_masking_preserves_line_numbers():

@@ -152,3 +152,15 @@ def test_index_repo_dir_languages_filter_excludes_sql(tmp_path):
     kinds = {n.kind for n in shard.nodes}
     assert "table" not in kinds
     assert "function" in kinds
+
+
+def test_a_go_line_ends_a_table_scope_in_lf_and_crlf_files():
+    """`GO` ends the scope of the table above it. The match must not cross a newline (it
+    made every blank line rescan the rest of a blank run) and must still read the `\\r` of a
+    CRLF line as trailing space, or a Windows file's `GO` stops ending anything."""
+    for eol in (b"\n", b"\r\n"):
+        sql = (b"CREATE TABLE a (id INT);" + eol + b"GO" + eol
+               + b"GRANT REFERENCES ON z TO u; -- REFERENCES y(id)" + eol)
+        nodes, refs = parse_sql("r", "s.sql", sql)
+        assert [n.name for n in nodes] == ["a"]
+        assert refs == [], f"the reference after GO was credited to table a (eol={eol!r})"

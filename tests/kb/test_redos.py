@@ -34,6 +34,9 @@ from contextlake.kb.flow.http import extract_http_flow
 from contextlake.kb.hcl import parse_hcl
 from contextlake.kb.manifest import parse_manifest
 from contextlake.kb.sql import parse_sql
+from contextlake.kb.xml_cfg import parse_xml_config
+from contextlake.kb.xsd import parse_xsd
+from contextlake.kb.xsl import parse_xsl
 
 FUZZ_DIR = Path(__file__).parent / "fixtures" / "fuzz"
 
@@ -219,3 +222,58 @@ def test_hcl_deep_nesting_is_not_quadratic(shape):
     nodes, refs = parse_hcl("repo", "main.tf", content)
     assert isinstance(nodes, list)
     assert isinstance(refs, list)
+
+
+# ---------------------------------------------------------------------------
+# XML, XSD, XSL and SQL scanners -- shapes that made one small file stall the run.
+#
+# Each regex below rescanned the rest of the text from every start that could not
+# finish, so the time grew with the square of the file. A truncated file is enough to
+# trigger it; it does not take an attacker. Measured before the fix, one parse, xml_cfg /
+# xsd / xsl in seconds, at the size named and at double it:
+#   `<a ` * 3_000 (9 KB)                  1.6 / 0.72 / 0.74 -> 6.4 / 3.9 / 3.5    `_TAG`
+#   `<a ` + `b` * 9_000 + `>` (9 KB)      0.99 / 1.1 / 1.2 -> 4.2 / 4.2 / 4.0     `_ATTR`
+#   `<!-- ` * 3_000 (15 KB)               0.20 / 0.33 / 0.29 -> 0.82 / 1.1 / 1.1  `_MASKED`
+#   `<a "'<a '"<a "'` * 3_000 (45 KB)     9.3 / 4.3 / 4.4 -> 39 / 21 / 23         `_TAG`
+# SQL, in seconds: `CREATE TRIGGER t1 ` + `AFTER ` * 3_000 (18 KB) 0.52, 36 KB 2.6
+# (`_TRIGGER_ON`); a table followed by 9 KB of blank lines 0.58, 18 KB 2.2 (`_SCOPE_END`).
+# The cases below are 2.7 to 13 times those sizes. The fixed code takes milliseconds on them.
+# ---------------------------------------------------------------------------
+
+_XML_HOSTILE = {
+    "unquoted_lt": b"<a " * 20_000,
+    "name_run": b"<a " + b"b" * 60_000 + b">",
+    "unclosed_comment": b"<!-- " * 25_000,
+    "unclosed_cdata": b"<![CDATA[ " * 20_000,
+    "unclosed_pi": b"<? " * 40_000,
+    "unclosed_doctype": b"<!DOCTYPE " * 40_000,
+    "mixed_quotes": b"<a \"'<a '\"<a \"'" * 8_000,
+}
+_XML_PARSERS = {
+    "xml_cfg": lambda data: parse_xml_config("repo", "a.xml", data),
+    "xsd": lambda data: parse_xsd("repo", "a.xsd", data),
+    "xsl": lambda data: parse_xsl("repo", "a.xsl", data),
+}
+
+
+@pytest.mark.timeout(2)
+@pytest.mark.parametrize("shape", sorted(_XML_HOSTILE))
+@pytest.mark.parametrize("parser", sorted(_XML_PARSERS))
+def test_xml_scanners_are_not_quadratic(parser, shape):
+    pytest.importorskip("pytest_timeout")  # see the manifest test's comment above
+    _XML_PARSERS[parser](_XML_HOSTILE[shape])
+
+
+_SQL_HOSTILE = {
+    "trigger_event_words": b"CREATE TRIGGER t1 AFTER " + b"AFTER " * 30_000,
+    "trigger_before_words": b"CREATE TRIGGER t1 " + b"BEFORE x " * 20_000,
+    "blank_lines_after_table": b"CREATE TABLE t (a int)\n" + b"\n" * 60_000,
+    "blank_lines_after_trigger": b"CREATE TRIGGER t1 AFTER\n" + b"\n" * 60_000,
+}
+
+
+@pytest.mark.timeout(2)
+@pytest.mark.parametrize("shape", sorted(_SQL_HOSTILE))
+def test_sql_scanner_is_not_quadratic(shape):
+    pytest.importorskip("pytest_timeout")
+    parse_sql("repo", "t.sql", _SQL_HOSTILE[shape])

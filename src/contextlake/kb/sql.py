@@ -66,9 +66,12 @@ _CREATE_FUNC = re.compile(_HEAD + r"FUNCTION\s+" + _IF_NOT_EXISTS + _NAME, re.I)
 _CREATE_TYPE = re.compile(_HEAD + r"TYPE\s+(?!BODY\b)" + _NAME, re.I)
 _CREATE_TRIGGER = re.compile(_HEAD + r"TRIGGER\s+" + _IF_NOT_EXISTS + _NAME, re.I)
 # The table a trigger fires on. `ON` also introduces a join, so this is only read inside a
-# trigger's own scope, never across the file.
-_TRIGGER_ON = re.compile(
-    r"\b(?:BEFORE|AFTER|INSTEAD\s+OF)\b.*?\bON\s+" + _NAME, re.I | re.S)
+# trigger's own scope, never across the file. Two searches, event word first and then the
+# `ON` after it: one pattern with a lazy gap between them rescanned the rest of the scope
+# from every event word that had no `ON <name>` after it, which grew with the square of
+# the scope's size.
+_TRIGGER_EVENT = re.compile(r"\b(?:BEFORE|AFTER|INSTEAD\s+OF)\b", re.I)
+_TRIGGER_ON = re.compile(r"\bON\s+" + _NAME, re.I)
 # Any top-level statement boundary that ends a CREATE TABLE scope.
 # Every statement that ends the previous definition's scope. The PL/SQL keywords are here
 # for the same reason the others are: without them a CREATE TABLE's foreign-key scope runs
@@ -77,7 +80,7 @@ _SCOPE_END = re.compile(
     r"\bCREATE\s+(?:OR\s+(?:ALTER|REPLACE)\s+)?(?:(?:NON)?EDITIONABLE\s+)?"
     + _TABLE_KIND + r"(?:RECURSIVE\s+)?(?:MATERIALIZED\s+)?"
     r"(?:TABLE|VIEW|PROC|PROCEDURE|FUNCTION|PACKAGE|TYPE|TRIGGER)\b"
-    r"|\bALTER\s+TABLE\b|^\s*GO\s*$|^\s*/\s*$",
+    r"|\bALTER\s+TABLE\b|^[^\S\n]*GO[^\S\n]*$|^[^\S\n]*/[^\S\n]*$",
     re.I | re.M)
 
 
@@ -217,11 +220,13 @@ def parse_sql(
             line_start=line_of(m.start()), lang="sql"))
         scope_end = _SCOPE_END.search(text, m.end())
         end = scope_end.start() if scope_end else len(text)
-        on = _TRIGGER_ON.search(text, m.end(), end)
+        event = _TRIGGER_EVENT.search(text, m.end(), end)
+        on = _TRIGGER_ON.search(text, event.end(), end) if event else None
         if on:
             target = _norm_name(on.group(1))
             if target and target != name:
-                refs.append((nid, target, rel_path, line_of(on.start())))
+                # The line is the event word's, as it was when one pattern matched both.
+                refs.append((nid, target, rel_path, line_of(event.start())))
 
     # Tables + FK attribution: each CREATE TABLE owns the text up to the next
     # top-level CREATE / GO, and every REFERENCES in that scope is its FK.

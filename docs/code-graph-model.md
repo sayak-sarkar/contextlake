@@ -211,6 +211,11 @@ Three deliberate limits:
   belongs between a build file and a package. `.svg` is XML-shaped and is graphics.
 - **A settings extension whose file is not XML costs nothing.** The scanner is a regex over markup,
   so an INI-style `.config` yields no settings rather than raising.
+- **A truncated file is read up to where it was cut.** A comment, CDATA section or processing
+  instruction with no closer hides the rest of the file, because what follows its opener is not
+  markup. A tag with no `>` before the next `<` is dropped, and the next tag is read on its own
+  line. Parse time grows in step with the file size: 105 KB of `<a ` repeated takes 7 ms. The
+  `.xsd` and `.xsl` scanners follow the same rules.
 
 Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
 entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and

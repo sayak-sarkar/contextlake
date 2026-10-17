@@ -53,8 +53,11 @@ EMITTED_KINDS = frozenset({TYPE_KIND, ELEMENT_KIND})
 # industry message schema set runs to thousands of types and must not dominate the graph.
 _MAX_NODES_PER_FILE = 2000
 
-_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*)>")
-_ATTR = re.compile(r"([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
+# `[^<>"']`, not `[^>"']`: see xml_cfg._TAG. A raw `<` in the pattern made a tag-less run
+# of `<x` scan to the end of the text from every start.
+_TAG = re.compile(r"<(/?)([A-Za-z_][\w.:-]*)((?:[^<>\"']|\"[^\"]*\"|'[^']*')*)>")
+# `(?<![\w.:-])`: a name starts at a name boundary only; see xml_cfg._ATTR.
+_ATTR = re.compile(r"(?<![\w.:-])([A-Za-z_][\w.:-]*)\s*=\s*(\"([^\"]*)\"|'([^']*)')")
 
 # Local names of the global components worth a node, mapped to what they are. A global
 # `attribute` is here for the same reason a group is: something else reaches it by `ref=`,
