@@ -14,6 +14,11 @@ is this project's signature failure mode -- a number that looks measured and is 
 so it gets a test of its own rather than a comment.
 """
 
+import os
+import threading
+
+import pytest
+
 from contextlake.kb.eval import (
     GoldenQuery,
     citation_summary,
@@ -200,3 +205,111 @@ def test_a_huge_file_is_not_read_past_the_cited_line(tmp_path, monkeypatch):
     monkeypatch.setattr(kb_eval, "_read_upto", spy)
     assert verify_citations(store, ["n_m3"])[0].status == "verified"
     assert seen["upto"] == 6      # line_start + window, not 50,000
+
+
+# --- only a regular file is opened ----------------------------------------------------
+
+needs_special_files = pytest.mark.skipif(
+    not os.path.exists("/dev/null") or not hasattr(os, "mkfifo"),
+    reason="needs /dev/null and FIFOs")
+
+
+def _store_with(tmp_path, make):
+    """A repo whose clone holds a regular `ok.cpp` and whatever `make(root)` puts at
+    `special.cpp`, with a function node and a file node citing each of them."""
+    root = tmp_path / "checkout"
+    root.mkdir()
+    (root / "ok.cpp").write_text("void Draw() {}\n", encoding="utf-8")
+    make(root / "special.cpp")
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="demo", path=str(root), host=None,
+                           default_branch="main", head_commit="abc123"))
+    store.upsert_nodes("demo", [
+        Node(id="n_ok", repo="demo", kind="function", name="Draw",
+             file="ok.cpp", line_start=1, line_end=1, lang="cpp"),
+        Node(id="n_special", repo="demo", kind="function", name="Draw",
+             file="special.cpp", line_start=1, line_end=1, lang="cpp"),
+        Node(id="n_special_file", repo="demo", kind="file", name="special.cpp",
+             file="special.cpp", line_start=None, line_end=None, lang="cpp"),
+    ])
+    return store
+
+
+def _verify_within(store, ids, *, release=None, seconds=10):
+    """Run `verify_citations` in a thread and fail after `seconds` instead of hanging.
+
+    A FIFO blocks `open` until a writer appears. `release` is the FIFO path: on a hang
+    the test opens it for writing so the stuck thread ends, then reports the hang."""
+    box = {}
+    worker = threading.Thread(
+        target=lambda: box.update(out=verify_citations(store, ids)), daemon=True)
+    worker.start()
+    worker.join(seconds)
+    hung = worker.is_alive()
+    if hung and release is not None:
+        os.close(os.open(release, os.O_RDWR))
+        worker.join(5)
+    assert not hung, f"verify_citations did not return within {seconds} s"
+    return box["out"]
+
+
+@needs_special_files
+def test_a_cited_file_linked_to_a_device_is_not_a_file(tmp_path):
+    """`/dev/null` is the safe stand-in for `/dev/zero`: same file type, and a regression
+    fails an assertion instead of reading until memory runs out. The file exists, so the
+    reason must not be `file_missing`, which says the graph outlived it."""
+    store = _store_with(tmp_path, lambda p: p.symlink_to("/dev/null"))
+    got = _by_id(_verify_within(store, ["n_ok", "n_special", "n_special_file"]))
+    assert got["n_ok"].status == "verified"
+    for nid in ("n_special", "n_special_file"):
+        assert (got[nid].status, got[nid].reason) == ("broken", "not_a_file")
+    assert got["n_special"].cite == "special.cpp:1"
+
+
+@needs_special_files
+def test_a_cited_file_that_is_a_fifo_is_not_opened(tmp_path):
+    """A FIFO blocks `open` with no end, and this runs inside the MCP server."""
+    store = _store_with(tmp_path, lambda p: os.mkfifo(p))
+    checks = _verify_within(store, ["n_ok", "n_special", "n_special_file"],
+                            release=tmp_path / "checkout" / "special.cpp")
+    got = _by_id(checks)
+    assert got["n_ok"].status == "verified"
+    for nid in ("n_special", "n_special_file"):
+        assert (got[nid].status, got[nid].reason) == ("broken", "not_a_file")
+    # Counted the way file_missing is: broken, named, and listed in the examples.
+    s = citation_summary(checks)
+    assert (s["verified"], s["broken"], s["unverifiable"]) == (1, 2, 0)
+    assert s["reasons"] == {"not_a_file": 2}
+    assert {e["reason"] for e in s["broken_examples"]} == {"not_a_file"}
+
+
+def test_a_directory_at_a_cited_path_is_not_a_file(tmp_path):
+    """A directory exists, so it is `not_a_file` and not `file_missing`."""
+    store = _store_with(tmp_path, lambda p: p.mkdir())
+    got = _by_id(verify_citations(store, ["n_special", "n_special_file"]))
+    assert {(c.status, c.reason) for c in got.values()} == {("broken", "not_a_file")}
+
+
+def test_a_cited_file_linked_to_a_regular_file_elsewhere_still_verifies(tmp_path):
+    """The near miss: a link is followed wherever it points (owner rule), so only the
+    file type decides. A link to a regular file outside the clone is a file."""
+    outside = tmp_path / "outside.cpp"
+    outside.write_text("void Draw() {}\n", encoding="utf-8")
+    try:
+        store = _store_with(tmp_path, lambda p: p.symlink_to(outside))
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available here")
+    got = _by_id(verify_citations(store, ["n_special", "n_special_file"]))
+    assert {c.status for c in got.values()} == {"verified"}
+
+
+def test_a_cited_path_with_a_nul_byte_is_named_not_raised(tmp_path):
+    """`stat` raises ValueError, not OSError, for an embedded NUL. `is_file()`, the check
+    the file-type test replaced, swallowed it; the run must not end on one bad row."""
+    store = _store_with(tmp_path, lambda p: p.write_text("void Draw() {}\n"))
+    store.upsert_nodes("demo", [
+        Node(id="n_nul", repo="demo", kind="function", name="Draw",
+             file="spe\x00cial.cpp", line_start=1, line_end=1, lang="cpp")])
+    got = _by_id(verify_citations(store, ["n_ok", "n_nul"]))
+    assert got["n_ok"].status == "verified"
+    assert (got["n_nul"].status, got["n_nul"].reason) == ("broken", "file_missing")

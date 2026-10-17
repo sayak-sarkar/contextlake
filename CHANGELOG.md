@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the link. A `[serve]` default such as `default_rate` belongs to the server, not the key, and
   does not count.
 
+### Fixed
+
+- **The citation check names a cited path that is not a regular file.** `kb eval
+  --verify-citations` and the serving path's drift check gave `file_missing` ("the file is no
+  longer on disk") for a cited path that is now a directory, a device or a FIFO. Both now give
+  the new reason `not_a_file`, counted as broken the way `file_missing` is, and never open the
+  path. The drift check called such a path `verified` when its time stamp was older than the
+  index; it is now stale. Neither check ever read or blocked on such a file.
+
 ## [10.0.0rc3] - 2026-10-16
 
 ### Changed

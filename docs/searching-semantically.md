@@ -169,11 +169,16 @@ Citations: 178/180 verified (98.9%) of 184 distinct nodes
     src/ingest/backfill.py:88  (name_absent)
 ```
 
-Failures are named rather than counted: `file_missing` (the graph outlived the file), `line_out_of_range`
-(the file shrank under a stale index), `name_absent` (the line exists, the symbol is not on it),
-`no_citation` (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
-this machine is reported as **unverifiable** and kept out of the rate, so a run without the mirror reads as
-"nothing was checked" rather than as a pass.
+Failures are named, not counted:
+
+- `file_missing`: the graph outlived the file.
+- `not_a_file`: the path exists but is a directory, a device or a pipe. It is never opened.
+- `line_out_of_range`: the file shrank under a stale index.
+- `name_absent`: the line exists, the symbol is not on it.
+- `no_citation`: a symbol node carrying no file or line at all.
+
+A repository whose recorded clone is not on this machine is reported as **unverifiable** and kept out of the
+rate, so a run without the mirror reads as "nothing was checked", not as a pass.
 
 It is off by default: it does filesystem work proportional to the results and needs the checkout present.
 

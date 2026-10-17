@@ -33,13 +33,14 @@ that cannot be stat'd -- no local checkout, an unreadable mode, a repo that was 
 and never indexed -- is ``unverifiable``, and folding that into either one is how a guard
 starts lying: called stale it invents drift on a machine that simply lacks the mirror,
 called verified it certifies a check that never ran. The vocabulary is deliberately
-``eval.py``'s (``checkout_missing``, ``file_missing``, ``file_unreadable``,
+``eval.py``'s (``checkout_missing``, ``file_missing``, ``not_a_file``, ``file_unreadable``,
 ``line_out_of_range``, ``name_absent``) so one reason means one thing in both places.
 """
 
 from __future__ import annotations
 
 import os
+import stat
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +63,7 @@ is told about reads as a clean bill of health for work that never happened (the 
 
 STALE_REASONS = frozenset({
     "file_missing",        # the file the citation names is gone
+    "not_a_file",          # the path is now a directory, device or pipe, not a file
     "line_out_of_range",   # the file shrank; the cited line does not exist any more
     "name_absent",         # the line exists and the symbol is no longer on it
     "modified_after_index",  # written after indexing, not confirmed (budget spent)
@@ -97,6 +99,9 @@ class SliceCheck:
 _NOTES = {
     "file_missing": ("the file is no longer on disk, so this citation cannot be read at "
                      "all -- re-run `kb index` for this repo"),
+    "not_a_file": ("the path is no longer a regular file (it is a directory, a device or a "
+                   "pipe), so this citation cannot be read and was not opened. Re-run "
+                   "`kb index` for this repo"),
     "line_out_of_range": ("the file was edited after indexing and is now shorter than the "
                           "cited line -- the line number is wrong, find the symbol by name"),
     "name_absent": ("the file was edited after indexing and this symbol is no longer at "
@@ -238,8 +243,8 @@ class DriftProbe:
         if baseline is None:
             return _unverifiable("index_time_unknown")
         mtime_ns, err = self._stat(root / node.file)
-        if err == "file_missing":
-            return _stale("file_missing")
+        if err in ("file_missing", "not_a_file"):
+            return _stale(err)
         if err:
             return _unverifiable(err)
         if mtime_ns is not None and mtime_ns <= baseline:
@@ -303,7 +308,11 @@ class DriftProbe:
         if hit is None:
             self.stats.statted += 1
             try:
-                hit = (os.stat(key).st_mtime_ns, "")
+                st = os.stat(key)
+                # A path that is now a directory, device or pipe has an mtime too. Called
+                # verified on an old one, it would certify a citation nothing can read.
+                hit = ((st.st_mtime_ns, "") if stat.S_ISREG(st.st_mode)
+                       else (None, "not_a_file"))
             except FileNotFoundError:
                 hit = (None, "file_missing")
             except OSError:

@@ -12,7 +12,7 @@ every test in that file would still pass. This one indexes a real tree with the 
 `kb index` and checks what came out.
 
 **What counts as a failure here.** Only the reasons that mean a citation was made and
-does not resolve: ``file_missing``, ``line_out_of_range``, ``name_absent``.
+does not resolve: ``file_missing``, ``not_a_file``, ``line_out_of_range``, ``name_absent``.
 ``no_citation`` is deliberately excluded. It fires on nodes with no file at all, which
 on any real repo means its external dependencies (an imported stdlib module, an
 ``#include`` of a system header) -- things that are supposed to have no file in this
@@ -33,7 +33,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 # A citation was written and it does not resolve. These are the failures.
-CITATION_IS_WRONG = frozenset({"file_missing", "line_out_of_range", "name_absent"})
+CITATION_IS_WRONG = frozenset({"file_missing", "not_a_file", "line_out_of_range",
+                               "name_absent"})
 
 SOURCES = {
     # The out-of-line definition is the point of the C++ file, not decoration. Measured:

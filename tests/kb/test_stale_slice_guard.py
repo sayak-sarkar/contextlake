@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
@@ -158,6 +159,44 @@ def test_deleted_file_is_stale_not_unverifiable(store, clone):
     _, check = _check(store)
     assert check.status == "stale"
     assert check.reason == "file_missing"
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+def test_a_cited_file_replaced_by_a_fifo_is_stale_and_never_opened(store, clone):
+    """Opening a FIFO blocks with no end, and this runs on the serving path. The file
+    still exists, so it is `not_a_file` and not `file_missing`; it is read the same way,
+    as a citation that cannot be trusted."""
+    (clone / SOURCE).unlink()
+    os.mkfifo(clone / SOURCE)
+    os.utime(clone / SOURCE, ns=_at(+3600))   # newer than the index
+    box = {}
+    worker = threading.Thread(target=lambda: box.update(out=_check(store)), daemon=True)
+    worker.start()
+    worker.join(10)
+    hung = worker.is_alive()
+    if hung:
+        os.close(os.open(clone / SOURCE, os.O_RDWR))   # release the blocked reader
+        worker.join(5)
+    assert not hung, "the confirming read blocked on a FIFO"
+    probe, check = box["out"]
+    # The stat that reads the mtime already says it is not a file: no escalation.
+    assert probe.stats.escalated == 0
+    assert check.status == "stale"
+    assert check.reason == "not_a_file"
+    assert check.note == _NOTES["not_a_file"]
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+def test_a_fifo_older_than_the_index_is_stale_not_verified(store, clone):
+    """The mtime gate alone would call this verified: the path is older than the index.
+    One stat already says it is not a regular file, so it is stale without escalating."""
+    (clone / SOURCE).unlink()
+    os.mkfifo(clone / SOURCE)
+    os.utime(clone / SOURCE, ns=_at(-3600))   # older than the index
+    probe, check = _check(store)
+    assert probe.stats.escalated == 0
+    assert check.status == "stale"
+    assert check.reason == "not_a_file"
 
 
 def test_node_without_a_citation_is_not_checked(store):

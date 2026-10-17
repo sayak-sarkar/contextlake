@@ -24,6 +24,7 @@ counts, so it drags the whole set down without saying why. Measured against
 from __future__ import annotations
 
 import json
+import stat
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -253,17 +254,21 @@ def verify_citations(store: Store, node_ids: list, *,
     history rather than hypotheticals: ``node_missing`` (a retriever returned an id the
     store does not hold), ``no_citation`` (a symbol node with no file or no line -- an
     answer that cannot be cited at all), ``file_missing`` (the graph outlived the file),
-    ``line_out_of_range`` (the file shrank under a stale index) and ``name_absent`` (the
-    line exists but the symbol is not on it, the failure mode a size or line check
-    cannot see).
+    ``not_a_file`` (the path exists but is not a regular file after following links: a
+    directory, a device, a pipe), ``line_out_of_range`` (the file shrank under a stale
+    index) and ``name_absent`` (the line exists but the symbol is not on it, the failure
+    mode a size or line check cannot see).
+
+    Only a regular file is opened. A link to ``/dev/zero`` reads until memory runs out
+    and a FIFO blocks the reader with no end, and this runs inside the MCP server, so
+    ``not_a_file`` is decided from ``stat`` before any ``open``.
 
     Two reasons are *unverifiable* rather than broken. ``checkout_missing`` is the one
     that matters: the recorded clone path is not on this machine, which ``doctor``
     already reports as an ``unreadable`` repo. It has to be separated from
     ``file_missing``, because when the whole checkout is gone every file under it is
     gone too -- calling that a stale graph would manufacture a defect per result.
-    ``file_unreadable`` (a directory where a file is recorded, an unreadable mode) is
-    the same kind of "could not look".
+    ``file_unreadable`` (an unreadable mode) is the same kind of "could not look".
     """
     out: list[CitationCheck] = []
     roots: dict[str, Path | None] = {}
@@ -286,8 +291,15 @@ def verify_citations(store: Store, node_ids: list, *,
             out.append(CitationCheck(nid, "unverifiable", "checkout_missing", cite))
             continue
         path = root / node.file
-        if not path.is_file():
+        try:
+            regular = stat.S_ISREG(path.stat().st_mode)
+        # ValueError too: `stat` raises it for a path with a NUL byte, which `is_file()`,
+        # the check this replaced, swallowed.
+        except (OSError, ValueError):
             out.append(CitationCheck(nid, "broken", "file_missing", cite))
+            continue
+        if not regular:
+            out.append(CitationCheck(nid, "broken", "not_a_file", cite))
             continue
         # A file node's citation IS the path; there is no name to find on a line.
         if node.kind == "file" or not node.line_start:
