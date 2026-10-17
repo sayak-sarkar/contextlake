@@ -5538,7 +5538,14 @@ Install refuses, writes nothing and exits 1 when git would never run the hook it
 - It has an `exec` or `exit` line before its end, so a block added to it would never run. A single
   closing `exec` or `exit` is fine: the block goes directly above it.
 
-`kb hook status` counts a repo as wired only when a commit would reach the block.
+`kb hook status` counts a repo as wired only when a commit would reach the block, and prints its
+summary line with a warning mark when fewer repos are wired than you asked about.
+
+A linked worktree (`git worktree add`) has no hooks directory of its own: git reads the main
+checkout's. Install from a worktree writes there, so a commit in any checkout of the repo runs the
+hook, and the hook re-indexes the one path it was installed from. While the hook there names another
+path, install from a second checkout is refused and exits 1. Run `kb hook uninstall` first to
+replace it.
 
 The hook runs `contextlake kb index <repo>` detached, so the commit returns immediately, and it
 re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
@@ -10248,6 +10255,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Commits then never re-indexed, with no error anywhere. Install now refuses with the reason,
   writes nothing and exits 1 in those cases, puts the block above a single closing `exec` or
   `exit`, and `status` counts a repo only when a commit would reach the block.
+- **`kb hook install` from a linked git worktree now writes a hook that runs.** The hook went to
+  `.git/worktrees/NAME/hooks`, which git does not read, so install and `kb hook status` both
+  reported success while commits ran nothing. It now goes to the shared hooks directory git
+  reads. A second checkout is refused while the block there names another path, and `kb hook
+  status` prints a warning mark, not a check mark, when fewer repos are wired than you asked
+  about.
 
 ### Security
 

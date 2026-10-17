@@ -67,6 +67,9 @@ REFUSED = {
                "the end of the hook, or add the re-index call above it yourself.",
     "not-shell": "the existing post-commit hook is not a shell script, so the shell block "
                  "cannot be added to it. Nothing was changed.",
+    "shared": "this checkout shares its hooks directory with the main checkout, and the "
+              "block there already re-indexes another path. Nothing was changed. Run "
+              "uninstall in that checkout first if this one should replace it.",
 }
 """Statuses that mean no hook was written. `install` returns one of these keys, and
 :func:`refusal` turns it into the sentence the user reads."""
@@ -88,13 +91,23 @@ def _git(repo_path: Path, gd: Path, *args: str) -> str:
     return out.stdout.strip() if out.returncode == 0 else ""
 
 
+def hooks_dir(repo_path: Path, gd: Path) -> Path:
+    """The directory git reads hooks from when ``core.hooksPath`` is not set.
+
+    That is ``<common git dir>/hooks``. A linked worktree has a git dir of its own
+    (``.git/worktrees/NAME``), but its hooks are the main checkout's, so ``<gd>/hooks`` is
+    a directory git never opens there. Falls back to ``<gd>/hooks`` when git cannot be run.
+    """
+    common = _git(repo_path, gd, "rev-parse", "--git-common-dir")
+    return ((repo_path / common).resolve() if common else gd) / "hooks"
+
+
 def hooks_path_override(repo_path: Path, gd: Path) -> Path | None:
-    """Where ``core.hooksPath`` sends git for hooks, when that is not ``<gitdir>/hooks``.
+    """Where ``core.hooksPath`` sends git for hooks, when that is not the usual directory.
 
     Husky, lefthook and global hook guards set it. Git then ignores ``<gitdir>/hooks``,
     so a hook written there is never run, and the directory it names can belong to
-    every repo on the machine. None when the setting is absent or points at the repo's own
-    hooks directory.
+    every repo on the machine. None when the setting is absent or points at :func:`hooks_dir`.
     """
     if not _git(repo_path, gd, "config", "--get", "core.hooksPath"):
         return None
@@ -103,7 +116,7 @@ def hooks_path_override(repo_path: Path, gd: Path) -> Path | None:
     if not where:
         return None
     path = (repo_path / where).resolve()
-    return None if path == (gd / "hooks").resolve() else path
+    return None if path == hooks_dir(repo_path, gd) else path
 
 
 def _interpreter(text: str) -> str | None:
@@ -219,12 +232,18 @@ def install(repo_path: str, repo_id: str, config: str | None = None) -> str:
         return "not-a-repo"
     if hooks_path_override(Path(repo_path), gd) is not None:
         return "hooks-path"
-    hooks_dir = gd / "hooks"
-    hook = hooks_dir / "post-commit"
-    block = _block(str(Path(repo_path).resolve()), repo_id, config)
+    where = hooks_dir(Path(repo_path), gd)
+    hook = where / "post-commit"
+    repo_str = str(Path(repo_path).resolve())
+    block = _block(repo_str, repo_id, config)
 
     if hook.exists():
         existing = hook.read_text(encoding="utf-8")
+        if (MARK_BEGIN in existing and where != (gd / "hooks").resolve()
+                and f" kb index {shlex.quote(repo_str)} --repo " not in existing):
+            # A linked worktree writes into the main checkout's hook, so a refresh would
+            # quietly point that checkout's commits at this path.
+            return "shared"
         if MARK_BEGIN in existing:
             rest, sep, status = _strip_block(existing), "\n", "refreshed"
         elif existing.strip():
@@ -241,7 +260,7 @@ def install(repo_path: str, repo_id: str, config: str | None = None) -> str:
         new = "#!/bin/sh\n" + block
         status = "installed"
 
-    hooks_dir.mkdir(parents=True, exist_ok=True)
+    where.mkdir(parents=True, exist_ok=True)
     hook.write_text(new, encoding="utf-8")
     hook.chmod(hook.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return status
@@ -249,19 +268,25 @@ def install(repo_path: str, repo_id: str, config: str | None = None) -> str:
 
 def uninstall(repo_path: str) -> str:
     """Remove our managed block. Returns ``removed``, ``absent``, or ``not-a-repo``.
-    Deletes the hook file only if nothing but a shebang remains (i.e. it was ours)."""
+    Deletes the hook file only if nothing but a shebang remains (i.e. it was ours).
+
+    Looks in the directory git reads and in ``<gitdir>/hooks``, where a linked worktree's
+    block was written before git's own answer was used."""
     gd = git_dir(Path(repo_path))
     if gd is None:
         return "not-a-repo"
-    hook = gd / "hooks" / "post-commit"
-    if not hook.exists() or MARK_BEGIN not in hook.read_text(encoding="utf-8"):
-        return "absent"
-    stripped = _strip_block(hook.read_text(encoding="utf-8"))
-    if stripped.strip() in ("", "#!/bin/sh"):
-        hook.unlink()
-    else:
-        hook.write_text(stripped, encoding="utf-8")
-    return "removed"
+    found = False
+    for hook in dict.fromkeys([hooks_dir(Path(repo_path), gd) / "post-commit",
+                               gd / "hooks" / "post-commit"]):
+        if not hook.exists() or MARK_BEGIN not in hook.read_text(encoding="utf-8"):
+            continue
+        stripped = _strip_block(hook.read_text(encoding="utf-8"))
+        if stripped.strip() in ("", "#!/bin/sh"):
+            hook.unlink()
+        else:
+            hook.write_text(stripped, encoding="utf-8")
+        found = True
+    return "removed" if found else "absent"
 
 
 def is_installed(repo_path: str) -> bool:
@@ -269,7 +294,7 @@ def is_installed(repo_path: str) -> bool:
     gd = git_dir(Path(repo_path))
     if gd is None or hooks_path_override(Path(repo_path), gd) is not None:
         return False
-    hook = gd / "hooks" / "post-commit"
+    hook = hooks_dir(Path(repo_path), gd) / "post-commit"
     if not hook.exists():
         return False
     text = hook.read_text(encoding="utf-8")

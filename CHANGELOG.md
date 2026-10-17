@@ -459,6 +459,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Commits then never re-indexed, with no error anywhere. Install now refuses with the reason,
   writes nothing and exits 1 in those cases, puts the block above a single closing `exec` or
   `exit`, and `status` counts a repo only when a commit would reach the block.
+- **`kb hook install` from a linked git worktree now writes a hook that runs.** The hook went to
+  `.git/worktrees/NAME/hooks`, which git does not read, so install and `kb hook status` both
+  reported success while commits ran nothing. It now goes to the shared hooks directory git
+  reads. A second checkout is refused while the block there names another path, and `kb hook
+  status` prints a warning mark, not a check mark, when fewer repos are wired than you asked
+  about.
 
 ### Security
 

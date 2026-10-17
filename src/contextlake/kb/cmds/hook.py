@@ -109,7 +109,9 @@ def cmd_hook(args) -> int:
         for rid, ok in marks:
             if not workspace or ok:   # single repo: always show; fleet: list only the wired ones
                 log(f"  {style.ok() if ok else style.dim('·')} {rid}")
-        log(style.ok(f"post-commit hook present on {on}/{len(targets)} repo(s)."))
+        # A green line for 0/1 told the reader a hook was in place when none was.
+        log((style.ok if on == len(targets) else style.warn)(
+            f"post-commit hook present on {on}/{len(targets)} repo(s)."))
         return 0
 
     counts: dict[str, int] = {}

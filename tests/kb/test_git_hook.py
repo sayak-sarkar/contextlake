@@ -158,10 +158,10 @@ def test_core_hookspath_naming_the_repos_own_hooks_directory_is_not_a_redirect(t
     assert git_hook.is_installed(str(tmp_path))
 
 
-def _run_hook_and_wait(repo, tmp_path, monkeypatch):
-    """Run the installed hook with sh from the repo root, as git does, and say whether the
-    managed block's command ran. The command is a stub that writes a file; the block
-    detaches it with `&`, so the wait is a bounded poll."""
+def _stub_command(tmp_path, monkeypatch):
+    """Make the managed block run a stub that writes a file, and return that file's path.
+    The block detaches the command with `&`, so callers wait for the file with
+    :func:`_appeared`."""
     from contextlake import launcher
 
     sentinel = tmp_path / "ran"
@@ -169,15 +169,27 @@ def _run_hook_and_wait(repo, tmp_path, monkeypatch):
     stub.write_text(f"#!/bin/sh\necho ran > {shlex.quote(str(sentinel))}\n")
     stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
     monkeypatch.setattr(launcher, "launch_command", lambda **k: shlex.quote(str(stub)))
-    git_hook.install(str(repo), "app")
-    subprocess.run(["sh", str(repo / ".git" / "hooks" / "post-commit")], cwd=repo,
-                   check=False, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
-    deadline = time.monotonic() + 5
+    return sentinel
+
+
+def _appeared(path, seconds=5):
+    """Bounded wait for a file the detached command writes."""
+    deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        if sentinel.exists():
+        if path.exists():
             return True
         time.sleep(0.05)
     return False
+
+
+def _run_hook_and_wait(repo, tmp_path, monkeypatch):
+    """Install, run the hook with sh from the repo root as git does, and say whether the
+    managed block's command ran."""
+    sentinel = _stub_command(tmp_path, monkeypatch)
+    git_hook.install(str(repo), "app")
+    subprocess.run(["sh", str(repo / ".git" / "hooks" / "post-commit")], cwd=repo,
+                   check=False, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+    return _appeared(sentinel)
 
 
 @pytest.mark.parametrize("tail", ["exec true\n", "exit 0\n", "exec true\n# done\n\n"])
@@ -265,6 +277,80 @@ def test_cmd_hook_exits_1_and_says_why_when_the_hook_is_refused(tmp_path, monkey
     assert _cmd_hook("install", tmp_path, monkeypatch) == 1
     assert "exec or exit before its end" in gls_logs.text
     assert "Each commit now re-indexes" not in gls_logs.text
+
+
+# --- linked worktrees ------------------------------------------------------------
+#
+# A linked worktree's `.git` file names `.git/worktrees/NAME`, but git reads hooks from the
+# common dir shared with the main checkout. `install` wrote into the worktree's own
+# directory, which git never opens, and `status` read it back as present.
+
+def _commit(repo):
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@e",
+                    "commit", "-q", "--allow-empty", "-m", "x"],
+                   check=True, capture_output=True)
+
+
+def _with_worktree(tmp_path):
+    main = tmp_path / "main"
+    main.mkdir()
+    _repo(main)
+    _commit(main)
+    wt = tmp_path / "wt"
+    subprocess.run(["git", "-C", str(main), "worktree", "add", "-q", str(wt), "-b", "side"],
+                   check=True, capture_output=True)
+    return main, wt
+
+
+def test_a_hook_installed_from_a_linked_worktree_runs_on_a_commit_there(
+        tmp_path, monkeypatch):
+    main, wt = _with_worktree(tmp_path)
+    sentinel = _stub_command(tmp_path, monkeypatch)
+
+    assert git_hook.install(str(wt), "app") == "installed"
+    assert (main / ".git" / "hooks" / "post-commit").exists()
+    assert not (main / ".git" / "worktrees" / "wt" / "hooks" / "post-commit").exists()
+    assert git_hook.is_installed(str(wt)) and git_hook.is_installed(str(main))
+
+    _commit(wt)
+    assert _appeared(sentinel), "a commit in the worktree never ran the hook"
+
+
+def test_a_second_checkout_does_not_repoint_the_shared_block(tmp_path):
+    main, wt = _with_worktree(tmp_path)
+    git_hook.install(str(main), "app")
+    hook = main / ".git" / "hooks" / "post-commit"
+    before = hook.read_text()
+
+    assert git_hook.install(str(wt), "app") == "shared"
+    assert hook.read_text() == before
+    assert git_hook.install(str(main), "app") == "refreshed"
+
+
+def test_uninstall_from_a_worktree_removes_the_shared_block_and_a_stale_local_one(tmp_path):
+    main, wt = _with_worktree(tmp_path)
+    git_hook.install(str(wt), "app")
+    stale = main / ".git" / "worktrees" / "wt" / "hooks" / "post-commit"
+    stale.parent.mkdir(parents=True)
+    stale.write_text(f"#!/bin/sh\n{git_hook.MARK_BEGIN}\nold\n{git_hook.MARK_END}\n")
+
+    assert git_hook.uninstall(str(wt)) == "removed"
+    assert not (main / ".git" / "hooks" / "post-commit").exists()
+    assert not stale.exists()
+    assert not git_hook.is_installed(str(wt))
+
+
+def test_status_warns_instead_of_ok_when_not_every_repo_is_wired(
+        tmp_path, monkeypatch, gls_logs):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    _repo(tmp_path)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "core.hooksPath", "elsewhere"],
+                   check=True)
+    assert _cmd_hook("status", tmp_path, monkeypatch) == 0
+    raw = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "\033[33m⚠\033[0m post-commit hook present on 0/1 repo(s)." in raw
+    assert "\033[32m✓\033[0m post-commit hook present" not in raw
 
 
 @pytest.mark.parametrize("action", ["install", "status", "uninstall"])
