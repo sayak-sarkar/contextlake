@@ -1168,13 +1168,16 @@ Examples:
                    help="index every git repo under this directory")
     p.add_argument("--repos", default=_S, metavar="PATTERN",
                    help="--workspace: index only repos matching this comma-separated "
-                        "glob/substring filter (e.g. 'acme/forecast-api,alerts,console-*')")
+                        "anchored glob filter (e.g. 'acme/forecast-api,alerts,console-*'; "
+                        "use '*api*' for a substring)")
     p.add_argument("--workers", type=_COUNT, default=_S, metavar="N",
                    help="--workspace: how many repos to index in parallel (default: "
                         "one fewer than the CPU count, capped at 8). Lower this to cut "
                         "peak memory on a large fleet or a small machine")
     p.add_argument("--repo", default=_S,
-                   help="repo id to index --source under (default: the directory name)")
+                   help="repo id to index --source under (default: the origin remote, else "
+                        "name@<root commit> for a git repo with no origin, else the "
+                        "directory name)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="re-index every repo (default: only repos whose HEAD moved)")
     p.add_argument("--bundle", action="store_true", default=_S,

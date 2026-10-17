@@ -608,7 +608,7 @@ def test_embed_unavailable_hint_is_actionable():
 
 
 def test_index_workspace_repos_filter(tmp_path):
-    # --repos scopes a workspace index to matching repos (glob/substring), matched
+    # --repos scopes a workspace index to matching repos (anchored glob), matched
     # against the local workspace-relative path (these bare `.git` dirs have no
     # remote, so each repo_id itself falls back to just its own dirname -- the
     # filter still has to see "team/api"-shaped patterns via the local path).

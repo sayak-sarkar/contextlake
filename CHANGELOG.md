@@ -407,6 +407,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   openvino-genai since 7.0.0, and nothing reads `model_file`. Uncommenting the block sent the
   GGUF repo id to the OpenVINO loader, which is not one of its sizes. The block now shows
   `builtin_model` with the default OpenVINO repo id and points to `kb wiki --model-check`.
+- **`kb index --repo` and `--repos` help and the repo id docs now match the command.**
+  The docs and the `--repo` help said the id defaults to the directory name. A git repo with no
+  `origin` is filed as `name@<12 characters of its root commit>`, so `kb query --repo widgets`
+  does not find it. The `--repos` help said "glob/substring", but the filter is anchored:
+  `--repos pp` selects nothing named `app`, and `*pp*` does.
 
 ### Security
 

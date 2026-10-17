@@ -129,9 +129,12 @@ filed under a different name:
 
     contextlake kb index --source ./widgets --repo team/widgets
 
-Without it, the id falls back to the directory name. That is exactly the fragile, path-dependent
-id this section exists to avoid. Name it once, rather than living with a repo filed as `widgets`
-because that is what the folder happened to be called.
+Without it, the id comes from the `origin` remote. A git repository with no `origin` is filed as
+`name@<first 12 characters of its root commit>`, for example `widgets@3f9c2a71b0de`, where `name` is
+the folder name. Only a directory that is not a git repository is filed under its bare folder name.
+The name half still depends on where the clone sits on disk, which is the fragility this section
+exists to avoid. Name it once with `--repo`, and use the id `kb index` prints in `kb query --repo`
+and `kb forget`.
 
 A named id is kept. Each later `kb index ... --repo team/widgets` updates the same row and keeps
 its history snapshots, so `--as-of` still reaches old commits. A later run that names no id and

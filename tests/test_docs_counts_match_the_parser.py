@@ -47,6 +47,29 @@ def _command_counts() -> tuple[int, int, int]:
     return len(top), len(per_namespace["mirror"]), len(per_namespace["kb"])
 
 
+def _kb_index_help(flag: str) -> str:
+    index = _choices(build_parser()._namespace_parsers["kb"])["index"]
+    return next(a.help for a in index._actions if flag in a.option_strings)
+
+
+def test_kb_index_repo_help_and_docs_name_the_fallback_id() -> None:
+    """A git repo with no `origin` is filed as `name@<root commit>`, not as its folder name."""
+    assert "root commit" in _kb_index_help("--repo")
+    docs = re.sub(r"\s+", " ", _text("docs/indexing-the-code-graph.md"))
+    assert "the id falls back to the directory name" not in docs
+    assert "name@<first 12 characters of its root commit>" in docs
+
+
+def test_kb_index_repos_help_says_the_filter_is_anchored() -> None:
+    """`--repos pp` selects nothing named `app`; the filter is a whole-string glob match."""
+    from contextlake.core import match_repo_filter
+
+    help_ = _kb_index_help("--repos")
+    assert "anchored" in help_ and "glob/substring" not in help_
+    assert not match_repo_filter("acme/app", "app", ["pp"])
+    assert match_repo_filter("acme/app", "app", ["*pp*"])
+
+
 def test_the_stated_command_counts_match_the_parser() -> None:
     m = re.search(r"^(\d+) commands: (\d+) top-level, (\d+) under `mirror`, (\d+) under `kb`",
                   _text("docs/cli-reference.md"), re.M)
