@@ -46,6 +46,15 @@ class Store(ABC):
         """
 
     @abstractmethod
+    def set_repo_path(self, repo_id: str, path: str) -> None:
+        """Record where a repo's clone lives now, and change nothing else on its row.
+
+        ``upsert_repo`` is not the call for this: it writes ``head_commit`` as NULL when
+        the model carries none, so the repo would read as never indexed and be parsed
+        again. A moved clone needs its path updated and its index state left alone.
+        """
+
+    @abstractmethod
     def get_repo_parser_version(self, repo_id: str) -> str | None:
         """The parser version of the repo's last index, or None if unstamped."""
 

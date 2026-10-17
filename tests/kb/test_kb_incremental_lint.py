@@ -332,6 +332,72 @@ def test_single_repo_index_skips_an_unchanged_head_like_the_workspace_path(tmp_p
     assert any("Indexed app" in m for m in logs)
 
 
+def test_a_moved_workspace_updates_the_path_of_an_unchanged_repo(tmp_path, logs):
+    """Moving a workspace and indexing it again reported every repo unchanged and kept the
+    old path in each row. `kb refresh` then called each clone unreadable, and
+    `--source ID` refused to start from a directory that was gone. HEAD has not moved, so
+    nothing is parsed again: the path changes and the index state stays as it was."""
+    from contextlake.kb.cmds.index import _resolve_source_by_id
+
+    ws = tmp_path / "ws"
+    head = _git_repo(ws / "app")
+    _git(["remote", "add", "origin", "https://git.example.org/team/app.git"], ws / "app")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    repo_id = "git.example.org/team/app"
+    try:
+        _index_workspace(store, store_dir, ws)
+        assert store.get_repo(repo_id).path == str(ws / "app")
+
+        moved = tmp_path / "moved"
+        ws.rename(moved)
+        logs.clear()
+        _index_workspace(store, store_dir, moved)
+        assert any("1 unchanged" in m for m in logs), "the move must not cause a re-parse"
+        row = store.get_repo(repo_id)
+        assert row.path == str(moved / "app"), "the row still names the old location"
+        assert row.head_commit == head, "only the path may change on an unchanged repo"
+        assert _resolve_source_by_id(store, repo_id) == (repo_id, moved / "app")
+    finally:
+        store.close()
+
+
+def test_a_moved_clone_updates_its_path_when_indexed_by_source(tmp_path, logs):
+    """The same move through `kb index --source PATH`. This is the command the "index it
+    from wherever it lives now" advice names, so it must be the one that clears the error."""
+    from contextlake.kb.commands import cmd_index
+
+    repo = tmp_path / "app"
+    head = _git_repo(repo)
+    _git(["remote", "add", "origin", "https://git.example.org/team/app.git"], repo)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+    repo_id = "git.example.org/team/app"
+
+    def _args(src):
+        return Namespace(config=str(cfg), workspace=None, source=str(src), repo=None,
+                         force=False)
+
+    assert cmd_index(_args(repo)) == 0
+    moved = tmp_path / "elsewhere" / "app"
+    moved.parent.mkdir()
+    repo.rename(moved)
+    logs.clear()
+    assert cmd_index(_args(moved)) == 0
+    assert any("unchanged" in m for m in logs), "the move must not cause a re-parse"
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        row = store.get_repo(repo_id)
+        assert row.path == str(moved), "the row still names the old location"
+        assert row.head_commit == head, "only the path may change on an unchanged repo"
+    finally:
+        store.close()
+
+
 def test_a_non_git_directory_does_not_inherit_an_ancestor_repos_head(tmp_path, logs):
     """`git -C <dir> rev-parse HEAD` walks UP, so a plain directory sitting
     inside another working tree was recorded as a repository at THAT tree's

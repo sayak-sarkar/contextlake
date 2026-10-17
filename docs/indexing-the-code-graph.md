@@ -98,6 +98,10 @@ forget <repo-id>` removes a bundle you did not mean to create.
 last index, so a scheduled run stays cheap.
 
 - `--force` rebuilds everything.
+- A repo whose HEAD has not moved is not parsed again, but its row takes the path of the clone the
+  run found. After you move a workspace, one `kb index --workspace NEW` points every row at the new
+  location, and `kb index --source NEW/repo` does the same for one repo. `kb refresh`, `kb lint` and
+  `kb index --source ID` then use it.
 - `--watch [--interval N]` keeps re-indexing in a loop. The same two flags also drive `connect`
   and `embed`.
 

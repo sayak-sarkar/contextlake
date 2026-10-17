@@ -326,6 +326,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parsed as settings before. An attribute name that starts with a digit, `.`, `-` or a non-ASCII
   letter is no longer read from its middle. Since 7.0.0 for `.xml`, 8.0.0 for SQL triggers and
   8.1.0 for `.xsd` and `.xsl`.
+- **Re-indexing a moved workspace now updates the stored path of every unchanged repo.** `kb
+  index --workspace NEW` after a move found each repo under its canonical id, saw the same HEAD,
+  reported "N unchanged, 0 failed" and exited 0, but left the old location in each repo's row.
+  `kb refresh` then listed every clone as unreadable, `kb index --source ID` refused with "index
+  it from wherever it lives now" (the advice the reader had followed), and the drift check
+  marked every citation from those repos unverifiable. `kb index --source NEW/repo` did the same
+  for one repo. The path healed when HEAD moved or with `--force`. The path is now updated on
+  its own, without a re-parse. Since 1.8.0, when `--workspace` became incremental.
 
 ### Security
 

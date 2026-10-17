@@ -46,6 +46,20 @@ def _over_budget(shard) -> bool:
     return len(shard.nodes) + len(shard.edges) > _SHARD_ITEM_BUDGET
 
 
+def _follow_moved_clone(store, repo_id: str, path: str) -> None:
+    """Point a repo's row at the clone this run found, for a repo whose HEAD did not move.
+
+    An unchanged repo is not parsed again, so `_persist` and `_store_and_index`, which write
+    `repos.path` on the index paths, never run for it. After a workspace was moved, every row
+    kept the old location: `kb refresh` called each clone unreadable, and `kb index --source
+    ID` refused to start from a directory that was gone, with the advice to index it from
+    where it lives now. The reader had already followed that advice.
+    """
+    repo = store.get_repo(repo_id)
+    if repo is not None and repo.path != path:
+        store.set_repo_path(repo_id, path)
+
+
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
                      workers: int | None = None, repo_filter: str | None = None,
@@ -164,6 +178,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             todo.append((repo_id, path, head))
         else:
             skipped += 1
+            _follow_moved_clone(store, repo_id, path)
             # An unchanged repo still gets its documents checked. The graph is current, so
             # the pages rendered from it are the ones this store should hold, and a page
             # that was never written (or was written before this repo was) is missing for a
@@ -874,6 +889,7 @@ def _cmd_index_once(args) -> int:
                 from ..parse import PARSER_VERSION
 
                 if indexed_parser_version(store, store_dir, repo_id) == PARSER_VERSION:
+                    _follow_moved_clone(store, repo_id, str(src.resolve()))
                     # "nothing to do" stopped being true once the documents were part of
                     # this command: the graph is unchanged, and a document that was never
                     # written is still missing. So the graph is left alone and the

@@ -284,6 +284,10 @@ class SqliteStore(Store):
         )
         self.conn.commit()
 
+    def set_repo_path(self, repo_id: str, path: str) -> None:
+        self.conn.execute("UPDATE repos SET path=? WHERE repo_id=?", (path, repo_id))
+        self.conn.commit()
+
     def get_repo_parser_version(self, repo_id: str) -> str | None:
         """The parser version stamped on the repo's last index, or None when it
         carries no stamp (indexed before the column existed, or never indexed).

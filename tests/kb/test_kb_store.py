@@ -38,6 +38,21 @@ def test_repo_round_trip(store):
     assert [x.id for x in store.list_repos()] == ["team/api"]
 
 
+def test_set_repo_path_changes_the_path_and_nothing_else(store):
+    """A moved clone needs its path updated. `upsert_repo` would write `head_commit` as NULL
+    and make the repo read as never indexed, so this is a separate call."""
+    store.upsert_repo(Repo(id="team/api", path="/old/api", host="h", default_branch="main"))
+    store.mark_indexed("team/api", "abc123", "2026-10-17T00:00:00+00:00", "13")
+    store.set_repo_path("team/api", "/new/api")
+    repo = store.get_repo("team/api")
+    assert (repo.path, repo.host, repo.default_branch, repo.head_commit) == (
+        "/new/api", "h", "main", "abc123")
+    assert store.get_repo_parser_version("team/api") == "13"
+    assert store.get_repo_indexed_at("team/api") == "2026-10-17T00:00:00+00:00"
+    store.set_repo_path("team/ghost", "/nowhere")
+    assert store.get_repo("team/ghost") is None, "an unknown id must not create a row"
+
+
 def test_node_upsert_get_and_update(store):
     store.upsert_nodes("team/api", [_node("n1", name="handle", file="a.py")])
     n = store.get_node("n1")
