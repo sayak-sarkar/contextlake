@@ -216,19 +216,29 @@ class _FakeCompleted:
 def test_who_knows_limit_clamp_boundaries_never_raise(monkeypatch, tmp_path, limit):
     """compute_owners clamps its caller's `limit` to `max(1, min(limit, 50))`
     (server.py's who_knows tool) regardless of how far out of range it is --
-    covered here across the boundary set, offline (no real `git` spawned)."""
-    monkeypatch.setattr(
-        ownership_mod.subprocess, "run",
-        lambda *a, **k: _FakeCompleted(returncode=0, stdout=_fake_git_log_stdout(60)))
+    covered here across the boundary set, offline (no real `git` spawned).
+
+    The repo path is a real directory and the fake answers `--show-toplevel` with it,
+    because `compute_owners` refuses a path that git does not report as its own checkout
+    root. A fake that answered every call with the log would stop at that check, and the
+    clamp would never run."""
+    def fake_git(cmd, *a, **k):
+        if "--show-toplevel" in cmd:
+            return _FakeCompleted(returncode=0, stdout=str(tmp_path))
+        return _FakeCompleted(returncode=0, stdout=_fake_git_log_stdout(60))
+
+    monkeypatch.setattr(ownership_mod.subprocess, "run", fake_git)
+    # `compute_owners` also asks `shutil.which` whether git exists, before any command runs.
+    monkeypatch.setattr(ownership_mod.shutil, "which", lambda name: f"/fake/bin/{name}")
 
     store = SqliteStore(tmp_path / "kb.sqlite")
     try:
-        store.upsert_repo(Repo(id="team/api", path="/fake/repo"))
+        store.upsert_repo(Repo(id="team/api", path=str(tmp_path)))
         server = build_server(store)
         res = asyncio.run(_call(server, "who_knows", {"repo": "team/api", "limit": limit}))
         assert not res.is_error
         out = _unwrap(res.structured_content)
-        assert 0 <= len(out["owners"]) <= 50
+        assert len(out["owners"]) == max(1, min(limit, 50))
     finally:
         store.close()
 

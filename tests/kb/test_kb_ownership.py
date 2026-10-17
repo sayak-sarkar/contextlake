@@ -60,6 +60,84 @@ def test_empty_for_non_repo(tmp_path):
 
 
 
+@pytest.fixture
+def outer_repo(tmp_path):
+    """A git repo with one commit by an invented author, and a plain directory inside it."""
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    _git(outer, "init", "-q")
+    _commit(outer, "a.py", 3, "Pat Invented", "pat@example.com", "2026-06-20 10:00:00 +0000")
+    inner = outer / "inner"
+    inner.mkdir()
+    (inner / "b.py").write_text("x\n")
+    return outer, inner
+
+
+def test_a_plain_directory_inside_another_repo_is_not_ranked_by_that_repos_authors(outer_repo):
+    """`git -C <dir> log` walks UP to the nearest repository, so an extracted archive, a
+    subfolder of a monorepo checkout or the bundled sample fleet inside a source tree was
+    ranked by the contributors of the repository around it, with commit counts, as if
+    they had written the directory."""
+    from contextlake.kb import ownership
+
+    outer, inner = outer_repo
+    ownership._CACHE.clear()
+    # The control: git does see the outer repository's commit.
+    assert [o.name for o in compute_owners(outer)] == ["Pat Invented"]
+
+    owners = compute_owners(inner)
+    assert owners == []
+    assert "not the root of a git checkout" in owners.gap
+
+
+def test_a_repo_nested_in_another_repo_ranks_only_its_own_authors(outer_repo):
+    """The positive control: a directory with its own `.git` is its own checkout, even
+    when it sits inside another one."""
+    outer, inner = outer_repo
+    nested = inner / "nested"
+    nested.mkdir()
+    _git(nested, "init", "-q")
+    _commit(nested, "c.py", 3, "Quinn Invented", "quinn@example.com", "2026-06-21 10:00:00 +0000")
+
+    owners = compute_owners(nested)
+    assert [o.name for o in owners] == ["Quinn Invented"]
+    assert owners.gap is None
+
+
+def test_an_empty_ranking_says_why_git_could_not_be_asked(tmp_path, repo, outer_repo, monkeypatch):
+    """Four reasons for `[]` were one value, and `who_knows` narrated all of them as "its
+    git history was read but attributed no commits to anyone". A missing directory, a path
+    that is not its own checkout and a timeout never read a history. Only the last case,
+    where git ran and found nothing, leaves `gap` unset."""
+    from contextlake.kb import ownership
+
+    outer, inner = outer_repo
+    _commit(repo, "a.py", 3, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    ownership._CACHE.clear()
+
+    assert "clone directory is not there" in compute_owners(tmp_path / "nope").gap
+    assert "not the root of a git checkout" in compute_owners(inner).gap
+    # git ran, the repo has history, and the pathspec matches nothing: a real empty ranking.
+    empty = compute_owners(repo, "no/such/dir")
+    assert empty == [] and empty.gap is None
+
+    ownership._CACHE.clear()
+    real = ownership.subprocess.run
+
+    def timing_out(cmd, *a, **kw):
+        if "log" in cmd:
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout", 30))
+        return real(cmd, *a, **kw)
+
+    monkeypatch.setattr(ownership.subprocess, "run", timing_out)
+    monkeypatch.setattr(ownership, "log", lambda *a, **kw: None)
+    slow = compute_owners(repo)
+    assert slow == []
+    assert "within" in slow.gap and "timeout" in slow.gap
+    # The gap is cached with the empty result, so a cache hit explains itself too.
+    assert "timeout" in compute_owners(repo).gap
+
+
 def _warnings(monkeypatch, fn) -> str:
     """Everything the call under test passed to `log`, as one string.
 

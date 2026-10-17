@@ -252,9 +252,11 @@ Contributors are aggregated by email where there is one, and shown under the nam
 recent commit.
 
 > [!NOTE]
-> `owners` runs exactly one `git log --no-merges --numstat` and cannot tell you *why* it came back
-> empty: no history, a path that matches nothing, `git` missing from PATH and the 30-second timeout
-> all print `No commit history found for <scope>` and exit `0`.
+> `owners` reads history from the root of a git checkout only. A folder inside another repo ranks
+> nothing, because git would report the outer repo's authors. Use `--path` for a sub-tree.
+> An empty result prints `No commit history found for <scope>` and exits `0`. The line ends with a
+> reason when git could not be asked: `git` missing, not a checkout root, no commits yet, or the
+> 30-second timeout.
 
 ### Verification
 

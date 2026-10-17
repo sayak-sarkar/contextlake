@@ -330,17 +330,16 @@ def test_a_repo_that_was_never_indexed_answers_found_false(tmp_path):
 @pytest.mark.parametrize("repo_path,expected_gap", [
     # No clone was ever recorded, so no git command ran.
     ("", "never read"),
-    # A clone WAS recorded and its directory is gone. git runs and fails.
-    ("/nonexistent/clone/path", None),
+    # A clone WAS recorded and its directory is gone. No git history was read.
+    ("/nonexistent/clone/path", "clone directory is not there"),
 ])
 def test_a_repo_whose_clone_is_missing_still_answers(tmp_path, repo_path, expected_gap):
     """Indexed repo, unusable checkout: the filesystem-reading tools must degrade.
 
     Two sub-shapes, because they are two different facts and the handler branches on
-    them. ``expected_gap`` is only pinned for the branch whose wording is derived from
-    what actually happened; the missing-directory branch is asserted to carry *a* gap
-    rather than a specific sentence, on purpose -- see AGENT-REPORT-W1.md, its current
-    wording claims the history was read, which is not what happened.
+    them. ``expected_gap`` pins the sentence for each. The missing-directory sentence used
+    to be "its git history was read but attributed no commits to anyone", which claimed a
+    read that never happened.
     """
     server, store, vectors = _build(tmp_path, repo_path=repo_path)
     with closing(store), closing(vectors):
@@ -351,8 +350,8 @@ def test_a_repo_whose_clone_is_missing_still_answers(tmp_path, repo_path, expect
         assert owners["found"] is True
         assert owners["owners"] == []
         assert owners["ranking_gap"], "an empty ranking with no gap statement is unreadable"
-        if expected_gap:
-            assert expected_gap in owners["ranking_gap"]
+        assert "was read but" not in owners["ranking_gap"]
+        assert expected_gap in owners["ranking_gap"]
 
         # The README lives in the clone, so there is nothing to read.
         assert _ok(server, "get_readme", {"repo": REPO})["found"] is False
@@ -364,6 +363,31 @@ def test_a_repo_whose_clone_is_missing_still_answers(tmp_path, repo_path, expect
         # being folded into "stale, re-run index" -- which re-indexing could never clear.
         health = _ok(server, "graph_health", {})
         assert health["unreadable_repos"] == [REPO]
+
+
+def test_who_knows_does_not_rank_a_directory_by_the_repo_around_it(tmp_path):
+    """A registered path that is a plain directory inside another git working tree was
+    ranked by that outer repository's authors, with commit counts, as a finished ranking.
+    The tool now returns no owners and says no history was read."""
+    import subprocess
+
+    outer = tmp_path / "outer"
+    inner = outer / "inner"
+    inner.mkdir(parents=True)
+    (inner / "a.py").write_text("x\n")
+    env = {"GIT_AUTHOR_NAME": "Pat Invented", "GIT_AUTHOR_EMAIL": "pat@example.com",
+           "GIT_COMMITTER_NAME": "Pat Invented", "GIT_COMMITTER_EMAIL": "pat@example.com"}
+    for args in (["init", "-q"], ["add", "."], ["commit", "-q", "-m", "first"]):
+        subprocess.run(["git", "-C", str(outer), *args], check=True, capture_output=True,
+                       env={**__import__("os").environ, **env})
+
+    server, store, vectors = _build(tmp_path, repo_path=str(inner))
+    with closing(store), closing(vectors):
+        owners = _ok(server, "who_knows", {"repo": REPO})
+        assert owners["found"] is True
+        assert owners["owners"] == [], owners
+        assert "not the root of a git checkout" in owners["ranking_gap"]
+        assert "was read but" not in owners["ranking_gap"]
 
 
 def test_an_empty_store_says_it_is_empty_rather_than_healthy(tmp_path):

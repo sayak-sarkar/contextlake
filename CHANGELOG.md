@@ -164,6 +164,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it as an answer. Such questions, for example "which packages does checkout-ui depend on", now
   go to search. `repo_dependencies` with `direction` set to `out` lists the dependencies. "Who
   depends on X?" is unchanged.
+- **`who_knows` no longer ranks a folder by the authors of the repository around it.** A
+  registered path that is not the root of its own git checkout, such as an extracted archive or
+  a subfolder of a monorepo checkout, was ranked by the authors of the enclosing repository,
+  with commit counts. Such a path now returns no owners. An empty ranking also claimed "its git
+  history was read" when the clone directory was missing, git timed out or git was not
+  installed. `ranking_gap` and `kb owners` now give the reason. `kb owners` run on a subfolder
+  of a repository now prints no owners and says why. Run it at the repo root with `--path` for a
+  sub-tree.
 
 ### Security
 

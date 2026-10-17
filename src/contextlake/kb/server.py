@@ -1331,8 +1331,10 @@ def build_server(
                 "no local clone is on record for this repo, so its git history "
                 "was never read"))
         owners = compute_owners(r.path, path, limit=max(1, min(limit, 50)))
+        # `gap` is set when git could not be asked (no directory, not its own checkout,
+        # a timeout). Only an unset gap means the history was read and had no match.
         return OwnersOut(scope=scope, ranking_gap=(
-            None if owners else
+            None if owners else getattr(owners, "gap", None) or
             "its git history was read but attributed no commits to anyone"), owners=[
             OwnerOut(name=sanitize_label(o.name), commits=o.commits, lines=o.lines,
                      last_active=o.last_active, share=round(o.share, 4))

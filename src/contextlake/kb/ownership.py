@@ -14,12 +14,15 @@ in the examined history (not wall-clock), keeping results deterministic and maki
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from .. import style
 from ..logging_setup import log
+from .repo_identity import is_own_gitdir
 
 HALFLIFE_DAYS = 180.0
 _US = "\x1f"  # unit separator: safe field/record delimiter (won't appear in names)
@@ -41,7 +44,7 @@ _WALK_DAYS = HALFLIFE_DAYS * _WALK_HALFLIVES
 # Owners change only when history does, so the answer is cacheable on the commit it was
 # computed from. Keyed on HEAD rather than time: three separate callers (the dashboard
 # panel, `kb owners`, and the MCP `who_knows` tool) each used to pay the full walk.
-_CACHE: dict[tuple, list] = {}
+_CACHE: dict[tuple, tuple[list, str | None]] = {}
 _CACHE_MAX = 64  # a fleet is many repos; bound it so a long-lived server cannot grow forever
 
 
@@ -66,6 +69,54 @@ class Owner:
     last_active: str  # YYYY-MM-DD (UTC) of the contributor's most recent commit
     share: float      # 0..1 fraction of the total recency-weighted score
     score: float
+
+
+class Ranking(list):
+    """The ranked :class:`Owner` rows. A plain ``list`` to every caller that iterates,
+    indexes or tests it for truth.
+
+    ``gap`` says why the list is empty when git could not be asked, and is ``None`` when
+    git was asked and answered. ``who_knows`` is the caller that has to tell the two
+    apart: an empty history and a history nobody read are different facts.
+    """
+
+    gap: str | None = None
+
+
+def _ranking(rows, gap: str | None = None) -> Ranking:
+    ranking = Ranking(rows)
+    ranking.gap = gap
+    return ranking
+
+
+# Why no history was read, per `reason` code, worded to follow "its" in `ranking_gap`.
+# A reason code with no entry (git ran and found nothing) has no gap.
+_GAPS = {
+    "git_unavailable": "git is not installed or could not be run, so its git history was "
+                       "not read",
+    "missing": "its clone directory is not there, so its git history was never read",
+    "not_own": "its path is not the root of a git checkout, so its git history was not "
+               "read",
+    "not_a_repo": "git could not read a history at its path (no repository, or no commits "
+                  "yet)",
+}
+
+
+def _unreadable(repo_path) -> str:
+    """The reason code for a path git history cannot be read from, or ``""``.
+
+    ``git -C <path> log`` walks UP to the nearest repository. A plain directory inside
+    another working tree (an extracted archive, a subfolder of a monorepo checkout, the
+    bundled sample fleet inside a source tree) was therefore ranked by the contributors of
+    the repository around it. The indexer makes the same check with the same function.
+    """
+    if shutil.which("git") is None:
+        return "git_unavailable"
+    if not os.path.isdir(repo_path):
+        return "missing"
+    if not is_own_gitdir(str(repo_path)):
+        return "not_own"
+    return ""
 
 
 def anon_author(name: str | None, email: str | None, anonymizer=None) -> str:
@@ -116,7 +167,8 @@ def compute_owners(repo_path, subpath: str | None = None, *,
     """Rank likely owners/SMEs for ``repo_path`` (optionally restricted to ``subpath``).
 
     Returns up to ``limit`` :class:`Owner` rows, highest score first. Returns ``[]``
-    when git is unavailable, the path isn't a repo, or there is no matching history.
+    when git is unavailable, the path isn't the root of its own repo, or there is no
+    matching history. A :class:`Ranking`: its ``gap`` says which of those it was.
     """
     # NOT named `key`: the aggregation loop below rebinds that to a contributor
     # email. The first version of this cache did use `key`, so by the time it
@@ -125,7 +177,8 @@ def compute_owners(repo_path, subpath: str | None = None, *,
     # asserts a second call does no git work.
     cache_key = (str(repo_path), subpath, limit, _head_sha(repo_path))
     if cache_key[3] is not None and cache_key in _CACHE:
-        return list(_CACHE[cache_key])
+        rows, gap = _CACHE[cache_key]
+        return _ranking(rows, gap)
 
     fmt = "%x1f%an%x1f%ae%x1f%at"
 
@@ -177,7 +230,9 @@ def compute_owners(repo_path, subpath: str | None = None, *,
     # answering "no owners" for a dormant-but-real repository would be a worse bug than
     # the slowness this bound removes. Same prefer-then-fall-back shape as the
     # internal-linkage candidate filter in the parser.
-    rows, ok, reason = _walk(_WALK_DAYS)
+    rows, ok, reason = [], False, _unreadable(repo_path)
+    if not reason:
+        rows, ok, reason = _walk(_WALK_DAYS)
     if ok and not rows:
         # The bounded walk SUCCEEDED and found nothing, so this repo's newest commit
         # predates the window. That is the one case the unbounded fallback exists for:
@@ -200,16 +255,19 @@ def compute_owners(repo_path, subpath: str | None = None, *,
             log(style.warn(
                 f"owners: git could not be run for {repo_path}, so no owners are "
                 "reported. Install git, or ignore this if ownership is not wanted."))
-        # `not_a_repo` is deliberately silent. It is the ordinary state of an indexed
-        # tree that was never a clone (the bundled sample fleet, an extracted archive),
-        # it is already visible as an empty owners list, and warning per repository
-        # per request would bury the two failures above -- which is what happened when
-        # all three shared one message.
+        # `not_a_repo`, `missing` and `not_own` are deliberately silent. They are the
+        # ordinary state of an indexed tree that was never a clone (the bundled sample
+        # fleet, an extracted archive), the ranking's `gap` already says which one it
+        # was, and warning per repository per request would bury the two failures above
+        # -- which is what happened when all three shared one message.
+        gap = (f"git could not read its history within {timeout}s, so no owners are "
+               "reported (a timeout, not an empty history)" if reason == "timeout"
+               else _GAPS.get(reason))
         if cache_key[3] is not None:
             if len(_CACHE) >= _CACHE_MAX:
                 _CACHE.pop(next(iter(_CACHE)))
-            _CACHE[cache_key] = []
-        return []
+            _CACHE[cache_key] = ([], gap)
+        return _ranking([], gap)
     newest = max(ts for _, _, ts, _ in rows)
 
     agg: dict[str, dict] = {}
@@ -239,5 +297,5 @@ def compute_owners(repo_path, subpath: str | None = None, *,
     if cache_key[3] is not None:
         if len(_CACHE) >= _CACHE_MAX:
             _CACHE.pop(next(iter(_CACHE)))     # oldest-inserted out; dicts keep order
-        _CACHE[cache_key] = list(out)
-    return out
+        _CACHE[cache_key] = (list(out), None)
+    return _ranking(out)

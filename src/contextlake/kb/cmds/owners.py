@@ -65,7 +65,8 @@ def cmd_owners(args) -> int:
         }, indent=2))
         return 0
     if not owners:
-        log(f"No commit history found for {scope}")
+        gap = getattr(owners, "gap", None)
+        log(f"No commit history found for {scope}" + (f": {gap}" if gap else ""))
         return 0
     log(f"Owners / SMEs for {style.cyan(scope)} (recency-weighted):")
     for i, o in enumerate(owners, 1):
