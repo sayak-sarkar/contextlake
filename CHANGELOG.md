@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The wiki steering file reads only inside the clone.** A `.contextlake/wiki.toml` that is a
+  symlink out of the clone, or sits under a `.contextlake` directory linked out of it, is not
+  read; the page is planned as if the file were absent. Its `notes` go into a stored wiki page
+  that every key that may read the repository sees. A link that stays inside the clone is read.
+  10.0.0rc3 followed the link.
+
 ## [10.0.0rc3] - 2026-10-16
 
 ### Changed

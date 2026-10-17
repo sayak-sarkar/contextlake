@@ -248,6 +248,12 @@ that would execute something are refused from files found this way (`kb/trust.py
 repository's own prose is the same trust level as the README excerpt the page has always
 carried.
 
+The file is read contained. A `wiki.toml` that is a symlink to a file outside the clone, or that
+sits under a `.contextlake` directory linked outside the clone, is not read, and the page is
+generated as if the file were absent. The notes land in a stored page that every key that may read
+the repo can see, so a link must not pull in a file from elsewhere on the machine. A link that
+stays inside the clone is read.
+
 ## Per-subsystem pages for large, federated repos
 
 A repo qualifies as **federated** when it has at least 5,000 graph nodes and no

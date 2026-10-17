@@ -1,7 +1,10 @@
 """A repository's own say in how its wiki page is written.
 
 `.contextlake/wiki.toml`, authored by the repository and read from its working tree, is the
-one place a maintainer can steer generated output. It carries two keys:
+one place a maintainer can steer generated output. It is read contained: a file (or a parent
+directory) linked out of the clone is not read, because ``notes`` goes into a stored page that
+every key that may read the repo sees. A link that stays inside the clone is read. It carries
+two keys:
 
 * ``notes`` -- free text the page quotes, attributed, near the top.
 * ``pages`` -- an explicit list of module prefixes that replaces the automatic
@@ -60,9 +63,11 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
     if not repo_path:
         return empty
     path = steering_file(repo_path)
-    # A `wiki.toml` linked out of the clone is followed wherever it points. Read as text with
-    # the same replacement decode this function applied to the bytes before.
-    hit = read_repo_file(Path(repo_path), ["/".join(STEERING_PATH)], contained=False)
+    # Contained (owner decision 16, 2026-10-17): the notes go into a stored page that every key
+    # that may read the repo sees, so a `wiki.toml` linked out of the clone is not read. A link
+    # that stays inside the clone is. Read as text with the same replacement decode this
+    # function applied to the bytes before.
+    hit = read_repo_file(Path(repo_path), ["/".join(STEERING_PATH)], contained=True)
     if hit is None:
         return empty
     text = hit[1]

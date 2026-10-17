@@ -1,13 +1,16 @@
-"""A clone's README and steering readers follow a symlink, except for a scoped caller.
+"""Which clone readers follow a symlink out of the clone, and which stay inside it.
 
 contextlake reads data wherever a configured source points (owner, 2026-10-15), so
-``get_readme`` on stdio or for an unscoped key, the dashboard's README panel and the wiki
-steering file follow a link out of the clone. Two readers stay inside the clone:
+``get_readme`` on stdio or for an unscoped key and the dashboard's README panel follow a
+link out of the clone. Three readers stay inside the clone:
 
 - ``get_readme`` for a scoped key. A ``README.md`` linked to ``/proc/self/environ`` returned
   the server's environment, and the shared token in it, to a key scoped to one repository.
 - the wiki README excerpt. The page is stored and served to every key that may read the
   repo, and it is written with no caller in hand to check.
+- the wiki steering file (``.contextlake/wiki.toml``, owner decision 16, 2026-10-17). Its
+  notes go into the same stored page, so a file or parent directory linked out of the clone
+  is not read. A link that stays inside the clone is read.
 
 The marker is an invented string in a scratch file. Each refusal has a positive control: a
 guard that refused everything would pass the refusal half alone.
@@ -238,17 +241,40 @@ def test_dashboard_readme_html_follows_a_symlink_out_of_the_clone(world):
         s.close()
 
 
-def test_wiki_steering_follows_a_symlinked_file_out_of_the_clone(world):
+def test_wiki_steering_refuses_a_symlinked_file_out_of_the_clone(world):
     _, clone, outside = world
     (clone / ".contextlake").mkdir()
     (clone / ".contextlake" / "wiki.toml").symlink_to(outside / "wiki.toml")
-    assert read_wiki_steering(clone)["notes"] == [SECRET]
+    # Precondition: the link is real and follows through, so a refusal is the guard's doing.
+    assert SECRET in (clone / ".contextlake" / "wiki.toml").read_text()
+    out = read_wiki_steering(clone)
+    assert out == {"notes": [], "pages": [], "unreadable": False}
 
 
-def test_wiki_steering_follows_a_symlinked_parent_directory(world):
+def test_wiki_steering_refuses_a_symlinked_parent_directory_out_of_the_clone(world):
     _, clone, outside = world
     (clone / ".contextlake").symlink_to(outside, target_is_directory=True)
-    assert read_wiki_steering(clone)["notes"] == [SECRET]
+    assert SECRET in (clone / ".contextlake" / "wiki.toml").read_text()
+    out = read_wiki_steering(clone)
+    assert out == {"notes": [], "pages": [], "unreadable": False}
+
+
+def test_wiki_steering_reads_a_symlinked_file_that_stays_inside_the_clone(world):
+    """The positive control: contained refuses a link out, not every link."""
+    _, clone, _ = world
+    (clone / ".contextlake").mkdir()
+    (clone / "docs").mkdir()
+    (clone / "docs" / "steer.toml").write_text('notes = "kept inside"\npages = ["api"]\n')
+    (clone / ".contextlake" / "wiki.toml").symlink_to(clone / "docs" / "steer.toml")
+    assert read_wiki_steering(clone)["notes"] == ["kept inside"]
+    assert read_wiki_steering(clone)["pages"] == ["api"]
+
+
+def test_wiki_steering_reads_a_plain_file(world):
+    _, clone, _ = world
+    (clone / ".contextlake").mkdir()
+    (clone / ".contextlake" / "wiki.toml").write_text('notes = "plain"\n')
+    assert read_wiki_steering(clone)["notes"] == ["plain"]
 
 
 @pytest.mark.parametrize("contained", [True, False])
