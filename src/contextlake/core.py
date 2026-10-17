@@ -468,6 +468,56 @@ def _projects_endpoint(group_enc, per_page, page):
             f"?include_subgroups=true&archived=false&per_page={per_page}&page={page}")
 
 
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+# The request headers that carry a forge token: PRIVATE-TOKEN for GitLab, Authorization
+# for GitHub, Bitbucket and Gitea. `Request` stores a name capitalised, so compare lower-case.
+_TOKEN_HEADERS = frozenset({"authorization", "private-token"})
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    """``(scheme, host, port)`` of ``url``, lower-cased, with the default port filled in,
+    so ``https://h`` and ``https://H:443/x`` compare equal. A malformed port is its own
+    origin, never a match."""
+    parts = urllib.parse.urlsplit(url)
+    scheme = (parts.scheme or "").lower()
+    try:
+        port = parts.port or _DEFAULT_PORTS.get(scheme)
+    except ValueError:
+        port = -1
+    return scheme, (parts.hostname or "").lower(), port
+
+
+class _OriginGuardedRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow redirects, but drop the forge token when the target is a different origin.
+
+    urllib builds the redirected request from the original's headers, so the token went
+    wherever a ``Location`` pointed: an open redirect on the forge host, or a plain-http
+    hop on the way to it, then received a token that reads every repository. A same-origin
+    redirect keeps the header, because a forge does redirect inside its own API host and
+    that request still needs to authenticate. Scheme is part of the origin, so a move from
+    https to http on the same host counts as a different origin too.
+
+    kb/sources/base.py has the same guard for Authorization. Core cannot import the kb
+    tier, so the idea is copied here and also covers PRIVATE-TOKEN.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and _origin(req.full_url) != _origin(new.full_url):
+            for store in (new.headers, new.unredirected_hdrs):
+                for name in [k for k in store if k.lower() in _TOKEN_HEADERS]:
+                    del store[name]
+            log(style.warn(f"A redirect left {_origin(req.full_url)[1]} for "
+                           f"{_origin(new.full_url)[1]}; the forge token was not sent there"))
+        return new
+
+
+# Built once: an opener carries no per-request state. Same proxy and HTTPS handling as
+# `urlopen`; only the redirect handler differs.
+_OPENER = urllib.request.build_opener(_OriginGuardedRedirect)
+
+
 def _fetch_projects_page_http(base_url, group_enc, token, per_page, timeout, page):
     """One page of a group's projects via the GitLab REST API (native HTTP).
 
@@ -478,7 +528,7 @@ def _fetch_projects_page_http(base_url, group_enc, token, per_page, timeout, pag
     url = f"{base_url}/api/v4/{_projects_endpoint(group_enc, per_page, page)}"
     req = urllib.request.Request(  # noqa: S310 - URL from trusted config
         url, headers={"PRIVATE-TOKEN": token, "User-Agent": "contextlake"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
+    with _OPENER.open(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
         return json.loads(resp.read().decode())
 
 
@@ -498,7 +548,7 @@ def _fetch_projects_page_glab(group_enc, per_page, page):
 def _get_json(url, headers, timeout):
     """GET a JSON document. Raises on HTTP/network error so retry can engage."""
     req = urllib.request.Request(url, headers={"User-Agent": "contextlake", **headers})  # noqa: S310 - URL from trusted config
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
+    with _OPENER.open(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
         return json.loads(resp.read().decode())
 
 

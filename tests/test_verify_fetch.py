@@ -1,9 +1,13 @@
 """Tests for verify (nested-repo detection), cache loading and fetch."""
 
+import http.server
 import json
 import os
 import re
+import socketserver
+import threading
 import urllib.error
+import urllib.request
 
 import pytest
 
@@ -163,7 +167,7 @@ def test_fetch_uses_http_when_token_set(tmp_path, base_config, monkeypatch, fake
              "ssh_url_to_repo": "sl", "archived": False, "default_branch": "dev"}],
     }
     captured = []
-    monkeypatch.setattr(core.urllib.request, "urlopen", _http_pager(pages, captured))
+    monkeypatch.setattr(core._OPENER, "open", _http_pager(pages, captured))
     cfg = {**base_config, "cache_dir": str(tmp_path), "cache_json": "p.json", "cache_file": "p.txt"}
 
     result = fetch_gitlab_projects("g", cfg)
@@ -186,7 +190,7 @@ def test_fetch_http_retries_transient_dns(tmp_path, base_config, monkeypatch, no
             raise urllib.error.URLError("dial tcp: lookup gitlab.com: i/o timeout")
         return _FakeResp([])  # empty page -> stop
 
-    monkeypatch.setattr(core.urllib.request, "urlopen", flaky)
+    monkeypatch.setattr(core._OPENER, "open", flaky)
     cfg = {**base_config, "cache_dir": str(tmp_path), "cache_json": "p.json", "cache_file": "p.txt"}
     fetch_gitlab_projects("g", cfg)
     assert calls["n"] == 2  # the i/o timeout was retried, not fatal
@@ -259,7 +263,7 @@ def test_fetch_github_org_normalizes(tmp_path, base_config, monkeypatch):
              "default_branch": "trunk", "created_at": "2026-01-01",
              "pushed_at": "2026-06-01"}]
     captured = []
-    monkeypatch.setattr(core.urllib.request, "urlopen",
+    monkeypatch.setattr(core._OPENER, "open",
                         _one_page_urlopen({"/orgs/acme/repos": rows}, captured))
     monkeypatch.setenv("GITHUB_TOKEN", "ghp-x")
     cfg = {**base_config, "platform": "github", "cache_dir": str(tmp_path),
@@ -286,7 +290,7 @@ def test_fetch_gitea_falls_back_to_user_endpoint(tmp_path, base_config, monkeypa
             return _FakeResp(rows)
         return _FakeResp([])
 
-    monkeypatch.setattr(core.urllib.request, "urlopen", fake)
+    monkeypatch.setattr(core._OPENER, "open", fake)
     cfg = {**base_config, "platform": "codeberg", "cache_dir": str(tmp_path),
            "cache_json": "p.json", "cache_file": "p.txt"}
     result = fetch_gitlab_projects("ada", cfg)
@@ -303,7 +307,7 @@ def test_fetch_bitbucket_workspace_normalizes(tmp_path, base_config, monkeypatch
         "mainbranch": {"name": "develop"},
         "created_on": "2026-01-01", "updated_on": "2026-03-01"}]}
     captured = []
-    monkeypatch.setattr(core.urllib.request, "urlopen",
+    monkeypatch.setattr(core._OPENER, "open",
                         _one_page_urlopen({"/repositories/acme": payload}, captured))
     cfg = {**base_config, "platform": "bitbucket", "cache_dir": str(tmp_path),
            "cache_json": "p.json", "cache_file": "p.txt"}
@@ -510,3 +514,105 @@ def test_a_failed_enumeration_names_the_forge_it_actually_called(
     assert "GitLab" not in str(exc.value)
     assert "GitHub group" in gls_logs.text or "GitHub projects" in gls_logs.text
     assert "GitLab" not in gls_logs.text
+
+
+# --- the forge token stays on the host the user chose -------------------------
+
+class _Origin:
+    """One loopback origin. Records the token headers each request carried, answers
+    `/final` with an empty JSON page, and redirects every other path to `redirect_to`."""
+
+    def __init__(self):
+        self.seen = []                 # (path, {"private-token": ..., "authorization": ...})
+        self.redirect_to = None
+        outer = self
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                outer.seen.append((self.path.split("?")[0], {
+                    "private-token": self.headers.get("PRIVATE-TOKEN"),
+                    "authorization": self.headers.get("Authorization")}))
+                if outer.redirect_to and not self.path.startswith("/final"):
+                    self.send_response(302)
+                    self.send_header("Location", outer.redirect_to)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                body = b"[]"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        self.srv = socketserver.TCPServer(("127.0.0.1", 0), H)
+        self.base = f"http://127.0.0.1:{self.srv.server_address[1]}"
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+
+
+@pytest.fixture
+def two_origins():
+    a, b = _Origin(), _Origin()
+    yield a, b
+    a.close()
+    b.close()
+
+
+def test_a_cross_origin_redirect_does_not_receive_the_gitlab_token(two_origins):
+    """The second server is a different origin (another port). It must be reached, or a
+    refused redirect would read as a pass."""
+    a, b = two_origins
+    a.redirect_to = f"{b.base}/final"
+
+    rows = core._fetch_projects_page_http(a.base, "g", "glpat-secret", 100, 5, 1)
+
+    assert rows == []
+    assert a.seen[0][1]["private-token"] == "glpat-secret", "the first hop must authenticate"
+    assert [p for p, _ in b.seen] == ["/final"], "the redirect was never followed"
+    assert b.seen[0][1] == {"private-token": None, "authorization": None}
+
+
+def test_a_cross_origin_redirect_does_not_receive_the_authorization_header(two_origins):
+    a, b = two_origins
+    a.redirect_to = f"{b.base}/final"
+
+    core._get_json(f"{a.base}/orgs/acme/repos", {"Authorization": "Bearer ghp-secret"}, 5)
+
+    assert a.seen[0][1]["authorization"] == "Bearer ghp-secret"
+    assert [p for p, _ in b.seen] == ["/final"], "the redirect was never followed"
+    assert b.seen[0][1] == {"private-token": None, "authorization": None}
+
+
+def test_a_same_origin_redirect_keeps_the_token(two_origins):
+    """The control: a forge that redirects inside its own host still needs to see the
+    token, or a private group would come back empty."""
+    a, _ = two_origins
+    a.redirect_to = f"{a.base}/final"
+
+    core._fetch_projects_page_http(a.base, "g", "glpat-secret", 100, 5, 1)
+    core._get_json(f"{a.base}/orgs/acme/repos", {"Authorization": "Bearer ghp-secret"}, 5)
+
+    final = [h for p, h in a.seen if p == "/final"]
+    assert [h["private-token"] for h in final] == ["glpat-secret", None]
+    assert [h["authorization"] for h in final] == [None, "Bearer ghp-secret"]
+
+
+def test_a_move_from_https_to_http_on_the_same_host_drops_the_token():
+    """Scheme is part of the origin, so a downgrade is a different origin."""
+    req = urllib.request.Request("https://forge.example/api/v4/projects",
+                                 headers={"PRIVATE-TOKEN": "glpat-secret",
+                                          "Authorization": "Bearer x", "User-Agent": "contextlake"})
+    new = core._OriginGuardedRedirect().redirect_request(
+        req, None, 302, "Found", {}, "http://forge.example/api/v4/projects")
+
+    assert new is not None
+    assert new.get_header("Private-token") is None
+    assert new.get_header("Authorization") is None
+    assert new.get_header("User-agent") == "contextlake"

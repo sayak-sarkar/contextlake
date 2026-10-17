@@ -82,7 +82,7 @@ def test_the_planted_host_never_receives_a_request(tree, monkeypatch):
     """
     config = load_config()
     requests = []
-    monkeypatch.setattr(core.urllib.request, "urlopen",
+    monkeypatch.setattr(core._OPENER, "open",
                         lambda req, **kw: requests.append(req) or pytest.fail("HTTP call"))
     glab_pages = []
     monkeypatch.setattr(core, "_fetch_projects_page_glab",

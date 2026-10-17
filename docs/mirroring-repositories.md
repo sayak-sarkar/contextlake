@@ -170,6 +170,8 @@ contextlake mirror fetch
 This command:
 
 - Uses the configured platform's REST API with pagination to fetch all projects
+- Sends the token only to the host you chose. A redirect to another origin (scheme, host or
+  port) is followed without the token. A redirect inside the same origin keeps it.
 - Includes subgroups automatically
 - Skips archived repositories
 - Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a

@@ -94,6 +94,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only. The runbook also named a maintainer's local directory and a private note, and both are
   gone.
 
+### Security
+
+- **`mirror fetch` no longer sends the forge token to another origin on a redirect.** The
+  project listing is read with urllib, which copies `PRIVATE-TOKEN` (GitLab) or `Authorization`
+  (GitHub, Bitbucket, Gitea) onto the request it builds for a redirect. A forge host, or an open
+  redirect on it, that answered with a redirect to another origin received the token. The header
+  is now dropped when the scheme, host or port changes, which includes a move from https to
+  http. A redirect inside the same origin keeps it. 10.0.0rc3 sent it.
+
 ## [10.0.0rc3] - 2026-10-16
 
 ### Changed
