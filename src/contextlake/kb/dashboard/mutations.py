@@ -400,8 +400,11 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
     """Read-only, no LLM call: how many repos would actually regenerate.
 
     Replicates the COMMIT half of ``cmds.wiki.cmd_wiki``'s freshness-skip check
-    (the ``at commit `<sha>``` provenance-footer regex) so the dashboard can
-    show a real count before the user confirms a run. Deliberately not the
+    (the ``at commit `<sha>``` provenance-footer regex and the ``(parser N)``
+    stamp) so the dashboard can show a real count before the user confirms a
+    run. A structural page (what plain `kb wiki` writes, with no LLM) is never
+    fresh: its footer carries the same commit text, but a run replaces it, so
+    it counts as regenerating. Deliberately not the
     whole check: ``cmd_wiki`` also regenerates a commit-unchanged page whose
     recorded subsystem pages no longer match the repo's current modules, and
     answering that here would mean running ``repo_modules`` per repo on an
@@ -411,6 +414,7 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
     being a surprise after the run has already started.
     """
     from ..wiki.generate import grounded_symbol_count, repo_brief
+    from ..wiki.structural import is_structural_page
 
     if repo_id:
         r = store.get_repo(repo_id)
@@ -434,8 +438,12 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
         stale_or_missing = True
         if not force and wiki_file.exists() and brief.get("head"):
             prev = wiki_file.read_text(encoding="utf-8", errors="replace")
-            m = re.search(r"at commit `([^`]+)`", prev)
-            stale_or_missing = not (m and m.group(1) == brief["head"])
+            if not is_structural_page(prev):
+                m = re.search(r"at commit `([^`]+)`", prev)
+                pm = re.search(r"at commit `[^`]+` \(parser ([^)]+)\)", prev)
+                want = brief.get("parser_version")
+                parser_matches = want is None or (pm is not None and pm.group(1) == want)
+                stale_or_missing = not (m and m.group(1) == brief["head"] and parser_matches)
         if stale_or_missing:
             would_regenerate += 1
     return {"total": total, "would_regenerate": would_regenerate,

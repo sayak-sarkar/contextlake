@@ -419,7 +419,8 @@ Two notes on those:
   so there is no token cost to preview first, and `kb docs` has no `--force` flag to offer.
 
 Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
-are already up to date". A **Force** checkbox skips that freshness check and regenerates
+are already up to date". A page that plain `kb wiki` wrote without a model (a structural page)
+counts as one to regenerate, because a run replaces it. A **Force** checkbox skips that freshness check and regenerates
 everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).

@@ -264,6 +264,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with it. Each such `SELECT` also scanned to the end of the file, so a file of 8000 lines of
   `SELECT 1;` took 37 s to scan; it now takes 0.4 s. Both date from 2.48.0, which added the
   data-flow scan. The missing edges return when a repo is next indexed after upgrading.
+- **The Regenerate count no longer calls a structural wiki page "up to date".** After a plain
+  `kb wiki` (no model), the dashboard card asked "Continue?" under "0 of 4 repo(s) will
+  regenerate (4 already up to date)". The run then replaced all 4 pages and spent the model
+  calls the count had hidden. A structural page carries the same `at commit` footer as a
+  generated one, so the estimate read it as fresh. It now counts a structural page as one to
+  regenerate, and also counts a page whose parser stamp differs from the index. The page count
+  in `kb wiki --model-check` uses the same function and was low by the same amount. This dates
+  from 7.12.0, which added the structural page.
 
 ### Security
 

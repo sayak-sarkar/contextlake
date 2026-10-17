@@ -227,9 +227,11 @@ def _alive_pid():
 
 # --- Live wiki generation ----------------------------------------------------
 
-def _shard_with_wiki(store_dir, repo_id, *, head="abc123", wiki_head=None):
+def _shard_with_wiki(store_dir, repo_id, *, head="abc123", wiki_head=None,
+                     parser_version=None, wiki_parser=None):
     """An indexed repo, optionally with an existing wiki page stamped at
-    ``wiki_head`` (None = no existing page -- always "would regenerate")."""
+    ``wiki_head`` (None = no existing page -- always "would regenerate").
+    ``parser_version`` stamps the shard, ``wiki_parser`` the page footer."""
     from datetime import date
 
     from contextlake.kb.model import Confidence, Edge, Node, Provenance
@@ -240,13 +242,15 @@ def _shard_with_wiki(store_dir, repo_id, *, head="abc123", wiki_head=None):
     edges = [Edge(src="a", dst="b", relation="calls", confidence=Confidence.EXTRACTED,
                  provenance=Provenance(source_file="a.py", source_line=1,
                                        verified_at=date(2026, 6, 21)))]
-    write_shard(store_dir, GraphShard(repo=repo_id, head_commit=head, nodes=nodes, edges=edges))
+    write_shard(store_dir, GraphShard(repo=repo_id, head_commit=head, nodes=nodes, edges=edges,
+                                      parser_version=parser_version))
     if wiki_head is not None:
         wiki_dir = store_dir / "wiki"
         wiki_dir.mkdir(parents=True, exist_ok=True)
         wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
+        stamp = f" (parser {wiki_parser})" if wiki_parser else ""
         wiki_file.write_text(f"# {repo_id}\n\nBody.\n\n---\n"
-                             f"*Generated ... at commit `{wiki_head}` on 2026-07-30.*")
+                             f"*Generated ... at commit `{wiki_head}`{stamp} on 2026-07-30.*")
 
 
 def test_wiki_generate_status_when_never_started(tmp_path):
@@ -329,6 +333,44 @@ def test_wiki_generate_estimate_scopes_to_one_repo(tmp_path):
     result = mut.wiki_generate_estimate(store, tmp_path, repo_id="r1")
     assert result == {"total": 1, "would_regenerate": 0, "unchanged": 1}
     store.close()
+
+
+def test_wiki_generate_estimate_counts_a_structural_page_as_regenerating(tmp_path):
+    """Plain `kb wiki` writes a structural page whose footer carries the same
+    `at commit` text as a generated one. A run replaces it, so the estimate must
+    not read that footer as "already up to date"."""
+    from contextlake.kb.wiki.generate import repo_brief
+    from contextlake.kb.wiki.structural import is_structural_page, render_structural_page
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="r", path=str(tmp_path)))
+    _shard_with_wiki(tmp_path, "r", head="abc123", wiki_head=None)
+    page = render_structural_page(repo_brief(tmp_path, "r"), repo_id="r")
+    assert is_structural_page(page) and "at commit `abc123`" in page
+    (tmp_path / "wiki").mkdir()
+    (tmp_path / "wiki" / "r.md").write_text(page)
+    result = mut.wiki_generate_estimate(store, tmp_path)
+    assert result == {"total": 1, "would_regenerate": 1, "unchanged": 0}
+    store.close()
+
+
+def test_wiki_generate_estimate_checks_the_parser_stamp(tmp_path):
+    """The run also regenerates a commit-fresh page whose `(parser N)` stamp
+    differs from the shard's, or is missing when the shard has one."""
+    def count(wiki_parser):
+        d = tmp_path / f"s-{wiki_parser}"
+        d.mkdir()
+        store = SqliteStore(d / "index.sqlite")
+        store.upsert_repo(Repo(id="r", path=str(d)))
+        _shard_with_wiki(d, "r", head="abc123", wiki_head="abc123",
+                         parser_version="2", wiki_parser=wiki_parser)
+        n = mut.wiki_generate_estimate(store, d)["would_regenerate"]
+        store.close()
+        return n
+
+    assert count("2") == 0       # stamp matches the shard: fresh
+    assert count("1") == 1       # parser moved: regenerate
+    assert count(None) == 1      # page never stamped: regenerate once
 
 
 def test_wiki_generate_start_stop_lifecycle_on_empty_store(tmp_path):
