@@ -399,6 +399,85 @@ def test_staged_flush_keeps_the_old_vectors_when_the_write_fails(tmp_path):
         vs.close()
 
 
+def _seed_slack_run(tmp_path, monkeypatch, links):
+    """Run `connect` once over repo `group/app` with the Slack stub, whose README links are
+    ``links``. Returns ``(config path, repo dir, store dir, partition)``."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(exist_ok=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_SLACK_EMBED_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir(exist_ok=True)
+    monkeypatch.setattr(orch, "build_slack", lambda src: _SlackStub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda *a, **k: [])
+    monkeypatch.setattr(refs, "scrape_links", lambda *a, **k: list(links))
+    monkeypatch.setattr("contextlake.kb.embeddings.build_embedder",
+                        lambda cfg_: _FakeEmbedder())
+    monkeypatch.setattr("contextlake.kb.embeddings.store.build_vector_store",
+                        lambda path, **kw: VectorStore(path))
+    return cfg, repo, store_dir, connect_partition("group/app")
+
+
+def _partition_and_vector_rows(store_dir, part):
+    from contextlake.kb.embeddings.store import VectorStore
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    vs = VectorStore(store_dir / "embeddings.sqlite")
+    try:
+        graph = store.repo_counts(part)
+        vectors = vs.conn.execute(
+            "SELECT COUNT(*) FROM embeddings WHERE repo_id=?", (part,)).fetchone()[0]
+        return graph, vectors
+    finally:
+        store.close()
+        vs.close()
+
+
+def test_connect_clears_the_partition_when_the_last_reference_is_removed(
+        tmp_path, monkeypatch, gls_logs):
+    """A repo whose docs stopped linking anywhere must lose its stored links. The early
+    return for "nothing to look up" skipped the write that clears the partition, so the
+    graph kept answering with links the repo no longer mentions, and the summary
+    ("0 external link(s) stored") read as a cleared partition."""
+    cfg, repo, store_dir, part = _seed_slack_run(
+        tmp_path, monkeypatch, ["https://acme.slack.com/archives/C0123ABCD"])
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+    graph, vectors = _partition_and_vector_rows(store_dir, part)
+    assert graph[1] >= 1 and vectors >= 1  # the first run stored an edge and a vector
+
+    monkeypatch.setattr(refs, "scrape_links", lambda *a, **k: [])
+    assert cmd_connect(args) == 0
+    assert _partition_and_vector_rows(store_dir, part) == ((0, 0), 0)
+    assert "cleared the previous links" in gls_logs.text
+
+
+def test_connect_keeps_the_partition_of_a_repo_it_cannot_read(tmp_path, monkeypatch):
+    """No references found in a folder that is gone (an unmounted drive) is not "the links
+    were removed", so the previous partition stays, as it does for a source that is down."""
+    from contextlake.kb.model import Repo
+
+    cfg, repo, store_dir, part = _seed_slack_run(
+        tmp_path, monkeypatch, ["https://acme.slack.com/archives/C0123ABCD"])
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+    before = _partition_and_vector_rows(store_dir, part)
+    assert before[0][1] >= 1
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        store.upsert_repo(Repo(id="group/app", path=str(tmp_path / "gone")))
+    finally:
+        store.close()
+    monkeypatch.setattr(refs, "scrape_links", lambda *a, **k: [])
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, args=[])
+    cmd_connect(args)
+    assert _partition_and_vector_rows(store_dir, part) == before
+
+
 def test_connect_does_not_report_success_when_every_call_was_written_off(
         tmp_path, monkeypatch, gls_logs):
     """An expired token must not read like a repo with no open work.

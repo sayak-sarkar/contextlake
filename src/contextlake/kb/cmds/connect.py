@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from ... import style
 from ...logging_setup import log
 from .._util import _or_default
@@ -292,9 +294,23 @@ def cmd_connect(args) -> int:
                 keys = extract_issue_keys(path, branch_key) if branch_key else []
                 links = scrape_links(path, link_patterns) if link_patterns else []
                 symbol_keys = _symbol_keys_for(store_dir, repo_id, path, branch_key)
-                if not keys and not links and not symbol_keys and not has_gitlab:
-                    return 0  # GitLab sources fetch by repo, so don't skip when one exists
                 part = connect_partition(repo_id)
+                if not keys and not links and not symbol_keys and not has_gitlab:
+                    # GitLab sources fetch by repo, so don't skip when one exists.
+                    # Nothing to look up leaves a repo that never had links alone. A
+                    # repo whose references were all removed still holds its old
+                    # partition: that is an empty answer, and an empty answer clears.
+                    # A repo that cannot be read at all (an unmounted drive) keeps its
+                    # links, as a source that did not answer does.
+                    if not os.path.isdir(path) or not any(store.repo_counts(part)):
+                        return 0
+                    if staged is not None:
+                        staged.discard()
+                        staged.flush(part)  # holds nothing, so this sweeps the partition
+                    store_partition(store, part, [], [])
+                    log(f"  {repo_id}: cleared the previous links, the repo no longer "
+                        "has any references", inline=True)
+                    return 0
                 if dropped:
                     # A source that could not be built is as unavailable as one that
                     # failed mid-run, and its links are part of this partition. Writing

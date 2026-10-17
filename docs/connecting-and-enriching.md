@@ -307,6 +307,9 @@ A source that could not be reached is not an empty answer.
 - The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
   results.
 - A source that answers with no results still clears the repo's previous ones.
+- A repo whose docs and commits no longer mention any issue key or link has its previous links
+  cleared too (the run logs `cleared the previous links`). A repo folder that is missing keeps
+  them.
 - With several sources, one that stays unreachable keeps every affected repo's previous results,
   so the other sources' results for those repos wait too. The run exits 1 until that source is
   fixed or removed from the config.

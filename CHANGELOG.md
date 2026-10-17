@@ -208,6 +208,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matched"), so it sent you to fix the wrong setting. Both now expand a leading `~`.
   Environment variables such as `$HOME` in `path` are still not expanded. Present since the
   `files` source shipped in 2.15.0.
+- **`kb connect` now clears a repo's links after you remove its last reference.** When a repo
+  no longer had any issue key or Figma, Slack or Zendesk link in its docs or commit messages,
+  `kb connect` returned before it rewrote the repo's partition. The old edges and vectors
+  stayed, so the graph kept saying the repo was designed in or discussed in resources it no
+  longer mentions, and the run printed `0 external link(s) stored`. The partition is now
+  cleared, with its vectors, and the run logs `cleared the previous links`. A repo folder that
+  is missing keeps its links. Present since `kb connect` shipped (1.4.0 at least).
 
 ### Security
 

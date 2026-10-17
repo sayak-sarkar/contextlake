@@ -3493,6 +3493,9 @@ A source that could not be reached is not an empty answer.
 - The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
   results.
 - A source that answers with no results still clears the repo's previous ones.
+- A repo whose docs and commits no longer mention any issue key or link has its previous links
+  cleared too (the run logs `cleared the previous links`). A repo folder that is missing keeps
+  them.
 - With several sources, one that stays unreachable keeps every affected repo's previous results,
   so the other sources' results for those repos wait too. The run exits 1 until that source is
   fixed or removed from the config.
@@ -9841,6 +9844,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matched"), so it sent you to fix the wrong setting. Both now expand a leading `~`.
   Environment variables such as `$HOME` in `path` are still not expanded. Present since the
   `files` source shipped in 2.15.0.
+- **`kb connect` now clears a repo's links after you remove its last reference.** When a repo
+  no longer had any issue key or Figma, Slack or Zendesk link in its docs or commit messages,
+  `kb connect` returned before it rewrote the repo's partition. The old edges and vectors
+  stayed, so the graph kept saying the repo was designed in or discussed in resources it no
+  longer mentions, and the run printed `0 external link(s) stored`. The partition is now
+  cleared, with its vectors, and the run logs `cleared the previous links`. A repo folder that
+  is missing keeps its links. Present since `kb connect` shipped (1.4.0 at least).
 
 ### Security
 
