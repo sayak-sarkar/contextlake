@@ -5922,6 +5922,24 @@ deliberate:
   re-indexes the whole fleet every run instead of doing an incremental pass, which
   `schedule run` refuses without `--allow-ephemeral`.
 
+The pod mounts that claim at `/work`, which is `HOME` in the image, so the store, config and caches
+land on the volume. Only the `CronJob` is applied. Create the claim yourself, in the same
+namespace, before the first run, or the pod stays `Pending`. Its name is the `CronJob` name plus
+`-state` (`contextlake-default-state` for the default job), and `schedule install` prints it. The
+size and storage class are yours to choose, so contextlake does not create it:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: contextlake-default-state
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi   # an example; size it for your own mirror and store
+```
+
 The schedule is a cron expression, so it rounds the way cron does and says when it rounded.
 Nothing is patched in the cluster on its own: changing an interval means re-running
 `schedule install`. A process that rewrote a `CronJob` in the background would need
@@ -6038,6 +6056,19 @@ contextlake schedule run --foreground
 
 `--foreground` loops here, sleeping between cycles, and does not re-read the config file
 mid-loop; restart the container to pick up an edited `schedule_interval`.
+
+Neither `--foreground` nor a pod needs `schedule install` first. With no job record, these run the
+built-in default job, `bootstrap`:
+
+- `schedule run --foreground`, anywhere.
+- `schedule run`, inside a container. The Kubernetes `CronJob` runs this.
+
+Nothing is recorded for that run. `schedule status` and `schedule list` do not show it, and a failed
+run adds no backoff, because the failure count lives in the record.
+
+Only the default job works this way. A job from `schedule interval ... run -- <command>` keeps its
+command in the record on the machine that created it, so a pod cannot run it. On a workstation
+without `--foreground`, the message is still "No schedule is installed".
 
 ## Troubleshooting: it is installed but nothing runs
 
@@ -10261,6 +10292,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reads. A second checkout is refused while the block there names another path, and `kb hook
   status` prints a warning mark, not a check mark, when fewer repos are wired than you asked
   about.
+- **`schedule run --foreground` and the Kubernetes `CronJob` now work without `schedule
+  install`.** `schedule install` on a machine with no systemd or cron says to use `schedule run
+  --foreground`, and `schedule run --foreground` then exited 2 asking for `schedule install`, so
+  the documented container path never started. A `CronJob` pod hit the same exit because the job
+  record stays on the machine that ran install. With no record, both now run the built-in
+  `bootstrap` job. The `CronJob` also mounted its volume at `/var/lib/contextlake`, where the
+  image writes nothing, so every run was refused as ephemeral. It now mounts at `/work`, and the
+  install output names the `<cronjob>-state` claim you must create first.
 
 ### Security
 

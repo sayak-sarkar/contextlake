@@ -239,9 +239,59 @@ def test_running_an_unknown_job_is_an_error_not_a_silent_no_op(tmp_path):
 
 
 def test_run_with_no_job_installed_tells_you_how_to_install_one(tmp_path, monkeypatch):
+    # A workstation. A CI runner that is itself a container would take the container path.
+    monkeypatch.setattr(runner, "in_container", lambda: False)
     lines = _log_lines(monkeypatch)
     assert cmds.cmd_run(_args(), _config(tmp_path)) != 0
     assert any("schedule install" in line for line in lines)
+
+
+# ---- no record: the container and --foreground paths ---------------------
+
+# `schedule install` on a box with no systemd and no cron says "use `schedule run
+# --foreground`", and `schedule run --foreground` said "run `schedule install`". A pod
+# started by a CronJob never ran install either, and the record lives on the machine that
+# did. Both exited 2 before running anything.
+
+def _open_gates_and_capture_spawns(monkeypatch):
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    monkeypatch.setattr(runner, "store_is_ephemeral", lambda cfg: False)
+    spawned = []
+    monkeypatch.setattr(runner, "_spawn", lambda argv, *a, **k: spawned.append(argv) or 0)
+    return spawned
+
+
+def test_foreground_with_no_record_runs_the_built_in_default_cycle(tmp_path, monkeypatch):
+    spawned = _open_gates_and_capture_spawns(monkeypatch)
+    monkeypatch.setattr(runner, "in_container", lambda: False)
+    monkeypatch.setattr(runner.time, "sleep", lambda s: None)
+    config = _config(tmp_path)
+    rc = cmds.cmd_run(_args(foreground=True), config, _max_iterations=1)
+    assert rc == 0
+    assert spawned == [jobs.DEFAULT_FULL_ARGV], "the first ever cycle is the full one"
+    assert jobs.read_jobs(jobs.jobs_path(config)) == {}, "no record is written for it"
+
+
+def test_a_pod_with_no_record_runs_one_cycle_of_the_default_job(tmp_path, monkeypatch):
+    spawned = _open_gates_and_capture_spawns(monkeypatch)
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    assert cmds.cmd_run(_args(), _config(tmp_path)) == 0
+    assert spawned == [jobs.DEFAULT_FULL_ARGV]
+
+
+def test_a_named_job_with_no_record_is_still_an_error_in_a_container(tmp_path, monkeypatch):
+    spawned = _open_gates_and_capture_spawns(monkeypatch)
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    assert cmds.cmd_run(_args(job="ghost", foreground=True), _config(tmp_path)) != 0
+    assert spawned == []
+
+
+def test_the_fallback_job_still_hits_the_ephemeral_store_refusal(tmp_path, monkeypatch):
+    spawned = _open_gates_and_capture_spawns(monkeypatch)
+    monkeypatch.setattr(runner, "store_is_ephemeral", lambda cfg: True)
+    monkeypatch.setattr(runner, "in_container", lambda: True)
+    assert cmds.cmd_run(_args(), _config(tmp_path)) == 2
+    assert spawned == []
 
 
 # ---- ephemeral storage --------------------------------------------------

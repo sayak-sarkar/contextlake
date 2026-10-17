@@ -404,6 +404,31 @@ def test_cmd_install_reports_the_rounding_cron_had_to_do(tmp_path, monkeypatch):
     assert "cron cannot express 70m" in out
 
 
+def test_a_list_of_render_notes_prints_one_warning_per_note(monkeypatch):
+    """The cluster and cloud adapters return `notes` as a list and cron as one string. The
+    list was formatted into a single line as a Python list, brackets and quotes included."""
+    from contextlake.schedule import jobs as jobstore
+
+    class _Adapter:
+        id = "k8s"
+        catches_up_after_sleep = False
+
+        def render(self, job, interval_s, exec_argv, **options):
+            return {"interval_s": 3600, "notes": ["first note.", "second note."]}
+
+        def state(self, job):
+            return {"notes": []}
+
+    lines = []
+    monkeypatch.setattr(adapters, "log", lines.append)
+    job = jobstore.new_job("default", ["bootstrap"], "auto", "k8s")
+    adapters._report_installed(_Adapter(), job, 3600, ["x"], "skip", "because", [],
+                               lambda interval: f"Installed, every {interval}.")
+    assert any(line.endswith("first note.") for line in lines)
+    assert any(line.endswith("second note.") for line in lines)
+    assert not any("[" in line or "'" in line for line in lines)
+
+
 @pytest.mark.parametrize("platform_name", sorted(platform_base._registry()))
 def test_the_degrade_path_prints_only_artefacts_never_metadata(
         tmp_path, monkeypatch, platform_name):

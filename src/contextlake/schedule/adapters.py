@@ -76,8 +76,10 @@ def _report_installed(adapter, job, interval_s, exec_argv, on_battery, why, writ
     log(f"  {why}")
     for path in written:
         log(f"  wrote {path}")
-    rounding_note = rendered.get("notes")
-    if rounding_note:
+    # cron's note is one string; the cluster and cloud adapters return a list.
+    rendered_notes = rendered.get("notes") or []
+    for rounding_note in ([rendered_notes] if isinstance(rendered_notes, str)
+                          else rendered_notes):
         log(f"  {style.warn()} {rounding_note}")
     # The install above already succeeded and is not undone by anything
     # below. A `state()` failure here (the bus answered at detect time and

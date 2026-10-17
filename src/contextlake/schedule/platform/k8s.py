@@ -120,6 +120,9 @@ class K8sAdapter(Adapter):
                 f"a CronJob schedule is a cron expression, so this job runs every "
                 f"{format_duration(actual_s)} instead of "
                 f"{format_duration(interval_s)}.")
+        claim = f"{resource_name(name)}-state"
+        notes.append(f"the CronJob mounts a PersistentVolumeClaim named {claim}. Create it "
+                     f"in namespace {namespace} before the first run, or the pod stays Pending.")
         args = _container_args(exec_argv)
         manifest = f"""apiVersion: batch/v1
 kind: CronJob
@@ -161,16 +164,19 @@ spec:
                   drop:
                   - ALL
               volumeMounts:
+                # /work is HOME in the image, and the store, config and caches live under
+                # it. A mount anywhere else leaves the state on the container layer.
                 - name: state
-                  mountPath: /var/lib/contextlake
+                  mountPath: /work
           volumes:
             # A PersistentVolumeClaim, not an emptyDir. An ephemeral store
             # re-indexes the whole fleet every run instead of doing an
             # incremental pass, which `schedule run` refuses without
-            # --allow-ephemeral.
+            # --allow-ephemeral. The claim is not created here: its size and storage
+            # class are the cluster owner's choice.
             - name: state
               persistentVolumeClaim:
-                claimName: {resource_name(name)}-state
+                claimName: {claim}
 """
         return {
             "cronjob.yaml": manifest,

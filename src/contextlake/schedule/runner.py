@@ -228,6 +228,15 @@ def cmd_run(args, config, _max_iterations=None) -> int:
     name = getattr(args, "job", None) or jobstore.DEFAULT_JOB
     jobs_file = jobstore.jobs_path(config)
     job = jobstore.read_jobs(jobs_file).get(name)
+    if job is None and name == jobstore.DEFAULT_JOB and (
+            getattr(args, "foreground", False) or in_container()):
+        # Where there is no scheduler to install into, `schedule install` itself says to use
+        # --foreground, and a container or CronJob pod never ran install at all. Run the
+        # built-in cycle. Nothing is recorded, so `status` and `list` stay empty and a
+        # failed run adds no backoff.
+        job = jobstore.new_job(name, jobstore.DEFAULT_ARGV, "auto", "")
+        log("No schedule record here, so running the built-in default cycle "
+            f"(contextlake {' '.join(job.argv)}).")
     if job is None:
         if name == jobstore.DEFAULT_JOB:
             log("No schedule is installed. Create one with "

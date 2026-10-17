@@ -8,6 +8,7 @@ the cluster would reject it somewhere this suite cannot reach.
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -80,7 +81,28 @@ def test_the_state_volume_is_a_claim_not_an_emptydir():
 
     assert "persistentVolumeClaim" in volume
     assert "emptyDir" not in volume
-    assert pod["containers"][0]["volumeMounts"][0]["mountPath"] == "/var/lib/contextlake"
+    assert pod["containers"][0]["volumeMounts"][0]["mountPath"] == "/work"
+
+
+def test_the_claim_is_mounted_where_the_image_keeps_its_state():
+    """The image sets HOME=/work (Dockerfile), and the store, config and caches resolve
+    under it. The volume was mounted at /var/lib/contextlake, which nothing writes to, so
+    the state stayed on the container layer and `store_is_ephemeral` refused every run."""
+    import re
+
+    dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text()
+    home = re.search(r"^ENV HOME=(\S+)", dockerfile, re.M).group(1)
+    pod = _doc()["spec"]["jobTemplate"]["spec"]["template"]["spec"]
+    assert pod["containers"][0]["volumeMounts"][0]["mountPath"] == home
+
+
+def test_the_claim_the_pod_needs_is_named_as_a_prerequisite():
+    """Only a CronJob is applied, so nothing creates the claim and the pod stays Pending."""
+    rendered = k8s.K8sAdapter().render(_job(), 3600, _argv(), namespace="team-a")
+    claim = yaml.safe_load(rendered["cronjob.yaml"])["spec"]["jobTemplate"]["spec"][
+        "template"]["spec"]["volumes"][0]["persistentVolumeClaim"]["claimName"]
+    note = " ".join(rendered["notes"])
+    assert claim in note and "team-a" in note and "before the first run" in note
 
 
 def test_the_container_args_drop_the_callers_interpreter():
@@ -150,7 +172,8 @@ def test_the_schedule_is_a_cron_expression_and_rounds_like_cron():
     assert any("cron expression" in n for n in rendered["notes"])
 
     exact = k8s.K8sAdapter().render(_job(), 3600, _argv())
-    assert not exact["notes"], "nothing to report when nothing was rounded"
+    assert not any("cron expression" in n for n in exact["notes"]), (
+        "no rounding note when nothing was rounded")
     assert yaml.safe_load(exact["cronjob.yaml"])["spec"]["schedule"] == exact["schedule"]
 
 

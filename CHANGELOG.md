@@ -465,6 +465,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reads. A second checkout is refused while the block there names another path, and `kb hook
   status` prints a warning mark, not a check mark, when fewer repos are wired than you asked
   about.
+- **`schedule run --foreground` and the Kubernetes `CronJob` now work without `schedule
+  install`.** `schedule install` on a machine with no systemd or cron says to use `schedule run
+  --foreground`, and `schedule run --foreground` then exited 2 asking for `schedule install`, so
+  the documented container path never started. A `CronJob` pod hit the same exit because the job
+  record stays on the machine that ran install. With no record, both now run the built-in
+  `bootstrap` job. The `CronJob` also mounted its volume at `/var/lib/contextlake`, where the
+  image writes nothing, so every run was refused as ephemeral. It now mounts at `/work`, and the
+  install output names the `<cronjob>-state` claim you must create first.
 
 ### Security
 
