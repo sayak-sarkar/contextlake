@@ -120,7 +120,7 @@ COPY --from=build-slim --chown=contextlake:contextlake /opt/venv /opt/venv
 COPY --from=build-slim --chown=contextlake:contextlake /opt/contextlake/models /opt/contextlake/models
 
 FROM runtime-base AS full
-LABEL org.opencontainers.image.description="contextlake with the knowledge layer and built-in CPU models baked in (offline turnkey image)"
+LABEL org.opencontainers.image.description="contextlake with the knowledge layer, the embedder and the 0.5B wiki model baked in (a wiki run with no model set can still download a larger size)"
 # libgomp1: the OpenMP runtime OpenVINO's native libraries link against. Named
 # explicitly because the runtime stage carries no compiler and no build-essential
 # to pull it in transitively.

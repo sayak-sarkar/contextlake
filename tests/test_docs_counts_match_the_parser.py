@@ -122,13 +122,14 @@ _LINT = re.compile(r"(?:ruff|\$\(RUFF\)) check(?: --fix)? "
 
 
 def test_the_lint_command_a_contributor_runs_is_the_one_ci_runs() -> None:
-    """CONTRIBUTING.md, the Makefile and the add-a-language recipe said `ruff check src tests`
-    while both CI lint steps run `src tests scripts benchmarks`. A contributor who edited
-    `scripts/` or `benchmarks/` got a green locally and a red CI. docs/releasing.md quotes the
-    old command on purpose, as history, so it is not checked."""
+    """CONTRIBUTING.md, the Makefile, the add-a-language recipe and the PR checklist said
+    `ruff check src tests` while both CI lint steps run `src tests scripts benchmarks`. A
+    contributor who edited `scripts/` or `benchmarks/` got a green locally and a red CI.
+    docs/releasing.md quotes the old command on purpose, as history, so it is not checked."""
     ci = re.findall(r"run: ruff check ([\w ]+)$", _text(".github/workflows/ci.yml"), re.M)
     assert ci and len(set(ci)) == 1, f"ci.yml no longer runs one lint command: {ci}"
-    for rel in ("CONTRIBUTING.md", "Makefile", "docs/adding-a-language.md"):
+    for rel in ("CONTRIBUTING.md", "Makefile", "docs/adding-a-language.md",
+                ".github/pull_request_template.md"):
         found = _LINT.findall(_text(rel))
         assert found, f"{rel} no longer shows the lint command"
         for paths in found:

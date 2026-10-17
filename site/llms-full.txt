@@ -10209,6 +10209,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A docs page missing from the site page list now fails a test.** `CONTRIBUTING.md` said
   the docs build fails for such a page. It did not: the build exited `0` and the page was
   missing from the site nav, sitemap, `llms.txt` and search.
+- **The docs no longer promise that the full Docker image never downloads a model.**
+  `installing.md`, `QUICKSTART.md` and `releasing.md` said the image needs no model download at
+  runtime and that the wiki model is 349 MB. With no wiki model set, an unattended `kb wiki` run
+  takes the largest size that fits the free RAM and does not prefer a size already on disk, so
+  it can download up to 8.5 GB. The image bakes only the 0.5B. Since 10.0.0rc1 the pages were
+  wrong on this. They now say so and name three ways to stay on the baked model: `--llm-model`,
+  `CONTEXTLAKE_OFFLINE=1`, or `[llm] builtin_model`. The image's description label called it an
+  "offline turnkey image", and `releasing.md` offered it for air-gapped use with no condition.
+  Both now say a wiki run can still download a model, and `releasing.md` names the offline
+  switches. The pull request checklist in `.github/pull_request_template.md` said `ruff check
+  src tests`. It now shows the `src tests scripts benchmarks` command CI runs.
 
 ### Security
 

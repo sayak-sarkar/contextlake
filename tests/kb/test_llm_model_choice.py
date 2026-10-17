@@ -104,11 +104,12 @@ def _flat(rel: str) -> str:
 
 def test_the_docs_say_the_docker_image_can_still_download_a_model():
     """A page that says the full image needs no model download at runtime sent a host with no
-    network to a failed 3B download, which was then saved as its wiki model."""
-    pages = [*sorted(p.relative_to(_REPO).as_posix() for p in (_REPO / "docs").glob("*.md")),
+    network to a failed 3B download, which was then saved as its wiki model. The Dockerfile
+    LABEL text is scanned too: it called the full image an "offline turnkey image"."""
+    pages =[*sorted(p.relative_to(_REPO).as_posix() for p in (_REPO / "docs").glob("*.md")),
              "README.md", "QUICKSTART.md", "Dockerfile", "docker/prefetch_models.py"]
-    claim = re.compile(r"no (?:wiki )?model download at runtime|nothing downloads at runtime",
-                       re.I)
+    claim = re.compile(r"no (?:wiki )?model download at runtime|nothing downloads at runtime"
+                       r"|offline turnkey|air-gapped use(?! with `CONTEXTLAKE_OFFLINE)", re.I)
     bad = [f"{rel}: {m.group(0)}" for rel in pages for m in [claim.search(_flat(rel))] if m]
     assert not bad, "a page says the image never downloads a model:\n  " + "\n  ".join(bad)
     way_out = f"--llm-model {DEFAULT.repo_id}"

@@ -280,7 +280,8 @@ compiler toolchain in the final image:
   needs no Ollama and no API key, and the baked 0.5B needs no download. A wiki run with
   no model set picks a size by free RAM and can download a larger one (see
   [Installing the built-in LLM](model-providers.md#installing-the-built-in-llm)). Useful for
-  zero-config or air-gapped use, at the cost of a larger pull.
+  zero-config use, or air-gapped use with `CONTEXTLAKE_OFFLINE=1` or `--llm-model`, at the
+  cost of a larger pull.
 - **slim** (`--target slim`), the `[kb,kb-local,kb-vec]` extras only: no
   `openvino-genai`, no baked model, smaller pull. Semantic search still works
   out of the box (model2vec is pure Python); point the wiki tier at
