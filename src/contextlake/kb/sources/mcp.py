@@ -42,6 +42,8 @@ class McpSource(FetchFailures):
     def iter_documents(self):
         self._reset_failures()
         if not self.command and not self.url:
+            self._record_no_request("this mcp source has no command or url, so there is "
+                                    "no server to connect to")
             return
         try:
             docs = asyncio.run(asyncio.wait_for(self._collect(), self.timeout))

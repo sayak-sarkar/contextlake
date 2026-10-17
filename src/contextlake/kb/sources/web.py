@@ -11,7 +11,7 @@ import re
 import urllib.request
 from html.parser import HTMLParser
 
-from .base import Document, FetchFailures, url_is_fetchable
+from .base import NOT_HTTP_REASON, Document, FetchFailures, url_is_fetchable
 
 # Note: do NOT drop <head> wholesale — <title> lives there; script/style/etc. inside
 # it are dropped individually below.
@@ -78,12 +78,18 @@ class WebSource(FetchFailures):
 
     def iter_documents(self):
         self._reset_failures()
+        if not self.urls:
+            self._record_no_request("this web source has no url or urls, so there is "
+                                    "nothing to fetch")
+            return
+        sent = 0
         for u in self.urls:
             # Checked outside the try: the `except Exception` below exists so one
             # unreachable URL cannot abort the source, and a refusal raised inside
             # it would be silently swallowed.
             if not url_is_fetchable(u, source="web source"):
                 continue
+            sent += 1
             try:
                 req = urllib.request.Request(u, headers={"User-Agent": "contextlake-ingest"})  # noqa: S310 - URL from trusted config
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
@@ -99,3 +105,5 @@ class WebSource(FetchFailures):
                 continue
             yield Document(id=u, title=(title or u), text=text, uri=u,
                            attrs={"chars": len(text)})
+        if not sent:
+            self._record_no_request(NOT_HTTP_REASON)

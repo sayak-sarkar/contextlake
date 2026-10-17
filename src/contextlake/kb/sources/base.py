@@ -42,6 +42,11 @@ from ...logging_setup import log
 _ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
 
 
+# What a source reports when `url_is_fetchable` refused every URL it was given.
+NOT_HTTP_REASON = ("every configured URL was skipped, because only http and https "
+                   "URLs are fetched")
+
+
 def url_is_fetchable(url: str, *, source: str) -> bool:
     """True if ``url`` is an ``http(s)`` URL an ingest source may open.
 
@@ -158,8 +163,18 @@ class FetchFailures:
     #: ``(target, reason)`` for every target this source could not read, most recent run.
     failures: list[tuple[str, str]]
 
+    #: Why this source sent no request at all in the most recent run, or None when it sent
+    #: one. A source that sent one and found nothing is "reachable"; one that sent none has
+    #: not shown anything about the endpoint, so `cmds/ingest.py` must not say it is.
+    no_request_reason: str | None = None
+
     def _reset_failures(self) -> None:
         self.failures = []
+        self.no_request_reason = None
+
+    def _record_no_request(self, reason: str) -> None:
+        """Remember why this run sent nothing. Not a failure: the config asked for it."""
+        self.no_request_reason = reason
 
     def _record_failure(self, target: str, exc: BaseException, *, what: str) -> None:
         """Log the miss the way `files.py` does, and remember it for the caller."""

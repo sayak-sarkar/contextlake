@@ -16,7 +16,14 @@ import urllib.parse
 import urllib.request
 
 from ...logging_setup import log
-from .base import _OPENER, Document, FetchFailures, _same_origin, url_is_fetchable
+from .base import (
+    _OPENER,
+    NOT_HTTP_REASON,
+    Document,
+    FetchFailures,
+    _same_origin,
+    url_is_fetchable,
+)
 
 
 def _dig(obj, path: str):
@@ -109,6 +116,8 @@ class ApiSource(FetchFailures):
       - ``next_field``: dotted path to the NEXT-PAGE URL or cursor in the response
         (e.g. ``next``, ``meta.next_cursor``). Optional.
       - ``max_pages``: hard cap on pages followed (default 50)
+      - ``search_url``: read by ``kb enrich``, never by ``kb ingest``. A source that has
+        this and no ``url`` sends no request at ingest time, and says so.
 
     **Pagination.** This is the generic escape hatch people reach for when pointing
     contextlake at an issue tracker, and it used to read page one and report success --
@@ -125,8 +134,10 @@ class ApiSource(FetchFailures):
 
     def __init__(self, url=None, items=None, id_field="id", title_field="title",
                  text_field="text", token_env=None, timeout=20,
-                 next_field=None, max_pages=50, auth=None, user=None, **_):
+                 next_field=None, max_pages=50, auth=None, user=None,
+                 search_url=None, **_):
         self.url = url
+        self.search_url = search_url
         self.items = items
         self.id_field = id_field
         self.title_field = title_field
@@ -237,9 +248,15 @@ class ApiSource(FetchFailures):
     def iter_documents(self):
         self._reset_failures()
         if not self.url:
+            # A `search_url` marks a source that `kb enrich` queries. `kb ingest` has
+            # nothing to fetch from it, which is not a config mistake.
+            self._record_no_request(
+                "an api source with only search_url is queried by kb enrich, not kb ingest"
+                if self.search_url else "this api source has no url, so there is nothing to fetch")
             return
         # Before the try: a refusal raised inside it would be swallowed silently.
         if not url_is_fetchable(self.url, source="api source"):
+            self._record_no_request(NOT_HTTP_REASON)
             return
         try:
             data = self._fetch()

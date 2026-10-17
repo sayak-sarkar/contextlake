@@ -15,7 +15,7 @@ import urllib.request
 
 from ...logging_setup import log
 from .api import _dig
-from .base import _OPENER, Document, FetchFailures, url_is_fetchable
+from .base import _OPENER, NOT_HTTP_REASON, Document, FetchFailures, url_is_fetchable
 
 
 def _has_next_page(obj, _depth: int = 0) -> bool:
@@ -83,9 +83,12 @@ class GraphQLSource(FetchFailures):
     def iter_documents(self):
         self._reset_failures()
         if not self.url or not self.query:
+            self._record_no_request("this graphql source needs both url and query, "
+                                    "so there is nothing to send")
             return
         # Before the try: a refusal raised inside it would be swallowed silently.
         if not url_is_fetchable(self.url, source="graphql source"):
+            self._record_no_request(NOT_HTTP_REASON)
             return
         try:
             payload = self._fetch()

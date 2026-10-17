@@ -945,6 +945,22 @@ def test_a_web_source_with_nothing_to_dial_does_not_draw_the_pass_mark(monkeypat
         f"a source with no target was reported as having dialled one: {detail}")
 
 
+def test_an_enrich_only_api_source_is_not_told_to_set_a_url(monkeypatch):
+    """An `api` source with only `search_url` is queried by `kb enrich`. Advice to set
+    `url` would turn it into an ingest source, so the probe says what it is instead."""
+    from contextlake.kb.config import SourceCfg
+
+    def never(*_a, **_k):
+        raise AssertionError("a source with no url must not dial anything")
+
+    monkeypatch.setattr("urllib.request.urlopen", never)
+    ok, detail = source_cmd.verify_source(SourceCfg(
+        type="api", name="tracker", search_url="https://t.invalid/s?q={term}"))
+    assert ok is False
+    assert "nothing was dialled" in detail and "kb enrich" in detail
+    assert "--set url" not in detail
+
+
 def test_an_api_probe_that_read_nothing_names_the_record_keys_a_web_one_lacks(
         monkeypatch):
     """The other half of the split: advice that fits the type in hand.

@@ -3320,6 +3320,10 @@ An `api` source with a `search_url` is searched once per term. Put `{term}` wher
 it is URL-encoded, and `"` and `\` are removed from it first so it cannot end a quoted JQL or
 CQL string. `{terms}` sends one search with every term joined instead.
 
+`kb ingest` does not use `search_url`. A source that has only a `search_url` makes no ingest
+request, and `kb ingest` prints `nothing to ingest: an api source with only search_url is queried by
+kb enrich, not kb ingest` for it.
+
 ```toml
 [[sources]]
 type = "api"
@@ -3688,6 +3692,14 @@ token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 
 `id_field`, `title_field` and `text_field` take a plain key or a dotted path into the record,
 such as `fields.summary`. A record with no text at that path is skipped.
+
+An `api` source with a `search_url` and no `url` sends no request at ingest time. `kb enrich`
+queries it (see [Connecting and enriching](connecting-and-enriching.md)). `kb ingest` prints
+`<name>: nothing to ingest: an api source with only search_url is queried by kb enrich, not kb ingest`
+for it and exits 0. The line `no documents (source reachable, nothing to ingest)` is kept for a
+source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` source that
+sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
+missing `url`, `query` or `command`, and a URL that is not http or https.
 
 **The credential stays on one host.** The `Authorization` header goes only to the origin
 (scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
@@ -9587,6 +9599,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   platform in `_unchecked_platforms`. An absent store still means no jobs.
 - **`kb hook ~/missing/dir` says `No such directory: ~/missing/dir`** and exits 1. It said
   "Unknown hook action" for a path that does not exist.
+- **`kb ingest` no longer calls a source "reachable" when it sent no request.** An `api` source
+  with only `search_url` (queried by `kb enrich`), or a source whose every URL was skipped as
+  not http or https, printed "no documents (source reachable, nothing to ingest)" after 0
+  requests. It now says why nothing was sent. `kb source test` no longer tells an enrich-only
+  source to set a `url`, which would turn it into an ingest source.
 
 ## [10.0.0rc3] - 2026-10-16
 

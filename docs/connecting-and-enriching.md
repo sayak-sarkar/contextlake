@@ -160,6 +160,10 @@ An `api` source with a `search_url` is searched once per term. Put `{term}` wher
 it is URL-encoded, and `"` and `\` are removed from it first so it cannot end a quoted JQL or
 CQL string. `{terms}` sends one search with every term joined instead.
 
+`kb ingest` does not use `search_url`. A source that has only a `search_url` makes no ingest
+request, and `kb ingest` prints `nothing to ingest: an api source with only search_url is queried by
+kb enrich, not kb ingest` for it.
+
 ```toml
 [[sources]]
 type = "api"

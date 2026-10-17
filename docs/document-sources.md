@@ -214,6 +214,14 @@ token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 `id_field`, `title_field` and `text_field` take a plain key or a dotted path into the record,
 such as `fields.summary`. A record with no text at that path is skipped.
 
+An `api` source with a `search_url` and no `url` sends no request at ingest time. `kb enrich`
+queries it (see [Connecting and enriching](connecting-and-enriching.md)). `kb ingest` prints
+`<name>: nothing to ingest: an api source with only search_url is queried by kb enrich, not kb ingest`
+for it and exits 0. The line `no documents (source reachable, nothing to ingest)` is kept for a
+source that sent a request and got nothing back. Any `web`, `api`, `graphql` or `mcp` source that
+sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
+missing `url`, `query` or `command`, and a URL that is not http or https.
+
 **The credential stays on one host.** The `Authorization` header goes only to the origin
 (scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
 origin is still followed, but without the header. A redirect within the same origin keeps it.

@@ -224,6 +224,11 @@ def cmd_ingest(args) -> int:
                         log(f"  {name}: FAILED — could not read {len(misses)} target(s): "
                             f"{first}{more}", inline=True)
                         failed += 1
+                    elif getattr(src, "no_request_reason", None):
+                        # No request went out, so nothing was shown about the endpoint.
+                        # "Reachable" is a claim about one, and only a request makes it.
+                        log(f"  {name}: nothing to ingest: {src.no_request_reason}",
+                            inline=True)
                     else:
                         log(f"  {name}: no documents (source reachable, nothing to ingest)",
                             inline=True)

@@ -568,6 +568,11 @@ def _nothing_was_read_reason(source_type: str, source) -> str:
     from .sources.base import url_is_fetchable
 
     targets = _configured_targets(source)
+    if not targets and getattr(source, "search_url", None):
+        # An enrich-only source. Advising a `url` here would turn it into an ingest source.
+        return ("nothing was dialled: this api source has only `search_url`, which "
+                "`kb enrich` queries per term. `kb ingest` and this probe have nothing to "
+                "fetch from it.")
     if not targets:
         key = "url/urls" if source_type == "web" else "url"
         return (f"nothing was dialled: this {source_type} source has no `{key}` "

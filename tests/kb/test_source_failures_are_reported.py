@@ -105,3 +105,165 @@ def test_the_exit_zero_flag_is_a_pre_command_global_and_the_message_says_so():
     assert "contextlake --exit-zero-on-partial kb ingest" in src, (
         "the message names the flag without its position, so a user will type it after "
         "the subcommand and get an argparse error")
+
+
+# --- a source that sent no request must not be called "reachable" -------------------
+#
+# `cmds/ingest.py` printed "no documents (source reachable, nothing to ingest)" for any
+# empty source that recorded no failure. An `api` source holding only a `search_url`
+# sends nothing at ingest time (`kb enrich` queries it), so the word "reachable" was a
+# claim no request had checked.
+
+_SEARCH_ONLY = "an api source with only search_url is queried by kb enrich, not kb ingest"
+
+
+class _NoNetwork:
+    """Stands in for a urllib opener and counts how often it is asked to open anything."""
+
+    def __init__(self):
+        self.calls = []
+
+    def open(self, req, timeout=None):
+        self.calls.append(getattr(req, "full_url", req))
+        raise OSError("this test must not reach the network")
+
+
+class _EmptyListResponse:
+    """A 200 answer whose body is an empty JSON list: a request was sent, nothing came."""
+
+    class headers:                                           # noqa: N801 - mimics a message
+        @staticmethod
+        def get_content_charset():
+            return "utf-8"
+
+        @staticmethod
+        def get(_name, default=None):
+            return default
+
+    def read(self):
+        return b"[]"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _ingest_config(tmp_path, body: str):
+    # Embeddings off, as in test_ingest_reports_a_type_it_cannot_run.py.
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+                   '[embeddings]\nenabled = false\n' + body)
+    return cfg
+
+
+def _run_ingest(cfg, capsys):
+    from contextlake.cli import main
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "ingest", "--config", str(cfg)])
+    out = capsys.readouterr()
+    return e.value.code, out.out + out.err
+
+
+def test_ingest_says_an_api_source_with_only_search_url_sent_nothing(
+        tmp_path, monkeypatch, capsys):
+    import contextlake.kb.sources.api as apimod
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    net = _NoNetwork()
+    monkeypatch.setattr(apimod, "_OPENER", net)
+    cfg = _ingest_config(tmp_path, (
+        '\n[[sources]]\nname = "jira"\ntype = "api"\n'
+        'search_url = "https://tracker.invalid/search?q={term}"\n'))
+
+    code, printed = _run_ingest(cfg, capsys)
+
+    assert printed.strip(), "the capture must see something or this proves nothing"
+    assert net.calls == [], f"the stub saw a request: {net.calls}"
+    assert code == 0, "the exit code is unchanged: an enrich-only source is not a failure"
+    assert f"jira: nothing to ingest: {_SEARCH_ONLY}" in printed
+    assert "source reachable" not in printed
+
+
+def test_ingest_still_says_reachable_when_a_request_was_sent_and_found_nothing(
+        tmp_path, monkeypatch, capsys):
+    """The near-miss: a source that DID send a request keeps the old line, so the new
+    wording means "no request" and nothing wider."""
+    import contextlake.kb.sources.api as apimod
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    calls = []
+
+    class _Opener:
+        @staticmethod
+        def open(req, timeout=None):
+            calls.append(req.full_url)
+            return _EmptyListResponse()
+
+    monkeypatch.setattr(apimod, "_OPENER", _Opener)
+    cfg = _ingest_config(tmp_path, (
+        '\n[[sources]]\nname = "tickets"\ntype = "api"\nurl = "http://tracker.invalid/items"\n'))
+
+    code, printed = _run_ingest(cfg, capsys)
+
+    assert printed.strip(), "the capture must see something or this proves nothing"
+    assert calls == ["http://tracker.invalid/items"], "the source should have sent one request"
+    assert code == 0
+    assert "tickets: no documents (source reachable, nothing to ingest)" in printed
+    assert "nothing to ingest:" not in printed
+
+
+@pytest.mark.parametrize(("make", "expect"), [
+    (lambda: ApiSource(search_url="https://t.invalid/s?q={term}"), _SEARCH_ONLY),
+    (lambda: ApiSource(), "no url"),
+    (lambda: ApiSource(url="file:///dev/null"), "only http and https"),
+    (lambda: GraphQLSource(url="http://t.invalid/graphql"), "both url and query"),
+    (lambda: GraphQLSource(url="file:///dev/null", query="{ x }"), "only http and https"),
+    (lambda: WebSource(), "no url or urls"),
+    (lambda: WebSource(urls=["file:///dev/null", "ftp://t.invalid/x"]),
+     "only http and https"),
+])
+def test_a_source_with_nothing_to_send_says_why(make, expect, monkeypatch):
+    import contextlake.kb.sources.api as apimod
+    import contextlake.kb.sources.graphql as gqlmod
+
+    net = _NoNetwork()
+    monkeypatch.setattr(apimod, "_OPENER", net)
+    monkeypatch.setattr(gqlmod, "_OPENER", net)
+    monkeypatch.setattr("urllib.request.urlopen", net.open)
+
+    src = make()
+    assert list(src.iter_documents()) == []
+
+    assert net.calls == [], f"the stub saw a request: {net.calls}"
+    assert src.failures == [], "a config that asks for no request is not a failure"
+    assert src.no_request_reason and expect in src.no_request_reason
+
+
+def test_the_mcp_source_with_no_server_says_why():
+    from contextlake.kb.sources.mcp import McpSource
+
+    src = McpSource()
+    assert list(src.iter_documents()) == []
+    assert src.failures == []
+    assert src.no_request_reason and "no command or url" in src.no_request_reason
+
+
+def test_a_source_that_sent_a_request_leaves_no_request_reason_unset(monkeypatch):
+    """The reason is cleared per run, and never set once a request went out."""
+    import contextlake.kb.sources.api as apimod
+
+    monkeypatch.setattr(apimod, "_OPENER", _NoNetwork())
+    src = ApiSource(url="http://t.invalid/x")
+    list(src.iter_documents())                      # the stub raises: a request was tried
+    assert src.failures, "the request was sent and failed"
+    assert src.no_request_reason is None
+
+    src.url = None
+    list(src.iter_documents())
+    assert src.no_request_reason, "no url on the second run"
+    src.url = "http://t.invalid/x"
+    list(src.iter_documents())
+    assert src.no_request_reason is None, "a reason from the previous run carried over"

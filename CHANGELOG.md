@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   platform in `_unchecked_platforms`. An absent store still means no jobs.
 - **`kb hook ~/missing/dir` says `No such directory: ~/missing/dir`** and exits 1. It said
   "Unknown hook action" for a path that does not exist.
+- **`kb ingest` no longer calls a source "reachable" when it sent no request.** An `api` source
+  with only `search_url` (queried by `kb enrich`), or a source whose every URL was skipped as
+  not http or https, printed "no documents (source reachable, nothing to ingest)" after 0
+  requests. It now says why nothing was sent. `kb source test` no longer tells an enrich-only
+  source to set a `url`, which would turn it into an ingest source.
 
 ## [10.0.0rc3] - 2026-10-16
 
