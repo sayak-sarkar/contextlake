@@ -383,6 +383,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the reason `file_too_large`. In the MCP guard, a file written after indexing moves from
   `stale` (with a note saying the file had shrunk) to `unverifiable`; an unchanged file stays
   `verified`.
+- **`kb graph --c4 --format graphml|cypher` now refuses instead of writing an HTML file.** The
+  C4 view has writers for `dot`, `html` and `json`, and no others. `graphml` and `cypher` fell
+  through to the HTML renderer, so `--output c4.graphml` held an HTML page while the log said
+  "Wrote graphml c4 diagram". Without `--output` the HTML went to stdout. The command now exits
+  1 and writes nothing.
 
 ### Security
 

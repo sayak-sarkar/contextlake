@@ -297,14 +297,10 @@ With `--c4`, three formats work:
 - **`dot`**, Graphviz clustered DOT with `subgraph cluster_*` boundaries
 - **`json`**, the raw payload
 
-**Not supported with `--c4`:** `mermaid`, `classdiagram`, `sequencediagram`, `statediagram`,
-`erdiagram` and `deploymentdiagram`. The command exits with an error. `--serve` does not apply
-either, since the C4 view is a generated file, not a live server.
-
-**One rough edge.** `--format graphml` and `--format cypher` are neither rejected nor honoured.
-`--c4` falls through to the HTML renderer, and because the output path is only defaulted for
-`--format html`, it prints that HTML to stdout. If you hit this, pass `--output <path>`, and use
-`dot` or `json` for a real C4 export.
+**Not supported with `--c4`:** `graphml`, `cypher`, `mermaid`, `classdiagram`, `sequencediagram`,
+`statediagram`, `erdiagram` and `deploymentdiagram`. The command exits with an error and writes
+nothing. Use `dot` or `json` for a C4 export. `--serve` does not apply either, since the C4 view is
+a generated file, not a live server.
 
 ### C1: external systems
 

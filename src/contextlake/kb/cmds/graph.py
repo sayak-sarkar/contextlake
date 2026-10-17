@@ -133,12 +133,14 @@ def cmd_graph(args) -> int:
         if getattr(args, "c4", False):
             from .. import c4 as c4mod
 
-            if fmt in ("mermaid", "classdiagram", "sequencediagram", "statediagram",
-                      "erdiagram", "deploymentdiagram"):
+            # An allow-list: the writer below has a branch for dot and json and sends every
+            # other format to the HTML renderer. graphml and cypher used to fall through
+            # to it, so `--format graphml --output c4.graphml` wrote an HTML page and
+            # logged "Wrote graphml c4 diagram".
+            if fmt not in ("dot", "html", "json"):
                 from ...logging_setup import use_stderr
                 use_stderr()
-                log("mermaid/classdiagram/sequencediagram/statediagram/erdiagram/"
-                    "deploymentdiagram output is not supported for --c4; use --format dot or html.")
+                log(f"--format {fmt} is not supported for --c4; use --format dot, html or json.")
                 return 1
 
             group_depth = _or_default(getattr(args, "group_depth", None), 1)

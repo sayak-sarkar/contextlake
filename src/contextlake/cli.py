@@ -1629,8 +1629,7 @@ Examples:
     p.add_argument("--c4", action="store_true", default=_S,
                    help="composed namespace (C4-style) diagram: repos bucketed into "
                         "namespace boundaries with aggregated cross-repo edges "
-                        "(--format dot|html|json; not mermaid/classdiagram/"
-                        "sequencediagram/statediagram/erdiagram/deploymentdiagram)")
+                        "(--format dot|html|json only)")
     p.add_argument("--c1", action="store_true", default=_S,
                    help="with --c4: add external-system boxes for HTTP calls that "
                         "never resolve to any indexed repo's exposed route "

@@ -7991,14 +7991,10 @@ With `--c4`, three formats work:
 - **`dot`**, Graphviz clustered DOT with `subgraph cluster_*` boundaries
 - **`json`**, the raw payload
 
-**Not supported with `--c4`:** `mermaid`, `classdiagram`, `sequencediagram`, `statediagram`,
-`erdiagram` and `deploymentdiagram`. The command exits with an error. `--serve` does not apply
-either, since the C4 view is a generated file, not a live server.
-
-**One rough edge.** `--format graphml` and `--format cypher` are neither rejected nor honoured.
-`--c4` falls through to the HTML renderer, and because the output path is only defaulted for
-`--format html`, it prints that HTML to stdout. If you hit this, pass `--output <path>`, and use
-`dot` or `json` for a real C4 export.
+**Not supported with `--c4`:** `graphml`, `cypher`, `mermaid`, `classdiagram`, `sequencediagram`,
+`statediagram`, `erdiagram` and `deploymentdiagram`. The command exits with an error and writes
+nothing. Use `dot` or `json` for a C4 export. `--serve` does not apply either, since the C4 view is
+a generated file, not a live server.
 
 ### C1: external systems
 
@@ -10115,6 +10111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the reason `file_too_large`. In the MCP guard, a file written after indexing moves from
   `stale` (with a note saying the file had shrunk) to `unverifiable`; an unchanged file stays
   `verified`.
+- **`kb graph --c4 --format graphml|cypher` now refuses instead of writing an HTML file.** The
+  C4 view has writers for `dot`, `html` and `json`, and no others. `graphml` and `cypher` fell
+  through to the HTML renderer, so `--output c4.graphml` held an HTML page while the log said
+  "Wrote graphml c4 diagram". Without `--output` the HTML went to stdout. The command now exits
+  1 and writes nothing.
 
 ### Security
 

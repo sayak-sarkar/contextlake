@@ -397,6 +397,30 @@ def test_graph_c4_classdiagram_rejected(tmp_path):
     assert e.value.code != 0
 
 
+@pytest.mark.parametrize("with_output", [True, False])
+@pytest.mark.parametrize("fmt", ["graphml", "cypher"])
+def test_graph_c4_graphml_and_cypher_are_refused_not_written_as_html(
+        tmp_path, capsys, fmt, with_output):
+    """The C4 writer has a branch for dot and json and sent every other format to the HTML
+    renderer. `--format graphml --output c4.graphml` wrote an HTML page, logged "Wrote graphml
+    c4 diagram", and Gephi or Neo4j then failed to import it with no hint why. Without
+    --output the HTML went to stdout."""
+    cfg = _seed_and_configure(tmp_path)
+    out = tmp_path / f"c4.{fmt}"
+    args = ["kb", "graph", "--c4", "--format", fmt, "--config", str(cfg)]
+    if with_output:
+        args += ["--output", str(out)]
+    with pytest.raises(SystemExit) as e:
+        main(args)
+    assert e.value.code != 0
+    captured = capsys.readouterr()
+    assert f"--format {fmt} is not supported for --c4; use --format dot, html or json" \
+        in captured.err
+    assert not out.exists()
+    assert "<!DOCTYPE" not in captured.out + captured.err
+    assert not (tmp_path / "kb" / "graphs" / "c4.html").exists()
+
+
 def test_graph_c4_json_format(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
