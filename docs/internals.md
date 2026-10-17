@@ -233,9 +233,11 @@ Five tables plus a full-text virtual table:
 | `external` | Declared, and currently unused. Connector content lands as ordinary nodes and edges in the synthetic partitions above |
 | `node_fts` | An FTS5 virtual table over node name, qualified name and file |
 
-Five indexes: `edges.src`, `edges.dst`, `edges.cross_repo`, `nodes.repo_id` and `nodes.kind`. Those
-are exactly the columns a traversal filters on, which is to say "what does this call", "what calls
-this", and "what crosses a repository boundary".
+Six indexes: `edges.src`, `edges.dst`, `edges.cross_repo`, `edges.repo_id`, `nodes.repo_id` and
+`nodes.kind`. The first three are the columns a traversal filters on, which is to say "what does
+this call", "what calls this", and "what crosses a repository boundary". The other three filter
+by repository or by kind. `edges.repo_id` serves `repo_counts` and `clear_repo`, which would
+otherwise scan every edge once per repository.
 
 Migrations are additive only, by `ALTER TABLE ... ADD COLUMN`, so an older store opens without a
 rebuild.
@@ -304,10 +306,10 @@ take a lock left by a dead one. The kernel drops the guard when its holder exits
 cannot get the guard in 5 seconds is refused as busy. A filesystem that cannot lock files runs
 without the guard.
 
-Today `kb index`, `kb embed`, `kb wiki` and the dashboard's mutating routes take that lock; the
-dashboard holds it for the one mutation only, never for the server's lifetime, and answers `409` with
-the current holder's details if something else has it. `connect`, `ingest` and `enrich` write without
-it.
+Today `kb index`, `kb embed`, `kb wiki`, `kb connect`, `kb ingest`, `kb enrich`, `kb docs`,
+`kb forget` and the dashboard's mutating routes take that lock; the dashboard holds it for the one
+mutation only, never for the server's lifetime, and answers `409` with the current holder's details
+if something else has it. A command that only reads the store, such as `kb query`, does not take it.
 
 SQLite runs in WAL mode with **one connection per thread**, not one per store. That is forced by
 serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no

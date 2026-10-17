@@ -70,6 +70,21 @@ def test_kb_index_repos_help_says_the_filter_is_anchored() -> None:
     assert match_repo_filter("acme/app", "app", ["*pp*"])
 
 
+def test_internals_lists_every_index_the_schema_creates() -> None:
+    """The page said "Five indexes" while the schema creates six (`ix_edges_repo` was added for
+    `repo_counts` and `clear_repo`). The schema is the authority for the count and the names."""
+    from contextlake.kb.store.sqlite_store import _SCHEMA
+
+    made = re.findall(r"CREATE INDEX IF NOT EXISTS \w+ ON (\w+)\((\w+)\)", _SCHEMA)
+    text = re.sub(r"\s+", " ", _text("docs/internals.md"))
+    m = re.search(r"\b(\w+) indexes: `", text)
+    assert m, "docs/internals.md no longer states 'N indexes: `table.column`, ...'"
+    assert _as_int(m.group(1)) == len(made), (
+        f"the page says {m.group(1)}; the schema has {len(made)}")
+    for table, column in made:
+        assert f"`{table}.{column}`" in text, f"internals.md does not list {table}.{column}"
+
+
 def test_the_stated_command_counts_match_the_parser() -> None:
     m = re.search(r"^(\d+) commands: (\d+) top-level, (\d+) under `mirror`, (\d+) under `kb`",
                   _text("docs/cli-reference.md"), re.M)

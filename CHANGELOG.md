@@ -412,6 +412,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `origin` is filed as `name@<12 characters of its root commit>`, so `kb query --repo widgets`
   does not find it. The `--repos` help said "glob/substring", but the filter is anchored:
   `--repos pp` selects nothing named `app`, and `*pp*` does.
+- **`docs/internals.md` names every command that takes the store lock and all six indexes.**
+  The page said `connect`, `ingest` and `enrich` write without the lock. They take it, as do
+  `docs` and `forget`, and a second writer is refused. It also said five indexes and described
+  them as traversal columns. The schema creates six, and `edges.repo_id` serves `repo_counts`
+  and `clear_repo`.
 
 ### Security
 

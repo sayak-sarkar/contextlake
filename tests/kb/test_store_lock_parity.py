@@ -90,6 +90,24 @@ def test_the_guard_runs_before_any_work_and_closes_the_store_when_refused():
             f"{module}: the refusal path must close the store and fail, not fall through")
 
 
+def test_internals_names_every_command_that_takes_the_lock():
+    """docs/internals.md said `connect`, `ingest` and `enrich` write without the lock, and
+    left out `docs` and `forget`. Eight commands call `_guard_store`; the page must name each.
+
+    The commands are read from the call sites in every module under cmds/, not typed here, so
+    a ninth guarded command fails this until the page names it. (`docs` is guarded but is not
+    in WRITERS above, which pins the count at 7.)
+    """
+    labels = sorted({label for module in CMDS.glob("*.py") for label in _guard_labels(module)})
+    assert len(labels) >= 8, labels
+    text = (CMDS.parents[3] / "docs" / "internals.md").read_text(encoding="utf-8")
+    section = text.split("### Locking and connections", 1)[1].split("\n## ", 1)[0]
+    flat = " ".join(section.split())
+    missing = [label for label in labels if f"`kb {label}`" not in flat]
+    assert not missing, f"internals.md does not name these lock takers: {missing}"
+    assert "write without it" not in flat, "internals.md says some command writes without the lock"
+
+
 def test_the_writer_list_has_not_silently_shrunk():
     """The near-miss. If somebody deletes a row from WRITERS, the sweep above still
     passes -- vacuously. Pin the count so a removal has to be deliberate."""
