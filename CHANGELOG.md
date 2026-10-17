@@ -201,6 +201,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1. `--path` cannot drive a `graphql` source, which needs a `query`; use a `[[sources]]` entry
   for that. Present since `--source-type` was added in 2.15.0. The `[[sources]]` form was not
   affected.
+- **A `files` source with `path = "~/notes"` now reads your home directory.** The documented
+  example failed: `kb ingest` printed `could not read ~/notes -- no such file or directory`
+  and ingested nothing, because the `~` was passed on as a folder name. `kb source test`
+  expanded the `~` for its own check and then blamed the `include` globs ("exists but no file
+  matched"), so it sent you to fix the wrong setting. Both now expand a leading `~`.
+  Environment variables such as `$HOME` in `path` are still not expanded. Present since the
+  `files` source shipped in 2.15.0.
 
 ### Security
 

@@ -74,7 +74,9 @@ class FilesSource(FetchFailures):
     """
 
     def __init__(self, path: str = ".", include=None, max_bytes: int = _MAX_BYTES, **_):
-        self.path = path
+        # `~` is expanded here because the documented example is `path = "~/notes"`, and
+        # `Path("~/notes")` is a relative path named `~`. `kb source test` expands it too.
+        self.path = os.path.expanduser(path)
         self.include = tuple(as_list(include)) or _DEFAULT_GLOBS
         self.max_bytes = int(max_bytes)
 

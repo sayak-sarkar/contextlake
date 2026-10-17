@@ -53,3 +53,18 @@ def test_failures_are_reset_between_runs(tmp_path):
     missing.mkdir()
     list(src.iter_documents())
     assert src.failures == []
+
+
+def test_a_tilde_path_is_read_from_the_home_directory(tmp_path, monkeypatch):
+    """The documented example is `path = "~/notes"`. `Path("~/notes")` is a relative path
+    whose first part is a directory named `~`, so ingest failed with "could not read
+    ~/notes -- no such file or directory" for a directory that exists."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / "runbook.md").write_text("# Runbook\n\nrestart the gateway\n")
+
+    src = FilesSource(path="~/notes")
+    docs = list(src.iter_documents())
+
+    assert [d.id for d in docs] == ["runbook.md"]
+    assert src.failures == [], src.failures

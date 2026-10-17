@@ -831,6 +831,22 @@ def test_verify_source_probes_a_files_source_for_real(tmp_path):
     assert "at least one document" in detail
 
 
+def test_verify_source_and_ingest_read_the_same_tilde_path(tmp_path, monkeypatch):
+    """`source test` expanded `~` and then handed the raw string to the source, which did
+    not. It reported "exists but no file matched the configured globs" for a path ingest
+    could not find at all, which sent the reader to fix `include` instead of the path."""
+    from contextlake.kb.config import SourceCfg
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / "runbook.md").write_text("# Runbook\n\nrestart the gateway\n")
+
+    ok, detail = source_cmd.verify_source(
+        SourceCfg(type="files", name="notes", path="~/notes"))
+
+    assert ok is True, detail
+
+
 def test_verify_source_probes_an_unreachable_web_source(tmp_path):
     """The worst case of the four: `web`/`api`/`graphql` swallow every network error,
     so they were also unprobed -- the diagnostic confirmed a broken source was fine."""

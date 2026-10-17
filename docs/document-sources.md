@@ -43,6 +43,8 @@ path = "~/notes"
 include = ["*.md", "*.txt"]
 ```
 
+A leading `~` in `path` means your home directory.
+
 ### PDFs: the text layer, and nothing pretending to be more
 
 Design docs, RFCs and architecture decisions arrive as PDFs, so the `files` source reads
