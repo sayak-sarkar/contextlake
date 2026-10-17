@@ -253,9 +253,13 @@ the generator, not the HTML files it already wrote.
 
 ## Dependency advisories, and how they are dispositioned
 
-`pip-audit` runs in CI over the **resolved** dependency set for every shipped extra, and it
-carries **no ignore list**. A suppression that outlives its reason turns a security gate into
-decoration, so an advisory here is either fixed or the job is red.
+`pip-audit` runs in CI over the **resolved** dependency set of every extra except the ones
+listed below, and it carries **no ignore list**. A suppression that outlives its reason turns a
+security gate into decoration, so an advisory here is either fixed or the job is red.
+
+Not audited by any job: `kb-ocr`, `kb-transcribe`, `kb-video`. They pull in `onnxruntime`,
+OpenCV, `av` and `faster-whisper`. An advisory in those packages does not turn a security job
+red. If you install them, run `pip-audit` on that environment yourself.
 
 ### CVE-2025-69872 (diskcache) -- resolved in 7.0.0 by removal
 

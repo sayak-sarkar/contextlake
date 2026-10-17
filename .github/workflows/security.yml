@@ -101,9 +101,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install pip-audit
       - name: Resolve the shipped dependency set (no build, no install)
+        # Not listed: kb-ocr, kb-video, kb-transcribe. ci.yml installs them only on Python 3.12
+        # and this job runs 3.13, where nobody has run the resolve for them. SECURITY.md names
+        # them as unaudited, and tests/test_docs_supply_chain_claims.py fails if that list and
+        # this one drift apart.
         run: |
           pip install --dry-run --ignore-installed --quiet --report resolved.json \
-            '.[kb,kb-vec,kb-local,kb-fastembed,llm-local,release]'
+            '.[kb,kb-dockerfile,kb-vec,kb-local,kb-fastembed,kb-pdf,llm-local,release]'
           jq -r '.install[] | "\(.metadata.name)==\(.metadata.version)"' resolved.json \
             | grep -viE '^contextlake==' | sort > resolved.txt
           echo "resolved $(wc -l < resolved.txt) packages"

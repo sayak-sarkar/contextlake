@@ -9616,6 +9616,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sdist, that is a collection error, so pytest stopped with `Interrupted: 1 error during
   collection` and ran nothing else. The file now skips its own cases and the rest of the suite
   runs. The defect has been there since 8.6.1.
+- **SECURITY.md no longer says every extra is audited, and two more extras are.** It said
+  `pip-audit` covers the resolved set of "every shipped extra". `kb-dockerfile` was in no audit
+  job and `kb-pdf` only through `pypdf` in `dev`; `kb-ocr`, `kb-video` and `kb-transcribe` still
+  are not, so an advisory in `onnxruntime`, OpenCV, `av` or `faster-whisper` turns no CI job
+  red. The `pip-audit-resolved` job now resolves `kb-dockerfile` and `kb-pdf`. SECURITY.md names
+  the three left out, and a test fails if that list and `security.yml` disagree. The sentence
+  dates from 7.0.0.
 
 ## [10.0.0rc3] - 2026-10-16
 
