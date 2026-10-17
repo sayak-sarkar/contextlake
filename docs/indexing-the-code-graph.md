@@ -130,9 +130,10 @@ id this section exists to avoid. Name it once, rather than living with a repo fi
 because that is what the folder happened to be called.
 
 A named id is kept. Each later `kb index ... --repo team/widgets` updates the same row and keeps
-its history snapshots, so `--as-of` still reaches old commits. A later run that names no id (a plain
-`kb index PATH` or a `--workspace` run) files the checkout under the id its `origin` gives and
-replaces the row you named.
+its history snapshots, so `--as-of` still reaches old commits. A later run that names no id and
+covers the checkout (a plain `kb index PATH`, or a `--workspace` run that does not filter it out
+with `--repos`) files it under the id its `origin` gives and replaces the row you named. A run
+never changes the row of a repo it does not index.
 
 ## Parallelism and noise-pruning
 

@@ -63,20 +63,20 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
     if max_file_bytes is None:
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
-    # Discover FIRST, then migrate, and tell the migration what this run will index.
-    # The order is the fix, not a tidy-up: the migration DELETES a repo whose stored id
-    # is not canonical, on the promise that the loop below re-indexes it immediately.
-    # Called before discovery it could not know whether that promise applied, so a run
-    # pointed at a different workspace silently destroyed repos it was never going to
-    # touch -- observed on a real store, with its shards and vectors gone too.
+    # Discover FIRST, filter, then migrate, and tell the migration what this run will
+    # index. The order is the fix, not a tidy-up: the migration DELETES a repo whose
+    # stored id is not canonical, on the promise that the loop below re-indexes it
+    # immediately. Called before discovery it could not know whether that promise applied,
+    # so a run pointed at a different workspace silently destroyed repos it was never
+    # going to touch -- observed on a real store, with its shards and vectors gone too.
+    # Called before the `--repos` filter it had the same flaw one level down: it counted
+    # the repos the filter then dropped as in scope, deleted them, and nothing re-indexed them.
     from ..repo_migrate import migrate_stale_repo_ids
     # Collected, not merely logged: a directory git cannot open was warned about and then
     # dropped from discovery, so the tally below counted only what survived and reported
     # "0 failed" with exit 0. `docs/connecting-and-enriching.md` promises the opposite verdict.
     unusable: list[str] = []
     repos = discover_repos(str(workspace), unusable=unusable)
-    # discover_repos returns (repo_id, path) PAIRS -- pass the paths, not the pairs.
-    migrate_stale_repo_ids(store, store_dir, in_scope=[p for _rid, p in repos])
     # --repos scopes indexing to a subset (so `bootstrap --repos ...` indexes only the
     # mirrored subset, even when the workspace holds the full fleet). repo_id is now
     # canonical (from the remote, not the local path -- see repo_identity.py), so a
@@ -110,6 +110,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                        "nothing indexed."))
         log("  Point --workspace at a directory that contains git clones.")
         return 1
+    # discover_repos returns (repo_id, path) PAIRS -- pass the paths, not the pairs.
+    migrate_stale_repo_ids(store, store_dir, in_scope=[p for _rid, p in repos])
     mode = "full" if force else "incremental"
     failed = skipped = 0
     oversized: list[str] = []

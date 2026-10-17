@@ -308,6 +308,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that did not hold the repo yet wrote the directory name into the hook, so every commit did
   the same. The named id is now kept, and the hook writes the id the `origin` gives, as a plain
   `kb index PATH` does. Since 8.7.0.
+- **A `--repos` filter no longer deletes repos it leaves out.** `kb index --workspace W --repos
+  A` (and `bootstrap --repos A`) ran the repo id migration on every repo under `W` before it
+  applied the filter. A repo with a stale id, such as one whose `origin` was renamed or one
+  filed with `--repo`, was deleted with its shard, history and vectors. The run said
+  "re-indexing now", indexed 0 repos for it, and exited 0, so the repo was missing until an
+  unfiltered run and its history was gone. A filter that matched no repo did the same to every
+  stale-id repo, then exited 1. The migration now sees the repos the run indexes. Since 2.47.0.
 
 ### Security
 

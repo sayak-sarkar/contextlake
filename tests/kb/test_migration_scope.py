@@ -23,13 +23,12 @@ _ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e",
         "PATH": "/usr/bin:/bin"}
 
 
-def _repo(path):
+def _repo(path, remote="https://example.invalid/team/thing.git"):
     """A real git repo with a remote, so the canonical id resolves to something that
     differs from the hand-made id below -- which is what makes the repo look stale."""
     path.mkdir(parents=True, exist_ok=True)
     (path / "a.py").write_text("def f():\n    return 1\n", encoding="utf-8")
-    for cmd in (["init", "-q"], ["remote", "add", "origin",
-                                 "https://example.invalid/team/thing.git"],
+    for cmd in (["init", "-q"], ["remote", "add", "origin", remote],
                 ["add", "-A"], ["commit", "-qm", "one"]):
         subprocess.run(["git", "-C", str(path), *cmd], check=True, env=_ENV,
                        capture_output=True)
@@ -120,3 +119,52 @@ def test_an_out_of_scope_skip_does_not_mark_the_store_clean(tmp_path):
     # ...and the deferred migration still happens once the repo is in scope.
     result = migrate_stale_repo_ids(store, tmp_path, in_scope=[str(target)])
     assert [old for old, _new in result.cleared] == ["hand-made-id"]
+
+
+def test_a_repos_filter_does_not_let_the_migration_delete_a_repo_it_drops(tmp_path):
+    """The `--repos` filter is applied after discovery, and the migration was handed the
+    unfiltered list. A repo with a stale id that the filter then dropped was counted as in
+    scope, deleted (row, shard, history, vectors), and never re-indexed: the run logged
+    "moving to canonical ids (re-indexing now)" and then "indexing 0". Only the next
+    unfiltered run put it back, without its history."""
+    from contextlake.kb.cmds.index import _index_workspace
+    from contextlake.kb.repo_identity import resolve_repo_id
+    from contextlake.kb.state import check_schema
+
+    ws = tmp_path / "ws"
+    alpha = _repo(ws / "alpha", "https://example.invalid/team/alpha.git")
+    beta = _repo(ws / "beta", "https://example.invalid/team/beta.git")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    try:
+        # beta is filed under an id its origin does not give, as after a remote rename
+        store.upsert_repo(Repo(id="old-beta-id", path=str(beta)))
+        store.upsert_nodes("old-beta-id", [
+            Node(id="n1", repo="old-beta-id", kind="function", name="f", file="a.py",
+                 line_start=1, line_end=2, lang="python")])
+
+        # A filter that matches nothing indexes nothing, and must not migrate anything
+        # either. It used to delete beta first and then exit 1 over an empty work list.
+        rc = _index_workspace(store, store_dir, ws, repo_filter="no-such-repo", workers=1)
+
+        assert rc == 1
+        assert store.get_repo("old-beta-id") is not None, "a filter that matched nothing"
+
+        rc = _index_workspace(store, store_dir, ws, repo_filter="alpha", workers=1)
+
+        assert rc == 0
+        assert store.get_repo(resolve_repo_id(str(alpha))) is not None, "alpha is indexed"
+        assert store.get_repo("old-beta-id") is not None, (
+            "beta was outside this run's filter and must be left alone")
+        assert store.repo_counts("old-beta-id")[0] == 1, "its nodes must still be there"
+
+        # An unfiltered run covers beta, so the migration is still done for it.
+        rc = _index_workspace(store, store_dir, ws, workers=1)
+
+        assert rc == 0
+        assert store.get_repo("old-beta-id") is None
+        assert store.get_repo(resolve_repo_id(str(beta))) is not None
+    finally:
+        store.close()
