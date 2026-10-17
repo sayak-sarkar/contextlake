@@ -213,6 +213,34 @@ def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     assert all("count" not in t for t in brief["top_symbols"])
 
 
+def test_a_symbol_nothing_calls_is_not_described_as_called(tmp_path):
+    """Hub and dispatcher counts run over every relation, so a struct that is only
+    declared by its file already has one. The count is real; "caller" is the wrong word
+    for it, on the model prompt and on the structural page alike."""
+    from contextlake.kb.wiki.generate import _GOTCHAS_INSTRUCTION
+    from contextlake.kb.wiki.structural import render_structural_page
+
+    prov = Provenance(source_file="lib.go", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [Node(id="file", repo="r", kind="file", name="lib.go", file="lib.go"),
+             Node(id="lookup", repo="r", kind="class", name="Lookup", file="lib.go")]
+    edges = [Edge(src="file", dst="lookup", relation="contains",
+                  confidence=Confidence.EXTRACTED, provenance=prov)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+
+    assert [(h["name"], h["count"]) for h in brief["hubs"]] == [("Lookup", 1)]
+    prompt = render_prompt(brief)
+    assert "class Lookup (lib.go), 1 incoming reference(s)" in prompt
+    assert "caller(s)" not in prompt and "caller count" not in prompt
+    # The instruction tells the model what the count may be called, so it names the
+    # reference too. "That many callers" is what it said before.
+    assert "that many incoming references" in _GOTCHAS_INSTRUCTION
+    assert "that many callers" not in _GOTCHAS_INSTRUCTION
+    assert _GOTCHAS_INSTRUCTION in prompt
+    page = render_structural_page(brief, repo_id="r")
+    assert "called from" not in page
+
+
 def test_kind_floor_only_backfills_zero_degree_into_top_symbols_not_hubs(tmp_path):
     nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}", lang="python")
              for i in range(20)]
@@ -228,10 +256,10 @@ def test_kind_floor_only_backfills_zero_degree_into_top_symbols_not_hubs(tmp_pat
     # no count, so a zero-degree row is an honest listing, not a fabricated claim)...
     assert any(t["name"] == "Orders" for t in brief["top_symbols"])
     # ...and NEVER in hubs/dispatchers specifically, because those fields carry a
-    # real caller/callee "count" the LLM prompt reads as "N caller(s), worth extra
-    # care" -- a fabricated 0-count row there would be a false signal, not just an
-    # omission. This is the anti-fabrication invariant a looser "any(...) in hubs +
-    # top_symbols" assertion could not actually pin down.
+    # real incoming/outgoing reference "count" the LLM prompt reads as "N incoming
+    # reference(s), worth extra care" -- a fabricated 0-count row there would be a
+    # false signal, not just an omission. This is the anti-fabrication invariant a
+    # looser "any(...) in hubs + top_symbols" assertion could not actually pin down.
     assert all(h["count"] > 0 for h in brief["hubs"] + brief["dispatchers"])
 
 
@@ -2186,7 +2214,7 @@ def test_kind_floor_does_not_reserve_a_slot_for_a_file_less_include_target(tmp_p
     """`parse.py` emits a file-less `kind="module"` node per imported/`#include`d
     module name. Those are import TARGETS, not symbols the repo defines, and the
     per-kind floor was guaranteeing every C/C++ whole-repo page one -- rendered
-    to the model as e.g. "module widget.h (?), 2 caller(s)". They stay eligible
+    to the model as e.g. "module widget.h (?), 2 incoming reference(s)". They stay eligible
     by ordinary degree ranking; they just aren't handed a slot."""
     prov = Provenance(source_file="f.cpp", verified_at=date.today())
     nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}",

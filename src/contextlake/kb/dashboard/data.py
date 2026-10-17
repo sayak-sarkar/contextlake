@@ -168,7 +168,7 @@ def _brief_out(brief: dict | None, *, anonymize: bool = False) -> dict | None:
         "kinds": brief["kinds"],
         "langs": brief["langs"],
         "top_symbols": [_symbol_out(t) for t in brief["top_symbols"]],
-        # Hubs (most called) / dispatchers (widest fan-out) -- the dashboard's
+        # Hubs (most referenced) / dispatchers (widest fan-out) -- the dashboard's
         # hotspot/risk ranking, split from the combined degree above. See
         # wiki.generate.repo_brief.
         "hubs": [_symbol_out(t) for t in brief.get("hubs", [])],

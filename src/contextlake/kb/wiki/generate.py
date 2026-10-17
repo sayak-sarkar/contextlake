@@ -279,7 +279,7 @@ def _ranked_with_kind_floor(
     ``kind="module"`` node is not a symbol the repo defines, it is the
     *target* of an import/``#include`` (``parse.py`` emits one per imported
     module name, with no file of its own). Guaranteeing those a slot put a row
-    like "module widget.h (?), 2 caller(s)" in every C/C++ whole-repo page's
+    like "module widget.h (?), 2 incoming reference(s)" in every C/C++ whole-repo page's
     ranked lists -- the floor exists to keep a real but structurally
     low-degree kind (a SQL table) visible, not to promote a pseudo-node. They
     stay eligible by ordinary degree ranking below, just not guaranteed.
@@ -417,13 +417,16 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     _setup_from_shard = _setup_signals_from_shard({n.file for n in nodes if n.file})
     by_id = {n.id: n for n in nodes}
     degree: Counter = Counter()
-    in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
-    out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
+    # Both counts run over EVERY relation, `contains` included, so a symbol its file
+    # declares already has one incoming reference. They are named and labelled as
+    # references, not as callers and callees, on every surface that shows them.
+    in_degree: Counter = Counter()   # incoming references -- a hub, worth protecting with tests
+    out_degree: Counter = Counter()  # outgoing references -- a dispatcher, where behavior branches
     # A per-site relation stores one edge per occurrence in source, so counting rows
     # would make a function called fifty times from one caller look like fifty callers,
-    # and that number is rendered beside the row as "N caller(s)". Count each distinct
-    # pair once for those relations only -- which is exactly the historical number,
-    # since before per-site retention there was one row per pair anyway. Other
+    # and that number is rendered beside the row as "N incoming reference(s)". Count
+    # each distinct pair once for those relations only -- which is exactly the historical
+    # number, since before per-site retention there was one row per pair anyway. Other
     # relations keep counting rows: `contains` legitimately repeats a pair (one edge
     # per declaration site of a merged symbol) and de-duplicating it here would be a
     # silent behavior change nobody asked for.
@@ -514,7 +517,7 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
             break
     # hubs/dispatchers keep counts, so their floor only reorders real
     # candidates (nodes that actually have the relevant degree) -- it must
-    # never manufacture a "0 caller(s)" row for a kind with no real signal.
+    # never manufacture a "0 incoming reference(s)" row for a kind with no real signal.
     hub_ids = _ranked_with_kind_floor(in_degree.most_common(), by_id, cap)
     dispatcher_ids = _ranked_with_kind_floor(out_degree.most_common(), by_id, cap)
     all_files = {n.file for n in nodes if n.file}
@@ -855,12 +858,13 @@ _GENERATED_PATHS_INSTRUCTION = (
     "otherwise."
 )
 _GOTCHAS_INSTRUCTION = (
-    "For Gotchas, state only that each symbol above has that many callers in "
-    "the graph and is therefore worth extra care/tests when changed — do not "
-    "characterize WHY it has that many callers, and do not call it "
-    "\"foundational\", \"core\", \"critical infrastructure\", or similar: the "
-    "caller count is the only fact given, not an explanation of the symbol's "
-    "role or importance."
+    "For Gotchas, state only that each symbol above has that many incoming "
+    "references in the graph and is therefore worth extra care/tests when "
+    "changed. Do not characterize WHY it has that many references, and do not "
+    "call it \"foundational\", \"core\", \"critical infrastructure\", or "
+    "similar: the reference count is the only fact given, not an explanation of "
+    "the symbol's role or importance. Do not call a reference a call or a "
+    "caller: the count covers every relation, not only calls."
 )
 _EXTERNAL_INSTRUCTION = (
     "The External context items come from connected sources (issue trackers, "
@@ -902,7 +906,7 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None,
     rejected by the council for thin grounding, and the cause was structural: the model saw
     a bounded sample of a repository's symbols and wrote confidently about the whole of it.
     Handed the structural page instead, it is writing prose OVER stated facts -- entry
-    points, the public surface with caller counts, installation, and the cross-repo
+    points, the public surface with reference counts, installation, and the cross-repo
     dependencies in both directions -- rather than inferring them from fifteen rows.
 
     It goes inside an `untrusted_block` like every other span here that carries bytes from
@@ -1007,16 +1011,17 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None,
             lines.append("  " + _GENERATED_PATHS_INSTRUCTION)
     if brief.get("hubs"):
         # The structural page's public-surface section already lists these WITH their
-        # caller counts, so restating them here would spend context on a duplicate. The
+        # reference counts, so restating them here would spend context on a duplicate. The
         # INSTRUCTION survives either way: it is about how the model may talk about a high
-        # caller count, not about where the count came from, and dropping it is how a page
+        # reference count, not about where the count came from, and dropping it is how a page
         # starts calling a symbol "core infrastructure" on the strength of arithmetic.
         if not structural_page:
             lines.append("")
-            lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
+            lines.append("Most-depended-on symbols (ranked by incoming reference count "
+                         "in the graph):")
             lines.append(untrusted_block(
                 "\n".join(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
-                          f"{h['count']} caller(s)" for h in brief["hubs"][:8]),
+                          f"{h['count']} incoming reference(s)" for h in brief["hubs"][:8]),
                 source=f"{scope} (indexed graph)"))
         lines.append(_GOTCHAS_INSTRUCTION)
     if brief.get("decisions"):

@@ -4288,8 +4288,9 @@ absence never reads as an oversight:
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`, with a key made fresh for each
    `kb wiki` run: one person reads the same on every page of one run, and can read differently
    on pages from another run.
-5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
-   records any.
+5. **The public surface** -- the named symbols, most-referenced first, with an incoming-reference count
+   where the graph records any. The count covers every relation, so a symbol that is only declared
+   in its file already has 1. It is not a caller count.
 6. **Installation and usage** -- the build and packaging files the repository has.
 7. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
    that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
@@ -4388,8 +4389,8 @@ Inside that sample:
 
 - **`top_symbols` reserves at least one slot per symbol kind.** A SQL table node has no call
   edges, so pure degree ranking would squeeze it out entirely.
-- **`hubs` and `dispatchers` do not backfill.** Both carry a real caller or callee count, and
-  padding them with a fabricated zero-count row would make that claim false.
+- **`hubs` and `dispatchers` do not backfill.** Both carry a real incoming or outgoing reference
+  count, and padding them with a fabricated zero-count row would make that claim false.
 - **A file-less `module` node gets no reserved slot.** It is an import target, not a symbol the
   repo defines. It can still rank in on its own degree, as a heavily-included header does.
 
@@ -4409,9 +4410,10 @@ What each one needs:
 - **Setup & Run** needs a README excerpt or a detected config file. It also flags any indexed
   file under a directory named `generated/`, so the model is warned off presenting generated
   code as hand-written design.
-- **Gotchas** needs at least one symbol with real callers. It states only the count, for
-  example "N caller(s) in the graph, worth extra care when changed". The model is told not to
-  explain *why* a symbol has many callers, so it cannot invent a label like "foundational".
+- **Gotchas** needs at least one symbol with incoming references. It states only the count, for
+  example "N incoming reference(s) in the graph, worth extra care when changed". The model is
+  told not to explain *why* a symbol has many references, and not to call them callers, so it
+  cannot invent a label like "foundational".
 
 `setup_signals` also counts legacy C and C++ project files such as `.vcxproj` and `.dsp`, and
 reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
@@ -6590,10 +6592,13 @@ leads out, because an export is made to be shared.
 
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
-Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two
+Below Top symbols, a **Hotspots** section ranks the same graph degree data two
 other ways: **hubs** (most depended-on, worth protecting with tests) and
 **dispatchers** (widest fan-out, where behavior branches). Nothing new is extracted;
 it's the same index-time centrality data, split by direction instead of combined.
+The two columns are **incoming references** and **outgoing references**. They count every
+relation, so a symbol that is only declared in its file already has 1 incoming reference.
+They are not caller and callee counts.
 
 ## 5. Diagrams
 
@@ -9975,6 +9980,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code and the end of the server's output in an alert. That output is kept in
   `<store>/dashboard/mcp-server.log`. Stop also waited the full 2 s on a child it had already
   stopped. This dates from 2.57.0, which added the MCP card.
+- **Hub and dispatcher counts are now labelled as references.** The counts are in-degree and
+  out-degree over every relation, so a struct that nothing calls shows 1, from the file that
+  declares it. 7.12.1 renamed the structural surface column to "Incoming references" for that
+  reason, and four places kept the old words: the Getting started step ("called from 1 place"),
+  the wiki prompt ("N caller(s)" and the Gotchas instruction), the dashboard Hotspots columns
+  ("callers" and "callees"), and the docs. A generated page could say a symbol had N callers
+  when it had N references. All of them now say incoming and outgoing references. The numbers
+  and the ranking are unchanged. A page already on disk keeps its old wording until the next
+  `kb wiki` run. The prompt and the dashboard date from 2.64.0, and the Getting started step
+  from 8.4.0.
 
 ### Security
 

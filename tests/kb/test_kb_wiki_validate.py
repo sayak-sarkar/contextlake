@@ -141,7 +141,7 @@ def test_repetition_margin_over_the_soundest_page():
 def test_leak_detection_survives_a_reworded_instruction():
     """The point of matching against the live instruction text: reword the
     prompt and the guard follows it, with no second copy to update."""
-    reworded = ("Whenever you write Gotchas, say nothing beyond the caller count "
+    reworded = ("Whenever you write Gotchas, say nothing beyond the reference count "
                 "each symbol already has, and never guess at why it is high.")
     echoing = "## Gotchas\n" + reworded + "\n"
     assert leaked_instruction(echoing, [reworded]) is not None
@@ -160,10 +160,10 @@ def test_a_compliant_page_about_the_same_subject_passes():
         "`api`, `worker`, `docs`. The api subsystem exposes the HTTP surface, the "
         "worker subsystem drains the queue, and docs holds the published guides.\n\n"
         "## Gotchas\n"
-        "- `close` in `store/base.py` has 283 callers in the graph, so changes "
-        "there deserve extra care and tests.\n"
-        "- `log` in `logging_setup.py` has 85 callers in the graph and warrants "
-        "the same caution.\n"
+        "- `close` in `store/base.py` has 283 incoming references in the graph, so "
+        "changes there deserve extra care and tests.\n"
+        "- `log` in `logging_setup.py` has 85 incoming references in the graph and "
+        "warrants the same caution.\n"
     )
     assert structural_gate(page, PROMPT_INSTRUCTIONS) is None
 

@@ -290,6 +290,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code and the end of the server's output in an alert. That output is kept in
   `<store>/dashboard/mcp-server.log`. Stop also waited the full 2 s on a child it had already
   stopped. This dates from 2.57.0, which added the MCP card.
+- **Hub and dispatcher counts are now labelled as references.** The counts are in-degree and
+  out-degree over every relation, so a struct that nothing calls shows 1, from the file that
+  declares it. 7.12.1 renamed the structural surface column to "Incoming references" for that
+  reason, and four places kept the old words: the Getting started step ("called from 1 place"),
+  the wiki prompt ("N caller(s)" and the Gotchas instruction), the dashboard Hotspots columns
+  ("callers" and "callees"), and the docs. A generated page could say a symbol had N callers
+  when it had N references. All of them now say incoming and outgoing references. The numbers
+  and the ranking are unchanged. A page already on disk keeps its old wording until the next
+  `kb wiki` run. The prompt and the dashboard date from 2.64.0, and the Getting started step
+  from 8.4.0.
 
 ### Security
 

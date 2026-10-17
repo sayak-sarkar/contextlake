@@ -368,7 +368,23 @@ def test_getting_started_counts_agree_with_singular_and_plural():
     section = _section_of(
         render_structural_page(brief, repo_id="t/a", owners=OWNERS), "Getting started")
     assert "1 test symbol is indexed" in section
-    assert "called from 1 place" in section and "1 places" not in section
+    assert "with 1 incoming reference" in section and "1 incoming references" not in section
+    brief["hubs"] = [{"kind": "function", "name": "load", "file": "x.py", "count": 3}]
+    section = _section_of(
+        render_structural_page(brief, repo_id="t/a", owners=OWNERS), "Getting started")
+    assert "with 3 incoming references" in section
+
+
+def test_getting_started_does_not_call_a_reference_a_call():
+    """The hub rank is in-degree over EVERY relation, so a struct nothing calls still has
+    one reference, from the file that declares it. The surface table already says
+    "Incoming references" for that number; this step said "called from 1 place" for it."""
+    brief = dict(FULL_BRIEF)
+    brief["hubs"] = [{"kind": "struct", "name": "Lookup", "file": "lib.go", "count": 1}]
+    page = render_structural_page(brief, repo_id="t/a", owners=OWNERS)
+    section = _section_of(page, "Getting started")
+    assert "**Read `Lookup` first** in `lib.go`, with 1 incoming reference" in section
+    assert "called from" not in section and "caller" not in section
 
 
 def test_getting_started_is_omitted_and_named_when_nothing_is_known():

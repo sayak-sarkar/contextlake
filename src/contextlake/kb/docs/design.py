@@ -21,7 +21,7 @@ constructs. That ratio is why this module states measurements and refuses to cha
 them: it has no way to tell the four from the three, and a generated sentence calling a
 type variable "a core architectural decision" is worse than no sentence.
 
-The same rule already governs the wiki's gotchas prompt, which may state a caller count and
+The same rule already governs the wiki's gotchas prompt, which may state a reference count and
 may not explain what the count means. This inherits it.
 """
 

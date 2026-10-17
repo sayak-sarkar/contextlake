@@ -866,8 +866,10 @@
                   h("span", { html: icon("ui-blast") }), "Blast radius")];
             }), [false, false, true, false]));
         }
-        var hubsTable = hotTable("Most depended on (hubs)", hubs, "callers");
-        var dispatchersTable = hotTable("Widest fan-out (dispatchers)", dispatchers, "callees");
+        // "references", not callers and callees: both counts run over every relation.
+        var hubsTable = hotTable("Most depended on (hubs)", hubs, "incoming references");
+        var dispatchersTable = hotTable("Widest fan-out (dispatchers)", dispatchers,
+          "outgoing references");
         if (hubsTable) hotWrap.appendChild(hubsTable);
         if (dispatchersTable) hotWrap.appendChild(dispatchersTable);
         pane.appendChild(hotWrap);

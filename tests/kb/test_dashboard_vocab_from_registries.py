@@ -255,6 +255,15 @@ def test_dashboard_js_holds_no_language_table_or_kind_gate():
     assert "__CL_VOCAB__" in code
 
 
+def test_dashboard_js_labels_the_hotspot_counts_as_references():
+    """The hub and dispatcher counts run over every relation, `contains` included, so
+    "callers" and "callees" named a narrower thing than the number holds."""
+    code = _js_code()
+    assert 'hubs, "incoming references"' in code
+    assert re.search(r'dispatchers,\s*"outgoing references"', code)
+    assert not re.search(r'hotTable\([^)]*"(callers|callees)"', code)
+
+
 # ---------------------------------------------------------------------------
 # The browser draws what the registry says
 # ---------------------------------------------------------------------------

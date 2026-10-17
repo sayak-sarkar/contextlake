@@ -162,10 +162,13 @@ leads out, because an export is made to be shared.
 
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
-Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two
+Below Top symbols, a **Hotspots** section ranks the same graph degree data two
 other ways: **hubs** (most depended-on, worth protecting with tests) and
 **dispatchers** (widest fan-out, where behavior branches). Nothing new is extracted;
 it's the same index-time centrality data, split by direction instead of combined.
+The two columns are **incoming references** and **outgoing references**. They count every
+relation, so a symbol that is only declared in its file already has 1 incoming reference.
+They are not caller and callee counts.
 
 ## 5. Diagrams
 

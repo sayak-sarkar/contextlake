@@ -136,8 +136,10 @@ def _getting_started(brief: dict, owners: list[dict] | None) -> list[str]:
         hb = hubs[0]
         where = f" in `{_md_cell(hb.get('file'))}`" if hb.get("file") else ""
         count = hb.get("count")
-        called = f", called from {_plural(count, 'place')}" if count else ""
-        steps.append(f"**Read `{_md_cell(hb.get('name'))}` first**{where}{called} — more of "
+        # Incoming references, the table's word for this number: it counts every
+        # relation, so a symbol nothing calls still has one from the file that holds it.
+        refs = f", with {_plural(count, 'incoming reference')}" if count else ""
+        steps.append(f"**Read `{_md_cell(hb.get('name'))}` first**{where}{refs} — more of "
                      f"the surface is under *{SECTION_TITLES['surface']}*.")
 
     tests = (brief.get("kinds") or {}).get("test")
@@ -178,18 +180,18 @@ def _ownership(owners: list[dict] | None) -> list[str]:
 
 
 def _surface(brief: dict) -> list[str]:
-    """Section 4. The named surface, most-called first, with counts where there are any.
+    """Section 4. The named surface, most-referenced first, with counts where there are any.
 
     Hubs come first because "what does everything here depend on" is the question a reader
     arriving at unfamiliar code asks, and the count is computed over the whole shard rather
     than a sample. But the section is NOT hubs-only, and that was the first draft's real
-    defect: a class nobody calls yet has no caller count, so on a small repository the
+    defect: a symbol with no ranked count was left out, so on a small repository the
     public surface listed almost nothing while the code plainly had a public surface. A
-    symbol with no callers is a fact about the graph, not a reason to omit the symbol.
+    symbol the hub ranking missed is a fact about the graph, not a reason to omit the symbol.
 
     So the ranked hubs are followed by the rest of the brief's top symbols, once each. A
-    blank Callers cell means the graph records none, which is different from zero being
-    unknown and is why the cell is blank rather than "0".
+    blank Incoming references cell means the ranking recorded none, which is different from
+    zero being unknown and is why the cell is blank rather than "0".
     """
     rows, seen = [], set()
     for source, with_count in ((brief.get("hubs") or [])[:25], True), (

@@ -52,8 +52,9 @@ absence never reads as an oversight:
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`, with a key made fresh for each
    `kb wiki` run: one person reads the same on every page of one run, and can read differently
    on pages from another run.
-5. **The public surface** -- the named symbols, most-called first, with caller counts where the graph
-   records any.
+5. **The public surface** -- the named symbols, most-referenced first, with an incoming-reference count
+   where the graph records any. The count covers every relation, so a symbol that is only declared
+   in its file already has 1. It is not a caller count.
 6. **Installation and usage** -- the build and packaging files the repository has.
 7. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
    that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
@@ -152,8 +153,8 @@ Inside that sample:
 
 - **`top_symbols` reserves at least one slot per symbol kind.** A SQL table node has no call
   edges, so pure degree ranking would squeeze it out entirely.
-- **`hubs` and `dispatchers` do not backfill.** Both carry a real caller or callee count, and
-  padding them with a fabricated zero-count row would make that claim false.
+- **`hubs` and `dispatchers` do not backfill.** Both carry a real incoming or outgoing reference
+  count, and padding them with a fabricated zero-count row would make that claim false.
 - **A file-less `module` node gets no reserved slot.** It is an import target, not a symbol the
   repo defines. It can still rank in on its own degree, as a heavily-included header does.
 
@@ -173,9 +174,10 @@ What each one needs:
 - **Setup & Run** needs a README excerpt or a detected config file. It also flags any indexed
   file under a directory named `generated/`, so the model is warned off presenting generated
   code as hand-written design.
-- **Gotchas** needs at least one symbol with real callers. It states only the count, for
-  example "N caller(s) in the graph, worth extra care when changed". The model is told not to
-  explain *why* a symbol has many callers, so it cannot invent a label like "foundational".
+- **Gotchas** needs at least one symbol with incoming references. It states only the count, for
+  example "N incoming reference(s) in the graph, worth extra care when changed". The model is
+  told not to explain *why* a symbol has many references, and not to call them callers, so it
+  cannot invent a label like "foundational".
 
 `setup_signals` also counts legacy C and C++ project files such as `.vcxproj` and `.dsp`, and
 reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
