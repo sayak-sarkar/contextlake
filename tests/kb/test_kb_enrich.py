@@ -86,6 +86,19 @@ def test_build_terms_dedupes_and_preserves_order(tmp_path):
     assert terms == ["ForecastService"]
 
 
+def test_build_terms_leads_with_the_name_of_a_repo_with_no_origin(tmp_path):
+    """A repo with no `origin` remote is stored as `name@<12 hex of the root commit>`. That id
+    has no `/`, so the whole id led the terms and the repo name was never searched."""
+    for repo_id, name in (("app@c9ec633beaa9", "app"),
+                          # A directory name may hold an `@`; only the commit tail goes.
+                          ("app@2x@c9ec633beaa9", "app@2x"),
+                          # An empty repo has no root commit, so its id is the bare name.
+                          ("app", "app")):
+        nodes = [Node(id="n1", repo=repo_id, kind="class", name="ForecastService")]
+        write_shard(tmp_path, GraphShard(repo=repo_id, head_commit="c", nodes=nodes))
+        assert build_terms(tmp_path, repo_id) == [name, "ForecastService"], repo_id
+
+
 # --- search_source dispatch ---------------------------------------------------
 
 def test_search_source_tool_cfg_delegates_to_mcp_tool_query(monkeypatch):

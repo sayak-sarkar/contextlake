@@ -233,6 +233,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   60 seconds, so raising `timeout` for a slow server, the documented remedy, had no effect
   there. `kb enrich` now reads both options, as `kb connect` already read `scopes`. The `scopes`
   gap dates from 6.2.0.
+- **`kb enrich` searches for the repo name of a repo that has no `origin` remote.** Such a repo
+  is stored as `name@<root commit>`, and `kb enrich` used that whole id as its first search term
+  (`app@c9ec633beaa9`), which no ticket or page contains. The repo name was never searched, and
+  each source got one wasted lead term per run. `kb enrich` now drops the `@<root commit>` tail.
+  Present since 2.47.0.
 
 ### Security
 

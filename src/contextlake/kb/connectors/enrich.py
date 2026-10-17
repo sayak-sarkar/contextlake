@@ -37,10 +37,16 @@ def enrich_partition(repo_id: str) -> str:
     return f"{ENRICH_PREFIX}{repo_id}"
 
 
+# The tail `repo_identity._fallback_repo_id` adds to a repo with no `origin` remote:
+# `<directory name>@<first 12 hex of the root commit>`. Not part of the name.
+_ROOT_COMMIT_SUFFIX = re.compile(r"@[0-9a-f]{12}$")
+
+
 def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
     """Query terms for ``repo_id``: its name plus its top meaningful symbols.
 
-    The repo name (last ``/``-segment of ``repo_id``) always leads, followed by
+    The repo name (last ``/``-segment of ``repo_id``, without the ``@<root commit>``
+    tail a repo with no origin remote carries) always leads, followed by
     up to ``max_terms - 1`` of :func:`repo_brief`'s ``top_embeddable_symbols``:
     its highest-degree definitions worth searching for, already filtered to the
     embeddable kinds and carrying one row per distinct name. Empty if the repo
@@ -66,7 +72,7 @@ def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
     brief = repo_brief(store_dir, repo_id)
     if brief is None:
         return []
-    terms = [repo_id.rsplit("/", 1)[-1]]
+    terms = [_ROOT_COMMIT_SUFFIX.sub("", repo_id.rsplit("/", 1)[-1])]
     # A plain subscript, not `.get`: this function builds the brief itself two
     # lines up, so the key is always present, and a missing one means the core's
     # shape changed. A fallback here would degrade to a single term in silence,
