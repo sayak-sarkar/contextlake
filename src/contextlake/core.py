@@ -1622,7 +1622,7 @@ def _collect_branch_info(full_path, branch_timeout):
     """Return [{name, count, ts}] for each origin/* branch."""
     result = subprocess.run(
         ["git", "for-each-ref", "--sort=-committerdate",
-         "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname)",
+         "--format=%(refname)|%(committerdate:iso8601)|%(objectname)",
          "refs/remotes/origin/"],
         capture_output=True, text=True, errors="replace", cwd=full_path,
         timeout=branch_timeout,
@@ -1638,11 +1638,13 @@ def _collect_branch_info(full_path, branch_timeout):
         parts = line.split("|")
         if len(parts) != 3:
             continue
-        if parts[0] == "origin/HEAD":
+        # The full refname, not %(refname:short): git shortens refs/remotes/origin/HEAD to
+        # "origin", which is not "origin/HEAD" and would pass for a branch named "origin".
+        branch = parts[0].removeprefix("refs/remotes/origin/")
+        if branch == "HEAD":
             continue  # the symbolic ref, not a real branch -- an *exact* match,
             # not a substring one: a real branch merely named e.g. "release/HEAD-fix"
             # must not be silently dropped from consideration.
-        branch = parts[0].replace("origin/", "")
         count_res = subprocess.run(
             ["git", "rev-list", "--count", f"origin/{branch}"],
             capture_output=True, text=True, errors="replace", cwd=full_path,

@@ -173,7 +173,7 @@ def _fake_branch_gone(fake_subprocess, on_count):
             return FakeCompleted(returncode=1,
                                  stderr="fatal: couldn't find remote ref develop")
         if "for-each-ref" in cmd:
-            return FakeCompleted(stdout="origin/main|2026-06-10 12:00:00 +0000|abc0")
+            return FakeCompleted(stdout="refs/remotes/origin/main|2026-06-10 12:00:00 +0000|abc0")
         if "--remotes=origin" in cmd:
             return on_count()
         if "rev-list" in cmd:

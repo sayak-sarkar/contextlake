@@ -87,7 +87,7 @@ def test_deleted_upstream_branch_auto_switches_to_a_new_one(
     Nothing is unpushed and no stash is held, which is what lets the switch
     happen (see test_update_reselect_guard.py for the cases that stay)."""
     _safe(monkeypatch)
-    foreach = "origin/main|2026-06-10 12:00:00 +0000|abc0"
+    foreach = "refs/remotes/origin/main|2026-06-10 12:00:00 +0000|abc0"
 
     def handler(cmd, **kwargs):
         if _branch_main(cmd):

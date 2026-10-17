@@ -111,6 +111,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stops the run with an error that names the key, before any repository is touched. An unknown
   `branch_strategy` also exits 1 with its message instead of a traceback. 10.0.0rc3 read only
   `true`.
+- **`branch_strategy = recency` no longer detaches HEAD on a fresh clone.** `branches` listed
+  the symbolic ref `origin/HEAD` as a branch named `origin`, because git prints it that way and
+  the code skipped a name equal to `origin/HEAD`. When the default branch held the newest
+  commit, the run checked out `origin`, left HEAD detached, and every later `branches` and
+  `update` run skipped that clone. A branch name that holds `origin/`, such as
+  `hotfix/origin/x`, was also read with that part cut out. The extra `origin` entry also set the
+  lowest commit count to 0 in the default `hybrid` scoring, so `branches` now scores the real
+  branches, and a clone can move to a different branch than before. Working-branch protection
+  still applies.
 
 ### Security
 

@@ -1,5 +1,8 @@
 """Tests for branch selection strategies and protection."""
 
+import os
+import subprocess
+
 from conftest import FakeCompleted, make_local_repo
 from contextlake import core
 from contextlake.cli import apply_cli_overrides, build_parser
@@ -10,6 +13,7 @@ from contextlake.core import (
 )
 
 PROJECTS = {"a": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
+PROJECTS_REPO = {"repo": PROJECTS["a"]}
 
 
 def _info(name, count, ts):
@@ -41,9 +45,9 @@ def test_collect_branch_info_drops_only_the_symbolic_head_ref(monkeypatch):
     substring one -- a real branch merely named e.g. `release/HEAD-fix` must
     not be silently dropped from consideration."""
     foreach_out = "\n".join([
-        "origin/HEAD|2026-06-10 12:00:00 +0000|abc0",
-        "origin/main|2026-06-09 12:00:00 +0000|abc1",
-        "origin/release/HEAD-fix|2026-06-08 12:00:00 +0000|abc2",
+        "refs/remotes/origin/HEAD|2026-06-10 12:00:00 +0000|abc0",
+        "refs/remotes/origin/main|2026-06-09 12:00:00 +0000|abc1",
+        "refs/remotes/origin/release/HEAD-fix|2026-06-08 12:00:00 +0000|abc2",
     ])
 
     def fake_run(cmd, **kwargs):
@@ -59,8 +63,63 @@ def test_collect_branch_info_drops_only_the_symbolic_head_ref(monkeypatch):
     assert names == {"main", "release/HEAD-fix"}
 
 
+def _real_clone(tmp_path, monkeypatch):
+    """A clone of a local bare origin that has the branches `main` and `hotfix/origin/x`.
+
+    `main` has 2 commits and is the newest. `hotfix/origin/x` stops at the first commit.
+    The branch name holds `origin/` on purpose, and the dates are set, so no two refs
+    tie on a timestamp by chance. The clone is on `main`.
+    """
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+    ident = ("-c", "user.email=t@example.invalid", "-c", "user.name=t")
+
+    def git(cwd, *args, date=None):
+        env = {**os.environ, "GIT_COMMITTER_DATE": date} if date else None
+        return subprocess.run(["git", *ident, *args], cwd=cwd, env=env, check=True,
+                              capture_output=True, text=True).stdout
+
+    origin, seed, work = tmp_path / "origin.git", tmp_path / "seed", tmp_path / "work"
+    work.mkdir()
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
+    git(tmp_path, "init", "-q", "-b", "main", str(seed))
+    for n, date in ((1, "2026-01-01T00:00:00Z"), (2, "2026-02-01T00:00:00Z")):
+        (seed / "f.txt").write_text(f"{n}\n")
+        git(seed, "add", "f.txt")
+        git(seed, "commit", "-qm", f"c{n}", date=date)
+    git(seed, "remote", "add", "origin", str(origin))
+    git(seed, "push", "-q", "origin", "main", "HEAD~1:refs/heads/hotfix/origin/x")
+    git(tmp_path, "clone", "-q", str(origin), str(work / "repo"))
+    return work, work / "repo", git
+
+
+def test_collect_branch_info_on_a_real_clone_lists_only_real_branches(tmp_path, monkeypatch):
+    """A fresh clone has `refs/remotes/origin/HEAD`. Git shortens it to `origin`, not to
+    `origin/HEAD`, so it must not be listed as a branch named `origin`. A branch name that
+    holds `origin/` keeps it."""
+    _, repo, _ = _real_clone(tmp_path, monkeypatch)
+
+    info = core._collect_branch_info(str(repo), branch_timeout=30)
+
+    assert sorted((b["name"], b["count"]) for b in info) == [("hotfix/origin/x", 1), ("main", 2)]
+
+
+def test_recency_strategy_keeps_a_clone_on_main_when_main_is_newest(
+        tmp_path, base_config, monkeypatch):
+    """With `branch_strategy = recency`, the default branch holds the newest commit, so the
+    run stays on it. A phantom `origin` branch tied with it, won, and detached HEAD."""
+    work, repo, git = _real_clone(tmp_path, monkeypatch)
+    cfg = {**base_config, "branch_strategy": "recency", "max_retries": "1"}
+
+    for _ in range(2):  # the second run is the one that read "on working branch: HEAD"
+        status, _, msg = switch_repository_branch("repo", PROJECTS_REPO, str(work), cfg)
+        assert (status, msg) == ("ok", "Already on main"), (status, msg)
+        assert git(repo, "branch", "--show-current").strip() == "main"
+
+
 def _switch_handler(current="dev", branches=("origin/main", "origin/dev")):
-    foreach = "\n".join(f"{b}|2026-06-10 12:00:00 +0000|abc{i}" for i, b in enumerate(branches))
+    foreach = "\n".join(f"refs/remotes/{b}|2026-06-10 12:00:00 +0000|abc{i}"
+                        for i, b in enumerate(branches))
 
     def handler(cmd, **kwargs):
         if "rev-parse" in cmd and "--abbrev-ref" in cmd:
