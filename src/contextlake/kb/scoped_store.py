@@ -17,6 +17,8 @@ WHAT IS CLOSED HERE, and how it was closed:
   ``get_repo``, ``stats``, ``repo_counts``, ``list_partitions``, the two per-repo
   index-metadata reads, and the two repo-pair queries ``arch/resolve.py`` runs
   (``repo_pairs_via_shared_target``, ``edges_with_unmatched_target``).
+* The vector search is filtered by :class:`ScopedVectorStore`, at the end of this module,
+  over this same proxy.
 * ``.conn`` is NOT forwarded. Reading it raises ``AttributeError``. It used to be
   forwarded because three tools (``repo_dependencies``, ``repo_flow``,
   ``repo_event_flow``) ran raw SQL through ``arch/resolve.py``; that SQL now lives in the
@@ -285,6 +287,20 @@ class ScopedStore:
         owners = {rid for rid in known if repo_slug(rid) == slug}
         return repo_id in owners and all(self._allows(rid) for rid in owners)
 
+    def hides_vector_hit(self, node_id: str) -> bool:
+        """PUBLIC. Whether a vector hit names a node that EXISTS but this caller may not
+        read, for :class:`ScopedVectorStore`.
+
+        A hit whose node the real store does not hold is NOT hidden: it is a stale vector
+        row, and the tool that receives it counts it as stale. Through this proxy a hidden
+        node and a missing one both read as ``None``, which is how a scoped key was told
+        the embedding store was stale when its top hits sat in repositories it cannot read.
+        """
+        if self._unscoped():
+            return False
+        node = self._store.get_node(node_id)
+        return node is not None and not self._node_visible(node)
+
     def is_scoped(self) -> bool:
         """Whether ANY repo scope applies to this caller.
 
@@ -474,3 +490,50 @@ class ScopedStore:
         # so forwarding it would put an unscoped number beside two scoped ones.
         return Stats(repos=len([p for p in visible if not p.startswith(("@", "("))]),
                      nodes=nodes, edges=edges, by_confidence={})
+
+
+class ScopedVectorStore:
+    """Vector search filtered to what one principal's key grants. NETWORK-ONLY, built in
+    ``build_http_app`` beside :class:`ScopedStore`, over the same proxy.
+
+    An allow-list, like the proxy: ``search`` and ``has_any`` are the only methods the
+    server reads, so nothing else is forwarded.
+
+    The vector store ranks the whole fleet and takes a repo only as ONE id, so the top ``k``
+    could all sit in repositories the key cannot read. The tools then dropped them, and
+    counted the drops as a stale embedding store: a scoped key lost the hits it could read,
+    was told to re-run ``kb embed``, and learned how many of the fleet's top hits were in
+    denied repositories. So this asks for more until it holds ``k`` readable hits, the way
+    :meth:`ScopedStore.search` does, and keeps the bound and the fail-closed end.
+
+    Visibility is the NODE's (``ScopedStore.hides_vector_hit``), not the vector row's
+    partition. They differ: a ``(shared)`` endpoint is embedded under the repository whose
+    shard produced it, so a filter on the row's partition would hide it from a key that
+    can read it, and the partition kept is whichever shard embedded it last.
+    """
+
+    def __init__(self, vectors, scoped: ScopedStore) -> None:
+        self._vectors = vectors
+        self._scoped = scoped
+
+    def has_any(self, repo_ids=None) -> bool:
+        return self._vectors.has_any(repo_ids)
+
+    def search(self, query, k: int = 10, repo: str | None = None):
+        if not self._scoped.is_scoped():
+            return self._vectors.search(query, k=k, repo=repo)
+        if k <= 0 or (repo and not self._scoped.allows_repo(repo)):
+            return []
+        ask = k
+        while True:
+            rows = self._vectors.search(query, k=ask, repo=repo)
+            kept = [r for r in rows if not self._scoped.hides_vector_hit(r[0])]
+            if len(kept) >= k or len(rows) < ask:
+                return kept[:k]
+            if ask >= _SCOPED_SEARCH_CEILING:
+                from ..logging_setup import log
+                log(f"scoped vector search stopped at {ask} rows with {len(kept)} "
+                    f"readable; later matches were not examined",
+                    level=logging.WARNING)
+                return kept[:k]
+            ask = min(ask * 4, _SCOPED_SEARCH_CEILING)

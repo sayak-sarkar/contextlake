@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import pytest
 
-from contextlake.kb.model import EXTERNAL_REPO, SHARED_REPO, SYSTEM_REPO
+from contextlake.kb.model import EXTERNAL_REPO, SHARED_REPO, SYSTEM_REPO, Node
 from contextlake.kb.scoped_store import (
     ScopedStore,
+    ScopedVectorStore,
     open_request_scope,
     reset_request_scope,
 )
@@ -535,3 +536,118 @@ def test_conn_is_not_forwarded(request_scope):
     with pytest.raises(AttributeError, match="does not forward .conn"):
         _ = s.conn
     assert getattr(s, "conn", None) is None
+
+
+# --------------------------------------------------------------------------
+# The vector search, over a REAL graph store and a REAL vector store
+# --------------------------------------------------------------------------
+class _Embedder:
+    """Every text maps to the query direction, so a vector's distance is its own."""
+
+    def embed(self, texts):
+        return [[1.0, 0.0] for _ in texts]
+
+
+@pytest.fixture
+def vector_world(tmp_path):
+    """15 `bravo/*` vectors nearer the query than the one `alpha/*` vector.
+
+    `alpha/orders` holds `refund` (cosine 0.71). `bravo/payments` holds `settle0..14`
+    (cosine 1.0). A fleet-wide top 10 is all bravo. Also a `(shared)` endpoint that
+    is embedded under `alpha/orders`, the way `embed_repo` stores it.
+    """
+    from contextlake.kb.embeddings.store import VectorStore
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    st = SqliteStore(tmp_path / "kb.sqlite")
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    st.upsert_nodes("alpha/orders", [
+        Node(id="refund", repo="alpha/orders", kind="function", name="refund"),
+        Node(id="endpoint:/refund", repo=SHARED_REPO, kind="endpoint", name="/refund")])
+    st.upsert_nodes("bravo/payments", [
+        Node(id=f"settle{i}", repo="bravo/payments", kind="function", name=f"settle{i}")
+        for i in range(15)])
+    vs.upsert([("refund", "alpha/orders", [0.7, 0.7]),
+               ("endpoint:/refund", "alpha/orders", [0.6, 0.8])]
+              + [(f"settle{i}", "bravo/payments", [1.0, 0.0]) for i in range(15)])
+    yield st, vs
+    vs.close()
+    st.close()
+
+
+def _ids(hits):
+    return [nid for nid, _score in hits]
+
+
+def _server_over(st, vs, patterns):
+    from contextlake.kb.server import build_server
+
+    scoped = ScopedStore(st, lambda: (list(patterns), False))
+    return build_server(scoped, embedder=_Embedder(),
+                        vector_store=ScopedVectorStore(vs, scoped))
+
+
+def _semantic(server, query="refund", k=10):
+    import asyncio
+
+    from mcp import Client
+
+    async def go():
+        async with Client(server) as client:
+            return (await client.call_tool("semantic_search",
+                                           {"query": query, "k": k})).structured_content
+
+    return asyncio.run(go())
+
+
+def test_a_scoped_vector_search_keeps_the_hits_the_key_can_read(vector_world,
+                                                                request_scope):
+    """The fleet-wide top 10 is all denied. It used to come back empty for this key,
+    with a note that the embedding store was stale."""
+    st, vs = vector_world
+    scoped = ScopedStore(st, lambda: (["alpha/*"], False))
+    wrapped = ScopedVectorStore(vs, scoped)
+
+    assert _ids(vs.search([1.0, 0.0], k=10))[0].startswith("settle"), "fixture"
+    assert set(_ids(wrapped.search([1.0, 0.0], k=10))) == {"refund", "endpoint:/refund"}
+
+    answer = _semantic(_server_over(st, vs, ["alpha/*"]))
+    assert {n["id"] for n in answer["nodes"]} == {"refund", "endpoint:/refund"}
+    assert answer["note"] is None, answer["note"]
+
+
+def test_an_unscoped_vector_search_is_the_plain_one(vector_world, request_scope):
+    """The positive control: no repo scope, no filtering, the fleet-wide top 10."""
+    st, vs = vector_world
+    wrapped = ScopedVectorStore(vs, ScopedStore(st, lambda: ((), False)))
+    assert _ids(wrapped.search([1.0, 0.0], k=10)) == _ids(vs.search([1.0, 0.0], k=10))
+
+
+def test_a_shared_endpoint_embedded_under_another_repo_is_still_readable(vector_world,
+                                                                          request_scope):
+    """The endpoint node is `(shared)`, visible to every key. Its vector sits under
+    `alpha/orders`. A key that reads only `bravo/*` must still get it: visibility is the
+    node's, not the partition the vector was stored under."""
+    st, vs = vector_world
+    wrapped = ScopedVectorStore(vs, ScopedStore(st, lambda: (["bravo/*"], False)))
+    assert "endpoint:/refund" in _ids(wrapped.search([0.6, 0.8], k=20))
+    assert "refund" not in _ids(wrapped.search([0.6, 0.8], k=20))
+
+
+def test_a_stale_vector_is_still_counted_for_a_scoped_key(vector_world, request_scope):
+    """A vector row whose node the graph no longer holds is stale for everyone. Hidden
+    nodes are filtered out first, so the note that remains is the true one."""
+    st, vs = vector_world
+    vs.upsert([("ghost", "alpha/orders", [0.99, 0.1])])
+    answer = _semantic(_server_over(st, vs, ["alpha/*"]))
+    assert {n["id"] for n in answer["nodes"]} == {"refund", "endpoint:/refund"}
+    assert "1 vector hit(s) named nodes that are not in the graph" in (
+        answer["note"] or ""), answer
+
+
+def test_a_denied_repo_filter_and_a_gone_key_return_nothing(vector_world, request_scope):
+    st, vs = vector_world
+    scoped = ScopedStore(st, lambda: (["alpha/*"], False))
+    assert ScopedVectorStore(vs, scoped).search([1.0, 0.0], k=10, repo="bravo/payments") == []
+    gone = ScopedVectorStore(vs, ScopedStore(st, lambda: None))
+    assert gone.search([1.0, 0.0], k=30) == []

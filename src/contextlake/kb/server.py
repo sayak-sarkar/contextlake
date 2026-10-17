@@ -3616,10 +3616,14 @@ def build_http_app(
     # `grant_source is None` means a token-only server with no key records, so there
     # are no scopes to apply and the bare store is the honest thing to serve.
     if grant_source is not None:
-        from .scoped_store import ScopedStore
+        from .scoped_store import ScopedStore, ScopedVectorStore
 
         store = ScopedStore(
             store, lambda: grant_source.repo_scope(current_principal()))
+        # The vector store ranks the whole fleet, so it is filtered too, over the
+        # same proxy. Without it a scoped key lost its readable hits to denied ones.
+        if vector_store is not None:
+            vector_store = ScopedVectorStore(vector_store, store)
 
     server = build_server(store, embedder=embedder, vector_store=vector_store,
                           tool_concurrency=tool_concurrency, networked=True,

@@ -145,6 +145,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `--tools read` is refused `semantic_search`, but `ask` embedded its question and searched
   the vectors anyway, using the operator's embedder (which can be a billed remote model). This
   held since `--tools` was enforced in 9.2.0. Such a key now gets full-text search from `ask`.
+- **`semantic_search`, `hybrid_search` and `ask` no longer lose a limited key's own hits.** For
+  a key made with `--repos`, the vector store ranked the whole fleet, so the top hits could all
+  be in repositories the key cannot read. The tools dropped them and told the key "the embedding
+  store is stale, re-run `kb embed`", with an empty or short answer, although its own
+  repositories held matches. The count also showed how many of the fleet's top hits sat in
+  denied repositories. This held since `--repos` was enforced in 9.3.0. The server now asks the
+  vector store for more hits until it has enough readable ones. A store that is stale for every
+  key is still reported.
 
 ### Security
 

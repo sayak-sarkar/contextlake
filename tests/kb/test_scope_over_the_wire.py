@@ -547,6 +547,27 @@ def test_a_scoped_key_never_receives_a_denied_repository(wire, tool):
     assert leaks == [], leaks
 
 
+@pytest.mark.parametrize("tool", ["semantic_search", "hybrid_search"])
+def test_a_scoped_key_is_not_told_the_embedding_store_is_stale(wire, tool):
+    """The vector store here lists a denied node first and every node after it, so a
+    key scoped `alpha/*` has denied hits among its top ten. The tool used to drop them
+    and say the embedding store was stale. Denied hits are now filtered before the tool
+    sees them, so no hit is dropped for being denied.
+
+    The positive control: the scoped key still receives a readable node.
+    """
+    told = []
+    for label in _labels_of(wire, tool):
+        body = _text(wire["answers"]["scoped"][label])
+        if "not in the graph" in body:
+            told.append((label[1], wire["args"][label], body[:300]))
+    assert told == [], told
+
+    alpha = next(label for label in _labels_of(wire, tool) if label[1] == "alpha")
+    scoped = wire["answers"]["scoped"][alpha]
+    assert A_REFUND in _text(scoped) or A_SETTLE in _text(scoped), _text(scoped)[:400]
+
+
 # --------------------------------------------------------------------------
 # 3. Positive control: the scoped key still gets its own repo
 # --------------------------------------------------------------------------
