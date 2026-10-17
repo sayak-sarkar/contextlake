@@ -113,16 +113,23 @@ def cmd_hook(args) -> int:
         return 0
 
     counts: dict[str, int] = {}
+    refused: list[tuple[str, str, str]] = []
     for rid, rp in targets:
         st = (git_hook.uninstall(rp) if action == "uninstall"
               else git_hook.install(rp, rid, config))
+        if st in git_hook.REFUSED:
+            refused.append((rid, rp, st))
+            continue
         counts[st] = counts.get(st, 0) + 1
     summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
     if action == "uninstall":
         log(style.ok(f"post-commit hook: {summary} across {len(targets)} repo(s)."))
-    else:
+    elif counts:
         log(style.ok(f"post-commit hook: {summary} across {len(targets)} repo(s). "
                      "Each commit now re-indexes that repo into the knowledge store."))
         if not config:
             log("  (uses the default kb.toml; pass --config to pin a specific one.)")
-    return 0
+    for rid, rp, st in refused:
+        log(style.warn(f"post-commit hook not installed for {rid}: "
+                       f"{git_hook.refusal(rp, st)}"))
+    return 1 if refused else 0

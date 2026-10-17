@@ -1,6 +1,8 @@
 """Tests for the git post-commit re-index hook (kb/git_hook.py) and `hook` verb."""
 import shlex
+import stat
 import subprocess
+import time
 
 import pytest
 
@@ -103,6 +105,166 @@ def test_worktree_gitdir_file(tmp_path):
     (linked / ".git").write_text(f"gitdir: {real}\n")
     assert git_hook.install(str(linked), "app") == "installed"
     assert (real / "hooks" / "post-commit").exists()
+
+
+# --- hooks that git will never run ----------------------------------------------
+#
+# `install` wrote to <gitdir>/hooks and `is_installed` read the same file, so both said
+# "present" while a commit never reached it: core.hooksPath (Husky, lefthook, a global
+# guard) sends git to another directory, and an existing hook that ends in `exec` or
+# `exit` stops before a block appended after it.
+
+def _cmd_hook(action, path, monkeypatch):
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    monkeypatch.chdir(path)
+    args = build_parser().parse_args(["kb", "hook", action])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    return kb.dispatch("hook", args)
+
+
+def test_a_repo_with_core_hookspath_is_refused_and_nothing_is_written(
+        tmp_path, monkeypatch, gls_logs):
+    _repo(tmp_path)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "core.hooksPath", ".husky/_"],
+                   check=True)
+
+    assert git_hook.install(str(tmp_path), "app") == "hooks-path"
+    assert not (tmp_path / ".git" / "hooks" / "post-commit").exists()
+    assert not git_hook.is_installed(str(tmp_path))
+
+    assert _cmd_hook("install", tmp_path, monkeypatch) == 1
+    assert ".husky/_" in gls_logs.text and "core.hooksPath" in gls_logs.text
+    assert "Each commit now re-indexes" not in gls_logs.text
+
+
+def test_a_hook_written_before_core_hookspath_was_set_is_not_reported_present(tmp_path):
+    _repo(tmp_path)
+    git_hook.install(str(tmp_path), "app")
+    assert git_hook.is_installed(str(tmp_path))
+    subprocess.run(["git", "-C", str(tmp_path), "config", "core.hooksPath", "elsewhere"],
+                   check=True)
+    assert not git_hook.is_installed(str(tmp_path))
+
+
+def test_core_hookspath_naming_the_repos_own_hooks_directory_is_not_a_redirect(tmp_path):
+    _repo(tmp_path)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "core.hooksPath", ".git/hooks"],
+                   check=True)
+    assert git_hook.install(str(tmp_path), "app") == "installed"
+    assert git_hook.is_installed(str(tmp_path))
+
+
+def _run_hook_and_wait(repo, tmp_path, monkeypatch):
+    """Run the installed hook with sh from the repo root, as git does, and say whether the
+    managed block's command ran. The command is a stub that writes a file; the block
+    detaches it with `&`, so the wait is a bounded poll."""
+    from contextlake import launcher
+
+    sentinel = tmp_path / "ran"
+    stub = tmp_path / "clstub"
+    stub.write_text(f"#!/bin/sh\necho ran > {shlex.quote(str(sentinel))}\n")
+    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
+    monkeypatch.setattr(launcher, "launch_command", lambda **k: shlex.quote(str(stub)))
+    git_hook.install(str(repo), "app")
+    subprocess.run(["sh", str(repo / ".git" / "hooks" / "post-commit")], cwd=repo,
+                   check=False, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if sentinel.exists():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+@pytest.mark.parametrize("tail", ["exec true\n", "exit 0\n", "exec true\n# done\n\n"])
+def test_the_block_goes_above_a_closing_exec_or_exit(tmp_path, monkeypatch, tail):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _repo(repo)
+    hook = repo / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/usr/bin/env bash\necho framework\n" + tail)
+
+    assert _run_hook_and_wait(repo, tmp_path, monkeypatch), (
+        "the block sits after the exec/exit, so a commit never reaches it")
+    body = hook.read_text()
+    assert body.index(git_hook.MARK_BEGIN) < body.index(tail.split("\n")[0])
+    assert git_hook.is_installed(str(repo))
+    assert git_hook.install(str(repo), "app") == "refreshed"      # stable on a re-run
+    assert hook.read_text() == body
+
+
+def test_an_exec_in_the_middle_of_a_hook_is_refused_and_the_file_is_untouched(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    text = "#!/bin/sh\nexec true\necho never reached\n"
+    hook.write_text(text)
+    assert git_hook.install(str(tmp_path), "app") == "blocked"
+    assert hook.read_text() == text
+
+
+@pytest.mark.parametrize("shebang", ["#!/usr/bin/env python3", "#!/usr/bin/python",
+                                     "#!/usr/bin/env node"])
+def test_a_hook_that_is_not_a_shell_script_is_refused_and_the_file_is_untouched(
+        tmp_path, shebang):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    text = shebang + "\nprint('hi')\n"
+    hook.write_text(text)
+    assert git_hook.install(str(tmp_path), "app") == "not-shell"
+    assert hook.read_text() == text
+
+
+@pytest.mark.parametrize("shebang", ["#!/bin/bash", "#!/usr/bin/env bash",
+                                     "#!/usr/bin/env -S bash -e", "#!/bin/sh -e",
+                                     "#!/bin/zsh"])
+def test_shell_shebangs_are_accepted(tmp_path, shebang):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(shebang + "\necho custom\n")
+    assert git_hook.install(str(tmp_path), "app") == "appended"
+
+
+def test_a_block_an_older_version_left_after_an_exec_is_moved_above_it(tmp_path):
+    """Older installs appended after the existing hook. Status called that present; a re-run
+    of install must repair it, not rewrite it in the same dead spot."""
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\necho framework\nexec true\n\n"
+                    f"{git_hook.MARK_BEGIN}\nold body\n{git_hook.MARK_END}\n")
+    assert not git_hook.is_installed(str(tmp_path))
+    assert git_hook.install(str(tmp_path), "app") == "refreshed"
+    body = hook.read_text()
+    assert body.index(git_hook.MARK_BEGIN) < body.index("exec true")
+    assert "old body" not in body
+    assert git_hook.is_installed(str(tmp_path))
+
+
+def test_a_marker_in_a_python_hook_is_not_reported_present(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/usr/bin/env python3\n" f"{git_hook.MARK_BEGIN}\nx\n{git_hook.MARK_END}\n")
+    assert not git_hook.is_installed(str(tmp_path))
+
+
+def test_cmd_hook_exits_1_and_says_why_when_the_hook_is_refused(tmp_path, monkeypatch,
+                                                                gls_logs):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\nexec true\necho later\n")
+    assert _cmd_hook("install", tmp_path, monkeypatch) == 1
+    assert "exec or exit before its end" in gls_logs.text
+    assert "Each commit now re-indexes" not in gls_logs.text
 
 
 @pytest.mark.parametrize("action", ["install", "status", "uninstall"])

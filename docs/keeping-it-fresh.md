@@ -202,6 +202,17 @@ contextlake kb hook uninstall                   # remove it (any pre-existing ho
 A path that does not exist (for example `kb hook ~/missing/dir`) prints `No such directory: <path>`
 and exits 1. A plain word that is not an action prints the list of actions and exits 1.
 
+Install refuses, writes nothing and exits 1 when git would never run the hook it writes:
+
+- `core.hooksPath` sends git to another directory (Husky, lefthook and global hook guards do this).
+  That directory can be shared by many repos, so add the re-index call there yourself, or unset
+  `core.hooksPath` for the repo.
+- The `post-commit` hook you already have is not a shell script (a `python` shebang, for example).
+- It has an `exec` or `exit` line before its end, so a block added to it would never run. A single
+  closing `exec` or `exit` is fine: the block goes directly above it.
+
+`kb hook status` counts a repo as wired only when a commit would reach the block.
+
 The hook runs `contextlake kb index <repo>` detached, so the commit returns immediately, and it
 re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
 the store does not hold the repo yet, it uses the id the repo's `origin` gives, the same id a plain

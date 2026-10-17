@@ -452,6 +452,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the store directory, so both exited at once with "--config path not found" while the command
   that started them reported success. Nothing was re-indexed. The path is now stored as an
   absolute path.
+- **`kb hook install` no longer reports a hook that git will never run.** The hook was written
+  to `.git/hooks` and `kb hook status` read the same file, so both reported success when
+  `core.hooksPath` (Husky, lefthook, a global guard) sent git elsewhere, or when the existing
+  `post-commit` hook ended in `exec` or `exit` above the added block, or was not a shell script.
+  Commits then never re-indexed, with no error anywhere. Install now refuses with the reason,
+  writes nothing and exits 1 in those cases, puts the block above a single closing `exec` or
+  `exit`, and `status` counts a repo only when a commit would reach the block.
 
 ### Security
 
