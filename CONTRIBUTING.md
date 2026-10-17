@@ -123,6 +123,16 @@ make test-fast                # skips the tests marked `slow`, runs the rest via
 is what CI runs, serially, with the coverage floor) before you push. `make` targets manage
 their own `.venv`; if you already have one activated, the plain commands above work too.
 
+Two tests in `tests/test_schedule_systemd.py` install a real unit into your systemd user manager,
+start it and remove it. They skip unless you ask for them:
+
+```bash
+CONTEXTLAKE_TEST_REAL_SYSTEMD=1 pytest tests/test_schedule_systemd.py
+```
+
+When they run, the job store and run history go under the test's temporary directory. The unit
+file itself is still written to your real `~/.config/systemd/user`.
+
 `pytest` and `python -m pytest` both work from the repo root. The bare-script
 launcher lives at `run-contextlake.py`, a name deliberately chosen so it can
 never collide with the installed `contextlake` package on `sys.path`. On an older

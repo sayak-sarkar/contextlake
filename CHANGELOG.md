@@ -496,6 +496,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `schedule status` named the cut-off path as the missing interpreter. The unit now quotes the
   path (and doubles `%` and `$`), and `status` reads the whole path back. Run `schedule install`
   again to rewrite an existing unit.
+- **The test suite no longer installs a systemd unit or writes your schedule history unless you
+  ask.** `tests/test_schedule_systemd.py` installed units into your systemd user manager on
+  every `pytest` run. The end-to-end test also started its unit, which added `selftest` rows to
+  the real `schedule-history.jsonl` and wrote the job store under `~/.cache/contextlake`. Those
+  two tests now skip unless `CONTEXTLAKE_TEST_REAL_SYSTEMD=1` is set. With it set they still
+  install a real unit, and the job store and history go under the test's temporary directory.
 
 ### Security
 

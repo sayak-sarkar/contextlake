@@ -1,8 +1,11 @@
 """The systemd adapter: what it renders, and that it installs.
 
 Golden-file assertions on `render` (pure, so no root, no systemd), plus a real
-install/fire/uninstall cycle, because systemd IS init on this machine and a
-renderable-but-broken unit is what golden files cannot catch.
+install/fire/uninstall cycle, because a renderable-but-broken unit is what golden files
+cannot catch.
+
+Two tests install a real unit into the systemd user manager of the person running the
+suite. They skip unless ``CONTEXTLAKE_TEST_REAL_SYSTEMD=1`` is set.
 """
 from __future__ import annotations
 
@@ -14,19 +17,50 @@ import time
 
 import pytest
 
-from contextlake.schedule import jobs
+from contextlake.schedule import jobs, runner
 from contextlake.schedule.platform import base, systemd
 
 HAS_SYSTEMD = shutil.which("systemctl") is not None and base.get("systemd").usable()
 needs_systemd = pytest.mark.skipif(not HAS_SYSTEMD, reason="systemd is not init here")
+
+REAL_SYSTEMD_ENV = "CONTEXTLAKE_TEST_REAL_SYSTEMD"
+"""Set to ``1`` to run the tests that install a unit into the real systemd user manager."""
+
+
+def _require_real_systemd():
+    """Skip unless systemd is here and the person running the suite asked for a real unit."""
+    if not HAS_SYSTEMD:
+        pytest.skip("systemd is not init here")
+    if os.environ.get(REAL_SYSTEMD_ENV) != "1":
+        pytest.skip(f"installs a real systemd user unit; set {REAL_SYSTEMD_ENV}=1 to run it")
+
+
+@pytest.fixture
+def real_systemd():
+    """Request this first in a test that installs a unit into the real user manager."""
+    _require_real_systemd()
 
 
 def _job(name="default", argv=("version",)):
     return jobs.new_job(name, list(argv), "auto", "systemd")
 
 
-def _exec_argv(name="default"):
-    return [sys.executable, "-m", "contextlake", "schedule", "run", "--job", name]
+def _unit_config(tmp_path):
+    """``(ini, cache)``: a config file that names a cache directory under ``tmp_path``.
+
+    A unit started by the systemd user manager has your real environment, not the test's, so
+    this file, passed with ``--config``, is the only way its job store and run history reach
+    ``tmp_path``."""
+    cache = tmp_path / "cache"
+    ini = tmp_path / "selftest.ini"
+    ini.write_text(f"[contextlake]\ngitlab_group = selftest\ncache_dir = {cache}\n",
+                   encoding="utf-8")
+    return ini, cache
+
+
+def _exec_argv(name="default", config=None):
+    pinned = ["--config", str(config)] if config else []
+    return [sys.executable, "-m", "contextlake", *pinned, "schedule", "run", "--job", name]
 
 
 # ---- render (pure) ------------------------------------------------------
@@ -234,10 +268,101 @@ def test_available_never_claims_an_unusable_adapter():
 
 # ---- the real thing -----------------------------------------------------
 
-@needs_systemd
-def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
+def test_a_real_unit_test_skips_without_the_opt_in(monkeypatch):
+    """The tests below install a unit into the user manager of whoever runs the suite. Left
+    to run by default, every `pytest` run did that, and fired the unit, which wrote to the
+    real schedule history."""
+    monkeypatch.setattr(sys.modules[__name__], "HAS_SYSTEMD", True)
+    monkeypatch.delenv(REAL_SYSTEMD_ENV, raising=False)
+    with pytest.raises(pytest.skip.Exception, match=REAL_SYSTEMD_ENV):
+        _require_real_systemd()
+    monkeypatch.setenv(REAL_SYSTEMD_ENV, "0")
+    with pytest.raises(pytest.skip.Exception, match=REAL_SYSTEMD_ENV):
+        _require_real_systemd()
+
+
+def test_a_real_unit_test_runs_when_the_opt_in_is_set(monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "HAS_SYSTEMD", True)
+    monkeypatch.setenv(REAL_SYSTEMD_ENV, "1")
+    _require_real_systemd()
+
+
+def test_a_real_unit_test_still_skips_where_systemd_is_absent(monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "HAS_SYSTEMD", False)
+    monkeypatch.setenv(REAL_SYSTEMD_ENV, "1")
+    with pytest.raises(pytest.skip.Exception, match="not init"):
+        _require_real_systemd()
+
+
+@pytest.mark.parametrize("test", ["test_install_then_fire_then_uninstall",
+                                  "test_state_reports_the_units_exec_path"])
+def test_every_test_that_installs_a_real_unit_asks_for_the_gate(test):
+    """Found by reading the signatures, so the check never installs anything. A test that
+    drops `real_systemd` runs by default again."""
+    import inspect
+
+    assert "real_systemd" in inspect.signature(globals()[test]).parameters
+
+
+def test_the_unit_command_with_the_pinned_config_writes_only_under_the_cache_dir(tmp_path):
+    """Runs the command the unit runs, without systemd, in a HOME that is not the test's. The
+    run history and job store land in the cache directory the config names. Nothing lands in
+    that HOME, which stands in for the real one the user manager would hand the unit."""
+    if runner.in_container():
+        pytest.skip("`schedule run` refuses an ephemeral store inside a container")
+    ini, cache = _unit_config(tmp_path)
+    # The battery gate skips a run without recording it. This test needs the run.
+    ini.write_text(ini.read_text(encoding="utf-8") + "schedule_on_battery = run\n",
+                   encoding="utf-8")
+    jobs.write_job(jobs.jobs_path({"cache_dir": str(cache)}),
+                   jobs.new_job("selftest", ["version"], "1m", "systemd"))
+    other_home = tmp_path / "other-home"
+    other_home.mkdir()
+    env = {**os.environ, "HOME": str(other_home)}
+    env.pop("XDG_CACHE_HOME", None)
+
+    run = subprocess.run(_exec_argv("selftest", config=ini), cwd=tmp_path, env=env,
+                         capture_output=True, text=True, timeout=120, check=False)
+
+    assert run.returncode == 0, run.stderr
+    assert (cache / "schedule-history.jsonl").read_text(encoding="utf-8").strip()
+    assert list(other_home.rglob("*")) == []
+
+
+def test_a_unit_run_for_a_job_with_no_record_creates_nothing_outside_the_cache_dir(tmp_path):
+    """A timer can fire the moment it is enabled, before any job record exists. That run exits
+    2, and without a pinned config it still creates a directory under the cache root of the
+    HOME it is given. This is the run `test_state_reports_the_units_exec_path` can cause."""
+    ini, _ = _unit_config(tmp_path)
+    other_home = tmp_path / "other-home"
+    other_home.mkdir()
+    env = {**os.environ, "HOME": str(other_home)}
+    env.pop("XDG_CACHE_HOME", None)
+
+    run = subprocess.run(_exec_argv("execpath-selftest", config=ini), cwd=tmp_path, env=env,
+                         capture_output=True, text=True, timeout=120, check=False)
+
+    assert run.returncode == 2, run.stderr
+    assert "No job named 'execpath-selftest'" in run.stdout + run.stderr
+    assert list(other_home.rglob("*")) == []
+
+
+def test_the_exec_argv_pins_the_config_before_the_subcommand():
+    argv = _exec_argv("x", config="/tmp/a.ini")
+    assert argv[argv.index("--config") + 1] == "/tmp/a.ini"
+    assert argv.index("--config") < argv.index("schedule")
+    assert "--config" not in _exec_argv("x")
+
+
+def test_install_then_fire_then_uninstall(real_systemd, tmp_path, monkeypatch):
     """END TO END on the real init system. A unit that renders but does not
-    fire is the failure golden files cannot see."""
+    fire is the failure golden files cannot see.
+
+    Needs ``CONTEXTLAKE_TEST_REAL_SYSTEMD=1``. When it runs it still installs a real
+    unit into your systemd user manager, starts it and removes it. The job store and the
+    run history go under ``tmp_path``: the unit is given a config that names that cache
+    directory, because the user manager starts it with your real environment and not
+    with this test's."""
     # The suite-wide `_isolated_home` fixture (tests/conftest.py) points HOME
     # at a throwaway directory so no test can write into the real one. This
     # test is the sanctioned exception: it must reach the systemd --user
@@ -249,21 +374,20 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", pwd.getpwuid(os.getuid()).pw_dir)
 
     # The unit's ExecStart runs the real CLI (`schedule run --job selftest`),
-    # which looks the job up by name in the real job store, the same one
+    # which looks the job up by name in the job store, the same one
     # `cmd_install` writes to. Installing the unit without a persisted job
     # record leaves nothing for that lookup to find: the process exits 2,
     # "No job named 'selftest'", and the timer never fires even though
     # the unit itself started. Real end to end means both halves are real.
-    from contextlake.config import load_config
-
-    jobs_file = jobs.jobs_path(load_config(None))
+    ini, cache = _unit_config(tmp_path)
+    jobs_file = jobs.jobs_path({"cache_dir": str(cache)})
 
     name = "selftest"
     unit = systemd.unit_name(name)  # contextlake-selftest
     job = jobs.new_job(name, ["version"], "1m", "systemd")
     jobs.write_job(jobs_file, job)
     adapter = systemd.SystemdAdapter()
-    written = adapter.install(job, 60.0, _exec_argv(name))
+    written = adapter.install(job, 60.0, _exec_argv(name, config=ini))
     try:
         assert written
         assert adapter.state(job)["installed"] is True
@@ -291,7 +415,7 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
         assert "ExecMainStatus=0" in result.stdout
     finally:
         # delete_job must run even if uninstall raises, or a killed/failed
-        # run leaves `selftest` behind in the real, shared job store.
+        # run leaves `selftest` behind in the job store.
         try:
             adapter.uninstall(job)
         finally:
@@ -302,13 +426,17 @@ def test_install_then_fire_then_uninstall(tmp_path, monkeypatch):
     assert unit not in leftovers.stdout
 
 
-@needs_systemd
-def test_state_reports_the_units_exec_path(monkeypatch):
+def test_state_reports_the_units_exec_path(real_systemd, tmp_path, monkeypatch):
     """The parser above (test_exec_path_from_show_*) is proven against a
     fixture string; this proves the wiring: a real installed unit's
     `ExecStart` is read back and parsed to the same interpreter that was
     installed, not invented. That is the one path `status`'s
-    missing-interpreter row depends on."""
+    missing-interpreter row depends on.
+
+    Needs ``CONTEXTLAKE_TEST_REAL_SYSTEMD=1``, and installs then removes a real unit in
+    your systemd user manager. The unit is given the same pinned config as the end-to-end
+    test. Its timer can fire while the test runs, and a run for a job that has no record
+    still creates a directory under the cache root it is given."""
     import pwd
 
     monkeypatch.setenv("HOME", pwd.getpwuid(os.getuid()).pw_dir)
@@ -316,7 +444,8 @@ def test_state_reports_the_units_exec_path(monkeypatch):
     name = "execpath-selftest"
     job = jobs.new_job(name, ["version"], "1h", "systemd")
     adapter = systemd.SystemdAdapter()
-    adapter.install(job, 3600.0, _exec_argv(name))
+    ini, _ = _unit_config(tmp_path)
+    adapter.install(job, 3600.0, _exec_argv(name, config=ini))
     try:
         state = adapter.state(job)
     finally:
