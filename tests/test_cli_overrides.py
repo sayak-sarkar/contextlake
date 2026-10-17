@@ -8,6 +8,7 @@ disabled branch protection and the clean-workspace requirement by default.
 import pytest
 
 from contextlake.cli import apply_cli_overrides, build_parser
+from contextlake.config import ConfigError
 
 TRISTATE = [
     "clean_corrupted",
@@ -86,3 +87,31 @@ def test_llm_flag_accepts_anthropic_and_cli_providers(argv, provider):
     full_argv = [a.format(provider=provider) for a in argv]
     args = build_parser().parse_args(full_argv)
     assert args.llm == provider
+
+
+# --- yes/no keys written in a config file -----------------------------------------
+# Every reader compares against the literal "true", so `dry_run = yes` ran for real and
+# `require_clean_workspace = yes` switched its guard off, with no message.
+
+@pytest.mark.parametrize("flag", TRISTATE)
+@pytest.mark.parametrize("spelling, expected", [
+    ("true", "true"), ("True", "true"), ("yes", "true"), ("YES", "true"), ("on", "true"),
+    ("1", "true"), (" yes ", "true"),
+    ("false", "false"), ("False", "false"), ("no", "false"), ("off", "false"), ("0", "false"),
+])
+def test_a_file_spelling_is_normalised_to_true_or_false(flag, spelling, expected):
+    args = build_parser().parse_args(["mirror", "status"])
+    assert apply_cli_overrides(args, {flag: spelling})[flag] == expected
+
+
+@pytest.mark.parametrize("flag", TRISTATE)
+@pytest.mark.parametrize("spelling", ["maybe", "ture", ""])
+def test_an_unknown_spelling_stops_the_run_and_names_the_key(flag, spelling):
+    args = build_parser().parse_args(["mirror", "status"])
+    with pytest.raises(ConfigError, match=f"^{flag}: {spelling!r} is not one of true, false"):
+        apply_cli_overrides(args, {flag: spelling})
+
+
+def test_a_flag_on_the_command_line_decides_over_a_bad_file_value():
+    args = build_parser().parse_args(["mirror", "sync", "--dry-run"])
+    assert apply_cli_overrides(args, {"dry_run": "maybe"})["dry_run"] == "true"

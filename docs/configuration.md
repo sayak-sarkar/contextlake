@@ -228,6 +228,11 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 
 ## Settings reference
 
+The yes/no settings are `dry_run`, `clean_corrupted`, `adaptive_workers`, `protect_working_branches`,
+`require_clean_workspace` and `auto_stash`. Write `true` or `false`. `yes`, `no`, `on`, `off`, `1` and
+`0` also work, in any letter case. Any other value stops the run with an error that names the key,
+before any repository is touched. A flag on the command line, such as `--dry-run`, wins over the file.
+
 | Setting | Description | Default | Example |
 | --- | --- | --- | --- |
 | `work_dir` | Working directory for repositories | `~/work` | `/home/user/projects` |

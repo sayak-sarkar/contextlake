@@ -2,6 +2,7 @@
 
 from conftest import FakeCompleted, make_local_repo
 from contextlake import core
+from contextlake.cli import apply_cli_overrides, build_parser
 from contextlake.core import (
     select_most_active_branch,
     switch_repository_branch,
@@ -242,3 +243,17 @@ def test_branches_honours_the_repos_filter(tmp_path, base_config, monkeypatch):
     switch_repository_branches(str(tmp_path), cfg, "grp")
 
     assert seen == ["blog"]
+
+
+def test_protect_working_branches_spelled_yes_still_protects(
+        tmp_path, base_config, fake_subprocess, monkeypatch):
+    """`yes` read as false, so `branches` moved a clone off its working branch."""
+    monkeypatch.setattr(core, "check_repository_safety", lambda *a, **k: (True, []))
+    monkeypatch.setattr(core, "is_safe_branch", lambda b, c: b in ("main", "master"))
+    fake_subprocess.handler = _switch_handler(current="feature/x")
+    cfg = apply_cli_overrides(build_parser().parse_args(["mirror", "branches"]),
+                              {**base_config, "protect_working_branches": "yes"})
+    status, _, msg = switch_repository_branch("a", PROJECTS, str(tmp_path), cfg)
+    assert status == "skip"
+    assert "working branch" in msg
+    assert not fake_subprocess.commands_matching("checkout")

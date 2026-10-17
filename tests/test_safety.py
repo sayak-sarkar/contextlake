@@ -7,6 +7,7 @@ import pytest
 
 from conftest import FakeCompleted
 from contextlake import safety
+from contextlake.cli import apply_cli_overrides, build_parser
 
 
 @pytest.fixture
@@ -102,6 +103,18 @@ def test_require_clean_workspace_off_allows_dirty(fake_safety_subprocess, tmp_pa
     safe, warnings = safety.check_repository_safety("a", str(tmp_path), cfg)
     assert safe
     assert warnings == []
+
+
+@pytest.mark.parametrize("spelling", ["yes", "on", "1"])
+def test_require_clean_workspace_spelled_yes_still_guards_a_dirty_tree(
+        fake_safety_subprocess, tmp_path, spelling):
+    """Read as false, `yes` turned the guard off with no message."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(stdout=" M file.py\n")
+    cfg = apply_cli_overrides(build_parser().parse_args(["mirror", "status"]),
+                              {"require_clean_workspace": spelling})
+    safe, warnings = safety.check_repository_safety("a", str(tmp_path), cfg)
+    assert not safe
+    assert any("Uncommitted changes" in w for w in warnings)
 
 
 def test_stash_disabled_returns_false(fake_safety_subprocess):

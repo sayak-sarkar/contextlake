@@ -103,6 +103,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   git config had hidden all three. 10.0.0rc3 did not prune. A squash-merged branch, whose
   commits are on no origin branch, is now left in place by `update` the way the docs already
   described; `mirror branches` moves it.
+- **The yes/no settings in `.contextlake.ini` accept `yes`, `no`, `on`, `off`, `1` and `0`.**
+  `dry_run`, `clean_corrupted`, `adaptive_workers`, `protect_working_branches`,
+  `require_clean_workspace` and `auto_stash` were on only for the literal `true`. `dry_run =
+  yes` ran for real with no DRY RUN banner, and `protect_working_branches = yes` or
+  `require_clean_workspace = yes` turned the guard off with no message. Any other value now
+  stops the run with an error that names the key, before any repository is touched. An unknown
+  `branch_strategy` also exits 1 with its message instead of a traceback. 10.0.0rc3 read only
+  `true`.
 
 ### Security
 

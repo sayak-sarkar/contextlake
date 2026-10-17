@@ -28,7 +28,28 @@ def expand_path(value):
 
 
 class ConfigError(RuntimeError):
-    """An explicit --config path was invalid."""
+    """An explicit --config path was invalid, or a config value is not one the key accepts."""
+
+
+# The spellings configparser's getboolean accepts, so an INI file may write a yes/no key
+# the way the rest of the INI world does. Every reader of these keys compares against the
+# literal "true", so parse_bool hands back that canonical form.
+_BOOLEAN_WORDS = {'true': 'true', 'yes': 'true', 'on': 'true', '1': 'true',
+                  'false': 'false', 'no': 'false', 'off': 'false', '0': 'false'}
+
+
+def parse_bool(key, value):
+    """``'true'`` or ``'false'`` for a yes/no setting, in any spelling configparser accepts.
+
+    Raises :class:`ConfigError` for anything else. An unrecognised value used to read as
+    false, so ``dry_run = yes`` ran for real and ``require_clean_workspace = yes`` turned
+    its guard off, both with no message. Refusing the run fails closed instead.
+    """
+    try:
+        return _BOOLEAN_WORDS[str(value).strip().lower()]
+    except KeyError:
+        raise ConfigError(
+            f"{key}: {value!r} is not one of true, false, yes, no, on, off, 1, 0") from None
 
 
 # Where the forge-project cache lands when nothing configures it.

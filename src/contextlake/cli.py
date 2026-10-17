@@ -23,7 +23,14 @@ import textwrap
 import time
 
 from . import __version__, netguard, observability
-from .config import DEFAULT_CONFIG, ConfigError, expand_path, get_cache_paths, load_config
+from .config import (
+    DEFAULT_CONFIG,
+    ConfigError,
+    expand_path,
+    get_cache_paths,
+    load_config,
+    parse_bool,
+)
 from .core import (
     FetchError,
     StageResult,
@@ -1949,6 +1956,11 @@ def apply_cli_overrides(args, config):
         value = getattr(args, name, None)
         if value is not None:
             config[name] = "true" if value else "false"
+        elif name in config:
+            # A file may write `yes`, `on` or `1`. Every reader compares against "true", so
+            # the spelling is normalised here, once, and an unknown one stops the run
+            # before any repository is touched.
+            config[name] = parse_bool(name, config[name])
 
     for name in _SCALAR_FLAGS:
         value = getattr(args, name, None)
@@ -2811,11 +2823,11 @@ def _run(argv, metrics):
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.
     try:
-        config = load_config(args.config, cli_group=getattr(args, "group", None))
+        config = apply_cli_overrides(
+            args, load_config(args.config, cli_group=getattr(args, "group", None)))
     except ConfigError as e:
         log(str(e))
         sys.exit(1)
-    config = apply_cli_overrides(args, config)
     # --repos scopes the whole mirror pipeline to a subset (fetch narrows the cache;
     # clone/update/branches/verify/status key off it; bootstrap also filters indexing).
     if getattr(args, "repos", None):
