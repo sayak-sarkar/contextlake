@@ -1145,6 +1145,24 @@ def test_an_empty_scope_value_is_refused_rather_than_dropped(run, keys_file, fla
     assert "empty value" in (result.out + result.err)
 
 
+@pytest.mark.parametrize("value", [",", " ", " , ,"])
+def test_a_repos_value_that_names_no_repository_is_refused(run, keys_file, value):
+    """`--repos ","` is the empty string by another route.
+
+    The server splits the value on commas and drops the blanks, and no patterns
+    reads as an unscoped key. So the key was stored, `show` printed
+    `repos=,  (enforced)`, and it read every repository. The positive control is a
+    real glob on the same command line.
+    """
+    result = run("create", "alice", "--repos", value)
+    assert result.code == 2, result.out + result.err
+    assert "empty value" in (result.out + result.err)
+    assert not keys_file.exists() or not json.loads(keys_file.read_text())["keys"], (
+        "the key was minted anyway, so the refusal is cosmetic")
+
+    assert run("create", "alice", "--repos", "acme/*").code == 0
+
+
 def _limits_line_of(text: str) -> str:
     for line in text.splitlines():
         if "rate=" in line:

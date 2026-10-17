@@ -158,6 +158,11 @@ NO_CONNECTOR = {"code", "@wiki:acme/web:0"}
     ({"no_external": True}, NO_CONNECTOR, False),
     ({"no_external": True, "repos": "acme/*"}, NO_CONNECTOR, False),
     ({"no_external": True, "external": True}, NO_CONNECTOR, False),   # fail closed
+    # A stored repos value that names no repository limits the key to nothing. It
+    # used to parse to no patterns, which the proxy reads as unscoped.
+    ({"repos": ","}, set(), False),
+    ({"repos": " "}, set(), False),
+    ({"repos": " , ", "no_external": True}, set(), False),
 ])
 def test_the_proxy_applies_all_three_rules(policy, nodes, connector):
     by_node, parts, allows = _seen(policy)

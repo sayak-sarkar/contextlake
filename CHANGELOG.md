@@ -164,6 +164,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and in an "Ask <name>" step. With the default `[kb] anonymize = never` these are real names.
   Such a key now gets a notice in place of the page text. A key with `--owners real` or no
   owners setting is unchanged.
+- **`kb keys create --repos ","` no longer makes a key that can read every repository.** Only
+  the empty string was refused. A value with no repository name in it, such as `,` or a space,
+  was stored and shown as `repos=, (enforced)`, but the server read it as no limit. This held
+  since `--repos` was enforced in 9.3.0. `create` now refuses it, and a key file that already
+  holds such a value limits the key to no repository.
 
 ## [10.0.0rc3] - 2026-10-16
 

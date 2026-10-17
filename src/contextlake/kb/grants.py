@@ -259,6 +259,10 @@ def _expand(value: str) -> frozenset[str]:
     return frozenset(granted)
 
 
+# A repo pattern no repository id can match: ids never hold a NUL.
+_MATCHES_NOTHING = "\x00"
+
+
 def parse_repos(value: str) -> list[str]:
     """The ``--repos`` string as the pattern list the store filter applies.
 
@@ -283,6 +287,12 @@ def repo_scope_of(policy: Mapping[str, object] | None) -> tuple[list[str], bool]
     policy = policy or {}
     raw = policy.get("repos")
     patterns = parse_repos(str(raw)) if raw not in (None, "") else []
+    if raw not in (None, "") and not patterns:
+        # A stored value that names no repository (`,` or a space, from a hand edit or
+        # a key made before `kb keys create` refused it). Read as no patterns it would
+        # be the unscoped state, so a key someone meant to limit would read every
+        # repository. Fail closed: a pattern no repository id can match.
+        patterns = [_MATCHES_NOTHING]
     if policy.get("no_external"):
         # `--no-external`: no connector content, with or without a repo limit. A key
         # with no `repos` axis becomes `**`, every repository, because an empty

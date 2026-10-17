@@ -386,14 +386,20 @@ def _policy(args) -> dict:
     # The refusal happens at the flag, not by storing `""`: `_scope_line` renders
     # `policy.get(axis) or 'unset'`, so a stored empty string would print `unset`
     # while meaning deny, which is the same collapse one layer down.
+    #
+    # `--repos ","` and `--repos " "` are refused for the same reason: the server
+    # splits the value into patterns, drops the blanks, and reads no patterns as
+    # an unscoped key, while `kb keys show` would still print `(enforced)`.
     for flag in ("tools", "repos"):
-        if getattr(args, flag, None) == "":
+        value = getattr(args, flag, None)
+        if value == "" or (flag == "repos" and value is not None
+                           and not grants.parse_repos(value)):
             raise _BadUsage(
                 f"empty_{flag}",
                 f"--{flag} was given an empty value. Leave the flag off to "
                 f"record no {flag} scope, or pass a value. An empty string "
                 "cannot say which was meant.",
-                value="")
+                value=value)
 
     # Refused at CREATE, before anything is written. `--burst` with no `--rate`
     # lands here too: a burst is the request bucket's capacity and there is no
