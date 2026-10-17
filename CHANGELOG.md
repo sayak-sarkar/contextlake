@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not http or https, printed "no documents (source reachable, nothing to ingest)" after 0
   requests. It now says why nothing was sent. `kb source test` no longer tells an enrich-only
   source to set a `url`, which would turn it into an ingest source.
+- **A failed PyPI publish no longer skips the GitHub Release.** In `release.yml`,
+  `github-release` was skipped whenever `verify-published` failed. That job also runs after a
+  failed `publish`, finds nothing on the index and exits 1, so the release with the wheel,
+  sdist and SBOM was never created in the one case it was meant to cover. The release now runs
+  when `publish` failed or `verify-published` passed. A publish that succeeded and then served
+  other bytes still skips it. The old condition shipped in 7.25.0.
 
 ## [10.0.0rc3] - 2026-10-16
 

@@ -407,9 +407,13 @@ jobs:
     # and the release has value on its own. It must NOT appear when the published bytes did
     # not match what this run built, because that is a mismatch and not an outage, and a
     # release of record created over it would make the mismatch look accepted.
+    # `verify-published` also runs, and also fails, when `publish` failed: with nothing on the
+    # index every check is unverifiable and it exits 1. So its result only counts after a
+    # publish that succeeded.
     if: >-
       ${{ !cancelled() && needs.build.result == 'success'
-          && needs.verify-published.result != 'failure' }}
+          && (needs.publish.result != 'success'
+              || needs.verify-published.result == 'success') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # create / update the GitHub Release

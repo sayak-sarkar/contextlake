@@ -142,9 +142,10 @@ pip install -e ".[release]"        # build + twine
    ```
 
 7. **Cut a GitHub Release** from the tag, **only if you are publishing by hand.** A tag push already
-   creates one: `release.yml`'s `github-release` job runs whenever the build succeeded, and
-   `binaries.yml` uploads onto it, whichever finishes first creating it. Reach for this command only
-   when both workflows are out of the picture:
+   creates one: `release.yml`'s `github-release` job runs when the build succeeded and either
+   PyPI publishing failed or `verify-published` passed (so it is skipped when PyPI took the
+   upload and served different bytes), and `binaries.yml` uploads onto it, whichever finishes
+   first creating it. Reach for this command only when both workflows are out of the picture:
 
    ```bash
    gh release create vX.Y.Z --title "contextlake X.Y.Z" --notes-file <(sed -n '/## \[X.Y.Z\]/,/## \[/p' CHANGELOG.md)

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -262,3 +263,34 @@ def test_main_accepts_the_documented_flags(monkeypatch):
         "--version", "7.24.0", "--tag", "v7.24.0", "--expect-sha256", "abc",
         "--expect-sdist-sha256", "def", "--run-started-at", "2026-08-18T10:00:00Z",
         "--skip-install", "--json"]) == 1
+
+
+def _job_gate(job: str) -> str:
+    """The `if:` of one `release.yml` job, as a Python expression over a `needs` result map."""
+    text = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+            / "release.yml").read_text(encoding="utf-8")
+    block = text[text.index(f"\n  {job}:\n"):]
+    expr = re.search(r"\n    if: >-\n(.*?)\n    runs-on:", block, re.S).group(1)
+    expr = re.fullmatch(r"\s*\$\{\{(.*)\}\}\s*", expr, re.S).group(1)
+    expr = expr.replace("!cancelled()", "True").replace("&&", " and ").replace("||", " or ")
+    return " ".join(re.sub(r"needs\.([a-z-]+)\.result", r"r['\1']", expr).split())
+
+
+def _release_runs(build: str, publish: str, verify: str) -> bool:
+    results = {"build": build, "publish": publish, "verify-published": verify}
+    return bool(eval(_job_gate("github-release"), {"r": results}))  # noqa: S307 (our own file)
+
+
+@pytest.mark.parametrize("build,publish,verify,runs", [
+    ("success", "success", "success", True),    # the normal release
+    ("success", "success", "failure", False),   # PyPI took the upload and serves other bytes
+    ("success", "failure", "failure", True),    # publish failed, so every check is unverifiable
+    ("success", "failure", "success", True),
+    ("failure", "skipped", "skipped", False),   # nothing was built
+])
+def test_the_github_release_survives_a_failed_publish_but_not_a_byte_mismatch(
+        build, publish, verify, runs):
+    """`verify-published` also runs, and exits 1, when `publish` failed: nothing is on the
+    index, so every row is unverifiable. Gating on its result alone skipped the release in
+    the case the job exists to cover (4.0.0)."""
+    assert _release_runs(build, publish, verify) is runs
