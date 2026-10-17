@@ -93,6 +93,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upload that landed first made `verify-published` fail. It is now marked as hand publishing
   only. The runbook also named a maintainer's local directory and a private note, and both are
   gone.
+- **`mirror update` and `mirror branches` no longer treat a branch deleted on origin as still
+  there.** Both ran `git fetch --all` without `--prune`, so the clone kept `origin/<branch>` for
+  a branch that was merged and deleted. `update` then re-selected the deleted branch itself,
+  reported "auto-switched" with a green exit, and stayed on it on every later run. The same
+  stale ref made commits that no server branch has look pushed, so the "left in place (N
+  commit(s) not on any origin branch)" guard was skipped. `branches` could move a clone onto a
+  branch that was gone from the server. Both fetches now prune. A `fetch.prune = true` in your
+  git config had hidden all three. 10.0.0rc3 did not prune. A squash-merged branch, whose
+  commits are on no origin branch, is now left in place by `update` the way the docs already
+  described; `mirror branches` moves it.
 
 ### Security
 

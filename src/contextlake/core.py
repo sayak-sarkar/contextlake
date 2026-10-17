@@ -1699,7 +1699,11 @@ def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, confi
     prefix = f"Upstream branch deleted: {deleted_branch}"
 
     try:
-        _fetch_with_retry(["git", "fetch", "--all", "--quiet"], full_path, fetch_timeout, config)
+        # --prune drops the remote-tracking ref of the branch that was just deleted. Left in
+        # place, _collect_branch_info lists it, the selection can pick it, and
+        # _unpushed_commit_count treats its commits as "on origin".
+        _fetch_with_retry(["git", "fetch", "--all", "--prune", "--quiet"],
+                          full_path, fetch_timeout, config)
         branch_info = _collect_branch_info(full_path, branch_timeout)
     except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
         return ("skip", local_path,
@@ -1767,10 +1771,11 @@ def switch_repository_branch(local_path, projects, work_dir, config):
             return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
 
         # Retry transient proxy/network drops here too (this fetch feeds the
-        # most-active-branch selection, so a partial fetch would pick wrong).
+        # most-active-branch selection, so a partial fetch would pick wrong). --prune so
+        # a branch deleted on origin is not offered as a target.
         try:
             _fetch_with_retry(
-                ["git", "fetch", "--all", "--quiet"], full_path, fetch_timeout, config
+                ["git", "fetch", "--all", "--prune", "--quiet"], full_path, fetch_timeout, config
             )
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
             # Same classification update_repository already applies to its own

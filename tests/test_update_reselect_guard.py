@@ -14,7 +14,7 @@ import pytest
 
 from conftest import FakeCompleted
 from contextlake import core
-from contextlake.core import update_repository
+from contextlake.core import switch_repository_branch, update_repository
 
 IDENT = ("-c", "user.email=t@example.invalid", "-c", "user.name=t")
 
@@ -201,3 +201,89 @@ def test_unreadable_unpushed_count_leaves_the_branch_alone(
     assert status == "skip", msg
     assert "could not check" in msg
     assert not fake_subprocess.commands_matching("checkout")
+
+
+# --- a branch deleted on origin must not stay on the list of origin branches ------
+
+PROJECTS = {"repo": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
+
+
+def _make_deleted_ahead(tmp_path, monkeypatch, *, merged, on):
+    """A clone that fetched `feature/login`, which was then deleted on origin.
+
+    The branch is 2 commits ahead of `main`, so it is the most active one and the
+    selection picks it if it is still listed. ``merged`` fast-forwards origin's `main`
+    to the branch first, so its commits live on in `main`. Otherwise only the deleted
+    branch ever had them. The clone keeps its `origin/feature/login` ref, as after any
+    fetch that does not prune, and is checked out on ``on``.
+
+    git is told to read no user or system config, so a `fetch.prune = true` on the
+    machine running the tests cannot hide the stale ref.
+    """
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+    origin = tmp_path / "origin.git"
+    seed = tmp_path / "seed"
+    work = tmp_path / "work"
+    work.mkdir()
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+    for n in (1, 2, 3):
+        (seed / "file.txt").write_text(f"base {n}\n")
+        _git(seed, "add", "file.txt")
+        _git(seed, "commit", "-qm", f"base {n}")
+    _git(seed, "remote", "add", "origin", str(origin))
+    _git(seed, "push", "-q", "origin", "main")
+    _git(seed, "checkout", "-q", "-b", "feature/login")
+    for n in (1, 2):
+        (seed / f"login{n}.txt").write_text("feature work\n")
+        _git(seed, "add", f"login{n}.txt")
+        _git(seed, "commit", "-qm", f"login {n}")
+    _git(seed, "push", "-q", "origin", "feature/login")
+    if merged:
+        _git(seed, "push", "-q", "origin", "feature/login:main")
+    subprocess.run(["git", "clone", "-q", str(origin), str(work / "repo")], check=True)
+    repo = work / "repo"
+    _git(repo, "checkout", "-q", "-B", on, f"origin/{on}")
+    _git(origin, "branch", "-D", "feature/login")
+    assert _git(repo, "rev-parse", "--verify", "-q", "origin/feature/login").strip(), \
+        "the fixture must leave the stale ref in place, or the tests below prove nothing"
+    return work, repo
+
+
+def test_update_leaves_a_merged_and_deleted_branch_for_the_branch_that_has_its_commits(
+        tmp_path, cfg, monkeypatch):
+    """Both origin branches end at the same commit, so a stale `origin/feature/login` ties
+    with `main` and sorts first. Before the prune the repo was reported as switched and
+    stayed on the dead branch on every later run."""
+    work, repo = _make_deleted_ahead(tmp_path, monkeypatch, merged=True, on="feature/login")
+
+    status, _, msg = _update(work, cfg)
+
+    assert status == "switched", msg
+    assert "auto-switched to main" in msg
+    assert _branch(repo) == "main"
+
+
+def test_update_still_holds_commits_that_only_the_deleted_branch_had(
+        tmp_path, cfg, monkeypatch):
+    """The stale ref made 2 local-only commits look as though they were on origin, so the
+    guard that says "left in place" was skipped and the repo was switched."""
+    work, repo = _make_deleted_ahead(tmp_path, monkeypatch, merged=False, on="feature/login")
+
+    status, _, msg = _update(work, cfg)
+
+    assert status == "skip", msg
+    assert "2 commit(s) not on any origin branch" in msg
+    assert _branch(repo) == "feature/login"
+
+
+def test_branches_does_not_move_a_repo_onto_a_branch_that_is_gone_from_origin(
+        tmp_path, cfg, monkeypatch):
+    work, repo = _make_deleted_ahead(tmp_path, monkeypatch, merged=False, on="main")
+
+    status, _, msg = switch_repository_branch("repo", PROJECTS, str(work), cfg)
+
+    assert (status, msg) == ("ok", "Already on main"), (status, msg)
+    assert _branch(repo) == "main"
+    assert "feature/login" not in _git(repo, "branch", "--list")

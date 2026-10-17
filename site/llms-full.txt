@@ -1763,9 +1763,9 @@ This command:
   to the most active remaining branch, the same choice `mirror branches` makes. It stays on
   the branch instead, and reports a skip, when that branch has commits no `origin` branch has,
   when git cannot say whether it does, or while `--auto-stash` holds your edits for it.
-  A squash-merged branch whose `origin` ref git has pruned (`fetch.prune`) counts as having
-  such commits, because the squash put new commits on `origin`, not these; move it with
-  `mirror branches`
+  A squash-merged branch counts as having such commits, because the squash put new commits
+  on `origin`, not these; move it with `mirror branches`. The check runs after a fetch that
+  prunes, so the deleted branch's old `origin` ref is not counted as an `origin` branch
 - Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
   and anything under `node_modules` are part of that clone, and are not fetched or switched.
   `mirror verify` still reports a repository nested in another one
@@ -1780,7 +1780,8 @@ contextlake mirror branches
 
 This command:
 
-- Fetches all remote branches for each repository
+- Fetches all remote branches for each repository, and drops the local `origin` refs of
+  branches that were deleted on the remote
 - Calculates commit count for each branch
 - Identifies the branch with the most commits (most active)
 - Switches to the most active branch if different from current
@@ -9661,6 +9662,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upload that landed first made `verify-published` fail. It is now marked as hand publishing
   only. The runbook also named a maintainer's local directory and a private note, and both are
   gone.
+- **`mirror update` and `mirror branches` no longer treat a branch deleted on origin as still
+  there.** Both ran `git fetch --all` without `--prune`, so the clone kept `origin/<branch>` for
+  a branch that was merged and deleted. `update` then re-selected the deleted branch itself,
+  reported "auto-switched" with a green exit, and stayed on it on every later run. The same
+  stale ref made commits that no server branch has look pushed, so the "left in place (N
+  commit(s) not on any origin branch)" guard was skipped. `branches` could move a clone onto a
+  branch that was gone from the server. Both fetches now prune. A `fetch.prune = true` in your
+  git config had hidden all three. 10.0.0rc3 did not prune. A squash-merged branch, whose
+  commits are on no origin branch, is now left in place by `update` the way the docs already
+  described; `mirror branches` moves it.
 
 ### Security
 
