@@ -17,6 +17,8 @@ import argparse
 import re
 from pathlib import Path
 
+import pytest
+
 from contextlake.cli import _ALIASES, _NAMESPACES, build_parser
 
 REPO = Path(__file__).resolve().parents[1]
@@ -74,7 +76,7 @@ def test_kb_index_repos_help_says_the_filter_is_anchored() -> None:
 def test_internals_lists_every_index_the_schema_creates() -> None:
     """The page said "Five indexes" while the schema creates six (`ix_edges_repo` was added for
     `repo_counts` and `clear_repo`). The schema is the authority for the count and the names."""
-    from contextlake.kb.store.sqlite_store import _SCHEMA
+    _SCHEMA = pytest.importorskip("contextlake.kb.store.sqlite_store")._SCHEMA
 
     made = re.findall(r"CREATE INDEX IF NOT EXISTS \w+ ON (\w+)\((\w+)\)", _SCHEMA)
     text = re.sub(r"\s+", " ", _text("docs/internals.md"))

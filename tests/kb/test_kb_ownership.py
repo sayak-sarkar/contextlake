@@ -205,6 +205,9 @@ def test_a_missing_git_is_named_and_is_not_a_timeout(repo, monkeypatch):
         raise FileNotFoundError("git")
 
     monkeypatch.setattr(ownership.subprocess, "run", no_git)
+    # The root-of-checkout check asks `shutil.which` first, so a missing git is missing there
+    # too. Failing `subprocess.run` alone reads as "not a checkout root", which is silent.
+    monkeypatch.setattr(ownership.shutil, "which", lambda *_a, **_k: None)
     said = _warnings(monkeypatch, lambda: ownership.compute_owners(repo))
     assert "git could not be run" in said
     assert "timeout" not in said.lower()
