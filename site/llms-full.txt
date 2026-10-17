@@ -3319,6 +3319,11 @@ The commands:
   can pause one without deleting it.
 - **`contextlake kb source remove SOURCE`**: delete a connector entry by name.
 
+`add`, `remove`, `enable` and `disable` lock the file while they change it. When two run at the same
+time, both changes are kept. The lock is an empty file beside the config (`kb.toml.lock`, or
+`.contextlake.kb.toml.lock` for a project file). Leave it in place, and add it to `.gitignore` in a
+project. A command that waits 10 seconds for the lock exits 1 and changes nothing.
+
 An example workflow:
 
 ```bash
@@ -10076,6 +10081,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top 10 hits across all repos and then dropped the ones outside `R`, so a symbol that ranked
   below ten hits from other repos was reported as "No node matches", while `kb query --repo R`
   found it. The dashboard impact and path views had the same fault.
+- **`kb source add`, `remove`, `enable` and `disable` no longer lose a change when two run at
+  once.** Each command read the whole `kb.toml` and wrote it back through a fixed
+  `kb.toml.tmp`, so the later write dropped the earlier one's source while both commands
+  printed success, and a second command could fail on the missing temp file. The commands
+  now lock `kb.toml.lock` beside the config while they edit (a project file gets
+  `.contextlake.kb.toml.lock`) and use a new temp file each time. A command that cannot get
+  the lock in 10 seconds exits 1 and changes nothing.
 
 ### Security
 

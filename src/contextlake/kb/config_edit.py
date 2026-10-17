@@ -8,11 +8,19 @@ separate from ``kb/config.py`` so the read path stays dependency-light.
 
 from __future__ import annotations
 
+import contextlib
+import math
 import os
+import tempfile
+import time
 from pathlib import Path
 
 from ..config import expand_path, find_ancestor_config
 from . import config as kb_config
+
+# The same OS lock calls and wait time as the key file's write lock (``kb/keyfile.py``),
+# so Windows is handled in one place.
+from .keyfile import LOCK_POLL, LOCK_TIMEOUT, _try_lock, _unlock
 
 try:
     import tomlkit
@@ -58,13 +66,64 @@ def _write_document(path: Path, doc) -> None:
     a window in which the file is world-readable. This config names every source
     a fleet is wired to, and a connector option can carry a private endpoint
     URL -- the default 0644 published all of it to every account on the machine.
+
+    The temp name is unique (``mkstemp`` creates it new, at 0600). A fixed
+    ``<name>.tmp`` was shared by two writers, so one ``os.replace`` took the file
+    the other was about to rename and the second command failed; a stale
+    ``<name>.tmp`` left by a crash also kept its own mode.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        fh.write(tomlkit.dumps(doc))
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(tomlkit.dumps(doc))
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+@contextlib.contextmanager
+def _edit_lock(path: Path):
+    """Hold ``<name>.lock`` beside ``path`` while one edit loads, changes and writes it.
+
+    Each edit reads the whole file and writes the whole file back, so two edits at
+    once both read the same bytes and the second write dropped the first one's
+    change, with both commands printing success. The lock has to cover the load as
+    well as the write.
+
+    The lock is a sibling file (0600, kept on disk between edits) and not the
+    config itself, because ``os.replace`` swaps the config for a new file. The OS
+    drops it when its holder exits, so a crash leaves nothing to clean up. Waits up
+    to ``LOCK_TIMEOUT`` seconds and then raises ``TimeoutError`` without changing
+    anything. A filesystem that cannot lock at all edits unlocked, as every edit did
+    before this existed.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = path.with_name(path.name + ".lock")
+    fd = os.open(lock, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    held = False
+    try:
+        for _ in range(math.ceil(LOCK_TIMEOUT / LOCK_POLL) + 1):
+            try:
+                held = _try_lock(fd)
+            except OSError:
+                break
+            if held:
+                break
+            time.sleep(LOCK_POLL)
+        else:
+            raise TimeoutError(
+                f"another command has been editing {path} for {LOCK_TIMEOUT:g} seconds, "
+                "so this edit was not made. Retry when that command has finished."
+            )
+        yield
+    finally:
+        if held:
+            with contextlib.suppress(OSError):
+                _unlock(fd)
+        os.close(fd)
 
 
 def _sources_aot(doc):
@@ -90,35 +149,40 @@ def add_source(config_path: str | None, source: dict, local: bool = False) -> No
     inline comments survive a re-add that only touches a subset of keys.
     """
     path = resolve_write_target(config_path, local=local)
-    doc = _load_document(path)
-    aot = _sources_aot(doc)
+    with _edit_lock(path):
+        doc = _load_document(path)
+        aot = _sources_aot(doc)
 
-    existing = _find_source_index(aot, source["name"])
-    if existing is None:
-        block = tomlkit.table()
-        for key, value in source.items():
-            block[key] = value
-        aot.append(block)
-    else:
-        table = aot[existing]
-        for key, value in source.items():
-            table[key] = value
+        existing = _find_source_index(aot, source["name"])
+        if existing is None:
+            block = tomlkit.table()
+            for key, value in source.items():
+                block[key] = value
+            aot.append(block)
+        else:
+            table = aot[existing]
+            for key, value in source.items():
+                table[key] = value
 
-    _write_document(path, doc)
+        _write_document(path, doc)
 
 
 def remove_source(config_path: str | None, name: str, local: bool = False) -> bool:
     """Delete the ``[[sources]]`` block named ``name``. False if absent."""
     path = resolve_write_target(config_path, local=local)
-    doc = _load_document(path)
-    aot = _sources_aot(doc)
+    if not path.exists():
+        return False    # no file, so no source and nothing to lock
 
-    index = _find_source_index(aot, name)
-    if index is None:
-        return False
+    with _edit_lock(path):
+        doc = _load_document(path)
+        aot = _sources_aot(doc)
 
-    del aot[index]
-    _write_document(path, doc)
+        index = _find_source_index(aot, name)
+        if index is None:
+            return False
+
+        del aot[index]
+        _write_document(path, doc)
     return True
 
 
@@ -126,15 +190,19 @@ def set_source_enabled(config_path: str | None, name: str, enabled: bool,
                         local: bool = False) -> bool:
     """Toggle ``enabled`` on the named source block. False if absent."""
     path = resolve_write_target(config_path, local=local)
-    doc = _load_document(path)
-    aot = _sources_aot(doc)
-
-    index = _find_source_index(aot, name)
-    if index is None:
+    if not path.exists():
         return False
 
-    aot[index]["enabled"] = enabled
-    _write_document(path, doc)
+    with _edit_lock(path):
+        doc = _load_document(path)
+        aot = _sources_aot(doc)
+
+        index = _find_source_index(aot, name)
+        if index is None:
+            return False
+
+        aot[index]["enabled"] = enabled
+        _write_document(path, doc)
     return True
 
 
@@ -159,10 +227,11 @@ def set_builtin_model(path, repo_id: str) -> None:
     (``kb/llm/model_choice.py``).
     """
     path = Path(path)
-    doc = _load_document(path)
-    llm = doc.get("llm")
-    if llm is None:
-        llm = tomlkit.table()
-        doc["llm"] = llm
-    llm["builtin_model"] = repo_id
-    _write_document(path, doc)
+    with _edit_lock(path):
+        doc = _load_document(path)
+        llm = doc.get("llm")
+        if llm is None:
+            llm = tomlkit.table()
+            doc["llm"] = llm
+        llm["builtin_model"] = repo_id
+        _write_document(path, doc)

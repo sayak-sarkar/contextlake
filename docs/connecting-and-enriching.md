@@ -111,6 +111,11 @@ The commands:
   can pause one without deleting it.
 - **`contextlake kb source remove SOURCE`**: delete a connector entry by name.
 
+`add`, `remove`, `enable` and `disable` lock the file while they change it. When two run at the same
+time, both changes are kept. The lock is an empty file beside the config (`kb.toml.lock`, or
+`.contextlake.kb.toml.lock` for a project file). Leave it in place, and add it to `.gitignore` in a
+project. A command that waits 10 seconds for the lock exits 1 and changes nothing.
+
 An example workflow:
 
 ```bash
