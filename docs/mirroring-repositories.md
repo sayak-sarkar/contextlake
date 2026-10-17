@@ -370,7 +370,7 @@ This command executes:
 
 Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
 and how old or active they are. Runs automatically at the end of `sync`, and in `bootstrap` immediately after the mirror
-step (stage 2 of 8, before the knowledge layer is built), or on demand:
+step (stage 2, before the knowledge layer is built), or on demand:
 
 ```bash
 contextlake mirror audit                       # summary to console + report to <cache_dir>/repo_audit.json

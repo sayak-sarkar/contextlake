@@ -417,6 +417,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs` and `forget`, and a second writer is refused. It also said five indexes and described
   them as traversal columns. The schema creates six, and `edges.repo_id` serves `repo_counts`
   and `clear_repo`.
+- **The bootstrap pages list every stage and say when a failed index stops the run.**
+  `docs/keeping-it-fresh.md` said a failed `index` always stops `bootstrap`. It stops only when
+  the store holds no repository. If `index` failed on some repositories and indexed the rest,
+  the later stages run on the partial graph and the run exits `1` at the end, as it has since
+  2026-08-15. The stage table also left out the API reference stage and its `--no-docs` switch,
+  one page called the audit "stage 2 of 8", and `docs/cli-reference.md` said every stage has a
+  `--no-<stage>` switch, which `index` and `steer` do not.
 
 ### Security
 

@@ -70,18 +70,23 @@ The stages run in this order, and each can be skipped except the two marked othe
 | 6 | Enrich from connected sources | `--no-enrich` |
 | 7 | Generate the wiki | `--no-wiki` |
 | 8 | Draw the architecture | `--no-diagrams` |
-| 9 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
+| 9 | Write the API reference and design notes | `--no-docs` |
+| 10 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
 
 Stage 8 writes one HTML diagram into `<store>/graphs/`, choosing the view from the store's shape: a
 store holding a single repository gets that repository's symbol graph (`graph.html`), and a store
 holding several gets the fleet map (`overview.html`). It reports the node and edge counts it drew,
 so a diagram with nothing in it says so rather than reporting a bare success.
 
-A failing knowledge-layer stage (3 to 9) warns, records the failure, and lets the rest of the run
-continue. **Indexing is the exception**: the graph is what every later stage reads, so if `index`
-fails the run stops there and exits `1` rather than building vectors and prose on top of nothing. An
-unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
-built from the clones already on disk.
+A failing knowledge-layer stage (3 to 10) warns, records the failure, and lets the rest of the run
+continue. At the end the run names each failed stage and exits `1`. An unreachable remote in stage 1
+is recorded and continued past in the same way, so the knowledge layer still gets built from the
+clones already on disk.
+
+**Indexing is the exception**, but only when it leaves nothing behind. If `index` fails and the
+store holds no repository, the run stops there and exits `1` and does not build vectors and prose
+on top of nothing. If `index` fails on some repositories and indexed the others, the later stages
+run on that partial graph, and the run still exits `1` at the end.
 
 Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
 there, which in practice means failing to write the report file, ends the run before indexing starts.

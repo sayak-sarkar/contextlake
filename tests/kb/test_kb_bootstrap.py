@@ -190,6 +190,59 @@ def test_bootstrap_aborts_when_index_fails(monkeypatch, tmp_path):
     assert calls == ["cmd_index"]   # nothing downstream ran
 
 
+def test_bootstrap_keeps_going_when_index_failed_but_left_repos(monkeypatch, tmp_path):
+    """`cmd_index` exits non-zero if ANY repo failed. The run stops only when the store holds
+    no repository; otherwise every later stage runs on the partial graph and the run exits 1
+    at the end. docs/keeping-it-fresh.md describes this."""
+    calls = _record(monkeypatch)
+    monkeypatch.setattr(kb, "cmd_index", lambda a: (calls.append("cmd_index"), 1)[1])
+    monkeypatch.setattr(cli, "_store_has_repos", lambda a: True)
+    with pytest.raises(SystemExit) as exc:
+        cli._bootstrap(_args(no_sync=True), {}, str(tmp_path), "grp")
+    assert exc.value.code == 1
+    assert calls == _KB_ORDER
+
+
+def test_keeping_it_fresh_stage_table_matches_the_bootstrap_stages():
+    """The page listed nine stages and left out the API reference, so `--no-docs` was in no
+    table, and two other pages said "stage 2 of 8" and "each stage has a --no-<stage>
+    switch". The authority is `_bootstrap_stages` for the stages and the parser for the flags."""
+    import argparse
+    import re
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[2]
+    text = (repo / "docs" / "keeping-it-fresh.md").read_text(encoding="utf-8")
+    table = text.split("| # | Stage | Skip with |", 1)[1].split("\n\n", 1)[0]
+    rows = re.findall(r"^\| (\d+) \| .+ \| (.+) \|$", table, re.M)
+    # Mirror and audit run before the knowledge-layer stages.
+    total = 2 + len(cli._bootstrap_stages(Namespace(), kb))
+    assert [int(n) for n, _ in rows] == list(range(1, total + 1)), (
+        f"the stage table has {len(rows)} rows; bootstrap runs {total} stages")
+
+    sub = next(a for a in cli.build_parser()._actions
+               if isinstance(a, argparse._SubParsersAction)).choices["bootstrap"]
+    # The parser has other `--no-*` options (`--no-redact`, `--no-auto-stash`); these are the
+    # stage switches, and each must be a real option of the command.
+    skip_flags = {"--" + f.replace("_", "-") for f in cli._BOOTSTRAP_SKIP_FLAGS}
+    assert skip_flags <= {o for a in sub._actions for o in a.option_strings}
+    in_table = set(re.findall(r"--no-[a-z]+", " ".join(skip for _, skip in rows)))
+    assert in_table == skip_flags
+
+    m = re.search(r"knowledge-layer stage \((\d+) to (\d+)\)", text)
+    assert m and (int(m.group(1)), int(m.group(2))) == (3, total)
+    assert "if `index` fails the run stops there" not in " ".join(text.split()), (
+        "a partial index keeps going")
+
+    reference = (repo / "docs" / "cli-reference.md").read_text(encoding="utf-8")
+    row = next(ln for ln in reference.splitlines() if ln.startswith("| `bootstrap` |"))
+    assert set(re.findall(r"--no-[a-z]+", row)) == skip_flags
+
+    for page in (repo / "docs").glob("*.md"):
+        for n, of in re.findall(r"\b[Ss]tage (\d+) of (\d+)\b", page.read_text(encoding="utf-8")):
+            assert int(of) == total, f"{page.name} says 'stage {n} of {of}'; there are {total}"
+
+
 def test_bootstrap_honors_explicit_workspace(monkeypatch, tmp_path):
     """--workspace must win over the mirror's work_dir (it used to be silently
     ignored), and the steering files follow it."""
