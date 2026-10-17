@@ -15,9 +15,21 @@ import json
 import os
 import socket
 import time
+import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
+from .keyfile import _try_lock, _unlock
+
 LOCK_NAME = ".contextlake.lock"
+# The OS lock that makes the read, judge and take steps of `acquire` one step between
+# processes. It stays on disk, as the key file's lock does: deleting it would let one
+# process lock the old file while another creates and locks a new one.
+GUARD_NAME = ".contextlake.lock.guard"
+# A holder keeps the guard for one read, one liveness check and one small file write,
+# which is milliseconds. One still there after this long is stuck, so the caller is refused.
+GUARD_WAIT = 5.0
+GUARD_POLL = 0.01
 # Set this to run a second writer anyway (rarely correct; you own the risk).
 OVERRIDE_ENV = "CONTEXTLAKE_ALLOW_CONCURRENT"
 
@@ -69,6 +81,44 @@ class StoreLock:
         except (OSError, ValueError):
             return {}
 
+    @contextmanager
+    def _guard(self):
+        """Hold the guard while a process decides whether the lock is stale and takes it.
+
+        Without it, two processes that read the same dead holder both judged it stale and
+        both took the lock, and a process that read the file between its creation and its
+        first byte took the lock from a live creator. An OS lock, so the kernel drops it
+        when its holder exits and a guard is never stale. A filesystem that cannot lock
+        leaves the step unguarded, which is what it was before the guard.
+        """
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(self.path.with_name(GUARD_NAME), flags, 0o644)
+        except OSError:
+            fd = None
+        locked = False
+        try:
+            if fd is not None:
+                for _ in range(round(GUARD_WAIT / GUARD_POLL)):
+                    try:
+                        locked = _try_lock(fd)
+                    except OSError:
+                        break
+                    if locked:
+                        break
+                    time.sleep(GUARD_POLL)
+                else:
+                    raise StoreBusy(self._read())
+            yield
+        finally:
+            if fd is not None:
+                if locked:
+                    try:
+                        _unlock(fd)
+                    except OSError:
+                        pass  # closing the descriptor below drops the lock either way
+                os.close(fd)
+
     def acquire(self) -> StoreLock:
         """Take the lock, reclaiming a stale one. Raises :class:`StoreBusy` on a
         live peer (unless ``CONTEXTLAKE_ALLOW_CONCURRENT`` is set)."""
@@ -77,19 +127,24 @@ class StoreLock:
             "pid": os.getpid(), "command": self.command,
             "host": socket.gethostname(), "started": int(time.time()),
         }).encode()
-        try:
-            fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
+        with self._guard():
             holder = self._read()
             pid = holder.get("pid", 0)
             same_host = holder.get("host") == socket.gethostname()
             live_peer = same_host and pid != os.getpid() and _alive(pid)
             if live_peer and not os.environ.get(OVERRIDE_ENV):
-                raise StoreBusy(holder) from None
-            # Stale (crashed / other host) or self / overridden: reclaim it.
-            fd = os.open(str(self.path), os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o644)
-        with os.fdopen(fd, "wb") as f:
-            f.write(payload)
+                raise StoreBusy(holder)
+            # Free, stale (crashed / other host) or self / overridden: take it. Written to a
+            # temp file and renamed in, so no reader sees a lock file that has no content yet.
+            tmp = self.path.with_name(f"{LOCK_NAME}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+            try:
+                fd = os.open(str(tmp), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+                with os.fdopen(fd, "wb") as f:
+                    f.write(payload)
+                os.replace(tmp, self.path)
+            except BaseException:
+                tmp.unlink(missing_ok=True)
+                raise
         self._held = True
         return self
 

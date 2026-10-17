@@ -298,6 +298,12 @@ pid, command, host and start time. A second process on the same host is refused 
 allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
 `CONTEXTLAKE_ALLOW_CONCURRENT=1` overrides it and is rarely correct.
 
+Checking the holder and taking the lock is one step. It runs under a short OS lock on
+`<store_dir>/.contextlake.lock.guard`, so two processes that start at the same moment cannot both
+take a lock left by a dead one. The kernel drops the guard when its holder exits. A process that
+cannot get the guard in 5 seconds is refused as busy. A filesystem that cannot lock files runs
+without the guard.
+
 Today `kb index`, `kb embed`, `kb wiki` and the dashboard's mutating routes take that lock; the
 dashboard holds it for the one mutation only, never for the server's lifetime, and answers `409` with
 the current holder's details if something else has it. `connect`, `ingest` and `enrich` write without
@@ -322,6 +328,7 @@ Everything contextlake generates lives under one store directory, `~/.contextlak
 | `graphs/` | Rendered visualizations from `kb graph`, including the `--site` export |
 | `dashboard/` | The dashboard's site export and its pid and log files |
 | `.contextlake.lock` | The advisory single-writer lock |
+| `.contextlake.lock.guard` | The OS lock held while the single-writer lock is checked and taken |
 
 ### What lives outside the store, and why
 

@@ -341,6 +341,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every removal. An index run now removes a shared node once no edge from any repo references
   it, and keeps one that another repo still uses. `kb forget` has swept the same nodes since
   6.5.0.
+- **Two writers can no longer both take the store lock.** `kb index`, `kb embed`, `kb wiki` and
+  the dashboard's mutating routes check the lock file and take it in separate steps, and nothing
+  held other processes out between the two. Several processes that found the same dead holder
+  all reclaimed it, and one that read the file between its creation and its first byte could
+  take the lock from a live creator. Six processes started together onto a lock left by a dead
+  one gave more than one holder in 27 of 30 trials, so index, forget and embed could interleave
+  on one store. The check and the take now run as one step under an OS lock on
+  `.contextlake.lock.guard`, and the lock file is renamed into place with its content. The lock
+  file format and `CONTEXTLAKE_ALLOW_CONCURRENT` are unchanged. Since 2.35.0.
 
 ### Security
 
