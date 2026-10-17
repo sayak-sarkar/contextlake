@@ -328,6 +328,10 @@ A positional repo id limits generation to that one repo.
 Once generated, the page renders straight in the Wiki tab. No click-through. It is grounded in
 the repo's real symbols, and in its README and conventional config files when those exist.
 
+The Wiki and Docs tabs, the README panel and the static `--site` wiki pages draw headings, bulleted
+and numbered lists, tables, block quotes, code and inline formatting. Raw HTML in the text is
+escaped, never run.
+
 Sections follow a fixed order: Overview, Setup & Run, Architecture, Dependencies, Gotchas,
 Decisions. A section with nothing to ground it is left out, never written empty. When connected
 sources have real data to cite, an attributed "external context" block is added. A provenance

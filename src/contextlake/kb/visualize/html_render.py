@@ -318,13 +318,20 @@ def _slugify(text: str) -> str:
     return t or "section"
 
 
+# How many `>` levels a block quote may nest. Each level is one recursive call, and a line
+# of thousands of `>` in a README would otherwise recurse until Python gave up.
+_MAX_QUOTE_DEPTH = 4
+
+
 def _md_to_html(md: str) -> str:
     """A tiny, dependency-free Markdown -> HTML renderer for wiki prose.
 
-    Handles headings, fenced code, unordered lists, paragraphs, and inline
-    code/bold/italic/links — enough for generated wiki pages. HTML is escaped
-    *first* (the wiki is LLM-derived from repo content, so it's untrusted), then
-    the Markdown punctuation that survives escaping is transformed.
+    Handles headings, fenced code, bulleted and numbered lists, tables, block quotes,
+    paragraphs, and inline code/bold/italic/links. That is enough for generated wiki pages,
+    which are built from tables, a numbered "Getting started" list and a quoted README
+    excerpt. HTML is escaped *first* (the wiki is LLM-derived from repo content, so it's
+    untrusted), then the Markdown punctuation that survives escaping is transformed.
+    Every table cell goes through the same `inline()` as a paragraph.
     """
     import re as _re
 
@@ -346,11 +353,6 @@ def _md_to_html(md: str) -> str:
                     r'<a href="\2" rel="noopener noreferrer">\1</a>', s)
         return s
 
-    out: list[str] = []
-    para: list[str] = []
-    in_list = False
-    lines = md.split("\n")
-    i = 0
     # Heading ids, and the counter that keeps them unique. Two headings in one document
     # may legitimately read the same ("Overview" under two subsystems), and duplicate ids
     # are a WCAG 4.1.1 failure AND make any link to them land non-deterministically. This
@@ -364,62 +366,120 @@ def _md_to_html(md: str) -> str:
         seen_ids[slug] = n
         return slug if n == 1 else f"{slug}-{n}"
 
-    def flush_para():
-        if para:
-            out.append("<p>" + inline(" ".join(para)) + "</p>")
-            para.clear()
+    def cells(row: str) -> list[str]:
+        """A table row's cells: split on a pipe that is not escaped, minus the pipe at each
+        end. `\\|` is a pipe inside the cell, which is how the generated pages write one."""
+        row = row.strip()
+        parts = _re.split(r"(?<!\\)\|", row)
+        if row.startswith("|"):
+            parts = parts[1:]
+        if row.endswith("|") and not row.endswith("\\|"):
+            parts = parts[:-1]
+        return [p.strip().replace("\\|", "|") for p in parts]
 
-    while i < len(lines):
-        line = lines[i]
-        if line.strip().startswith("```"):
-            flush_para()
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-            i += 1
-            code = []
-            while i < len(lines) and not lines[i].strip().startswith("```"):
-                code.append(lines[i])
+    def is_delimiter(row: str, width: int) -> bool:
+        """`| --- | :-: |`: the row under a table header, with one cell per header cell."""
+        found = cells(row)
+        return ("|" in row and len(found) == width
+                and all(_re.fullmatch(r":?-+:?", c) for c in found))
+
+    def render(lines: list[str], depth: int = 0) -> list[str]:
+        out: list[str] = []
+        para: list[str] = []
+        list_tag: str | None = None      # "ul" or "ol" while a list is open
+
+        def flush_para():
+            if para:
+                out.append("<p>" + inline(" ".join(para)) + "</p>")
+                para.clear()
+
+        def close_list():
+            nonlocal list_tag
+            if list_tag:
+                out.append(f"</{list_tag}>")
+                list_tag = None
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if line.strip().startswith("```"):
+                flush_para()
+                close_list()
                 i += 1
-            out.append("<pre><code>" + esc("\n".join(code)) + "</code></pre>")
+                code = []
+                while i < len(lines) and not lines[i].strip().startswith("```"):
+                    code.append(lines[i])
+                    i += 1
+                out.append("<pre><code>" + esc("\n".join(code)) + "</code></pre>")
+                i += 1
+                continue
+            h = _re.match(r"(#{1,4})\s+(.*)", line)
+            if h:
+                flush_para()
+                close_list()
+                lvl = len(h.group(1))
+                # The id comes from the RAW heading text, not from `inline()`'s output: that
+                # output is HTML, and slugifying it would fold tags and entities into the
+                # anchor. A reader linking to a section should get the words they saw.
+                out.append(f'<h{lvl} id="{heading_id(h.group(2))}">'
+                           f"{inline(h.group(2))}</h{lvl}>")
+                i += 1
+                continue
+            if "|" in line and i + 1 < len(lines) and is_delimiter(lines[i + 1],
+                                                                    len(cells(line))):
+                flush_para()
+                close_list()
+                head = cells(line)
+                rows = []
+                i += 2
+                while (i < len(lines) and "|" in lines[i]
+                       and not lines[i].strip().startswith("```")):
+                    # A short row is padded and a long one cut to the header's width.
+                    got = (cells(lines[i]) + [""] * len(head))[:len(head)]
+                    rows.append("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in got) + "</tr>")
+                    i += 1
+                out.append(
+                    '<div class="md-table"><table><thead><tr>'
+                    + "".join(f'<th scope="col">{inline(c)}</th>' for c in head)
+                    + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+                continue
+            if depth < _MAX_QUOTE_DEPTH and _re.match(r"\s{0,3}>", line):
+                flush_para()
+                close_list()
+                quoted = []
+                while i < len(lines) and _re.match(r"\s{0,3}>", lines[i]):
+                    quoted.append(_re.sub(r"^\s{0,3}>\s?", "", lines[i]))
+                    i += 1
+                # The quoted lines are Markdown too (a quoted README keeps its headings),
+                # rendered by this same function so `seen_ids` is shared.
+                out.append("<blockquote>" + "\n".join(render(quoted, depth + 1))
+                           + "</blockquote>")
+                continue
+            li = _re.match(r"\s*(?:([-*])|(\d{1,9})[.)])\s+(.*)", line)
+            if li:
+                flush_para()
+                tag = "ul" if li.group(1) else "ol"
+                if list_tag != tag:
+                    close_list()
+                    start = int(li.group(2)) if li.group(2) else 1
+                    out.append(f'<ol start="{start}">' if tag == "ol" and start != 1
+                               else f"<{tag}>")
+                    list_tag = tag
+                out.append("<li>" + inline(li.group(3)) + "</li>")
+                i += 1
+                continue
+            if not line.strip():
+                flush_para()
+                close_list()
+                i += 1
+                continue
+            para.append(line.strip())
             i += 1
-            continue
-        h = _re.match(r"(#{1,4})\s+(.*)", line)
-        if h:
-            flush_para()
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-            lvl = len(h.group(1))
-            # The id comes from the RAW heading text, not from `inline()`'s output: that
-            # output is HTML, and slugifying it would fold tags and entities into the
-            # anchor. A reader linking to a section should get the words they saw.
-            out.append(f'<h{lvl} id="{heading_id(h.group(2))}">'
-                       f"{inline(h.group(2))}</h{lvl}>")
-            i += 1
-            continue
-        li = _re.match(r"\s*[-*]\s+(.*)", line)
-        if li:
-            flush_para()
-            if not in_list:
-                out.append("<ul>")
-                in_list = True
-            out.append("<li>" + inline(li.group(1)) + "</li>")
-            i += 1
-            continue
-        if not line.strip():
-            flush_para()
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-            i += 1
-            continue
-        para.append(line.strip())
-        i += 1
-    flush_para()
-    if in_list:
-        out.append("</ul>")
-    return "\n".join(out)
+        flush_para()
+        close_list()
+        return out
+
+    return "\n".join(render(md.split("\n")))
 
 
 _WIKI_TEMPLATE = """<!doctype html>
@@ -449,7 +509,12 @@ _WIKI_TEMPLATE = """<!doctype html>
   code{background:#eef6f7;padding:1px 5px;border-radius:4px;font-size:.92em}
   pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;
     padding:14px;overflow:auto}pre code{background:none;padding:0}
-  a{color:var(--lake)} ul{padding-left:22px}
+  a{color:var(--lake)} ul,ol{padding-left:22px}
+  .md-table{overflow-x:auto;margin:14px 0}
+  table{border-collapse:collapse;font-size:14px}
+  th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+  th{background:var(--surface)}
+  blockquote{margin:14px 0;padding:2px 14px;border-left:3px solid var(--line);color:var(--muted)}
 </style></head>
 <body>
   <header>__GLYPH__<span class="wm">context<span class="l">lake</span></span>

@@ -1030,6 +1030,108 @@ def test_md_to_html_no_href_attribute_breakout():
     assert '<a href="https://example.com/x" rel="noopener noreferrer">docs</a>' in h2
 
 
+# --- tables, numbered lists and quotes -------------------------------------------------
+#
+# Since 10.0.0 the default wiki page, the API reference and the design notes are built from
+# GFM tables, a numbered "Getting started" list and a blockquoted README excerpt. The
+# renderer handled none of them, so every page reached the dashboard and the static site as
+# one run of pipes. The tests below end on the real writers, because a renderer that passes
+# on hand-written Markdown can still disagree with the code that writes the pages.
+
+def test_md_to_html_renders_a_table_an_ordered_list_and_a_quote():
+    h = viz._md_to_html("| A | B |\n| --- | --- |\n| 1 | 2 |\n\n1. one\n2. two\n\n> quote")
+    assert ("<table><thead><tr><th scope=\"col\">A</th><th scope=\"col\">B</th></tr></thead>"
+            "<tbody><tr><td>1</td><td>2</td></tr></tbody></table>") in h
+    assert "<ol>\n<li>one</li>\n<li>two</li>\n</ol>" in h
+    assert "<blockquote><p>quote</p></blockquote>" in h
+    assert "| --- |" not in h and "1. one" not in h and "&gt; quote" not in h
+
+
+def test_md_to_html_table_cells_are_escaped_and_an_escaped_pipe_stays_in_its_cell():
+    """Cells are untrusted text like paragraphs. The writers (`mdwrite.cell`,
+    `structural._md_cell`) write a pipe inside a cell as `\\|`, which is how a Python
+    `int | None` or a C++ `operator|` reaches a signature column."""
+    h = viz._md_to_html(
+        "| Name | Signature |\n| --- | --- |\n"
+        "| `f` | `def f(x: int \\| None)` |\n"
+        "| <img src=x onerror=alert(1)> | [l](https://e.example/a\"b) |\n"
+        "| short |\n")
+    assert "<td><code>def f(x: int | None)</code></td>" in h
+    assert "<img" not in h and "&lt;img src=x onerror=alert(1)&gt;" in h
+    assert 'onerror="' not in h and 'href="https://e.example/a&quot;b"' in h
+    assert "<td>short</td><td></td>" in h, "a short row was not padded to the header width"
+    assert h.count("<tr>") == 4
+
+
+def test_md_to_html_a_table_needs_a_matching_delimiter_row():
+    for md in ("| a |\n| --- | --- |\n| x |",      # delimiter wider than the header
+               "foo | bar\n---",                     # a rule, not a delimiter row
+               "just | a pipe in prose"):
+        assert "<table" not in viz._md_to_html(md), md
+
+
+def test_md_to_html_lists_switch_kind_and_keep_their_start_number():
+    h = viz._md_to_html("3. three\n4. four\n- bullet\n")
+    assert '<ol start="3">\n<li>three</li>\n<li>four</li>\n</ol>\n<ul>\n<li>bullet</li>\n</ul>' in h
+
+
+def test_md_to_html_a_quoted_heading_does_not_repeat_an_id():
+    """The structural page quotes the README, headings included. They are rendered by the
+    same pass as the page, so a README heading that repeats a page heading is numbered."""
+    h = viz._md_to_html("# Sensor API\n\n> # Sensor API\n>\n> text\n> - item\n")
+    assert h.count('id="sensor-api"') == 1 and 'id="sensor-api-2"' in h
+    assert "<blockquote><h1" in h and "<li>item</li>" in h
+
+
+def test_md_to_html_quote_nesting_is_bounded():
+    """Each `>` level is a recursive call, so a README line of thousands of them must not
+    exhaust the stack."""
+    h = viz._md_to_html(">" * 5000 + " x")
+    assert h.count("<blockquote>") == hr._MAX_QUOTE_DEPTH and "x</p>" in h
+
+
+def test_the_default_wiki_page_renders_tables_a_numbered_list_and_a_quote():
+    from contextlake.kb.wiki.structural import render_structural_page
+
+    brief = {
+        "top_symbols": [{"kind": "entry_point", "name": "main", "file": "cmd/m.go",
+                         "signature": "int main(int a | int b)"}],
+        "hubs": [{"kind": "function", "name": "load", "file": "x.py", "count": 12}],
+        "langs": {"go": 40}, "kinds": {"function": 30},
+        "setup_signals": ["Makefile"], "readme_excerpt": "Run `make build` to build it.",
+    }
+    page = render_structural_page(brief, repo_id="team/app",
+                                  modules=[{"prefix": "api", "nodes": 30}])
+    assert "| --- |" in page and "\n1. " in page and "\n> " in page, "fixture lost a construct"
+    h = viz._md_to_html(page)
+    assert "| --- |" not in h and "| Name |" not in h, "a table reached the page as text"
+    assert h.count("<table>") >= 3 and "<ol>" in h and "<blockquote>" in h
+    assert "<td>int main(int a | int b)</td>" in h, "the escaped pipe lost its cell"
+
+
+def test_the_api_reference_renders_as_a_table():
+    from contextlake.kb.docs.api import render_api_reference
+    from contextlake.kb.store.shards import GraphShard
+
+    def prov(line):
+        return Provenance(source_file="driver.py", source_line=line,
+                          verified_at=date(2026, 8, 17))
+
+    shard = GraphShard(
+        repo="team/svc", head_commit="h1",
+        nodes=[Node(id="t", repo="team/svc", kind="function", name="encode",
+                    file="codec.py", line_start=1, line_end=3),
+               Node(id="c", repo="team/svc", kind="method", name="operator|",
+                    file="driver.py", line_start=10, line_end=14)],
+        edges=[Edge(src="c", dst="t", relation="calls", confidence=Confidence.EXTRACTED,
+                    provenance=prov(12))])
+    page = render_api_reference(shard, repo_id="team/svc")
+    assert "| Caller |" in page, "the fixture produced no call-site table"
+    h = viz._md_to_html(page)
+    assert "| --- |" not in h and "| Caller |" not in h
+    assert "<table>" in h and "<code>operator|</code>" in h
+
+
 def test_build_site_emits_wiki_page_with_staleness(store, tmp_path):
     # store.path.parent is the kb dir; build_site reads <kb>/wiki/<slug>.md
     store.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))

@@ -250,6 +250,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `touch DIR/.contextlake-export` once, and for a dashboard export
   `touch DIR/graph/.contextlake-export` too. `kb graph --site` has had no check since it was
   added in 2.4.0.
+- **Wiki pages and generated documents show tables, numbered lists and quoted text instead of
+  raw Markdown.** The default `kb wiki` page (since 10.0.0rc1), the API reference and the design
+  notes are built from tables, a numbered "Getting started" list and a quoted README excerpt.
+  The renderer behind the dashboard Wiki and Docs tabs, the README panel and the `--site` wiki
+  pages drew none of them, so each table appeared as one line of `| --- |` text and the list
+  steps ran together. It now draws all three, escapes cell text like any other text, and keeps
+  `\|` inside its cell so a signature such as `int | None` stays in one column.
 
 ### Security
 
