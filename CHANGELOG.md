@@ -133,6 +133,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--auto-stash` is put back, and the rest are skipped. The run prints one line saying so.
   `clone` was affected when `adaptive_workers = false`. The default adaptive pool starts one
   batch at a time.
+- **`clone`, `update` and `branches` no longer stop at a git password prompt.** git printed
+  `Username for ...` on the terminal when a server answered 401, for example after a token was
+  revoked or a project turned private, and waited. Up to 8 workers prompted at once over the
+  progress bar, each blocked for the full timeout, and the timeout was retried: about 3 minutes
+  a repository for a fetch. git now runs with `GIT_TERMINAL_PROMPT=0` and fails at once with
+  `terminal prompts disabled`. A credential helper still works. If you typed a password at that
+  prompt, use a platform token or a credential helper, or set `GIT_TERMINAL_PROMPT=1` to get the
+  prompt back.
 
 ### Security
 

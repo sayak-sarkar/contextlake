@@ -1,5 +1,7 @@
 """Tests for clone behaviour: dry-run, corruption cleanup, retry, command choice."""
 
+import pytest
+
 from conftest import FakeCompleted
 from contextlake import core
 from contextlake.core import clone_repository
@@ -264,3 +266,46 @@ def test_a_filter_on_an_empty_workspace_is_not_a_pattern_complaint(
 
     assert planned == ["api"], "the repo still has to be planned"
     assert "No local repositories matched" not in gls_logs.text
+
+
+@pytest.mark.parametrize("method, token", [("git", "glpat-secret"), ("git", None), ("glab", None)])
+def test_clone_runs_with_git_terminal_prompts_off(
+        tmp_path, base_config, fake_subprocess, monkeypatch, method, token):
+    """git prompts for a username on the terminal when a server answers 401, and waits
+    there for the whole clone timeout, which is then retried. Whatever builds the command
+    (git with a token, plain git, glab, which runs git itself), the child env turns the
+    prompt off, so the clone fails at once."""
+    monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+    monkeypatch.delenv("GITLAB_TOKEN", raising=False)
+    if token:
+        monkeypatch.setenv("GITLAB_TOKEN", token)
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        seen["cmd"], seen["env"] = cmd, kwargs.get("env")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, _ = clone_repository(
+        "g/p", "grp/g/p", "http://x/g/p.git", "ssh", str(tmp_path),
+        _cfg(base_config, clone_method=method))
+
+    assert status == "ok"
+    assert seen["cmd"][0] == ("glab" if method == "glab" else "git")
+    assert seen["env"].get("GIT_TERMINAL_PROMPT") == "0"
+
+
+def test_a_terminal_prompt_setting_the_user_made_is_kept_for_clone(
+        tmp_path, base_config, fake_subprocess, monkeypatch):
+    monkeypatch.setenv("GIT_TERMINAL_PROMPT", "1")
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        seen["env"] = kwargs.get("env")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    clone_repository("g/p", "grp/g/p", "http://x/g/p.git", "ssh", str(tmp_path),
+                     _cfg(base_config, clone_method="git"))
+
+    assert seen["env"].get("GIT_TERMINAL_PROMPT") == "1"

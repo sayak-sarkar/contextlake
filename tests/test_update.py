@@ -1,5 +1,9 @@
 """Tests for update behaviour, incl. bug #5 (failed pulls reported as success)."""
 
+import os
+
+import pytest
+
 from conftest import FakeCompleted, make_local_repo
 from contextlake import core
 from contextlake.core import update_repositories, update_repository
@@ -474,6 +478,7 @@ def test_fetch_without_a_token_inherits_the_ambient_environment(
     """No token means no injected header, so a credential helper still works."""
     _safe(monkeypatch)
     monkeypatch.delenv("TEST_GITLAB_TOKEN", raising=False)
+    monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
     make_local_repo(tmp_path, "team/api")
     seen = {}
 
@@ -486,7 +491,41 @@ def test_fetch_without_a_token_inherits_the_ambient_environment(
 
     fake_subprocess.handler = handler
     update_repository("team/api", str(tmp_path), _token_config(base_config))
-    assert seen.get("env") is None
+    # The ambient environment plus git's prompt switch, and no header of ours.
+    env = dict(seen["env"])
+    assert env.pop("GIT_TERMINAL_PROMPT") == "0"
+    assert env == dict(os.environ)
+
+
+@pytest.mark.parametrize("token, prompt", [("s3cret", None), (None, None), (None, "1")])
+def test_fetch_runs_with_git_terminal_prompts_off(
+    tmp_path, base_config, fake_subprocess, monkeypatch, token, prompt
+):
+    """git prompts for a username on the terminal when a server answers 401, and waits
+    there for fetch_timeout, which is then retried: about 3 minutes a repository, with up to
+    max_workers prompts over one progress bar. With a token or without one, the child env
+    turns the prompt off. A value the user set is kept, so `GIT_TERMINAL_PROMPT=1` brings
+    the prompt back."""
+    _safe(monkeypatch)
+    for name, value in (("TEST_GITLAB_TOKEN", token), ("GIT_TERMINAL_PROMPT", prompt)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    make_local_repo(tmp_path, "team/api")
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        if "fetch" in cmd:
+            seen["env"] = kwargs.get("env")
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main\n")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    update_repository("team/api", str(tmp_path), _token_config(base_config))
+
+    assert seen["env"].get("GIT_TERMINAL_PROMPT") == (prompt or "0")
 
 
 # --- --auto-stash is a round trip -----------------------------------------

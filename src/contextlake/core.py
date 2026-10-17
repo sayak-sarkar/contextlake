@@ -1226,6 +1226,24 @@ def _remove_clone_leftover(path):
         shutil.rmtree(path, ignore_errors=True)
 
 
+def _no_prompt_env(env=None):
+    """``env`` (this process's environment when ``None``) with git's terminal prompt off.
+
+    git asks for a username on the terminal when a server answers 401, and waits. It reads
+    /dev/tty, so capturing stdout and stderr does not stop it. Up to ``max_workers`` clones
+    prompted at once under the progress bar, each blocked for the full timeout, and the
+    timeout is retried. With the prompt off, git fails at once with "terminal prompts
+    disabled". A credential helper still answers, and so does a value the user set:
+    ``GIT_TERMINAL_PROMPT=1`` in the environment brings the prompt back.
+
+    Fetch and clone are the git commands here that reach a server, and they all pass
+    through :func:`_run_git` and :func:`_clone_once`. The rest read the local clone.
+    """
+    env = dict(os.environ if env is None else env)
+    env.setdefault("GIT_TERMINAL_PROMPT", "0")
+    return env
+
+
 def _clone_once(clone_cmd, timeout, env=None, dest=None):
     """Run a single clone attempt, raising on failure so retry can engage.
 
@@ -1241,7 +1259,7 @@ def _clone_once(clone_cmd, timeout, env=None, dest=None):
     if dest:
         _remove_clone_leftover(dest)
     result = subprocess.run(clone_cmd, capture_output=True, text=True, errors="replace",
-                            timeout=timeout, env=env)
+                            timeout=timeout, env=_no_prompt_env(env))
     if result.returncode != 0:
         raise RuntimeError((result.stderr or "clone failed").strip()[:200])
     return result
@@ -1374,10 +1392,11 @@ def _run_git(args, cwd, timeout, env=None):
 
     ``env`` carries the token header for private repos over HTTPS; ``None``
     inherits this process's environment, which is what a public repo or an
-    ambient credential helper needs.
+    ambient credential helper needs. Either way git's terminal prompt is off
+    (see :func:`_no_prompt_env`).
     """
     res = subprocess.run(args, capture_output=True, text=True, errors="replace", cwd=cwd,
-                         timeout=timeout, env=env)
+                         timeout=timeout, env=_no_prompt_env(env))
     if res.returncode != 0:
         raise RuntimeError((res.stderr or res.stdout or "git command failed").strip())
     return res

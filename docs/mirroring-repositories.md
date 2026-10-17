@@ -211,6 +211,12 @@ How each repo is cloned, with `clone_method = auto` (the default):
 
 Set `clone_method = git` or `clone_method = glab` to force one path.
 
+`clone`, `update` and `branches` run git with `GIT_TERMINAL_PROMPT=0`, so git never stops to ask for a
+username or password on the terminal. A repository whose server answers 401 fails at once with
+`terminal prompts disabled`. It used to wait at a `Username for ...` prompt until the timeout, then
+retry. For a private repository, use a platform token or a git credential helper. To get the prompt
+back, set `GIT_TERMINAL_PROMPT=1` in your environment.
+
 A project whose path would land outside the work directory is skipped, with
 `Refused: this forge path is not inside the work directory` on its line. That covers an absolute
 path, a path with `..` in it, a path that resolves to the work directory itself, and one that
