@@ -16,7 +16,7 @@
     "fleet_shared": 1,
     "nodes": 2442,
     "semantic_rank": 2,
-    "wiki_commit": "da9927b4c8af79d7277b1b43b3409543251f3822"
+    "wiki_commit": "84c3fd6d76531e9b0be412371aa8039689dfd49b"
   },
   "before": {
     "api_has_symbol": false,
@@ -33,7 +33,7 @@
   "call_sites": 5,
   "installed": {
     "from_site_packages": true,
-    "version": "contextlake 10.0.0rc3"
+    "version": "contextlake 10.0.0rc4"
   },
   "notes": [],
   "ok": true,
@@ -64,7 +64,7 @@
       "status": "verified"
     },
     {
-      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> da9927b4c8af79d7277b1b43b3409543251f3822",
+      "detail": "stamp b2e30a175449cfda909ee4fbf4a29a6a071cad53 -> 84c3fd6d76531e9b0be412371aa8039689dfd49b",
       "output": "wiki",
       "status": "verified"
     },

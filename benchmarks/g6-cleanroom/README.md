@@ -37,8 +37,8 @@ answered it.
 
 ## Status
 
-**10 of 10 verified** on Python 3.10 and 3.13 against the published 10.0.0rc3 wheel
-(2026-10-16, also on 10.0.0rc2 and 10.0.0rc1; first against 7.30.0), recorded in
+**10 of 10 verified** on Python 3.10 and 3.13 against the published 10.0.0rc4 wheel
+(2026-10-18, also on 10.0.0rc3, rc2 and rc1; first against 7.30.0), recorded in
 [`results/cleanroom.json`](results/cleanroom.json).
 
 The 10.0.0rc1 run first failed two rows on a correct store, because the harness had not run

@@ -56,8 +56,8 @@ assertion to confirm each one fails for its own reason.
 
 ## Status
 
-**All seven bars verified against the pinned tree** on 10.0.0rc3 installed from PyPI
-(2026-10-16, also on 10.0.0rc2 and 10.0.0rc1), recorded in
+**All seven bars verified against the pinned tree** on 10.0.0rc4 installed from PyPI
+(2026-10-18, also on 10.0.0rc3, rc2 and rc1), recorded in
 [`results/derivation.json`](results/derivation.json). The file names the build it measured
 (`installed`). Re-run it and diff that file.
 
