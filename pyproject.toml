@@ -54,7 +54,7 @@ Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 # pypdf rides in `dev` as well as in its own `kb-pdf` extra, deliberately: the PDF
 # ingest tests skip themselves when it is absent, and a job that skips them is green
 # without having exercised the feature at all. The test environment must hold it.
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.16,<0.17", "hypothesis>=6.0",
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.16,<0.18", "hypothesis>=6.0",
        "pytest-timeout>=2.1", "pytest-xdist>=3.0", "pre-commit>=3.0", "pypdf>=6.15"]
 # Tools for cutting a release (build the dist, validate + upload to PyPI).
 # See docs/releasing.md.
