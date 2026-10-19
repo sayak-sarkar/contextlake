@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb embed` printed "Semantic search is off (opt-in)" when the user had turned it off. It now
   says `[embeddings] enabled = false`. The two MCP tools appear once an embedder can load and
   `kb embed` has built the vector store. No setting is needed.
+- **`search_code` accepts any `limit`.** A `limit` of 2**63 or more made SQLite raise
+  OverflowError, and the caller saw "Error executing tool search_code" with no mention of
+  `limit`. The limit is now capped at 2**63 - 1, so an oversized value returns every match, as a
+  large one already did. Nothing was written in the failing case.
 
 ### Security
 

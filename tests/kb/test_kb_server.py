@@ -180,6 +180,36 @@ def test_search_code_negative_limit_is_clamped_not_unbounded(tmp_path):
     s.close()
 
 
+@pytest.mark.parametrize("limit", [2**63 - 1, 2**63, 10**30])
+@pytest.mark.parametrize("scoped", [False, True], ids=["unscoped", "scoped"])
+def test_search_code_huge_limit_is_clamped_not_an_opaque_error(tmp_path, limit, scoped):
+    """SQLite binds `LIMIT ?` as a signed 64-bit int. `limit=2**63` reached it unchanged and
+    raised OverflowError, which the caller saw as "Error executing tool search_code" with no
+    word about `limit`. Clamped to 2**63-1, which no store can exceed, so the answer is the
+    full match list, not an error. The scoped store hands the same value to the real one."""
+    from contextlake.kb.scoped_store import (
+        ScopedStore,
+        open_request_scope,
+        reset_request_scope,
+    )
+
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id=f"n{i}", repo="r", kind="function", name=f"forecast{i}")
+                        for i in range(20)])
+    token = open_request_scope()
+    try:
+        store = ScopedStore(s, lambda: (["r"], False)) if scoped else s
+        res = asyncio.run(_call(build_server(store), "search_code",
+                                {"query": "forecast", "limit": limit}))
+    finally:
+        reset_request_scope(token)
+    assert not res.is_error, res.content
+    out = _unwrap(res.structured_content)
+    assert len(out["nodes"]) == 20 and out["total"] == 20
+    assert out["truncated"] is False and out["note"] is None
+    s.close()
+
+
 def test_get_neighbors_with_provenance(server):
     res = asyncio.run(_call(server, "get_neighbors", {"node_id": "a", "direction": "out"}))
     out = _unwrap(res.structured_content)

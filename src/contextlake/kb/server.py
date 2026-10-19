@@ -799,6 +799,11 @@ _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
 #: alternative is materialising every match on a fleet-sized store to print one number.
 _SEARCH_TOTAL_CEILING = 500
 
+#: SQLite binds an int as a signed 64-bit value. `LIMIT ?` with 2**63 or more raises
+#: OverflowError, which reached a caller as "Error executing tool search_code" and named
+#: nothing. No store holds that many rows, so the cap changes no answer.
+_SQLITE_MAX_INT = 2**63 - 1
+
 
 def _budget(items: list, limit: int) -> tuple[list, int, bool]:
     """Slice ``items`` to at most ``limit``, reporting the true total and whether
@@ -1409,7 +1414,7 @@ def build_server(
         # verified directly) does not cap the result at all -- every matching node
         # comes back, silently, with no truncation signal to say so. Clamped for the
         # same reason and to the same floor as `_budget`.
-        limit = max(limit, 0)
+        limit = min(max(limit, 0), _SQLITE_MAX_INT)
         # A TRUE total up to a ceiling, not "one more than we asked for". Fetching
         # `limit + 1` is enough to set `truncated`, but it would make `total` mean
         # something different here from what it means on every sibling -- one field, two
