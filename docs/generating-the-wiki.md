@@ -262,8 +262,8 @@ untrusted input, and this is the line that keeps it unable to fabricate a page.
 
 When every name is unknown, the automatic heuristic runs instead of producing nothing. So one typo
 cannot silently delete a repository's whole module set on the next prune. The list is the whole set
-on both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
-generated pages of modules that are not on it.
+on both paths: a run writes and keeps exactly the listed module pages, and prunes the pages of
+modules that are not on it. A run with no LLM prunes too, because pruning needs no model.
 
 At most 50 names are used, and a name repeated in the list counts once. A longer list is cut at 50
 and the run warns with the number ignored. A cut list is not the whole set, so no module page is

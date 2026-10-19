@@ -330,3 +330,45 @@ def test_a_list_past_the_steering_cap_prunes_nothing(tmp_path, monkeypatch, gls_
     assert f"only the first {MAX_PAGES} are used" in logs, "the cut was not reported"
     _assert_alive(store_dir, last, generated=True, logs=logs)
     assert "pruned the wiki page" not in logs, logs
+
+
+def test_a_run_without_an_llm_prunes_a_module_page_that_left_the_list(
+        tmp_path, monkeypatch, gls_logs, fake_vectors):
+    """The prune sat after the no-LLM return, so a store that never has a backend kept the
+    page, the `@wiki:` rows and the vectors of a module for good once it left `pages`, and
+    ask and search went on citing it. The prune needs no model, so it runs with the
+    structural stage."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir, repo_dir = _setup(tmp_path, pages=["mod1", "mod3"])
+    assert _wiki(tmp_path, monkeypatch, None) == 0
+    for prefix in ("mod1", "mod3"):
+        _assert_alive(store_dir, prefix, generated=False)
+
+    _write_pages(repo_dir, ["mod1"])
+    assert _wiki(tmp_path, monkeypatch, None) == 0
+
+    logs = gls_logs.text
+    assert "pruned the wiki page for `mod3`" in logs, logs
+    _assert_alive(store_dir, "mod1", generated=False, logs=logs)
+    assert not _module_page(store_dir, "mod3").exists()
+    assert not _has_partition(store_dir, "mod3")
+    assert not shard_path(store_dir, "@wiki:fed::mod3").exists()
+    assert _vectors(store_dir, "mod3") == 0
+
+
+def test_a_run_without_an_llm_keeps_module_pages_when_pages_is_unknown(
+        tmp_path, monkeypatch, gls_logs, fake_vectors):
+    """The other half of the same pair. Pruning on a no-LLM run must keep the guard the
+    LLM run has: a `wiki.toml` that stops parsing has unknown `pages`, not none, so nothing
+    is pruned against the heuristic plan."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir, repo_dir = _setup(tmp_path, pages=["mod1", "mod3"])
+    assert _wiki(tmp_path, monkeypatch, None) == 0
+    (repo_dir / ".contextlake" / "wiki.toml").write_text('pages = ["mod1"\n', encoding="utf-8")
+    assert _wiki(tmp_path, monkeypatch, None) == 0
+
+    logs = gls_logs.text
+    assert "not readable TOML" in logs, "the capture did not see the broken file"
+    for prefix in ("mod1", "mod3"):
+        _assert_alive(store_dir, prefix, generated=False, logs=logs)
+    assert "pruned the wiki page" not in logs, logs

@@ -537,6 +537,9 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     then prune every stored module page that plan did not hold, so a run with an LLM
     deleted the pages the structural stage had written for the file's own list.
 
+    This stage also prunes the module pages of a planned repository whose module left the
+    plan, because the prune needs no model and the generated stage does not run without one.
+
     Not gated on ``--force``. These pages are deterministic and derived from the shard, so
     regenerating costs milliseconds and always leaves the page agreeing with the graph.
     The freshness machinery on the generated side exists to avoid paying an LLM twice,
@@ -609,6 +612,11 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         # with the modules: `([], False)` means the index is not answering, and the
         # generated path must still refuse to prune on it.
         plans[repo_id] = (modules, may_prune)
+        # Pruned here, not in the generated stage. The prune needs no model, and the
+        # generated stage never runs for a store with no backend, so a module page that
+        # left the plan stayed on disk and in search for good.
+        if may_prune:
+            _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id, modules, vs)
         brief = repo_brief(store_dir, repo_id, store=store)
         if brief is None or not brief.get("coverage_total"):
             # No FILE-BACKED symbol either: the graph holds only fleet-wide package or
@@ -1234,7 +1242,8 @@ def cmd_wiki(args) -> int:
             # read the steering file from the target's own path, the same input the stage
             # uses. Still one `repo_modules()` query per repo per run.
             plan = structural_plans.get(repo_id)
-            if plan is None:
+            planned_here = plan is None
+            if planned_here:
                 steering = read_wiki_steering(repo_path)
                 plan = _module_page_plan(store, repo_id, node_count,
                                          override=steering["pages"])
@@ -1247,8 +1256,9 @@ def cmd_wiki(args) -> int:
             # no longer qualify, so the overview below can't name a subsystem
             # page this run is about to delete. Skipped when the empty module
             # list came from an index that isn't answering rather than from
-            # the repo actually changing shape (see `_module_page_plan`).
-            if may_prune:
+            # the repo actually changing shape (see `_module_page_plan`). A repo
+            # the structural stage planned was pruned there already.
+            if may_prune and planned_here:
                 _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id, modules, vs)
             selected = _select_module_pages(modules, wiki_dir, repo_id)
             # Name every module that either already HAS a page from an earlier

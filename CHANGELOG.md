@@ -160,6 +160,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it ignored and prunes nothing for that repository. If you list more than 50 modules, trim the
   list to 50 or fewer to resume pruning. Repeated names count once. 10.0.0rc4 and earlier delete
   the pages.
+- **`kb wiki` now prunes the pages of modules that no longer qualify when no LLM is set.** The
+  prune ran only after the point where a run with no LLM stops. A module dropped from
+  `.contextlake/wiki.toml` `pages`, or one that stopped qualifying, kept its module page and its
+  search rows, so search results kept citing a module that no longer qualifies. The prune needs
+  no model, so it now runs with the structural pages. The first run with no LLM after the
+  upgrade deletes the module pages that earlier runs left behind. To keep a module page, list
+  its module in `pages`. A repository whose `wiki.toml` does not parse, or whose `pages` list is
+  over 50 names, still prunes nothing. 10.0.0rc4 and earlier keep these pages.
 
 ### Fixed
 
