@@ -2941,20 +2941,25 @@ _SFC_OUTER = {"svelte": "svelte", "vue": "html"}
 _SFC_INNER = {"script_element": "javascript", "style_element": "css"}
 
 
-def _sfc_blocks(source: bytes, lang: str) -> list[tuple[str, bytes]]:
-    """`(inner_lang, masked_source)` for each script/style block of a component file.
+def _sfc_blocks(source: bytes, lang: str) -> Iterator[tuple[str, bytes, int]]:
+    """`(inner_lang, block, row)` for each script/style block of a component file.
 
-    MASKED, not sliced, and that is the whole correctness argument. Everything outside the
-    block is replaced byte-for-byte with spaces while newlines are kept, so the block sits
-    at its true offset and every line number the inner parser reports is the line in the
-    FILE. Slicing the block out and parsing it alone would report line 1 for a function on
-    line 40, and a citation that points at the wrong line is the one failure this project
-    cannot afford: it looks exactly like a correct answer.
+    ``block`` is the text of the block alone. ``row`` is the zero-based row of its first byte
+    in the FILE, and the caller adds it to every line the inner parse reports (see
+    :func:`_shift_rows`). That is the whole correctness argument: parsing the block alone
+    reports line 1 for a function on line 40, and a citation that points at the wrong line
+    is the one failure this project cannot afford, because it looks like a correct answer.
+
+    The cost is the block's own length. Two earlier shapes cost more. One copy of the whole
+    file per block, with every byte outside the block turned into a space, took 10.6 s and
+    220 MB for 1,600 style blocks. Padding each block with one newline per row above it
+    fixed the copy and kept a cost of rows above times blocks: 10,000 one-line blocks took
+    5.2 s and 40,000 took 77 s. One block at a time is built here and dropped when the caller
+    moves on.
     """
     outer = _SFC_OUTER.get(lang)
     if outer is None:
-        return []
-    out: list[tuple[str, bytes]] = []
+        return
     stack = [_parser(outer).parse(source).root_node]
     while stack:
         n = stack.pop()
@@ -2962,14 +2967,29 @@ def _sfc_blocks(source: bytes, lang: str) -> list[tuple[str, bytes]]:
         if inner is not None:
             raw = next((c for c in n.children if c.type == "raw_text"), None)
             if raw is not None and raw.end_byte > raw.start_byte:
-                masked = bytearray(b" " * len(source))
-                for i, byte in enumerate(source):
-                    if byte == 0x0A:            # keep every newline where it is
-                        masked[i] = 0x0A
-                masked[raw.start_byte:raw.end_byte] = source[raw.start_byte:raw.end_byte]
-                out.append((inner, bytes(masked)))
+                yield inner, source[raw.start_byte:raw.end_byte], raw.start_point[0]
         stack.extend(n.children)
-    return out
+
+
+def _shift_rows(nodes: list[Node], edges: list[Edge], calls: list, inherits: list,
+                rows: int) -> tuple[list[Node], list[Edge], list, list]:
+    """The result of parsing a block, with every line number moved down by ``rows``.
+
+    A line lives in four places: the two on a node, the source line on an edge's provenance,
+    and the last field of a call and of an inherits tuple. ``parse_source`` records no other.
+    """
+    if not rows:
+        return nodes, edges, calls, inherits
+
+    def down(line: int | None) -> int | None:
+        return None if line is None else line + rows
+
+    nodes = [n.model_copy(update={"line_start": down(n.line_start),
+                                  "line_end": down(n.line_end)}) for n in nodes]
+    edges = [e.model_copy(update={"provenance": e.provenance.model_copy(
+        update={"source_line": down(e.provenance.source_line)})}) for e in edges]
+    return (nodes, edges, [(*c[:3], c[3] + rows) for c in calls],
+            [(*i[:3], i[3] + rows) for i in inherits])
 
 
 def _parse_sfc(repo_id: str, sf: SourceFile, refs: RefCollector,
@@ -2982,8 +3002,9 @@ def _parse_sfc(repo_id: str, sf: SourceFile, refs: RefCollector,
     nodes: list[Node] = []
     edges: list[Edge] = []
     seen: set[str] = set()
-    for inner_lang, masked in _sfc_blocks(sf.source, sf.lang):
-        bn, be, calls, inh = parse_source(repo_id, sf.rel, masked, inner_lang)
+    for inner_lang, block, row in _sfc_blocks(sf.source, sf.lang):
+        bn, be, calls, inh = _shift_rows(
+            *parse_source(repo_id, sf.rel, block, inner_lang), row)
         refs.calls.extend(calls)
         refs.inherits.extend(inh)
         for node in bn:

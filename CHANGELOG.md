@@ -238,6 +238,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb index` re-indexes every repository, not only those with such files, and adds the missing
   symbols and the calls to them. UTF-16 without a byte order mark is not detected, and SQL,
   Terraform and XML files are still read as UTF-8.
+- **A Vue or Svelte file parses each `<script>` and `<style>` block from its own text.** Each
+  block was parsed from a copy of the whole file, and every copy was kept until the file was
+  done, so time and memory grew with the block count times the file size: 3,200 style blocks
+  (120 KB) took 21.1 s and 411 MB, and now take 0.26 s and 45 MB. A block is parsed alone and
+  its lines are moved down by the row it starts on, so line numbers do not change. Time now
+  follows the file size: 40,000 one-line blocks take 3.4 s, and 195,000 blocks in a 4.96 MB
+  file, under the 5,000,000 byte default size cap, take 13 s to 16 s and 740 MB. The graph it
+  builds is unchanged.
 
 ### Security
 

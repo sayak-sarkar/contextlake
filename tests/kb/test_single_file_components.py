@@ -6,11 +6,12 @@ job is finding block boundaries reliably and the contents still go through the J
 and CSS grammars. That is why Svelte having its own grammar and Vue borrowing HTML's does
 not produce two different mechanisms: the outer step differs, the inner step is shared.
 
-**The line numbers are the point of the whole design.** Blocks are MASKED rather than
-sliced: everything outside the block becomes spaces, newlines are kept where they are, so a
-function on line 40 of the file is reported on line 40. Slicing would report line 1, and a
-citation pointing at the wrong line is indistinguishable from a correct answer, which is
-the one failure this project cannot afford.
+**The line numbers are the point of the whole design.** A block is parsed from its own text,
+and every line it reports is then moved down by the row the block starts on, so a function on
+line 40 of the file is reported on line 40. Left unmoved, a block would report line 1, and a
+citation pointing at the wrong line is indistinguishable from a correct answer, which is the
+one failure this project cannot afford. The cost of a block is its own length. It used to be a
+copy of the whole file for every block, and then a run of newlines for every row above it.
 """
 
 from __future__ import annotations
@@ -118,3 +119,121 @@ def test_a_top_level_script_call_resolves_into_a_javascript_file(tmp_path):
              if e.relation == "calls"}
     # The JavaScript definition and nothing else: the Python `useThing` is another family.
     assert calls == {("App.vue", "composables.js"), ("Widget.svelte", "composables.js")}
+
+
+def test_a_block_is_parsed_from_its_own_text_and_not_from_a_copy_of_the_file(monkeypatch):
+    """Every block used to be parsed from a buffer as long as the whole file, kept in a list
+    for the length of the run. 200 style blocks in a 968,724-byte component took 19 s and
+    held about 194 MB. The input sizes are counted here, not the seconds, so the result does
+    not move with the machine: the old code passed 3 x len(file) bytes for this fixture."""
+    import contextlake.kb.parse as parse_mod
+
+    src = (b"<style>.a { color: red; }</style>\n<style>.b { color: red; }</style>\n"
+           b"<script>function c() { return 1; }</script>\n"
+           b"<template><p>" + b"x" * 200_000 + b"</p></template>\n")
+    sizes: list[int] = []
+    real = parse_mod.parse_source
+
+    def spy(repo_id, rel, source, lang, *a, **k):
+        sizes.append(len(source))
+        return real(repo_id, rel, source, lang, *a, **k)
+
+    monkeypatch.setattr(parse_mod, "parse_source", spy)
+    sf = parse_mod.SourceFile(rel="Big.vue", source=src, kind="code", lang="vue")
+    nodes, _edges = parse_mod._parse_sfc("r", sf, parse_mod.RefCollector())
+    assert len(sizes) == 3
+    assert sum(sizes) < 1_000, f"blocks were parsed from {sizes} bytes of a {len(src)}-byte file"
+    assert {n.name for n in nodes} >= {"a", "b", "c"}, "and the blocks still parse"
+
+
+def test_the_blocks_of_a_component_are_built_one_at_a_time():
+    """A list holds every block until the caller is done with all of them. A generator holds
+    one, which is what keeps memory flat when a component has thousands."""
+    from contextlake.kb.parse import _sfc_blocks
+
+    blocks = _sfc_blocks(b"<style>.a { color: red; }</style>\n<style>.b { color: red; }</style>\n",
+                         "vue")
+    assert iter(blocks) is blocks
+    assert [lang for lang, _text, _row in blocks] == ["css", "css"]
+
+
+def test_many_blocks_keep_their_rows_and_columns(tmp_path):
+    """Several blocks per line and several lines apart. Each block is moved by its own row,
+    so a miscount shows as a wrong line only on the later blocks."""
+    lines = ["<template><p>x</p></template>"]
+    want = {}
+    for i in range(40):
+        lines.append(f"<style>.s{i} {{ color: red; }}</style> "
+                     f"<script>function f{i}() {{}}</script>")
+        want[f"f{i}"] = len(lines)
+        lines.append("")
+    (tmp_path / "Many.vue").write_text("\n".join(lines) + "\n")
+    shard = index_repo_dir(str(tmp_path), "demo")
+    got = {n.name: n.line_start for n in shard.nodes if n.kind == "function"}
+    assert got == want
+    assert {n.name: n.line_start for n in shard.nodes if n.kind == "css_class"} == {
+        f"s{i}": want[f"f{i}"] for i in range(40)}
+
+
+def test_a_block_is_its_own_text_with_the_row_it_starts_on():
+    """The block is the text between the tags and nothing else. The row says where it sits."""
+    from contextlake.kb.parse import _sfc_blocks
+
+    src = b"<template><p>x</p></template>\n\n  <script>function f() {}</script>\n"
+    ((lang, text, row),) = _sfc_blocks(src, "vue")
+    assert lang == "javascript"
+    assert text == b"function f() {}"
+    assert row == 2
+
+
+def test_every_line_a_block_reports_is_a_line_of_the_file():
+    """A line lives in a node's two lines, an edge's source line, a call and an inherits.
+    Each is checked against a line counted in the fixture, so a field the shift missed
+    reads as a block-relative line (7 or less) instead of the file's (21 to 26)."""
+    import contextlake.kb.parse as parse_mod
+
+    src = ("\n" * 19 + "<script>\nimport a from './a'\nclass Child extends Base {\n"
+           "  go() {\n    return helper();\n  }\n}\n</script>\n").encode()
+    # Line 20 is `<script>`, 21 the import, 22 the class, 23 `go`, 24 the call, 27 `</script>`.
+    refs = parse_mod.RefCollector()
+    sf = parse_mod.SourceFile(rel="Lines.vue", source=src, kind="code", lang="vue")
+    nodes, edges = parse_mod._parse_sfc("r", sf, refs)
+    by_name = {n.name: n for n in nodes}
+    assert (by_name["Child"].line_start, by_name["Child"].line_end) == (22, 26)
+    assert (by_name["go"].line_start, by_name["go"].line_end) == (23, 25)
+    assert {e.relation: e.provenance.source_line for e in edges
+            if e.relation == "imports"} == {"imports": 21}
+    assert sorted(e.provenance.source_line for e in edges if e.relation == "contains") == [
+        22, 23]
+    assert [line for *_rest, line in refs.calls] == [24]
+    assert [line for *_rest, line in refs.inherits] == [22]
+
+
+def _bytes_parsed(monkeypatch, n_blocks: int) -> int:
+    """Total bytes handed to `parse_source` for a component of `n_blocks` one-line blocks."""
+    import contextlake.kb.parse as parse_mod
+
+    sizes: list[int] = []
+    real = parse_mod.parse_source
+
+    def spy(repo_id, rel, source, lang, *a, **k):
+        sizes.append(len(source))
+        return real(repo_id, rel, source, lang, *a, **k)
+
+    monkeypatch.setattr(parse_mod, "parse_source", spy)
+    src = b"".join(b"<style>.s%03d { color: red; }</style>\n" % i for i in range(n_blocks))
+    sf = parse_mod.SourceFile(rel="Rows.vue", source=src, kind="code", lang="vue")
+    parse_mod._parse_sfc("r", sf, parse_mod.RefCollector())
+    assert len(sizes) == n_blocks
+    return sum(sizes)
+
+
+def test_the_bytes_parsed_grow_with_the_block_count_and_not_with_the_rows(monkeypatch):
+    """N blocks on N rows. A block padded with the rows above it costs N x N newline bytes,
+    so doubling the blocks multiplied the bytes by about 4: 10,000 blocks took 5.2 s and
+    40,000 took 77 s. Counted here as bytes, not seconds, so it does not move with the
+    machine. Every block has the same text, so linear growth is a ratio of exactly 2."""
+    small = _bytes_parsed(monkeypatch, 100)
+    double = _bytes_parsed(monkeypatch, 200)
+    assert double == 2 * small, f"2x the blocks parsed {double / small:.1f}x the bytes"
+    assert small == 100 * len(b".s000 { color: red; }"), "and each block is only its own text"
