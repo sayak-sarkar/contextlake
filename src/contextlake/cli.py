@@ -1987,6 +1987,18 @@ def apply_cli_overrides(args, config):
             f"branch_strategy: {strategy!r} is not one of "
             f"{', '.join(sorted(_BRANCH_STRATEGIES))}")
 
+    # The flag is bounded by `_RETRIES`; a config file reaches here unchecked, and a 0 in it
+    # failed once per repository from retry_with_backoff instead of once, before any work.
+    # A value that is not a number keeps falling back to the default (core._int).
+    try:
+        attempts = int(config.get("max_retries"))
+    except (TypeError, ValueError):
+        attempts = None
+    if attempts is not None and attempts < 1:
+        raise ConfigError(
+            f"max_retries: {attempts} is not valid. It counts total attempts, so use 1 or "
+            "more; 1 means try once and do not retry")
+
     return config
 
 

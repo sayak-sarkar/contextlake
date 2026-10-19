@@ -115,3 +115,24 @@ def test_an_unknown_spelling_stops_the_run_and_names_the_key(flag, spelling):
 def test_a_flag_on_the_command_line_decides_over_a_bad_file_value():
     args = build_parser().parse_args(["mirror", "sync", "--dry-run"])
     assert apply_cli_overrides(args, {"dry_run": "maybe"})["dry_run"] == "true"
+
+
+@pytest.mark.parametrize("value", ["0", "-1", " 0 "])
+def test_a_max_retries_below_one_in_the_file_stops_the_run_and_names_the_key(value):
+    """`max_retries` counts total attempts, so 0 never runs the operation. The file value
+    reached `retry_with_backoff`, which refused once per repository, after the run began."""
+    args = build_parser().parse_args(["mirror", "status"])
+    with pytest.raises(ConfigError, match=r"^max_retries: -?\d+ is not valid.*use 1 or more"):
+        apply_cli_overrides(args, {"max_retries": value})
+
+
+def test_a_max_retries_flag_decides_over_a_zero_in_the_file():
+    args = build_parser().parse_args(["--max-retries", "3", "mirror", "status"])
+    assert apply_cli_overrides(args, {"max_retries": "0"})["max_retries"] == "3"
+
+
+@pytest.mark.parametrize("value", ["1", "3", "three"])
+def test_a_max_retries_of_one_or_more_or_no_number_is_left_alone(value):
+    """1 is "try once, do not retry". A word keeps falling back to the default in core._int."""
+    args = build_parser().parse_args(["mirror", "status"])
+    assert apply_cli_overrides(args, {"max_retries": value})["max_retries"] == value

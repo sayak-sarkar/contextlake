@@ -383,6 +383,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and then overwritten by the CSV, so the JSON report was lost and the log named `audit.csv`
   twice. A name ending in `.csv` now gets the CSV there and the JSON beside it as `audit.json`.
   Other names are unchanged: JSON at the name, CSV beside it.
+- **A `max_retries` below 1 in the config now stops the run once, with a one-line error.** The
+  key counts total attempts, so `0` never ran the operation, and every repository failed with
+  its own copy of the error after the run had started. The flag already refused `0`. The docs
+  called the key "retry attempts", but `3` means three tries and two retries, so they now say
+  total attempts, minimum `1`. Use `1` for "try once and do not retry".
 
 ### Security
 

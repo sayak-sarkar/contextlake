@@ -85,3 +85,15 @@ def test_a_config_with_no_section_header_exits_clean(tmp_path, capsys):
     assert code == 1
     assert "before any [contextlake] header" in out
     assert "Traceback" not in out
+
+
+def test_a_zero_max_retries_in_the_config_stops_the_run_once(tmp_path, capsys):
+    """It counts total attempts, so 0 never runs the operation. The refusal used to come
+    once per repository from inside the retry loop, after the run had started."""
+    code = _status(_ini(tmp_path, "max_retries = 0\n"))
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert "max_retries: 0 is not valid" in out
+    assert out.count("max_retries") == 1
+    assert "Traceback" not in out

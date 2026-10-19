@@ -91,7 +91,8 @@ branch_strategy = hybrid
 clean_corrupted = true
 
 # Retry configuration for failed operations
-# max_retries: Maximum number of retry attempts for failed operations
+# max_retries: Total attempts for a failed operation, the first try included (3 = two retries).
+#   Minimum 1, which means try once and do not retry. 0 stops the run with an error.
 # backoff_initial: Initial backoff time in seconds (exponential backoff)
 # backoff_max: Maximum backoff time in seconds
 max_retries = 3

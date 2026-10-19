@@ -300,7 +300,7 @@ the file that set it, before any repository is touched. A flag on the command li
 | `pull_timeout` | Pull operation timeout (seconds) | `60` | `120` |
 | `max_workers` | Maximum parallel workers | `8` | `4` |
 | `clean_corrupted` | Before a clone, remove an empty directory an interrupted clone left at the destination. A non-empty directory with no `.git` is never removed: clone reports it as an error and leaves it alone | `true` | `false` |
-| `max_retries` | Maximum retry attempts for failed operations | `3` | `5` |
+| `max_retries` | Total attempts for a failed operation, the first try included, so `3` means two retries. The minimum is `1`, which means try once and do not retry. `0` stops the run with an error | `3` | `5` |
 | `backoff_initial` | Initial backoff time in seconds | `1` | `2` |
 | `backoff_max` | Maximum backoff time in seconds | `30` | `60` |
 | `adaptive_workers` | Enable adaptive worker pool | `true` | `false` |
