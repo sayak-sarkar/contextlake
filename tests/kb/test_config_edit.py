@@ -270,3 +270,109 @@ def test_removing_from_a_missing_config_creates_nothing(tmp_path):
     assert set_source_enabled(str(cfg), "gl", True) is False
 
     assert not (tmp_path / "nested").exists()
+
+
+# --- a config that is a symbolic link --------------------------------------------------------
+#
+# `_write_document` ends in `os.replace`, which on a link removes the link and leaves a regular
+# file in its place. A dotfiles setup (`~/.contextlake/kb.toml` linked to a file in a repo) kept
+# its old content while the command printed success.
+
+needs_symlinks = pytest.mark.skipif(os.name == "nt", reason="symbolic links need rights on Windows")
+
+
+def _linked_config(tmp_path, content="# dotfiles\n[kb]\n"):
+    behind = tmp_path / "dotfiles" / "kb.toml"
+    behind.parent.mkdir()
+    behind.write_text(content)
+    link = tmp_path / "home" / "kb.toml"
+    link.parent.mkdir()
+    link.symlink_to(behind)
+    return behind, link
+
+
+@needs_symlinks
+def test_every_edit_through_an_explicit_link_changes_the_file_behind_it(tmp_path):
+    behind, link = _linked_config(tmp_path)
+
+    add_source(str(link), {"type": "gitlab", "name": "gl"})
+    assert link.is_symlink() and link.resolve() == behind.resolve()
+    assert [s["name"] for s in _toml(behind)["sources"]] == ["gl"]
+    assert "# dotfiles" in behind.read_text()
+
+    assert set_source_enabled(str(link), "gl", False) is True
+    assert _toml(behind)["sources"][0]["enabled"] is False
+
+    assert remove_source(str(link), "gl") is True
+    assert link.is_symlink() and not _toml(behind).get("sources")
+    # The lock and the temp file sit beside the file that is written, not beside the link.
+    assert (behind.parent / "kb.toml.lock").exists()
+    assert sorted(p.name for p in link.parent.iterdir()) == ["kb.toml"]
+    assert not list(behind.parent.glob("*.tmp"))
+
+
+@needs_symlinks
+def test_the_global_config_that_is_a_link_is_written_through(monkeypatch, tmp_path):
+    from contextlake.kb import config as kbcfg
+
+    behind, link = _linked_config(tmp_path)
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(link))
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(tmp_path / "no-local.toml"))
+
+    add_source(None, {"type": "gitlab", "name": "gl"})
+
+    assert link.is_symlink()
+    assert [s["name"] for s in _toml(behind)["sources"]] == ["gl"]
+
+
+@needs_symlinks
+def test_the_wiki_model_is_saved_through_a_linked_config(tmp_path):
+    behind, link = _linked_config(tmp_path, '# dotfiles\n[llm]\nprovider = "none"\n')
+
+    config_edit.set_builtin_model(str(link), "acme/model")
+
+    assert link.is_symlink()
+    llm = _toml(behind)["llm"]
+    assert llm == {"provider": "none", "builtin_model": "acme/model"}
+    assert "# dotfiles" in behind.read_text()
+
+
+@needs_symlinks
+def test_a_link_to_a_file_that_does_not_exist_yet_creates_that_file(tmp_path):
+    behind = tmp_path / "dotfiles" / "kb.toml"
+    behind.parent.mkdir()
+    link = tmp_path / "kb.toml"
+    link.symlink_to(behind)
+
+    add_source(str(link), {"type": "gitlab", "name": "gl"})
+
+    assert link.is_symlink()
+    assert [s["name"] for s in _toml(behind)["sources"]] == ["gl"]
+
+
+@needs_symlinks
+@pytest.mark.parametrize("local", [False, True])
+def test_a_walked_up_config_that_is_a_link_is_replaced_and_never_written_through(
+        monkeypatch, tmp_path, local):
+    """A file found by walking up from the working directory can arrive in a cloned repo,
+    so a link there must not send the write to a file elsewhere. The link is replaced, as
+    before, and the file it pointed at is left alone."""
+    from contextlake.kb import config as kbcfg
+
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "global-kb.toml"))
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", ".contextlake.kb.toml")
+    outside = tmp_path / "elsewhere" / "target.toml"
+    outside.parent.mkdir()
+    outside.write_text("# not yours\n[kb]\n")
+    before = outside.read_bytes()
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / ".contextlake.kb.toml").symlink_to(outside)
+    monkeypatch.chdir(project)
+
+    add_source(None, {"type": "gitlab", "name": "gl"}, local=local)
+
+    assert outside.read_bytes() == before
+    written = project / ".contextlake.kb.toml"
+    assert not written.is_symlink()
+    assert [s["name"] for s in _toml(written)["sources"]] == ["gl"]

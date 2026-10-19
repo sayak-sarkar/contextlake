@@ -30,6 +30,20 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
     ) from exc
 
 
+def _through_link(path: Path) -> Path:
+    """The file ``path`` links to when it is a symbolic link, else ``path``.
+
+    ``_write_document`` swaps the file for a new one with ``os.replace``, which on a link
+    removes the link and leaves a regular file there. With ``~/.contextlake/kb.toml``
+    linked to a file in a dotfiles repo, the repo kept the old content while the command
+    printed success. Writing to the file behind the link keeps the link. Only for a file
+    the user named (``--config`` or the global config): a file found by walking up from
+    the working directory stays as it is, so a link inside a cloned repo cannot send a
+    write to a file elsewhere.
+    """
+    return Path(os.path.realpath(path)) if path.is_symlink() else path
+
+
 def resolve_write_target(config_path: str | None, local: bool = False) -> Path:
     """The kb.toml path to write.
 
@@ -40,14 +54,19 @@ def resolve_write_target(config_path: str | None, local: bool = False) -> Path:
     one is already there (so once a workspace has a local config, writes keep
     landing in it without re-passing ``--local`` every time); failing that, the
     global config, same as before this existed.
+
+    An explicit path and the global config that are symbolic links resolve to the file
+    they point at (see ``_through_link``). A walked-up local config does not.
     """
     if config_path:
-        return Path(expand_path(config_path))
+        return _through_link(Path(expand_path(config_path)))
     if local:
         return Path(expand_path(
             find_ancestor_config(kb_config.LOCAL_CONFIG) or kb_config.LOCAL_CONFIG))
     found_local = find_ancestor_config(kb_config.LOCAL_CONFIG)
-    return Path(expand_path(found_local or kb_config.GLOBAL_CONFIG))
+    if found_local:
+        return Path(expand_path(found_local))
+    return _through_link(Path(expand_path(kb_config.GLOBAL_CONFIG)))
 
 
 def _load_document(path: Path):
@@ -226,7 +245,7 @@ def set_builtin_model(path, repo_id: str) -> None:
     ``--config`` path, never a file found by walking up folders
     (``kb/llm/model_choice.py``).
     """
-    path = Path(path)
+    path = _through_link(Path(path))
     with _edit_lock(path):
         doc = _load_document(path)
         llm = doc.get("llm")

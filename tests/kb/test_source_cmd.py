@@ -13,6 +13,7 @@ directly rather than through ``main()`` (see also tests/test_init.py).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -290,6 +291,36 @@ def test_a_privileged_key_survives_when_the_file_is_named_with_config(tmp_path):
     assert rc == 0
     jira = next(s for s in load_kb_config(str(cfg)).sources if s.name == "jira")
     assert jira.mcp == "https://mcp.example.net/v1/mcp"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symbolic links need rights on Windows")
+def test_a_config_named_with_config_that_is_a_link_is_written_through(tmp_path, gls_logs):
+    """`--config` naming a link to a dotfiles copy: the link stays, the file behind it gets
+    the source, and the trust gate still treats the named file as the user's own choice
+    (it keeps the privileged key)."""
+    from contextlake.kb.config import load_kb_config
+
+    behind = tmp_path / "dotfiles" / "kb.toml"
+    behind.parent.mkdir()
+    behind.write_text("# dotfiles\n[kb]\n")
+    link = tmp_path / "home" / "kb.toml"
+    link.parent.mkdir()
+    link.symlink_to(behind)
+
+    rc = source_cmd.cmd_source(
+        _args("add", str(link), type="atlassian", name="jira",
+              mcp="https://mcp.example.net/v1/mcp"))
+
+    assert rc == 0
+    assert link.is_symlink() and link.resolve() == behind.resolve()
+    assert _toml(behind)["sources"][0]["name"] == "jira"
+    assert "# dotfiles" in behind.read_text()
+    assert next(s for s in load_kb_config(str(link)).sources if s.name == "jira").mcp \
+        == "https://mcp.example.net/v1/mcp"
+    assert source_cmd.cmd_source(_args("disable", str(link), name="jira")) == 0
+    assert _toml(behind)["sources"][0]["enabled"] is False
+    assert source_cmd.cmd_source(_args("remove", str(link), name="jira")) == 0
+    assert link.is_symlink() and not _toml(behind).get("sources")
 
 
 def test_the_loader_really_does_strip_the_key_from_a_discovered_config(

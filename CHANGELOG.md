@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run now prints `MRR=0.0 hit-rate=0.0`. The shipped CI gate is unchanged: it runs at the
   default `--limit 10` on entries with one id. If you gate on MRR or hit-rate with a golden file
   whose entries list more ids than `--limit`, measure the floor again.
+- **`kb source add|remove|enable|disable` and the wiki model save keep a symlinked `kb.toml`.**
+  10.0.0rc4 replaced the link with a regular file and printed success, so a config linked to a
+  dotfiles repo left the repo copy unchanged. The commands now write to the file the link points
+  to, for `--config PATH` and for the global `~/.contextlake/kb.toml`. The lock file
+  (`kb.toml.lock`) now sits beside that file, so add it to `.gitignore` there. If an earlier
+  edit already replaced your link, merge the regular file into the dotfiles copy and link it
+  again. A project `.contextlake.kb.toml` found by walking up from the working directory is
+  still not followed.
 
 ### Fixed
 

@@ -3337,6 +3337,12 @@ time, both changes are kept. The lock is an empty file beside the config (`kb.to
 `.contextlake.kb.toml.lock` for a project file). Leave it in place, and add it to `.gitignore` in a
 project. A command that waits 10 seconds for the lock exits 1 and changes nothing.
 
+If the config you name with `--config`, or the global `kb.toml`, is a symbolic link, these commands
+write to the file the link points to, in whatever folder it is, and keep the link. The lock sits
+beside that file. A project `.contextlake.kb.toml` that the command finds by walking up from the
+working directory is not followed: a link there is replaced by a regular file, and the file it
+pointed to is not touched.
+
 An example workflow:
 
 ```bash
@@ -9932,6 +9938,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run now prints `MRR=0.0 hit-rate=0.0`. The shipped CI gate is unchanged: it runs at the
   default `--limit 10` on entries with one id. If you gate on MRR or hit-rate with a golden file
   whose entries list more ids than `--limit`, measure the floor again.
+- **`kb source add|remove|enable|disable` and the wiki model save keep a symlinked `kb.toml`.**
+  10.0.0rc4 replaced the link with a regular file and printed success, so a config linked to a
+  dotfiles repo left the repo copy unchanged. The commands now write to the file the link points
+  to, for `--config PATH` and for the global `~/.contextlake/kb.toml`. The lock file
+  (`kb.toml.lock`) now sits beside that file, so add it to `.gitignore` there. If an earlier
+  edit already replaced your link, merge the regular file into the dotfiles copy and link it
+  again. A project `.contextlake.kb.toml` found by walking up from the working directory is
+  still not followed.
 
 ### Fixed
 

@@ -116,6 +116,12 @@ time, both changes are kept. The lock is an empty file beside the config (`kb.to
 `.contextlake.kb.toml.lock` for a project file). Leave it in place, and add it to `.gitignore` in a
 project. A command that waits 10 seconds for the lock exits 1 and changes nothing.
 
+If the config you name with `--config`, or the global `kb.toml`, is a symbolic link, these commands
+write to the file the link points to, in whatever folder it is, and keep the link. The lock sits
+beside that file. A project `.contextlake.kb.toml` that the command finds by walking up from the
+working directory is not followed: a link there is replaced by a regular file, and the file it
+pointed to is not touched.
+
 An example workflow:
 
 ```bash
