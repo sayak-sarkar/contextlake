@@ -505,6 +505,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command '<name>' not found on PATH`. The run reads `1 failed`, not `1 rejected`. A review CLI
   that is installed but exits with an error, times out or prints nothing abstains, and rejects
   every page that reaches the council. The docs for 10.0.0rc4 and earlier carry the wrong text.
+- **`kb ingest --path` names the documents it replaces.** Every `--path` run writes the one
+  `cli` document set, so a run on a second folder removed the documents of the first and printed
+  a plain `cli: 1 document(s)` with exit 0. The run now prints the count and the first three
+  names it replaced. To keep several folders, add each as its own source with `kb source add`.
+  The replacement itself is unchanged.
 
 ### Security
 

@@ -99,6 +99,91 @@ def test_a_failed_ingest_write_keeps_the_previous_partition(tmp_path, monkeypatc
     assert _ids(db, "@ingest:cli") == before
 
 
+def _folder(tmp_path, name, files):
+    d = tmp_path / name
+    d.mkdir()
+    for f in files:
+        (d / f).write_text(f"# {f}\n{f} body\n")
+    return d
+
+
+def test_a_path_run_on_another_folder_names_the_documents_it_replaced(
+        tmp_path, monkeypatch, capsys):
+    """Every `--path` run writes the one `@ingest:cli` partition. A run on a second folder
+    removed the first folder's documents and printed a clean `cli: 1 document(s)`."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    first = _folder(tmp_path, "docs", ["a1.md", "a2.md"])
+    second = _folder(tmp_path, "notes", ["b1.md"])
+
+    assert _ingest(tmp_path, first) == 0
+    assert "replaced" not in capsys.readouterr().out, "a first run replaces nothing"
+
+    assert _ingest(tmp_path, second) == 0
+    out = capsys.readouterr().out
+    db = tmp_path / "kb" / "index.sqlite"
+    assert _ids(db, "@ingest:cli") == ["@ingest:cli:b1.md"]
+    assert "cli: replaced 2 document(s) the last run stored and this run did not read" in out
+    assert "a1.md" in out and "a2.md" in out
+    assert "contextlake kb source add NAME --type files --set path=PATH" in out
+
+    assert _ingest(tmp_path, second) == 0
+    assert "replaced" not in capsys.readouterr().out, "re-reading the same folder is quiet"
+
+
+def test_the_replaced_notice_suggests_a_source_of_the_type_that_was_run():
+    """The hint is built from the run's own type and target option. A web or api run reads
+    `url`, so `--type files --set path=` would have named a source that cannot work."""
+    from contextlake.kb.cmds.ingest import _own_source_hint
+
+    assert _own_source_hint("files", "./notes") == (
+        "contextlake kb source add NAME --type files --set path=PATH")
+    assert _own_source_hint("web", "https://example.invalid/a") == (
+        "contextlake kb source add NAME --type web --set url=URL")
+    assert _own_source_hint("api", "https://example.invalid/items") == (
+        "contextlake kb source add NAME --type api --set url=URL")
+
+
+def test_a_path_run_whose_write_fails_does_not_claim_it_replaced_anything(
+        tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert _ingest(tmp_path, _folder(tmp_path, "docs", ["a1.md", "a2.md"])) == 0
+    capsys.readouterr()
+
+    monkeypatch.setattr(SqliteStore, "upsert_edges", _boom)
+    assert _ingest(tmp_path, _folder(tmp_path, "notes", ["b1.md"])) != 0
+
+    out = capsys.readouterr().out
+    assert out.strip(), "the capture must see something or this proves nothing"
+    assert "replaced" not in out
+    assert _ids(tmp_path / "kb" / "index.sqlite", "@ingest:cli") == [
+        "@ingest:cli:a1.md", "@ingest:cli:a2.md"]
+
+
+def test_a_path_run_that_missed_a_target_keeps_documents_and_does_not_say_replaced(
+        tmp_path, monkeypatch, capsys):
+    """When a target could not be read the earlier documents are kept, not replaced."""
+    import contextlake.kb.sources as sources_pkg
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert _ingest(tmp_path, _folder(tmp_path, "docs", ["a1.md", "a2.md"])) == 0
+    capsys.readouterr()
+
+    class _PartialSource:
+        failures = [("page-2", "HTTP 500")]
+
+        def iter_documents(self):
+            yield Document(id="a1.md", title="A1", text="fresh body")
+
+    monkeypatch.setattr(sources_pkg, "build_source", lambda *a, **k: _PartialSource())
+    assert _ingest(tmp_path, tmp_path / "docs") == 1
+
+    out = capsys.readouterr().out
+    assert _ids(tmp_path / "kb" / "index.sqlite", "@ingest:cli") == [
+        "@ingest:cli:a1.md", "@ingest:cli:a2.md"]
+    assert "kept 1 from the last run" in out
+    assert "replaced" not in out
+
+
 class _FakeEmbedder:
     name = "fake"
 

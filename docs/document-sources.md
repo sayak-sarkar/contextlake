@@ -28,6 +28,15 @@ option only, so it cannot drive a `graphql` source, which needs a `query` as wel
 entry in `kb.toml` for that. When `--path` names a target and no request goes out for it, the source's
 line reads `cli: FAILED, nothing was sent for '...'` with the reason, and the run exits 1.
 
+Every `--path` run writes the same set of documents (the `@ingest:cli` partition), so a run on a
+second folder replaces the documents of the first. The run prints a line with the count and the first
+three names it replaced. To keep several, add each as its own source and run `kb ingest` with no
+`--path`. A `web` or `api` source takes `url` where a `files` source takes `path`:
+
+```bash
+contextlake kb source add notes --type files --set path=./notes
+```
+
 `--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
 by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
 hop instead of a search. Without it, documents are still stored and embedded, but they link to nothing.

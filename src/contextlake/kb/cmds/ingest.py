@@ -133,6 +133,13 @@ def _cli_target_key(source_type: str, target: str) -> str:
     return "path"
 
 
+def _own_source_hint(source_type: str, target: str) -> str:
+    """The command that adds a ``--path TARGET`` run as a source of its own."""
+    key = _cli_target_key(source_type, target)
+    return (f"contextlake kb source add NAME --type {source_type} "
+            f"--set {key}={'URL' if key == 'url' else 'PATH'}")
+
+
 def cmd_ingest(args) -> int:
     """Aggregate external documents (built-in + plugin sources) into the graph and,
     when embeddings are enabled, the semantic store.
@@ -344,14 +351,26 @@ def cmd_ingest(args) -> int:
                 # `_previous_documents`), so it must not sweep their vectors either. Each
                 # fresh document overwrites its own chunk keys; a document that shrank
                 # keeps its trailing chunks until the next run that reads every target.
-                kept_nodes, kept_edges = (
-                    _previous_documents(store_dir, repo_id, nodes) if misses else ([], []))
+                previous, previous_edges = (
+                    _previous_documents(store_dir, repo_id, nodes)
+                    if misses or cli_path else ([], []))
+                kept_nodes, kept_edges = (previous, previous_edges) if misses else ([], [])
                 if vs is not None and not kept_nodes:
                     vs.clear_repo(repo_id)
                 write_shard(store_dir, GraphShard(repo=repo_id, head_commit="ingest",
                                                   nodes=nodes + kept_nodes,
                                                   edges=edges + kept_edges))
                 store_partition(store, repo_id, nodes + kept_nodes, edges + kept_edges)
+                if cli_path and previous and not misses:
+                    # Every `--path` run writes the one `cli` partition, so a run on another
+                    # folder replaced the first folder's documents and printed a clean
+                    # `1 document(s)`. Said after the write: a failed write replaced nothing.
+                    gone = [n.id.removeprefix(f"{repo_id}:") for n in previous]
+                    more = f" (+{len(gone) - 3} more)" if len(gone) > 3 else ""
+                    log(f"  {name}: replaced {len(gone)} document(s) the last run stored "
+                        f"and this run did not read: {', '.join(gone[:3])}{more}. A --path "
+                        "run owns the whole set. To keep several, add each as its own "
+                        f"source: {_own_source_hint(stype, cli_path)}", inline=True)
                 total += len(nodes)
                 msg = f"  {name}: {len(nodes)} document(s)"
                 if kept_nodes:
