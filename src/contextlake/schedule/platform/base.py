@@ -47,6 +47,17 @@ def check_name(name) -> str:
     return str(name)
 
 
+def _says_not_found(result, marker) -> bool:
+    """Whether the output of a failed command carries ``marker``, one identifier or a tuple.
+
+    Pass each identifier as the CLI prints it, in brackets: ``(NotFound)``. A bare word also
+    matches a denied answer that quotes the name of a job called ``NotFound``.
+    """
+    markers = (marker,) if isinstance(marker, str) else marker
+    output = f"{result.stderr}\n{result.stdout}"
+    return any(m in output for m in markers)
+
+
 def removed_or_gone(result, label, marker) -> bool:
     """Read the result of a delete command run through a subprocess.
 
@@ -59,12 +70,29 @@ def removed_or_gone(result, label, marker) -> bool:
     """
     if result.returncode == 0:
         return True
-    markers = (marker,) if isinstance(marker, str) else marker
-    output = f"{result.stderr}\n{result.stdout}"
-    if any(m in output for m in markers):
+    if _says_not_found(result, marker):
         return False
     raise OSError(f"{label} failed: "
                   f"{result.stderr.strip() or result.stdout.strip() or 'no output'}")
+
+
+def installed_or_unknown(result, platform, marker):
+    """Read the result of a query that asks whether a unit exists, run through a subprocess.
+
+    Returns ``(installed, note)``. ``(True, None)`` when the query worked. ``(False, None)``
+    when it failed and its output carries ``marker``, the identifier the service uses for "not
+    found", so the unit is not there. ``(None, note)`` for any other failure, with the first
+    line of its output in the note: a dead network, expired credentials or a missing permission
+    exit non-zero too, and none of them says the unit is absent. Read as "not installed", they
+    sent the user to re-run ``schedule install``, which needs the same access and fails the same
+    way. The read side of what ``removed_or_gone`` does for ``uninstall``.
+    """
+    if result.returncode == 0:
+        return True, None
+    if _says_not_found(result, marker):
+        return False, None
+    text = result.stderr.strip() or result.stdout.strip() or "no output"
+    return None, f"could not read the {platform} state: {text.splitlines()[0].strip()}"
 
 
 class Adapter:
@@ -117,7 +145,9 @@ class Adapter:
         """What is installed for ``job``, read from this platform, not
         from the job record.
 
-        Returns a dict with five keys: ``installed`` (bool), ``interval_s``
+        Returns a dict with five keys: ``installed`` (bool, or ``None`` when the
+        platform could not be asked, such as a cluster that is unreachable or a
+        login that expired), ``interval_s``
         (the interval the unit itself holds, or ``None`` if unreadable),
         ``next_run`` (a platform-formatted timestamp, or ``None``),
         ``exec_path`` (the interpreter the installed unit runs, or ``None``

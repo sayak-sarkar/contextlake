@@ -28,7 +28,7 @@ import json
 import shutil
 import subprocess
 
-from .base import Adapter, check_name, removed_or_gone
+from .base import Adapter, check_name, installed_or_unknown, removed_or_gone
 
 #: EventBridge Scheduler and Container Apps Jobs both take whole minutes.
 MIN_MINUTES = 1
@@ -38,10 +38,17 @@ MIN_MINUTES = 1
 #: from `az configure`, and a call made without one fails on the missing argument.
 DEFAULT_RESOURCE_GROUP = "contextlake"
 
+#: What `aws` prints when the schedule is not there. Any other failure exits non-zero too.
+#: The brackets are part of the marker: the CLI prints `An error occurred (Code) when calling`,
+#: and a bare `ResourceNotFoundException` also matches a denied answer that quotes the ARN of a
+#: job with that name, which `check_name` accepts.
+AWS_NOT_FOUND = "(ResourceNotFoundException)"
+
 #: What `az` prints when the job, or the group it would sit in, is not there. These are
 #: Azure Resource Manager error codes, the identifiers and not the prose. They come from the
-#: ARM error list, not from a captured run: there is no `az` on the build machine.
-AZURE_NOT_FOUND = ("ResourceNotFound", "ResourceGroupNotFound")
+#: ARM error list, not from a captured run: there is no `az` on the build machine. Bracketed
+#: for the reason `AWS_NOT_FOUND` is: `ERROR: (Code) message`.
+AZURE_NOT_FOUND = ("(ResourceNotFound)", "(ResourceGroupNotFound)")
 
 
 def schedule_name(job_name) -> str:
@@ -163,7 +170,7 @@ class AwsAdapter(Adapter):
         # ResourceNotFoundException means it was not there. Not an error, and not a
         # removal: the same rule every other adapter follows. Any other failure raises.
         gone = removed_or_gone(result, f"aws scheduler delete-schedule for {name}",
-                               "ResourceNotFoundException")
+                               AWS_NOT_FOUND)
         return [f"schedule/{name}"] if gone else []
 
     def installed_names(self):
@@ -185,10 +192,12 @@ class AwsAdapter(Adapter):
             result = _cli("aws", "scheduler", "get-schedule", "--name", name,
                           "--query", "ScheduleExpression", "--output", "text")
         except OSError as e:
-            return {"installed": False, "interval_s": None, "next_run": None,
+            return {"installed": None, "interval_s": None, "next_run": None,
                     "exec_path": None, "notes": [str(e)]}
-        installed = result.returncode == 0
-        notes = []
+        # None when the query failed without saying ResourceNotFoundException (expired
+        # credentials, a missing permission, no network): "cannot tell", not "not installed".
+        installed, problem = installed_or_unknown(result, "aws", AWS_NOT_FOUND)
+        notes = [problem] if problem else []
         if installed:
             expression = result.stdout.strip()
             if expression:
@@ -300,10 +309,10 @@ class AzureAdapter(Adapter):
                           "--query", "properties.configuration.scheduleTriggerConfig"
                                      ".cronExpression", "--output", "tsv")
         except OSError as e:
-            return {"installed": False, "interval_s": None, "next_run": None,
+            return {"installed": None, "interval_s": None, "next_run": None,
                     "exec_path": None, "notes": [str(e)]}
-        installed = result.returncode == 0
-        notes = []
+        installed, problem = installed_or_unknown(result, "azure", AZURE_NOT_FOUND)
+        notes = [problem] if problem else []
         if installed:
             expression = result.stdout.strip()
             if expression:

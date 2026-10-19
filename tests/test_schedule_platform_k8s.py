@@ -350,8 +350,52 @@ def test_state_says_nothing_is_patched_in_the_cluster_on_its_own(monkeypatch):
 
 
 def test_state_reports_not_installed_without_inventing_the_rest(monkeypatch):
-    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(returncode=1))
+    """Only a NotFound answer from the API proves the CronJob is absent."""
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(
+        returncode=1, stderr='Error from server (NotFound): cronjobs.batch '
+                             '"contextlake-default" not found'))
     state = k8s.K8sAdapter().state(_job())
     assert state["installed"] is False
     assert state["next_run"] is None
     assert state["exec_path"] is None
+    assert state["notes"] == []
+
+
+def test_state_is_none_when_the_cluster_cannot_be_asked(monkeypatch):
+    """No route to the cluster, an expired login and a Forbidden all exit non-zero too. Read
+    as "not installed", `status` told the user to re-run `schedule install`, which needs the
+    same access and fails the same way. None is "cannot tell", with the error in a note."""
+    for stderr, shown in (
+            ("Unable to connect to the server: dial tcp 10.0.0.1:443: i/o timeout\n",
+             "Unable to connect to the server"),
+            ("Error from server (Forbidden): cronjobs.batch is forbidden: User cannot get\n",
+             "(Forbidden)"),
+            ("", "no output")):
+        monkeypatch.setattr(k8s, "_run",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        state = k8s.K8sAdapter().state(_job())
+        assert state["installed"] is None
+        assert len(state["notes"]) == 1
+        assert state["notes"][0].startswith("could not read the k8s state: ")
+        assert shown in state["notes"][0]
+
+
+def test_a_forbidden_answer_quoting_a_job_named_notfound_is_not_a_not_found(monkeypatch):
+    """`NotFound` is a valid job name. Only the bracketed `(NotFound)` the API prints counts."""
+    job = _job("NotFound")
+    monkeypatch.setattr(k8s, "_run", lambda *a, **kw: _ok(
+        returncode=1, stderr='Error from server (Forbidden): cronjobs.batch '
+                             '"contextlake-NotFound" is forbidden: User cannot get resource'))
+    assert k8s.K8sAdapter().state(job)["installed"] is None
+    with pytest.raises(OSError, match="kubectl delete for contextlake-NotFound failed"):
+        k8s.K8sAdapter().uninstall(job)
+
+
+def test_state_is_none_when_there_is_no_client(monkeypatch):
+    def _boom(*a, **kw):
+        raise OSError("neither kubectl nor oc is on PATH")
+
+    monkeypatch.setattr(k8s, "_run", _boom)
+    state = k8s.K8sAdapter().state(_job())
+    assert state["installed"] is None
+    assert state["notes"] == ["neither kubectl nor oc is on PATH"]

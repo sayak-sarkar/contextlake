@@ -105,9 +105,11 @@ def _stub_windows_installed(monkeypatch, tmp_path):
 
 
 def _stub_k8s_not_installed(monkeypatch, tmp_path):
-    """`kubectl get cronjob` exits non-zero when the resource is absent."""
-    monkeypatch.setattr(k8s, "_run",
-                        lambda *a: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+    """`kubectl get cronjob` exits non-zero and says NotFound when the resource is absent.
+    A failure that does not say so is "cannot tell", which `state()` reports as None."""
+    monkeypatch.setattr(k8s, "_run", lambda *a: subprocess.CompletedProcess(
+        a, 1, stdout="", stderr='Error from server (NotFound): cronjobs.batch '
+                                '"contextlake-default" not found'))
 
 
 def _stub_k8s_installed(monkeypatch, tmp_path):
@@ -116,8 +118,9 @@ def _stub_k8s_installed(monkeypatch, tmp_path):
 
 
 def _stub_aws_not_installed(monkeypatch, tmp_path):
-    monkeypatch.setattr(cloud, "_cli",
-                        lambda *a, **kw: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 254, stdout="", stderr="An error occurred (ResourceNotFoundException) when calling "
+                                  "the GetSchedule operation: Schedule does not exist."))
 
 
 def _stub_aws_installed(monkeypatch, tmp_path):
@@ -126,8 +129,9 @@ def _stub_aws_installed(monkeypatch, tmp_path):
 
 
 def _stub_azure_not_installed(monkeypatch, tmp_path):
-    monkeypatch.setattr(cloud, "_cli",
-                        lambda *a, **kw: subprocess.CompletedProcess(a, 1, stdout="", stderr=""))
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 1, stdout="", stderr="ERROR: (ResourceNotFound) The Resource "
+                                "'Microsoft.App/jobs/contextlake-default' was not found."))
 
 
 def _stub_azure_installed(monkeypatch, tmp_path):

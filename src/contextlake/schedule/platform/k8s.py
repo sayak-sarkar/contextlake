@@ -31,7 +31,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from .base import Adapter, check_name, removed_or_gone
+from .base import Adapter, check_name, installed_or_unknown, removed_or_gone
 from .cron import nearest_expressible
 
 #: Cheap to change, and named once so the manifest and the argv agree.
@@ -40,6 +40,10 @@ DEFAULT_NAMESPACE = "default"
 #: The image the CronJob runs. Overridable per install; the default names the
 #: published image rather than pretending a cluster has a local build.
 DEFAULT_IMAGE = "ghcr.io/sayak-sarkar/contextlake:latest"
+
+#: What `kubectl` prints when the API answers that the CronJob is not there. A dead network or
+#: an expired login exits non-zero too and carries none of this.
+NOT_FOUND = "(NotFound)"
 
 
 def resource_name(job_name) -> str:
@@ -214,7 +218,7 @@ spec:
         """
         name = resource_name(job.name)
         result = _run("delete", "cronjob", name, "-n", DEFAULT_NAMESPACE)
-        gone = removed_or_gone(result, f"kubectl delete for {name}", "(NotFound)")
+        gone = removed_or_gone(result, f"kubectl delete for {name}", NOT_FOUND)
         return [f"cronjob/{name}"] if gone else []
 
     def installed_names(self):
@@ -246,9 +250,13 @@ spec:
             result = _run("get", "cronjob", name, "-n", DEFAULT_NAMESPACE,
                           "-o", "jsonpath={.spec.schedule}|{.status.lastScheduleTime}")
         except OSError as e:
-            return {"installed": False, "interval_s": None, "next_run": None,
+            return {"installed": None, "interval_s": None, "next_run": None,
                     "exec_path": None, "notes": [str(e)]}
-        installed = result.returncode == 0
+        # None when the query failed without saying NotFound (no route to the cluster, an
+        # expired login, a Forbidden). That is "cannot tell", not "not installed".
+        installed, problem = installed_or_unknown(result, "k8s", NOT_FOUND)
+        if problem:
+            notes.append(problem)
         if installed:
             schedule, _, last = result.stdout.partition("|")
             schedule = schedule.strip()

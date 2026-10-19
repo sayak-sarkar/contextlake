@@ -126,8 +126,10 @@ Three commands change the job record:
   cannot reach. Fix the cause and run it again. A unit that is already gone counts as removed.
 - How `uninstall` tells "already gone" from a real failure depends on the backend. `systemd`,
   `launchd` and `cron` look at the unit file or the crontab. `k8s`, `aws` and `azure` look for
-  the service's own not-found code in the error: `NotFound`, `ResourceNotFoundException`, and
-  `ResourceNotFound` or `ResourceGroupNotFound`. Any other error keeps the job record.
+  the service's own not-found code in the error, in the brackets the CLI prints it in:
+  `(NotFound)`, `(ResourceNotFoundException)`, and `(ResourceNotFound)` or
+  `(ResourceGroupNotFound)`. A job named like one of these codes does not match, because its
+  name is not in brackets. Any other error keeps the job record.
 - `windows` cannot match text, because `schtasks` messages follow the language of Windows.
   After a failed delete it lists every task. The unit counts as gone only when that listing
   works and does not hold the task. If the listing fails too, `uninstall` keeps the job record.
@@ -413,7 +415,16 @@ measured history, and reports every way they disagree:
    from the current install to fix it.
 3. **The unit was removed outside contextlake.** `status` reports "recorded but NOT installed"
    when the job record exists but the systemd timer or crontab block does not. Re-run
-   `contextlake schedule install`.
+   `contextlake schedule install`. On Kubernetes, AWS and Azure it says this only when the
+   cluster or cloud answers that the job is not there.
+
+    If the answer is an error instead, such as an expired login, a denied permission or no route
+    to the cluster, `status` prints `could not read the <platform> state:` and the first line of
+    the error, and `schedule status --json` shows `"unit_installed": null`. A missing `kubectl`,
+    `aws` or `az` shows its own error line, such as `aws is not on PATH`, and an adapter that
+    cannot be built shows `could not build the <platform> adapter:`; both also give `null`. Fix
+    the login, the network or the missing tool first: `install` needs the same access.
+
 4. **The job record was removed and the unit was not.** `schedule list` reports these as
    orphaned units, by name and platform. Such a unit keeps firing on schedule, and `uninstall`
    cannot reach it, because it resolves a job name through the record that is gone. Recreate the

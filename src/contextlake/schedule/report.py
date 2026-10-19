@@ -303,20 +303,24 @@ def cmd_status(args, config) -> int:
         try:
             adapter = adapters._adapter_for(args, job)
         except Exception as e:  # noqa: BLE001 - a broken adapter must not hide the record
-            state = {"installed": False, "interval_s": None, "next_run": None,
+            state = {"installed": None, "interval_s": None, "next_run": None,
                      "notes": [f"could not build the {job.platform} adapter: {e}"]}
         else:
             adapter_id, catches_up = adapter.id, adapter.catches_up_after_sleep
             try:
                 state = adapter.state(job)
             except Exception as e:  # noqa: BLE001 - ditto, for a live read
-                state = {"installed": False, "interval_s": None, "next_run": None,
+                state = {"installed": None, "interval_s": None, "next_run": None,
                          "notes": [f"could not read the {job.platform} state: {e}"]}
         for note in (state.get("notes") or []):
             if note not in notes:
                 notes.append(note)
 
-        if not state.get("installed"):
+        # ``is False``: ``None`` means the platform could not be asked, and its own note says
+        # why. Telling the user to re-run install then is advice that cannot help, because
+        # install needs the same access.
+        installed = state.get("installed")
+        if installed is False:
             notes.append("This job is recorded but its unit is NOT installed. "
                          "Re-run `contextlake schedule install` to put it back.")
         # The interpreter the INSTALLED unit references, not the one running
@@ -361,7 +365,8 @@ def cmd_status(args, config) -> int:
             "name": name, "interval_setting": job.interval,
             "effective_interval": recommend.format_duration(effective_s), "why": why,
             "unit_interval": (recommend.format_duration(live_s) if live_s else None),
-            "unit_installed": bool(state.get("installed")), "adapter": adapter_id,
+            "unit_installed": None if installed is None else bool(installed),
+            "adapter": adapter_id,
             "next_run": state.get("next_run"), "command": job.argv,
             "recommendation": recommend.format_duration(rec.interval_s),
             "last_run": job.last_run, "last_exit": job.last_exit,

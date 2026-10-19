@@ -61,6 +61,78 @@ def test_a_record_with_no_unit_is_reported_as_a_disagreement(tmp_path, capsys, m
     assert "not installed" in out or "disagree" in out
 
 
+def test_a_unit_that_could_not_be_asked_is_not_reported_as_missing(
+        tmp_path, capsys, monkeypatch):
+    """None is "cannot tell". The adapter's own note says why, and `status` must not add
+    "NOT installed. Re-run install" on top: install needs the same access as the read that
+    failed, so that advice cannot help."""
+    _install_record(tmp_path)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(
+        installed=None, notes=["could not read the aws state: ExpiredTokenException"]))
+    report.cmd_status(_args(), _config(tmp_path))
+    out = capsys.readouterr().out
+    assert "ExpiredTokenException" in out
+    assert "NOT installed" not in out
+    assert "schedule install" not in out
+
+
+def test_status_json_says_null_for_a_unit_that_could_not_be_asked(
+        tmp_path, capsys, monkeypatch):
+    _install_record(tmp_path)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=None))
+    report.cmd_status(_args(json=True), _config(tmp_path))
+    job = jsonlib.loads(capsys.readouterr().out)["jobs"][0]
+    assert job["unit_installed"] is None
+
+
+def test_an_expired_aws_login_is_not_reported_as_a_missing_schedule(
+        tmp_path, capsys, monkeypatch):
+    """The whole path with the real AWS adapter: a failed `get-schedule` that is not a
+    ResourceNotFoundException shows its error, and a NotFound still reports the schedule
+    missing."""
+    import subprocess
+
+    from contextlake.schedule.platform import cloud
+
+    _install_record(tmp_path, platform="aws")
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 254, stdout="", stderr="An error occurred (ExpiredTokenException) when calling "
+                                  "the GetSchedule operation: The security token is expired"))
+    report.cmd_status(_args(), _config(tmp_path))
+    out = capsys.readouterr().out
+    assert "could not read the aws state" in out
+    assert "ExpiredTokenException" in out
+    assert "NOT installed" not in out
+
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 254, stdout="", stderr="An error occurred (ResourceNotFoundException) when "
+                                  "calling the GetSchedule operation: does not exist."))
+    report.cmd_status(_args(), _config(tmp_path))
+    assert "NOT installed" in capsys.readouterr().out
+
+
+def test_a_missing_cloud_cli_shows_its_own_error_and_no_install_advice(
+        tmp_path, capsys, monkeypatch):
+    """The real AWS adapter with no `aws` on PATH: the OSError text is the note, the unit is
+    "cannot tell" (null in JSON), and `status` does not send the user to `schedule install`."""
+    from contextlake.schedule.platform import cloud
+
+    def _no_cli(binary, *argv, input=None):  # noqa: A002 - matches cloud._cli
+        raise OSError(f"{binary} is not on PATH")
+
+    _install_record(tmp_path, platform="aws")
+    monkeypatch.setattr(cloud, "_cli", _no_cli)
+    report.cmd_status(_args(), _config(tmp_path))
+    out = capsys.readouterr().out
+    assert "aws is not on PATH" in out
+    assert "NOT installed" not in out
+    assert "schedule install" not in out
+
+    report.cmd_status(_args(json=True), _config(tmp_path))
+    job = jsonlib.loads(capsys.readouterr().out)["jobs"][0]
+    assert job["unit_installed"] is None
+
+
 def test_a_missing_interpreter_in_the_installed_unit_is_reported(tmp_path, capsys, monkeypatch):
     """The unit's ExecStart holds the interpreter chosen at install time. If that
     venv is deleted and contextlake is reinstalled elsewhere, the unit still
@@ -240,6 +312,8 @@ def test_a_broken_adapter_read_reports_the_record_without_a_false_catch_up_claim
     assert "default" in out
     assert "systemctl timed out" in out
     assert "does not replay a run missed" not in out.lower()
+    # The read failed, so nothing says the unit is missing.
+    assert "NOT installed" not in out
 
 
 def test_a_broken_adapter_build_reports_the_record_without_a_false_catch_up_claim(
@@ -254,8 +328,9 @@ def test_a_broken_adapter_build_reports_the_record_without_a_false_catch_up_clai
     report.cmd_status(_args(), _config(tmp_path))
     out = capsys.readouterr().out
     assert "default" in out
-    assert "no scheduler found on this machine" in out
+    assert "could not build the systemd adapter: no scheduler found on this machine" in out
     assert "does not replay a run missed" not in out.lower()
+    assert "NOT installed" not in out
 
 
 def test_adapter_notes_are_surfaced(tmp_path, capsys, monkeypatch):

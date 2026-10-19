@@ -182,6 +182,49 @@ def test_aws_state_reports_the_expression_without_inventing_a_next_run(monkeypat
     assert any("rate(60 minutes)" in n for n in state["notes"])
 
 
+def test_aws_state_reports_not_installed_only_for_a_not_found_answer(monkeypatch):
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok(
+        returncode=254, stderr="An error occurred (ResourceNotFoundException) when calling "
+                               "the GetSchedule operation: Schedule does not exist."))
+    state = cloud.AwsAdapter().state(_job())
+    assert state["installed"] is False
+    assert state["notes"] == []
+
+
+def test_aws_state_is_none_when_aws_cannot_be_asked(monkeypatch):
+    """Expired credentials, a missing permission and a dead network exit non-zero too. Read as
+    "not installed", `status` told the user to re-run `schedule install`, which needs the same
+    access. None is "cannot tell", with the first line of the error in a note."""
+    for stderr, shown in (
+            ("An error occurred (ExpiredTokenException) when calling the GetSchedule "
+             "operation: The security token included in the request is expired\n",
+             "ExpiredTokenException"),
+            ("An error occurred (AccessDeniedException) when calling the GetSchedule "
+             "operation: User is not authorized\nsecond line\n",
+             "AccessDeniedException"),
+            ("Could not connect to the endpoint URL: \"https://scheduler.example.invalid/\"",
+             "Could not connect"),
+            ("", "no output")):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=254, stderr=_e))
+        state = cloud.AwsAdapter().state(_job())
+        assert state["installed"] is None
+        assert len(state["notes"]) == 1
+        assert state["notes"][0].startswith("could not read the aws state: ")
+        assert shown in state["notes"][0]
+        assert "second line" not in state["notes"][0]
+
+
+def test_aws_state_is_none_when_the_cli_is_absent(monkeypatch):
+    def _boom(*a, **kw):
+        raise OSError("aws is not on PATH")
+
+    monkeypatch.setattr(cloud, "_cli", _boom)
+    state = cloud.AwsAdapter().state(_job())
+    assert state["installed"] is None
+    assert state["notes"] == ["aws is not on PATH"]
+
+
 # ---- Azure ---------------------------------------------------------------
 
 def test_the_azure_trigger_is_a_cron_expression_and_rounds_like_cron():
@@ -290,6 +333,99 @@ def test_azure_state_reports_the_expression_without_inventing_a_next_run(monkeyp
     assert state["installed"] is True
     assert state["next_run"] is None
     assert any("0 * * * *" in n for n in state["notes"])
+
+
+def test_azure_state_reports_not_installed_only_for_a_not_found_answer(monkeypatch):
+    for stderr in ("ERROR: (ResourceNotFound) The Resource 'Microsoft.App/jobs/"
+                   "contextlake-default' under resource group 'contextlake' was not found.",
+                   "ERROR: (ResourceGroupNotFound) Resource group 'contextlake' could not "
+                   "be found."):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        state = cloud.AzureAdapter().state(_job(platform="azure"))
+        assert state["installed"] is False
+        assert state["notes"] == []
+
+
+def test_azure_state_is_none_when_az_cannot_be_asked(monkeypatch):
+    for stderr in ("ERROR: Please run 'az login' to setup account.",
+                   "ERROR: (AuthorizationFailed) The client does not have authorization.",
+                   ""):
+        monkeypatch.setattr(cloud, "_cli",
+                            lambda *a, _e=stderr, **kw: _ok(returncode=1, stderr=_e))
+        state = cloud.AzureAdapter().state(_job(platform="azure"))
+        assert state["installed"] is None
+        assert len(state["notes"]) == 1
+        assert state["notes"][0].startswith("could not read the azure state: ")
+
+
+def test_azure_state_is_none_when_the_cli_is_absent(monkeypatch):
+    def _boom(*a, **kw):
+        raise OSError("az is not on PATH")
+
+    monkeypatch.setattr(cloud, "_cli", _boom)
+    state = cloud.AzureAdapter().state(_job(platform="azure"))
+    assert state["installed"] is None
+    assert state["notes"] == ["az is not on PATH"]
+
+
+# ---- a job named like an error code --------------------------------------
+
+def test_aws_denied_answer_quoting_a_job_named_like_the_marker_is_not_a_not_found(
+        monkeypatch):
+    """check_name accepts `ResourceNotFoundException` as a job name, and an AccessDenied answer
+    quotes the schedule ARN, which ends in that name. The code only counts when the CLI prints
+    it in brackets, `(ResourceNotFoundException)`. As a bare word it read a denied query as "not
+    installed" and a denied delete as "already gone", so `schedule uninstall` dropped the job
+    record while the schedule kept firing."""
+    name = "ResourceNotFoundException"
+    arn = f"arn:aws:scheduler:eu-west-1:111122223333:schedule/default/contextlake-{name}"
+    job = _job(name)
+
+    def denied(operation):
+        return _ok(returncode=254, stderr=(
+            f"An error occurred (AccessDeniedException) when calling the {operation} "
+            "operation: User: arn:aws:sts::111122223333:assumed-role/ops/x is not authorized "
+            f"to perform: scheduler:{operation} on resource: {arn} because no "
+            "identity-based policy allows it"))
+
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: denied("GetSchedule"))
+    state = cloud.AwsAdapter().state(job)
+    assert state["installed"] is None
+    assert len(state["notes"]) == 1
+    assert state["notes"][0].startswith("could not read the aws state: ")
+
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: denied("DeleteSchedule"))
+    with pytest.raises(OSError, match=f"delete-schedule for contextlake-{name} failed"):
+        cloud.AwsAdapter().uninstall(job)
+
+    # The same name with the service's real not-found answer is still absent.
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **kw: _ok(
+        returncode=254, stderr="An error occurred (ResourceNotFoundException) when calling "
+                               f"the GetSchedule operation: Schedule contextlake-{name} "
+                               "does not exist."))
+    assert cloud.AwsAdapter().state(job)["installed"] is False
+    assert cloud.AwsAdapter().uninstall(job) == []
+
+
+def test_azure_denied_answer_quoting_a_job_named_like_the_marker_is_not_a_not_found(
+        monkeypatch):
+    """The Azure twin: `ResourceNotFound` and `ResourceGroupNotFound` are valid job names, and
+    an AuthorizationFailed answer quotes the job's resource path."""
+    for name in ("ResourceNotFound", "ResourceGroupNotFound"):
+        job = _job(name, platform="azure")
+        monkeypatch.setattr(cloud, "_cli", lambda *a, _n=name, **kw: _ok(
+            returncode=1, stderr=(
+                "ERROR: (AuthorizationFailed) The client does not have authorization to "
+                "perform action 'Microsoft.App/jobs/read' over scope '/subscriptions/"
+                "00000000-0000-0000-0000-000000000000/resourceGroups/contextlake/providers/"
+                f"Microsoft.App/jobs/contextlake-{_n}' or the scope is invalid.")))
+        state = cloud.AzureAdapter().state(job)
+        assert state["installed"] is None
+        assert state["notes"][0].startswith("could not read the azure state: ")
+        with pytest.raises(OSError,
+                           match=f"az containerapp job delete for contextlake-{name} failed"):
+            cloud.AzureAdapter().uninstall(job)
 
 
 # ---- neither is usable here ---------------------------------------------
