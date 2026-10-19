@@ -21,7 +21,9 @@ dropping them leaves the wrong value in place rather than no value:
 ``[[sources]] scopes`` may narrow the OAuth grant and may not widen it, and
 ``[llm]``/``[embeddings]`` ``provider`` naming one of the vendors that receive
 an API credential switches that tier off for the run (see
-:data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`).
+:data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`). ``[llm] review_provider`` naming
+one of those vendors is dropped like any other key: the council then reviews
+with the generator, which is the model the user chose.
 
 Only those keys are gated -- the file is *not* distrusted wholesale. A
 project-local ``store_dir``, ``languages``, ``max_file_bytes``,
@@ -103,16 +105,28 @@ CREDENTIAL_PROVIDERS = frozenset({"openai", "anthropic"})
 # for a DIFFERENT provider. The bound is "a host the operator's own config
 # named", not "loopback". A project-local `provider = "ollama"` keeps working
 # either way, which is what this stays ungated for.
-# review_provider is in this set and needs no gate of its own: build_review_llm
-# re-resolves base_url and api_key_env to None (llm/base.py), so it cannot
-# inherit a planted endpoint, and with command/args dropped a `cli` reviewer
-# can only reach the vetted `claude -p --safe-mode` preset.
+# review_provider needs no endpoint gate: build_review_llm re-resolves base_url
+# and api_key_env to None (llm/base.py), so it cannot inherit a planted endpoint
+# or key name, and with command/args dropped a `cli` reviewer can only reach the
+# vetted `claude -p --safe-mode` preset. It does need a gate on the vendor it
+# names. The vendor defaults apply, so `review_provider = "openai"` builds an
+# OpenAILlm at api.openai.com that reads OPENAI_API_KEY, and every council call
+# posts the source facts (the ownership section included) and the draft page to
+# it. requires_privileged_source refuses that value from a discovered file.
 #
-# The remote providers that carry a credential are NOT handled by dropping the
-# key. Dropping `provider` alone leaves the tier aimed by whatever provider
-# survived the merge, which is a different value the file's author did not pick.
-# They are handled by REFUSE_DISCOVERED_CREDENTIAL_PROVIDER below, which
-# switches the whole tier off for the run.
+# `provider` is NOT handled by dropping the key when it names a remote provider
+# that carries a credential. Dropping `provider` alone leaves the tier aimed by
+# whatever provider survived the merge, which is a different value the file's
+# author did not pick. That case is handled by
+# REFUSE_DISCOVERED_CREDENTIAL_PROVIDER below, which switches the whole tier off
+# for the run. `review_provider` is the exception, and dropping it is enough:
+# with no review_provider the council reviews with the generator, and the
+# generator is a provider that sends no credential, one a file the user named
+# chose, or a tier that is already off.
+# It cannot be a post-merge tier-off, for two reasons. A privileged
+# `review_provider = "anthropic"` would be lost with the discovered value. And
+# `--llm PROVIDER` (apply_llm_overrides) turns a refused tier back on without
+# touching review_provider, so a planted value would return under the flag.
 _PROVIDER_KEYS = frozenset({"provider", "review_provider"})
 _ARGV_PROVIDER = "cli"
 # The value is normalised before the compare (see _provider_value) because the
@@ -135,7 +149,9 @@ _ARGV_PROVIDER = "cli"
 # ~/.contextlake/kb.toml, or passes `--config PATH` to name the file. The same
 # happens when the project-local file repeats the provider the global config
 # already set: provenance is last-wins on the `provider` key, so a repeat still
-# wins it, and the two values are never compared.
+# wins it, and the two values are never compared. A project-local
+# `[llm] review_provider = "openai"` or `"anthropic"` is dropped the same way,
+# and its author moves it to ~/.contextlake/kb.toml or passes `--config PATH`.
 #
 # False. The behaviour before this constant: a tier goes off only when the same
 # file ALSO had base_url or api_key_env refused. Cost: a discovered file that
@@ -147,7 +163,9 @@ _ARGV_PROVIDER = "cli"
 # Reproduced on the tree before this switch existed: a discovered
 # `[llm] enabled = true` + `provider = "openai"` built an OpenAILlm at
 # https://api.openai.com/v1 reading OPENAI_API_KEY, with an Authorization
-# header on the request.
+# header on the request. The same switch covers `review_provider`: False keeps
+# a discovered `review_provider = "openai"`, which then picks the vendor that
+# receives the source facts and the draft page of every council review.
 #
 # Local providers are untouched at either setting. ollama, builtin, auto and
 # cli are not in CREDENTIAL_PROVIDERS, so directory-scoped config keeps working
@@ -247,10 +265,13 @@ SCOPE_KEY = "scopes"
 def requires_privileged_source(table: str, key: str, value: object) -> bool:
     """True if ``[table] key = value`` may be set only from a config file the user named.
 
-    Three things a discovered file must not decide: the argv of a program
+    Four things a discovered file must not decide: the argv of a program
     contextlake runs (``[llm] command``/``args``, and ``provider = "cli"``), the
-    endpoint a request goes to (``base_url``), and the environment variable read for
-    that request's credential (``api_key_env``).
+    endpoint a request goes to (``base_url``), the environment variable read for
+    that request's credential (``api_key_env``), and the vendor the council reviewer
+    sends that credential to (``[llm] review_provider`` naming a member of
+    :data:`CREDENTIAL_PROVIDERS`, while :data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`
+    is set).
 
     A ``False`` return means any discovered file may set the key. That makes this a
     denylist, and both ``[llm]`` and ``[embeddings]`` declare ``extra="allow"``
@@ -265,6 +286,9 @@ def requires_privileged_source(table: str, key: str, value: object) -> bool:
     if table != "llm":
         return False
     if key in _EXECUTABLE_LLM_KEYS:
+        return True
+    if (key == "review_provider" and REFUSE_DISCOVERED_CREDENTIAL_PROVIDER
+            and _provider_value(value) in CREDENTIAL_PROVIDERS):
         return True
     return key in _PROVIDER_KEYS and _provider_value(value) == _ARGV_PROVIDER
 

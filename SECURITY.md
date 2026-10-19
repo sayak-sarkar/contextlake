@@ -69,6 +69,7 @@ environment variable holds that request's credential:
 |---|---|
 | `[llm] command`, `[llm] args` | the agent CLI invoked when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the environment variable read for an api/graphql source's token |
@@ -108,7 +109,8 @@ logged.
 The rest of that file still applies as normal -- `store_dir`, `languages`,
 `[[rules]]`, and a `provider` that stays on your machine (`ollama`, `builtin`, `auto`) all keep
 working, so directory-scoped config keeps doing its job. A discovered `openai` or `anthropic`
-provider switches its tier off, as the next paragraph explains. What a discovered file can no longer do is
+provider switches its tier off, as the next paragraph explains. A discovered `review_provider` that
+names one of them is dropped instead. What a discovered file can no longer do is
 name the host a request goes to, or the environment variable read for its credential, in
 `[llm]`, `[embeddings]` or `[[sources]]`.
 
@@ -116,6 +118,14 @@ When a refusal leaves nothing but a default, the tier is switched off instead. A
 found by directory walk may not aim a credential-carrying tier it also chose. So when the
 `provider` that wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic` and that
 value came from a discovered file, the tier is off for that run and a second warning says so.
+
+`[llm] review_provider` is the exception, and it is dropped instead of switching the tier off.
+Without it the council reviews with the model that wrote the page, so nothing is left aimed at a
+vendor you did not pick. The generator keeps running. A `review_provider` you set in
+`~/.contextlake/kb.toml` or with `--config` is untouched, and it wins over a discovered one. A
+project-local `review_provider = "openai"` or `"anthropic"` therefore has to move to
+`~/.contextlake/kb.toml`, or be reached with `--config`. A local reviewer such as `ollama` keeps
+working from a local file.
 
 Dropping the refused key is not enough on its own. A discovered file asking for
 `base_url = "http://127.0.0.1:1234/v1"` with `provider = "openai"` would fall back to

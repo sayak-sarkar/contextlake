@@ -96,6 +96,10 @@ the model pulled, and otherwise to the built-in CPU model.
     found by directory walk may not aim a credential-carrying tier. Pass `--llm PROVIDER`, or
     `--config PATH`, or set the tier in `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
 
+    A discovered `review_provider` that picks `openai` or `anthropic` is dropped, and the council
+    reviews with the model that wrote the page. Set it in `~/.contextlake/kb.toml` or pass
+    `--config PATH` to keep it. A local reviewer such as `ollama` works from a local file.
+
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
 | Backend | Data leaves the machine? | Auth |

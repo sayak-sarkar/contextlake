@@ -125,6 +125,7 @@ you pass to `--config`:
 | --- | --- |
 | `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
@@ -143,6 +144,12 @@ When a refusal leaves nothing but a default, the tier is switched off instead. A
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
 wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`, and that value came from a
 discovered file, the tier is off for that run. A second warning says so.
+
+`[llm] review_provider` naming `openai` or `anthropic` is dropped instead, and the council reviews
+with the model that wrote the page. The generator keeps running. A `review_provider` in
+`~/.contextlake/kb.toml` or a `--config` file is untouched and wins over a discovered one. Move a
+project-local `review_provider = "openai"` or `"anthropic"` to `~/.contextlake/kb.toml`, or reach it
+with `--config`.
 
 Dropping `base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise
 fall back to `api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for

@@ -96,6 +96,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a job named like the code stays an error. 10.0.0rc4 matched the bare code in `uninstall` for
   AWS and Azure, so a denied delete for such a job dropped the job record while the schedule
   kept running. `uninstall` now keeps the record and exits 1.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
+  the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
+  was built for that vendor, and each review posted your API key, the source facts and the draft
+  page to it, whatever `provider` said. A `review_provider` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project-local file sets
+  `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
+  `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
+  now also warns when `review_provider` is a remote provider that will see contributor names.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
+  the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
+  was built for that vendor, and each review posted your API key, the source facts and the draft
+  page to it, whatever `provider` said. A `review_provider` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project-local file sets
+  `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
+  `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
+  now also warns when `review_provider` is a remote provider that will see contributor names.
 
 ### Fixed
 

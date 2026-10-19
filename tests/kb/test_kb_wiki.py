@@ -1161,6 +1161,56 @@ def test_cmd_wiki_routes_council_review_to_the_review_provider(tmp_path, monkeyp
     assert "weak council reviewer" not in gls_logs.text
 
 
+def _ownership_warning(tmp_path, monkeypatch, gls_logs, llm_toml, kb_toml=""):
+    """Run `kb wiki` with the council seams stubbed and return the ownership warnings.
+
+    The REAL build_review_llm runs, as in the test above, so `review_provider` in the
+    toml is what splits the two roles. Only the clients are fakes."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    store_dir = _setup_repo(tmp_path)
+    (tmp_path / "kb.toml").write_text(
+        f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n{kb_toml}\n[llm]\nenabled = true\n{llm_toml}')
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95, name="gen"))
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: _FakeLlm(score=0.95, name="judge"))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    # De-duplicated: gls_logs records each line twice here (measured), and the claim is
+    # about what was said, not how many handlers heard it.
+    return list(dict.fromkeys(
+        r.getMessage() for r in gls_logs.records if "ownership section" in r.getMessage()))
+
+
+def test_cmd_wiki_warns_that_names_go_to_a_remote_review_provider(
+        tmp_path, monkeypatch, gls_logs):
+    """The council is sent the same prompt, ownership section included. A local
+    generator with a remote reviewer sends contributor names off the machine, and the
+    warning looked at the generator only."""
+    warnings = _ownership_warning(tmp_path, monkeypatch, gls_logs,
+                                  'provider = "builtin"\nreview_provider = "anthropic"\n')
+
+    assert len(warnings) == 1
+    assert "contributor names will be sent to the anthropic provider." in warnings[0]
+
+
+def test_cmd_wiki_names_both_remote_providers_in_one_ownership_warning(
+        tmp_path, monkeypatch, gls_logs):
+    warnings = _ownership_warning(tmp_path, monkeypatch, gls_logs,
+                                  'provider = "openai"\nreview_provider = "anthropic"\n')
+
+    assert len(warnings) == 1
+    assert "sent to the openai and anthropic providers." in warnings[0]
+
+
+@pytest.mark.parametrize("llm_toml, kb_toml", [
+    ('provider = "builtin"\nreview_provider = "ollama"\n', ""),
+    ('provider = "builtin"\nreview_provider = "anthropic"\n', 'anonymize = "always"\n'),
+])
+def test_cmd_wiki_is_quiet_about_names_when_every_provider_is_local_or_anonymised(
+        tmp_path, monkeypatch, gls_logs, llm_toml, kb_toml):
+    assert _ownership_warning(tmp_path, monkeypatch, gls_logs, llm_toml, kb_toml) == []
+
+
 def test_cmd_wiki_builds_advisory_partition(tmp_path, monkeypatch):
     """An accepted page also lands in the @wiki:<repo> store partition as advisory
     section nodes, so semantic search can surface (and cite) the prose."""

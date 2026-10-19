@@ -131,6 +131,14 @@ review_model = "claude-haiku-4-5"   # optional; defaults to the provider's own d
 `review_provider` takes the same values as `provider`, and always wins. So the reverse split
 also works: generate with a strong model, review with a cheap one.
 
+The reviewer is sent the same source facts as the generator, ownership section included. When
+`review_provider` is a remote provider and `[kb] anonymize` is not `"always"`, `kb wiki` prints one
+warning that names every remote provider that will see contributor names.
+
+A `.contextlake.kb.toml` found by walking up from the current directory cannot set `review_provider`
+to `openai` or `anthropic`, because that file picks the vendor that receives your API key. Set it in
+`~/.contextlake/kb.toml`, or pass `--config PATH`. See [Workspace trust](../SECURITY.md#workspace-trust).
+
 It is strictly opt-in, and never inferred from a stray API key in your environment, because it
 is not free. A run makes **pages x `council_size`** review calls against that provider. The
 default is 3 lenses per page. Set `council_size = 1` to cut that threefold.

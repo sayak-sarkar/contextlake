@@ -2210,6 +2210,7 @@ you pass to `--config`:
 | --- | --- |
 | `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
@@ -2228,6 +2229,12 @@ When a refusal leaves nothing but a default, the tier is switched off instead. A
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
 wins the merge for `[llm]` or `[embeddings]` is `openai` or `anthropic`, and that value came from a
 discovered file, the tier is off for that run. A second warning says so.
+
+`[llm] review_provider` naming `openai` or `anthropic` is dropped instead, and the council reviews
+with the model that wrote the page. The generator keeps running. A `review_provider` in
+`~/.contextlake/kb.toml` or a `--config` file is untouched and wins over a discovered one. Move a
+project-local `review_provider = "openai"` or `"anthropic"` to `~/.contextlake/kb.toml`, or reach it
+with `--config`.
 
 Dropping `base_url = "http://127.0.0.1:1234/v1"` on a `provider = "openai"` tier would otherwise
 fall back to `api.openai.com` and send your `OPENAI_API_KEY` there, from a file that asked for
@@ -4484,6 +4491,14 @@ review_model = "claude-haiku-4-5"   # optional; defaults to the provider's own d
 `review_provider` takes the same values as `provider`, and always wins. So the reverse split
 also works: generate with a strong model, review with a cheap one.
 
+The reviewer is sent the same source facts as the generator, ownership section included. When
+`review_provider` is a remote provider and `[kb] anonymize` is not `"always"`, `kb wiki` prints one
+warning that names every remote provider that will see contributor names.
+
+A `.contextlake.kb.toml` found by walking up from the current directory cannot set `review_provider`
+to `openai` or `anthropic`, because that file picks the vendor that receives your API key. Set it in
+`~/.contextlake/kb.toml`, or pass `--config PATH`. See [Workspace trust](../SECURITY.md#workspace-trust).
+
 It is strictly opt-in, and never inferred from a stray API key in your environment, because it
 is not free. A run makes **pages x `council_size`** review calls against that provider. The
 default is 3 lenses per page. Set `council_size = 1` to cut that threefold.
@@ -5154,6 +5169,10 @@ the model pulled, and otherwise to the built-in CPU model.
     A discovered file that picks `openai` or `anthropic` switches that tier off for the run: a file
     found by directory walk may not aim a credential-carrying tier. Pass `--llm PROVIDER`, or
     `--config PATH`, or set the tier in `~/.contextlake/kb.toml`, to clear that. See [Workspace trust](../SECURITY.md#workspace-trust).
+
+    A discovered `review_provider` that picks `openai` or `anthropic` is dropped, and the council
+    reviews with the model that wrote the page. Set it in `~/.contextlake/kb.toml` or pass
+    `--config PATH` to keep it. A local reviewer such as `ollama` works from a local file.
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -10106,6 +10125,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a job named like the code stays an error. 10.0.0rc4 matched the bare code in `uninstall` for
   AWS and Azure, so a denied delete for such a job dropped the job record while the schedule
   kept running. `uninstall` now keeps the record and exits 1.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
+  the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
+  was built for that vendor, and each review posted your API key, the source facts and the draft
+  page to it, whatever `provider` said. A `review_provider` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project-local file sets
+  `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
+  `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
+  now also warns when `review_provider` is a remote provider that will see contributor names.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
+  the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
+  was built for that vendor, and each review posted your API key, the source facts and the draft
+  page to it, whatever `provider` said. A `review_provider` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project-local file sets
+  `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
+  `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
+  now also warns when `review_provider` is a remote provider that will see contributor names.
 
 ### Fixed
 

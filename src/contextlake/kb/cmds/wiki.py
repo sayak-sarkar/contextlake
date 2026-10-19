@@ -813,15 +813,21 @@ def cmd_wiki(args) -> int:
         # receives whatever that section holds -- real names under the default setting.
         # Not prevented: the setting is the operator's answer and this does not overrule
         # it. But a data flow the default turns on must not be silent. Placed after the
-        # no-LLM return so it cannot fire on a run that sends nothing at all.
+        # no-LLM return so it cannot fire on a run that sends nothing at all. The council
+        # reviewer is sent the same prompt, so [llm] review_provider is checked with the
+        # generator, and the one line names every remote provider that will see it.
         from ..wiki.structural import owners_leave_this_machine
 
-        provider = getattr(cfg.llm, "provider", None)
-        if owners_leave_this_machine(provider, getattr(cfg, "anonymize", "never")):
+        remote = [name for name in dict.fromkeys(
+            str(getattr(cfg.llm, key, None) or "").strip().lower()
+            for key in ("provider", "review_provider"))
+            if owners_leave_this_machine(name, getattr(cfg, "anonymize", "never"))]
+        if remote:
             log(style.warn(
                 f"Wiki prompts carry the ownership section, so contributor names will be "
-                f"sent to the {provider} provider. Set [kb] anonymize = \"always\" to "
-                f"send pseudonyms instead."))
+                f"sent to the {' and '.join(remote)} "
+                f"provider{'s' if len(remote) > 1 else ''}. Set [kb] anonymize = "
+                f"\"always\" to send pseudonyms instead."))
         # The council reviews with `review_llm`, which IS `llm` unless [llm]
         # review_provider names a different backend -- letting a cheap local
         # generator be gated by a stronger judge (or the inverse).

@@ -517,6 +517,12 @@ def _drop_untrusted_keys(table: str, values, source: str):
         for key in dropped:
             if key in EGRESS_KEYS:
                 _warn_untrusted_egress(f"[{table}] {key}", source)
+            elif (key == "review_provider"
+                    and str(values[key]).strip().lower() in CREDENTIAL_PROVIDERS):
+                # Dropped for the vendor it names, not for an argv. `review_provider
+                # = "cli"` is still dropped for the program it runs and keeps the
+                # generic sentence below.
+                _warn_untrusted_reviewer(source)
             else:
                 _warn_untrusted(f"[{table}] {key}", source)
         if weakens_privacy:
@@ -608,6 +614,25 @@ def _warn_untrusted_egress(what: str, source: str) -> None:
     log(f"config: ignoring {what} from {source} -- a config file found by walking up "
         "from the current directory may not choose where requests are sent, or which "
         "environment variable holds the API key. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_untrusted_reviewer(source: str) -> None:
+    """The refusal for ``[llm] review_provider`` naming a credential vendor.
+
+    It runs nothing and names no endpoint. What it decides is which vendor the wiki
+    council sends your API key, the source facts and the draft page to, so that is
+    what this says. The value stays out of the line, as in the other warnings."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", "[llm] review_provider")
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring [llm] review_provider from {source}. A config file found by "
+        "walking up from the current directory may not choose the vendor that receives "
+        "your API key, the source facts and the draft page. Until a file you chose sets "
+        "it, the council reviews with the model that wrote the page. "
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
         "meant this file. See SECURITY.md, 'Workspace trust'.",
         level=logging.WARNING)

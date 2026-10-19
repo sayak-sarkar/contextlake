@@ -962,8 +962,10 @@ def test_a_builtin_tier_with_a_stray_base_url_still_builds(
 def test_the_review_client_is_off_too_when_the_llm_tier_is_refused(
         tmp_path, monkeypatch, egress_env):
     """The council reviewer is the second producer of a credentialed client from
-    the same LlmCfg. It needs no gate of its own: `enabled = False` is the carrier,
-    build_review_llm's model_copy carries it, and build_llm returns None on it."""
+    the same LlmCfg. When the file also won `provider`, `enabled = False` is the
+    carrier: build_review_llm's model_copy carries it, and build_llm returns None on it.
+    This row cannot show that `review_provider` is gated on its own, because the same
+    file names `provider = "openai"` too. See the rows below it for that."""
     _no_global(monkeypatch, tmp_path)
     monkeypatch.chdir(_plant_local(tmp_path, text=(
         "[llm]\n"
@@ -978,6 +980,149 @@ def test_the_review_client_is_off_too_when_the_llm_tier_is_refused(
     review = build_review_llm(cfg.llm, build_llm(cfg.llm))
 
     assert review is None, _leak(review)
+
+
+# --- review_provider names a vendor, too ------------------------------------
+#
+# build_review_llm re-resolves base_url and api_key_env, so a discovered file cannot
+# aim the reviewer at a host. The vendor is a different matter: the defaults of the
+# provider it names apply, so `review_provider = "openai"` builds an OpenAILlm at
+# api.openai.com that reads OPENAI_API_KEY, and every council call posts the source
+# facts and the draft page to it. The generator stays whatever the user chose, which
+# is why the `provider` tier-off never fired for this key.
+
+_BUILTIN_GLOBAL = '[llm]\nenabled = true\nprovider = "builtin"\n'
+
+
+@pytest.mark.parametrize("vendor", ["openai", "anthropic", "OpenAI", " anthropic "])
+def test_a_discovered_review_provider_cannot_aim_the_council_at_a_credential_vendor(
+        tmp_path, monkeypatch, egress_env, vendor):
+    """The reviewer falls back to the generator, so it is the stand-in object here:
+    the assertion fails when the reviewer is an OpenAILlm or an AnthropicLlm."""
+    _privileged_global(monkeypatch, tmp_path, _BUILTIN_GLOBAL)
+    monkeypatch.chdir(_plant_local(tmp_path, text=f'[llm]\nreview_provider = "{vendor}"\n'))
+    generator = object()
+
+    cfg = load_kb_config()
+    review = build_review_llm(cfg.llm, generator)
+
+    assert review is generator, f"reviewer built: {type(review).__name__}"
+    assert cfg.llm.review_provider is None
+    # The generator is the user's own choice and keeps running.
+    assert cfg.refused_tiers == ()
+    assert cfg.llm.enabled is True
+
+
+def test_a_refused_review_provider_does_not_return_under_the_llm_flag(
+        tmp_path, monkeypatch, egress_env):
+    """`--llm PROVIDER` turns a refused tier back on and never touches
+    `review_provider`. A value that was merged and then switched off with the tier
+    comes back with the flag. Dropped when it is read, it is not in the config to
+    return."""
+    from contextlake.kb.config import apply_llm_overrides
+
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=(
+        "[llm]\n"
+        "enabled = true\n"
+        'provider = "openai"\n'
+        'review_provider = "openai"\n'
+    )))
+    generator = object()
+
+    cfg = apply_llm_overrides(load_kb_config(), provider="builtin")
+    review = build_review_llm(cfg.llm, generator)
+
+    assert review is generator, f"reviewer built: {type(review).__name__}"
+
+
+def test_a_privileged_review_provider_survives_a_discovered_one(
+        tmp_path, monkeypatch, egress_env):
+    """The reason the refusal is a drop and not a tier-off after the merge: the user's
+    own choice sits under the planted one, and a tier-off or a reset to None would take
+    both."""
+    _privileged_global(monkeypatch, tmp_path,
+                       _BUILTIN_GLOBAL + 'review_provider = "anthropic"\n')
+    monkeypatch.chdir(_plant_local(tmp_path, text='[llm]\nreview_provider = "openai"\n'))
+
+    review = build_review_llm(load_kb_config().llm, object())
+
+    assert type(review).__name__ == "AnthropicLlm"
+
+
+def test_the_same_review_provider_named_with_config_builds_the_reviewer_it_asked_for(
+        tmp_path, monkeypatch, egress_env):
+    """The control that makes this a provenance decision and not a content one."""
+    _no_global(monkeypatch, tmp_path)
+    named = tmp_path / "mine.toml"
+    named.write_text(_BUILTIN_GLOBAL + 'review_provider = "openai"\n')
+    monkeypatch.chdir(tmp_path)
+
+    review = build_review_llm(load_kb_config(str(named)).llm, object())
+
+    assert type(review).__name__ == "OpenAILlm"
+
+
+def test_a_discovered_local_review_provider_still_builds(
+        tmp_path, monkeypatch, egress_env):
+    """SHAPE GUARD, not a revert detector. A cheap local generator with a different
+    local reviewer sends no credential anywhere, so it stays honest project-local
+    config."""
+    _privileged_global(monkeypatch, tmp_path, _BUILTIN_GLOBAL)
+    monkeypatch.chdir(_plant_local(tmp_path, text='[llm]\nreview_provider = "ollama"\n'))
+
+    review = build_review_llm(load_kb_config().llm, object())
+
+    assert type(review).__name__ == "OllamaLlm"
+
+
+def test_review_provider_is_gated_for_the_vendor_only_in_the_llm_table(monkeypatch):
+    from contextlake.kb import trust
+
+    for vendor in ("openai", "anthropic", " Anthropic "):
+        assert requires_privileged_source("llm", "review_provider", vendor) is True
+    assert requires_privileged_source("llm", "review_provider", "ollama") is False
+    assert requires_privileged_source("llm", "review_provider", None) is False
+    # `provider` is aimed through the tier-off, not through this function.
+    assert requires_privileged_source("llm", "provider", "openai") is False
+    # Nothing reads review_provider in [embeddings], so refusing it there is a false alarm.
+    assert requires_privileged_source("embeddings", "review_provider", "openai") is False
+    # One switch reverts the decision, and it covers this key.
+    monkeypatch.setattr(trust, "REFUSE_DISCOVERED_CREDENTIAL_PROVIDER", False)
+    assert requires_privileged_source("llm", "review_provider", "openai") is False
+
+
+def test_the_review_provider_refusal_names_the_vendor_choice_not_a_program(
+        tmp_path, monkeypatch, egress_env, gls_logs):
+    """The generic sentence says the key "runs a program". That is true of `cli` and
+    false of `openai`, and a reader told the wrong reason goes looking for an exec."""
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text='[llm]\nreview_provider = "openai"\n'))
+    kbcfg._WARNED_UNTRUSTED.clear()
+    gls_logs.set_level(logging.WARNING)
+
+    load_kb_config()
+
+    text = "\n".join(r.getMessage() for r in gls_logs.records
+                     if r.levelno >= logging.WARNING)
+    assert "ignoring [llm] review_provider" in text
+    assert "vendor" in text and "--config" in text
+    assert "run a program" not in text
+    assert "openai" not in text   # the value is file-author text, never echoed
+
+
+def test_a_discovered_cli_review_provider_keeps_the_program_sentence(
+        tmp_path, monkeypatch, egress_env, gls_logs):
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text='[llm]\nreview_provider = "cli"\n'))
+    kbcfg._WARNED_UNTRUSTED.clear()
+    gls_logs.set_level(logging.WARNING)
+
+    load_kb_config()
+
+    text = "\n".join(r.getMessage() for r in gls_logs.records
+                     if r.levelno >= logging.WARNING)
+    assert "run a program" in text
 
 
 def test_the_same_file_named_with_config_builds_the_client_it_asked_for(
