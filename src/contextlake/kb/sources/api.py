@@ -105,7 +105,8 @@ class ApiSource(FetchFailures):
       - ``items``: dotted path to the list of records (default: the top-level value)
       - ``id_field`` / ``title_field`` / ``text_field``: record keys or dotted paths
         into a record, e.g. ``fields.summary`` (default ``id`` / ``title`` / ``text``);
-        a record without text is skipped
+        a record without text is skipped; a record with no id, or a null or empty one,
+        takes its position in the list as its id
       - ``token_env``: name of an env var holding the secret (optional)
       - ``auth``: ``bearer`` (default) or ``basic``. ``basic`` sends
         ``Authorization: Basic base64(user:secret)``, which is the only scheme Atlassian
@@ -277,6 +278,9 @@ class ApiSource(FetchFailures):
             text = _field(rec, self.text_field)
             if not text:
                 continue
-            rid = str(_field(rec, self.id_field, i))
+            # A null or empty id is a record without one, not the id "None". Every such
+            # record got the same id and collapsed into one node; the position is unique.
+            rid = _field(rec, self.id_field)
+            rid = str(i) if rid is None or rid == "" else str(rid)
             yield Document(id=rid, title=str(_field(rec, self.title_field) or rid),
                            text=str(text), uri=self.url, attrs={"index": i})

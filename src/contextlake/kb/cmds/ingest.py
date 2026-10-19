@@ -75,6 +75,23 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
     return len(embedded_nodes), written_vectors, stopped_early
 
 
+def _distinct_id(doc_id: str, taken: set[str]) -> str:
+    """``doc_id``, or ``doc_id#2``, ``doc_id#3`` and so on when ``taken`` already holds it.
+
+    A node id is the partition plus the document id, so two documents of one source with
+    the same id are ONE node: the later replaced the earlier, while the summary counted
+    both. `#` is safe as a suffix: the chunk separator in a vector key is a control
+    character (`embeddings.store.chunk_key`), so a suffixed id never reads as a chunk key.
+    The result is added to ``taken``.
+    """
+    unique, n = doc_id, 2
+    while unique in taken:
+        unique = f"{doc_id}#{n}"
+        n += 1
+    taken.add(unique)
+    return unique
+
+
 def _previous_documents(store_dir, repo_id: str, fresh: list) -> tuple[list, list]:
     """The documents and edges a source's last run stored that ``fresh`` does not replace.
 
@@ -247,9 +264,14 @@ def cmd_ingest(args) -> int:
                     failed += 1
                     continue
                 nodes, texts = [], []
+                taken: set[str] = set()
+                repeated = 0
                 try:
                     for doc in src.iter_documents():
-                        nodes.append(Node(id=f"{repo_id}:{doc.id}", repo=repo_id,
+                        doc_id = _distinct_id(doc.id, taken)
+                        if doc_id != doc.id:
+                            repeated += 1
+                        nodes.append(Node(id=f"{repo_id}:{doc_id}", repo=repo_id,
                                           kind="document", name=doc.title,
                                           file=(doc.uri or None),
                                           attrs={**doc.attrs, "source": stype}))
@@ -258,6 +280,10 @@ def cmd_ingest(args) -> int:
                     log(f"  {name}: source failed ({e})", inline=True)
                     failed += 1
                     continue
+                if repeated:
+                    log(f"  {name}: {repeated} document(s) repeated the id of an earlier "
+                        "one, so they are stored as <id>#2, <id>#3 and so on. Give each "
+                        "record a unique id (api source: set id_field)", inline=True)
                 misses = list(getattr(src, "failures", ()))
                 if not nodes:
                     # "empty" and "broken" produced the SAME line here, and the network

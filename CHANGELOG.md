@@ -168,6 +168,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upgrade deletes the module pages that earlier runs left behind. To keep a module page, list
   its module in `pages`. A repository whose `wiki.toml` does not parse, or whose `pages` list is
   over 50 names, still prunes nothing. 10.0.0rc4 and earlier keep these pages.
+- **`kb ingest` keeps every record whose id repeats or is missing.** Records of one source that
+  shared an id became one graph node, and each record with a null id got the id `None`. The
+  later record replaced the earlier one, and the summary counted the list: 4 records read as 4
+  documents and 4 embedded while the store held 2 nodes and 2 vectors. A repeated id is now
+  stored as `<id>#2`, `<id>#3` and so on, with a line that gives the count. An `api` or
+  `graphql` record with no id, or a null or empty one, now gets an id made from its title and
+  text, such as `noid-9c68432722b2`. An absent id used to take the position of the record, which
+  `kb enrich` could confuse with a real id. A store built earlier holds those nodes under the
+  old ids (`:None` or `:<position>`). The next `kb ingest` run that reads every target replaces
+  them, so re-run `kb ingest` and `kb enrich`. Set `id_field` to a field that is unique per
+  record to avoid the `#2` suffix.
 
 ### Fixed
 

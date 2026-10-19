@@ -165,6 +165,38 @@ def test_api_source_maps_records_and_skips_textless(monkeypatch):
     assert docs[0].title == "One" and docs[0].text == "first"
 
 
+def test_api_source_gives_a_null_or_empty_id_the_record_position(monkeypatch):
+    """A present key holding None used to become the id "None" for every such record, and
+    they all collapsed into one node. A record with no id takes its place in the list."""
+    from contextlake.kb.sources.api import ApiSource
+
+    payload = [
+        {"id": "a", "text": "named"},
+        {"id": None, "text": "null id"},
+        {"id": "", "text": "empty id"},
+        {"text": "no id key"},
+        {"id": 0, "text": "zero is a real id"},
+    ]
+    monkeypatch.setattr(ApiSource, "_fetch", lambda self: payload)
+    docs = list(ApiSource(url="https://api/x").iter_documents())
+    assert [d.id for d in docs] == ["a", "1", "2", "3", "0"]
+    assert docs[1].title == "1", "the title falls back to the id, as it does for a missing one"
+
+
+def test_graphql_source_gives_a_null_or_empty_id_the_record_position(monkeypatch):
+    from contextlake.kb.sources.graphql import GraphQLSource
+
+    payload = {"data": {"x": [
+        {"id": "a", "text": "named"},
+        {"id": None, "text": "null id"},
+        {"id": "", "text": "empty id"},
+    ]}}
+    monkeypatch.setattr(GraphQLSource, "_fetch", lambda self: payload)
+    docs = list(GraphQLSource(url="https://api/graphql", query="{ x }",
+                              items="x").iter_documents())
+    assert [d.id for d in docs] == ["a", "1", "2"]
+
+
 def test_api_source_uses_token_env_for_auth(monkeypatch):
     import contextlake.kb.sources.api as api
 

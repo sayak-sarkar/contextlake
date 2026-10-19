@@ -137,6 +137,8 @@ class GraphQLSource(FetchFailures):
             text = rec.get(self.text_field)
             if not text:
                 continue
-            rid = str(rec.get(self.id_field, i))
+            # A null or empty id is a record without one, not the id "None".
+            rid = rec.get(self.id_field)
+            rid = str(i) if rid is None or rid == "" else str(rid)
             yield Document(id=rid, title=str(rec.get(self.title_field) or rid),
                            text=str(text), uri=self.url, attrs={"index": i})
