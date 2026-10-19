@@ -168,6 +168,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `gh release create` with no fallback, so the 422 for an existing release failed the job. The
   release kept the binaries and the notes from `binaries.yml`, not the CHANGELOG text. It now
   edits the release and uploads the files.
+- **The standalone-binary build now fails on an empty launcher.** The sanity-check step in
+  `binaries.yml` ended both commands in `|| true`, so it could not fail, and its label claimed
+  an existence and executable check it did not make. A zero-byte launcher would have been
+  uploaded to the GitHub Release. The step now checks the file is not empty, and its label says
+  so.
 
 ### Security
 

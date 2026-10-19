@@ -15,8 +15,8 @@ These checks pin the parts that live in this repository:
 Later checks hold other repository text to the workflows it describes: SECURITY.md's list of
 extras no audit job covers, and the lint paths and kb install that the Makefile, CONTRIBUTING.md
 and the PR template give a contributor. The last ones hold the release runbook to the workflows
-and to the verifier script it describes, and run the release.yml step that creates the
-GitHub Release in bash.
+and to the verifier script it describes, and run two workflow steps in bash: the release.yml
+step that creates the GitHub Release and the binaries.yml launcher check.
 """
 
 from __future__ import annotations
@@ -260,11 +260,12 @@ def test_no_page_or_test_names_the_maintainers_workspace() -> None:
     assert not bad, "a tracked file names a private path or note:\n  " + "\n  ".join(bad)
 
 
-# --- the step that creates the GitHub Release ------------------------------------------
+# --- the release-create step and the launcher check -----------------------------------
 #
-# A step with no `shell:` key (this one) runs under `bash -e`. These tests run the body with
-# that flag, because `-e` decides whether a failing command inside `|| { ...; }` fails the
-# job, and a text search cannot show that.
+# A step with no `shell:` key (release.yml's) runs under `bash -e`. A step with `shell: bash`
+# (binaries.yml's) runs under `bash --noprofile --norc -eo pipefail`. These tests run each body
+# with the flags its step gets. Both have `-e`, and `-e` decides whether a failing command
+# inside `|| { ...; }` fails the job. A text search cannot show that.
 
 _NEEDS_BASH = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
 
@@ -283,9 +284,14 @@ def _step_script(workflow: str, step: str) -> str:
     return textwrap.dedent("\n".join(body)) + "\n"
 
 
-def _run_step(script: str, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
+_BASH_E = ["bash", "-e"]                                      # a step with no `shell:` key
+_BASH_PIPEFAIL = ["bash", "--noprofile", "--norc", "-eo", "pipefail"]   # `shell: bash`
+
+
+def _run_step(script: str, cwd: Path, env: dict[str, str],
+              shell: list[str] = _BASH_E) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["bash", "-e", "-c", script],
+        [*shell, "-c", script],
         cwd=cwd, env={**os.environ, **env}, capture_output=True, text=True, timeout=60,
         check=False)
 
@@ -367,3 +373,37 @@ def test_a_failed_fallback_fails_the_release_job(tmp_path: Path) -> None:
     done = _run_step(script, tmp_path, env)
     assert done.returncode != 0
     assert [c.split()[1] for c in _gh_calls(tmp_path)] == ["view", "create", "edit"]
+
+
+_SANITY = "Sanity check"
+_BINARY = "contextlake-linux-x86_64"
+
+
+def _run_sanity(tmp_path: Path, content: bytes | None) -> subprocess.CompletedProcess:
+    script = _step_script("binaries.yml", _SANITY).replace("${{ matrix.asset_name }}", _BINARY)
+    (tmp_path / "out").mkdir()
+    if content is not None:
+        (tmp_path / "out" / _BINARY).write_bytes(content)
+    return _run_step(script, tmp_path, {}, _BASH_PIPEFAIL)
+
+
+@_NEEDS_BASH
+@pytest.mark.parametrize("content,passes", [
+    (b"\x7fELF-not-empty", True),
+    (b"", False),     # a zero-byte launcher was uploaded to the release
+    (None, False),    # no file at all
+])
+def test_the_binary_sanity_check_fails_on_an_empty_or_missing_launcher(
+        tmp_path: Path, content: bytes | None, passes: bool) -> None:
+    done = _run_sanity(tmp_path, content)
+    assert (done.returncode == 0) is passes, done.stdout + done.stderr
+
+
+def test_the_binary_sanity_check_names_only_what_it_checks() -> None:
+    """The label said "binary exists/executable", but both commands ended in `|| true`, so the
+    step could not fail. `docs/installing.md` tells the user to `chmod +x` the download, so the
+    mode set here is not something the step promises."""
+    text = (_WORKFLOWS / "binaries.yml").read_text(encoding="utf-8")
+    label = re.search(r"- name: (Sanity check[^\n]*)", text).group(1)
+    assert "executable" not in label
+    assert "non-empty" in label

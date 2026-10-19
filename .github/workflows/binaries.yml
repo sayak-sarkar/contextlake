@@ -107,10 +107,15 @@ jobs:
           mkdir -p out
           cp "$src" "out/${{ matrix.asset_name }}"
 
-      - name: Sanity check (binary exists/executable; not a real --version -- that needs this tag already live on PyPI)
+      - name: Sanity check (binary is non-empty; not a real --version -- that needs this tag already live on PyPI)
         shell: bash
         run: |
-          chmod +x "out/${{ matrix.asset_name }}" || true
+          chmod +x "out/${{ matrix.asset_name }}"
+          test -s "out/${{ matrix.asset_name }}" || {
+            echo "::error::out/${{ matrix.asset_name }} is missing or empty"
+            exit 1
+          }
+          # Log only: the type `file` prints is not checked.
           file "out/${{ matrix.asset_name }}" || true
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
