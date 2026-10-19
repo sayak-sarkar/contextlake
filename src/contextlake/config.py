@@ -104,8 +104,9 @@ DEFAULT_CONFIG = {
     'branch_strategy': 'hybrid',  # most-active selection: commits | recency | hybrid
     # Pin every repository to one named branch. Empty (the default) keeps the
     # most-active selection above. A repository without that branch is REPORTED as
-    # not having it and stays on its most active one, rather than silently reading as
-    # though the request had been carried out.
+    # not having it and is put on its most active one instead (a repository on a
+    # working branch is skipped, as for any branch switch), rather than silently
+    # reading as though the request had been carried out.
     'branch': '',
     # Per-repository branch pins, for when one branch does not fit the whole fleet.
     # Comma-separated `pattern=branch` pairs; the pattern is the same glob `repo_filter`

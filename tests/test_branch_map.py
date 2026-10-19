@@ -144,3 +144,17 @@ def test_a_mapped_branch_that_does_not_exist_is_reported_not_swapped(fleet):
         "alpha-api", PROJECTS, fleet, dict(BASE, branch_map="alpha-api=nosuchbranch"))
     assert state == "unpinned", (state, msg)
     assert "nosuchbranch" in msg
+
+
+@pytest.mark.slow
+def test_an_unpinned_repo_on_a_safe_branch_is_moved_to_its_most_active_one(fleet):
+    """The docs say it is reported AND put on its most active branch. A live run
+    (not a dry run) must therefore leave the checkout on that branch, not where it was."""
+    cfg = {"branch": "", "protect_working_branches": "false",
+           "branch_map": "alpha-api=nosuchbranch"}
+    state, _, msg = switch_repository_branch("alpha-api", PROJECTS, fleet, cfg)
+    assert state == "unpinned", (state, msg)
+    assert "master -> maintenance" in msg, msg
+    head = subprocess.run(["git", "branch", "--show-current"], cwd=f"{fleet}/alpha-api",
+                          capture_output=True, text=True, check=True).stdout.strip()
+    assert head == "maintenance"

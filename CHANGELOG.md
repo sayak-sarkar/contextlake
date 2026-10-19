@@ -346,6 +346,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discovered `review_provider` that names either one is dropped. The page now lists `ollama`,
   `builtin` and `auto` as the providers that keep working, and says to move the other two to
   `~/.contextlake/kb.toml` or pass `--config PATH`.
+- **`mirror branches` no longer says a repository without the pinned branch stayed put.** With
+  `--branch` or `branch_map`, a repository that lacks the branch and sits on a safe branch is
+  checked out to its most active branch. The summary said "each stayed on its most active
+  branch", and the docs said such a repository was "left alone" or "never switched". The summary
+  now says "each is on its most active branch instead", and the docs describe the move.
+  Behaviour is unchanged.
 
 ### Security
 

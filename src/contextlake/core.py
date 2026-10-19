@@ -2200,8 +2200,11 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     if buckets["unpinned"]:
         # Named before the failures, because this is the answer to what was asked rather
         # than a fault: `--branch release/x` on a fleet reports which repositories have it.
+        # Not "stayed on": a repository on a safe branch is checked out to its most
+        # active one, and the line above for that repository says `old -> new`.
+        where = "would be on" if _is_truthy(config, "dry_run") else "is on"
         log(f"  {len(buckets['unpinned'])} repo(s) have no branch "
-            f"{config.get('branch', '')!r}; each stayed on its most active branch")
+            f"{config.get('branch', '')!r}; each {where} its most active branch instead")
         _report_list("Without that branch", buckets["unpinned"], limit=5)
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)

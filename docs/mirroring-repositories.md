@@ -285,15 +285,18 @@ contextlake mirror branches --branch release/24.1
 contextlake mirror sync --branch main          # every stage of a sync honours it
 ```
 
-A repository that does not have that branch is **reported as not having it** and stays on
-its most active branch. That is deliberate and it is the useful half of the feature: a
-release branch usually exists in a handful of repositories out of hundreds, so the run
-answers "which ones carry it" rather than leaving several hundred repositories reading as
-though they had done what was asked.
+A repository that does not have that branch is **reported as not having it** and is put on
+its most active branch instead, the choice `branches` makes with no pin. A repository on a
+working branch is still skipped (see [Branch safety](#branch-safety)).
+
+Reporting the miss is deliberate and it is the useful half of the feature: a release branch
+usually exists in a handful of repositories out of hundreds, so the run answers "which ones
+carry it". Without the report, several hundred repositories would read as though they had
+done what was asked.
 
 ```
 ✓ Branch switch complete: 4 switched, 0 already, 0 skipped, 0 empty, 0 dry-run, 396 unpinned, 0 errors
-  396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+  396 repo(s) have no branch 'release/24.1'; each is on its most active branch instead
 ```
 
 The name is matched exactly. `--branch release/24` does not select `release/24.1`.
@@ -317,8 +320,8 @@ branch_map = team/api=develop, legacy-*=maintenance, acme/one-off=spike
 - **First match wins,** so list the specific entry before the glob that would also catch it.
 - It **beats** `branch`. Anything the map does not match falls back to `branch`, and then to
   the most-active selection.
-- A repository whose mapped branch does not exist is reported as `unpinned`, exactly as
-  `branch` does. It is never switched to something else instead.
+- A repository whose mapped branch does not exist is reported as `unpinned`, as with
+  `branch`. It is put on its most active branch instead, and the run says so.
 - A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
   pinning none.
 

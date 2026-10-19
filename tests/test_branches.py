@@ -281,6 +281,31 @@ def test_switch_repository_branches_summary_line_warns_on_partial_failure(
     assert "✓" not in summary
 
 
+def test_unpinned_summary_does_not_say_the_repo_stayed_put(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """A repo on a safe branch with no pinned branch is checked out to its most active
+    one (`develop -> main`), so the summary may not claim it "stayed on" that branch."""
+    make_local_repo(tmp_path, "a")
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, cfg: ("unpinned", "a",
+                                  "develop -> main (no branch 'release/24.1' here)"),
+    )
+    cfg = dict(base_config, branch="release/24.1")
+
+    switch_repository_branches(str(tmp_path), cfg, "g")
+    line = [ln for ln in gls_logs.text.splitlines() if "have no branch" in ln][0]
+    assert "stayed on" not in line
+    assert "'release/24.1'; each is on its most active branch instead" in line
+
+    gls_logs.clear()
+    switch_repository_branches(str(tmp_path), dict(cfg, dry_run="true"), "g")
+    line = [ln for ln in gls_logs.text.splitlines() if "have no branch" in ln][0]
+    assert "each would be on its most active branch instead" in line
+
+
 def test_branches_honours_the_repos_filter(tmp_path, base_config, monkeypatch):
     """Same defect as update: --repos was accepted and ignored, while the
     failure hint this command prints recommends exactly that flag."""

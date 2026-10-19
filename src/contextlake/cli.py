@@ -650,9 +650,9 @@ def _add_mirror(p, hidden=False):
              "one that merely contains it. For a substring match, glob it: '*api*'")
     add("--branch", metavar="NAME",
         help="put every repository on this branch instead of picking its most active one. "
-             "A repository that does not have it is reported as not having it and stays "
-             "on its most active branch, so 'which repos carry release/24.1' is answered "
-             "rather than assumed")
+             "A repository that does not have it is reported as not having it and is put "
+             "on its most active branch instead, so 'which repos carry release/24.1' is "
+             "answered rather than assumed")
     add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
     add("--exit-zero-on-partial", action="store_true", dest="exit_zero_on_partial",
