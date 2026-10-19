@@ -154,6 +154,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IPv4 only) and an address the machine does not hold gave the same hint, so the user searched
   for a process that did not exist. The hint now prints only when the port is in use. Other
   bind errors say the server uses IPv4 only and the address must belong to this machine.
+- **A non-ASCII dashboard token header now gets 403, not a dropped connection.** The check
+  compared the `X-Contextlake-Token` header with `hmac.compare_digest` on strings, which raises
+  `TypeError` for non-ASCII text. The socket closed with no status line and the console printed
+  a traceback. The mutation routes and `/api/chat` with `--llm-chat` now compare bytes. The
+  request was refused before, so this was never a bypass.
 
 ### Security
 

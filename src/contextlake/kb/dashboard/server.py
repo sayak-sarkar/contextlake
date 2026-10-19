@@ -56,6 +56,20 @@ from . import mutations as kbmut
 TOKEN_HEADER = "X-Contextlake-Token"  # noqa: S105 - a name, not a secret
 
 
+def _token_matches(given: str, token: str | None) -> bool:
+    """Whether ``given`` is the per-launch token. With no token minted, nothing matches.
+
+    Compared as bytes: ``hmac.compare_digest`` raises TypeError on a ``str``
+    holding a non-ASCII character, and ``http.server`` decodes header bytes as
+    latin-1, so a token header holding the byte 0xE9 would drop the connection
+    with a traceback instead of answering 403. The token is URL-safe base64, so a
+    replacement character can never make a wrong value match.
+    """
+    if not token:
+        return False
+    return hmac.compare_digest(given.encode("utf-8", "replace"), token.encode("utf-8"))
+
+
 def _static(name: str) -> str:
     from importlib.resources import files
     return (files("contextlake.kb.dashboard") / "static" / name).read_text(encoding="utf-8")
@@ -720,7 +734,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 # (free) router work even runs.
                 if chat_llm is not None:
                     given = self.headers.get(TOKEN_HEADER) or ""
-                    if not token or not hmac.compare_digest(given, token):
+                    if not _token_matches(given, token):
                         self.send_bytes(403, "text/plain", b"forbidden")
                         return
                 self.send_guarded(_chat, self.read_body())
@@ -730,7 +744,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 self.send_bytes(404, "text/plain", b"not found")
                 return
             given = self.headers.get(TOKEN_HEADER) or ""
-            if not token or not hmac.compare_digest(given, token):
+            if not _token_matches(given, token):
                 self.send_bytes(403, "text/plain", b"forbidden")
                 return
             body = self.read_body()

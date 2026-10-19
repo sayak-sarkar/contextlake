@@ -713,6 +713,16 @@ def test_chat_rejects_wrong_token_when_llm_chat_enabled(served_with_llm_chat):
     assert status == 403
 
 
+def test_chat_answers_403_for_a_non_ascii_token_when_llm_chat_enabled(served_with_llm_chat):
+    """http.server decodes header bytes as latin-1, and hmac.compare_digest raises
+    TypeError on a str with a non-ASCII character. Outside send_guarded that dropped
+    the connection with no status line and a console traceback."""
+    base, _token = served_with_llm_chat
+    status, _body = _post(base + "/api/chat", {"question": "who calls ForecastService?"},
+                          token="caf\xe9")
+    assert status == 403
+
+
 def test_chat_with_correct_token_returns_llm_synthesized_answer(served_with_llm_chat):
     base, token = served_with_llm_chat
     status, body = _post(base + "/api/chat",
@@ -738,6 +748,15 @@ def test_post_rejects_wrong_token(served_with_mutations):
     base, _port, _token, _origin = served_with_mutations
     status, _ = _post(base + "/api/repo/acme/origin/sync", {}, token="not-the-real-token")
     assert status == 403
+
+
+def test_post_answers_403_for_a_non_ascii_token(served_with_mutations):
+    """Same shape as the chat case: a latin-1 byte in the token header used to reach
+    hmac.compare_digest as a str and drop the connection instead of answering 403."""
+    base, _port, _token, _origin = served_with_mutations
+    status, _ = _post(base + "/api/repo/acme/origin/sync", {}, token="caf\xe9")
+    assert status == 403
+    assert json.loads(_get(base + "/api/capabilities")) == {"mutations": True}
 
 
 def test_post_body_with_a_bad_int_field_is_400_not_a_dropped_connection(
