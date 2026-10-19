@@ -141,6 +141,135 @@ def test_parse_extracts_defs_and_imports():
     assert all(e.provenance.source_file == "svc.py" for e in edges)
 
 
+def _modules(nodes):
+    """`{module name: (repo, id)}` for the module nodes one parse produced."""
+    return {n.name: (n.repo, n.id) for n in nodes if n.kind == "module"}
+
+
+def test_python_relative_imports_make_imports_edges():
+    """`from .models import Item` named no module node and no edge: the query matched only a
+    plain dotted name, and a relative name parses as another node type. A package written
+    with relative imports had no internal import edges at all."""
+    src = (b"from .models import Item\nfrom . import views\nfrom ..top import thing\n"
+           b"from .x.y import z\nfrom pkg.models import Item\nimport os\n")
+    nodes, edges, _c, _i = parse_source("r", "pkg/a.py", src, "python")
+    mods = _modules(nodes)
+    # Resolved against the importing file's directory, as Python does: one dot is the
+    # package holding the file, each further dot goes one level up.
+    assert set(mods) == {"pkg/models", "pkg", "top", "pkg/x/y", "pkg.models", "os"}
+    file_id = next(n.id for n in nodes if n.kind == "file")
+    got = {(e.dst, e.provenance.source_line) for e in edges if e.relation == "imports"}
+    assert got == {(mods["pkg/models"][1], 1), (mods["pkg"][1], 2), (mods["top"][1], 3),
+                   (mods["pkg/x/y"][1], 4), (mods["pkg.models"][1], 5), (mods["os"][1], 6)}
+    assert {e.src for e in edges if e.relation == "imports"} == {file_id}
+
+
+def test_a_relative_import_belongs_to_the_repo_not_to_every_repo():
+    """`.models` is a file of THIS repository. As a shared node it was one node store-wide,
+    so repo A's `.models` and repo B's `.models` were the same module."""
+    src = b"from .models import Item\nimport requests\n"
+    mods_a = _modules(parse_source("a/x", "pkg/a.py", src, "python")[0])
+    mods_b = _modules(parse_source("b/y", "pkg/a.py", src, "python")[0])
+    assert mods_a["pkg/models"][0] == "a/x" and mods_b["pkg/models"][0] == "b/y"
+    assert mods_a["pkg/models"][1] != mods_b["pkg/models"][1]
+    # A package name stays shared, as designed: two repos importing requests share a node.
+    assert mods_a["requests"] == mods_b["requests"] and mods_a["requests"][0] == "(shared)"
+
+
+def test_one_relative_target_is_one_node_however_it_is_spelled():
+    """`.models` from pkg/a.py and `..models` from pkg/sub/b.py name the same file, and a
+    relative import is not the absolute package of the same name."""
+    one = _modules(parse_source("r", "pkg/a.py",
+                                b"from .models import X\nfrom models import Y\n", "python")[0])
+    two = _modules(parse_source("r", "pkg/sub/b.py", b"from ..models import X\n", "python")[0])
+    assert one["pkg/models"] == two["pkg/models"]
+    assert one["models"][1] != one["pkg/models"][1], "relative and absolute are not one node"
+
+
+@pytest.mark.parametrize("lang,rel", [("javascript", "web/x.js"), ("typescript", "web/x.ts")])
+def test_js_relative_specifiers_are_not_package_names(lang, rel):
+    """`'./utils'`, `'../utils'` and `'utils'` all folded to `module_utils`, so a local file
+    and an npm package were one node, and so were two different local files."""
+    src = (b"import a from './utils';\nimport b from '../lib/utils';\nimport c from 'utils';\n"
+           b"import d from '.';\nimport e from '../../out';\n")
+    nodes, edges, _c, _i = parse_source("r", rel, src, lang)
+    mods = _modules(nodes)
+    # `./utils` from web/ is the file web/utils. The bare name is a package, and stays shared.
+    assert set(mods) == {"web/utils", "lib/utils", "utils", "web", "../out"}
+    assert mods["utils"][0] == "(shared)"
+    assert {mods[m][0] for m in ("web/utils", "lib/utils", "web", "../out")} == {"r"}
+    assert len({v[1] for v in mods.values()}) == 5
+    assert len([e for e in edges if e.relation == "imports"]) == 5
+    # Two spellings of one target land on one node.
+    other = _modules(parse_source("r", "lib/z.js", b"import q from '../web/utils';\n"
+                                  b"import w from './utils';\n", "javascript")[0])
+    assert other["web/utils"] == mods["web/utils"]
+    assert other["lib/utils"] == mods["lib/utils"]
+    # The same specifier in another directory is another file.
+    assert other["lib/utils"][1] != mods["web/utils"][1]
+
+
+@pytest.mark.parametrize("lang,rel", [("javascript", "web/x.js"), ("typescript", "web/x.ts")])
+def test_a_root_relative_js_specifier_belongs_to_the_repo(lang, rel):
+    """`'/billing/root'` is a path from the project root, not a package. It made a `(shared)`
+    node named by the specifier, which every key can read, so a key limited to repo B read a
+    path that repo A imports."""
+    src = b"import d from '/billing/root';\nimport e from '/billing/root.js';\n"
+    mods = _modules(parse_source("a/x", rel, src, lang)[0])
+    assert set(mods) == {"billing/root", "billing/root.js"}
+    assert {repo for repo, _id in mods.values()} == {"a/x"}
+    # Seen from another directory it is the same file, and the same node.
+    deep = _modules(parse_source("a/x", "src/deep/y.js", b"import d from '/billing/root';\n",
+                                 "javascript")[0])
+    assert deep["billing/root"] == mods["billing/root"]
+    # Another repo importing the same path gets its own node.
+    other = _modules(parse_source("b/y", rel, src, lang)[0])
+    assert other["billing/root"][0] == "b/y"
+    assert other["billing/root"][1] != mods["billing/root"][1]
+
+
+@pytest.mark.parametrize("rel,lang,src,name", [
+    ("web/x.js", "javascript", b"import a from '@/billing/alias';\n", "@/billing/alias"),
+    ("web/x.js", "javascript", b"import a from '~/billing/tilde';\n", "~/billing/tilde"),
+    ("web/x.js", "javascript", b"import a from '$lib/billing/x';\n", "$lib/billing/x"),
+    ("web/x.ts", "typescript", b"import a from 'src/components/Btn';\n", "src/components/Btn"),
+    ("web/x.ts", "typescript", b"import a from '#internal/x';\n", "#internal/x"),
+    ("pkg/a.py", "python", b"from billing.internal import x\n", "billing.internal"),
+    ("m/a.go", "go", b'package p\nimport "./x"\n', "./x"),
+    ("c/a.c", "c", b'#include "../x.h"\n', "../x.h"),
+    ("r/a.rs", "rust", b"use crate::x;\n", "crate::x"),
+])
+def test_an_import_the_parser_cannot_resolve_stays_a_shared_node(rel, lang, src, name):
+    """The limit that docs/code-graph-model.md states. A path alias and a baseUrl-style path
+    need the project's config to resolve, and read as a package name. Go, C and Rust paths
+    are not resolved. Each makes a `(shared)` node, which a key limited to other repositories
+    can read. If one of these moves to its repo, change the docs and the changelog with it."""
+    mods = _modules(parse_source("acme/api", rel, src, lang)[0])
+    assert {n: repo for n, (repo, _id) in mods.items()} == {name: "(shared)"}
+
+
+def test_a_relative_module_id_never_collides_with_a_file_id():
+    """`./bin/cli` resolves to `bin/cli`, which is also the path of an extensionless file.
+    The module id carries its own name part, or it overwrote the file node in `by_id`."""
+    nodes, _e, _c, _i = parse_source("r", "main.js", b"import x from './bin/cli';\n",
+                                     "javascript")
+    from contextlake.kb.ids import file_node_id
+    assert _modules(nodes)["bin/cli"][1] != file_node_id("r", "bin/cli")
+
+
+def test_index_links_a_package_that_uses_relative_imports(tmp_path):
+    """End to end: before, `pkg/a.py` and `pkg/b.py` produced zero imports edges."""
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("")
+    (tmp_path / "pkg" / "a.py").write_text("from .b import f\n\n\ndef g():\n    return f()\n")
+    (tmp_path / "pkg" / "b.py").write_text("from . import a\n\n\ndef f():\n    return 1\n")
+    shard = index_repo_dir(str(tmp_path), "demo/pkg")
+    by_id = {n.id: n for n in shard.nodes}
+    got = {(by_id[e.src].name, by_id[e.dst].name, by_id[e.dst].repo)
+           for e in shard.edges if e.relation == "imports"}
+    assert got == {("pkg/a.py", "pkg/b", "demo/pkg"), ("pkg/b.py", "pkg", "demo/pkg")}
+
+
 def test_qualified_names_disambiguate_methods():
     nodes, _, _, _ = parse_source("r", "m.py", PY, "python")
     bar = next(n for n in nodes if n.name == "bar")

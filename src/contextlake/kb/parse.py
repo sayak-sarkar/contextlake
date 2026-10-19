@@ -17,6 +17,7 @@ import hashlib
 import importlib
 import logging
 import os
+import posixpath
 import re
 import stat
 from collections.abc import Callable, Iterator
@@ -35,7 +36,7 @@ from .flow.http import extract_http_flow
 from .flow.state import extract_state_flow
 from .flow.web import extract_web_flow
 from .hcl import parse_hcl
-from .ids import file_node_id, make_id
+from .ids import file_node_id, make_id, scoped_id
 from .kinds import KIND_REGISTRY
 from .manifest import is_manifest, parse_manifest
 from .model import (
@@ -401,6 +402,8 @@ def _has_generated_header(source: bytes) -> bool:
 # name, so every Go, Rust and PHP symbol inside such a block gets a new id and a re-index
 # adds the nodes and call edges that were missing. PARSE-2 adds edges too: a call
 # at the top of a Vue or Svelte `<script>` was rejected as cross-language and left no edge.
+# PARSE-3 changes ids too: a relative import (`./utils`, `.models`) is now a module node of
+# its own repository, named by the file it points at, and Python's had no node at all.
 PARSER_VERSION = "14"
 
 # tree-sitter node types that introduce a named definition, per language.
@@ -518,6 +521,7 @@ _QUERIES = {
         (function_definition name: (identifier) @def)
         (import_statement (dotted_name) @import)
         (import_from_statement module_name: (dotted_name) @import)
+        (import_from_statement module_name: (relative_import) @import)
         (call function: (identifier) @call)
         (call function: (attribute attribute: (identifier) @call))
         (class_definition superclasses: (argument_list [(identifier) (attribute)] @base))
@@ -947,6 +951,34 @@ def _php_open_namespaces(root: ts.Node) -> list[ts.Node]:
     """
     return [c for c in root.children
             if c.type == "namespace_definition" and c.child_by_field_name("body") is None]
+
+
+def _local_import_path(rel_path: str, module: str, lang: str) -> str | None:
+    """The repo-relative path a relative import names, or None for a package name.
+
+    ``'./utils'`` in JavaScript and ``.models`` in Python name a file beside the importer.
+    ``'/billing/root'`` in JavaScript names a path from the project root, as a bundler reads it.
+    ``make_id`` folds ``./``, ``../`` and ``.`` away, so ``'./utils'``, ``'../utils'`` and the
+    npm package ``'utils'`` all became ``module_utils``, and the node sat in the partition
+    shared by every repository. Python's ``.models`` had no node at all.
+
+    Resolved against the importing file's directory so that two spellings of one file meet.
+    No extension is probed: ``./utils`` and ``./utils.js`` stay two names for now.
+    """
+    here = posixpath.dirname(rel_path)
+    if lang == "python" and module.startswith("."):
+        rest = module.lstrip(".")
+        # One dot is the package holding the file; each further dot goes up one level.
+        for _ in range(len(module) - len(rest) - 1):
+            here = posixpath.dirname(here)
+        target = posixpath.join(here, rest.replace(".", "/"))
+    elif lang in _JS_LANGS and (module in (".", "..") or module.startswith(("./", "../"))):
+        target = posixpath.join(here, module)
+    elif lang in _JS_LANGS and module.startswith("/"):
+        target = module.lstrip("/")
+    else:
+        return None
+    return posixpath.normpath(target)
 
 
 def _scope_names(name_node: ts.Node, def_ts: ts.Node, def_types: set[str], lang: str,
@@ -1458,8 +1490,15 @@ def parse_source(
     # wrong relation dressed as a real one.
     for imp in list(captures.get("import", [])) + _extra_imports(tree, lang):
         module = imp.text.decode("utf-8", "replace").strip().strip("'\"")
-        mid = make_id("module", module)
-        nodes.append(Node(id=mid, repo=SHARED_REPO, kind="module", name=module, lang=lang))
+        local = _local_import_path(rel_path, module, lang)
+        if local is None:
+            mid = make_id("module", module)
+            nodes.append(Node(id=mid, repo=SHARED_REPO, kind="module", name=module, lang=lang))
+        else:
+            # A file of this repository, named by where it is. The "module" part keeps the
+            # id apart from the file node of an extensionless file at the same path.
+            mid = scoped_id(repo_id, local, "module")
+            nodes.append(Node(id=mid, repo=repo_id, kind="module", name=local, lang=lang))
         edges.append(Edge(
             src=file_id, dst=mid, relation="imports", confidence=Confidence.EXTRACTED,
             provenance=Provenance(source_file=rel_path, source_line=imp.start_point[0] + 1,

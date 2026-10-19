@@ -165,6 +165,20 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
+      "dst": "demo_fixture_svc_core_base_module_e56599cb",
+      "provenance": {
+        "source_file": "svc/core/readings.py",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_svc_core_readings_py_f02dda71",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
       "dst": "execute_c5368772",
       "provenance": {
         "source_file": "svc/api/routes.py",
@@ -1296,6 +1310,18 @@
       "line_start": 5,
       "name": "ReadingStore",
       "qualified_name": "web/src/models.ts::ReadingStore",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "demo_fixture_svc_core_base_module_e56599cb",
+      "kind": "module",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "svc/core/base",
+      "qualified_name": null,
       "repo": "demo/fixture"
     },
     {

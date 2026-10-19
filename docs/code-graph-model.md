@@ -440,6 +440,24 @@ A `kb index` run removes a shared node once no edge from any repo reaches it. A 
 route or topic then leaves the graph and the search results, and a node another repo still uses
 stays.
 
+> [!NOTE]
+> **A relative import belongs to its repo.** `'./utils'` and `'/billing/root'` in JavaScript or
+> TypeScript and `.models` in Python name a file of the importing repo, not a package. Their
+> `module` node is owned by that repo and is named by the path it resolves to, such as
+> `web/utils`, `billing/root` or `pkg/models`. A package name stays a shared node: the bare
+> `'utils'`, and the Python `billing.internal`. `from . import x` names the package directory. The
+> extension is not probed, so `./utils` and `./utils.js` are two nodes.
+
+Only JavaScript, TypeScript (a Vue or Svelte `<script>` counts as JavaScript) and Python resolve
+relative imports this way. A Go `import "./x"`, a C or C++ `#include "../x.h"` and a Rust
+`use crate::x` still make a shared node, which a key limited to other repositories can read. So does
+an absolute package name such as Python's `billing.internal`, which is shared by design.
+
+JavaScript and TypeScript resolve only a specifier that starts with `./`, `../` or `/`. Every other
+specifier reads as a package name and stays shared. That includes a path alias (`@/x`, `~/x`,
+`$lib/x`) and a baseUrl-style path (`src/components/Btn`). Resolving them needs the project's
+`tsconfig` or bundler config, and a baseUrl path looks the same as an npm subpath.
+
 ### Manifests and cross-repo dependencies
 
 Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `pom.xml`) to build a
