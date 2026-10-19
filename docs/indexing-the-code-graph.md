@@ -169,6 +169,22 @@ that skips none prints nothing. To index them anyway, set `[kb] skip_generated =
 Files matched by `.contextlakeignore` are only counted, in the `-v` summary, because you chose
 those patterns.
 
+### Source encodings
+
+The grammars read UTF-8. The parser converts any other code file to UTF-8 before it parses, so
+names and line numbers come out right:
+
+- A file that starts with a UTF-16 or UTF-32 byte order mark is read in that encoding.
+- A Python file with a `# -*- coding: latin-1 -*-` line (PEP 263) in its first two lines is read
+  in the encoding it names.
+- Any other bytes that are not valid UTF-8, such as C# or C on a Windows code page, are read as
+  Windows-1252, one byte at a time. The valid UTF-8 around them is kept.
+
+A file is never skipped for its encoding. `-v` prints `read as <encoding>` for each file that
+was converted. These are not detected: UTF-16 without a byte order mark, and the declarations of
+languages other than Python. SQL, Terraform, XML and the other non-code kinds are read as
+UTF-8, as before.
+
 ### The per-repository memory budget
 
 `max_file_bytes` bounds one FILE. It cannot bound a repository that is wide rather than deep,

@@ -228,6 +228,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it named no file. The run now prints one line per group with the first five paths, such as `1
   file(s) over max_file_bytes skipped: big.py`, and how to index them anyway. `-v` lists every
   skipped file. A run that skips none prints nothing.
+- **`kb index` now reads UTF-16, UTF-32 and Latin-1 code files.** The grammars took every file
+  to be UTF-8. A Latin-1 or Windows-1252 name was cut at its first accented letter (`définir`
+  indexed as `finir`), and a file with a UTF-16 or UTF-32 byte order mark indexed as one file
+  node with no symbols and no log line. The indexer now converts such a file to UTF-8 before it
+  parses. A byte order mark or a Python `# coding:` line picks the encoding, and other bytes
+  that are not valid UTF-8 are read as Windows-1252. No file is skipped for its encoding, and
+  `-v` names each converted file. The parser version moves to `14` in this release, so the next
+  `kb index` re-indexes every repository, not only those with such files, and adds the missing
+  symbols and the calls to them. UTF-16 without a byte order mark is not detected, and SQL,
+  Terraform and XML files are still read as UTF-8.
 
 ### Security
 

@@ -12,14 +12,17 @@ in the tables below; the rest of the pipeline is language-agnostic.
 
 from __future__ import annotations
 
+import codecs
 import fnmatch
 import hashlib
 import importlib
+import io
 import logging
 import os
 import posixpath
 import re
 import stat
+import tokenize
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import date
@@ -404,6 +407,10 @@ def _has_generated_header(source: bytes) -> bool:
 # at the top of a Vue or Svelte `<script>` was rejected as cross-language and left no edge.
 # PARSE-3 changes ids too: a relative import (`./utils`, `.models`) is now a module node of
 # its own repository, named by the file it points at, and Python's had no node at all.
+# PARSE-5 changes what is extracted from files that were not UTF-8. A Latin-1 or Windows-1252
+# name was cut at its first accented letter (`définir` indexed as `finir`), and a file
+# with a UTF-16 or UTF-32 byte order mark indexed as one file node with no symbols. Both are
+# converted to UTF-8 before parsing, so a re-index adds those symbols and the calls to them.
 PARSER_VERSION = "14"
 
 # tree-sitter node types that introduce a named definition, per language.
@@ -2765,6 +2772,72 @@ def _generated(kind: str, skip_generated: bool, probe: Callable[[], bool]) -> bo
     return skip_generated and kind == _CODE and probe()
 
 
+# Byte order marks that name a wide encoding, longest first. UTF-32-LE starts with the
+# UTF-16-LE mark (FF FE), so testing the short one first reads a UTF-32 file as UTF-16. The
+# UTF-8 mark is not listed: every grammar skips it already.
+_WIDE_BOMS = (
+    (codecs.BOM_UTF32_LE, "utf-32"), (codecs.BOM_UTF32_BE, "utf-32"),
+    (codecs.BOM_UTF16_LE, "utf-16"), (codecs.BOM_UTF16_BE, "utf-16"),
+)
+
+# Windows-1252 for a byte UTF-8 rejects, and Latin-1 for the five bytes that Windows-1252
+# leaves undefined. Indexed by byte value.
+_LEGACY_CHARS = [
+    chr(b) if b < 0x80 or b in (0x81, 0x8D, 0x8F, 0x90, 0x9D) else bytes((b,)).decode("cp1252")
+    for b in range(256)
+]
+
+
+def _legacy_bytes(err: UnicodeError) -> tuple[str, int]:
+    """Error handler: read the bytes UTF-8 rejected as Windows-1252, and go on."""
+    if not isinstance(err, UnicodeDecodeError):
+        raise err
+    return "".join(_LEGACY_CHARS[b] for b in err.object[err.start:err.end]), err.end
+
+
+codecs.register_error("contextlake-legacy", _legacy_bytes)
+
+
+def _to_utf8(source: bytes, lang: str) -> tuple[bytes, str]:
+    """``source`` as UTF-8, and how it was read, or ``""`` when it already was UTF-8.
+
+    The grammars read bytes and take them to be UTF-8, so a name written in another
+    encoding was cut at its first accented letter, and a UTF-16 file parsed as one file node
+    and no symbols with nothing logged. Order:
+
+    - a UTF-32 or UTF-16 byte order mark decides the encoding;
+    - a Python file may name its encoding in a PEP 263 cookie on line 1 or 2
+      (``# -*- coding: latin-1 -*-``), which ``tokenize`` reads by Python's own rules;
+    - bytes that are valid UTF-8 are left as they are, ASCII included;
+    - otherwise each byte UTF-8 rejects is read as Windows-1252, and the valid UTF-8 around
+      it is kept. A file with one stray Latin-1 byte in a comment still indexes every symbol.
+
+    A file is never dropped for its encoding. Newlines are one byte in every decoded form
+    and survive the round trip, so line numbers hold.
+    """
+    for bom, codec in _WIDE_BOMS:
+        if source.startswith(bom):
+            return source.decode(codec, "replace").encode("utf-8"), codec
+    if lang == "python" and not source.isascii():
+        try:
+            declared = tokenize.detect_encoding(io.BytesIO(source).readline)[0]
+        except (SyntaxError, LookupError):   # unknown codec, a cookie that disagrees with
+            declared = "utf-8"              # the mark, or one that is not a text codec
+        if declared not in ("utf-8", "utf-8-sig", "ascii"):
+            try:
+                return source.decode(declared, "replace").encode("utf-8"), declared
+            except (LookupError, UnicodeError):
+                pass
+    if source.isascii():
+        return source, ""
+    try:
+        source.decode("utf-8")
+        return source, ""
+    except UnicodeDecodeError:
+        text = source.decode("utf-8", "contextlake-legacy")
+        return text.encode("utf-8"), "windows-1252 for the bytes UTF-8 rejects"
+
+
 def _select_file(
     fpath: Path, rel: str, fn: str, *, allowed_exts: set[str], allowed_names: set[str],
     index_hcl: bool, index_sql: bool, ignore: list[str], max_file_bytes: int,
@@ -2808,6 +2881,12 @@ def _select_file(
     except OSError as e:
         log(f"  skip {rel}: {e}")
         return None
+    # Before the header check below, which reads the first 2 KB as text: a UTF-16 file
+    # shows no marker in its raw bytes.
+    if kind in (_CODE, _PROC):
+        source, how = _to_utf8(source, lang_for(fn, ext) or "")
+        if how:
+            log(f"  {rel}: read as {how}", level=logging.DEBUG, inline=True)
     if _generated(kind, skip_generated, lambda: _has_generated_header(source)):
         counts.generated.append(rel)
         log(f"  skip {rel}: generated file header", level=logging.DEBUG, inline=True)
