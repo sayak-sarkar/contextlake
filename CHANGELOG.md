@@ -163,6 +163,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dashboard's answer to its own busy-store requests. A CLI command that finds the store locked
   prints the holder and exits 1. The page now describes both, and notes that Regenerate and
   Generate documents start a CLI child that takes the lock itself.
+- **A tag release no longer ends with a red `github-release` job and without its wheel, sdist
+  and SBOM when `binaries.yml` creates the GitHub Release first.** `release.yml` ran
+  `gh release create` with no fallback, so the 422 for an existing release failed the job. The
+  release kept the binaries and the notes from `binaries.yml`, not the CHANGELOG text. It now
+  edits the release and uploads the files.
 
 ### Security
 

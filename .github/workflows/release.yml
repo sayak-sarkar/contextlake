@@ -454,7 +454,15 @@ jobs:
               --prerelease="$PRERELEASE"
             gh release upload "$GITHUB_REF_NAME" dist/* sbom/* --clobber
           else
+            # binaries.yml creates the same tag's release too. If it wins that race between
+            # the check above and the create call, fall back to edit and upload instead of
+            # failing on a 422 (release already exists). The edit keeps the CHANGELOG notes.
             gh release create "$GITHUB_REF_NAME" dist/* sbom/* \
               --title "contextlake $version" --notes-file notes.md --verify-tag \
-              --prerelease="$PRERELEASE"
+              --prerelease="$PRERELEASE" \
+              || {
+                gh release edit "$GITHUB_REF_NAME" --title "contextlake $version" \
+                  --notes-file notes.md --prerelease="$PRERELEASE"
+                gh release upload "$GITHUB_REF_NAME" dist/* sbom/* --clobber
+              }
           fi

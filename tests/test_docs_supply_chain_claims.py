@@ -15,13 +15,18 @@ These checks pin the parts that live in this repository:
 Later checks hold other repository text to the workflows it describes: SECURITY.md's list of
 extras no audit job covers, and the lint paths and kb install that the Makefile, CONTRIBUTING.md
 and the PR template give a contributor. The last ones hold the release runbook to the workflows
-and to the verifier script it describes.
+and to the verifier script it describes, and run the release.yml step that creates the
+GitHub Release in bash.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import shutil
+import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -253,3 +258,112 @@ def test_no_page_or_test_names_the_maintainers_workspace() -> None:
     bad = [f"{f.relative_to(REPO)}: {needle}" for f in files
            for needle in needles if needle in f.read_text(encoding="utf-8")]
     assert not bad, "a tracked file names a private path or note:\n  " + "\n  ".join(bad)
+
+
+# --- the step that creates the GitHub Release ------------------------------------------
+#
+# A step with no `shell:` key (this one) runs under `bash -e`. These tests run the body with
+# that flag, because `-e` decides whether a failing command inside `|| { ...; }` fails the
+# job, and a text search cannot show that.
+
+_NEEDS_BASH = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+
+
+def _step_script(workflow: str, step: str) -> str:
+    """The `run: |` body of the step whose name starts with `step`, dedented."""
+    lines = (_WORKFLOWS / workflow).read_text(encoding="utf-8").splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.lstrip().startswith(f"- name: {step}"))
+    indent = len(lines[start]) - len(lines[start].lstrip())
+    i = next(i for i in range(start + 1, len(lines)) if lines[i] == " " * (indent + 2) + "run: |")
+    body = []
+    for ln in lines[i + 1:]:
+        if ln.strip() and len(ln) - len(ln.lstrip()) < indent + 4:
+            break
+        body.append(ln)
+    return textwrap.dedent("\n".join(body)) + "\n"
+
+
+def _run_step(script: str, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["bash", "-e", "-c", script],
+        cwd=cwd, env={**os.environ, **env}, capture_output=True, text=True, timeout=60,
+        check=False)
+
+
+# A `gh` that never leaves the machine. `release view` always says "no release", which is what
+# the step saw before the other workflow created it. `release create` then answers 422 when the
+# marker file exists, which is the other workflow having won the race, and succeeds otherwise.
+_FAKE_GH = """#!/bin/bash
+echo "$*" >> "$GH_LOG"
+case "$1 $2" in
+  "release view") exit 1 ;;
+  "release create")
+    if [ -e "$OTHER_WORKFLOW_WON" ]; then
+      echo "HTTP 422: Validation Failed (tag_name already_exists)" >&2; exit 1
+    fi ;;
+  "release edit") [ -z "$EDIT_FAILS" ] || { echo "HTTP 500" >&2; exit 1; } ;;
+  "release upload") ;;
+  *) echo "unexpected gh call: $*" >&2; exit 99 ;;
+esac
+"""
+
+
+def _release_env(tmp_path: Path, *, other_workflow_won: bool, edit_fails: bool = False) -> dict:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    gh = bin_dir / "gh"
+    gh.write_text(_FAKE_GH, encoding="utf-8")
+    gh.chmod(0o755)
+    marker = tmp_path / "other-workflow-won"
+    if other_workflow_won:
+        marker.touch()
+    env = {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "GH_LOG": str(tmp_path / "gh.log"),
+           "OTHER_WORKFLOW_WON": str(marker), "GITHUB_REF_NAME": "v10.0.0", "PRERELEASE": "false"}
+    if edit_fails:
+        env["EDIT_FAILS"] = "1"
+    (tmp_path / "CHANGELOG.md").write_text("## [10.0.0]\n\n- the notes\n\n## [9.9.9]\n",
+                                           encoding="utf-8")
+    for name in ("dist/a.whl", "sbom/b.json"):
+        (tmp_path / name).parent.mkdir(exist_ok=True)
+        (tmp_path / name).write_text("x", encoding="utf-8")
+    return env
+
+
+def _gh_calls(tmp_path: Path) -> list[str]:
+    return (tmp_path / "gh.log").read_text(encoding="utf-8").splitlines()
+
+
+@_NEEDS_BASH
+def test_release_yml_attaches_the_files_when_binaries_yml_created_the_release_first(
+        tmp_path: Path) -> None:
+    """`releasing.md` says `binaries.yml` uploads onto the release "whichever finishes first
+    creating it". `binaries.yml` falls back to an upload on a 422. `release.yml` did not: it
+    exited 1 and attached no wheel, sdist or SBOM, and the notes stayed "See CHANGELOG.md."."""
+    script = _step_script("release.yml", "Create GitHub Release from the CHANGELOG")
+    done = _run_step(script, tmp_path, _release_env(tmp_path, other_workflow_won=True))
+    assert done.returncode == 0, done.stderr
+    calls = _gh_calls(tmp_path)
+    assert [c.split()[1] for c in calls] == ["view", "create", "edit", "upload"], calls
+    assert "--notes-file notes.md" in calls[2]
+    assert "--prerelease=false" in calls[2]
+    assert "dist/a.whl" in calls[3] and "sbom/b.json" in calls[3] and "--clobber" in calls[3]
+    assert "the notes" in (tmp_path / "notes.md").read_text(encoding="utf-8")
+
+
+@_NEEDS_BASH
+def test_release_yml_creates_the_release_once_when_nobody_else_did(tmp_path: Path) -> None:
+    script = _step_script("release.yml", "Create GitHub Release from the CHANGELOG")
+    done = _run_step(script, tmp_path, _release_env(tmp_path, other_workflow_won=False))
+    assert done.returncode == 0, done.stderr
+    assert [c.split()[1] for c in _gh_calls(tmp_path)] == ["view", "create"]
+
+
+@_NEEDS_BASH
+def test_a_failed_fallback_fails_the_release_job(tmp_path: Path) -> None:
+    """The fallback must not hide a real error: if `gh release edit` fails too, the job is red
+    and no upload runs."""
+    script = _step_script("release.yml", "Create GitHub Release from the CHANGELOG")
+    env = _release_env(tmp_path, other_workflow_won=True, edit_fails=True)
+    done = _run_step(script, tmp_path, env)
+    assert done.returncode != 0
+    assert [c.split()[1] for c in _gh_calls(tmp_path)] == ["view", "create", "edit"]
