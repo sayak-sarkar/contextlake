@@ -675,6 +675,35 @@ def test_list_hides_tombstones_until_all(run, keys_file):
     assert revoked_id in everything.out
 
 
+def test_list_all_names_the_state_of_each_row(run, keys_file):
+    """`--all` adds revoked and expired rows, and their other cells read as a live key's do.
+    Without a STATE column the footer's totals were the only way to tell which row was which.
+    The default table lists live keys only and keeps its columns."""
+    for name in ("alice", "bob", "carol"):
+        run("create", name)
+    ids = {k["name"]: k["id"] for k in json.loads(keys_file.read_text())["keys"]}
+    assert run("revoke", ids["bob"]).code == 0
+    document = json.loads(keys_file.read_text())
+    for record in document["keys"]:
+        if record["name"] == "carol":
+            record["expires_at"] = "2020-01-01T00:00:00Z"
+    keys_file.write_text(json.dumps(document))
+
+    everything = run("list", "--all")
+    assert everything.code == 0
+    lines = everything.out.splitlines()
+    header = next(line for line in lines if "LAST USED" in line)
+    at = header.index("STATE")
+    states = {name: next(line[at:].split()[0] for line in lines if key_id in line)
+              for name, key_id in ids.items()}
+    assert states == {"alice": "live", "bob": "revoked", "carol": "expired"}
+    assert header.index("NAME") < at < header.index("TOOLS")
+
+    default = run("list")
+    assert "STATE" not in default.out
+    assert ids["alice"] in default.out and ids["bob"] not in default.out
+
+
 def _row_count(text: str) -> int:
     return sum(1 for line in text.splitlines() if "k_" in line and "LAST USED" not in line)
 

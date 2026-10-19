@@ -257,6 +257,9 @@ contextlake kb keys prune --before 2026-01-01
 contextlake kb keys usage --since 24h
 ```
 
+`list` shows live keys. `list --all` adds revoked and expired keys and a `STATE` column that
+reads `live`, `revoked` or `expired` on each row. `list --json` carries `state` on every key.
+
 **The key is shown once, and only once.** It is printed to standard error at creation and
 never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
 to print later. A key nobody wrote down is rotated, never recovered:

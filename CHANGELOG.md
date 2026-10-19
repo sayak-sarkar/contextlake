@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `$CONTEXTLAKE_KEYS_FILE` already refused. Both now refuse and name what was blank. If a start
   script passes a blank value on purpose, drop the flag so a lower tier answers. 10.0.0rc4 fell
   through.
+- **`kb keys list --all` now has a `STATE` column.** The table showed revoked and expired keys
+  in the same format as live ones, with no field saying which was which. Only the totals under
+  the table told you how many were revoked, not which rows. The column sits after `NAME` and
+  reads `live`, `revoked` or `expired`. The default `kb keys list` shows live keys only and is
+  unchanged. A script that reads the `--all` text table by column position moves one column:
+  read `--json` instead, which already had `state` on each key.
 
 ### Fixed
 

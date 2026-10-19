@@ -685,15 +685,21 @@ _COLUMNS = (("id", "ID"), ("name", "NAME"), ("tools", "TOOLS"), ("repos", "REPOS
             ("rate", "RATE"), ("expires", "EXPIRES"), ("last_used", "LAST USED"))
 
 
-def _table(rows) -> list[str]:
-    widths = {field: len(title) for field, title in _COLUMNS}
+# `--all` adds revoked and expired rows, and every other cell reads the same for them as for a
+# live key. The default table lists live keys only, so it has no use for the column.
+_STATE_COLUMN = ("state", "STATE")
+
+
+def _table(rows, *, with_state: bool = False) -> list[str]:
+    columns = _COLUMNS[:2] + (_STATE_COLUMN,) + _COLUMNS[2:] if with_state else _COLUMNS
+    widths = {field: len(title) for field, title in columns}
     for row in rows:
-        for field, _ in _COLUMNS:
+        for field, _ in columns:
             widths[field] = max(widths[field], len(row[field]))
-    lines = ["  ".join(title.ljust(widths[field]) for field, title in _COLUMNS).rstrip()]
+    lines = ["  ".join(title.ljust(widths[field]) for field, title in columns).rstrip()]
     for row in rows:
         lines.append("  ".join(row[field].ljust(widths[field])
-                               for field, _ in _COLUMNS).rstrip())
+                               for field, _ in columns).rstrip())
     return lines
 
 
@@ -1266,7 +1272,7 @@ def _cmd_list(args) -> int:
         _emit_json(payload)
         return 0
 
-    for line in _table(shown):
+    for line in _table(shown, with_state=show_all):
         log(line)
     log("")
     hidden = f"{len(revoked)} revoked, {len(expired)} expired"
