@@ -1893,8 +1893,22 @@ def cmd_keys(args) -> int:
         if as_json:
             _emit_json(_error_document(action, _Failure(
                 "key_file_error", str(exc),
-                keys_file=str(_keys_path(args)), detail=str(exc))))
+                keys_file=_keys_file_for_error(args), detail=str(exc))))
         return 1
+
+
+def _keys_file_for_error(args):
+    """The key file path for an error document, or None when naming it is the failure.
+
+    The resolver raises `KeyFileError` for a blank `$CONTEXTLAKE_KEYS_FILE` or a blank
+    `[serve] keys_file`. Resolving again inside the handler for that error raised it a
+    second time, so `--json` wrote nothing to stdout. A path the resolver did return
+    stays in the document.
+    """
+    try:
+        return str(_keys_path(args))
+    except keyfile.KeyFileError:
+        return None
 
 
 def _error_document(action, exc: _Failure) -> dict:

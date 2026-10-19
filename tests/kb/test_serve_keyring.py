@@ -583,6 +583,39 @@ def test_a_blank_keys_file_flag_refuses_the_start(tmp_path, monkeypatch, capsys,
     assert not keyfile.default_keys_file().exists()
 
 
+@pytest.mark.parametrize("where", ["global", "--config"])
+@pytest.mark.parametrize("literal", ['""', '"   "', "false"], ids=["empty", "spaces", "false"])
+def test_a_blank_serve_keys_file_refuses_the_start(tmp_path, monkeypatch, capsys,
+                                                   where, literal):
+    """`[serve] keys_file = ""` reaches `cmd_serve` as a refusal, not as a first start.
+
+    With nothing at the default path this used to mint one unscoped shared
+    token, print it and exit 0. The flag and the variable refused the same
+    input; the config tier read the blank as "not set". Both places a
+    privileged `[serve]` table can live are checked: the global file and the
+    file `--config` names."""
+    from contextlake.kb import config as kb_config
+
+    default = _unnamed_default(tmp_path, monkeypatch)
+    args = _serve_args(tmp_path)
+    if where == "global":
+        global_cfg = tmp_path / "global-kb.toml"
+        global_cfg.write_text(f"[serve]\nkeys_file = {literal}\n")
+        monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(global_cfg))
+    else:
+        with open(args.config, "a", encoding="utf-8") as handle:
+            handle.write(f"\n[serve]\nkeys_file = {literal}\n")
+
+    rc, captured, minted = _run_serve(args, monkeypatch, keys_file=None)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert captured == {} and minted == []
+    assert "Bearer token:" not in err
+    assert "[serve] keys_file" in err and "Refusing to fall back" in err
+    assert not default.exists()
+
+
 def test_a_key_file_this_reader_cannot_account_for_refuses(tmp_path, monkeypatch,
                                                            capsys):
     """The fifth content state, injected through the `keys_module` seam.

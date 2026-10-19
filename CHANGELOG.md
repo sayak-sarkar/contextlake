@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reads `live`, `revoked` or `expired`. The default `kb keys list` shows live keys only and is
   unchanged. A script that reads the `--all` text table by column position moves one column:
   read `--json` instead, which already had `state` on each key.
+- **A blank `[serve] keys_file` now stops `kb serve` and `kb keys` instead of falling back to
+  the default key file.** `keys_file = ""`, `false` and `0` in `~/.contextlake/kb.toml` or the
+  `--config` file read as unset. On a network start with no key file at the default path, `kb
+  serve` then minted one unscoped shared token, printed it and exited 0. A blank `--keys-file`
+  or `CONTEXTLAKE_KEYS_FILE` already refused. Both now exit 1 and name the key, and `kb keys
+  --json` writes a `key_file_error` document. If your config has a blank `keys_file`, give it
+  the path to your key file or remove the line.
 
 ### Fixed
 

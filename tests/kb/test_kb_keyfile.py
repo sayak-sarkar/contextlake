@@ -1692,6 +1692,51 @@ def test_a_blank_keys_file_variable_refuses_instead_of_using_the_default(
         env={keyfile.KEYS_FILE_ENV: "  "})[1] == keyfile.SOURCE_CLI
 
 
+@pytest.mark.parametrize("literal", ['""', '"   "', r'"\t\n"', "false", "0", "[]"],
+                         ids=["empty", "spaces", "whitespace", "false", "zero", "list"])
+def test_a_blank_serve_keys_file_refuses_instead_of_using_the_default(
+        tmp_path, isolated_config, monkeypatch, literal):
+    """`[serve] keys_file = ""` is the config form of the blank flag and variable.
+
+    `_serve_keys_file` tested truthiness, so a blank string, `false` and `0`
+    read as "no such key", resolved to the default path with source "default",
+    and `cmd_serve` minted an unscoped shared token on an absent default. The
+    flag and the variable refuse the same input. A key that is not set at all is
+    still the default path: without that row, an implementation that refuses on
+    every empty read passes the first half."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    global_cfg = tmp_path / "global-kb.toml"
+    global_cfg.write_text(f"[serve]\nkeys_file = {literal}\n")
+
+    with pytest.raises(keyfile.KeyFileError) as caught:
+        keyfile.resolve_keys_file_with_source(None, env={})
+    assert keyfile.SOURCE_CONFIG in str(caught.value)
+    assert str(keyfile.default_keys_file()) in str(caught.value)
+
+    # A higher tier answers first, so a blank config cannot take down a run that
+    # named a path on the command line or in the environment.
+    named = str(tmp_path / "named.json")
+    assert keyfile.resolve_keys_file_with_source(named, env={})[1] == keyfile.SOURCE_CLI
+    assert keyfile.resolve_keys_file_with_source(
+        None, env={keyfile.KEYS_FILE_ENV: named})[1] == keyfile.SOURCE_ENV
+
+    # `--config` is read after the global file and wins key by key, so it can
+    # blank a path the global file named, and can name a path over a blank one.
+    other = tmp_path / "other-kb.toml"
+    other.write_text(f'[serve]\nkeys_file = "{named}"\n')
+    assert keyfile.resolve_keys_file_with_source(
+        None, env={}, config_path=str(other)) == (Path(named), keyfile.SOURCE_CONFIG)
+    global_cfg.write_text(f'[serve]\nkeys_file = "{named}"\n')
+    other.write_text(f"[serve]\nkeys_file = {literal}\n")
+    with pytest.raises(keyfile.KeyFileError):
+        keyfile.resolve_keys_file_with_source(None, env={}, config_path=str(other))
+
+    # Not set at all is still the default path.
+    global_cfg.write_text("[serve]\ndefault_rate = 5\n")
+    assert keyfile.resolve_keys_file_with_source(None, env={}) == (
+        keyfile.default_keys_file(), keyfile.SOURCE_DEFAULT)
+
+
 def test_a_blank_keys_file_flag_refuses_instead_of_using_the_default(
         tmp_path, isolated_config, monkeypatch):
     """`--keys-file ""` is the same shell accident as a blank variable.

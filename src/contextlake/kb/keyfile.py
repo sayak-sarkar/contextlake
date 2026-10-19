@@ -515,9 +515,27 @@ def privileged_serve_table(config_path: str | None, warn) -> dict:
 
 
 def _serve_keys_file(config_path: str | None, warn) -> str | None:
-    """``[serve] keys_file`` from a config file the user NAMED, or None."""
-    value = privileged_serve_table(config_path, warn).get("keys_file")
-    return str(value) if value else None
+    """``[serve] keys_file`` from a config file the user NAMED, or None when no such key is set.
+
+    A key that is set but blank, or is not a string, raises :class:`KeyFileError`. It is not
+    "unset": `keys_file = ""` is a template that expanded nothing, and `keys_file = false` names
+    no path. Both used to read as unset, fall through to the default path, and let a network
+    start mint an unscoped shared token. The flag and the variable already refuse the same input
+    (see :func:`resolve_keys_file_with_source`).
+    """
+    table = privileged_serve_table(config_path, warn)
+    if "keys_file" not in table:
+        return None
+    value = table["keys_file"]
+    if not isinstance(value, str) or not value.strip():
+        found = "blank" if isinstance(value, str) else f"not a string ({type(value).__name__})"
+        raise KeyFileError(
+            f"{SOURCE_CONFIG} is {found}. Refusing to fall back to {default_keys_file()}: "
+            "setting the key says the keys live somewhere specific, so a value that is not a "
+            "path is a mistake and not a decision to use the default. Point it at the key "
+            "file, or remove the key."
+        )
+    return value
 
 
 def resolve_keys_file_with_source(cli_path=None, *, env=None, config_path=None,
@@ -542,9 +560,10 @@ def resolve_keys_file_with_source(cli_path=None, *, env=None, config_path=None,
     PRESENT; the empty-directory case is refused by the write verb instead. See
     the module docstring.
 
-    **A SET BUT BLANK ``--keys-file`` OR ``$CONTEXTLAKE_KEYS_FILE`` RAISES.** It
-    is not "unset". A shell that expanded an unset variable into the value, or a
-    container passing ``--env CONTEXTLAKE_KEYS_FILE=`` from an empty template,
+    **A SET BUT BLANK ``--keys-file``, ``$CONTEXTLAKE_KEYS_FILE`` OR ``[serve]
+    keys_file`` RAISES.** It is not "unset". A shell that expanded an unset
+    variable into the value, or a container passing
+    ``--env CONTEXTLAKE_KEYS_FILE=`` from an empty template,
     produces it, and falling through to the default path then puts an EMPTY
     default in front of ``cmd_serve``, which mints an unscoped shared token for a
     deployment that asked for a key file. ``$CONTEXTLAKE_MCP_TOKEN`` already

@@ -2670,3 +2670,34 @@ def test_a_record_of_the_wrong_type_is_named_not_crashed_on(run, keys_file):
 
     as_json = json.loads(run("list", "--json").out)
     assert as_json["error"] == "key_file_error"
+
+
+@pytest.mark.parametrize("verb", [("list",), ("create", "alice"), ("rotate", "alice")])
+@pytest.mark.parametrize("source", ["env", "config"])
+def test_a_blank_key_file_setting_is_a_json_error_not_an_empty_stdout(
+        run, tmp_path, monkeypatch, source, verb):
+    """The resolver refuses a blank `$CONTEXTLAKE_KEYS_FILE` or `[serve] keys_file`. The
+    handler then resolved the path a second time for the error document, the blank value
+    raised again there, and `--json` wrote nothing to stdout. One JSON document, exit 1."""
+    default = keyfile.default_keys_file()
+    argv = []
+    if source == "env":
+        monkeypatch.setenv(keyfile.KEYS_FILE_ENV, "")
+    else:
+        monkeypatch.delenv(keyfile.KEYS_FILE_ENV, raising=False)
+        config = tmp_path / "kb.toml"
+        config.write_text('[serve]\nkeys_file = ""\n')
+        argv = ["--config", str(config)]
+
+    result = run(*argv, *verb, "--json")
+
+    assert result.code == 1, result.err
+    document = json.loads(result.out)
+    assert document["error"] == "key_file_error", document
+    assert "blank" in document["detail"], document
+    assert document["keys_file"] is None, document
+    assert not default.exists(), "a blank setting must not fall back to the default file"
+
+    plain = run(*argv, *verb)
+    assert plain.code == 1
+    assert "blank" in plain.out + plain.err

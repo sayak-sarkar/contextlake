@@ -224,6 +224,9 @@ A blank value is refused the same way, exit 1. `--keys-file ""` and `CONTEXTLAKE
 come from a shell that expanded an unset variable, such as `--keys-file "$KEYS_FILE"`. They do
 not fall back to the default path. Leave the flag or the variable out to use a lower tier.
 
+A `[serve] keys_file = ""` in a config file is refused too, and so is a value that is not a
+string, such as `keys_file = false`. Remove the key to use the default path.
+
 A `[serve] keys_file` in a `.contextlake.kb.toml` found by walking up from the current
 directory is ignored, and the run says so on one line. That file sits inside a repository
 checkout, so anything it points at gets committed. Pass `--config <file>`, or set the key in
