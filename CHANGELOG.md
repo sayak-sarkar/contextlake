@@ -217,6 +217,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `HOME`. A test that let `mirror update` run on the defaults fetched every clone under the real
   work directory. Every test now gets both defaults under its own temporary home. Test-only
   change.
+- **A call at the top of a Vue or Svelte `<script>` now links to the function it calls.** The
+  call is made by the component's file node, which has the language `vue` or `svelte`. Neither
+  was in the JavaScript family, so every JavaScript or TypeScript definition was rejected as a
+  cross-language match and the call had no `calls` edge. Calls inside a function already worked.
+  The next `kb index` re-indexes the repository and adds the missing edges.
 
 ### Security
 

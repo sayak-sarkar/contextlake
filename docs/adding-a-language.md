@@ -145,7 +145,8 @@ Add your language to a group **only if it interoperates** with the ones already 
 
 The existing groups are:
 
-- `js`: JavaScript, TypeScript, TSX
+- `js`: JavaScript, TypeScript, TSX, and the file node of a Vue or Svelte component, whose
+  `<script>` is JavaScript
 - `c`: C and C++
 - `jvm`: Java, Kotlin, Scala
 

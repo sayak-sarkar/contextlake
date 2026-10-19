@@ -399,7 +399,8 @@ def _has_generated_header(source: bytes) -> bool:
 # functions of one name in different namespaces were one node, with the second dropped and
 # its calls credited to the first. The block that scopes them is now part of the qualified
 # name, so every Go, Rust and PHP symbol inside such a block gets a new id and a re-index
-# adds the nodes and call edges that were missing.
+# adds the nodes and call edges that were missing. PARSE-2 adds edges too: a call
+# at the top of a Vue or Svelte `<script>` was rejected as cross-language and left no edge.
 PARSER_VERSION = "14"
 
 # tree-sitter node types that introduce a named definition, per language.
@@ -3589,8 +3590,12 @@ _MAX_AMBIG_FANOUT = 10
 # classified "cpp" -- see LANG_BY_EXT), and JVM languages call each other's
 # classes directly. Across groups a same-name match is coincidence, never a call.
 # A language absent here is its own group (Python, Go, Rust, C#, Ruby, PHP).
+#
+# `vue` and `svelte` are the language of a component's FILE node, which makes the calls at
+# the top of its `<script>`. The scripts are JavaScript, so those calls belong to that group;
+# a function inside the script already carries `javascript` itself.
 _LANG_FAMILY = {
-    "javascript": "js", "typescript": "js", "tsx": "js",
+    "javascript": "js", "typescript": "js", "tsx": "js", "vue": "js", "svelte": "js",
     "c": "c", "cpp": "c",
     "java": "jvm", "kotlin": "jvm", "scala": "jvm",
 }

@@ -46,7 +46,7 @@ Depth differs across four tiers, and a single number would hide it.
 | Full | C, C++, JavaScript, TypeScript, TSX, Python | definitions, imports, calls, **plus** module-level variables and class fields |
 | Definitions | C#, Go, Java, Kotlin, Ruby, Rust, PHP, Scala, Swift, Dart, Zig, Perl, Bash, Elixir | definitions, imports and calls |
 | Referenceable names | CSS, HTML, Nix, Make, Dockerfile | the names other files refer to: CSS class, id and element selectors; HTML element ids; Nix attributes; Make targets; Dockerfile build stages and the images they build on |
-| Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file |
+| Components | Svelte, Vue | each `<script>` parsed as JavaScript and each `<style>` as CSS, reported at their line in the file. A call at the top of a script resolves to JavaScript and TypeScript definitions, like a call inside a function |
 
 Most files reach a grammar by their extension. Build files have none, so they are matched by
 name instead: `Makefile`, `GNUmakefile`, `Dockerfile` and `Containerfile`.

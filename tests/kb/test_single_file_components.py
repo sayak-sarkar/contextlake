@@ -101,3 +101,20 @@ def test_a_template_only_component_still_appears(shard):
     graph is worse than one with nothing under it."""
     node = _at(shard, "Bare.vue", "Bare.vue")
     assert node is not None and node.kind == "file" and node.lang == "vue"
+
+
+def test_a_top_level_script_call_resolves_into_a_javascript_file(tmp_path):
+    """A call at the top of a `<script>` is made by the FILE node, and that node keeps the
+    component's language, `vue` or `svelte`. Neither was in a language family, so every
+    JavaScript candidate was rejected as a cross-language match and the call left no edge.
+    A call inside a function worked, because the function node carries `javascript`."""
+    (tmp_path / "composables.js").write_text("export function useThing() { return 1; }\n")
+    (tmp_path / "thing.py").write_text("def useThing():\n    return 2\n")
+    (tmp_path / "App.vue").write_bytes(b"<script setup>\nconst thing = useThing();\n</script>\n")
+    (tmp_path / "Widget.svelte").write_bytes(b"<script>\nconst thing = useThing();\n</script>\n")
+    shard = index_repo_dir(str(tmp_path), "demo", head_commit="h")
+    by_id = {n.id: n for n in shard.nodes}
+    calls = {(by_id[e.src].name, by_id[e.dst].file) for e in shard.edges
+             if e.relation == "calls"}
+    # The JavaScript definition and nothing else: the Python `useThing` is another family.
+    assert calls == {("App.vue", "composables.js"), ("Widget.svelte", "composables.js")}
