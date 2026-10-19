@@ -3575,6 +3575,8 @@ What this path guarantees:
 
 - **It only reads.** Every request is a GET.
 - **One page per search.** `maxResults` or `limit` in the URL sets the size of that page.
+  `max_pages` has no effect on `kb enrich`. The log line `stopped at the 1-page cap` is expected
+  when the API has more pages.
 - **The token stays on its host.** A redirect to another origin is followed without it.
 - **A failed search keeps the old results.** A 401, 403, 429 or dead host counts as an
   unavailable source, so the repo keeps what it had instead of being cleared.
@@ -10724,6 +10726,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back with another vector length fails the guard after the clear. The source keeps its new
   documents and has no vectors, the summary names it, the run ends and the exit code is 1. To
   switch models, delete the store's `embeddings.sqlite`, then run `kb embed` and `kb ingest`.
+- **The `kb enrich` page-cap warning no longer names a setting that does nothing.** `kb enrich`
+  reads one page per search on an `api` source and ignores `max_pages`, but each search logged
+  "stopped at the 1-page cap with more pages available -- raise `max_pages` to read the rest".
+  Setting `max_pages = 5` changed nothing. The warning now says `kb enrich` reads one page per
+  search and ignores `max_pages`, and points to `limit` or `maxResults` in `search_url` to set
+  the page size. `kb ingest` keeps the old advice.
 
 ### Security
 

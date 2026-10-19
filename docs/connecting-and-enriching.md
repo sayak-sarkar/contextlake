@@ -220,6 +220,8 @@ What this path guarantees:
 
 - **It only reads.** Every request is a GET.
 - **One page per search.** `maxResults` or `limit` in the URL sets the size of that page.
+  `max_pages` has no effect on `kb enrich`. The log line `stopped at the 1-page cap` is expected
+  when the API has more pages.
 - **The token stays on its host.** A redirect to another origin is followed without it.
 - **A failed search keeps the old results.** A 401, 403, 429 or dead host counts as an
   unavailable source, so the repo keeps what it had instead of being cleared.

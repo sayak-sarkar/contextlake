@@ -134,6 +134,11 @@ class ApiSource(FetchFailures):
     already read are kept. The ``Authorization`` header goes only to the configured origin.
     """
 
+    # What the page-cap warning tells the reader to do. `kb enrich` replaces it: it pins
+    # `max_pages` to 1 and never reads the setting, so "raise `max_pages`" names a fix
+    # that cannot work there.
+    page_cap_advice = "raise `max_pages` to read the rest"
+
     def __init__(self, url=None, items=None, id_field="id", title_field="title",
                  text_field="text", token_env=None, timeout=20,
                  next_field=None, max_pages=50, auth=None, user=None,
@@ -244,7 +249,7 @@ class ApiSource(FetchFailures):
         if nxt:
             self.hit_page_cap = True
             log(f"api source: stopped at the {self.max_pages}-page cap with more pages "
-                f"available -- raise `max_pages` to read the rest", level=logging.WARNING)
+                f"available -- {self.page_cap_advice}", level=logging.WARNING)
         return merged
 
     def iter_documents(self):

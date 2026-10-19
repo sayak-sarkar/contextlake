@@ -198,6 +198,8 @@ def _api_search(cfg, terms: list[str], *, timeout: float | None = None,
                 budget.used + len(out) >= budget.limit:
             break
         src = ApiSource(url=url, max_pages=1, **options)
+        src.page_cap_advice = ("`kb enrich` reads one page per search and ignores `max_pages`; "
+                               "set the page size in `search_url` (`limit` or `maxResults`)")
         docs = list(src.iter_documents())
         for _target, reason in getattr(src, "failures", []) or []:
             note_unavailable(f"enrich source {name!r}", RuntimeError(reason))

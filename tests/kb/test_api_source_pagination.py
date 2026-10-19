@@ -85,6 +85,15 @@ def test_the_page_cap_is_reported_rather_than_silent(paging_server):
     assert src.hit_page_cap is True, "the cap was reached and not reported"
 
 
+def test_the_cap_message_still_tells_an_ingest_user_to_raise_max_pages(paging_server, gls_logs):
+    """The advice is right for `kb ingest`, which reads `max_pages`. Only `kb enrich`,
+    which pins it to 1, words it differently."""
+    list(ApiSource(url=f"{paging_server}/p1", max_pages=2).iter_documents())
+    caps = [r.getMessage() for r in gls_logs.records if "-page cap" in r.getMessage()]
+    assert caps, "control: the cap is reported"
+    assert all("raise `max_pages` to read the rest" in m for m in caps), caps
+
+
 def test_a_single_page_api_is_unchanged(paging_server):
     """The near-miss. Most APIs do not paginate, and they must behave exactly as before
     -- one request, no cap flag, the raw payload shape preserved."""

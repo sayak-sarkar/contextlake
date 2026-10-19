@@ -98,7 +98,7 @@ def _seed(store_dir, repos):
     store.close()
 
 
-def _config(tmp_path, store_dir, search_url, *, search=True):
+def _config(tmp_path, store_dir, search_url, *, search=True, extra=""):
     key = "search_url" if search else "url"
     path = tmp_path / "kb.toml"
     path.write_text(f"""
@@ -119,6 +119,7 @@ text_field = "fields.summary"
 auth = "basic"
 user = "someone@example.test"
 token_env = "CL_TEST_TRACKER_TOKEN"
+{extra}
 """)
     return path
 
@@ -176,6 +177,31 @@ def test_one_page_per_query(env):
     finally:
         main.close()
     assert main.requests
+    assert not [r for r in main.requests if "page=2" in r["path"]], "a second page was read"
+
+
+def test_the_page_cap_message_does_not_send_enrich_to_max_pages(env, gls_logs):
+    """Enrich pins `max_pages` to 1 and never reads the setting, but the cap warning said
+    "raise `max_pages` to read the rest". A user who set `max_pages = 5` saw it once per
+    search and could change nothing by following it."""
+    def tracker(path):
+        nxt = {"Link": '<' + main.base + '/search?page=2>; rel="next"'}
+        return 200, nxt, _issues(_term(path))
+
+    main = _Server(tracker)
+    try:
+        store_dir = env / "kb"
+        _seed(store_dir, ["group/app"])
+        cfg = _config(env, store_dir, main.base + "/search?text={term}",
+                      extra="max_pages = 5")
+        assert _run(cfg, ["group/app"]) == 0
+    finally:
+        main.close()
+    caps = [r.getMessage() for r in gls_logs.records if "-page cap" in r.getMessage()]
+    assert caps, "control: the cap is still reported"
+    assert not [m for m in caps if "raise `max_pages`" in m], caps
+    assert all("`kb enrich` reads one page per search and ignores `max_pages`" in m
+               for m in caps), caps
     assert not [r for r in main.requests if "page=2" in r["path"]], "a second page was read"
 
 
