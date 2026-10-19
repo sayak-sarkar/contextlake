@@ -104,6 +104,9 @@ contextlake kb serve --transport http --host 0.0.0.0        # refused, exits 1
 contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
 ```
 
+An IPv6 address can be typed bare or in brackets: `--host ::1` and `--host '[::1]'` both bind
+`::1`, and the startup line prints the URL with brackets, `http://[::1]:8765/mcp`.
+
 Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
 to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
 answers requests whose `Host` is a loopback name, because the Host check has no way to know which

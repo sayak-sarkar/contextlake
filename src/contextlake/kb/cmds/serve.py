@@ -146,7 +146,7 @@ def _load_keyring(args):
 
 def cmd_serve(args) -> int:
     # imported here so `query`/`index` don't load it
-    from ..server import HTTP_TRANSPORTS, TOKEN_ENV, resolve_token, run_server
+    from ..server import HTTP_TRANSPORTS, TOKEN_ENV, _host_header_form, resolve_token, run_server
 
     # CLI exposes "http"; the MCP SDK calls it "streamable-http". "sse" (the
     # legacy HTTP+SSE transport) passes through unchanged -- it's a real,
@@ -159,6 +159,11 @@ def cmd_serve(args) -> int:
     else:
         transport = "stdio"
     host = getattr(args, "host", None) or "127.0.0.1"
+    # `[::1]` is how a URL writes an IPv6 address; a socket takes it bare. The brackets
+    # went to uvicorn as typed, nothing bound, and the process then ignored Ctrl-C. The
+    # loopback list holds both spellings, so the guard below passed the one that cannot bind.
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
     port = getattr(args, "port", None) or 8765
     network = transport in HTTP_TRANSPORTS
 
@@ -517,7 +522,8 @@ def cmd_serve(args) -> int:
         # mcp.server.mcpserver.MCPServer.streamable_http_app / .sse_app).
         path = {"streamable-http": "/mcp", "sse": "/sse"}.get(transport)
         if path:
-            log(style.ok(f"MCP server on http://{host}:{port}{path}  (Ctrl-C to stop)"))
+            log(style.ok(f"MCP server on http://{_host_header_form(host)}:{port}{path}  "
+                         "(Ctrl-C to stop)"))
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store, token=token,
                    tool_concurrency=getattr(args, "tool_concurrency", None),

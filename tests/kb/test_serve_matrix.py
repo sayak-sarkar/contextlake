@@ -449,6 +449,44 @@ def test_loopback_binds_need_no_opt_in(tmp_path, monkeypatch, host):
     assert commands_mod.cmd_serve(args) == 0
 
 
+@pytest.mark.parametrize("typed", ["::1", "[::1]"])
+def test_an_ipv6_loopback_host_binds_bare_and_prints_a_bracketed_url(
+        tmp_path, gls_logs, monkeypatch, typed):
+    """`[::1]` is the URL spelling and passed the loopback guard, but uvicorn got the brackets
+    and bound nothing, and the process then ignored Ctrl-C. A socket takes `::1` bare. The
+    banner is the one place that needs the brackets: `http://::1:8765/mcp` is not a URL."""
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    captured: dict = {}
+    monkeypatch.setattr("contextlake.kb.server.run_server",
+                        lambda store, **kw: captured.update(kw))
+
+    args = _serve_args(cfg, "http")
+    args.host = typed
+    assert commands_mod.cmd_serve(args) == 0
+
+    assert captured["host"] == "::1"
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "MCP server on http://[::1]:8765/mcp" in msgs
+
+
+def test_a_bracketed_wildcard_host_is_still_a_wildcard_bind(tmp_path, gls_logs, monkeypatch):
+    """The same strip decides the wildcard warning: `[::]` used to miss the `::` check and
+    reached the socket with its brackets."""
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    captured: dict = {}
+    monkeypatch.setattr("contextlake.kb.server.run_server",
+                        lambda store, **kw: captured.update(kw))
+
+    args = _serve_args(cfg, "http")
+    args.host, args.allow_remote = "[::]", True
+    assert commands_mod.cmd_serve(args) == 0
+
+    assert captured["host"] == "::"
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "A wildcard bind (::)" in msgs
+    assert "MCP server on http://[::]:8765/mcp" in msgs
+
+
 def test_allow_remote_starts_the_server_and_warns(tmp_path, gls_logs, monkeypatch, capsys):
     cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
     captured: dict = {}

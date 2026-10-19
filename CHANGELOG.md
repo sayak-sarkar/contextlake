@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is cut to the same window for a limited key on sqlite-vec, and a readable hit ranked below the
   512th fleet-wide is not returned there. 10.0.0rc4 raised the error. The built-in fallback
   store has no window and keeps its 10,000-node limit.
+- **`kb serve --host '[::1]'` now binds `::1` instead of printing a banner and listening on
+  nothing.** `[::1]` passed the loopback check, but uvicorn got the brackets, bound nothing, and
+  the process ignored Ctrl-C until it was killed. The brackets are now removed before the bind,
+  so `::1` and `[::1]` are the same bind, and `[::]` counts as the wildcard bind it is. The
+  startup line now writes an IPv6 host in brackets, `http://[::1]:8765/mcp`. For `::1` it
+  printed `http://::1:8765/mcp`, which is not a URL. 10.0.0rc4 did not bind the bracketed form.
 
 ### Security
 
