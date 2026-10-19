@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from contextlake import core, observability
+from contextlake.config import DEFAULT_CONFIG
 
 # No test reaches the Hugging Face Hub. Set at conftest import, not in a fixture:
 # huggingface_hub reads HF_HUB_OFFLINE ONCE, into a module constant, when it is first
@@ -157,7 +158,13 @@ def _isolated_home(tmp_path, monkeypatch):
     sets HOME explicitly to its own tmp_path still wins (its own
     monkeypatch.setenv call runs later, in the test body, after this fixture).
     """
-    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    home = tmp_path / "isolated-home"
+    monkeypatch.setenv("HOME", str(home))
+    # `config.py` expanded `~` in these two when it was imported, which is before this fixture
+    # runs, so moving HOME leaves them on the operator's real home. A test that lets a mirror
+    # verb run on the defaults then fetches every clone in the real work_dir (it did, twice).
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(home / ".contextlake.ini"))
+    monkeypatch.setitem(DEFAULT_CONFIG, "work_dir", str(home / "work"))
     # HOME alone is not the whole of "the user's home": XDG_CACHE_HOME, when the
     # developer or CI runner exports it, sends the mirror project cache (see
     # config.get_cache_paths, which creates and chmods that directory) straight

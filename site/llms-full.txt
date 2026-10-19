@@ -10114,6 +10114,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provenance and telemetry, and the sample in `asking-the-graph.md` cited a docstring line for
   `close`. The code was right, but a reader who opened a cite found nothing. `explained.md`
   now names the symbol, and the sample cites the real line. Docs only.
+- **The test suite no longer reaches the developer's real mirror folder.** `config.py` expands
+  `~` in the default `work_dir` and in `CONFIG_FILE` at import, before `tests/conftest.py` moves
+  `HOME`. A test that let `mirror update` run on the defaults fetched every clone under the real
+  work directory. Every test now gets both defaults under its own temporary home. Test-only
+  change.
 
 ### Security
 
