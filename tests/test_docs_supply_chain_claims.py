@@ -407,3 +407,30 @@ def test_the_binary_sanity_check_names_only_what_it_checks() -> None:
     label = re.search(r"- name: (Sanity check[^\n]*)", text).group(1)
     assert "executable" not in label
     assert "non-empty" in label
+
+
+_STALE_WORDS = ("gguf", "only-binary", "separate index", "wheel index", "compile c++",
+                "pyapp_pip_extra_args")
+
+
+@pytest.mark.parametrize("name", ["binaries.yml", "release.yml"])
+def test_the_release_workflows_do_not_describe_the_llama_cpp_backend(name: str) -> None:
+    """The llm-local extra is an ordinary openvino-genai wheel on PyPI. These comments and a
+    step label kept describing the per-accelerator wheel index, the `--only-binary` pin and the
+    GGUF model that the backend change removed (security.yml names them as history, on purpose)."""
+    text = (_WORKFLOWS / name).read_text(encoding="utf-8").lower()
+    assert not [w for w in _STALE_WORDS if w in text], f"{name} still describes the old backend"
+
+
+def test_dependabot_does_not_list_the_removed_backend_as_an_extra_dependency() -> None:
+    text = (REPO / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert "llama" not in text.lower()
+
+
+def test_binaries_yml_says_what_the_launcher_fetches_at_first_run() -> None:
+    """Removing the llama-cpp-python clause left "fetches contextlake and its" cut off in the
+    middle of the sentence."""
+    comments = " ".join(ln.strip().lstrip("#").strip()
+                        for ln in (_WORKFLOWS / "binaries.yml").read_text(encoding="utf-8")
+                        .splitlines() if ln.strip().startswith("#"))
+    assert "fetches contextlake and its dependencies from PyPI" in comments

@@ -173,6 +173,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an existence and executable check it did not make. A zero-byte launcher would have been
   uploaded to the GitHub Release. The step now checks the file is not empty, and its label says
   so.
+- **The release workflows no longer describe the llama.cpp backend.** After the move to
+  openvino-genai, `binaries.yml` still explained a per-accelerator wheel index and an
+  `--only-binary` pin that no step sets, one of its comments was cut off mid-sentence,
+  `release.yml` said `llm-local` compiles from source, and the slim image step was named "no
+  baked GGUF". A maintainer could re-add the index or the pin on that advice. The text now
+  matches the build. The change touches comments and one step name, not the build.
 
 ### Security
 

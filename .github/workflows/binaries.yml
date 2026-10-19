@@ -84,14 +84,6 @@ jobs:
           # packaging" distribution channel, so it should be the one that asks the
           # least of the user.
           PYAPP_PROJECT_FEATURES: kb-full,llm-local
-          # PyPI namespace cannot hold cpu/cu121/cu124/metal builds of the same
-          # version. Upstream therefore ships a separate index per accelerator, the
-          # same convention PyTorch uses. Without this the binary's first run tries
-          # to compile C++ on a machine chosen precisely because it has no toolchain.
-          #
-          # --only-binary is scoped to that one package rather than :all: on purpose:
-          # :all: would also forbid a source fallback for every kb-full dependency,
-          # so a single missing wheel on any platform would break the binary outright.
           PYAPP_EXEC_SPEC: "contextlake.cli:main"
         run: |
           # GITHUB_ENV only takes effect for LATER steps -- cargo install runs in
@@ -147,8 +139,9 @@ jobs:
       #
       # WHAT THIS DOES NOT COVER, and the release notes must not imply otherwise: the
       # attestation covers the PyApp *launcher*. The launcher fetches contextlake and its
-      # the user's machine at first run -- after any signature here. Signing cannot reach that
-      # half; `pip-audit-resolved` in security.yml is what watches it.
+      # dependencies from PyPI on the user's machine at first run -- after any signature
+      # here. Signing cannot reach that half; `pip-audit-resolved` in security.yml is what
+      # watches it.
       - name: Attest build provenance for the three launchers
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
