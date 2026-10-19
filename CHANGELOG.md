@@ -144,6 +144,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing. The fleet overview and the MCP repo list then showed no branch until the next
   `kb index`, and a repo added from the dashboard never had one. Both actions now record the
   checked-out branch.
+- **Two Regenerate clicks at once no longer start two wiki runs.** The dashboard checked for a
+  running wiki run, started the child, and only then recorded its pid. Two requests in that
+  window each started a child, the card tracked one of them, and it showed Finished while the
+  other still ran, with the second request also truncating the first run's log. The pidfile is
+  now claimed before the child starts, so the second request is refused as already in progress.
 
 ### Security
 

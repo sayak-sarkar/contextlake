@@ -510,6 +510,9 @@ def wiki_generate_status(store_dir) -> dict:
     try:
         info = json.loads(pf.read_text())
     except (OSError, json.JSONDecodeError):
+        # Deliberately does NOT unlink: an empty pidfile is the in-progress claim
+        # `wiki_generate_start` has taken and not yet filled, the same state
+        # `docs_generate_status` leaves alone.
         return {"running": False, "log_tail": tail}
     pid = info.get("pid")
     running = isinstance(pid, int) and not _pid_finished(pid)
@@ -582,7 +585,8 @@ def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = 
     """Spawn ``contextlake wiki`` as a subprocess -- reuses the exact, tested CLI
     generation loop unmodified, no duplicated logic. Refuses to start a second
     run while one is already in progress (single pidfile, same discipline as
-    the MCP server lifecycle above).
+    the MCP server lifecycle above). The pidfile is claimed with O_CREAT|O_EXCL
+    before the spawn, so two simultaneous requests start one run, not two.
 
     Unlike ``mcp_start`` (a server that should never legitimately exit within
     the startup grace period), a wiki run with nothing to do exits almost
@@ -611,30 +615,55 @@ def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = 
     if config_path:
         cmd += ["--config", config_path]
     log_path = _wiki_logfile(store_dir)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    pf = _wiki_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # The pidfile IS the in-progress token, claimed with O_CREAT|O_EXCL as
+        # `docs_generate_start` does, so the check and the claim are ONE filesystem
+        # operation. The status read above is a courtesy that produces the informative
+        # refusal. On its own it left a window between the read and the pid write:
+        # two concurrent requests both passed it and both spawned a child, the pidfile
+        # named one of them, and when that one exited the card read "finished" while
+        # the other still ran.
+        fd = os.open(pf, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        # Lost the race. The winner may not have written its pid yet, so this refusal
+        # carries no pid, unlike the informative one above.
+        return {"ok": False, "running": True,
+               "error": "a wiki generation run is already in progress"}
     # Offline mode is process-wide state, and this child is a new process. `kb wiki`
     # builds its own LLM, so an offline dashboard whose offline came from the
     # `--offline` FLAG would spawn a child that constructs a CliLlm and runs an agent
     # CLI. `child_env` carries the state across as `CONTEXTLAKE_OFFLINE`.
     from ... import netguard
 
-    with open(log_path, "w", encoding="utf-8") as logf:
-        proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
-                                start_new_session=True, env=netguard.child_env())
-    pf = _wiki_pidfile(store_dir)
-    pf.write_text(json.dumps({"pid": proc.pid, "repo": repo_id, "force": force}))
+    try:
+        # The log is opened AFTER the claim, never before: opening it first would
+        # truncate the log of a run that is still going.
+        with open(log_path, "w", encoding="utf-8") as logf:
+            proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
+                                    start_new_session=True, env=netguard.child_env())
+        record = json.dumps({"pid": proc.pid, "repo": repo_id, "force": force})
+        os.write(fd, record.encode("utf-8"))
+    except BaseException:
+        # A failed spawn must hand the token back. `wiki_generate_status` does not
+        # delete a file it cannot parse (that is the claim mid-write), so an empty
+        # token left behind would refuse every later run.
+        pf.unlink(missing_ok=True)
+        raise
+    finally:
+        os.close(fd)
     return {"ok": True, "running": True, "pid": proc.pid}
 
 
 # --- Documents generation (live, from the dashboard) -------------------------
 #
 # Same plumbing as the wiki block above (detached Popen + pidfile + log file),
-# because a fleet-wide `kb docs` run has no safe fixed timeout either. Four things
+# because a fleet-wide `kb docs` run has no safe fixed timeout either. Three things
 # differ from wiki on purpose, each named where it differs: the status payload
-# keeps `pid`, it reports how many documents the run wrote, there is no force flag
-# (the `kb docs` subparser has none), and the pidfile is claimed with O_CREAT|O_EXCL
-# before the spawn instead of written after it. The wiki block still has the race
-# that last one closes.
+# keeps `pid`, it reports how many documents the run wrote, and there is no force
+# flag (the `kb docs` subparser has none). Both blocks claim their pidfile with
+# O_CREAT|O_EXCL before the spawn.
 
 
 def _docs_pidfile(store_dir) -> Path:

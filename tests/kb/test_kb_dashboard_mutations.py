@@ -589,6 +589,94 @@ def test_wiki_generate_start_refuses_when_already_running(tmp_path):
     assert "already in progress" in result["error"]
 
 
+def _stub_wiki_spawn(monkeypatch):
+    """Replace the spawn with a recorder. Returns the list of commands it was given.
+
+    A guard that fails would otherwise start a real ``contextlake kb wiki``."""
+    spawned, pids = [], iter(range(4_000_001, 4_000_100))
+
+    class _Child:
+        def __init__(self):
+            self.pid = next(pids)
+
+    def fake_popen(cmd, **kw):
+        spawned.append(cmd)
+        return _Child()
+
+    monkeypatch.setattr(mut.subprocess, "Popen", fake_popen)
+    return spawned
+
+
+def test_two_simultaneous_wiki_starts_spawn_one_child(tmp_path, monkeypatch):
+    """Both requests pass the in-progress check before either records its pid, which a
+    barrier after the status read forces. Both then spawned a child, and the pidfile
+    named only one of them: when that one exited the card read "finished" while the
+    other still ran. The claim on the pidfile lets one through."""
+    import threading
+
+    spawned = _stub_wiki_spawn(monkeypatch)
+    real_status, gate = mut.wiki_generate_status, threading.Barrier(2, timeout=10)
+
+    def status_once_both_have_looked(store_dir):
+        answer = real_status(store_dir)
+        gate.wait()
+        return answer
+
+    monkeypatch.setattr(mut, "wiki_generate_status", status_once_both_have_looked)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(mut.wiki_generate_start(tmp_path)))
+               for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=15)
+
+    assert len(results) == 2
+    assert sorted(r["ok"] for r in results) == [False, True]
+    assert len(spawned) == 1
+    refused = next(r for r in results if not r["ok"])
+    assert refused["running"] is True and "already in progress" in refused["error"]
+    assert json.loads(mut._wiki_pidfile(tmp_path).read_text())["pid"] == 4_000_001
+
+
+def test_a_wiki_start_is_refused_while_the_claim_is_held_but_holds_no_pid_yet(tmp_path,
+                                                                             monkeypatch):
+    """An empty pidfile is what the winner leaves between taking the claim and writing
+    its pid. ``wiki_generate_status`` cannot parse it and reports not-running, which is
+    right for a liveness question and wrong as a permission to spawn. The log of the run
+    that holds the claim is not truncated either."""
+    spawned = _stub_wiki_spawn(monkeypatch)
+    pf, log = mut._wiki_pidfile(tmp_path), mut._wiki_logfile(tmp_path)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text("")
+    log.write_text("output of the run that holds the claim")
+    assert mut.wiki_generate_status(tmp_path)["running"] is False
+
+    result = mut.wiki_generate_start(tmp_path)
+
+    assert result == {"ok": False, "running": True,
+                      "error": "a wiki generation run is already in progress"}
+    assert spawned == []
+    assert log.read_text() == "output of the run that holds the claim"
+    assert pf.exists()
+
+
+def test_a_failed_wiki_spawn_releases_the_claim(tmp_path, monkeypatch):
+    """``wiki_generate_status`` does not delete a pidfile it cannot parse, so a spawn
+    that failed after the claim would leave an empty file that refuses every later run."""
+    def boom(*_a, **_kw):
+        raise OSError("no fork for you")
+
+    monkeypatch.setattr(mut.subprocess, "Popen", boom)
+    with pytest.raises(OSError):
+        mut.wiki_generate_start(tmp_path)
+    assert not mut._wiki_pidfile(tmp_path).exists()
+
+    spawned = _stub_wiki_spawn(monkeypatch)
+    assert mut.wiki_generate_start(tmp_path)["ok"] is True
+    assert len(spawned) == 1
+
+
 def test_wiki_generate_estimate_unchanged_repo_is_not_counted(tmp_path):
     store = SqliteStore(tmp_path / "index.sqlite")
     store.upsert_repo(Repo(id="r", path=str(tmp_path)))
