@@ -703,6 +703,24 @@ class FetchError(RuntimeError):
     transient blip can never overwrite a good cache or masquerade as success."""
 
 
+# HTTP statuses a second attempt can change: the server timed out, asked for a wait, or
+# failed on its own side. Any other status answers the request, and a retry repeats it.
+_RETRY_HTTP_STATUS = frozenset({408, 425, 429})
+
+
+def _enumeration_is_transient(error):
+    """Whether a failed enumeration page is worth another attempt.
+
+    A revoked token (401), a refused one (403) or a mistyped group (404) gives the same
+    answer on each of six tries, which only delays the message by about 36 seconds and sends
+    the forge five more requests. A failure that is not an HTTP status, such as a dropped
+    connection or a ``glab`` error, keeps the git/network judgement.
+    """
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in _RETRY_HTTP_STATUS or error.code >= 500
+    return git_error_is_transient(error)
+
+
 def fetch_gitlab_projects(gitlab_group, config):
     """Enumerate every repository of the configured platform's group/org/workspace.
 
@@ -763,8 +781,10 @@ def fetch_gitlab_projects(gitlab_group, config):
         try:
             # Enumeration is a one-shot bulk step, so it can afford to be patient:
             # more retries (≈1+2+4+8+16s of backoff) ride out a brief VPN/proxy
-            # reconnect. A sustained outage still fails fast enough to degrade.
-            projects = retry_with_backoff(fetch_page, page, max_retries=6)
+            # reconnect. A sustained outage still fails fast enough to degrade. An HTTP
+            # status that a retry cannot change (401, 403, 404) is reported at once.
+            projects = retry_with_backoff(fetch_page, page, max_retries=6,
+                                          is_transient=_enumeration_is_transient)
         except Exception as e:  # noqa: BLE001 - a hard failure must surface, not truncate
             # Raise instead of writing what we have: a partial (or empty) result must
             # never replace a good cache under a green checkmark.

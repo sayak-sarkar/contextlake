@@ -374,6 +374,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switched to the default branch. A URL containing "geofence" turned a TLS or DNS failure into a
   retry too. `eof` is now matched as a whole word, and the missing-branch, deleted-project and
   diverged checks run first.
+- **`mirror fetch` reports a bad token or group at once instead of after about 31 seconds.**
+  Enumeration retried every failure six times with growing waits, so a 401, 403 or 404 sent six
+  requests to the forge before the error appeared. A 401, 403, 404 or any other status that a
+  retry cannot change now fails on the first request. 408, 425, 429 and 5xx are still retried.
+  The message and the exit code are unchanged.
 
 ### Security
 

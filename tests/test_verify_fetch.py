@@ -317,6 +317,53 @@ def test_fetch_bitbucket_workspace_normalizes(tmp_path, base_config, monkeypatch
     assert result["billing"]["archived"] is False
 
 
+def _enumeration_calls(tmp_path, base_config, monkeypatch, status, platform="gitlab"):
+    """Run an enumeration against a forge that answers ``status`` to every request, and
+    return ``(requests made, the FetchError raised)``. The token is invented; no request
+    leaves the process."""
+    calls = []
+
+    def fake(req, timeout=None):
+        calls.append(req.full_url)
+        raise urllib.error.HTTPError(req.full_url, status, "stub", {}, None)
+
+    monkeypatch.setattr(core._OPENER, "open", fake)
+    monkeypatch.setenv("GITLAB_TOKEN", "glpat-invented")
+    cfg = {**base_config, "platform": platform, "cache_dir": str(tmp_path),
+           "cache_json": "p.json", "cache_file": "p.txt"}
+    with pytest.raises(FetchError) as exc:
+        fetch_gitlab_projects("demo", cfg)
+    return calls, exc.value
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 410, 422])
+def test_enumeration_does_not_retry_an_answer_a_retry_cannot_change(
+        tmp_path, base_config, monkeypatch, no_sleep, status):
+    """A revoked token or a mistyped group was requested six times, about 36 seconds,
+    before the same message appeared."""
+    calls, err = _enumeration_calls(tmp_path, base_config, monkeypatch, status)
+    assert len(calls) == 1, calls
+    assert f"HTTP Error {status}" in str(err)
+    assert not (tmp_path / "p.json").exists(), "a failed run must not write a cache"
+
+
+@pytest.mark.parametrize("status", [408, 425, 429, 500, 502, 503, 504])
+def test_enumeration_still_retries_a_status_that_can_clear(
+        tmp_path, base_config, monkeypatch, no_sleep, status):
+    """The control: a busy or restarting forge gets the full six attempts."""
+    calls, _ = _enumeration_calls(tmp_path, base_config, monkeypatch, status)
+    assert len(calls) == 6, calls
+
+
+def test_enumeration_of_an_unknown_github_owner_asks_each_endpoint_once(
+        tmp_path, base_config, monkeypatch, no_sleep):
+    """GitHub tries the org endpoint, then the user endpoint on a 404. Both 404: two
+    requests, where each used to be repeated six times."""
+    calls, _ = _enumeration_calls(tmp_path, base_config, monkeypatch, 404, platform="github")
+    assert len(calls) == 2
+    assert "/orgs/" in calls[0] and "/users/" in calls[1]
+
+
 def test_unknown_platform_raises_cleanly(tmp_path, base_config):
     cfg = {**base_config, "platform": "sourceforge", "cache_dir": str(tmp_path),
            "cache_json": "p.json", "cache_file": "p.txt"}
