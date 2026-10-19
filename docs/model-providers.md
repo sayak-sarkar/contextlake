@@ -37,7 +37,9 @@ the model pulled, and otherwise to the built-in CPU model.
   failing on first real use. So the semantic/wiki tiers work the moment you set `enabled = true`,
   with no daemon and no API key.
 - **`builtin`**, a small model that runs **in-process on CPU**, auto-downloaded once to `cache_dir`
-  (default `~/.contextlake/models`). Zero daemon, zero API key.
+  (default `~/.contextlake/models`). Zero daemon, zero API key. `cache_dir` is read only from
+  `~/.contextlake/kb.toml` or a `--config` file, never from a `.contextlake.kb.toml` found by
+  walking up from the current directory.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.

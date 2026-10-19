@@ -69,7 +69,6 @@ environment variable holds that request's credential:
 |---|---|
 | `[llm] command`, `[llm] args` | the agent CLI invoked when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
-| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the environment variable read for an api/graphql source's token |
@@ -78,13 +77,26 @@ environment variable holds that request's credential:
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host every prompt, or every chunk of indexed code, is posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the environment variable read for the credential sent to that host |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
+| `[llm] cache_dir`, `[embeddings] cache_dir` | the folder the built-in models are downloaded into |
 | `.contextlake.ini`: `gitlab_host`, `api_base` | the forge host the mirror's API calls and git fetches send the forge token to |
 | `.contextlake.ini`: `token_env`, `gitlab_token_env` | the environment variable read for that forge token |
 | `.contextlake.ini`: `cache_dir`, `cache_file`, `cache_json` | the file `mirror fetch` overwrites with the project list |
 
 The first three rows run a program. The rest are gated for a different reason: an
 endpoint and a secret to send to it are the same capability arriving in two pieces.
-The last row is a third reason: those keys name the file that `mirror fetch` truncates
+
+The `cache_dir` rows are a third reason: they choose the folder the built-in embedder and
+the built-in LLM download their models into. Both set `HF_HOME` to it on the first load when
+`HF_HOME` is unset, so a planted path puts new model files in a folder you did not pick. When the
+key is dropped, the models go to the default folder (`~/.contextlake/models`, or `HF_HOME` when
+you set it) and the tier keeps running.
+
+A project that keeps its models
+in a project-local `cache_dir` has to move that key to `~/.contextlake/kb.toml`, or pass
+`--config PATH`.
+
+The last row is a fourth reason: those keys name the file that `mirror fetch` truncates
 and rewrites, so a planted path could replace a file such as `~/.gitconfig`.
 
 `[embeddings]` is on by default with `provider = "auto"`, and `bootstrap` runs

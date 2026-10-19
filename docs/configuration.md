@@ -125,7 +125,6 @@ you pass to `--config`:
 | --- | --- |
 | `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
-| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
@@ -134,11 +133,22 @@ you pass to `--config`:
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the env var read for the credential sent to that host |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
+| `[llm] cache_dir`, `[embeddings] cache_dir` | the folder the built-in models are downloaded into |
 
 The first three rows run a program. The rest are gated because an endpoint and a secret to send to
 it are the same capability in two pieces. `[embeddings]` is on by default and `bootstrap` runs
 `kb embed` as a stage, so a single planted `base_url` line, with no provider line, pointed the
 default setup at a host the file author picked.
+
+`cache_dir` is gated for a different reason. The built-in embedder and the built-in LLM set `HF_HOME`
+to it on the first load when `HF_HOME` is unset, and download their models into it, so a planted
+path puts new model files in a folder you did not pick. A discovered `cache_dir` is dropped and the
+models go to the default folder, `~/.contextlake/models`, or `HF_HOME` when you set it. The tier
+keeps running.
+
+If a project keeps its models in a project-local
+`cache_dir`, move the key to `~/.contextlake/kb.toml`, or reach it with `--config PATH`.
 
 When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that

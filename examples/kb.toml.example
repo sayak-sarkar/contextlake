@@ -44,7 +44,7 @@ batch_size = 64
 # the quality knob is the bigger potion, not a heavier engine.
 # engine = "model2vec"
 # model = "minishlab/potion-base-32M"    # recommended quality upgrade (~120MB)
-# cache_dir = "~/.contextlake/models"    # where downloaded models live
+# cache_dir = "~/.contextlake/models"    # where models live (global config or --config only)
 # NOTE: changing `model` over an existing vector store trips the identity guard
 # by design — delete embeddings.sqlite (or use a fresh store) and re-run embed.
 #

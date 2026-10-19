@@ -1125,6 +1125,91 @@ def test_a_discovered_cli_review_provider_keeps_the_program_sentence(
     assert "run a program" in text
 
 
+# --- cache_dir chooses where the built-in models are written ----------------
+#
+# Both built-in loaders set HF_HOME to cache_dir on their first load and the model
+# download lands under it. These rows build the client and read `.cache_dir` back;
+# they never call embed() or generate(), because a load sets HF_HOME for the rest of
+# the pytest process through os.environ.setdefault.
+
+def _builtin_cache_dir(cfg, table):
+    """The folder the built-in client for `table` would download into."""
+    if table == "embeddings":
+        return build_embedder(cfg.embeddings).cache_dir
+    return build_llm(cfg.llm).cache_dir
+
+
+def _planted_cache(tmp_path, table):
+    return (f"[{table}]\nenabled = true\nprovider = \"builtin\"\n"
+            f'cache_dir = "{(tmp_path / "planted").as_posix()}"\n')
+
+
+@pytest.mark.parametrize("table", ["embeddings", "llm"])
+def test_a_discovered_cache_dir_is_not_where_the_builtin_models_go(
+        tmp_path, monkeypatch, table):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=_planted_cache(tmp_path, table)))
+
+    cfg = load_kb_config()
+
+    assert _builtin_cache_dir(cfg, table) == tmp_path / ".contextlake" / "models"
+    assert not (tmp_path / "planted").exists()
+    # Dropping the key is enough. The default folder carries no credential, so the
+    # tier keeps running.
+    assert cfg.refused_tiers == ()
+    assert getattr(cfg, table).enabled is True
+
+
+@pytest.mark.parametrize("table", ["embeddings", "llm"])
+def test_the_same_cache_dir_named_with_config_is_honoured(tmp_path, monkeypatch, table):
+    """The control that makes this a provenance decision and not a content one."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _no_global(monkeypatch, tmp_path)
+    named = tmp_path / "mine.toml"
+    named.write_text(_planted_cache(tmp_path, table))
+    monkeypatch.chdir(tmp_path)
+
+    cfg = load_kb_config(str(named))
+
+    assert _builtin_cache_dir(cfg, table) == tmp_path / "planted"
+
+
+def test_a_privileged_cache_dir_survives_a_discovered_one(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    chosen = tmp_path / "chosen"
+    _privileged_global(monkeypatch, tmp_path, (
+        '[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        f'cache_dir = "{chosen.as_posix()}"\n'))
+    monkeypatch.chdir(_plant_local(tmp_path, text=_planted_cache(tmp_path, "embeddings")))
+
+    assert build_embedder(load_kb_config().embeddings).cache_dir == chosen
+
+
+def test_cache_dir_is_gated_in_the_llm_and_embeddings_tables():
+    assert requires_privileged_source("embeddings", "cache_dir", "/srv/models") is True
+    assert requires_privileged_source("llm", "cache_dir", "/srv/models") is True
+
+
+def test_the_cache_dir_refusal_names_the_download_folder_not_a_program(
+        tmp_path, monkeypatch, gls_logs):
+    """The generic sentence says the key "runs a program". cache_dir runs nothing, and
+    the path is file-author text that stays out of the log line."""
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=_planted_cache(tmp_path, "embeddings")))
+    kbcfg._WARNED_UNTRUSTED.clear()
+    gls_logs.set_level(logging.WARNING)
+
+    load_kb_config()
+
+    text = "\n".join(r.getMessage() for r in gls_logs.records
+                     if r.levelno >= logging.WARNING)
+    assert "ignoring [embeddings] cache_dir" in text
+    assert "downloaded into" in text and "--config" in text
+    assert "run a program" not in text
+    assert str(tmp_path / "planted") not in text
+
+
 def test_the_same_file_named_with_config_builds_the_client_it_asked_for(
         tmp_path, monkeypatch, egress_env):
     """The control that makes this a provenance decision and not a content one.

@@ -38,6 +38,7 @@ from .trust import (
     CREDENTIAL_PROVIDERS,
     EGRESS_KEYS,
     EGRESS_TABLES,
+    MODEL_CACHE_KEYS,
     PRIVILEGED_SOURCE_KEYS,
     REFUSE_DISCOVERED_CREDENTIAL_PROVIDER,
     SCOPE_KEY,
@@ -523,6 +524,8 @@ def _drop_untrusted_keys(table: str, values, source: str):
                 # = "cli"` is still dropped for the program it runs and keeps the
                 # generic sentence below.
                 _warn_untrusted_reviewer(source)
+            elif key in MODEL_CACHE_KEYS:
+                _warn_untrusted_model_cache(f"[{table}] {key}", source)
             else:
                 _warn_untrusted(f"[{table}] {key}", source)
         if weakens_privacy:
@@ -614,6 +617,24 @@ def _warn_untrusted_egress(what: str, source: str) -> None:
     log(f"config: ignoring {what} from {source} -- a config file found by walking up "
         "from the current directory may not choose where requests are sent, or which "
         "environment variable holds the API key. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
+        "meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
+
+
+def _warn_untrusted_model_cache(what: str, source: str) -> None:
+    """The refusal for ``cache_dir``, which runs nothing and sends nothing.
+
+    What it decides is the folder the built-in models are downloaded into, so that is
+    what this says. The generic sentence names a program that is not there. The value
+    is a path chosen by the file's author, so it stays out of the line."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", what)
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
+    log(f"config: ignoring {what} from {source}. A config file found by walking up "
+        "from the current directory may not choose the folder the built-in models are "
+        "downloaded into. The models go to the default folder instead. "
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say you "
         "meant this file. See SECURITY.md, 'Workspace trust'.",
         level=logging.WARNING)

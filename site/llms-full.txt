@@ -2210,7 +2210,6 @@ you pass to `--config`:
 | --- | --- |
 | `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
 | `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
-| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
 | `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
@@ -2219,11 +2218,22 @@ you pass to `--config`:
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
 | `[llm] api_key_env`, `[embeddings] api_key_env` | the env var read for the credential sent to that host |
+| `[llm] review_provider` | only when set to `"openai"` or `"anthropic"`: the vendor that receives your API key, the source facts and the draft page of every council review |
+| `[llm] cache_dir`, `[embeddings] cache_dir` | the folder the built-in models are downloaded into |
 
 The first three rows run a program. The rest are gated because an endpoint and a secret to send to
 it are the same capability in two pieces. `[embeddings]` is on by default and `bootstrap` runs
 `kb embed` as a stage, so a single planted `base_url` line, with no provider line, pointed the
 default setup at a host the file author picked.
+
+`cache_dir` is gated for a different reason. The built-in embedder and the built-in LLM set `HF_HOME`
+to it on the first load when `HF_HOME` is unset, and download their models into it, so a planted
+path puts new model files in a folder you did not pick. A discovered `cache_dir` is dropped and the
+models go to the default folder, `~/.contextlake/models`, or `HF_HOME` when you set it. The tier
+keeps running.
+
+If a project keeps its models in a project-local
+`cache_dir`, move the key to `~/.contextlake/kb.toml`, or reach it with `--config PATH`.
 
 When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the `provider` that
@@ -5111,7 +5121,9 @@ the model pulled, and otherwise to the built-in CPU model.
   failing on first real use. So the semantic/wiki tiers work the moment you set `enabled = true`,
   with no daemon and no API key.
 - **`builtin`**, a small model that runs **in-process on CPU**, auto-downloaded once to `cache_dir`
-  (default `~/.contextlake/models`). Zero daemon, zero API key.
+  (default `~/.contextlake/models`). Zero daemon, zero API key. `cache_dir` is read only from
+  `~/.contextlake/kb.toml` or a `--config` file, never from a `.contextlake.kb.toml` found by
+  walking up from the current directory.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
@@ -10143,6 +10155,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
   `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
   now also warns when `review_provider` is a remote provider that will see contributor names.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `cache_dir` for `[embeddings]` or `[llm]`.** The key is dropped with a warning, and the
+  built-in models are downloaded into the default folder: `HF_HOME` when you set it, else
+  `~/.contextlake/models`. 10.0.0rc4 kept it: both built-in loaders set `HF_HOME` to that folder
+  on their first load when it was unset, and the model download went under it, so a cloned
+  repository could pick a folder you never named. A `cache_dir` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project keeps its models in
+  a project-local `cache_dir`, move the key to `~/.contextlake/kb.toml` or pass `--config PATH`,
+  or the models are looked for and downloaded in the default folder.
 
 ### Fixed
 

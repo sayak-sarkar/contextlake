@@ -15,15 +15,15 @@ The gate is **provenance, not content**: a config file is privileged only when
 the user named it (``--config``) or it is their own ``~/.contextlake/kb.toml``.
 A file found by directory search is never privileged. The keys that decide what
 runs, where a request goes, which environment variable holds its credential,
-and where an OAuth refresh token is written are dropped from it with a WARNING
-naming the file and the key. Two keys are handled some other way, because
-dropping them leaves the wrong value in place rather than no value:
-``[[sources]] scopes`` may narrow the OAuth grant and may not widen it, and
-``[llm]``/``[embeddings]`` ``provider`` naming one of the vendors that receive
-an API credential switches that tier off for the run (see
-:data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`). ``[llm] review_provider`` naming
-one of those vendors is dropped like any other key: the council then reviews
-with the generator, which is the model the user chose.
+where an OAuth refresh token is written, and where the built-in models are
+downloaded are dropped from it with a WARNING naming the file and the key. Two
+keys are handled some other way, because dropping them leaves the wrong value
+in place rather than no value: ``[[sources]] scopes`` may narrow the OAuth
+grant and may not widen it, and ``[llm]``/``[embeddings]`` ``provider`` naming
+one of the vendors that receive an API credential switches that tier off for
+the run (see :data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`). ``[llm]
+review_provider`` naming one of those vendors is dropped like any other key:
+the council then reviews with the generator.
 
 Only those keys are gated -- the file is *not* distrusted wholesale. A
 project-local ``store_dir``, ``languages``, ``max_file_bytes``,
@@ -74,6 +74,22 @@ _EXECUTABLE_LLM_KEYS = frozenset({"command", "args"})
 # an endpoint and a secret to send to it.
 EGRESS_KEYS = frozenset({"base_url", "api_key_env"})
 EGRESS_TABLES = frozenset({"llm", "embeddings"})
+
+# --- the model-download key ------------------------------------------------
+#
+# `cache_dir` is where the built-in embedder and the built-in LLM put their
+# models. Both loaders set HF_HOME to it for the rest of the process unless the
+# user already set one (embeddings/builtin.py and llm/builtin.py `_ensure_model`,
+# `os.environ.setdefault`), the fastembed engine passes it to the library, and
+# the download then writes `models--<repo>` folders under it (model_cache.py).
+# It runs nothing and sends nothing, so it was ungated, and a discovered file
+# could choose a folder this tool writes into. The mirror config gates the same
+# idea in `config.CACHE_LOCATION_KEYS`.
+#
+# Dropping it is enough, with no tier-off: the loaders fall back to
+# `~/.contextlake/models` (DEFAULT_CACHE_DIR), which is the user's own default
+# and carries no credential.
+MODEL_CACHE_KEYS = frozenset({"cache_dir"})
 
 # The providers whose clients read api_key_env out of the environment and put
 # its value into an auth header: embeddings/openai.py and llm/openai.py write
@@ -258,30 +274,33 @@ SCOPE_KEY = "scopes"
 # gains populate_by_name or an alias generator, or if any reader lowercases a key
 # before looking it up.
 # A key allowlist was rejected: `cache_dir` reaches the built-in LLM as an
-# undeclared extra, so an allowlist would have to name every present and future
-# extras reader, and a missing entry would drop an honest key with no signal.
+# undeclared extra (gated by name in MODEL_CACHE_KEYS), so an allowlist would
+# have to name every present and future extras reader, and a missing entry
+# would drop an honest key with no signal.
 
 
 def requires_privileged_source(table: str, key: str, value: object) -> bool:
     """True if ``[table] key = value`` may be set only from a config file the user named.
 
-    Four things a discovered file must not decide: the argv of a program
+    Five things a discovered file must not decide: the argv of a program
     contextlake runs (``[llm] command``/``args``, and ``provider = "cli"``), the
     endpoint a request goes to (``base_url``), the environment variable read for
-    that request's credential (``api_key_env``), and the vendor the council reviewer
+    that request's credential (``api_key_env``), the vendor the council reviewer
     sends that credential to (``[llm] review_provider`` naming a member of
     :data:`CREDENTIAL_PROVIDERS`, while :data:`REFUSE_DISCOVERED_CREDENTIAL_PROVIDER`
-    is set).
+    is set), and the folder the built-in models are downloaded into
+    (``cache_dir``, see :data:`MODEL_CACHE_KEYS`).
 
     A ``False`` return means any discovered file may set the key. That makes this a
     denylist, and both ``[llm]`` and ``[embeddings]`` declare ``extra="allow"``
-    (kb/config.py), so a connector key added later that names a URL or an env var is
-    ungated until it is added to :data:`EGRESS_KEYS`.
+    (kb/config.py), so a connector key added later that names a URL, an env var or a
+    folder it writes to is ungated until it is added to :data:`EGRESS_KEYS` or
+    :data:`MODEL_CACHE_KEYS`.
 
     Scalar tables only; ``[[sources]]`` entries are dicts inside a list and are
     screened with :data:`PRIVILEGED_SOURCE_KEYS` and :func:`scopes_widen` instead.
     """
-    if table in EGRESS_TABLES and key in EGRESS_KEYS:
+    if table in EGRESS_TABLES and (key in EGRESS_KEYS or key in MODEL_CACHE_KEYS):
         return True
     if table != "llm":
         return False

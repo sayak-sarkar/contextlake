@@ -114,6 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
   `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
   now also warns when `review_provider` is a remote provider that will see contributor names.
+- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
+  `cache_dir` for `[embeddings]` or `[llm]`.** The key is dropped with a warning, and the
+  built-in models are downloaded into the default folder: `HF_HOME` when you set it, else
+  `~/.contextlake/models`. 10.0.0rc4 kept it: both built-in loaders set `HF_HOME` to that folder
+  on their first load when it was unset, and the model download went under it, so a cloned
+  repository could pick a folder you never named. A `cache_dir` in `~/.contextlake/kb.toml` or a
+  `--config` file is unchanged and wins over a discovered one. If a project keeps its models in
+  a project-local `cache_dir`, move the key to `~/.contextlake/kb.toml` or pass `--config PATH`,
+  or the models are looked for and downloaded in the default folder.
 
 ### Fixed
 
