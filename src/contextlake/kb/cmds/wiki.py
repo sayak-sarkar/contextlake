@@ -902,6 +902,7 @@ def cmd_wiki(args) -> int:
             log(f"Generating cluster wiki for {len(ns_list)} namespace(s) with {llm.name} "
                 f"(council of {len(LENSES)}{_reviewed_by(llm, review_llm)})")
             all_edges = cross_repo_edges(store)   # scan the store once, not per namespace
+            indexed = {r.id for r in store.list_repos()}
             written = rejected = skipped = failed = 0
             progress = style.Progress(len(ns_list), label="wiki-cluster")
             for ns in ns_list:
@@ -944,9 +945,21 @@ def cmd_wiki(args) -> int:
                 if gate["accepted"]:
                     page_file.parent.mkdir(parents=True, exist_ok=True)   # wiki/_clusters/
                     page_file.write_text(page, encoding="utf-8")
-                    # embed cluster prose into @wiki:<namespace> (labeled advisory).
-                    _store_wiki_partition(store, store_dir, ns, page, page_file.name, None,
-                                          embedder, vs, cfg.embeddings.batch_size)
+                    if ns in indexed:
+                        # `@wiki:<ns>` is also this repo's own page partition, and storing
+                        # replaces a partition whole: the repo's sections would be gone,
+                        # and the cluster's put under its name. The page file does not
+                        # collide (it is under `_clusters/`), so only the search rows are
+                        # skipped. A namespace that is a repo id is a cluster of one.
+                        log(f"  {ns}: is also a repo id, so its cluster sections are not "
+                            "stored for search (they would replace the repo's own wiki "
+                            "rows)", inline=True)
+                    else:
+                        # embed cluster prose into @wiki:<namespace> (labeled advisory),
+                        # cited to its real file under `_clusters/`.
+                        _store_wiki_partition(store, store_dir, ns, page,
+                                              cluster_page_name(ns), None,
+                                              embedder, vs, cfg.embeddings.batch_size)
                     written += 1
                     log(f"  {style.ok(ns)}: written (score {gate['score']})", inline=True)
                 else:
@@ -1001,9 +1014,8 @@ def cmd_wiki(args) -> int:
             unchanged AND it already names these same subsystems.
             """
             # Relative to wiki_dir, not just the basename -- a module page lives
-            # under wiki/_modules/, so its Node.file citation must say so
-            # (unlike the basename-only convention the older cluster-page code
-            # path uses, which is imprecise for its own wiki/_clusters/ pages).
+            # under wiki/_modules/, so its Node.file citation must say so (the
+            # cluster-page path cites `cluster_page_name(ns)` for the same reason).
             rel_filename = wiki_file.relative_to(wiki_dir).as_posix()
             # Before anything else, including the freshness check: a repo that
             # indexed to no symbols at all has nothing for a page to be about,

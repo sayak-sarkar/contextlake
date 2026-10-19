@@ -369,6 +369,13 @@ Both come straight off data the cluster brief already computes. No new metric.
 You can reach cluster pages over MCP by passing a namespace to `get_wiki`, and they appear per
 group in the dashboard's fleet overview.
 
+A cluster page's sections are searchable like any other, and they cite the page file under
+`wiki/_clusters/`. One case is not stored for search: a namespace that is also a repo id, such as
+`--namespace acme/stations/api` when that repo exists. It is a cluster of one. The page is written,
+but its sections share their search key with the repo's own page, and storing them would replace
+the repo's rows. The run says so. If an earlier release already did this, run
+`contextlake kb wiki --force <repo id>` to restore the repo's rows.
+
 ## Incorporating connector enrichment
 
 Once `contextlake kb enrich` has populated a repo's `@enrich:<repo>` documents, from Atlassian

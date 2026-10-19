@@ -4793,6 +4793,13 @@ Both come straight off data the cluster brief already computes. No new metric.
 You can reach cluster pages over MCP by passing a namespace to `get_wiki`, and they appear per
 group in the dashboard's fleet overview.
 
+A cluster page's sections are searchable like any other, and they cite the page file under
+`wiki/_clusters/`. One case is not stored for search: a namespace that is also a repo id, such as
+`--namespace acme/stations/api` when that repo exists. It is a cluster of one. The page is written,
+but its sections share their search key with the repo's own page, and storing them would replace
+the repo's rows. The run says so. If an earlier release already did this, run
+`contextlake kb wiki --force <repo id>` to restore the repo's rows.
+
 ## Incorporating connector enrichment
 
 Once `contextlake kb enrich` has populated a repo's `@enrich:<repo>` documents, from Atlassian
@@ -10564,6 +10571,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was written or rejected. The cluster wiki (`--namespace`) does the same. A separate
   `review_provider` that returns nothing still shows as rejected, with the count of reviewers
   whose reply did not parse. 10.0.0rc4 and earlier are affected.
+- **`kb wiki --namespace <repo id>` no longer replaces that repo's search rows, and cluster
+  sections cite their real file.** A cluster page stored its sections under the same search key
+  as a repo page of that name, so `--namespace acme/api` swapped the repo's own sections and
+  vectors for the cluster's, and a plain rerun did not restore them. The `--namespaces --depth`
+  run could do the same when a prefix equals a repo id. That cluster page is still written, but
+  its sections are not stored for search, and the run says so. Every cluster section also cited
+  `wiki/<slug>.md`, a file that does not exist, instead of the page under `wiki/_clusters/`. If
+  an earlier release already replaced a repo's rows, run `kb wiki --force <repo id>` to restore
+  them. Stored cluster citations are corrected when the cluster page is next regenerated.
 
 ### Security
 

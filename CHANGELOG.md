@@ -449,6 +449,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was written or rejected. The cluster wiki (`--namespace`) does the same. A separate
   `review_provider` that returns nothing still shows as rejected, with the count of reviewers
   whose reply did not parse. 10.0.0rc4 and earlier are affected.
+- **`kb wiki --namespace <repo id>` no longer replaces that repo's search rows, and cluster
+  sections cite their real file.** A cluster page stored its sections under the same search key
+  as a repo page of that name, so `--namespace acme/api` swapped the repo's own sections and
+  vectors for the cluster's, and a plain rerun did not restore them. The `--namespaces --depth`
+  run could do the same when a prefix equals a repo id. That cluster page is still written, but
+  its sections are not stored for search, and the run says so. Every cluster section also cited
+  `wiki/<slug>.md`, a file that does not exist, instead of the page under `wiki/_clusters/`. If
+  an earlier release already replaced a repo's rows, run `kb wiki --force <repo id>` to restore
+  them. Stored cluster citations are corrected when the cluster page is next regenerated.
 
 ### Security
 

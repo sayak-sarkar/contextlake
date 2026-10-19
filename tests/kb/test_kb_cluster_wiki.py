@@ -346,6 +346,51 @@ def test_cmd_wiki_namespace_counts_an_empty_reply_as_failed(tmp_path, monkeypatc
     assert "0 written, 0 rejected, 0 unchanged (skipped), 1 failed" in gls_logs.text
 
 
+def _wiki_rows(store_dir, partition, upto=6):
+    """``[(name, file), ...]`` for the sections of one ``@wiki:`` partition, or ``[]``."""
+    s = SqliteStore(store_dir / "index.sqlite")
+    try:
+        nodes = [s.get_node(f"@wiki:{partition}:{i}") for i in range(upto)]
+    finally:
+        s.close()
+    return [(n.name, n.file) for n in nodes if n is not None]
+
+
+def test_cluster_sections_cite_the_cluster_page_file(tmp_path, monkeypatch):
+    """The sections were cited to `wiki/<slug>.md`, a name the page does not have: a cluster
+    page lives under `wiki/_clusters/`. The citation must name a file that exists."""
+    from contextlake.kb.commands import cmd_wiki
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/sensors")) == 0
+
+    rows = _wiki_rows(store_dir, "acme/sensors")
+    assert rows, "the cluster page was not stored for search"
+    assert {file for _, file in rows} == {"wiki/_clusters/acme__sensors.md"}
+    assert (store_dir / "wiki" / "_clusters" / "acme__sensors.md").is_file()
+
+
+def test_a_cluster_run_for_a_repo_id_leaves_the_repos_wiki_rows_alone(
+    tmp_path, monkeypatch, gls_logs
+):
+    """`--namespace <repo id>` is a valid cluster of one, and its search key `@wiki:<ns>`
+    is the repo's own page partition. Storing replaces that partition whole, so the repo's
+    sections were swapped for the cluster's, each cited to the repo page."""
+    from contextlake.kb.commands import cmd_wiki
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    # The structural stage does not run for a cluster run, so give the repo its page first.
+    assert cmd_wiki(_ns_args(tmp_path, args=["acme/sensors/api"])) == 0
+    before = _wiki_rows(store_dir, "acme/sensors/api")
+    assert before, "the repo page was not stored for search"
+    assert {file for _, file in before} == {"wiki/acme__sensors__api.md"}
+
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/sensors/api")) == 0
+
+    cluster_page = store_dir / "wiki" / "_clusters" / "acme__sensors__api.md"
+    assert "(cluster)" in cluster_page.read_text(encoding="utf-8")   # the page is still written
+    assert _wiki_rows(store_dir, "acme/sensors/api") == before
+    assert "is also a repo id" in gls_logs.text
+
+
 # --- dashboard data layer -------------------------------------------------
 
 def test_dashboard_cluster_detail_and_index(tmp_path):
