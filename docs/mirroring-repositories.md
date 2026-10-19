@@ -381,6 +381,9 @@ contextlake mirror audit --report ./audit.json # choose where the per-repo JSON 
 contextlake mirror sync --no-audit             # run sync without the audit step
 ```
 
+A `--report` name that ends in `.csv` is the CSV path, and the JSON goes beside it with a `.json`
+name. Any other name is the JSON path, and the CSV goes beside it with a `.csv` name.
+
 It sorts each repo into one of four classes:
 
 - **empty**, no commits or files

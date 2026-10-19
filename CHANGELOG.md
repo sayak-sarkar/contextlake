@@ -379,6 +379,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requests to the forge before the error appeared. A 401, 403, 404 or any other status that a
   retry cannot change now fails on the first request. 408, 425, 429 and 5xx are still retried.
   The message and the exit code are unchanged.
+- **`mirror audit --report audit.csv` writes both files.** The JSON was written to `audit.csv`
+  and then overwritten by the CSV, so the JSON report was lost and the log named `audit.csv`
+  twice. A name ending in `.csv` now gets the CSV there and the JSON beside it as `audit.json`.
+  Other names are unchanged: JSON at the name, CSV beside it.
 
 ### Security
 

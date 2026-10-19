@@ -717,8 +717,9 @@ def _add_mirror(p, hidden=False):
 
 def _add_report(p, *, no_audit=False):
     p.add_argument("--report", default=_S,
-                   help="path for the per-repo audit report "
-                        "(JSON + .csv; default <cache_dir>/repo_audit.json)")
+                   help="path for the per-repo audit report (JSON + .csv; default "
+                        "<cache_dir>/repo_audit.json). A name ending in .csv is the CSV "
+                        "path, and the JSON goes beside it as .json")
     if no_audit:
         p.add_argument("--no-audit", dest="no_audit", action="store_true", default=_S,
                        help="skip the post-sync repo audit")

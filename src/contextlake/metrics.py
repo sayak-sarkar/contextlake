@@ -197,15 +197,21 @@ def report_repo_metrics(metrics: list[dict], *, report_path: str | Path | None =
     if report_path:
         p = Path(report_path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"summary": s, "repos": metrics}, indent=2))
-        csv_path = p.with_suffix(".csv")
+        # `--report audit.csv` names the CSV. The JSON then goes beside it as audit.json:
+        # with_suffix(".csv") of a .csv name is the same file, and the CSV write below
+        # truncated the JSON written just before it.
+        if p.suffix.lower() == ".csv":
+            json_path, csv_path = p.with_suffix(".json"), p
+        else:
+            json_path, csv_path = p, p.with_suffix(".csv")
+        json_path.write_text(json.dumps({"summary": s, "repos": metrics}, indent=2))
         cols = ["repo", "classification", "tracked_files", "created", "created_source",
                 "last_commit", "last_activity", "default_branch", "archived"]
         with open(csv_path, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
             w.writeheader()
             w.writerows(metrics)
-        log(f"  {style.ok('Wrote')} per-repo audit to {p} and {csv_path}")
+        log(f"  {style.ok('Wrote')} per-repo audit to {json_path} and {csv_path}")
     return s
 
 

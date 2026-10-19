@@ -1913,6 +1913,9 @@ contextlake mirror audit --report ./audit.json # choose where the per-repo JSON 
 contextlake mirror sync --no-audit             # run sync without the audit step
 ```
 
+A `--report` name that ends in `.csv` is the CSV path, and the JSON goes beside it with a `.json`
+name. Any other name is the JSON path, and the CSV goes beside it with a `.csv` name.
+
 It sorts each repo into one of four classes:
 
 - **empty**, no commits or files
@@ -8944,7 +8947,8 @@ Four things do not, so "delete the store" is not the same as "delete everything"
   it checked.
 - **The mirror's repository-list cache**, under `cache_dir` as described above.
 - **The mirror audit report**, written next to that cache as `repo_audit.json` and a matching
-  `.csv`, or wherever `--report` points.
+  `.csv`, or wherever `--report` points. A `--report` name ending in `.csv` is the CSV path, and the
+  JSON goes beside it as `.json`.
 - **Shell completion**, which is a delimited block in `~/.bashrc` or `~/.zshrc`, or a file at
   `~/.config/fish/completions/contextlake.fish`, plus a marker at
   `~/.contextlake/.completion_setup_done` recording your decision. Only written when an interactive
@@ -10456,6 +10460,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requests to the forge before the error appeared. A 401, 403, 404 or any other status that a
   retry cannot change now fails on the first request. 408, 425, 429 and 5xx are still retried.
   The message and the exit code are unchanged.
+- **`mirror audit --report audit.csv` writes both files.** The JSON was written to `audit.csv`
+  and then overwritten by the CSV, so the JSON report was lost and the log named `audit.csv`
+  twice. A name ending in `.csv` now gets the CSV there and the JSON beside it as `audit.json`.
+  Other names are unchanged: JSON at the name, CSV beside it.
 
 ### Security
 

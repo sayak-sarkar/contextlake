@@ -135,6 +135,39 @@ def test_report_writes_json_and_csv(tmp_path):
     assert (tmp_path / "audit.csv").read_text().startswith("repo,classification,tracked_files")
 
 
+_ONE_REPO = [{"repo": "a", "full_path": "g/a", "classification": "empty", "tracked_files": 0,
+              "created": None, "created_source": "unknown", "last_commit": None,
+              "last_activity": None, "default_branch": None, "archived": False}]
+
+
+def test_a_report_named_csv_keeps_the_json_beside_it(tmp_path, gls_logs):
+    """`--report audit.csv` wrote the JSON to audit.csv and then truncated it with the CSV,
+    and the log named audit.csv twice."""
+    out = tmp_path / "audit.csv"
+
+    report_repo_metrics(_ONE_REPO, report_path=out)
+
+    assert out.read_text().startswith("repo,classification,tracked_files")
+    data = json.loads((tmp_path / "audit.json").read_text())
+    assert data["summary"]["total"] == 1 and data["repos"][0]["repo"] == "a"
+    wrote = [ln for ln in gls_logs.text.splitlines() if "per-repo audit" in ln][0]
+    assert wrote.count("audit.csv") == 1 and "audit.json" in wrote
+
+
+def test_a_report_name_ending_in_csv_is_matched_in_any_case(tmp_path):
+    report_repo_metrics(_ONE_REPO, report_path=tmp_path / "AUDIT.CSV")
+
+    assert json.loads((tmp_path / "AUDIT.json").read_text())["summary"]["total"] == 1
+    assert (tmp_path / "AUDIT.CSV").read_text().startswith("repo,")
+
+
+def test_a_report_name_with_no_extension_writes_json_there_and_csv_beside_it(tmp_path):
+    report_repo_metrics(_ONE_REPO, report_path=tmp_path / "audit")
+
+    assert json.loads((tmp_path / "audit").read_text())["summary"]["total"] == 1
+    assert (tmp_path / "audit.csv").read_text().startswith("repo,")
+
+
 def test_scan_with_real_git(tmp_path):
     """End-to-end against a real git repo, to confirm the actual git commands work."""
     repo = tmp_path / "real"

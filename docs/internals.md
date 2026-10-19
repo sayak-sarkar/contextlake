@@ -346,7 +346,8 @@ Four things do not, so "delete the store" is not the same as "delete everything"
   it checked.
 - **The mirror's repository-list cache**, under `cache_dir` as described above.
 - **The mirror audit report**, written next to that cache as `repo_audit.json` and a matching
-  `.csv`, or wherever `--report` points.
+  `.csv`, or wherever `--report` points. A `--report` name ending in `.csv` is the CSV path, and the
+  JSON goes beside it as `.json`.
 - **Shell completion**, which is a delimited block in `~/.bashrc` or `~/.zshrc`, or a file at
   `~/.config/fish/completions/contextlake.fish`, plus a marker at
   `~/.contextlake/.completion_setup_done` recording your decision. Only written when an interactive
