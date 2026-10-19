@@ -1066,8 +1066,24 @@ def test_serve_dashboard_port_in_use_fails_clean_not_traceback(tmp_path, monkeyp
         rc = serve_dashboard(tmp_path, host="127.0.0.1", port=port)
         assert rc == 1
         assert "could not start the dashboard" in gls_logs.text.lower()
+        assert "may already be running on this port" in gls_logs.text
     finally:
         blocker.close()
+
+
+@pytest.mark.parametrize("host", ["::1", "192.0.2.10"])
+def test_serve_dashboard_unbindable_host_does_not_blame_another_dashboard(
+        tmp_path, monkeypatch, gls_logs, host):
+    """`::1` is a loopback host (it passes the mutation gate) but this server is
+    IPv4 only, and 192.0.2.10 is an address this machine does not hold. Neither
+    failure is a second dashboard on the port; the old hint sent the user to
+    look for a process that does not exist."""
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    rc = serve_dashboard(tmp_path, host=host, port=_free_port())
+    assert rc == 1
+    assert "could not start the dashboard" in gls_logs.text.lower()
+    assert "already be running" not in gls_logs.text
+    assert "IPv4" in gls_logs.text
 
 
 def _free_port():

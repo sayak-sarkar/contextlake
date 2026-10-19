@@ -66,7 +66,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
 | `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
-| `--host HOST` | `--serve` only: bind address (default `127.0.0.1`). See §11 for what a non-loopback host costs you. |
+| `--host HOST` | `--serve` only: bind address (default `127.0.0.1`). IPv4 only, so `::1` cannot bind. See §11 for what a non-loopback host costs you. |
 | `--port PORT` | `--serve` only: bind port (default `8765`), so the default URL is `http://127.0.0.1:8765`. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
@@ -461,7 +461,8 @@ Mutating routes are refused in two cases:
 
 - **With `--sample`.** The demo fleet is fictional, so there is nothing on disk to sync or clone.
 - **With any non-loopback `--host`.** Only `127.0.0.1`, `localhost` and `::1` count as loopback.
-  Mutating routes are loopback-only by design.
+  Mutating routes are loopback-only by design. The dashboard server binds IPv4 only, so
+  `--host ::1` passes this check and then fails to bind.
 
 Two checks protect every `POST`:
 

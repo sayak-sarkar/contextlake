@@ -149,6 +149,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window each started a child, the card tracked one of them, and it showed Finished while the
   other still ran, with the second request also truncating the first run's log. The pidfile is
   now claimed before the child starts, so the second request is refused as already in progress.
+- **A dashboard that cannot bind its address no longer says another dashboard is running.**
+  `kb dashboard --serve` printed that hint for every bind error. `--host ::1` (the server is
+  IPv4 only) and an address the machine does not hold gave the same hint, so the user searched
+  for a process that did not exist. The hint now prints only when the port is in use. Other
+  bind errors say the server uses IPv4 only and the address must belong to this machine.
 
 ### Security
 

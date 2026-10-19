@@ -29,6 +29,7 @@ see :meth:`kb.http_base.LocalHttpHandler.reject_bad_host` for why an
 
 from __future__ import annotations
 
+import errno
 import hmac
 import json
 import secrets
@@ -780,9 +781,18 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
             # bad first impression for an error this ordinary and this
             # actionable.
             log(style.warn(f"Could not start the dashboard on {host}:{port} — {e}"))
-            log(style.dim("  Another `contextlake kb dashboard --serve` may already be "
-                          "running on this port -- pick another with --port, or stop "
-                          "the existing one."))
+            if e.errno == errno.EADDRINUSE:
+                log(style.dim("  Another `contextlake kb dashboard --serve` may already be "
+                              "running on this port -- pick another with --port, or stop "
+                              "the existing one."))
+            else:
+                # EADDRNOTAVAIL (an address this machine does not hold) and the
+                # gaierror for `::1` (this server is IPv4 only) are not a second
+                # dashboard; saying so sends the user looking for a process that
+                # does not exist.
+                log(style.dim("  This server cannot bind that address or port. It uses IPv4 "
+                              "only (not `::1`), and the address must belong to this "
+                              "machine. Pick another with --host or --port."))
             return 1
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
         hint = host_pinning_hint(host, port)
