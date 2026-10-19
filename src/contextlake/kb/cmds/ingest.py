@@ -16,7 +16,44 @@ from ._common import (
 )
 
 
-def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
+def _embedder_identity(embedder) -> str:
+    return getattr(embedder, "identity", None) or getattr(embedder, "name", "embedder")
+
+
+class _EmbedderRefused(ValueError):
+    """The store's identity guard refused the embedder (a changed model or dimension)."""
+
+
+def _check_embedder(vs, embedder) -> tuple[bool, str | None]:
+    """Run one probe vector from ``embedder`` through the identity guard of ``vs``.
+
+    Returns ``(checked, refusal)``: ``refusal`` is why the embedder may not write to the
+    store, or None; ``checked`` is True only when a vector was taken and the guard ran.
+    An embedder that cannot be reached, or answers with no vector, is not refused, but
+    nothing was proved either, so ``checked`` is False and the caller must not act as if
+    the guard had passed. The embed phase reports an embedder that stays down.
+
+    The identity guard used to run inside `_embed_documents`, after the partition's
+    vectors had been cleared and its rows rewritten. A changed `[embeddings]` model
+    therefore deleted every vector of the partition and then refused the run. One probe
+    vector, taken before anything is cleared, is how `kb embed` orders the same steps.
+    """
+    from ..embeddings.store import guard_store_identity
+
+    try:
+        probe = embedder.embed(["contextlake"])
+    except Exception:  # noqa: BLE001 - unreachable embedder; the embed phase reports it
+        return False, None
+    if not (probe and probe[0]):
+        return False, None
+    try:
+        guard_store_identity(vs, _embedder_identity(embedder), len(probe[0]))
+    except ValueError as e:
+        return True, str(e)
+    return True, None
+
+
+def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=False
                      ) -> tuple[int, int, str | None]:
     """Embed document *bodies* into the vector store (real RAG over content).
 
@@ -32,6 +69,19 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
     Returns `(documents, vectors, stopped_early)`. Two counts, not one: with chunking they
     differ by an order of magnitude, and reporting vectors as "documents embedded" would
     claim a corpus seventeen times the size of the real one.
+
+    ``sweep`` clears the partition's vectors here, after the first batch has passed the
+    identity guard, for a caller that could not check the embedder before it cleared.
+    `cmd_ingest` passes it only while no vector has passed the guard in the run: once one
+    source has embedded, each later source is cleared before it writes. Within this call
+    an embedder that never answers clears nothing, and a refused one leaves the vectors as
+    they were. The one exception is a source whose document bodies are all empty: no batch
+    runs, so the sweep clears the partition at the end, because the old vectors belong to
+    text that no longer exists. `cmd_ingest` is the only caller that passes `sweep`. It
+    clears before the call only after a probe or an earlier source has passed the guard, so
+    a refusal after that clear means the first batch came back with another vector length.
+    Callers that clear first and take no probe, such as `enrich` and `wiki`, can also get an
+    identity refusal after their clear.
     """
     from ..embeddings.chunk import split_document
     from ..embeddings.store import chunk_key, guard_store_identity
@@ -50,10 +100,17 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
     written_vectors = 0
     embedded_nodes: set = set()
     stopped_early: str | None = None
+    swept = not sweep
     for i in range(0, len(units), batch_size):
         batch = units[i:i + batch_size]
         try:
             vecs = embedder.embed([text for _key, text, _node in batch])
+            if (len(vecs or ()) != len(batch) or not vecs[0]
+                    or any(len(v) != len(vecs[0]) for v in vecs)):
+                # A short reply, an empty vector or a vector of another length: the guard
+                # checks only the first vector, and the strict zip or the vector store
+                # would raise after the sweep had run.
+                raise ValueError("embedder returned no usable vector for this batch")
         except Exception as e:  # noqa: BLE001 - an unreachable embedder ends the phase
             # The count below used to be returned bare, so an embedder that died at
             # batch 3 of 200 produced `128 embedded`, exit 0 and no line saying the
@@ -64,14 +121,21 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size
                 f"({written_vectors} of {len(units)} chunk(s)) -- {stopped_early}",
                 level=logging.WARNING)
             break
-        if i == 0 and vecs and vecs[0]:
-            identity = (getattr(embedder, "identity", None)
-                        or getattr(embedder, "name", "embedder"))
-            guard_store_identity(vs, identity, len(vecs[0]))
+        if i == 0:
+            try:
+                guard_store_identity(vs, _embedder_identity(embedder), len(vecs[0]))
+            except ValueError as e:
+                raise _EmbedderRefused(str(e)) from e
+        if not swept:
+            vs.clear_repo(repo_id)
+            swept = True
         vs.upsert((key, repo_id, v)
                   for (key, _text, _node), v in zip(batch, vecs, strict=True))
         written_vectors += len(batch)
         embedded_nodes.update(id(node) for _key, _text, node in batch)
+    if not swept and stopped_early is None:
+        # Nothing to embed (every body is empty): the old vectors still have to go.
+        vs.clear_repo(repo_id)
     return len(embedded_nodes), written_vectors, stopped_early
 
 
@@ -250,8 +314,11 @@ def cmd_ingest(args) -> int:
         # would report a corpus many times the size of the real one.
         vectors = 0
         failed = len(unavailable)
+        probed = guarded = refused = False
+        cleared_source: str | None = None
+        not_run: list[str] = []
         try:
-            for name, stype, options, for_repo in jobs:
+            for idx, (name, stype, options, for_repo) in enumerate(jobs):
                 try:
                     src = build_source(stype, **options)
                 except Exception as e:  # noqa: BLE001 - one bad option must not stop the other sources
@@ -332,6 +399,17 @@ def cmd_ingest(args) -> int:
                     # having passed --for-repo, so it cannot be silent.
                     log(f"  {name}: linked to no code in {for_repo!r} — no document "
                         f"named a symbol the graph knows", inline=True)
+                if vs is not None and not probed:
+                    # Before the first vector is cleared or row written. Every source shares
+                    # the one store, so a refusal here applies to all of them and the run
+                    # ends: nothing has changed yet, and each source would refuse the same.
+                    probed = True
+                    guarded, refusal = _check_embedder(vs, embedder)
+                    if refusal:
+                        log(style.fail(refusal))
+                        log("  This run changed nothing: the documents and vectors are as "
+                            "the last run left them.")
+                        return 1
                 # Sweep this partition's vectors, for the same reason the graph's nodes
                 # are swept: the run is about to rewrite them. A document is now SEVERAL
                 # vectors, so replace-by-key is no longer enough -- a page that loses a
@@ -343,10 +421,13 @@ def cmd_ingest(args) -> int:
                 # partition that is actually being rewritten gets cleared, so a source
                 # that momentarily returns nothing does not wipe good vectors.
                 # Vectors FIRST, then the shard, then the rows in one transaction: the
-                # order `forget` and `kb index` use. A stop after the vector sweep leaves
-                # documents with no vectors, which re-embedding repairs and which shows as
-                # a missing semantic hit. The old order (rows first) left vectors that
-                # answer queries for documents the partition no longer holds.
+                # order `forget` and `kb index` use. That holds once a vector has passed
+                # the guard (`guarded`: the probe answered, or an earlier source embedded
+                # one). Before that, a source writes the shard and rows first and its sweep
+                # waits for its first batch (see `sweep` below). A stop after the vector
+                # sweep leaves documents with no vectors, which re-embedding repairs and
+                # which shows as a missing semantic hit. The old order (rows first) left
+                # vectors that answer queries for documents the partition no longer holds.
                 # A run that missed targets keeps the documents it did not re-read (see
                 # `_previous_documents`), so it must not sweep their vectors either. Each
                 # fresh document overwrites its own chunk keys; a document that shrank
@@ -355,7 +436,13 @@ def cmd_ingest(args) -> int:
                     _previous_documents(store_dir, repo_id, nodes)
                     if misses or cli_path else ([], []))
                 kept_nodes, kept_edges = (previous, previous_edges) if misses else ([], [])
-                if vs is not None and not kept_nodes:
+                # Cleared here only once a vector has passed the identity guard in this run:
+                # the probe answered, or an earlier source embedded one. Until then
+                # `_embed_documents` clears after the source's first batch passes, or at its
+                # end when no body has text.
+                sweep = vs is not None and not kept_nodes
+                cleared = sweep and guarded
+                if cleared:
                     vs.clear_repo(repo_id)
                 write_shard(store_dir, GraphShard(repo=repo_id, head_commit="ingest",
                                                   nodes=nodes + kept_nodes,
@@ -381,10 +468,29 @@ def cmd_ingest(args) -> int:
                     msg += f", {len(misses)} target(s) unreadable"
                     partial += len(misses)
                 if embedder is not None and vs is not None:
-                    n, n_vec, stopped = _embed_documents(
-                        vs, embedder, repo_id, nodes, texts, cfg.embeddings.batch_size)
+                    try:
+                        n, n_vec, stopped = _embed_documents(
+                            vs, embedder, repo_id, nodes, texts, cfg.embeddings.batch_size,
+                            sweep=sweep and not guarded)
+                    except _EmbedderRefused as e:
+                        # The identity guard raises on the first batch. With the probe
+                        # unanswered the sweep waits behind it, so the vectors are as they
+                        # were. After an answered probe, or once an earlier source passed,
+                        # the sweep above has run (`cleared`), and the refusal means this
+                        # batch came back with another vector length than the probe or that
+                        # source gave.
+                        # The documents above are stored either way.
+                        # Every source shares the vector store, so the ones after this one
+                        # would be refused too, and the run ends.
+                        log(f"{msg}, EMBED REFUSED: {e}", inline=True)
+                        failed += 1
+                        refused = True
+                        cleared_source = name if cleared else None
+                        not_run = [job[0] for job in jobs[idx + 1:]]
+                        break
                     embedded += n
                     vectors += n_vec
+                    guarded = guarded or n_vec > 0
                     if stopped:
                         # Named in the per-source line too, so the failure is visible
                         # without scrolling back to the warning.
@@ -411,9 +517,22 @@ def cmd_ingest(args) -> int:
                     bits.append(f"{failed} source(s) failed")
                 if partial:
                     bits.append(f"{partial} target(s) unreadable")
+                if not_run:
+                    bits.append(f"{len(not_run)} source(s) not run")
+                if refused:
+                    more = f" (+{len(not_run) - 3} more)" if len(not_run) > 3 else ""
+                    log((f"  The vectors of {cleared_source} were cleared before the refusal. "
+                         "Run `kb ingest` again to rebuild them."
+                         if cleared_source else "  The vectors were kept.")
+                        + (f" Not run, because every source shares the vector store: "
+                           f"{', '.join(not_run[:3])}{more}." if not_run else ""))
                 log(style.summary_line(
                     "warn", f"Ingest incomplete: {total} document(s) aggregated{tail} "
                             f"({'; '.join(bits)})"))
+                if refused:
+                    # A changed embedder is a setting to fix, not a miss to tolerate, so the
+                    # flag below does not apply. The run that probed first exits 1 the same way.
+                    return 1
                 # The flag is a PRE-command global, so the position has to be shown.
                 # Naming it bare sends a user to `kb ingest --exit-zero-on-partial`,
                 # which argparse rejects with exit 2 -- a worse outcome than the exit

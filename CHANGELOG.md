@@ -510,6 +510,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a plain `cli: 1 document(s)` with exit 0. The run now prints the count and the first three
   names it replaced. To keep several folders, add each as its own source with `kb source add`.
   The replacement itself is unchanged.
+- **`kb ingest` refuses a changed embedder before it clears any vector.** After you changed
+  `[embeddings] model`, `kb ingest` cleared the vectors of the ingest partition and rewrote its
+  rows, then stopped at the identity guard with exit 1. Semantic search lost the vectors of the
+  first source's documents until you ran ingest again with the old model, and the sources after
+  the first never ran. `kb ingest` now takes one probe vector first (one extra embed call per
+  run that has documents). When the embedder answers, it runs the guard before it clears or
+  writes anything. A run refused at that check prints the error and `This run changed nothing`,
+  and leaves every document and vector as it was. If the embedder gives no answer to the probe,
+  ingest goes on and rewrites the documents, but until one source has passed the guard it clears
+  a source's old vectors only after a batch of that source holds a vector that passes. A refusal
+  there keeps the vectors and ends the run after that source: the source keeps its new
+  documents, the summary names the sources that did not run, and the exit code is 1. Until a
+  source has passed the guard, a batch that comes back short, with an empty vector or with
+  vectors of different lengths keeps the vectors too. An embedder that never answers clears no
+  vector either, unless every document body is empty: then no batch runs and the sweep clears
+  the partition at the end of the source. Once one source has passed the guard, each later
+  source clears its vectors before it writes, as on a run whose probe answered, so an embedder
+  that answers that source and then stops leaves the next source without vectors until the next
+  run. A source that clears before it writes can still be refused: the first batch that comes
+  back with another vector length fails the guard after the clear. The source keeps its new
+  documents and has no vectors, the summary names it, the run ends and the exit code is 1. To
+  switch models, delete the store's `embeddings.sqlite`, then run `kb embed` and `kb ingest`.
 
 ### Security
 

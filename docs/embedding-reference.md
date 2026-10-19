@@ -107,8 +107,10 @@ longer the one running.
 
 Document vectors are only rewritten by `kb ingest`, so an existing store keeps its old
 whole-document vectors until you re-run it. `kb ingest` clears the ingest partition's vectors
-before it writes, so a re-run replaces them cleanly and no stale chunk survives a document
-that shrank.
+and then stores the new ones, so a re-run replaces them cleanly and no stale chunk survives a
+document that shrank. On a run whose probe got no answer, the first source clears after its
+first batch passes the check, or at the end of the source when every body is empty (see
+[Choosing a model](#choosing-a-model)).
 
 ## Choosing a model
 
@@ -119,7 +121,28 @@ that shrank.
 | `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. |
 
 On a store that already holds vectors the identity guard refuses to mix models, so switch on
-a fresh vector store.
+a fresh vector store. `kb ingest` takes one probe vector. When the embedder answers, the
+check runs before any vector is cleared or any document is rewritten. A run refused at that
+check prints the error and `This run changed nothing`.
+
+If the embedder gives no answer to the probe, nothing was proved. `kb ingest` still rewrites
+the documents. Until one source has passed the check, it clears a source's old vectors only
+after a batch of that source holds a vector that passes. A reply whose vectors are missing,
+empty or of different lengths does not pass. An embedder that never answers clears nothing.
+If every document body is empty, no batch runs and `kb ingest` clears the vectors at the end
+of the source.
+
+A refusal at that check keeps the vectors and ends the run after that source. The source keeps
+its new documents, the sources after it do not run, and the exit code is 1.
+
+Once one source has passed the check, each later source clears its vectors before it writes,
+as on a run whose probe answered. If the embedder stops after that, the next source has no
+vectors until you run `kb ingest` again.
+
+A source that clears before it writes can still be refused: the first batch that comes back
+with another vector length fails the check after the clear. The source then keeps its new
+documents and has no vectors, the sources after it do not run, and the exit code is 1. Run
+`kb ingest` again to rebuild the vectors.
 
 Which one is better **on your code** has a local answer, and
 [`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a
