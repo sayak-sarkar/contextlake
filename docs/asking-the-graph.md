@@ -278,9 +278,9 @@ recent commit.
 >   history.`
 > - With `git` missing from PATH, it logs `owners: git could not be run for <repo>, so no owners
 >   are reported.`
-> - An empty result prints `No commit history found for <scope>` and exits `0`. The line ends
->   with a reason when git could not be asked: `git` missing, not a checkout root, or no
->   repository or no commits yet.
+> - An empty result prints `No commit history found for <scope>: <reason>` and exits `0`. The
+>   reason says either that git could not be asked (`git` missing, not a checkout root, or no
+>   repository or no commits yet) or that it read the history and matched nobody.
 
 ### Verification
 
@@ -300,15 +300,19 @@ followed by up to three numbered lines ending in a percentage.
 | --- | --- | --- |
 | `kb query` | an **array** of hits | keys `repo`, `file`, `line`, `kind`, `name`, `qualified_name`. No score field |
 | `kb impact` | an **object** | `target` (with `file`/`line`), `hops`, `truncated`, `ambiguous`, `other_definitions[]`, `affected[]`; each hit carries `id`, `file`, `line`, `via_file`, `via_line`, `name_candidates`. `confidence` is lower-case |
-| `kb owners` | an **object** | `repo`, `path`, `owners[]`; email and raw score are not included |
+| `kb owners` | an **object** | `repo`, `path`, `owners[]`, `ranking_gap`; email and raw score are not included |
 
-Three behaviours that bite scripts:
+Four behaviours that bite scripts:
 
 - **An empty result is exit `0`**, in all three. Test the payload, not the exit code, to detect
   "found nothing". Exit `2` means you gave no search term; exit `1` means the target could not be
   resolved, or `--repo` names no indexed repository. A repo id is the `origin` remote
   (`github.com/acme/app`) or `name@<root commit>`, not the directory name; the message names the
   ids that match.
+- **An empty `owners` list does not mean nobody committed.** `ranking_gap` is `null` when
+  `owners` has rows. When it is empty, `ranking_gap` says why: the clone directory is not there,
+  the path is not its own git checkout, git could not be run, or git read the history and matched
+  nobody. The text form prints the same reason.
 - **`--limit 0` and `--hops 0` are refused**, with the argument error and exit `2`: `--limit` takes
   1 to 1,000,000 and `--hops` takes 1 to 1,000. Zero used to be read as "unset" and quietly became
   the default, which is why it is now an error. Neither ever meant "no limit".

@@ -244,6 +244,50 @@ def test_cmd_owners_cli_lists_contributors(repo, capsys):
     assert "Alice" in out and "Owners" in out
 
 
+def _owners_json(capsys, *argv):
+    import json
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "owners", *argv, "--json"])
+    assert e.value.code == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def _owners_text(capsys, *argv):
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "owners", *argv])
+    assert e.value.code == 0
+    captured = capsys.readouterr()
+    return captured.out + captured.err
+
+
+def test_owners_json_says_why_the_list_is_empty(repo, outer_repo, capsys):
+    """`--json` printed `"owners": []` and exit 0 for a path git could not read, the same
+    payload as a history that matched nobody. Only the text form gave the reason."""
+    _commit(repo, "a.py", 3, "Alice", "alice@x.io", "2026-05-01 10:00:00 +0000")
+    _outer, inner = outer_repo
+
+    healthy = _owners_json(capsys, str(repo))
+    assert [o["name"] for o in healthy["owners"]] == ["Alice"]
+    assert healthy["ranking_gap"] is None
+
+    unread = _owners_json(capsys, str(inner))
+    assert unread["owners"] == []
+    assert "not the root of a git checkout" in (unread["ranking_gap"] or ""), unread
+
+    # git ran and the pathspec matched nothing: a real empty history, worded as one.
+    matched_nobody = _owners_json(capsys, str(repo), "--path", "no/such/dir")
+    assert matched_nobody["owners"] == []
+    assert "was read but attributed no commits" in (matched_nobody["ranking_gap"] or ""), (
+        matched_nobody)
+
+    # The text form ends its line with the same words, in the read and the unread case.
+    for case in ((str(inner),), (str(repo), "--path", "no/such/dir")):
+        want = _owners_json(capsys, *case)["ranking_gap"]
+        said = _owners_text(capsys, *case)
+        assert "No commit history found for" in said and f": {want}" in said, said
+
+
 def test_cmd_owners_usage_error_without_target():
     with pytest.raises(SystemExit) as e:
         main(["kb", "owners"])

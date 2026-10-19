@@ -390,6 +390,35 @@ def test_who_knows_does_not_rank_a_directory_by_the_repo_around_it(tmp_path):
         assert "was read but" not in owners["ranking_gap"]
 
 
+def test_kb_owners_json_and_who_knows_word_an_empty_ranking_alike(tmp_path):
+    """`kb owners --json` gets its `ranking_gap` from `ownership.ranking_gap`, and
+    `who_knows` builds the same field inline. One script reads both, so the words match."""
+    import os
+    import subprocess
+
+    from contextlake.kb.ownership import compute_owners, ranking_gap
+
+    outer = tmp_path / "outer"
+    inner = outer / "inner"
+    inner.mkdir(parents=True)
+    (inner / "a.py").write_text("x\n")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "Pat Invented",
+           "GIT_AUTHOR_EMAIL": "pat@example.com", "GIT_COMMITTER_NAME": "Pat Invented",
+           "GIT_COMMITTER_EMAIL": "pat@example.com"}
+    for args in (["init", "-q"], ["add", "."], ["commit", "-q", "-m", "first"]):
+        subprocess.run(["git", "-C", str(outer), *args], check=True, capture_output=True,
+                       env=env)
+
+    cases = ((str(tmp_path / "gone"), None), (str(inner), None), (str(outer), "no/such/dir"))
+    for i, (clone, sub) in enumerate(cases):
+        server, store, vectors = _build(tmp_path / f"case{i}", repo_path=clone)
+        with closing(store), closing(vectors):
+            tool_args = {"repo": REPO, **({"path": sub} if sub else {})}
+            via_mcp = _ok(server, "who_knows", tool_args)["ranking_gap"]
+        assert via_mcp, (clone, sub)
+        assert ranking_gap(compute_owners(clone, sub)) == via_mcp, (clone, sub)
+
+
 def test_an_empty_store_says_it_is_empty_rather_than_healthy(tmp_path):
     """Nothing indexed at all.
 

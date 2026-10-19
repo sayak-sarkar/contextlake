@@ -852,6 +852,27 @@ def test_owners_json_emits_a_clean_parseable_object(tmp_path, capsys):
     assert isinstance(payload["owners"], list)
 
 
+def test_owners_json_names_a_clone_that_is_not_there(tmp_path, capsys):
+    """An indexed repo whose clone moved: the text form said its history was never read,
+    and the JSON form was `"owners": []` with exit 0, the same as a repo nobody committed
+    to. A script cannot tell the two apart without the reason."""
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    assert _run(["kb", "owners", "demo/app", "--config", str(cfg), "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["owners"] == []
+    assert "clone directory is not there" in (payload["ranking_gap"] or ""), payload
+
+    # The text form ends its line with the same words.
+    assert _run(["kb", "owners", "demo/app", "--config", str(cfg)]) == 0
+    captured = capsys.readouterr()
+    assert f": {payload['ranking_gap']}" in captured.out + captured.err
+
+
 def test_owners_json_unknown_repo_reports_the_error_as_json_too(tmp_path, capsys):
     import json
 

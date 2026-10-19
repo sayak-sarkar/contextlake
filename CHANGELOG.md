@@ -95,6 +95,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the dependents route when one word and "depends" follow, or a verb such as think, know or say
   and "depend". "What does X depend on?", "What do we still depend on?" and "What do you think X
   depends on?" still go to search.
+- **`kb owners --json` now says why `owners` is empty.** The payload has a new `ranking_gap`
+  key, the one `who_knows` already returns. It is `null` when `owners` has rows, and otherwise
+  gives the reason: the clone directory is not there, the path is not its own git checkout, git
+  could not be run, or git read the history and matched nobody. 10.0.0rc4 gave the reason in the
+  text form only, so a clone that moved after indexing printed `{"owners": []}` with exit `0`,
+  the same as a repository nobody committed to. The text line now ends with the same reason in
+  all four cases. Scripts that read the payload need no change.
 
 ### Security
 

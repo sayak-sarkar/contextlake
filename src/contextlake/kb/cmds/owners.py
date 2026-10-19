@@ -17,7 +17,7 @@ from ._common import (
 
 def cmd_owners(args) -> int:
     """Likely owners / SMEs for a repo (or sub-path), from git commit history."""
-    from ..ownership import compute_owners
+    from ..ownership import compute_owners, ranking_gap
 
     target = (getattr(args, "args", []) or [None])[0]
     subpath = getattr(args, "path", None)
@@ -62,11 +62,11 @@ def cmd_owners(args) -> int:
             "owners": [{"name": o.name, "commits": o.commits, "lines": o.lines,
                        "last_active": o.last_active, "share": o.share}
                       for o in owners],
+            "ranking_gap": ranking_gap(owners),
         }, indent=2))
         return 0
     if not owners:
-        gap = getattr(owners, "gap", None)
-        log(f"No commit history found for {scope}" + (f": {gap}" if gap else ""))
+        log(f"No commit history found for {scope}: {ranking_gap(owners)}")
         return 0
     log(f"Owners / SMEs for {style.cyan(scope)} (recency-weighted):")
     for i, o in enumerate(owners, 1):

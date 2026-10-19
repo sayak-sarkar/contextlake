@@ -89,6 +89,20 @@ def _ranking(rows, gap: str | None = None) -> Ranking:
     return ranking
 
 
+def ranking_gap(owners) -> str | None:
+    """Why ``owners`` is empty, or ``None`` when it holds rows.
+
+    The words ``who_knows`` puts in ``ranking_gap``: the ranking's own ``gap`` when git could
+    not be asked, else the sentence for a history that was read and matched nobody.
+    ``kb owners --json`` reports this too, so a script can tell a missing clone from an
+    empty history.
+    """
+    if owners:
+        return None
+    return (getattr(owners, "gap", None)
+            or "its git history was read but attributed no commits to anyone")
+
+
 # Why no history was read, per `reason` code, worded to follow "its" in `ranking_gap`.
 # A reason code with no entry (git ran and found nothing) has no gap.
 _GAPS = {
