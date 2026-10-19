@@ -626,8 +626,9 @@ def _post(url, body, *, token=None, host=None):
         headers[TOKEN_HEADER] = token
     if host is not None:
         headers["Host"] = host
-    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
-                                 headers=headers, method="POST")
+    # bytes go out as given, for a body json.dumps cannot produce
+    data = body if isinstance(body, bytes) else json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as r:
             return r.status, json.loads(r.read())
@@ -748,6 +749,95 @@ def test_post_body_with_a_bad_int_field_is_400_not_a_dropped_connection(
     status, body = _post(base + "/api/mcp/serve", {"action": "start", "port": "abc"},
                          token=token)
     assert status == 400 and body == {"error": "bad request"}
+
+
+@pytest.mark.parametrize("route", ["/api/repo/acme/origin/sync", "/api/repo/add",
+                                   "/api/mcp/serve", "/api/chat"])
+@pytest.mark.parametrize("payload", [[], [1], "text", 5, None])
+def test_a_post_body_that_is_not_an_object_is_400_not_500(served_with_mutations, route,
+                                                           payload):
+    """The wiki and docs routes already refused these. `_mutate` and `_chat` called
+    ``payload.get`` on whatever JSON held, so a bare array came back as a 500 with a
+    traceback in the log."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + route, payload, token=token)
+    assert status == 400 and body == {"error": "invalid JSON body"}
+
+
+@pytest.mark.parametrize("route", ["/api/repo/acme/origin/sync", "/api/repo/add",
+                                   "/api/mcp/serve", "/api/chat", "/api/wiki/generate",
+                                   "/api/docs/generate"])
+def test_a_body_nested_200000_levels_is_400_not_500(served_with_mutations, route):
+    """json.loads raises RecursionError, not ValueError, for a body nested past the
+    parser's limit. 200000 levels is 400 KB, under the body size limit. It reached
+    `send_guarded`'s catch-all, which answers 500 and logs a traceback. Raw bytes, because
+    `_post` serialises with json.dumps, which fails on the client for this input."""
+    base, _port, token, _origin = served_with_mutations
+    deep = b"[" * 200_000 + b"]" * 200_000
+    status, body = _post(base + route, deep, token=token)
+    assert status == 400 and body == {"error": "invalid JSON body"}
+
+
+@pytest.mark.parametrize("route,payload,message", [
+    ("/api/repo/add", {"url": 5}, "invalid url value"),
+    ("/api/repo/add", {"url": ["https://example.test/a.git"]}, "invalid url value"),
+    ("/api/chat", {"question": 5}, "invalid question value"),
+    ("/api/chat", {"question": ["who calls f?"]}, "invalid question value"),
+])
+def test_a_field_of_the_wrong_type_is_400_not_500(served_with_mutations, route, payload,
+                                                   message):
+    """``.strip()`` on a number or a list raised AttributeError, which `send_guarded`
+    answers with a 500 and a logged traceback. A client mistake is a 400."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + route, payload, token=token)
+    assert status == 400 and body == {"error": message}
+
+
+@pytest.mark.parametrize("port", [[1], {"n": 1}, float("inf")])
+def test_a_port_of_the_wrong_type_is_the_same_400_as_a_non_numeric_one(
+        served_with_mutations, port):
+    """``int([1])`` raises TypeError and ``int(float("inf"))`` raises OverflowError, not
+    ValueError, so both reached the 500 branch. No server is started: the parse fails
+    first."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": "start", "port": port},
+                         token=token)
+    assert status == 400 and body == {"error": "bad request"}
+
+
+def _spy_wiki_start(monkeypatch):
+    """Stand in for the spawn and return the list of ``force`` values it received."""
+    seen = []
+
+    def spy(store_dir, **kw):
+        seen.append(kw["force"])
+        return {"ok": True, "running": True, "pid": 1}
+
+    monkeypatch.setattr("contextlake.kb.dashboard.mutations.wiki_generate_start", spy)
+    return seen
+
+
+@pytest.mark.parametrize("force", ["false", "true", "0", 0, 1, [], {}, ["x"]])
+def test_wiki_generate_refuses_a_force_that_is_not_a_json_boolean(served_with_mutations,
+                                                                  monkeypatch, force):
+    """``bool("false")`` is True, so a script that sent the string started a run that
+    regenerates every targeted repo, with a model call per repo when an LLM is set."""
+    seen = _spy_wiki_start(monkeypatch)
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/wiki/generate", {"force": force}, token=token)
+    assert status == 400 and body == {"error": "invalid force value"}
+    assert seen == []
+
+
+@pytest.mark.parametrize("sent,expected", [({"force": True}, True), ({"force": False}, False),
+                                           ({"force": None}, False), ({}, False)])
+def test_wiki_generate_passes_a_json_boolean_force_on_as_it_is(served_with_mutations,
+                                                               monkeypatch, sent, expected):
+    seen = _spy_wiki_start(monkeypatch)
+    base, _port, token, _origin = served_with_mutations
+    status, _ = _post(base + "/api/wiki/generate", sent, token=token)
+    assert status == 200
+    assert seen == [expected]
 
 
 def test_post_rejects_mismatched_host_header(served_with_mutations):

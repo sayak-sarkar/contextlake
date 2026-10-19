@@ -95,8 +95,14 @@ def _mcp_bind(payload: dict) -> tuple[str, int]:
             f"would publish the whole graph.")
     # A non-numeric port keeps falling through to send_guarded's generic 400 --
     # that's a malformed request, not a policy refusal, and it never reaches the
-    # range check below because int() raises first.
-    port = int(payload.get("port") or 8766)
+    # range check below because int() raises first. `int([1])` raises TypeError and
+    # `int(float("inf"))` (a JSON `Infinity` or `1e400`) raises OverflowError; both
+    # read as a server fault (500) in send_guarded, so each is re-raised as the
+    # ValueError a non-numeric string gives.
+    try:
+        port = int(payload.get("port") or 8766)
+    except (TypeError, OverflowError):
+        raise ValueError("port must be a number") from None
     if not 1024 <= port <= 65535:
         raise BadRequest(f"port must be between 1024 and 65535, not {port}")
     return host, port
@@ -430,10 +436,9 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         Host header; this only dispatches and holds the store's single-writer
         lock for the duration of the one mutation (never for the server's whole
         lifetime -- a CLI command run alongside the dashboard must still work)."""
-        try:
-            payload = json.loads(body) if body else {}
-        except json.JSONDecodeError:
-            return 400, b'{"error":"invalid JSON body"}'
+        payload, err = _json_body(body)
+        if err:
+            return 400, err
         lock = StoreLock(store_dir, f"dashboard-mutate {path}")
         try:
             lock.acquire()
@@ -451,7 +456,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     repo_id = urllib.parse.unquote(path[len("/api/repo/"):-len("/sync")])
                     return 200, _json_bytes(kbmut.sync_repo(req, store_dir, repo_id))
                 if path == "/api/repo/add":
-                    url = (payload.get("url") or "").strip()
+                    url = payload.get("url") or ""
+                    if not isinstance(url, str):
+                        return 400, b'{"error":"invalid url value"}'
+                    url = url.strip()
                     if not url:
                         return 400, b'{"error":"url required"}'
                     return 200, _json_bytes(kbmut.add_repo(req, store_dir, ws_dir, url))
@@ -473,20 +481,24 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         finally:
             lock.release()
 
-    def _generate_body(body: bytes):
-        """``(payload, error)`` for a generate route's request body.
+    def _json_body(body: bytes):
+        """``(payload, error)`` for the request body of a POST route that reads fields.
 
-        The error is returned, not raised, so both generate routes answer 400 for a
-        body they cannot read. Before this, a body that parsed as JSON but was not
+        The error is returned, not raised, so every such route answers 400 for a
+        body it cannot read. Before this, a body that parsed as JSON but was not
         an object reached ``payload.get`` and the field reads below reached
         ``.strip()`` on whatever JSON held, so ``{"repo": 123}`` and a bare JSON
         array both came back as a 500 with an unhandled AttributeError traceback --
         an information leak as well as a defect, in a handler that already answered
-        400 for a body that was not JSON at all.
+        400 for a body that was not JSON at all. The generate routes were fixed
+        first; ``_mutate`` and ``_chat`` read their body through this too.
         """
         try:
             payload = json.loads(body) if body else {}
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, RecursionError):
+            # RecursionError is not a ValueError. json.loads raises it for a body
+            # nested 100000 levels, and that body (200 KB of `[` and `]`) fits under
+            # the body size limit.
             return None, b'{"error":"invalid JSON body"}'
         if not isinstance(payload, dict):
             return None, b'{"error":"invalid JSON body"}'
@@ -562,13 +574,17 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         Every field that reaches the child's argv is validated first, for the reason
         ``_repo_field`` gives. This route has the same spawn shape as the docs one
         below and had the same hole."""
-        payload, err = _generate_body(body)
+        payload, err = _json_body(body)
         if err:
             return 400, err
         repo_id, err = _repo_field(payload)
         if err:
             return 400, err
-        force = bool(payload.get("force"))
+        # A JSON boolean only. `bool("false")` is True, and this flag turns a
+        # freshness-skipping run into one that regenerates every targeted repo.
+        force = payload.get("force")
+        if force is not None and not isinstance(force, bool):
+            return 400, b'{"error":"invalid force value"}'
         llm, err = _model_field(payload, "llm")
         if err:
             return 400, err
@@ -576,7 +592,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         if err:
             return 400, err
         return 200, _json_bytes(kbmut.wiki_generate_start(
-            store_dir, repo_id=repo_id, force=force, llm=llm,
+            store_dir, repo_id=repo_id, force=bool(force), llm=llm,
             llm_model=llm_model, config_path=config_path))
 
     def _docs_generate(body: bytes) -> tuple[int, bytes]:
@@ -598,7 +614,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         docs_generate_start's docstring for the reason that gates the flag. That
         withholding is only real while `repo` cannot smuggle the flag back in, which
         is what ``_repo_field`` enforces before the value reaches argv."""
-        payload, err = _generate_body(body)
+        payload, err = _json_body(body)
         if err:
             return 400, err
         repo_id, err = _repo_field(payload)
@@ -615,11 +631,13 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         dashboard/CLI activity without contention."""
         from . import chat as kbchat
 
-        try:
-            payload = json.loads(body) if body else {}
-        except json.JSONDecodeError:
-            return 400, b'{"error":"invalid JSON body"}'
-        question = (payload.get("question") or "").strip()
+        payload, err = _json_body(body)
+        if err:
+            return 400, err
+        question = payload.get("question") or ""
+        if not isinstance(question, str):
+            return 400, b'{"error":"invalid question value"}'
+        question = question.strip()
         if not question:
             return 400, b'{"error":"question required"}'
         req = _open_store()

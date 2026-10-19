@@ -9963,6 +9963,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `no_snapshot`: a script that matches `no_snapshot` must match `unknown_repo` too. A known repo
   with a commit that was never indexed still prints `No indexed snapshot`, and so does a repo
   that has snapshots but no row in the index.
+- **The dashboard POST routes answer 400 for a body or field of the wrong shape, and `force`
+  must be a JSON boolean.** `/api/repo/add`, `/api/chat` and `/api/mcp/serve` answered 500 with
+  a logged traceback for an array body, a non-string `url` or `question`, or a list or infinite
+  `port`. A body nested 100000 levels deep gave 500 on every POST route that reads a JSON body.
+  `/api/wiki/generate` read `"force": "false"` as true and started a run that regenerates every
+  targeted repo. `/api/repo/<id>/sync` reads no field and answered 200 for a body such as `[]`,
+  `null` or a bare string. A script that posts `force` as a string or a number, or a non-object
+  body to the sync route, now gets 400: send a JSON `true` or `false` for `force`, and `{}` or
+  no body for sync. The dashboard's own buttons already do.
 
 ### Fixed
 
