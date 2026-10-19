@@ -2168,11 +2168,11 @@ empty file does not count either. If any of these fails, the command stops with 
 nothing. It does not fall back to `~/.contextlake.ini` or to the defaults. A `kb.toml` given here
 exits with `2`: pass it to a `kb` command with `--config`, or to `bootstrap` with `--kb-config`.
 
-Three kinds of config error name the file that caused them: a TOML or INI file that does not parse
-(with the line when the parser gives one), a value a setting does not accept (with the table or key,
-and the reason), and a yes/no setting that is not a yes/no word. A validation error does not repeat the
-value. A yes/no setting quotes the word it read. When a `[contextlake]` INI file is given to a `kb`
-command, the error says it is a mirror INI.
+Three kinds of config error name the file: a TOML or INI file that does not parse (with the line
+when the parser gives one), a `kb.toml` value that fails validation (with the table, key and
+reason), and a yes/no setting that is not a yes/no word. A validation error does not repeat the
+value. A yes/no setting quotes the word it read. When a `[contextlake]` INI file with a value TOML
+cannot read is given to a `kb` command, the error says it is a mirror INI.
 
 ## Directory-scoped config
 
