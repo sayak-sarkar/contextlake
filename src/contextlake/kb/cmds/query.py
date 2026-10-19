@@ -8,6 +8,7 @@ from ... import style
 from ...logging_setup import log
 from .._util import _or_default
 from ._common import (
+    _no_repos_msg,
     _open_store,
     _repo_id_suggestions,
     _unknown_repo_msg,
@@ -43,6 +44,45 @@ def _hit_json(n) -> dict:
             "name": n.name, "qualified_name": n.qualified_name}
 
 
+def _refuse_unknown_repo(store, repo: str, *, as_json: bool) -> int:
+    """The answer for a ``--repo`` the index does not know: the ids that match, exit 1.
+
+    ``store`` is ``None`` when there is no index file, which holds no repositories.
+    """
+    if as_json:
+        suggestions = [] if store is None else _repo_id_suggestions(store, repo)
+        print(json.dumps({"error": "unknown_repo", "target": repo,
+                          "suggestions": suggestions}, indent=2))
+    else:
+        log(_no_repos_msg(repo) if store is None else _unknown_repo_msg(store, repo))
+    return 1
+
+
+def _refuse_unknown_repo_as_of(args, store_dir, repo: str, *, as_json: bool) -> int | None:
+    """Exit 1 with the unknown-repo answer when ``repo`` names nothing, else ``None``.
+
+    Asked only once no snapshot was found. "No indexed snapshot" sent a user who typed a
+    directory name instead of an id looking for a wrong commit. A repo that has history
+    is not unknown even when the index has no row for it: a named id keeps its snapshots
+    after a later run files the checkout under its origin id. The index is opened only
+    when it exists, because opening it creates it; with no index file the store holds no
+    repositories, and that is the answer.
+    """
+    from ..store.shards import list_indexed_commits
+
+    if list_indexed_commits(store_dir, repo):
+        return None
+    if not (store_dir / "index.sqlite").exists():
+        return _refuse_unknown_repo(None, repo, as_json=as_json)
+    store, _ = _open_store(args)
+    try:
+        if repo_is_known(store, repo):
+            return None
+        return _refuse_unknown_repo(store, repo, as_json=as_json)
+    finally:
+        store.close()
+
+
 def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
     """Search a repo's snapshot at an indexed commit (bi-temporal 'as of')."""
     from ..store.shards import read_shard_at, resolve_indexed_commit
@@ -64,6 +104,9 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
         return 1
     shard = read_shard_at(store_dir, repo, resolved) if resolved else None
     if shard is None:
+        unknown = _refuse_unknown_repo_as_of(args, store_dir, repo, as_json=as_json)
+        if unknown is not None:
+            return unknown
         if as_json:
             print(json.dumps({"error": "no_snapshot", "repo": repo, "commit": commit}, indent=2))
             return 1
@@ -203,14 +246,8 @@ def cmd_query(args) -> int:
             # It printed "No matches" and exited 0. Since 8.7.0 an id is the `origin`
             # remote or `name@<root commit>`, so the directory name a user types is often
             # not one, and the answer read as "no such symbol" (G2 and G6, 10.0.0rc1).
-            # `--as-of` has its own check, in `_query_as_of`.
-            if as_json:
-                print(json.dumps({"error": "unknown_repo", "target": repo,
-                                  "suggestions": _repo_id_suggestions(store, repo)},
-                                 indent=2))
-            else:
-                log(_unknown_repo_msg(store, repo))
-            return 1
+            # `--as-of` makes the same check when it finds no snapshot, in `_query_as_of`.
+            return _refuse_unknown_repo(store, repo, as_json=as_json)
         limit = _or_default(getattr(args, "limit", None), 20)
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
         kind = getattr(args, "kind", None)

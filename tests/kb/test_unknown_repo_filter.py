@@ -162,6 +162,83 @@ def test_json_carries_the_error_and_the_suggestions(cfg, capsys, command):
     assert payload == {"error": "unknown_repo", "target": "app", "suggestions": ["demo/app"]}
 
 
+# `--as-of` reads the stored snapshots, not the index, and it answered "No indexed snapshot"
+# for a name that is not an id, so the user went looking for a wrong commit.
+
+def test_an_unknown_repo_with_as_of_gets_the_unknown_repo_answer(cfg, capsys):
+    assert _run(["kb", "query", "ForecastService", "--repo", "app", "--as-of", "abc123",
+                 "--config", cfg]) == 1
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+    assert "Unknown repo 'app'" in text and "demo/app" in text
+    assert "No indexed snapshot" not in text
+
+
+def test_json_with_as_of_carries_the_same_error_and_suggestions(cfg, capsys):
+    assert _run(["kb", "query", "ForecastService", "--repo", "app", "--as-of", "abc123",
+                 "--json", "--config", cfg]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"error": "unknown_repo", "target": "app", "suggestions": ["demo/app"]}
+
+
+def test_a_known_repo_with_as_of_keeps_its_own_answers(cfg, capsys):
+    assert _run(["kb", "query", "ForecastService", "--repo", "demo/app", "--as-of", "abc123",
+                 "--config", cfg]) == 0
+    assert "Unknown repo" not in "".join(capsys.readouterr())
+    # A commit that was never indexed is still a missing snapshot, not an unknown repo.
+    assert _run(["kb", "query", "ForecastService", "--repo", "demo/app", "--as-of", "ffff0000",
+                 "--config", cfg]) == 1
+    captured = capsys.readouterr()
+    assert "No indexed snapshot of 'demo/app'" in captured.out + captured.err
+    assert "Unknown repo" not in captured.out + captured.err
+    assert _run(["kb", "query", "ForecastService", "--repo", "demo/app", "--as-of", "ffff0000",
+                 "--json", "--config", cfg]) == 1
+    assert json.loads(capsys.readouterr().out)["error"] == "no_snapshot"
+
+
+def test_a_repo_with_history_and_no_index_row_is_not_unknown_to_as_of(cfg, capsys):
+    """A named id keeps its snapshots after a later run replaces its row, so the index
+    alone cannot say the repo never existed."""
+    from contextlake.kb.store.shards import GraphShard, archive_shard
+
+    archive_shard(Path(cfg).parent / "kb", GraphShard(
+        repo="old/name", head_commit="c0ffee00" + "0" * 32, nodes=[], edges=[]))
+
+    assert _run(["kb", "query", "ForecastService", "--repo", "old/name", "--as-of", "ffff0000",
+                 "--config", cfg]) == 1
+    captured = capsys.readouterr()
+    assert "No indexed snapshot of 'old/name'" in captured.out + captured.err
+    assert "Unknown repo" not in captured.out + captured.err
+
+
+def test_as_of_does_not_create_an_index_to_ask_about_an_unknown_repo(tmp_path, capsys):
+    """With no index file the store holds no repositories, and `--as-of` says so in the
+    words a search gives, without making the file."""
+    path = tmp_path / "kb.toml"
+    path.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    (tmp_path / "kb").mkdir()
+    sentence = ("Unknown repo 'app': this store holds no repositories. "
+                "Run `contextlake kb index <path>` first.")
+
+    assert _run(["kb", "query", "x", "--repo", "app", "--as-of", "abc123",
+                 "--config", str(path)]) == 1
+    captured = capsys.readouterr()
+    assert sentence in captured.out + captured.err
+    assert "No indexed snapshot" not in captured.out + captured.err
+    assert not (tmp_path / "kb" / "index.sqlite").exists()
+
+    assert _run(["kb", "query", "x", "--repo", "app", "--as-of", "abc123", "--json",
+                 "--config", str(path)]) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "error": "unknown_repo", "target": "app", "suggestions": []}
+    assert not (tmp_path / "kb" / "index.sqlite").exists()
+
+    # The search without `--as-of` gives the same sentence (and makes the file).
+    assert _run(["kb", "query", "x", "--repo", "app", "--config", str(path)]) == 1
+    captured = capsys.readouterr()
+    assert sentence in captured.out + captured.err
+
+
 # --- the MCP tools ----------------------------------------------------------------------
 
 class _FakeEmbedder:

@@ -187,6 +187,12 @@ def repo_is_known(store, repo_id: str) -> bool:
     return store.get_repo(repo_id) is not None or any(store.repo_counts(repo_id))
 
 
+def _no_repos_msg(target: str) -> str:
+    """The unknown-repo answer for a store that holds no repositories."""
+    return (f"Unknown repo {target!r}: this store holds no repositories. "
+            f"Run `contextlake kb index <path>` first.")
+
+
 def _unknown_repo_msg(store, target: str) -> str:
     sugg = _repo_id_suggestions(store, target)
     if sugg:
@@ -199,8 +205,7 @@ def _unknown_repo_msg(store, target: str) -> str:
     # here, from `list_repos`, which a scoped store narrows to what the caller may read.
     known = sorted(r.id for r in store.list_repos())
     if not known:
-        return (f"Unknown repo {target!r}: this store holds no repositories. "
-                f"Run `contextlake kb index <path>` first.")
+        return _no_repos_msg(target)
     more = f" (+{len(known) - 5} more)" if len(known) > 5 else ""
     return (f"Unknown repo {target!r}: nothing is indexed under that id. "
             f"Indexed ids include: {', '.join(known[:5])}{more}.")

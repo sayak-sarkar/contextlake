@@ -107,6 +107,11 @@ you up to 20 matching nodes. On `semantic` and `hybrid` it is a filter applied *
 shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor
 honours `--retriever`. It needs `--repo`, because history is kept per repository.
 
+With `--as-of`, a `--repo` that names nothing indexed gets the same `Unknown repo` answer as a
+search without it: exit `1`, the ids that match (or a note that the store holds none), and
+`"error": "unknown_repo"` under `--json`. A repo that is known but has no snapshot at that commit
+prints `No indexed snapshot` and exits `1`.
+
 ### Verification
 
 ```bash

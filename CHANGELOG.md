@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edit already replaced your link, merge the regular file into the dotfiles copy and link it
   again. A project `.contextlake.kb.toml` found by walking up from the working directory is
   still not followed.
+- **`kb query --as-of` names an unknown `--repo` as unknown.** With a directory name or a typo
+  for the repo, 10.0.0rc4 printed `No indexed snapshot of 'app' at commit ...` and exited `1`,
+  so the cause looked like a wrong commit. It now prints `Unknown repo 'app'. Did you mean:
+  ...?`, the same as a search without `--as-of`, and a store with no index says it holds no
+  repositories. Under `--json` the error code is `unknown_repo` with `suggestions`, where it was
+  `no_snapshot`: a script that matches `no_snapshot` must match `unknown_repo` too. A known repo
+  with a commit that was never indexed still prints `No indexed snapshot`, and so does a repo
+  that has snapshots but no row in the index.
 
 ### Fixed
 
