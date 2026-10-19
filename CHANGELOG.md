@@ -179,6 +179,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old ids (`:None` or `:<position>`). The next `kb ingest` run that reads every target replaces
   them, so re-run `kb ingest` and `kb enrich`. Set `id_field` to a field that is unique per
   record to avoid the `#2` suffix.
+- **`kb enrich` and `kb connect` name a repo id that is not in the store.** A misspelt id, such
+  as `kb enrich acme/forcast-api`, filtered the target list to nothing, and both commands read
+  that as an empty store. They printed `No repos to enrich (index some first ...)` and exited 0,
+  so a scheduled run reported success having done nothing and the message named the wrong fix.
+  They now print `Unknown repo '<id>'` with the closest stored ids, as `kb query` and
+  `kb impact` do, and exit 1 before any source is built or searched, also when no source is
+  configured. One bad id in a list refuses the whole run. A job that passes an id the store does
+  not hold now exits 1: correct the id.
 
 ### Fixed
 

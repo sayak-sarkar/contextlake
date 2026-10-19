@@ -11,6 +11,7 @@ from ._common import (
     _connect_targets,
     _guard_store,
     _open_store,
+    _report_unknown_repos,
     _watch_loop,
     kb_config,
 )
@@ -228,6 +229,10 @@ def cmd_connect(args) -> int:
         store.close()
         return 1
     try:
+        # First, before any "nothing configured" return: a misspelt id exits 1 whatever
+        # else the run would have said. `_connect_once` reads it as an empty store.
+        if _report_unknown_repos(args, store):
+            return 1
         cfg = kb_config(args)
         sources = [s for s in cfg.sources
                    if s.type in ("atlassian", "figma", "gitlab", "slack", "zendesk")

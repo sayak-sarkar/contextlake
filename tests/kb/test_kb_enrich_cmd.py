@@ -289,3 +289,89 @@ def test_enrich_repo_whose_shard_write_fails_lands_in_the_failed_bucket(
     assert "enrichment failed (no space left on device)" in text
     assert "1 repo(s) planned: 0 enriched, 0 nothing returned, 0 returned but " \
            "unattached, 1 failed, 0 skipped" in text
+
+
+def _seed_enrich_store(tmp_path, monkeypatch, repo_ids=(REPO,), config=None):
+    """Indexed repos in a fresh store with one term-searchable source, and a source search
+    that records each call. Returns ``(config path, store dir, calls)``."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text((config or _CONFIG_NO_EMBED).format(store=store_dir.as_posix()))
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    for repo_id in repo_ids:
+        _seed_indexed_repo(store, store_dir, repo_id, str(tmp_path / repo_id.replace("/", "-")))
+    store.close()
+    calls = []
+    monkeypatch.setattr(enrich, "search_source",
+                        lambda src, terms, **_kw: calls.append(terms) or [])
+    return cfg, store_dir, calls
+
+
+def test_enrich_names_a_misspelt_repo_id_and_exits_nonzero(tmp_path, monkeypatch, gls_logs):
+    """A misspelt id filtered the target list to nothing, and `kb enrich` read that as an
+    empty store: "No repos to enrich (index some first ...)", exit 0. A scheduled run
+    reported success having enriched nothing, and the message named the wrong fix."""
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch)
+    args = Namespace(config=str(cfg), workspace=None, args=["group/ap"])
+    assert cmd_enrich(args) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert "Did you mean: group/app" in gls_logs.text
+    assert "index some first" not in gls_logs.text
+    assert calls == []
+
+
+def test_enrich_refuses_the_whole_run_when_one_of_two_ids_is_misspelt(
+        tmp_path, monkeypatch, gls_logs):
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch)
+    args = Namespace(config=str(cfg), workspace=None, args=[REPO, "group/ap"])
+    assert cmd_enrich(args) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert calls == []
+    assert read_shard(store_dir, enrich_partition(REPO)) is None
+
+
+def test_enrich_dry_run_also_names_a_misspelt_repo_id(tmp_path, monkeypatch, gls_logs):
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch)
+    args = Namespace(config=str(cfg), workspace=None, args=["group/ap"], dry_run=True)
+    assert cmd_enrich(args) == 1
+    assert "Dry run" not in gls_logs.text
+
+
+def test_enrich_on_an_empty_store_keeps_the_index_some_first_message(
+        tmp_path, monkeypatch, gls_logs):
+    """The hint stays for the case it is true of: nothing is indexed and no id was named."""
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch, repo_ids=())
+    args = Namespace(config=str(cfg), workspace=None, args=[])
+    assert cmd_enrich(args) == 0
+    assert "index some first" in gls_logs.text
+    assert "Unknown repo" not in gls_logs.text
+
+
+def test_enrich_ignores_positional_ids_for_a_workspace(tmp_path, monkeypatch, gls_logs):
+    """`--workspace` never reads the positionals, so an id that is not in the store is not an
+    error there."""
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch)
+    empty = tmp_path / "empty-workspace"
+    empty.mkdir()
+    args = Namespace(config=str(cfg), workspace=str(empty), args=["group/ap"])
+    assert cmd_enrich(args) == 0
+    assert "Unknown repo" not in gls_logs.text
+
+
+def test_enrich_names_a_misspelt_repo_id_when_no_source_can_search(
+        tmp_path, monkeypatch, gls_logs):
+    """The check sat below the "No term-searchable sources" return, so a misspelt id on a
+    config with nothing to search exited 0 and the docs promised exit 1."""
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch, config=_NO_SOURCE_CONFIG)
+    assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=["group/ap"])) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert "No term-searchable sources" not in gls_logs.text
+
+
+def test_enrich_with_no_source_and_no_id_still_exits_zero(tmp_path, monkeypatch, gls_logs):
+    """The control: the early return is unchanged when no id is named."""
+    cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch, config=_NO_SOURCE_CONFIG)
+    assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO])) == 0
+    assert "No term-searchable sources" in gls_logs.text

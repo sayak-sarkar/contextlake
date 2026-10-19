@@ -154,6 +154,12 @@ contextlake kb enrich --workspace ~/work     # all indexed repos
 contextlake kb enrich acme/forecast-api        # one repo
 ```
 
+`kb enrich` and `kb connect` stop with exit code 1 when an id you name is not in the store. They
+print `Unknown repo '<id>'` with the closest stored ids, and run nothing, even if the other ids are
+valid. This check comes first, so it holds when no source is configured. `--workspace` and
+`kb connect --source <dir>` do not read the ids. An empty store with no id named still prints
+`No repos to enrich (index some first ...)` and exits 0.
+
 **Which symbols become terms.** Ranking is by graph degree, and by nothing else. There is no
 per-kind quota, so a repo whose highest-degree definitions are all classes and functions gets
 classes and functions, and no `field` or `endpoint` name at all, even when it holds many of

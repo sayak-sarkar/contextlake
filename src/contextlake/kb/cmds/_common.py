@@ -155,6 +155,33 @@ def _connect_targets(args, store) -> list[tuple[str, str]]:
     return targets
 
 
+def _report_unknown_repos(args, store) -> bool:
+    """Log each positional repo id that names no indexed repo. True when there is one.
+
+    `_connect_targets` drops an id it cannot find, so a misspelt id came back as an empty
+    target list and `kb enrich` / `kb connect` read that as an empty store: "index some
+    first", exit 0. A scheduled job reported success having enriched nothing, and the
+    message sent the operator to the wrong fix. `kb query` and `kb impact` already name the
+    typo; this is the same message.
+
+    Only the stored-repo branch filters by id. `--workspace` and a `--source` directory
+    ignore the positionals, so they are not checked here.
+    """
+    if getattr(args, "workspace", None):
+        return False
+    source = getattr(args, "source", None)
+    if source and Path(source).is_dir():
+        return False
+    wanted = [a for a in (getattr(args, "args", None) or []) if a]
+    if not wanted:
+        return False
+    known = {r.id for r in store.list_repos()}
+    unknown = [a for a in dict.fromkeys(wanted) if a not in known]
+    for target in unknown:
+        log(_unknown_repo_msg(store, target))
+    return bool(unknown)
+
+
 def _repo_id_suggestions(store, target: str, n: int = 3) -> list[str]:
     """Stored repo ids closest to an unknown ``target``.
 

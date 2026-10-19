@@ -586,3 +586,101 @@ def test_the_connect_positional_is_documented_as_the_repo_filter_it_is():
     positional = next(a for a in connect._actions if a.dest == "args")
     assert positional.metavar == "repo"
     assert "repos" in positional.help and "source" not in positional.help.split(";")[0]
+
+
+def _seed_connect_repo(tmp_path, monkeypatch, repo_ids=("group/app",)):
+    """Indexed repos in a fresh store, an Atlassian stub that records each build, and a
+    README-free checkout per repo. Returns ``(config path, built list)``."""
+    from contextlake.kb.model import Repo
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        check_schema(store)
+        for repo_id in repo_ids:
+            checkout = tmp_path / repo_id.replace("/", "-")
+            checkout.mkdir()
+            store.upsert_repo(Repo(id=repo_id, path=str(checkout)))
+    finally:
+        store.close()
+    built = []
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: built.append(src) or _Stub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+    return cfg, built
+
+
+def test_connect_names_a_misspelt_repo_id_and_exits_nonzero(tmp_path, monkeypatch, gls_logs):
+    """A misspelt id filtered the target list to nothing, and `kb connect` read that as an
+    empty store: "No repos to enrich (index some first ...)", exit 0. A scheduled run
+    reported success having connected nothing, and the message named the wrong fix."""
+    cfg, built = _seed_connect_repo(tmp_path, monkeypatch)
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, args=["group/ap"])
+    assert cmd_connect(args) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert "Did you mean: group/app" in gls_logs.text
+    assert "index some first" not in gls_logs.text
+    assert built == [], "no source is built for a run that names a repo that is not there"
+
+
+def test_connect_refuses_the_whole_run_when_one_of_two_ids_is_misspelt(
+        tmp_path, monkeypatch, gls_logs):
+    cfg, built = _seed_connect_repo(tmp_path, monkeypatch)
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None,
+                     args=["group/app", "group/ap"])
+    assert cmd_connect(args) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert built == []
+    store = SqliteStore(tmp_path / "kbstore" / "index.sqlite")
+    try:
+        assert not any(store.repo_counts(connect_partition("group/app")))
+    finally:
+        store.close()
+
+
+def test_connect_still_runs_for_a_repo_id_that_is_indexed(tmp_path, monkeypatch, gls_logs):
+    cfg, built = _seed_connect_repo(tmp_path, monkeypatch, ("group/app", "group/other"))
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, args=["group/app"])
+    assert cmd_connect(args) == 0
+    assert built, "the source is built for a repo that is indexed"
+    store = SqliteStore(tmp_path / "kbstore" / "index.sqlite")
+    try:
+        assert any(store.repo_counts(connect_partition("group/app")))
+        assert not any(store.repo_counts(connect_partition("group/other")))
+    finally:
+        store.close()
+
+
+def test_connect_ignores_positional_ids_for_a_source_directory(tmp_path, monkeypatch, gls_logs):
+    """`--source <dir>` and `--workspace` never read the positionals, so an id that is not in
+    the store is not an error there."""
+    cfg, built = _seed_connect_repo(tmp_path, monkeypatch)
+    checkout = tmp_path / "group-app"
+    args = Namespace(config=str(cfg), workspace=None, source=str(checkout), repo="group/app",
+                     args=["group/ap"])
+    assert cmd_connect(args) == 0
+    assert "Unknown repo" not in gls_logs.text
+
+
+def test_connect_names_a_misspelt_repo_id_when_no_source_is_configured(
+        tmp_path, monkeypatch, gls_logs):
+    """The check sat below the "No connector sources configured" return, so a misspelt id on
+    a config with no connector exited 0 and the docs promised exit 1."""
+    cfg, _built = _seed_connect_repo(tmp_path, monkeypatch)
+    cfg.write_text(f'[kb]\nstore_dir = "{(tmp_path / "kbstore").as_posix()}"\n')
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, args=["group/ap"])
+    assert cmd_connect(args) == 1
+    assert "Unknown repo 'group/ap'" in gls_logs.text
+    assert "No connector sources configured" not in gls_logs.text
+
+
+def test_connect_with_no_source_and_no_id_still_exits_zero(tmp_path, monkeypatch, gls_logs):
+    """The control: the early return is unchanged when no id is named."""
+    cfg, _built = _seed_connect_repo(tmp_path, monkeypatch)
+    cfg.write_text(f'[kb]\nstore_dir = "{(tmp_path / "kbstore").as_posix()}"\n')
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, args=[])
+    assert cmd_connect(args) == 0
+    assert "No connector sources configured" in gls_logs.text
