@@ -191,10 +191,9 @@ def classify_error(error_msg):
     remote both moved).
     """
     error_msg = error_msg.lower()
-    # 'eof' is checked first so a "TLS ... unexpected eof" (a dropped connection,
-    # not a cert failure) is treated as transient/network rather than tls.
-    if 'eof' in error_msg or 'connection reset' in error_msg or 'broken pipe' in error_msg:
-        return 'network'
+    # The three "the remote moved" states come before the network test. Their text
+    # quotes a branch name or a project path, and a name such as `feature/geofence`
+    # is not a dropped connection.
     if "couldn't find remote ref" in error_msg or 'unknown revision' in error_msg:
         return 'missing-ref'
     # GitLab returns this exact wording for both a deleted project and one the
@@ -205,6 +204,12 @@ def classify_error(error_msg):
     if ('not possible to fast-forward' in error_msg or 'divergent branches' in error_msg
             or 'have divergent' in error_msg):
         return 'diverged'
+    # 'eof' is checked before tls so a "TLS ... unexpected eof" (a dropped connection,
+    # not a cert failure) is treated as transient/network rather than tls. A whole word:
+    # a bare substring test also matched `geofence` in a URL or a branch name.
+    if (re.search(r'\beof\b', error_msg) or 'connection reset' in error_msg
+            or 'broken pipe' in error_msg):
+        return 'network'
     if 'timeout' in error_msg or 'timed out' in error_msg:
         return 'timeout'
     if 'lookup' in error_msg or 'dns' in error_msg:

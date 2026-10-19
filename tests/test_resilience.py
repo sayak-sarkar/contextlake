@@ -48,10 +48,39 @@ def test_pool_never_below_min():
         ("hint: You have divergent branches", "diverged"),
         # a dropped TLS connection ("eof") is transient/network, not a tls failure
         ("TLS connect error: error:0A000126:SSL routines::unexpected eof while reading", "network"),
+        ("fatal: early EOF", "network"),
+        # 'eof' is a word, not a substring: `geofence` and `thereof` are not dropped
+        # connections. Without the word boundary these three read as 'network'.
+        ("fatal: couldn't find remote ref feature/geofence", "missing-ref"),
+        ("fatal: unable to access 'https://gitlab.example/demo/geofence/svc.git/': "
+         "SSL certificate problem: unable to get local issuer certificate", "tls"),
+        ("fatal: unable to access 'https://gitlab.example/demo/geofence/svc.git/': "
+         "Could not resolve host: gitlab.example (lookup failed)", "dns"),
+        # The "remote moved" states are checked before the network test. A branch or a
+        # project path that is a whole word `eof` still matches the word test, so only
+        # the order keeps these from reading as 'network'.
+        ("fatal: couldn't find remote ref feature/eof-fix", "missing-ref"),
+        ("remote: The project you were looking for could not be found or you don't have "
+         "permission to view it.\nfatal: repository 'https://gitlab.example/eof/svc.git/' "
+         "not found", "project-deleted"),
+        ("fatal: Not possible to fast-forward, aborting. (branch eof)", "diverged"),
     ],
 )
 def test_classify_error(msg, expected):
     assert classify_error(msg) == expected
+
+
+def test_retry_fails_fast_on_a_deleted_branch_whose_name_contains_eof(no_sleep):
+    """`feature/geofence` was classed 'network' and retried; `feature/geo` was not."""
+    calls = {"n": 0}
+
+    def gone():
+        calls["n"] += 1
+        raise RuntimeError("fatal: couldn't find remote ref feature/geofence")
+
+    with pytest.raises(RuntimeError):
+        retry_with_backoff(gone, max_retries=5)
+    assert calls["n"] == 1
 
 
 def test_retry_fails_fast_on_missing_ref(no_sleep):

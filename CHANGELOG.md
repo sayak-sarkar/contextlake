@@ -368,6 +368,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolve them, `git add` or `git rm` each file, then `git stash drop`. A text conflict leaves
   markers in the file. A conflict where one side deleted the file, or a binary conflict, leaves
   none, so the message does not name markers. The stash is still kept and the run still exits 1.
+- **A deleted branch or project whose name contains "eof" is no longer retried as a network
+  error.** The classifier tested for the letters "eof" before it tested for a missing branch, so
+  `feature/geofence` was retried three times and reported as an error, while `feature/geo` was
+  switched to the default branch. A URL containing "geofence" turned a TLS or DNS failure into a
+  retry too. `eof` is now matched as a whole word, and the missing-branch, deleted-project and
+  diverged checks run first.
 
 ### Security
 
