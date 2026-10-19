@@ -281,22 +281,28 @@ def _wrong_kind(path):
         "kb.toml to a `kb` command with --config, or to `bootstrap` with --kb-config.")
 
 
+# What a configparser failure means for the person who edited the file, by class name.
+_INI_FAULTS = {
+    'MissingSectionHeaderError': 'a setting comes before any [contextlake] header',
+    'DuplicateOptionError': 'a key is set twice in one section',
+    'DuplicateSectionError': 'a section appears twice',
+    'ParsingError': 'a line is not "key = value"',
+}
+
+
 def _ini_error(path, exc):
     """A :class:`ConfigError` for an INI file configparser cannot parse, naming the file.
 
-    These used to leave ``load_config`` as a raw traceback, and an interpolation error
-    names neither the file nor the key, so the key is added from the exception.
+    These used to leave ``load_config`` as a raw traceback. Names the file, the line and
+    the kind of fault. Never ``str(exc)``: the parse errors quote the offending line, and
+    a config file's values are not echoed (see _warn_untrusted_forge_key).
     """
-    text = str(exc)
-    first = text.splitlines()[0]
-    lines = re.findall(r"\[line\s+(\d+)\]", text)
-    if getattr(exc, 'lineno', None):
-        lines = [str(exc.lineno)]
-    where = f" (line {', '.join(lines)})" if lines and '[line' not in first else ""
-    if isinstance(exc, configparser.InterpolationError):
-        where += f" (key {exc.option} in [{exc.section}])"
-    head = first if path in first else f"{path}: {first}"
-    return ConfigError(f"{head}{where}")
+    lineno = getattr(exc, 'lineno', None)
+    if not lineno and getattr(exc, 'errors', None):
+        lineno = exc.errors[0][0]
+    at = f" (line {lineno})" if lineno else ""
+    why = _INI_FAULTS.get(type(exc).__name__, "it is not a valid INI file")
+    return ConfigError(f"Cannot read the config file {path}{at}: {why}.")
 
 
 def _read_section(path, explicit=False):
@@ -313,7 +319,10 @@ def _read_section(path, explicit=False):
     """
     if not path or not os.path.exists(path):
         return {}
-    parser = configparser.ConfigParser()
+    # interpolation=None: a value is literal text. The default treats `%` as syntax, so
+    # `work_dir = /srv/50%off`, which `contextlake init` writes unescaped, made every
+    # later mirror command raise InterpolationSyntaxError.
+    parser = configparser.ConfigParser(interpolation=None)
     try:
         with open(path) as f:
             parser.read_file(f, path)
@@ -323,7 +332,7 @@ def _read_section(path, explicit=False):
         return {}
     except (configparser.Error, UnicodeDecodeError) as e:
         wrong = _wrong_kind(path) if explicit else None
-        raise (wrong or _ini_error(path, e)) from e
+        raise (wrong or _ini_error(path, e)) from None
     found = [section for section in SECTIONS if section in parser]
     if explicit and not found:
         have = ', '.join(parser.sections()) or 'none'
@@ -337,11 +346,8 @@ def _read_section(path, explicit=False):
             "precedence chain, which may point at a different workspace than the one you "
             "meant to use.")
     values = {}
-    try:
-        for section in found:
-            values.update(parser[section])
-    except configparser.Error as e:    # a `%` in a value, read as an interpolation
-        raise _ini_error(path, e) from e
+    for section in found:
+        values.update(parser[section])
     return values
 
 

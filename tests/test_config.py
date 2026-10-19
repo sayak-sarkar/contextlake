@@ -207,7 +207,7 @@ def test_a_broken_mirror_ini_gets_its_parse_error_whatever_its_name(
     ini = tmp_path / name
     ini.write_text("[contextlake]\ngitlab_group = a\n[contextlake]\nwork_dir = b\n")
 
-    with pytest.raises(ConfigError, match="already exists") as exc:
+    with pytest.raises(ConfigError, match="a section appears twice") as exc:
         load_config(str(ini))
 
     assert not isinstance(exc.value, WrongConfigFile)
@@ -270,15 +270,15 @@ def test_cli_exits_two_for_a_knowledge_config_on_both_load_paths(
 # --- an INI parse error or a bad yes/no value names the file that caused it ---------------
 
 @pytest.mark.parametrize("text, expected", [
-    ("gitlab_group = a\n", "File contains no section headers. (line 1)"),
-    ("[contextlake]\ngitlab_group = a\njunk line\n", "parsing errors"),
-    ("[contextlake]\ngitlab_group = a\n[contextlake]\n", "already exists"),
-    ("[contextlake]\nwork_dir = /srv/100%\n", "(key work_dir in [contextlake])"),
-], ids=["no-header", "junk-line", "duplicate-section", "percent-in-value"])
+    ("gitlab_group = a\n", "(line 1): a setting comes before any [contextlake] header"),
+    ("[contextlake]\ngitlab_group = a\njunk line\n", '(line 3): a line is not "key = value"'),
+    ("[contextlake]\ngitlab_group = a\n[contextlake]\n", "(line 3): a section appears twice"),
+], ids=["no-header", "junk-line", "duplicate-section"])
 def test_an_ini_syntax_error_is_a_message_that_names_the_file(
         tmp_path, monkeypatch, text, expected):
-    """These left load_config as a raw traceback, and the `%` one named neither the file nor
-    the key. The file is a discovered one here: the rule is for every file in the chain."""
+    """These left load_config as a raw traceback. The file is a discovered one here: the rule
+    is for every file in the chain. A `%` in a value is literal text now, so it is no longer
+    an error (test_a_percent_sign_in_a_value_is_read_as_written)."""
     _isolate_globals(monkeypatch, tmp_path)
     local = tmp_path / ".contextlake.ini"
     local.write_text(text)
@@ -295,7 +295,7 @@ def test_an_ini_file_that_is_not_text_is_a_message_that_names_the_file(tmp_path,
     binary = tmp_path / "binary.ini"
     binary.write_bytes(b"[contextlake]\ngitlab_group = \xff\xfe\n")
 
-    with pytest.raises(ConfigError, match=r"binary\.ini: .*codec can't decode"):
+    with pytest.raises(ConfigError, match=r"binary\.ini: it is not a valid INI file"):
         load_config(str(binary))
 
 
@@ -343,6 +343,56 @@ def test_the_origin_map_is_set_by_load_config_and_not_by_a_file(tmp_path, monkey
     named.write_text("[contextlake]\ngitlab_group = g\n_config_origin = forged\n")
 
     assert load_config(str(named))["_config_origin"]["gitlab_group"] == str(named)
+
+
+def test_a_percent_sign_in_a_value_is_read_as_written(tmp_path, monkeypatch):
+    """configparser's default interpolation read `%` as syntax, so `work_dir = /srv/50%off`
+    raised InterpolationSyntaxError on every mirror command."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "pct.ini"
+    ini.write_text("[contextlake]\nwork_dir = /srv/50%off\ngitlab_group = a%%b\n"
+                   "branch = rel/%(x)s\n")
+
+    config = load_config(str(ini))
+
+    assert config["work_dir"] == "/srv/50%off"
+    assert config["gitlab_group"] == "a%%b", "not collapsed to one %: no escape syntax"
+    assert config["branch"] == "rel/%(x)s", "not expanded: no interpolation"
+
+
+def test_a_work_dir_that_init_writes_with_a_percent_sign_round_trips(tmp_path, monkeypatch):
+    """The writer (`init`) puts the path in the file unescaped; the reader must give it back."""
+    from contextlake.init_cmd import _mirror_ini
+
+    _isolate_globals(monkeypatch, tmp_path)
+    work = str(tmp_path / "100%done")
+    ini = tmp_path / "written.ini"
+    ini.write_text(_mirror_ini(work, "gitlab", "demo-group"))
+
+    assert load_config(str(ini))["work_dir"] == work
+
+
+@pytest.mark.parametrize("text, line, reason", [
+    ("work_dir = /srv/secret-value\n[contextlake]\n", 1, "before any [contextlake] header"),
+    ("[contextlake]\ngitlab_group = a\ngitlab_group = secret-value\n", 3, "set twice"),
+    ("[contextlake]\ngitlab_group = a\nsecret-value\n", 3, "not \"key = value\""),
+], ids=["no-header", "duplicate-key", "no-equals"])
+def test_an_unparsable_config_is_a_config_error_naming_file_and_line(
+        tmp_path, monkeypatch, text, line, reason):
+    """Each of these escaped as a raw configparser traceback. The message must name the file
+    and line but not repeat the line: values in a config file are not echoed."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "broken.ini"
+    ini.write_text(text)
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(str(ini))
+
+    msg = str(exc.value)
+    assert str(ini) in msg
+    assert f"(line {line})" in msg
+    assert reason in msg
+    assert "secret-value" not in msg
 
 
 def test_get_cache_paths_joins_dir_and_names():

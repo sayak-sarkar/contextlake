@@ -2149,6 +2149,11 @@ pull_timeout = 60
 max_workers = 8
 ```
 
+Values are read as written. A `%` is a plain percent sign, so `work_dir = ~/work/50%off` needs no
+escape, and `%(name)s` is not expanded. A file that cannot be parsed stops the run with a message that
+names the file and the line. Two causes are a setting above the `[contextlake]` header and a key set
+twice.
+
 ## Overriding on the command line
 
 Any setting can be overridden per-invocation. The config file is the recommended home for persistent
@@ -10192,6 +10197,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   works as a way to ask for the defaults, so add the header. A `kb.toml` given to a `mirror`,
   `schedule` or `bootstrap` command exits 2 and says to use a `kb` command or `--kb-config`. A
   file found by walking up from the current directory, and the global file, are read as before.
+- **A `%` in a config value is now read as a plain percent sign, and a malformed config file
+  stops the run with a one-line error.** `contextlake init` wrote `work_dir = /srv/100%done`
+  unescaped, and every later `mirror` command then failed with a
+  `configparser.InterpolationSyntaxError` traceback. A setting above the `[contextlake]` header,
+  a key set twice and a line without `=` ended in a traceback too. The error now names the file
+  and the line. Existing setups change in one case: `%%` is no longer collapsed to one `%`, and
+  `%(name)s` is no longer expanded. If you wrote `%%` to get past the old error, write a single
+  `%`. 10.0.0rc4 crashed on a `%`.
 
 ### Fixed
 

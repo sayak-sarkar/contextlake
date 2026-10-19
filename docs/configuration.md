@@ -61,6 +61,11 @@ pull_timeout = 60
 max_workers = 8
 ```
 
+Values are read as written. A `%` is a plain percent sign, so `work_dir = ~/work/50%off` needs no
+escape, and `%(name)s` is not expanded. A file that cannot be parsed stops the run with a message that
+names the file and the line. Two causes are a setting above the `[contextlake]` header and a key set
+twice.
+
 ## Overriding on the command line
 
 Any setting can be overridden per-invocation. The config file is the recommended home for persistent

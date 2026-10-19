@@ -60,3 +60,28 @@ def test_a_bad_config_value_exits_clean_and_names_the_key(tmp_path, capsys, extr
     assert code == 1
     assert message in out
     assert "Traceback" not in out
+
+
+def test_a_config_with_a_percent_path_is_read_by_mirror_commands(tmp_path, capsys):
+    """`init` writes work_dir unescaped, and a % in it crashed every later mirror command."""
+    ini = _ini(tmp_path, "")
+    ini.write_text(ini.read_text().replace(str(tmp_path / "ws"), str(tmp_path / "50%off")))
+
+    code = _status(ini)
+    out = capsys.readouterr().out
+
+    assert code == 0, out
+    assert "50%off" in out
+    assert "Traceback" not in out
+
+
+def test_a_config_with_no_section_header_exits_clean(tmp_path, capsys):
+    ini = tmp_path / "nohdr.ini"
+    ini.write_text("gitlab_group = acme\n")
+
+    code = _status(ini)
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert "before any [contextlake] header" in out
+    assert "Traceback" not in out

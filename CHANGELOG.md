@@ -131,6 +131,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   works as a way to ask for the defaults, so add the header. A `kb.toml` given to a `mirror`,
   `schedule` or `bootstrap` command exits 2 and says to use a `kb` command or `--kb-config`. A
   file found by walking up from the current directory, and the global file, are read as before.
+- **A `%` in a config value is now read as a plain percent sign, and a malformed config file
+  stops the run with a one-line error.** `contextlake init` wrote `work_dir = /srv/100%done`
+  unescaped, and every later `mirror` command then failed with a
+  `configparser.InterpolationSyntaxError` traceback. A setting above the `[contextlake]` header,
+  a key set twice and a line without `=` ended in a traceback too. The error now names the file
+  and the line. Existing setups change in one case: `%%` is no longer collapsed to one `%`, and
+  `%(name)s` is no longer expanded. If you wrote `%%` to get past the old error, write a single
+  `%`. 10.0.0rc4 crashed on a `%`.
 
 ### Fixed
 
