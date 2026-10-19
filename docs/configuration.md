@@ -40,6 +40,9 @@ Run `contextlake init --local` inside a project to create that project's local c
 (`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
 of the global one, see [Directory-scoped config](#directory-scoped-config) below.
 
+If `init` cannot write a file, it names the file, stops, and exits with code 1. Pass `--config PATH`
+to write somewhere you can.
+
 An example `.contextlake.ini`:
 
 ```ini

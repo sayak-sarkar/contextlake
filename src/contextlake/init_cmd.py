@@ -256,7 +256,7 @@ def _mark_completion_decided(outcome: str) -> None:
 
 
 def _setup_shell_completion(*, interactive: bool, default_on: bool,
-                            shell_override: str | None = None) -> None:
+                            shell_override: str | None = None) -> bool:
     """Register shell tab-completion, on by default (see
     docs/cli-reference.md#shell-completion for the plain manual steps this
     automates). Every write
@@ -265,12 +265,13 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
     file contextlake itself owns (fish's dedicated completions file) -- never
     a silent, unannounced mutation of a dotfile the user didn't ask about.
     Every branch records its outcome via ``_mark_completion_decided`` so this
-    is asked (or auto-run) at most once."""
+    is asked (or auto-run) at most once. Returns False only when the shell startup
+    file could not be written; every other outcome, a decline included, is True."""
     want = _ask_yn("Enable shell tab-completion for contextlake?", default_on) \
         if interactive else default_on
     if not want:
         _mark_completion_decided("declined")
-        return
+        return True
     shell_path = os.environ.get("SHELL", "")
     shell_name = shell_override or os.path.basename(shell_path)
     log("")
@@ -281,7 +282,18 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
         else:
             log(f"{style.ok('completion')} adding to {rc_path}:")
             log(f"    {_COMPLETION_EVAL_CMD}")
-            _append_completion_block(rc_path, shell_name)
+            try:
+                _append_completion_block(rc_path, shell_name)
+            except OSError as e:
+                # A read-only or root-owned startup file. The auto-run path calls this
+                # before every command in a terminal, so a raw traceback here repeated
+                # on each run. Marked decided so the next command does not warn again;
+                # `contextlake completion` stays the way back in.
+                log(f"{style.warn('completion')} could not write {e.filename or rc_path}: "
+                    f"{e.strerror or e}. See docs/cli-reference.md#shell-completion "
+                    "for manual setup.")
+                _mark_completion_decided(f"unwritable:{shell_name}")
+                return False
             log(f"  Open a new {shell_name} shell (or `source {rc_path}`) for it to take effect.")
         _mark_completion_decided(f"registered:{shell_name}")
     elif shell_name == "fish":
@@ -307,6 +319,7 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
             "docs/cli-reference.md#shell-completion for manual setup "
             "(bash/zsh/fish).")
         _mark_completion_decided(f"unrecognized-shell:{shell_name or 'unset'}")
+    return True
 
 
 def maybe_auto_register_completion(*, quiet: bool = False) -> None:
@@ -346,8 +359,8 @@ def cmd_completion(args) -> int:
         log(style.warn(f"Unknown shell {shell!r} — expected one of "
                        f"{', '.join(_COMPLETION_SHELLS)}"))
         return 2
-    _setup_shell_completion(interactive=False, default_on=True, shell_override=shell)
-    return 0
+    ok = _setup_shell_completion(interactive=False, default_on=True, shell_override=shell)
+    return 0 if ok else 1
 
 
 def _kb_installed() -> bool:
@@ -585,7 +598,15 @@ def cmd_init(args) -> int:
                 log("  Nothing was written for this source.")
                 log("")
                 continue
-            config_edit.add_source(kb_config_file, src)
+            try:
+                config_edit.add_source(kb_config_file, src)
+            except OSError as e:
+                # The lock file beside kb.toml is opened before the edit, so a directory
+                # that took the config above can still refuse this. Also the lock timeout.
+                log("")
+                log(style.fail(f"Cannot write {e.filename or kb_config_file}: {e.strerror or e}."))
+                log("  Nothing was written for this source.")
+                return 1
             log("")
             log(f"{style.ok('source')} Added {style.cyan(src_name)} "
                 f"(type={src_type}) to {kb_config_file}")

@@ -143,6 +143,30 @@ def test_init_with_an_explicit_config_keeps_the_mcp_url_through_the_loader(
         "the URL the operator typed did not survive the load")
 
 
+def test_init_reports_a_source_it_cannot_write_and_exits_1(tmp_path, monkeypatch, gls_logs):
+    """`add_source` opens a lock file beside kb.toml before it edits, so a directory that took
+    the config can still refuse the source, and the call had no guard: a raw traceback. A
+    directory in the lock's place fails that open the way a read-only directory does, with no
+    chmod (root and Windows ignore it)."""
+    project = tmp_path / "locked"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    (project / "kb.toml.lock").mkdir()
+    _answer_with(monkeypatch, [
+        "", "", "y", "n", str(project / "store"), "n",
+        "y", "atlassian", "jira", _INTERNAL_MCP,
+    ])
+
+    rc = init_cmd.cmd_init(_args(config=str(project / "contextlake.ini")))
+    out = style.strip_ansi(gls_logs.text)
+
+    assert rc == 1
+    assert f"Cannot write {project / 'kb.toml.lock'}" in out
+    assert "Nothing was written for this source." in out
+    assert "Added jira" not in out
+    assert [s.name for s in load_kb_config(str(project / "kb.toml")).sources] == []
+
+
 def test_the_loader_really_strips_mcp_from_a_discovered_file(tmp_path, monkeypatch):
     """The control that makes the refusal above mean something.
 

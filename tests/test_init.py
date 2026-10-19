@@ -626,6 +626,71 @@ def test_cmd_completion_rejects_an_unsupported_shell_name(tmp_path, monkeypatch,
     assert not (tmp_path / ".zshrc").exists()
 
 
+def _unwritable_bashrc(tmp_path, monkeypatch):
+    """A `.bashrc` that cannot be opened for append. A directory in its place fails the same
+    open() call a read-only file does, and needs no chmod (root and Windows ignore it)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    (tmp_path / ".bashrc").mkdir()
+    return tmp_path / ".bashrc"
+
+
+def test_completion_reports_a_startup_file_it_cannot_write(tmp_path, monkeypatch, gls_logs):
+    """The append had no guard, so a read-only ~/.bashrc ended every route into it (init,
+    `contextlake completion` and the automatic run) in a raw traceback."""
+    rc = _unwritable_bashrc(tmp_path, monkeypatch)
+
+    assert init_cmd._setup_shell_completion(interactive=False, default_on=True) is False
+
+    assert f"could not write {rc}" in gls_logs.text
+    assert "docs/cli-reference.md#shell-completion" in gls_logs.text
+    marker = tmp_path / ".contextlake" / ".completion_setup_done"
+    assert marker.read_text().strip() == "unwritable:bash"
+
+
+def test_cmd_completion_exits_1_when_the_startup_file_cannot_be_written(tmp_path, monkeypatch):
+    _unwritable_bashrc(tmp_path, monkeypatch)
+
+    assert init_cmd.cmd_completion(Namespace(shell=None)) == 1
+
+
+def test_init_keeps_exit_0_when_only_the_startup_file_cannot_be_written(
+        tmp_path, monkeypatch, gls_logs):
+    """The config is written by then, so the setup worked; only the optional step did not."""
+    _unwritable_bashrc(tmp_path, monkeypatch)
+
+    rc = _run(tmp_path, monkeypatch, platform="github", group="acme", completion=True)
+
+    assert rc == 0
+    assert "gitlab_group = acme" in (tmp_path / ".contextlake.ini").read_text()
+    assert "could not write" in gls_logs.text
+    assert "Next:" in gls_logs.text
+
+
+def test_auto_register_tries_the_startup_file_once_when_it_cannot_be_written(
+        tmp_path, monkeypatch):
+    """It runs before every command in a terminal, so a failure that was not remembered would
+    warn on each. Counts the attempts, not the log lines: caplog doubles a record when the
+    package logger still propagates, which depends on which test ran first."""
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    attempts = []
+
+    def refuse(rc_path, shell):
+        attempts.append(rc_path)
+        raise PermissionError(13, "Permission denied", rc_path)
+
+    monkeypatch.setattr(init_cmd, "_append_completion_block", refuse)
+
+    init_cmd.maybe_auto_register_completion()
+    init_cmd.maybe_auto_register_completion()
+
+    assert attempts == [str(tmp_path / ".bashrc")]
+
+
 def test_auto_register_skips_when_already_decided(tmp_path, monkeypatch):
     monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
     monkeypatch.setenv("HOME", str(tmp_path))

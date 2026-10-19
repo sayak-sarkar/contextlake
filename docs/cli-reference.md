@@ -27,6 +27,12 @@ non-interactive `init` (`--skip-interactive`, or a piped stdin) never touches yo
 file, so pass `--completion` to opt in. `CONTEXTLAKE_NO_AUTO_COMPLETION=1` disables the automatic
 check altogether.
 
+If the startup file cannot be written (it is read-only, or another user owns it), registration prints
+one warning that names the file and writes nothing. It records the decision, so later commands stay
+quiet. `contextlake completion` then exits with code 1. Add the lines shown below to the file yourself, or
+fix its permissions and run `contextlake completion` again. `contextlake init` still exits with 0,
+because its config is already written by then.
+
 Whichever route, one of these is written once:
 
 ```bash

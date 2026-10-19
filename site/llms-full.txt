@@ -2142,6 +2142,9 @@ Run `contextlake init --local` inside a project to create that project's local c
 (`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
 of the global one, see [Directory-scoped config](#directory-scoped-config) below.
 
+If `init` cannot write a file, it names the file, stops, and exits with code 1. Pass `--config PATH`
+to write somewhere you can.
+
 An example `.contextlake.ini`:
 
 ```ini
@@ -9043,6 +9046,12 @@ non-interactive `init` (`--skip-interactive`, or a piped stdin) never touches yo
 file, so pass `--completion` to opt in. `CONTEXTLAKE_NO_AUTO_COMPLETION=1` disables the automatic
 check altogether.
 
+If the startup file cannot be written (it is read-only, or another user owns it), registration prints
+one warning that names the file and writes nothing. It records the decision, so later commands stay
+quiet. `contextlake completion` then exits with code 1. Add the lines shown below to the file yourself, or
+fix its permissions and run `contextlake completion` again. `contextlake init` still exits with 0,
+because its config is already written by then.
+
 Whichever route, one of these is written once:
 
 ```bash
@@ -10504,6 +10513,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead, which repeats the mistake. With a real kb.toml, `--group` did not help: the run ended
   in "Cannot read the config file: a section appears twice". The check now runs first and exits
   2.
+- **`init` and `completion` name a file they cannot write instead of printing a traceback.**
+  Adding a data source to a `kb.toml` that already exists in a read-only directory, and
+  appending to a read-only `~/.bashrc` or `~/.zshrc`, ended in a Python traceback. `init` now
+  prints one line that names the file and exits 1 for the source. The startup file case prints
+  one warning and writes nothing. `contextlake completion` exits 1 there, and `init` still exits
+  0 because its config is written. The automatic registration that runs before a command in a
+  terminal warns once, not on every run.
 
 ### Security
 

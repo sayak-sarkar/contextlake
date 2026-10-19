@@ -416,6 +416,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead, which repeats the mistake. With a real kb.toml, `--group` did not help: the run ended
   in "Cannot read the config file: a section appears twice". The check now runs first and exits
   2.
+- **`init` and `completion` name a file they cannot write instead of printing a traceback.**
+  Adding a data source to a `kb.toml` that already exists in a read-only directory, and
+  appending to a read-only `~/.bashrc` or `~/.zshrc`, ended in a Python traceback. `init` now
+  prints one line that names the file and exits 1 for the source. The startup file case prints
+  one warning and writes nothing. `contextlake completion` exits 1 there, and `init` still exits
+  0 because its config is written. The automatic registration that runs before a command in a
+  terminal warns once, not on every run.
 
 ### Security
 
