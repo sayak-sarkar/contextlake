@@ -911,22 +911,57 @@ def _def_node(name_node: ts.Node, def_types: set[str]) -> ts.Node | None:
     return node
 
 
+def _parent(node: ts.Node) -> ts.Node | None:
+    return node.parent
+
+
+class _ParentMemo:
+    """``node.parent`` for one tree, remembered.
+
+    tree-sitter finds a parent by walking down from the root, so one step costs time in
+    proportion to the node's depth and a climb to the root costs depth squared. The
+    definitions of one scope share every ancestor above it, so after the first climb the rest
+    are dictionary lookups. 500 nested namespaces holding 4,000 functions took 132 s.
+
+    Used for the climbs that start at a definition. An entry costs 110 to 135 bytes, so the call
+    and base-class loops of ``parse_source`` use ``node.parent``: their ancestors are not shared,
+    and 265,000 call sites would have cost 122 MB.
+
+    Made once per ``parse_source`` call and dropped with it. Never keep one longer: the key is
+    ``Node.id``, an address, and an address is reused once its tree is freed.
+    """
+
+    __slots__ = ("_seen",)
+
+    def __init__(self) -> None:
+        self._seen: dict[int, ts.Node | None] = {}
+
+    def __call__(self, node: ts.Node) -> ts.Node | None:
+        try:
+            return self._seen[node.id]
+        except KeyError:
+            up = self._seen[node.id] = node.parent
+            return up
+
+
 def _enclosing_defs(name_node: ts.Node, def_types: set[str],
-                    scope_types: frozenset[str] = frozenset()) -> list[ts.Node]:
+                    scope_types: frozenset[str] = frozenset(), parent=_parent,
+                    ) -> list[ts.Node]:
     """Definition nodes enclosing this name's definition, innermost first (the name's
     own definition node is excluded).
 
     ``scope_types`` adds the blocks of ``_SCOPE_TYPES`` to the walk, in ancestor order, so
-    that ``mod m { impl A { fn f } }`` reads ``m`` then ``A``.
+    that ``mod m { impl A { fn f } }`` reads ``m`` then ``A``. ``parent`` is ``_parent`` or a
+    ``_ParentMemo``.
     """
     own = _def_node(name_node, def_types)
     out = []
-    node = own.parent if own is not None else (
+    node = parent(own) if own is not None else (
         name_node.parent.parent if name_node.parent else None)
     while node is not None:
         if node.type in def_types or node.type in scope_types:
             out.append(node)
-        node = node.parent
+        node = parent(node)
     return out
 
 
@@ -989,14 +1024,15 @@ def _local_import_path(rel_path: str, module: str, lang: str) -> str | None:
 
 
 def _scope_names(name_node: ts.Node, def_ts: ts.Node, def_types: set[str], lang: str,
-                 open_namespaces: list[ts.Node]) -> list[str]:
+                 open_namespaces: list[ts.Node], parent=_parent) -> list[str]:
     """The names above a definition, outermost first, for its qualified name.
 
     A superset of the definition ancestors: it also reads the ``_SCOPE_TYPES`` blocks, the
     PHP ``namespace A;`` statements of the file and a Go receiver. The ids of those symbols
     depend on it.
     """
-    enclosing = _enclosing_defs(name_node, def_types, _SCOPE_TYPES.get(lang, frozenset()))
+    enclosing = _enclosing_defs(name_node, def_types, _SCOPE_TYPES.get(lang, frozenset()),
+                                parent)
     ns = next((n for n in reversed(open_namespaces) if n.start_byte < def_ts.start_byte), None)
     if ns is not None:
         enclosing.append(ns)
@@ -1006,7 +1042,7 @@ def _scope_names(name_node: ts.Node, def_ts: ts.Node, def_types: set[str], lang:
     return names
 
 
-def _conditional_root(node: ts.Node) -> int | None:
+def _conditional_root(node: ts.Node, parent=_parent) -> int | None:
     """The ``.id`` of the nearest enclosing ``#if``/``#ifdef`` construct, or ``None``.
 
     Two definitions sharing the same conditional root are candidates for being
@@ -1018,15 +1054,15 @@ def _conditional_root(node: ts.Node) -> int | None:
     ``_conditional_branch`` below is what actually confirms two defs sit in
     different branches of that root, which the root check alone cannot.
     """
-    n = node.parent
+    n = parent(node)
     while n is not None:
         if n.type in ("preproc_if", "preproc_ifdef"):
             return n.id
-        n = n.parent
+        n = parent(n)
     return None
 
 
-def _conditional_branch(node: ts.Node) -> int | None:
+def _conditional_branch(node: ts.Node, parent=_parent) -> int | None:
     """Which branch of its enclosing conditional ``node`` sits in.
 
     Returns the ``.id`` of the nearest ``preproc_else``/``preproc_elif``
@@ -1039,11 +1075,11 @@ def _conditional_branch(node: ts.Node) -> int | None:
     ``None`` here, correctly refusing to be treated as twins just because they
     share that guard's root.
     """
-    n = node.parent
+    n = parent(node)
     while n is not None and n.type not in ("preproc_if", "preproc_ifdef"):
         if n.type in ("preproc_else", "preproc_elif"):
             return n.id
-        n = n.parent
+        n = parent(n)
     return None
 
 
@@ -1083,7 +1119,7 @@ def _signature_text(def_ts: ts.Node) -> str:
 
 def _dedupe_preprocessor_twins(
     nodes: list[Node], pending: list[tuple[ts.Node, str, int, str]],
-    def_node_to_id: dict[int, str],
+    def_node_to_id: dict[int, str], parent=_parent,
 ) -> None:
     """Collapse same-name, same-signature, DIFFERENT-branch duplicate definitions.
 
@@ -1123,7 +1159,7 @@ def _dedupe_preprocessor_twins(
     groups: dict[tuple, list[tuple[ts.Node, str, int, str]]] = {}
     for entry in pending:
         def_ts, qualified, _line, _nid = entry
-        root = _conditional_root(def_ts)
+        root = _conditional_root(def_ts, parent)
         if root is None:
             continue
         sig = _signature_text(def_ts)
@@ -1135,7 +1171,7 @@ def _dedupe_preprocessor_twins(
             continue
         by_branch: dict[int | None, list[tuple[ts.Node, str, int, str]]] = {}
         for entry in entries:
-            by_branch.setdefault(_conditional_branch(entry[0]), []).append(entry)
+            by_branch.setdefault(_conditional_branch(entry[0], parent), []).append(entry)
         if len(by_branch) < 2 or any(len(v) > 1 for v in by_branch.values()):
             continue  # not a clean one-def-per-branch twin shape -- leave as-is
         representatives = [v[0] for v in by_branch.values()]
@@ -1294,14 +1330,16 @@ def parse_source(
             def_worklist.append((def_ts, name_node, extra_scope))
 
     open_namespaces = _php_open_namespaces(tree.root_node) if lang == "php" else []
+    parent_of = _ParentMemo()
     for def_ts, name_node, extra_scope in def_worklist:
         name = name_node.text.decode("utf-8", "replace")
-        enclosing = _enclosing_defs(name_node, def_types)
+        enclosing = _enclosing_defs(name_node, def_types, parent=parent_of)
         scope = [nm for nm in (_def_name_text(n, lang) for n in reversed(enclosing))
                  if nm]
         # `scope` stays definitions only: `enclosing_name` below marks a constructor, and
         # a function named like its `mod` or a class named like its namespace is not one.
-        full_scope = (_scope_names(name_node, def_ts, def_types, lang, open_namespaces)
+        full_scope = (_scope_names(name_node, def_ts, def_types, lang, open_namespaces,
+                                   parent_of)
                       if lang in _SCOPED_LANGS else scope)
         if extra_scope:
             full_scope = full_scope + extra_scope
@@ -1350,7 +1388,7 @@ def parse_source(
         #
         # `static` free functions and anonymous-namespace members keep their file too,
         # because internal linkage is file-scoped by language rule.
-        internal = lang in ("c", "cpp") and _is_internal_linkage(def_ts)
+        internal = lang in ("c", "cpp") and _is_internal_linkage(def_ts, parent_of)
         file_scope = None if lang in ("c", "cpp") and not internal else rel_path
         if internal:
             # Recorded rather than re-derived downstream. Resolution has to know this to
@@ -1410,7 +1448,7 @@ def parse_source(
         while m_anc is not None:
             if m_anc.type in def_types:
                 m_enclosing.append(m_anc)
-            m_anc = m_anc.parent
+            m_anc = parent_of(m_anc)
         m_scope = [nm for nm in (_def_name_text(n, lang) for n in reversed(m_enclosing))
                    if nm]
         m_qualified = ".".join([*m_scope, m_name])
@@ -1424,7 +1462,7 @@ def parse_source(
         # a single translation unit. Without this a second file's copy merged into the
         # first and its members disappeared with it -- measured on a two-file fixture,
         # where a struct in an anonymous namespace lost one of its two data members.
-        m_internal = lang in ("c", "cpp") and _is_internal_linkage(m_container)
+        m_internal = lang in ("c", "cpp") and _is_internal_linkage(m_container, parent_of)
         m_file_scope = (rel_path if m_kind == "macro" or file_scope_default or m_internal
                         else None)
         m_id = symbol_id(repo_id, m_kind, m_qualified, file_scope=m_file_scope,
@@ -1466,15 +1504,15 @@ def parse_source(
                                   verified_at=verified_at),
         ))
 
-    _dedupe_preprocessor_twins(nodes, pending, def_node_to_id)
+    _dedupe_preprocessor_twins(nodes, pending, def_node_to_id, parent_of)
 
     # Second pass: containment edges (parent definition, else the file). The parent is
     # the nearest enclosing def-typed node above this one — computed from def_ts itself
     # (a C/C++ function_definition has no "name" field to walk from).
     for def_ts, _qualified, line, _nid in pending:
-        parent = def_ts.parent
+        parent = parent_of(def_ts)
         while parent is not None and parent.type not in def_types:
-            parent = parent.parent
+            parent = parent_of(parent)
         # A structural def-typed ancestor doesn't guarantee it was *registered* in
         # def_node_to_id -- the first pass skips a def whose declarator has no
         # enclosing def node (line ~536), which is common in C/C++ under macros,
@@ -1513,6 +1551,9 @@ def parse_source(
         ))
 
     # Calls: (caller_node_id, callee_name, file, line) — resolved repo-wide later.
+    # Plain `.parent` here and in the loop below, not `parent_of`: a call site climbs through
+    # expression nodes no other call shares, so a memo would keep one entry per call site, and
+    # a 4 MB file has 265,000 of them (+122 MB measured).
     calls: list[tuple[str, str, str, int]] = []
     for call_node in captures.get("call", []):
         callee = call_node.text.decode("utf-8", "replace")
@@ -1818,7 +1859,7 @@ _CLASS_SCOPES = frozenset({"class_specifier", "struct_specifier", "union_specifi
                            "field_declaration_list"})
 
 
-def _in_anonymous_namespace(node: ts.Node) -> bool:
+def _in_anonymous_namespace(node: ts.Node, parent=_parent) -> bool:
     """Whether ``node`` sits anywhere inside an unnamed ``namespace { ... }``.
 
     An ancestor test, not a child test: the namespace encloses the definition rather
@@ -1828,34 +1869,34 @@ def _in_anonymous_namespace(node: ts.Node) -> bool:
     different node type (``linkage_specification``) which does NOT confer internal
     linkage and is correctly not matched here.
     """
-    cur, seen = node.parent, 0
+    cur, seen = parent(node), 0
     while cur is not None and seen < _MAX_LINKAGE_WALK:
         if cur.type == "namespace_definition" and cur.child_by_field_name("name") is None:
             return True
-        cur = cur.parent
+        cur = parent(cur)
         seen += 1
     return False
 
 
-def _at_namespace_scope(node: ts.Node) -> bool:
+def _at_namespace_scope(node: ts.Node, parent=_parent) -> bool:
     """Whether ``node``'s nearest enclosing scope is a namespace or the file, not a class.
 
     Deliberately separate from :func:`_is_file_scope`, which answers "not inside a
     function body" and stops at no class boundary. Only this question decides what a
     ``static`` keyword means.
     """
-    cur, seen = node.parent, 0
+    cur, seen = parent(node), 0
     while cur is not None and seen < _MAX_LINKAGE_WALK:
         if cur.type in _CLASS_SCOPES:
             return False
         if cur.type in _FILE_SCOPES:
             return True
-        cur = cur.parent
+        cur = parent(cur)
         seen += 1
     return False
 
 
-def _is_internal_linkage(def_ts: ts.Node) -> bool:
+def _is_internal_linkage(def_ts: ts.Node, parent=_parent) -> bool:
     """Whether this definition is file-scoped BY LANGUAGE RULE rather than by accident.
 
     A `static` free function has internal linkage: two translation units may each
@@ -1873,9 +1914,9 @@ def _is_internal_linkage(def_ts: ts.Node) -> bool:
     declares a static member, which has **external** linkage and must keep matching
     across the header/source split like any other member.
     """
-    if _in_anonymous_namespace(def_ts):
+    if _in_anonymous_namespace(def_ts, parent):
         return True
-    return _at_namespace_scope(def_ts) and any(
+    return _at_namespace_scope(def_ts, parent) and any(
         ch.type == "storage_class_specifier" and ch.text == b"static"
         for ch in def_ts.children)
 

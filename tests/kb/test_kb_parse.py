@@ -1538,3 +1538,119 @@ def test_every_byte_value_decodes_and_keeps_its_newlines():
     src = b"\n".join(bytes([b]) for b in range(0x80, 0x100)) + b"\n"
     out, how = _to_utf8(src, "c")
     assert how and out.decode("utf-8").count("\n") == src.count(b"\n") == 128
+
+
+def _deep_cpp(depth: int, n: int) -> bytes:
+    """``n`` functions inside ``depth`` nested namespaces."""
+    body = "".join(f"int f{j}(int x) {{ return g(x); }}\n" for j in range(n))
+    return ("".join(f"namespace n{i} {{\n" for i in range(depth)) + body
+            + "}\n" * depth).encode()
+
+
+@pytest.fixture
+def parent_memos(monkeypatch):
+    """The ``_ParentMemo`` of each ``parse_source`` call, counting what it was asked and what
+    it had to look up in the tree."""
+    from contextlake.kb import parse as parse_module
+
+    made: list = []
+
+    class Counting(parse_module._ParentMemo):
+        def __init__(self):
+            super().__init__()
+            self.asked = 0
+            self.from_tree: list[int] = []
+            made.append(self)
+
+        def __call__(self, node):
+            self.asked += 1
+            if node.id not in self._seen:
+                self.from_tree.append(node.id)
+            return super().__call__(node)
+
+    monkeypatch.setattr(parse_module, "_ParentMemo", Counting)
+    return made
+
+
+def _tree_size(src: bytes, lang: str) -> int:
+    from contextlake.kb.parse import _parser
+    stack, count = [_parser(lang).parse(src).root_node], 0
+    while stack:
+        node = stack.pop()
+        count += 1
+        stack.extend(node.children)
+    return count
+
+
+def test_a_nested_file_finds_each_parent_once(parent_memos):
+    """tree-sitter finds a parent by walking down from the root, so one step costs time in
+    proportion to depth and a climb to the root costs depth squared. Every definition in a
+    scope climbed the same ancestors again: 500 nested namespaces holding 4,000 functions
+    took 132 s. The test counts the parents found in the tree, so it needs no clock."""
+    src = _deep_cpp(60, 60)
+    nodes, _e, _c, _i = parse_source("r", "deep.cpp", src, "cpp")
+    assert sum(1 for n in nodes if n.kind == "function") == 60
+    (memo,) = parent_memos
+    assert len(memo.from_tree) == len(set(memo.from_tree)), "a parent was found twice"
+    assert len(memo.from_tree) <= _tree_size(src, "cpp")
+    # The climbs ask about the same ancestors over and over (26,000 questions here).
+    assert memo.asked > 10 * len(memo.from_tree)
+
+
+def test_each_parse_makes_its_own_parent_memo(parent_memos):
+    """The memo is keyed by ``Node.id``, which is an address, and an address is reused once
+    its tree is freed. A memo kept across files would answer for the wrong tree."""
+    for rel in ("a.cpp", "b.cpp"):
+        parse_source("r", rel, _deep_cpp(5, 3), "cpp")
+    first, second = parent_memos
+    assert first is not second
+    assert len(second.from_tree) == len(first.from_tree) > 0
+
+
+def test_the_parent_memo_changes_no_output(monkeypatch):
+    """Parsing with the memo and with a plain ``node.parent`` gives the same nodes, edges,
+    calls and inherits, over C++ (anonymous namespace, static, members, #ifdef twins),
+    Python, Rust and PHP, the languages whose scope walks differ."""
+    from contextlake.kb import parse as parse_module
+    sources = [
+        ("a.cpp", "cpp",
+         b"namespace { int hidden; }\nnamespace outer {\nnamespace inner {\n"
+         b"static int w;\nint v = 1;\nstruct S : Base { int a; int get() { return a; } };\n"
+         b"int f(int x) { return g(x) + v; }\n"
+         b"#ifdef X\nint t() { return 1; }\n#else\nint t() { return 2; }\n#endif\n}\n}\n"),
+        ("m.py", "python",
+         b"class A(B):\n    def f(self):\n        def g():\n            return h()\n"
+         b"        return g\n\ndef top():\n    return A().f()\n"),
+        ("m.rs", "rust",
+         b"mod m {\n    struct A;\n    impl A {\n        fn f(&self) { g(); }\n    }\n}\n"
+         b"fn main() {}\n"),
+        ("n.php", "php",
+         b"<?php\nnamespace App;\nclass B extends C {\n    function f() { return g(); }\n}\n"
+         b"function top() {}\n"),
+    ]
+
+    def parsed(rel, lang, src):
+        nodes, edges, calls, inherits = parse_source("r", rel, src, lang,
+                                                     verified_at=date(2026, 1, 1))
+        return ([n.model_dump_json() for n in nodes], [e.model_dump_json() for e in edges],
+                calls, inherits)
+
+    with_memo = {rel: parsed(rel, lang, src) for rel, lang, src in sources}
+    monkeypatch.setattr(parse_module, "_ParentMemo", lambda: parse_module._parent)
+    without = {rel: parsed(rel, lang, src) for rel, lang, src in sources}
+    assert with_memo == without
+    # The inputs are not empty: each file gave definitions, edges and a call.
+    assert all(len(nodes) > 3 and edges and calls
+               for nodes, edges, calls, _inh in with_memo.values())
+
+
+def test_call_sites_do_not_grow_the_parent_memo(parent_memos):
+    """A call site climbs through expression nodes that no other call shares, so a memo entry
+    for each would grow with the number of calls: 265,000 calls in a 4 MB file cost 122 MB. The
+    memo holds the ancestors of definitions, which many definitions share."""
+    calls = " + ".join(f"g{k}(x)" for k in range(20))
+    src = "".join(f"int f{j}(int x) {{ return {calls}; }}\n" for j in range(100)).encode()
+    nodes, _e, found, _i = parse_source("r", "flat.cpp", src, "cpp")
+    assert sum(1 for n in nodes if n.kind == "function") == 100 and len(found) == 2000
+    (memo,) = parent_memos
+    assert len(memo.from_tree) < 3 * 100, f"{len(memo.from_tree)} parents kept for 2,000 calls"

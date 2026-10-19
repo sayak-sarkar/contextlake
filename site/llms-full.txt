@@ -10229,6 +10229,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follows the file size: 40,000 one-line blocks take 3.4 s, and 195,000 blocks in a 4.96 MB
   file, under the 5,000,000 byte default size cap, take 13 s to 16 s and 740 MB. The graph it
   builds is unchanged.
+- **`kb index` no longer slows down on a file with hundreds of nested scopes.** Finding a node's
+  parent in tree-sitter costs time in proportion to its depth, and the parser climbed to the
+  root for each definition. A file with 500 nested namespaces holding 4,000 functions (139 KB)
+  took 204 s. The parser now remembers each parent it has found, and the same file takes 9.7 s.
+  A file with 30 levels and 4,000 functions went from 1.5 s to 0.8 s. The graph is identical, so
+  no re-index is needed.
 
 ### Security
 
