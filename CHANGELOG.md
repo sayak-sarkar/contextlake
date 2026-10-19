@@ -153,6 +153,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used to end in a `UnicodeDecodeError` traceback; it now names the file. If you saved
   `.contextlake.ini` in the ANSI code page, save it again as UTF-8. A leading byte order mark is
   accepted.
+- **A `wiki.toml` `pages` list over 50 names now warns, and no module page is pruned while it is
+  that long.** Names past the 50th were dropped without a message. The run took the cut list for
+  the whole set, so the next run with a model deleted the module page of every dropped name as
+  "no longer a qualifying module", although the file listed it. The run now logs how many names
+  it ignored and prunes nothing for that repository. If you list more than 50 modules, trim the
+  list to 50 or fewer to resume pruning. Repeated names count once. 10.0.0rc4 and earlier delete
+  the pages.
 
 ### Fixed
 

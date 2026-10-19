@@ -305,3 +305,28 @@ def test_the_prune_never_sees_a_list_cut_at_the_cap(tmp_path, monkeypatch, fake_
 
     for name in names:
         _assert_alive(store_dir, name, generated=True)
+
+
+def test_a_list_past_the_steering_cap_prunes_nothing(tmp_path, monkeypatch, gls_logs,
+                                                     fake_vectors):
+    """`read_wiki_steering` keeps the first MAX_PAGES names. The run then took that cut list
+    for the whole statement of what should exist, and pruned the module page of the 51st name
+    as 'no longer a qualifying module' although the maintainer had listed it. A cut list is
+    incomplete, so the run warns and prunes nothing."""
+    from contextlake.kb.wiki.steering import MAX_PAGES
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    n = MAX_PAGES + 1
+    names = [f"mod{i}" for i in range(n)]
+    last = names[-1]
+    store_dir, repo_dir = _setup(tmp_path, pages=[last], n_modules=n)
+    assert _wiki(tmp_path, monkeypatch, _FakeLlm()) == 0
+    _assert_alive(store_dir, last, generated=True)
+
+    _write_pages(repo_dir, names)
+    assert _wiki(tmp_path, monkeypatch, _FakeLlm()) == 0
+
+    logs = gls_logs.text
+    assert f"only the first {MAX_PAGES} are used" in logs, "the cut was not reported"
+    _assert_alive(store_dir, last, generated=True, logs=logs)
+    assert "pruned the wiki page" not in logs, logs

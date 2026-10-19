@@ -600,7 +600,8 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         modules, may_prune = _module_page_plan(store, repo_id, len(shard.nodes),
                                                override=steering["pages"])
         # A `wiki.toml` that does not parse has unknown `pages`, not none: pruning against
-        # the heuristic plan deleted every page the file had asked for.
+        # the heuristic plan deleted every page the file had asked for. A list cut at
+        # `MAX_PAGES` is incomplete in the same way, and is flagged the same way.
         may_prune = may_prune and not steering["unreadable"]
         # Recorded before the brief checks below can `continue`, so every repository
         # that was planned keeps its plan for the generated path. `may_prune` travels

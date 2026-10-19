@@ -265,6 +265,10 @@ cannot silently delete a repository's whole module set on the next prune. The li
 on both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
 generated pages of modules that are not on it.
 
+At most 50 names are used, and a name repeated in the list counts once. A longer list is cut at 50
+and the run warns with the number ignored. A cut list is not the whole set, so no module page is
+pruned on that run. Trim the list to 50 names to resume pruning.
+
 Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (`kb/trust.py`). Quoting a
 repository's own prose is the same trust level as the README excerpt the page has always

@@ -10,6 +10,7 @@ import pytest
 
 from contextlake.kb.wiki.steering import (
     MAX_NOTE_CHARS,
+    MAX_PAGES,
     STEERING_PATH,
     read_wiki_steering,
     steering_file,
@@ -80,6 +81,35 @@ def test_malformed_toml_is_reported_and_ignored_not_fatal(tmp_path, gls_logs):
 def test_pages_preserves_order_and_drops_duplicates(tmp_path):
     out = read_wiki_steering(_write(tmp_path, 'pages = ["api", "core", "api", "ui"]'))
     assert out["pages"] == ["api", "core", "ui"]
+
+
+def _page_names(n):
+    return [f"m{i:03d}" for i in range(n)]
+
+
+def _pages_toml(names):
+    return "pages = [" + ", ".join(f'"{n}"' for n in names) + "]"
+
+
+def test_a_list_past_the_cap_is_cut_with_a_warning_and_marked_incomplete(tmp_path, gls_logs):
+    """Entries past MAX_PAGES were dropped without a word, and the caller then pruned the
+    module page of every dropped name as 'no longer qualifying'. The list is incomplete, and
+    that is what `unreadable` tells the caller, so it prunes nothing."""
+    names = _page_names(MAX_PAGES + 1)
+    out = read_wiki_steering(_write(tmp_path, _pages_toml(names)))
+    assert out["pages"] == names[:MAX_PAGES]
+    assert out["unreadable"] is True
+    warning = " ".join(r.getMessage() for r in gls_logs.records)
+    assert f"names {MAX_PAGES + 1} pages" in warning and "(ignored: 1)" in warning
+    assert "No module page is pruned" in warning
+
+
+def test_a_repeated_name_past_the_cap_is_not_a_cut_name(tmp_path, gls_logs):
+    """Counted after duplicates go: 51 entries that name 50 modules lose nothing."""
+    names = _page_names(MAX_PAGES)
+    out = read_wiki_steering(_write(tmp_path, _pages_toml(names + [names[0]])))
+    assert out == {"notes": [], "pages": names, "unreadable": False}
+    assert not any("(ignored:" in r.getMessage() for r in gls_logs.records)
 
 
 # --- the page ---------------------------------------------------------------------------

@@ -55,9 +55,11 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
     because a repository that cannot be parsed must still get a wiki page -- the alternative
     is one bad file in one clone silently costing a fleet-wide run its output.
 
-    ``unreadable`` says the file exists and did not parse. Its ``pages`` are then unknown,
-    not empty: a caller must not prune module pages against a plan made without them, or one
-    missing bracket deletes every page the file asked for.
+    ``unreadable`` says the file's ``pages`` cannot be taken as the whole list: the file
+    exists and did not parse, or it names more than ``MAX_PAGES`` pages and the rest were
+    cut. Its ``pages`` are then unknown or incomplete, not final: a caller must not prune
+    module pages against a plan made without them, or one missing bracket (or an entry past
+    the cap) deletes a page the file asked for.
     """
     empty: dict = {"notes": [], "pages": [], "unreadable": False}
     if not repo_path:
@@ -82,7 +84,12 @@ def read_wiki_steering(repo_path: str | Path | None) -> dict:
             f"The page is generated without it, and no module page is pruned until it "
             f"parses again.", level=logging.WARNING)
         return {**empty, "unreadable": True}
-    return {"notes": _notes(data), "pages": _pages(data), "unreadable": False}
+    pages, cut = _pages(data)
+    if cut:
+        log(f"wiki: {path} names {len(pages) + cut} pages, and only the first {MAX_PAGES} "
+            f"are used (ignored: {cut}). No module page is pruned until the list has "
+            f"{MAX_PAGES} names or fewer.", level=logging.WARNING)
+    return {"notes": _notes(data), "pages": pages, "unreadable": bool(cut)}
 
 
 def _notes(data: dict) -> list[str]:
@@ -105,14 +112,16 @@ def _notes(data: dict) -> list[str]:
     return out
 
 
-def _pages(data: dict) -> list[str]:
-    """``pages`` as a list of module prefixes, order preserved, duplicates dropped."""
+def _pages(data: dict) -> tuple[list[str], int]:
+    """``(pages, cut)``: ``pages`` as a list of module prefixes, order preserved and
+    duplicates dropped, at most ``MAX_PAGES`` of them; ``cut`` is how many more names the
+    file held. Counted after the duplicates go, so a repeated name is not a cut one."""
     raw = data.get("pages")
     if not isinstance(raw, list):
-        return []
+        return [], 0
     out, seen = [], set()
-    for item in raw[:MAX_PAGES]:
+    for item in raw:
         if isinstance(item, str) and item.strip() and item.strip() not in seen:
             seen.add(item.strip())
             out.append(item.strip())
-    return out
+    return out[:MAX_PAGES], max(0, len(out) - MAX_PAGES)
