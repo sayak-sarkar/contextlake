@@ -204,3 +204,114 @@ def test_restore_refuses_when_another_stash_is_on_top(dirty_repo):
     assert not restored
     assert "stash" in msg
     assert len(_git(dirty_repo, "stash", "list").stdout.strip().splitlines()) == 2
+
+
+def _stash_then_conflict(repo, names):
+    """Stash a local edit to each of ``names``, then commit a different edit to the same
+    lines, so that restoring the stash conflicts. Returns the stash sha."""
+    for name in names:
+        (repo / name).write_text("committed\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "files")
+    for name in names:
+        (repo / name).write_text("committed\nlocal edit\n")
+    ok, _, sha = safety.stash_changes(str(repo), {"auto_stash": "true"})
+    assert ok and sha
+    for name in names:
+        (repo / name).write_text("committed\nupstream edit\n")
+    _git(repo, "commit", "-qam", "upstream")
+    return sha
+
+
+def test_a_pop_that_conflicts_says_so_and_names_the_files(dirty_repo):
+    """git prints "Auto-merging file.txt" first and the CONFLICT line after it. Keeping the
+    first line told the user nothing, while the tree held an unresolved conflict."""
+    sha = _stash_then_conflict(dirty_repo, ["file.txt"])
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert "CONFLICT" in msg
+    assert "Auto-merging" not in msg
+    assert "unresolved conflicts in file.txt" in msg
+    assert "git stash drop" in msg
+    assert "\n" not in msg, "the progress display breaks on a multi-line message"
+    # What the message describes is what is there: markers in the tree, stash kept.
+    assert "<<<<<<<" in (dirty_repo / "file.txt").read_text()
+    assert len(_git(dirty_repo, "stash", "list").stdout.strip().splitlines()) == 1
+
+
+def test_a_modify_delete_conflict_is_not_said_to_leave_markers(dirty_repo):
+    """Upstream deleted the file the stash edited: status DU, and no marker in the file.
+    The message must hold for that kind of conflict too."""
+    (dirty_repo / "file.txt").write_text("committed\nlocal edit\n")
+    ok, _, sha = safety.stash_changes(str(dirty_repo), {"auto_stash": "true"})
+    assert ok and sha
+    _git(dirty_repo, "rm", "-q", "file.txt")
+    _git(dirty_repo, "commit", "-qm", "upstream delete")
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert "DU file.txt" in _git(dirty_repo, "status", "--short").stdout
+    assert "<<<<<<<" not in (dirty_repo / "file.txt").read_text()
+    assert "unresolved conflicts in file.txt" in msg
+    assert "markers" not in msg
+    assert "git rm" in msg
+    assert ".." not in msg, "git's own text ends with a full stop, and the advice follows it"
+
+
+def test_a_binary_conflict_is_not_said_to_leave_markers(dirty_repo):
+    """Both sides changed a binary file: status UU, and git writes no marker into it."""
+    blob = dirty_repo / "blob.bin"
+    blob.write_bytes(b"A\x00committed\n")
+    _git(dirty_repo, "add", "blob.bin")
+    _git(dirty_repo, "commit", "-qm", "blob")
+    blob.write_bytes(b"A\x00local\n")
+    ok, _, sha = safety.stash_changes(str(dirty_repo), {"auto_stash": "true"})
+    assert ok and sha
+    blob.write_bytes(b"A\x00upstream\n")
+    _git(dirty_repo, "commit", "-qam", "upstream")
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert "UU blob.bin" in _git(dirty_repo, "status", "--short").stdout
+    assert b"<<<<<<<" not in blob.read_bytes()
+    assert "unresolved conflicts in blob.bin" in msg
+    assert "markers" not in msg
+
+
+def test_a_conflict_message_lists_three_files_and_counts_the_rest(dirty_repo):
+    names = ["a.txt", "b.txt", "c.txt", "d.txt"]
+    sha = _stash_then_conflict(dirty_repo, names)
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert "a.txt, b.txt, c.txt and 1 more" in msg
+
+
+def test_a_conflicted_name_is_shown_without_its_control_characters(dirty_repo):
+    """A file name comes from the repository and the message goes to a terminal."""
+    sha = _stash_then_conflict(dirty_repo, ["x\x1b[31my.txt"])
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert "x?[31my.txt" in msg
+    assert "\x1b" not in msg, "git repeats the raw name in its CONFLICT line too"
+
+
+def test_a_pop_that_fails_without_a_conflict_keeps_git_own_reason(dirty_repo):
+    """The control: no unmerged paths, so no conflict advice is added."""
+    ok, _, sha = safety.stash_changes(str(dirty_repo), {"auto_stash": "true"})
+    assert ok
+    (dirty_repo / "file.txt").write_text("committed\nedited again\n")
+
+    restored, msg = safety.restore_stash(str(dirty_repo), sha)
+
+    assert not restored
+    assert msg.startswith("error: Your local changes")
+    assert "unresolved conflicts" not in msg
+    assert "conflict markers" not in msg

@@ -360,6 +360,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch", and the docs said such a repository was "left alone" or "never switched". The summary
   now says "each is on its most active branch instead", and the docs describe the move.
   Behaviour is unchanged.
+- **A failed `--auto-stash` restore now names the conflict and the files.**
+  When `git stash pop` conflicted with the update, the run printed "your changes are still
+  stashed -- Auto-merging a.txt". That was git's first output line, not the CONFLICT line, and
+  it did not say that the tree held unresolved conflicts (unmerged paths such as `UU` or `DU`).
+  The message now gives the CONFLICT line, up to three conflicted files, and the next steps:
+  resolve them, `git add` or `git rm` each file, then `git stash drop`. A text conflict leaves
+  markers in the file. A conflict where one side deleted the file, or a binary conflict, leaves
+  none, so the message does not name markers. The stash is still kept and the run still exits 1.
 
 ### Security
 

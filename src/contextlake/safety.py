@@ -148,6 +148,50 @@ def restore_stash(full_path, stash_sha):
     except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
         return False, str(e)[:100]
     if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "git stash pop failed").strip()
-        return False, detail.splitlines()[0]
+        output = [ln.strip()
+                  for ln in ((result.stderr or "") + "\n" + (result.stdout or "")).splitlines()
+                  if ln.strip()]
+        # The CONFLICT line, not the first one: a conflicting pop prints "Auto-merging
+        # a.txt" first on stdout, and that line says nothing about what went wrong.
+        reason = next((ln for ln in output if "CONFLICT" in ln), None)
+        if reason is None:
+            detail = (result.stderr or result.stdout or "git stash pop failed").strip()
+            reason = detail.splitlines()[0]
+        conflicted = _unmerged_paths(full_path)
+        if conflicted:
+            shown = ", ".join(conflicted[:3])
+            if len(conflicted) > 3:
+                shown += f" and {len(conflicted) - 3} more"
+            # The pop keeps the stash after a conflict, so "still stashed" stays true
+            # while the tree also holds unresolved conflicts a `git commit -a` could take.
+            # Only a text conflict leaves markers in the file: a modify/delete (DU) or a
+            # binary (UU) conflict leaves none, so the wording must not promise them.
+            reason = reason.rstrip('.') + (
+                f". The tree has unresolved conflicts in {shown}: resolve them, "
+                "`git add` or `git rm` each file, then `git stash drop`")
+        return False, _printable(reason)
     return True, "Stashed changes restored"
+
+
+def _printable(text):
+    """``text`` with each unprintable character shown as ``?``. A file name comes from
+    the repository, git repeats it unquoted in its CONFLICT line, and the message goes to
+    a terminal."""
+    return ''.join(c if c.isprintable() else '?' for c in text)
+
+
+def _unmerged_paths(full_path):
+    """Paths git lists as unmerged in ``full_path`` (``[]`` if it cannot say).
+
+    ``-z`` keeps a name with a space or a quote whole.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', '--diff-filter=U', '-z'],
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
+        )
+    except Exception:  # noqa: BLE001 - the message is better without them than absent
+        return []
+    if result.returncode != 0:
+        return []
+    return [name for name in result.stdout.split('\0') if name]

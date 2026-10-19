@@ -496,6 +496,17 @@ The same repo with `--auto-stash`:
 [1/12] ✓ backend/services/api-gateway: Updated main
 ```
 
+If putting your edits back conflicts with the update, that repository is reported as failed:
+
+```text
+⚠ backend/services/api-gateway: your changes are still stashed -- CONFLICT (content): Merge conflict in app.py. The tree has unresolved conflicts in app.py: resolve them, `git add` or `git rm` each file, then `git stash drop`
+[1/12] ✗ backend/services/api-gateway: Updated, but restoring your stashed changes failed: CONFLICT (content): Merge conflict in app.py. The tree has unresolved conflicts in app.py: resolve them, `git add` or `git rm` each file, then `git stash drop`
+```
+
+The update itself is done. The tree holds the unresolved conflict, and the stash is kept until
+you drop it. A text conflict leaves markers in the file. A conflict where one side deleted the
+file, or where the file is binary, leaves none, so check `git status` for unmerged paths.
+
 The `[i/total]` counter is part of every per-repo status line. Redirect the output to a file and each
 line also carries a `[YYYY-MM-DD HH:MM:SS]` timestamp; on a terminal it does not, because the clock
 is rendered on the right instead. See [Reading the console output](console-output.md).
