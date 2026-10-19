@@ -339,7 +339,7 @@ def _enumeration_calls(tmp_path, base_config, monkeypatch, status, platform="git
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 410, 422])
 def test_enumeration_does_not_retry_an_answer_a_retry_cannot_change(
         tmp_path, base_config, monkeypatch, no_sleep, status):
-    """A revoked token or a mistyped group was requested six times, about 36 seconds,
+    """A revoked token or a mistyped group was requested six times, about 31 seconds,
     before the same message appeared."""
     calls, err = _enumeration_calls(tmp_path, base_config, monkeypatch, status)
     assert len(calls) == 1, calls
@@ -362,6 +362,74 @@ def test_enumeration_of_an_unknown_github_owner_asks_each_endpoint_once(
     calls, _ = _enumeration_calls(tmp_path, base_config, monkeypatch, 404, platform="github")
     assert len(calls) == 2
     assert "/orgs/" in calls[0] and "/users/" in calls[1]
+
+
+def _glab_enumeration_calls(tmp_path, base_config, fake_subprocess, stderr):
+    """Run an enumeration through ``glab`` (no token set) that fails with ``stderr`` on every
+    call, and return ``(glab calls made, the FetchError raised)``."""
+    fake_subprocess.handler = lambda cmd, **k: FakeCompleted(returncode=1, stderr=stderr)
+    cfg = {**base_config, "cache_dir": str(tmp_path), "cache_json": "p.json",
+           "cache_file": "p.txt"}
+    with pytest.raises(FetchError) as exc:
+        fetch_gitlab_projects("demo", cfg)
+    return fake_subprocess.calls, exc.value
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 410, 422])
+def test_glab_enumeration_does_not_retry_a_status_a_retry_cannot_change(
+        tmp_path, base_config, fake_subprocess, no_sleep, status):
+    """`glab` reports a status as text, so an expired login classed as 'other', counted as
+    transient, and was asked for six times (about 31 seconds) like a dropped connection."""
+    calls, err = _glab_enumeration_calls(
+        tmp_path, base_config, fake_subprocess, f"glab: {status} stub message (HTTP {status})\n")
+    assert len(calls) == 1, calls
+    assert f"(HTTP {status})" in str(err)
+    assert not (tmp_path / "p.json").exists(), "a failed run must not write a cache"
+
+
+@pytest.mark.parametrize("status", [408, 425, 429, 500, 502, 503, 504])
+def test_glab_enumeration_still_retries_a_status_that_can_clear(
+        tmp_path, base_config, fake_subprocess, no_sleep, status):
+    """The control: a busy or restarting forge gets the full six attempts through glab too."""
+    calls, _ = _glab_enumeration_calls(
+        tmp_path, base_config, fake_subprocess, f"glab: {status} stub message (HTTP {status})\n")
+    assert len(calls) == 6, calls
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 410, 422])
+def test_glab_enumeration_reads_the_plain_http_status_form(
+        tmp_path, base_config, fake_subprocess, no_sleep, status):
+    """glab 1.89.0 prints `glab: HTTP 401`, with no message and no brackets, when the JSON body
+    has an `error` key (an OAuth answer) instead of a `message`. It was retried six times."""
+    calls, err = _glab_enumeration_calls(
+        tmp_path, base_config, fake_subprocess, f"glab: HTTP {status}\n")
+    assert len(calls) == 1, calls
+    assert f"glab: HTTP {status}" in str(err)
+
+
+@pytest.mark.parametrize("status", [408, 425, 429, 500, 503])
+def test_glab_enumeration_still_retries_the_plain_http_status_form(
+        tmp_path, base_config, fake_subprocess, no_sleep, status):
+    """The control for the plain form: a status a retry can clear gets six attempts."""
+    calls, _ = _glab_enumeration_calls(
+        tmp_path, base_config, fake_subprocess, f"glab: HTTP {status}\n")
+    assert len(calls) == 6, calls
+
+
+@pytest.mark.parametrize("stderr", [
+    "",
+    'Get "https://gitlab.example/api/v4/groups/team-404/projects": '
+    "dial tcp 192.0.2.7:443: connect: connection refused.",
+    "glab: 404 Not Found (HTTP 404) connection reset by peer",
+    "glab: HTTP 404 connection reset by peer",
+], ids=["empty", "status-number-in-a-group-name", "bracketed-status-before-other-text",
+        "plain-status-before-other-text"])
+def test_glab_enumeration_reads_only_the_closing_status_marker(
+        tmp_path, base_config, fake_subprocess, no_sleep, stderr):
+    """A failure without a closing status keeps the old judgement. A group called `team-404`
+    in a refused connection, or a status that other text follows, is retried, not read as a 404."""
+    calls, _ = _glab_enumeration_calls(tmp_path, base_config, fake_subprocess, stderr)
+    assert len(calls) == 6, calls
 
 
 def test_unknown_platform_raises_cleanly(tmp_path, base_config):

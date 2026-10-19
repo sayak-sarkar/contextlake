@@ -707,18 +707,32 @@ class FetchError(RuntimeError):
 # failed on its own side. Any other status answers the request, and a retry repeats it.
 _RETRY_HTTP_STATUS = frozenset({408, 425, 429})
 
+# How ``glab api`` reports a non-2xx answer on stderr. Read from glab 1.89.0 against a loopback
+# stub. The status is text, not an ``HTTPError``. It takes one of two forms: ``glab: 401
+# Unauthorized (HTTP 401)`` when the JSON body has a ``message``, and ``glab: HTTP 401`` when
+# it has an ``error`` key instead or is HTML. Both are anchored to the end of the message, so a
+# group named ``team-404`` in a connection error is not read as a status. An empty body, or an
+# HTML body sent as JSON, gives a message with no status.
+_GLAB_HTTP_STATUS = re.compile(r"(?:\(HTTP (\d{3})\)|^glab: HTTP (\d{3}))\s*$")
+
 
 def _enumeration_is_transient(error):
     """Whether a failed enumeration page is worth another attempt.
 
     A revoked token (401), a refused one (403) or a mistyped group (404) gives the same
-    answer on each of six tries, which only delays the message by about 36 seconds and sends
-    the forge five more requests. A failure that is not an HTTP status, such as a dropped
-    connection or a ``glab`` error, keeps the git/network judgement.
+    answer on each of six tries, which delays the message by about 31 seconds and sends
+    the forge five more requests. The status comes from the ``HTTPError`` the native client
+    raises, or from the status that ``glab`` ends its message with. A failure with no status,
+    such as a dropped connection, keeps the git/network judgement.
     """
     if isinstance(error, urllib.error.HTTPError):
-        return error.code in _RETRY_HTTP_STATUS or error.code >= 500
-    return git_error_is_transient(error)
+        status = error.code
+    else:
+        found = _GLAB_HTTP_STATUS.search(str(error))
+        if not found:
+            return git_error_is_transient(error)
+        status = int(found.group(1) or found.group(2))
+    return status in _RETRY_HTTP_STATUS or status >= 500
 
 
 def fetch_gitlab_projects(gitlab_group, config):

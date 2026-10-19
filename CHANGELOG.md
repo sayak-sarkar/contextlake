@@ -423,6 +423,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one warning and writes nothing. `contextlake completion` exits 1 there, and `init` still exits
   0 because its config is written. The automatic registration that runs before a command in a
   terminal warns once, not on every run.
+- **`mirror fetch` through `glab` stops retrying a 401, 403 or 404.** With no `GITLAB_TOKEN`,
+  enumeration runs `glab api`, and a 401, 403 or 404 from it was retried six times with growing
+  waits, so the error appeared after about 31 seconds and five extra requests to the forge. glab
+  ends its error message with the status, as in `glab: 401 Unauthorized (HTTP 401)` or
+  `glab: HTTP 401`. A 4xx status that a retry cannot change now fails on the first request, as
+  it already did with a token. 408, 425, 429 and 5xx are still retried. A glab message with no
+  status, such as one for an empty body, is still retried. The message and the exit code are
+  unchanged.
 
 ### Security
 

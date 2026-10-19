@@ -174,6 +174,10 @@ This command:
   port) is followed without the token. A redirect inside the same origin keeps it.
 - Includes subgroups automatically
 - Skips archived repositories
+- Tries a page up to 6 times when the forge times out, asks for a wait (408, 425, 429), fails
+  (5xx) or drops the connection. Any other HTTP status, such as 401, 403 or 404, stops the run
+  at once. That holds for `glab` too when its message ends with the status, such as
+  `glab: HTTP 401`. A `glab` message with no status is still retried
 - Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
   per-workspace subdirectory of `~/.cache/contextlake` (override with `cache_dir`)
 
