@@ -1546,8 +1546,8 @@ def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
 
 
 def test_generate_page_raises_on_an_empty_reply(tmp_path):
-    """An empty reply is a failed call. Returned as a page it was rejected later as
-    'less complete', which hid the real cause."""
+    """An empty reply is a failed call. Returned as a page, it was rejected later by a
+    gate, which hid the real cause."""
     _shard(tmp_path)
 
     class _Silent:
@@ -1563,8 +1563,8 @@ def test_generate_page_raises_on_an_empty_reply(tmp_path):
 def test_cmd_wiki_counts_a_failed_cli_call_as_failed_not_rejected(
     tmp_path, monkeypatch, gls_logs
 ):
-    """CliLlm returns "" on a non-zero exit (a login that expired, a timeout). That used to
-    reach the replacement gate as an empty page, print 'rejected, less complete than the
+    """CliLlm returns "" on a non-zero exit (a login that expired) or a timeout. That used
+    to reach the replacement gate as an empty page, print 'rejected, less complete than the
     page it would replace', and exit 0, so a scheduled run recorded success."""
     import sys
 
@@ -1612,7 +1612,7 @@ def test_cmd_wiki_a_hosted_reviewer_with_no_key_fails_the_page_instead_of_abstai
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
     text = gls_logs.text
-    assert sent and sent[0]["x-api-key"] == ""      # the call really went out keyless
+    assert sent and sent[0]["x-api-key"] == ""      # the call went out keyless
     assert "HTTP Error 401: Unauthorized" in text
     assert "returned nothing parseable" not in text
     assert "rejected by council" not in text
