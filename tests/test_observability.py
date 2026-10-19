@@ -183,6 +183,16 @@ def test_a_path_under_the_workspace_is_scrubbed_even_if_unregistered():
     assert "secret-team" not in out and out.startswith("<workspace>/repo-")
 
 
+@pytest.mark.parametrize("root", ["/", "//", "\\"])
+def test_a_filesystem_root_is_not_registered_and_the_other_paths_still_are(root):
+    """`/` strips to an empty prefix, and replacing "" puts the placeholder between every
+    character. `$HOME` or a workspace at the root made every line of the log file unreadable."""
+    observability.add_redactions(paths=[(root, "~"), ("/home/dev/mirror", "<workspace>")])
+
+    assert observability.redact("Cloned demo-repo") == "Cloned demo-repo"
+    assert observability.redact("at /home/dev/mirror/x").startswith("at <workspace>/repo-")
+
+
 def test_redaction_is_a_no_op_until_something_is_registered():
     assert not observability.redaction_configured()
     assert observability.redact("/home/dev/mirror/team/api") == "/home/dev/mirror/team/api"

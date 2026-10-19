@@ -151,7 +151,8 @@ The default (`text`) output is unchanged, character for character. Structured fi
 
 `--log-file PATH` keeps a full-detail copy of the run. That copy is **redacted by default**: workspace
 paths, `$HOME`, the group/org name, a self-hosted forge hostname and repository names are replaced with
-placeholders, so it can be attached to a bug report as-is.
+placeholders, so it can be attached to a bug report as-is. The filesystem root (`/`) is never replaced,
+so a `$HOME` or workspace of `/` leaves the log readable.
 
 ```
 [2026-08-04 05:48:49] Working directory: <workspace>

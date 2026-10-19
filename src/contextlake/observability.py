@@ -145,8 +145,12 @@ def add_redactions(*, paths=(), literals=()) -> None:
     they are constructed.
     """
     global _prefixes, _literals
-    _prefixes = sorted({**dict(_prefixes),
-                        **{str(p).rstrip("/\\"): ph for p, ph in paths if p}}.items(),
+    # Stripped first, then tested: `/` (a workspace or $HOME at the filesystem root)
+    # strips to "", and `text.replace("", placeholder)` puts the placeholder between
+    # every character of every line. The root is not a path worth hiding.
+    stripped = {str(p).rstrip("/\\"): ph for p, ph in paths if p}
+    stripped.pop("", None)
+    _prefixes = sorted({**dict(_prefixes), **stripped}.items(),
                        key=lambda item: len(item[0]), reverse=True)
     _literals = sorted({**dict(_literals),
                         **{str(t): ph for t, ph in literals if t}}.items(),
