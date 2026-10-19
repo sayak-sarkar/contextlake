@@ -7,6 +7,7 @@ import pytest
 from contextlake.config import (
     DEFAULT_CONFIG,
     ConfigError,
+    WrongConfigFile,
     find_ancestor_config,
     get_cache_paths,
     load_config,
@@ -93,6 +94,145 @@ def test_missing_explicit_config_path_does_not_fall_back_to_global(tmp_path, mon
     monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(real_global))
     with pytest.raises(ConfigError):
         load_config(str(tmp_path / "typo-d.ini"))
+
+
+def test_explicit_config_with_a_misspelled_header_is_a_hard_error(tmp_path, monkeypatch):
+    """Section names are case-sensitive, so `[ContextLake]` is not `[contextlake]`. The file
+    was read as empty and the run went on with the defaults, or with the global file when
+    one exists, and nothing said the named file had been ignored."""
+    _isolate_globals(monkeypatch, tmp_path)
+    real_global = tmp_path / "real-global.ini"
+    real_global.write_text("[contextlake]\ngitlab_group = real-group\nwork_dir = /srv/global\n")
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(real_global))
+    bad = tmp_path / "bad.ini"
+    bad.write_text("[ContextLake]\ngitlab_group = my-group\nwork_dir = /srv/mine\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(str(bad))
+
+    msg = str(exc.value)
+    assert str(bad) in msg and "no [contextlake] section" in msg
+    assert "Sections found: ContextLake" in msg
+    assert not isinstance(exc.value, WrongConfigFile)
+    assert exc.value.exit_code == 1
+
+
+@pytest.mark.parametrize("make", ["empty", "devnull"])
+def test_explicit_config_with_no_section_at_all_is_a_hard_error(tmp_path, monkeypatch, make):
+    _isolate_globals(monkeypatch, tmp_path)
+    path = "/dev/null"
+    if make == "empty":
+        path = str(tmp_path / "empty.ini")
+        (tmp_path / "empty.ini").write_text("")
+
+    with pytest.raises(ConfigError, match=r"Sections found: none"):
+        load_config(path)
+
+
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="needs a mode bit that binds")
+def test_unreadable_explicit_config_is_a_hard_error(tmp_path, monkeypatch):
+    """ConfigParser.read() skips a file it cannot open without raising, so the run used the
+    defaults. `kb` commands already failed on the same file with Permission denied."""
+    _isolate_globals(monkeypatch, tmp_path)
+    locked = tmp_path / "locked.ini"
+    locked.write_text("[contextlake]\ngitlab_group = my-group\n")
+    locked.chmod(0)
+    try:
+        if os.access(locked, os.R_OK):
+            pytest.skip("this account can read a mode 000 file")
+        with pytest.raises(ConfigError, match=r"cannot be read: .*locked\.ini .*Permission denied"):
+            load_config(str(locked))
+    finally:
+        locked.chmod(0o600)
+
+
+def test_a_directory_as_explicit_config_is_a_hard_error(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    with pytest.raises(ConfigError, match=r"cannot be read: .* \(Is a directory\)"):
+        load_config(str(tmp_path))
+
+
+def test_discovered_config_with_a_misspelled_header_is_still_skipped(tmp_path, monkeypatch):
+    """Only a file the user named is held to the section rule. The one found by walking up
+    from the current directory keeps being optional, as the docstring of load_config says."""
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "none.ini"))
+    (tmp_path / ".contextlake.ini").write_text("[ContextLake]\ngitlab_group = nope\n")
+    monkeypatch.chdir(tmp_path)
+
+    assert load_config()["gitlab_group"] == DEFAULT_CONFIG["gitlab_group"]
+
+
+@pytest.mark.parametrize("name, text", [
+    ("kb.toml", '[kb]\nstore_dir = "/srv/store"\n'),
+    ("notes.cfg", "[llm]\nprovider = openai\n"),
+    ("empty.toml", ""),
+])
+def test_a_knowledge_config_as_explicit_config_exits_two_and_names_the_right_flag(
+        tmp_path, monkeypatch, name, text):
+    """The same mistake `bootstrap` has refused with exit 2 since it got `--kb-config`. It now
+    comes from the loader, so `mirror` and `schedule` verbs refuse it too."""
+    _isolate_globals(monkeypatch, tmp_path)
+    kb = tmp_path / name
+    kb.write_text(text)
+
+    with pytest.raises(WrongConfigFile) as exc:
+        load_config(str(kb))
+
+    assert exc.value.exit_code == 2
+    assert "mirror INI" in str(exc.value) and "--kb-config" in str(exc.value)
+
+
+@pytest.fixture
+def update_calls(monkeypatch, tmp_path):
+    """Records any `mirror update` that starts, and keeps it off the real clones.
+
+    DEFAULT_CONFIG fixes `work_dir` when the module is imported, from the real HOME, and the
+    conftest moves HOME only after that. A test that lets a mirror verb run on the defaults
+    would fetch in every clone under the developer's real ~/work.
+    """
+    monkeypatch.setitem(DEFAULT_CONFIG, "work_dir", str(tmp_path / "ws"))
+    calls = []
+
+    def _update(*args, **kwargs):
+        calls.append(args)
+        raise RuntimeError("update ran")
+
+    monkeypatch.setattr("contextlake.cli.update_repositories", _update)
+    return calls
+
+
+def test_cli_stops_on_a_misspelled_explicit_header_and_runs_nothing(
+        tmp_path, capsys, update_calls):
+    """End to end: `mirror update --config bad.ini` used to print the placeholder warning,
+    run update on the default workspace and exit 0."""
+    from contextlake import cli
+
+    bad = tmp_path / "bad.ini"
+    bad.write_text("[ContextLake]\ngitlab_group = my-group\n")
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["mirror", "update", "--config", str(bad)])
+
+    assert exc.value.code == 1
+    assert "no [contextlake] section" in capsys.readouterr().out
+    assert update_calls == []
+
+
+@pytest.mark.parametrize("verb", [["mirror", "update"], ["schedule", "recommend"]])
+def test_cli_exits_two_for_a_knowledge_config_on_both_load_paths(
+        tmp_path, capsys, update_calls, verb):
+    """`schedule` loads the config in its own branch of main(), apart from the mirror verbs."""
+    from contextlake import cli
+
+    kb = tmp_path / "kb.toml"
+    kb.write_text('[kb]\nstore_dir = "/srv/store"\n')
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main([*verb, "--config", str(kb)])
+
+    assert exc.value.code == 2
+    assert "--kb-config" in capsys.readouterr().out
+    assert update_calls == []
 
 
 def test_get_cache_paths_joins_dir_and_names():

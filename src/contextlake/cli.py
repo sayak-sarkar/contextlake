@@ -2770,7 +2770,7 @@ def _run(argv, metrics):
             config = apply_cli_overrides(args, load_config(args.config))
         except ConfigError as e:
             log(str(e))
-            sys.exit(1)
+            sys.exit(e.exit_code)
         if getattr(args, "work_dir", None):
             config["work_dir"] = expand_path(args.work_dir)
         from .schedule import cmds as schedule_cmds
@@ -2834,7 +2834,7 @@ def _run(argv, metrics):
             args, load_config(args.config, cli_group=getattr(args, "group", None)))
     except ConfigError as e:
         log(str(e))
-        sys.exit(1)
+        sys.exit(e.exit_code)
     # --repos scopes the whole mirror pipeline to a subset (fetch narrows the cache;
     # clone/update/branches/verify/status key off it; bootstrap also filters indexing).
     if getattr(args, "repos", None):

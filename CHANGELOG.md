@@ -123,6 +123,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--config` file is unchanged and wins over a discovered one. If a project keeps its models in
   a project-local `cache_dir`, move the key to `~/.contextlake/kb.toml` or pass `--config PATH`,
   or the models are looked for and downloaded in the default folder.
+- **`--config FILE` now stops the run when the file cannot be read or has no `[contextlake]`
+  section.** 10.0.0rc4 read such a file as empty and went on with `~/.contextlake.ini` or the
+  defaults, exit 0, so `mirror update --config prod.ini` with a `[ContextLake]` header acted on
+  the default workspace and printed "no config with your group was found" beside `[found]
+  prod.ini`. Section names are case-sensitive: write `[contextlake]`. An empty file no longer
+  works as a way to ask for the defaults, so add the header. A `kb.toml` given to a `mirror`,
+  `schedule` or `bootstrap` command exits 2 and says to use a `kb` command or `--kb-config`. A
+  file found by walking up from the current directory, and the global file, are read as before.
 
 ### Fixed
 

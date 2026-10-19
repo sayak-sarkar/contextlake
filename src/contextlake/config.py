@@ -30,6 +30,18 @@ def expand_path(value):
 class ConfigError(RuntimeError):
     """An explicit --config path was invalid, or a config value is not one the key accepts."""
 
+    # The status the CLI exits with. 1 for a config that is wrong; see WrongConfigFile.
+    exit_code = 1
+
+
+class WrongConfigFile(ConfigError):
+    """An explicit --config file is a knowledge config where the mirror INI is read.
+
+    Exits 2, the status ``bootstrap`` gives the same mistake (see ``cli._bootstrap``).
+    """
+
+    exit_code = 2
+
 
 # The spellings configparser's getboolean accepts, so an INI file may write a yes/no key
 # the way the rest of the INI world does. Every reader of these keys compares against the
@@ -230,21 +242,51 @@ CACHE_LOCATION_KEYS = ('cache_dir', 'cache_file', 'cache_json')
 FORGE_TOKEN_REFUSED = '_forge_token_refused'  # noqa: S105 - a config key name, not a secret
 
 
-def _read_section(path):
+# Tables a knowledge config (kb.toml) has and a mirror INI does not. A file with one of
+# them, or one that ends in .toml, is a kb.toml handed to a command that reads the INI.
+_KB_TABLES = ('kb', 'embeddings', 'llm', 'sources', 'rules')
+
+
+def _read_section(path, explicit=False):
     """An INI file's ``[contextlake]`` section as a dict, or ``{}`` if absent.
 
     Includes ``[DEFAULT]`` keys, as configparser's section view does, so a gated
     key cannot slip past the gate by sitting under ``[DEFAULT]``. configparser
     lowercases key names, so ``GITLAB_HOST = ...`` is the same key too.
+
+    A file the user named (``explicit``) must be readable and must have the section,
+    or :class:`ConfigError` says which. Section names are case-sensitive, so a
+    ``[ContextLake]`` header used to be read as an empty file, and the run went on with
+    the defaults. An auto-discovered file that cannot be opened is still skipped.
     """
     if not path or not os.path.exists(path):
         return {}
     parser = configparser.ConfigParser()
-    parser.read(path)
+    try:
+        with open(path) as f:
+            parser.read_file(f, path)
+    except OSError as e:
+        if explicit:
+            raise ConfigError(f"--config file cannot be read: {path} ({e.strerror or e})") from e
+        return {}
+    found = [section for section in SECTIONS if section in parser]
+    if explicit and not found:
+        have = ', '.join(parser.sections()) or 'none'
+        if path.lower().endswith('.toml') or any(
+                s.strip('[]').lower() in _KB_TABLES for s in parser.sections()):
+            raise WrongConfigFile(
+                f"--config {path} looks like a knowledge config, but this command reads "
+                "the mirror INI.\n  A mirror INI has a [contextlake] section. Give a "
+                "kb.toml to a `kb` command with --config, or to `bootstrap` with --kb-config.")
+        raise ConfigError(
+            f"--config file has no [contextlake] section: {path}\n"
+            f"  Sections found: {have}. Section names are case-sensitive.\n"
+            "Refusing to fall back to the defaults or to another config file in the "
+            "precedence chain, which may point at a different workspace than the one you "
+            "meant to use.")
     values = {}
-    for section in SECTIONS:
-        if section in parser:
-            values.update(parser[section])
+    for section in found:
+        values.update(parser[section])
     return values
 
 
@@ -308,7 +350,9 @@ def load_config(config_path=None, cli_group=None):
     meant to target. The other, auto-discovered files in the chain are
     legitimately optional and keep silently no-op'ing when absent. ``ConfigError``
     is shared with ``kb.load_kb_config``, which applies the identical guard to
-    kb.toml.
+    kb.toml. An explicit file that exists but cannot be read, or has no
+    ``[contextlake]`` section, is the same hard error: it used to be read as an empty
+    file, and the run went on with the defaults.
 
     The discovered local file may not set :data:`FORGE_CREDENTIAL_KEYS`. They
     are dropped with a warning naming the key and the file, unless that file is
@@ -332,7 +376,7 @@ def load_config(config_path=None, cli_group=None):
     local_config_file = find_ancestor_config(LOCAL_CONFIG_FILE)
     global_values = _read_section(CONFIG_FILE)
     local_values = _read_section(local_config_file)
-    explicit_values = _read_section(config_path)
+    explicit_values = _read_section(config_path, explicit=True)
     # Provenance gate. Run from the home directory, the ancestor walk finds
     # ~/.contextlake.ini itself, and `--config ./.contextlake.ini` names the
     # discovered file. Both are files the user chose, so both keep every key.

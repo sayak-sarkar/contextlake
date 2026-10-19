@@ -2162,6 +2162,12 @@ The `--config` path may start with `~` or hold `$VAR`. contextlake expands it, s
 `--config=~/ws/cfg.ini` works where the shell leaves the `~` as typed (after `=`, inside quotes, or in a
 systemd `ExecStart` line).
 
+A `--config` file for a `mirror`, `schedule` or `bootstrap` command must exist, be readable, and have a
+`[contextlake]` section. Section names are case-sensitive, so `[ContextLake]` does not count, and an
+empty file does not count either. If any of these fails, the command stops with an error and runs
+nothing. It does not fall back to `~/.contextlake.ini` or to the defaults. A `kb.toml` given here
+exits with `2`: pass it to a `kb` command with `--config`, or to `bootstrap` with `--kb-config`.
+
 ## Directory-scoped config
 
 A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
@@ -10164,6 +10170,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--config` file is unchanged and wins over a discovered one. If a project keeps its models in
   a project-local `cache_dir`, move the key to `~/.contextlake/kb.toml` or pass `--config PATH`,
   or the models are looked for and downloaded in the default folder.
+- **`--config FILE` now stops the run when the file cannot be read or has no `[contextlake]`
+  section.** 10.0.0rc4 read such a file as empty and went on with `~/.contextlake.ini` or the
+  defaults, exit 0, so `mirror update --config prod.ini` with a `[ContextLake]` header acted on
+  the default workspace and printed "no config with your group was found" beside `[found]
+  prod.ini`. Section names are case-sensitive: write `[contextlake]`. An empty file no longer
+  works as a way to ask for the defaults, so add the header. A `kb.toml` given to a `mirror`,
+  `schedule` or `bootstrap` command exits 2 and says to use a `kb` command or `--kb-config`. A
+  file found by walking up from the current directory, and the global file, are read as before.
 
 ### Fixed
 

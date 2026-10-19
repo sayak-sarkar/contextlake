@@ -77,6 +77,12 @@ The `--config` path may start with `~` or hold `$VAR`. contextlake expands it, s
 `--config=~/ws/cfg.ini` works where the shell leaves the `~` as typed (after `=`, inside quotes, or in a
 systemd `ExecStart` line).
 
+A `--config` file for a `mirror`, `schedule` or `bootstrap` command must exist, be readable, and have a
+`[contextlake]` section. Section names are case-sensitive, so `[ContextLake]` does not count, and an
+empty file does not count either. If any of these fails, the command stops with an error and runs
+nothing. It does not fall back to `~/.contextlake.ini` or to the defaults. A `kb.toml` given here
+exits with `2`: pass it to a `kb` command with `--config`, or to `bootstrap` with `--kb-config`.
+
 ## Directory-scoped config
 
 A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
