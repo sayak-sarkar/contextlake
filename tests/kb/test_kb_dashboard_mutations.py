@@ -369,6 +369,123 @@ def test_mcp_stop_does_not_wait_out_the_clock_on_a_child_it_just_killed(tmp_path
         child.poll()
 
 
+needs_proc = pytest.mark.skipif(not os.path.exists("/proc/self/stat"), reason="needs /proc")
+
+_SLEEPER = [sys.executable, "-c", "import time; time.sleep(60)"]
+
+
+def _write_mcp_pidfile(store_dir, pid, **extra):
+    pf = mut._mcp_pidfile(store_dir)
+    pf.parent.mkdir(parents=True, exist_ok=True)
+    pf.write_text(json.dumps({"pid": pid, "host": "127.0.0.1", "port": 8766, "token": "t",
+                              **extra}))
+    return pf
+
+
+def test_mcp_status_deletes_the_pidfile_of_a_dead_child(tmp_path):
+    """The file used to stay, and its pid number could later belong to another process.
+    The wiki and docs status functions already delete a finished run's file."""
+    pf = _write_mcp_pidfile(tmp_path, 999999999)
+
+    assert mut.mcp_status(tmp_path) == {"running": False}
+    assert not pf.exists()
+
+
+@needs_proc
+def test_mcp_start_records_the_start_time_of_the_child(tmp_path, monkeypatch):
+    _spawn_fake(monkeypatch, _FakeServer(polls=10**6), port_accepts=[False, True])
+
+    mut.mcp_start(tmp_path, port=8766)
+
+    recorded = json.loads(mut._mcp_pidfile(tmp_path).read_text())["start_time"]
+    assert recorded == mut._pid_start_time(os.getpid())
+    assert mut.mcp_status(tmp_path)["running"] is True
+
+
+@needs_proc
+def test_mcp_stop_does_not_signal_a_process_that_took_over_the_pid(tmp_path):
+    """After a crash or a reboot the pidfile can name a pid that another process now
+    holds. Stop sent SIGTERM to it and reported success. The start time the pidfile
+    recorded no longer matches, so the pidfile is stale and nothing is signalled."""
+    stranger = subprocess.Popen(_SLEEPER)
+    try:
+        wrong = str(int(mut._pid_start_time(stranger.pid)) + 1)
+        pf = _write_mcp_pidfile(tmp_path, stranger.pid, start_time=wrong)
+
+        assert mut.mcp_status(tmp_path) == {"running": False}
+        assert not pf.exists()
+
+        _write_mcp_pidfile(tmp_path, stranger.pid, start_time=wrong)
+        assert mut.mcp_stop(tmp_path) == {"ok": True, "running": False,
+                                          "message": "not running"}
+        assert stranger.poll() is None  # still running: nothing signalled it
+    finally:
+        stranger.kill()
+        stranger.wait()
+
+
+@needs_proc
+def test_mcp_stop_signals_the_child_whose_start_time_matches(tmp_path):
+    """The control for the row above: the same pidfile with the right start time is a
+    running server, and Stop ends it."""
+    child = subprocess.Popen(_SLEEPER)
+    try:
+        _write_mcp_pidfile(tmp_path, child.pid, start_time=mut._pid_start_time(child.pid))
+
+        assert mut.mcp_status(tmp_path)["running"] is True
+        assert mut.mcp_stop(tmp_path) == {"ok": True, "running": False}
+        assert child.poll() is not None
+    finally:
+        child.kill()
+        child.wait()
+
+
+@needs_proc
+def test_the_start_time_is_read_from_a_command_name_with_spaces_and_a_bracket(tmp_path):
+    """``/proc/<pid>/stat`` holds the command name in brackets, and it may contain both.
+    Counting fields from the start of the line would read another field's value."""
+    import re
+
+    code = ("import ctypes, time; ctypes.CDLL(None).prctl(15, b'a b) c', 0, 0, 0); "
+            "time.sleep(60)")
+    child = subprocess.Popen([sys.executable, "-c", code])
+    try:
+        for _ in range(100):
+            if open(f"/proc/{child.pid}/comm").read().strip() == "a b) c":
+                break
+            time.sleep(0.05)
+        else:
+            pytest.skip("this system does not rename a process")
+        stat = open(f"/proc/{child.pid}/stat").read()
+        after_name = re.match(r"\d+ \(.*\) (.*)$", stat, re.S).group(1).split()
+        # `after_name` starts at field 3, so field 22 is index 19.
+        assert mut._pid_start_time(child.pid) == after_name[19]
+        assert mut._pid_start_time(child.pid) != mut._pid_start_time(os.getpid())
+    finally:
+        child.kill()
+        child.wait()
+
+
+def test_a_pid_owned_by_another_user_is_not_a_running_child(tmp_path, monkeypatch):
+    """``kill(pid, 0)`` raises PermissionError for a pid another user owns. That counted
+    as alive, so a pidfile naming one kept the card on "Running", Start refused, and
+    Stop failed with "Operation not permitted" and left the file in place."""
+    pid = os.getppid()  # exists, and is not our child, so waitpid does not answer
+    real_kill = os.kill
+
+    def kill(target, sig):
+        if target == pid:
+            raise PermissionError(1, "Operation not permitted")
+        return real_kill(target, sig)
+
+    monkeypatch.setattr(mut.os, "kill", kill)
+    pf = _write_mcp_pidfile(tmp_path, pid)
+
+    assert mut._pid_alive(pid) is False
+    assert mut.mcp_stop(tmp_path) == {"ok": True, "running": False, "message": "not running"}
+    assert not pf.exists()
+
+
 # --- Live wiki generation ----------------------------------------------------
 
 def _shard_with_wiki(store_dir, repo_id, *, head="abc123", wiki_head=None,

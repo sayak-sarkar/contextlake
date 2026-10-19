@@ -125,6 +125,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text form only, so a clone that moved after indexing printed `{"owners": []}` with exit `0`,
   the same as a repository nobody committed to. The text line now ends with the same reason in
   all four cases. Scripts that read the payload need no change.
+- **Dashboard Stop no longer signals an unrelated process.** The MCP server pidfile stayed on
+  disk after the server exited, so a pid reused after a crash or a reboot made Stop send SIGTERM
+  to another process. The pidfile now records the server's start time (on systems with `/proc`),
+  a status poll deletes it once the server is gone, and a pid with a different start time reads
+  as Stopped. A pid owned by another user no longer holds the card on Running.
 
 ### Security
 

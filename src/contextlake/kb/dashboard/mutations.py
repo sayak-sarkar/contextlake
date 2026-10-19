@@ -225,15 +225,46 @@ def _mcp_logfile(store_dir) -> Path:
 
 
 def _pid_alive(pid: int) -> bool:
+    """True when ``pid`` names a process this user owns.
+
+    The pids passed here come from a pidfile this module wrote for a child it spawned
+    as this user. ``PermissionError`` therefore means the number now belongs to
+    another user's process, so the recorded child is gone. It used to count as alive,
+    and a pidfile naming such a pid kept the card on "Running" with no way to clear it.
+    """
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
+    except OSError:  # no such process, or one this user does not own
         return False
     return True
+
+
+def _pid_start_time(pid: int) -> str | None:
+    """When ``pid`` started, as the kernel's own tick count (``/proc/<pid>/stat``
+    field 22), or ``None`` where that file does not exist or cannot be read.
+
+    A pid number is reused. This value is not: a new process with the same pid starts
+    at a different tick. The command name (field 2) sits in brackets and may hold
+    spaces and ``)``, so the fields are counted from the last ``)``.
+    """
+    try:
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as fh:
+            rest = fh.read().rpartition(")")[2].split()
+    except OSError:
+        return None
+    return rest[19] if len(rest) > 19 else None
+
+
+def _same_process(pid: int, info: dict) -> bool:
+    """False when ``pid`` now belongs to a different process than the pidfile's.
+
+    Compares the start time the pidfile recorded with the one ``pid`` has now. It
+    answers True when either side is unknown, so a pidfile with no start time (one an
+    older release wrote, or any system without ``/proc``) keeps the pid-only check.
+    """
+    recorded = info.get("start_time")
+    current = _pid_start_time(pid) if recorded is not None else None
+    return current is None or current == recorded
 
 
 def _port_accepts(host: str, port: int) -> bool:
@@ -264,6 +295,13 @@ def mcp_status(store_dir) -> dict:
     waits on the child, so one that died on a bind failure stays a zombie, and a
     zombie still answers ``kill(pid, 0)``: the card kept showing "Running" for a
     server that did not exist.
+
+    A pidfile whose child is gone is deleted here, as the wiki and docs status
+    functions do. Left on disk, its pid number can later belong to an unrelated
+    process, and :func:`mcp_stop` would signal that process. The number may already
+    belong to one: :func:`_same_process` compares start times, so a pid that was
+    reused (after a crash or a reboot) reads as stopped, not running. A file that
+    does not parse is left alone, because ``mcp_start`` creates it before it writes it.
     """
     pf = _mcp_pidfile(store_dir)
     if not pf.exists():
@@ -273,7 +311,12 @@ def mcp_status(store_dir) -> dict:
     except (OSError, json.JSONDecodeError):
         return {"running": False}
     pid = info.get("pid")
-    if not isinstance(pid, int) or _pid_finished(pid):
+    if not isinstance(pid, int):
+        return {"running": False}
+    # The start-time check goes first: `_pid_finished` reaps a child, and a pid that
+    # was reused must not be reaped on behalf of a pidfile that never named it.
+    if not _same_process(pid, info) or _pid_finished(pid):
+        pf.unlink(missing_ok=True)
         return {"running": False}
     return {"running": True, **info}
 
@@ -364,8 +407,11 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
     # existing mode) *before* the token is written into it.
     pf.touch(mode=0o600, exist_ok=True)
     pf.chmod(0o600)
-    pf.write_text(json.dumps(
-        {"pid": proc.pid, "host": host, "port": port, "token": token}))
+    info = {"pid": proc.pid, "host": host, "port": port, "token": token}
+    start_time = _pid_start_time(proc.pid)
+    if start_time is not None:
+        info["start_time"] = start_time
+    pf.write_text(json.dumps(info))
     return {"ok": True, "running": True, "pid": proc.pid, "host": host, "port": port,
             "token": token}
 
@@ -376,6 +422,8 @@ def mcp_stop(store_dir) -> dict:
         _mcp_pidfile(store_dir).unlink(missing_ok=True)
         return {"ok": True, "running": False, "message": "not running"}
     pid = status["pid"]
+    # `mcp_status` just matched this pid to the start time the pidfile recorded, so
+    # the signal goes to the server this dashboard started and to nothing else.
     try:
         os.kill(pid, signal.SIGTERM)
     except OSError as e:

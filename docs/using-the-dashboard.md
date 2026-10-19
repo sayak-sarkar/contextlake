@@ -451,7 +451,11 @@ What **Start** does:
    server's output.
 
 The server's output goes to `<store>/dashboard/mcp-server.log`, created `0600` and replaced on
-each start. A server that dies after Start returned shows as **Stopped** on the next refresh.
+each start. A server that dies after Start returned shows as **Stopped** on the next refresh,
+and that refresh deletes its pidfile. The pidfile also records the server's start time, on
+systems that have `/proc`. **Stop** signals a pid only when that start time still matches. A pid
+that another process has taken shows as **Stopped** and is left alone. Without `/proc`, the pid
+alone decides.
 
 Mutating routes are refused in two cases:
 
