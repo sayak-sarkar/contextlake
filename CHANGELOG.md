@@ -437,6 +437,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now names the pin the repositories missed. When the pins differ it says `no branch they are
   pinned to`, and each repository's own line names its branch. Which branch each repository ends
   up on is unchanged.
+- **`kb wiki` now reports a failed page-generation call as `failed` and exits 1 when nothing
+  else was written or rejected.** When a backend returned no text, such as an agent CLI that
+  exited non-zero or timed out after a login expired, or an API reply with no choices, the empty
+  reply was taken as the page. A repo page with a structural page to replace was rejected as
+  "less complete than the page it would replace". A cluster page, or a repo page with no
+  structural page, went to the council, and with the same backend as reviewer every reviewer
+  abstained and the council rejected it. Either way the summary read `0 written, N rejected` and
+  the run exited 0, so a scheduled run recorded success and the cause looked like a problem with
+  the page or the reviewers. The page is now counted as failed, and the run exits 1 when nothing
+  was written or rejected. The cluster wiki (`--namespace`) does the same. A separate
+  `review_provider` that returns nothing still shows as rejected, with the count of reviewers
+  whose reply did not parse. 10.0.0rc4 and earlier are affected.
 
 ### Security
 

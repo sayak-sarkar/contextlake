@@ -277,5 +277,7 @@ def generate_cluster_page(llm, brief: dict, *, verified_at: date | None = None) 
     """Council-gate this in the caller (like the per-repo path): this only drafts
     the page + provenance footer from an already-built namespace brief."""
     body = llm.generate(render_cluster_prompt(brief), system=SYSTEM).strip()
+    if not body:        # a failed call (see generate_page), not a short page
+        raise RuntimeError("the model returned no text, so there is no page to write")
     return (f"# {brief['namespace']} (cluster)\n\n{body}"
             + cluster_provenance_footer(brief, verified_at))

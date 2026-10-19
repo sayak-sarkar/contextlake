@@ -221,6 +221,18 @@ and the reported issues are the reviewers' own. In every case the page is **skip
 so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
 backend, or a stronger reviewer, and it is attempted again from scratch.
 
+A page can also **fail**, which is not a rejection. A backend that returns no text fails it.
+Causes include an agent CLI that exits non-zero (an expired login, say), times out, or
+cannot start for an OS reason such as a permission error. A CLI in those states logs a
+reason on the line before. Other empty replies, such as a CLI that exits zero with no output
+or an API or local model reply with no text, log only that the model returned no text.
+
+The summary counts the page under `failed`, and the page on disk stays as it was. If a page fails
+and nothing is written or rejected, `kb wiki` exits 1.
+
+A separate `review_provider` that returns nothing is not a failed page. It still shows as a
+rejection, with the count of reviewers whose reply did not parse.
+
 ## Steering it from the repository: `.contextlake/wiki.toml`
 
 A repository can have a say in its own page. Drop a `.contextlake/wiki.toml` in its root:

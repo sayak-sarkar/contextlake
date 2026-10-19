@@ -1545,6 +1545,46 @@ def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
     _only_the_structural_page_survives(store_dir)
 
 
+def test_generate_page_raises_on_an_empty_reply(tmp_path):
+    """An empty reply is a failed call. Returned as a page it was rejected later as
+    'less complete', which hid the real cause."""
+    _shard(tmp_path)
+
+    class _Silent:
+        name = "silent"
+
+        def generate(self, prompt, *, system=None):
+            return "  \n"
+
+    with pytest.raises(RuntimeError, match="returned no text"):
+        generate_page(_Silent(), tmp_path, "r")
+
+
+def test_cmd_wiki_counts_a_failed_cli_call_as_failed_not_rejected(
+    tmp_path, monkeypatch, gls_logs
+):
+    """CliLlm returns "" on a non-zero exit (a login that expired, a timeout). That used to
+    reach the replacement gate as an empty page, print 'rejected, less complete than the
+    page it would replace', and exit 0, so a scheduled run recorded success."""
+    import sys
+
+    from contextlake.kb.llm.cli import CliLlm
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    broken = CliLlm(command=sys.executable,
+                    args=["-c", "import sys; sys.stderr.write('login expired'); sys.exit(1)"])
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: broken)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
+    text = gls_logs.text
+    assert "exit 1: login expired" in text          # the cause CliLlm already logged
+    assert "returned no text" in text
+    assert "less complete" not in text
+    assert "0 written, 0 rejected, 0 unchanged (skipped), 1 failed" in text
+    _only_the_structural_page_survives(store_dir)
+
+
 def test_cmd_wiki_summary_surfaces_a_partial_failure(tmp_path, monkeypatch, gls_logs):
     """Before the fix, a repo that failed mid-run was silently dropped from the
     summary line (still ✓, still 'success') as long as at least one other repo

@@ -1233,6 +1233,13 @@ def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = No
     body = llm.generate(render_prompt(brief, path_prefix=path_prefix,
                                       structural_page=structural_page),
                         system=SYSTEM).strip()
+    # An empty draft is a failed call, not a short page. CliLlm returns "" for a
+    # non-zero exit or a timeout, and OpenAILlm for an empty `choices`. Passed on, the
+    # empty body would be rejected by the replacement gate when a structural page
+    # exists, or by the council when none does, and the run would exit 0. Raised, the
+    # caller counts it as `failed`.
+    if not body:
+        raise RuntimeError("the model returned no text, so there is no page to write")
     if path_prefix:
         title = (
             f"# {repo_id} — {path_prefix}\n\n"

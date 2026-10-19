@@ -2,6 +2,8 @@
 
 from datetime import date
 
+import pytest
+
 from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.shards import GraphShard, write_shard
@@ -198,6 +200,19 @@ def test_generate_cluster_page_has_body_and_fingerprint_footer():
     assert "cluster-commits:" in page and "`acme/sensors/api`" in page
 
 
+def test_generate_cluster_page_raises_on_an_empty_reply():
+    class _Silent:
+        name = "silent"
+
+        def generate(self, prompt, *, system=None):
+            return ""
+
+    brief = {"namespace": "acme/sensors", "member_count": 1, "truncated": False,
+             "repos": [], "internal_edges": [], "boundary_edges": [], "heads": {}}
+    with pytest.raises(RuntimeError, match="returned no text"):
+        generate_cluster_page(_Silent(), brief)
+
+
 # --- command wiring -------------------------------------------------------
 
 def _ns_args(tmp_path, **over):
@@ -312,6 +327,23 @@ def test_cmd_wiki_namespace_rejects_a_degenerate_cluster_page(tmp_path, monkeypa
     assert not (store_dir / "wiki" / "_clusters" / "acme__sensors.md").exists()
     assert not reviewed
     assert "degenerate repetition" in gls_logs.text
+
+
+def test_cmd_wiki_namespace_counts_an_empty_reply_as_failed(tmp_path, monkeypatch, gls_logs):
+    """A backend that returns no text failed. It must not read as a council rejection."""
+    import contextlake.kb.llm as llm_pkg
+    from contextlake.kb.commands import cmd_wiki
+
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+
+    class _Silent(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            return ""
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _Silent())
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/sensors")) == 1
+    assert not (store_dir / "wiki" / "_clusters" / "acme__sensors.md").exists()
+    assert "0 written, 0 rejected, 0 unchanged (skipped), 1 failed" in gls_logs.text
 
 
 # --- dashboard data layer -------------------------------------------------
