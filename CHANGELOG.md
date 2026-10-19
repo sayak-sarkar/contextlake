@@ -139,6 +139,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the line. Existing setups change in one case: `%%` is no longer collapsed to one `%`, and
   `%(name)s` is no longer expanded. If you wrote `%%` to get past the old error, write a single
   `%`. 10.0.0rc4 crashed on a `%`.
+- **`init --local` now stops with exit code 2 when `CONTEXTLAKE_NO_LOCAL_CONFIG` is set, and
+  writes nothing.** That variable makes every command ignore `.contextlake.ini` and
+  `.contextlake.kb.toml` in the working directory, yet `init --local` wrote both, exited 0 and
+  printed `contextlake bootstrap` as the next step. That step then refused with the
+  placeholder-group error. A CI job that ran `init --local` under the variable and got 0 now
+  gets 2. Unset the variable, or run `init --config PATH` and pass the same `--config PATH` to
+  later commands.
 
 ### Fixed
 

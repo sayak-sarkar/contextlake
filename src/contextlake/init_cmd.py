@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 from . import style
-from .config import CONFIG_FILE, LOCAL_CONFIG_FILE
+from .config import CONFIG_FILE, LOCAL_CONFIG_FILE, NO_LOCAL_CONFIG_ENV, local_config_disabled
 from .core import PLATFORM_DEFAULTS, platform_name
 from .logging_setup import log
 
@@ -386,6 +386,16 @@ def cmd_init(args) -> int:
         mirror_config_file = os.path.expanduser(config_path)
         kb_config_file = str(Path(mirror_config_file).parent / "kb.toml")
     elif local:
+        # Refused before any prompt. With the local tier off, discovery ignores both files
+        # this writes, so the next command in this directory would find no group and
+        # refuse, right after `init` printed two "wrote" lines and a "Next:" step. The same
+        # reasoning keeps `kb source add --local` out of a file this environment never reads
+        # (config.local_config_disabled). `--config` is read when named, so it is not refused.
+        if local_config_disabled():
+            log(style.fail(f"--local writes config files that {NO_LOCAL_CONFIG_ENV} makes "
+                           "every command ignore. Nothing was written."))
+            log(f"  Unset {NO_LOCAL_CONFIG_ENV}, or pass --config PATH to name the file.")
+            return 2
         mirror_config_file = LOCAL_CONFIG_FILE
         kb_config_file = ".contextlake.kb.toml"
     else:

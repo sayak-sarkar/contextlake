@@ -19,6 +19,7 @@ from types import SimpleNamespace
 import pytest
 
 from contextlake import init_cmd, style
+from contextlake.config import NO_LOCAL_CONFIG_ENV
 from contextlake.kb import config as kbcfg
 from contextlake.kb.config import load_kb_config
 
@@ -32,7 +33,11 @@ def _isolated_and_no_shell_writes(tmp_path, monkeypatch):
     `init`'s interactive path calls `_setup_shell_completion`, which appends to
     the user's ~/.bashrc or ~/.zshrc, and its non-local path resolves to the real
     ~/.contextlake/kb.toml. Both are stubbed or redirected before any run.
+
+    A shell that exports CONTEXTLAKE_NO_LOCAL_CONFIG would make `init --local` refuse and
+    the loader ignore the files these rows read back, so the variable is cleared too.
     """
+    monkeypatch.delenv(NO_LOCAL_CONFIG_ENV, raising=False)
     monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "no-global.toml"))
     monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", ".contextlake.kb.toml")
     monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / "unused-global-kb.toml"))

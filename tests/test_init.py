@@ -6,7 +6,15 @@ from argparse import Namespace
 import pytest
 
 from contextlake import init_cmd, style
-from contextlake.config import load_config
+from contextlake.config import NO_LOCAL_CONFIG_ENV, load_config
+
+
+@pytest.fixture(autouse=True)
+def _local_config_tier_is_on(monkeypatch):
+    """`init --local` refuses when the tier is off, and the loader ignores the files it
+    writes. A developer shell or CI job that exports the variable would fail every test
+    here that runs it, so each test starts with it unset (and sets it itself if it needs it)."""
+    monkeypatch.delenv(NO_LOCAL_CONFIG_ENV, raising=False)
 
 
 def _args(**over):
@@ -208,6 +216,44 @@ def test_init_reports_a_config_it_cannot_write_and_exits_1(tmp_path, monkeypatch
     assert rc == 1
     assert f"Cannot write {blocker}" in gls_logs.text
     assert "Next:" not in gls_logs.text
+
+
+@pytest.mark.parametrize("extra", [{}, {"no_mirror": True}], ids=["mirror", "no-mirror"])
+def test_init_local_is_refused_when_the_local_tier_is_disabled(
+        tmp_path, monkeypatch, gls_logs, extra):
+    """Discovery ignores both files `--local` writes, so init reported two files written and
+    a `bootstrap` step that then refused with the placeholder-group error."""
+    monkeypatch.setenv("CONTEXTLAKE_NO_LOCAL_CONFIG", "1")
+    monkeypatch.chdir(tmp_path)
+
+    rc = init_cmd.cmd_init(_args(local=True, platform="github", group="acme", **extra))
+
+    assert rc == 2
+    assert "CONTEXTLAKE_NO_LOCAL_CONFIG" in gls_logs.text
+    assert "--config PATH" in gls_logs.text
+    assert not (tmp_path / ".contextlake.ini").exists()
+    assert not (tmp_path / ".contextlake.kb.toml").exists()
+    assert "Next:" not in gls_logs.text
+
+
+def test_init_config_flag_still_writes_when_the_local_tier_is_disabled(tmp_path, monkeypatch):
+    """`--config` is read when a command names it, so the opt-out does not make it pointless."""
+    monkeypatch.setenv("CONTEXTLAKE_NO_LOCAL_CONFIG", "1")
+    custom = tmp_path / "named.ini"
+
+    rc = init_cmd.cmd_init(_args(config=str(custom), local=True, platform="github", group="acme"))
+
+    assert rc == 0
+    assert "gitlab_group = acme" in custom.read_text()
+
+
+def test_init_local_still_writes_when_the_opt_out_is_off(tmp_path, monkeypatch):
+    """The control: `=0` is an explicit off word (config.local_config_disabled)."""
+    monkeypatch.setenv("CONTEXTLAKE_NO_LOCAL_CONFIG", "0")
+    monkeypatch.chdir(tmp_path)
+
+    assert init_cmd.cmd_init(_args(local=True, platform="github", group="acme")) == 0
+    assert (tmp_path / ".contextlake.ini").exists()
 
 
 def test_init_rejects_unknown_platform(tmp_path, monkeypatch):

@@ -268,7 +268,8 @@ set them in `~/.contextlake.ini` (or export `GITLAB_HOST`), or pass `--config` n
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
 `.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
-would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
+would never be read, and `init --local` stops with exit code 2 and writes nothing. Pass `init --config PATH`
+instead, or unset the variable. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
 
 ## Settings reference
 
