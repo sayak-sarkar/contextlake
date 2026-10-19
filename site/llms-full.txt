@@ -9969,6 +9969,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scope, then `MCP server on http://...`, then exited 1 with the refusal. No socket opened, but
   the output described a server that never started. It now prints `Refusing to start: ...` with
   no banner and no bypass line, still exit 1, in every key-file state.
+- **`semantic_search` and `ask` no longer fail when `k` is above 512.** With the optional
+  sqlite-vec store, `k=513` asked the index for a 4104-row window, and sqlite-vec refuses more
+  than 4096. The caller got a tool error with no cause in it, and `kb eval --retriever semantic
+  --limit 600` raised. `kb query --retriever semantic --limit 600` caught the error and showed
+  full-text results; it now shows vector hits. The window is now capped at 4096 rows, so a large
+  `k` returns as many hits as the window holds, or fewer when one document owns several chunks
+  of it. Keys limited by `--repos` were already capped.
 
 ### Security
 

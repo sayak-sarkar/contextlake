@@ -59,6 +59,38 @@ def _store_with_vectors(tmp_path):
     return store, vs
 
 
+def test_a_k_past_the_sqlite_vec_window_limit_is_not_a_tool_error(tmp_path):
+    """`semantic_search` and `ask` took any `k`, and sqlite-vec refused a window over 4096.
+
+    The store asks it for `k * 8` rows, so `k=513` raised "k value in knn query too
+    large" and the MCP client saw only "Error executing tool". Run through the client,
+    with the real sqlite-vec store, because the brute store has no window to refuse.
+    """
+    import pytest
+
+    pytest.importorskip("sqlite_vec")
+    from contextlake.kb.embeddings.store import MAX_SEARCH_K, SqliteVecStore
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    store.upsert_nodes("r", [
+        Node(id="a", repo="r", kind="function", name="ForecastService"),
+        Node(id="b", repo="r", kind="function", name="load_readings"),
+    ])
+    vs = SqliteVecStore(tmp_path / "embeddings.sqlite")
+    vs.upsert([("a", "r", [1.0, 0.0]), ("b", "r", [0.0, 1.0])])
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        for tool, args in (("semantic_search", {"query": "the grid sampling in ForecastService"}),
+                           ("ask", {"question": "the grid sampling in ForecastService"})):
+            for k in (MAX_SEARCH_K, MAX_SEARCH_K + 1, 600):
+                res = asyncio.run(_call(server, tool, {**args, "k": k}))
+                assert not res.is_error, (tool, k)
+                assert {n["id"] for n in _nodes(res.structured_content)} == {"a", "b"}, (tool, k)
+    finally:
+        vs.close()
+        store.close()
+
+
 def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
     store, vs = _store_with_vectors(tmp_path)
     try:

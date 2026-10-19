@@ -38,10 +38,14 @@ CHUNK_SEP = "\x1f"
 #: enough that the extra rows cost nothing measurable.
 _CHUNK_OVERFETCH = 8
 
-#: The largest k `search` can honour on every backend. sqlite-vec refuses a KNN window over
-#: 4096 rows and the window is `k * _CHUNK_OVERFETCH`, so a larger k does not return more
-#: nodes, it raises.
-MAX_SEARCH_K = 4096 // _CHUNK_OVERFETCH
+#: The widest KNN window sqlite-vec accepts. It raises "k value in knn query too large" over it.
+_VEC_MAX_WINDOW = 4096
+
+#: The largest k whose whole window (`k * _CHUNK_OVERFETCH` rows) fits that limit. A larger k
+#: gets the 4096-row window. That window can hold more distinct nodes than this, and fewer than
+#: k when one document owns several chunks of it. The kind window of `kb query` stops here, and
+#: so does scoped search on a store that sets `max_k` (`SqliteVecStore`).
+MAX_SEARCH_K = _VEC_MAX_WINDOW // _CHUNK_OVERFETCH
 
 
 def _norm(vec) -> float:
@@ -369,16 +373,19 @@ class SqliteVecStore:
         if not self._has_table or self._dim is None or len(query) != self._dim:
             return []
         q = _pack(query)
+        # An MCP caller's k has no upper bound, and a k past MAX_SEARCH_K would otherwise ask
+        # for a window the backend refuses and fail the call.
+        window = min(k * _CHUNK_OVERFETCH, _VEC_MAX_WINDOW)
         if repo:
             ids = _repo_scope(repo)
             sql = ("SELECT node_id, distance FROM vec_items "  # noqa: S608 - placeholders only
                    f"WHERE embedding MATCH ? AND repo_id IN ({','.join('?' * len(ids))}) "
                    "ORDER BY distance LIMIT ?")
-            params: tuple = (q, *ids, k * _CHUNK_OVERFETCH)
+            params: tuple = (q, *ids, window)
         else:
             sql = ("SELECT node_id, distance FROM vec_items "
                    "WHERE embedding MATCH ? ORDER BY distance LIMIT ?")
-            params = (q, k * _CHUNK_OVERFETCH)
+            params = (q, window)
         # vec0 returns cosine distance; convert to similarity to match VectorStore.
         rows = [(node_id, 1.0 - dist) for node_id, dist in self.conn.execute(sql, params)]
         return _collapse_chunks(rows, k)

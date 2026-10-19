@@ -213,6 +213,39 @@ def test_a_chunky_document_cannot_crowd_distinct_nodes_out_of_the_window(tmp_pat
         s.close()
 
 
+@requires_vec
+@pytest.mark.parametrize("repo", [None, "r1"], ids=["unscoped", "repo"])
+def test_a_k_past_the_knn_window_limit_returns_hits_instead_of_raising(tmp_path, repo):
+    """sqlite-vec refuses a KNN window over 4096 rows, and the window is `k * 8`.
+
+    So `search(k=513)` asked for 4104 rows and raised `OperationalError: k value in knn
+    query too large`. The MCP `k` of `semantic_search` and `ask` has no upper bound, and
+    `kb eval --retriever semantic` passes its own, so one large value was a tool error.
+    The window is capped at the limit now. 700 nodes stand in for a fleet larger than
+    `MAX_SEARCH_K`: a k past it gets as many as the window holds, in the same order the
+    small k gave, and the brute store (no window) is the control for the count.
+    """
+    from contextlake.kb.embeddings.store import MAX_SEARCH_K
+
+    items = [(f"n{i}", "r1", [1.0, 0.001 * i, 0.0]) for i in range(700)]
+    query = [1.0, 0.0, 0.0]
+    s = SqliteVecStore(tmp_path / "v.sqlite")
+    brute = VectorStore(tmp_path / "b.sqlite")
+    try:
+        s.upsert(items)
+        brute.upsert(items)
+        assert MAX_SEARCH_K < 600, "the fixture must ask past the limit"
+
+        top = s.search(query, k=5, repo=repo)
+        for k in (MAX_SEARCH_K, MAX_SEARCH_K + 1, 600, 10**6):
+            hits = s.search(query, k=k, repo=repo)
+            assert len(hits) == len(brute.search(query, k=k, repo=repo)) == min(k, 700), k
+            assert [h[0] for h in hits[:5]] == [h[0] for h in top], k
+    finally:
+        s.close()
+        brute.close()
+
+
 # --- one contract for both backends ----------------------------------------
 
 @pytest.mark.parametrize("backend", ["brute", pytest.param("sqlite-vec", marks=requires_vec)])
