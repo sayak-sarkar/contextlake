@@ -159,6 +159,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TypeError` for non-ASCII text. The socket closed with no status line and the console printed
   a traceback. The mutation routes and `/api/chat` with `--llm-chat` now compare bytes. The
   request was refused before, so this was never a bypass.
+- **The dashboard docs no longer say a concurrent CLI command gets a `409`.** The `409` is the
+  dashboard's answer to its own busy-store requests. A CLI command that finds the store locked
+  prints the holder and exits 1. The page now describes both, and notes that Regenerate and
+  Generate documents start a CLI child that takes the lock itself.
 
 ### Security
 

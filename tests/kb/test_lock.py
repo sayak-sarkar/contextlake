@@ -47,6 +47,19 @@ def test_live_peer_is_busy(tmp_path):
         StoreLock(tmp_path, "index").acquire()
 
 
+def test_guard_store_refuses_a_busy_store_and_names_the_holder(tmp_path, monkeypatch, gls_logs):
+    # What a CLI command does with a busy store: a refusal that names the holder and a
+    # False return (the commands then exit 1). It is not an HTTP status; the dashboard's
+    # 409 is its own answer, and docs/using-the-dashboard.md describes the two apart.
+    from contextlake.kb.cmds._common import _guard_store
+
+    monkeypatch.delenv(OVERRIDE_ENV, raising=False)
+    _write_lock(tmp_path, pid=os.getppid())
+    assert _guard_store(tmp_path, "index") is False
+    assert "refusing to run concurrently" in gls_logs.text
+    assert f"holder: pid {os.getppid()}" in gls_logs.text
+
+
 def test_stale_pid_is_reclaimed(tmp_path):
     _write_lock(tmp_path, pid=2_147_400_000)   # implausible / dead pid
     StoreLock(tmp_path, "index").acquire()     # must not raise

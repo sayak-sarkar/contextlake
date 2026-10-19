@@ -1047,6 +1047,8 @@ def test_mutation_returns_409_when_store_is_locked(served_with_mutations, tmp_pa
         status, body = _post(base + "/api/repo/acme/origin/sync", {}, token=token)
         assert status == 409
         assert body["error"] == "store is busy"
+        # docs/using-the-dashboard.md promises the holder's pid in this answer.
+        assert body["holder"]["pid"] == os.getppid()
     finally:
         lock_path.unlink(missing_ok=True)
 

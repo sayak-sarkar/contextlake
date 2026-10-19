@@ -473,8 +473,11 @@ Two checks protect every `POST`:
    rebinding, where a hostile site resolves a name to `127.0.0.1` to reach past the loopback
    bind.
 
-A mutation holds the store's single-writer lock only while it runs. A concurrent CLI command
-gets a clean `409` rather than an interleaved write.
+Sync now, Add repo and the MCP actions hold the store's single-writer lock only while they run.
+A dashboard action that finds the store locked gets HTTP `409` (`store is busy`) with the
+holder's pid. A CLI command that finds it locked prints the holder and exits 1. Neither case
+interleaves a write. Regenerate and Generate documents start a CLI child, and the child takes
+the lock itself, so it follows the CLI rule.
 
 The MCP server those Start/Restart actions spawn is constrained to a loopback bind
 and an unprivileged port (1024-65535), whatever the request asks for. That transport
