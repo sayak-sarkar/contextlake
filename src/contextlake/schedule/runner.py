@@ -30,6 +30,9 @@ _HAVE_KILLPG = hasattr(os, "killpg") and hasattr(os, "getpgid")
 
 _SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
 
+# Seconds to wait after SIGTERM, and again after SIGKILL, for the child and its group to end.
+_STOP_GRACE_S = 5
+
 
 def child_env(config, kind, job_name=None) -> dict:
     """The environment a scheduled child runs in.
@@ -74,34 +77,114 @@ def _spawn(argv, env, timeout=None) -> int:
     try:
         return proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
-        # Kill the GROUP, not the process. The child is usually `bootstrap`
-        # or `kb index`, which runs a ProcessPoolExecutor with up to 8
-        # workers; killing only the direct child leaves that whole pool
-        # alive, reparented to init and still holding memory. Measured on
-        # this machine: one timed-out run left 8 orphaned workers holding
-        # 12.4 GB, with the box down to 1.3 GB available.
-        #
-        # SIGTERM before SIGKILL: the store takes an advisory lock while it
-        # writes, and an abrupt SIGKILL mid-write leaves a stale lock for the
-        # next run to reclaim. SIGTERM gives the child, and anything it
-        # started, a chance to release that lock; SIGKILL alone never does.
-        # SIGKILL is still the fallback, so a child that ignores SIGTERM
-        # cannot hold the group open forever.
         log(f"The scheduled run exceeded its timeout of {timeout}s and was killed.")
-        _killpg(proc.pid, signal.SIGTERM)
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            _killpg(proc.pid, _SIGKILL)
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                log(f"  pid {proc.pid} did not die; it may still be running.")
+        _stop_group(proc)
         return 124
+    except KeyboardInterrupt:
+        # Ctrl-C reaches only this process: the child is in a session of its own (above), so
+        # the terminal never signals it. Left alone it would keep writing after the command
+        # said "cancelled", and the run lock below would be released under it, letting a
+        # second run start beside it. Stop the group first, then let the interrupt go on.
+        log("Interrupted. Stopping the scheduled run.")
+        try:
+            _stop_group(proc)
+        except KeyboardInterrupt:
+            # A second Ctrl-C while waiting for the SIGTERM: skip the grace period. Still wait
+            # for the group, because the run lock is released as the interrupt leaves.
+            _killpg(proc.pid, _SIGKILL)
+            _wait_after_kill(proc)
+        raise
+
+
+def _stop_group(proc) -> None:
+    """Stop the child's whole process group: SIGTERM, then SIGKILL if it stays.
+
+    Kill the GROUP, not the process. The child is usually `bootstrap`
+    or `kb index`, which runs a ProcessPoolExecutor with up to 8
+    workers; killing only the direct child leaves that whole pool
+    alive, reparented to init and still holding memory. Measured on
+    this machine: one timed-out run left 8 orphaned workers holding
+    12.4 GB, with the box down to 1.3 GB available.
+
+    SIGTERM before SIGKILL: the store takes an advisory lock while it
+    writes, and an abrupt SIGKILL mid-write leaves a stale lock for the
+    next run to reclaim. SIGTERM gives the child, and anything it
+    started, a chance to release that lock; SIGKILL alone never does.
+    SIGKILL is still the fallback, so a child that ignores SIGTERM
+    cannot hold the group open forever.
+
+    Returns once the child and every member of its group are gone, or
+    after SIGKILL and 5 s more. The run lock is released as the caller
+    returns, so it must not return while a member still runs.
+    """
+    _killpg(proc.pid, signal.SIGTERM)
+    # One deadline covers the child's exit and the rest of the group's.
+    deadline = time.monotonic() + _STOP_GRACE_S
+    try:
+        proc.wait(timeout=_STOP_GRACE_S)
+    except subprocess.TimeoutExpired:
+        pass
+    else:
+        if _group_gone(proc.pid, deadline):
+            return
+    _killpg(proc.pid, _SIGKILL)
+    _wait_after_kill(proc)
+
+
+def _wait_after_kill(proc) -> None:
+    """Wait up to 5 s for the child and its group to end after SIGKILL, and say so if any stay."""
+    deadline = time.monotonic() + _STOP_GRACE_S
+    try:
+        proc.wait(timeout=_STOP_GRACE_S)
+    except subprocess.TimeoutExpired:
+        log(f"  pid {proc.pid} did not die; it may still be running.")
+        return
+    if not _group_gone(proc.pid, deadline):
+        log(f"  Processes started by pid {proc.pid} did not die; they may still be running.")
+
+
+def _group_gone(pgid, deadline) -> bool:
+    """Whether process group ``pgid`` has no member left, checked until the monotonic ``deadline``.
+
+    The child leads its group (``start_new_session``), so its pid is the group id. Waiting for
+    the child alone is not enough: a worker that ignores SIGTERM outlives it, and the run lock
+    would be released with that worker still writing. The group stays findable until its last
+    member is gone, even after the child has been reaped.
+
+    Checks at least once. Without process groups (Windows) there is nothing to poll.
+    """
+    if not _HAVE_KILLPG:
+        return True
+    while True:
+        _reap_group(pgid)
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            # A member we may not signal: waiting cannot end it, and neither can SIGKILL.
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+def _reap_group(pgid) -> None:
+    """Collect the exited members of group ``pgid`` that are children of this process.
+
+    Orphans go to init. When this process is init (a container's PID 1) or a subreaper, they
+    come here instead, and an exited one stays a zombie that ``killpg`` still counts as a member
+    until someone collects it. Only the group's own members match, never another child of ours.
+    """
+    try:
+        while os.waitpid(-pgid, os.WNOHANG)[0]:
+            pass
+    except ChildProcessError:
+        pass
 
 
 def _killpg(pid, sig) -> None:
-    """Send ``sig`` to ``pid``'s whole process group. Silent if the group is
+    """Send ``sig`` to the whole process group that ``pid`` leads. Silent if the group is
     already gone: it can exit between the timeout firing and this running,
     and that is success, not a failure worth logging."""
     if not _HAVE_KILLPG:
@@ -116,7 +199,10 @@ def _killpg(pid, sig) -> None:
                        capture_output=True, check=False)
         return
     try:
-        os.killpg(os.getpgid(pid), sig)
+        # The child leads its own group (start_new_session), so its pid is the group id. Not
+        # os.getpgid(pid): that fails once the child has been reaped, while members of the
+        # group can still be running.
+        os.killpg(pid, sig)
     except ProcessLookupError:
         pass
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
 import time
@@ -626,6 +627,407 @@ def test_the_timeout_path_completes_where_sigkill_does_not_exist(monkeypatch):
     # Both passes ran: the SIGTERM one and the SIGKILL one. If the call site
     # still read `signal.SIGKILL`, this raised AttributeError instead.
     assert len(killed) == 2, killed
+
+
+# ---- _spawn: Ctrl-C must not leave the child running --------------------
+#
+# The child starts in a session of its own, so the terminal's Ctrl-C reaches only the
+# scheduler. Without a handler, KeyboardInterrupt left `proc.wait`, the run lock was
+# released, and the child kept writing while a second run could start beside it.
+
+def _no_group_left(monkeypatch):
+    """Fake children have no real process group, so report none left. The real check would
+    signal whatever group happens to have the fake pid."""
+    monkeypatch.setattr(runner, "_group_gone", lambda pgid, deadline: True)
+
+
+class _WaitInterrupted:
+    """A child whose first `wait` is the Ctrl-C. Later waits take ``later`` in order.
+
+    A step that is an exception (class or instance) is raised; a number is the exit code
+    returned. Every call goes on ``events`` as ("wait", timeout), so a test can check the
+    order against the signals sent.
+    """
+    pid = 4242
+
+    def __init__(self, later=(0,), events=None):
+        self._waits = [KeyboardInterrupt] + list(later)
+        self.events = events if events is not None else []
+
+    def wait(self, timeout=None):
+        self.events.append(("wait", timeout))
+        step = self._waits.pop(0)
+        if isinstance(step, BaseException) or (
+                isinstance(step, type) and issubclass(step, BaseException)):
+            raise step
+        return step
+
+
+def test_ctrl_c_stops_the_childs_group_and_then_passes_the_interrupt_on(monkeypatch):
+    import signal as _signal
+
+    sent = []
+    _no_group_left(monkeypatch)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _WaitInterrupted())
+    monkeypatch.setattr(runner, "_killpg", lambda pid, sig: sent.append((pid, sig)))
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._spawn(["irrelevant"], {})
+
+    assert sent == [(4242, _signal.SIGTERM)], sent
+
+
+def test_a_second_ctrl_c_while_the_child_stops_sends_sigkill_and_waits_for_it(monkeypatch):
+    import signal as _signal
+
+    events = []
+    child = _WaitInterrupted(later=[KeyboardInterrupt, 0], events=events)
+    _no_group_left(monkeypatch)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: child)
+    monkeypatch.setattr(runner, "_killpg", lambda pid, sig: events.append(("signal", sig)))
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._spawn(["irrelevant"], {})
+
+    # SIGTERM, then the second Ctrl-C cuts the grace period, then SIGKILL, then a bounded
+    # wait for the group. The lock is released as the interrupt leaves, so the wait must come
+    # before the re-raise.
+    grace = runner._STOP_GRACE_S
+    assert events == [
+        ("wait", None), ("signal", _signal.SIGTERM), ("wait", grace),
+        ("signal", runner._SIGKILL), ("wait", grace),
+    ], events
+
+
+def test_a_second_ctrl_c_gives_up_waiting_if_the_group_will_not_die(monkeypatch):
+    """The wait after SIGKILL is bounded. The interrupt still goes on, with a log line."""
+    import subprocess as _subprocess
+
+    logged = []
+    # Waits: the Ctrl-C, the second Ctrl-C, then a wait after SIGKILL that times out.
+    child = _WaitInterrupted(later=[KeyboardInterrupt, _subprocess.TimeoutExpired("x", 5)])
+    _no_group_left(monkeypatch)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: child)
+    monkeypatch.setattr(runner, "_killpg", lambda pid, sig: None)
+    monkeypatch.setattr(runner, "log", lambda msg, *a, **k: logged.append(msg))
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._spawn(["irrelevant"], {})
+
+    assert any("did not die" in m for m in logged), logged
+
+
+def test_a_group_member_that_outlives_the_child_gets_sigkill(monkeypatch):
+    """The child ends on SIGTERM and a worker it started does not. Stopping once the child
+    is gone would release the run lock with that worker still writing."""
+    import signal as _signal
+
+    events = []
+    child = _WaitInterrupted(later=[0, 0], events=events)
+    answers = iter([False, True])
+
+    def _gone(pgid, deadline):
+        events.append(("group", pgid))
+        return next(answers)
+
+    monkeypatch.setattr(runner, "_group_gone", _gone)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: child)
+    monkeypatch.setattr(runner, "_killpg", lambda pid, sig: events.append(("signal", sig)))
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._spawn(["irrelevant"], {})
+
+    grace = runner._STOP_GRACE_S
+    assert events == [
+        ("wait", None), ("signal", _signal.SIGTERM), ("wait", grace), ("group", 4242),
+        ("signal", runner._SIGKILL), ("wait", grace), ("group", 4242),
+    ], events
+
+
+def test_a_group_member_that_survives_sigkill_is_logged_and_the_interrupt_goes_on(monkeypatch):
+    logged = []
+    monkeypatch.setattr(runner, "_group_gone", lambda pgid, deadline: False)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _WaitInterrupted(later=[0, 0]))
+    monkeypatch.setattr(runner, "_killpg", lambda pid, sig: None)
+    monkeypatch.setattr(runner, "log", lambda msg, *a, **k: logged.append(msg))
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._spawn(["irrelevant"], {})
+
+    assert any("Processes started by pid 4242 did not die" in m for m in logged), logged
+
+
+def _leader_that_exits_leaving_a_member():
+    """A real group leader that has exited and been reaped, with one member still running."""
+    import subprocess as _subprocess
+
+    leader = _subprocess.Popen(
+        [sys.executable, "-c",
+         "import subprocess, sys; "
+         "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])"],
+        start_new_session=True)
+    leader.wait(timeout=10)
+    return leader
+
+
+def test_group_gone_sees_a_group_until_its_last_member_exits():
+    import signal as _signal
+
+    leader = _leader_that_exits_leaving_a_member()
+    try:
+        # The leader is gone and reaped. Checks at least once, so a deadline already past
+        # still reports the group alive.
+        assert runner._group_gone(leader.pid, time.monotonic() - 1) is False
+        os.killpg(leader.pid, _signal.SIGKILL)
+        assert runner._group_gone(leader.pid, time.monotonic() + 5) is True
+    finally:
+        try:
+            os.killpg(leader.pid, _signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def test_killpg_reaches_a_member_after_the_leader_was_reaped():
+    """os.getpgid(pid) fails once the leader is reaped, while its members still run."""
+    import signal as _signal
+
+    leader = _leader_that_exits_leaving_a_member()
+    try:
+        runner._killpg(leader.pid, _signal.SIGKILL)
+        assert runner._group_gone(leader.pid, time.monotonic() + 5) is True
+    finally:
+        try:
+            os.killpg(leader.pid, _signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def test_an_exited_orphan_that_reparented_to_us_does_not_hold_the_stop_open(tmp_path):
+    """Where this process is a container's PID 1, orphans reparent to it, and an exited one stays
+    a zombie that killpg still counts. A subreaper stands in for PID 1. Runs in a subprocess so
+    the test process keeps its parent as the reaper of its own orphans."""
+    import json
+    import subprocess as _subprocess
+
+    if not sys.platform.startswith("linux"):
+        pytest.skip("PR_SET_CHILD_SUBREAPER is Linux only")
+    driver = tmp_path / "driver.py"
+    driver.write_text(
+        "import ctypes, json, subprocess, sys\n"
+        "from contextlake.schedule import runner\n"
+        "if ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER\n"
+        "    sys.exit(77)\n"
+        "leader = subprocess.Popen([sys.executable, '-c',\n"
+        "    'import subprocess, sys, time\\n'\n"
+        "    'subprocess.Popen([sys.executable, \"-c\", \"import time; time.sleep(60)\"])\\n'\n"
+        "    'print(1, flush=True)\\n'\n"
+        "    'time.sleep(60)\\n'],\n"
+        "    start_new_session=True, stdout=subprocess.PIPE)\n"
+        "leader.stdout.readline()\n"
+        "sent, logged = [], []\n"
+        "runner._STOP_GRACE_S = 1.0\n"
+        "runner.log = logged.append\n"
+        "real = runner._killpg\n"
+        "runner._killpg = lambda pid, sig: (sent.append(sig), real(pid, sig))\n"
+        "runner._stop_group(leader)\n"
+        "print(json.dumps({'sigkill': runner._SIGKILL in sent, 'logged': logged}))\n")
+    src = os.path.dirname(os.path.dirname(os.path.dirname(runner.__file__)))
+    env = dict(os.environ, PYTHONPATH=src + os.pathsep + os.environ.get("PYTHONPATH", ""))
+
+    done = _subprocess.run([sys.executable, str(driver)], env=env, capture_output=True,
+                           text=True, timeout=60)
+
+    if done.returncode == 77:
+        pytest.skip("this kernel refuses PR_SET_CHILD_SUBREAPER")
+    assert done.returncode == 0, done.stderr
+    outcome = json.loads(done.stdout.strip().splitlines()[-1])
+    assert outcome == {"sigkill": False, "logged": []}, outcome
+
+
+def test_group_gone_has_nothing_to_poll_without_process_groups(monkeypatch):
+    monkeypatch.setattr(runner, "_HAVE_KILLPG", False)
+    assert runner._group_gone(4242, time.monotonic() - 1) is True
+
+
+def test_the_run_lock_is_held_until_the_interrupted_child_is_gone(tmp_path, monkeypatch):
+    """The lock must outlive the kill. Releasing it first lets a second run start while
+    the first child still writes, which is the defect."""
+    from contextlake.schedule import runlock
+
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    _install_job(tmp_path)
+    config = _config(tmp_path)
+    lock_path = runlock.runlock_path(config)
+    held_at_kill = []
+
+    def _killpg(pid, sig):
+        held_at_kill.append(os.path.exists(lock_path))
+
+    _no_group_left(monkeypatch)
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _WaitInterrupted())
+    monkeypatch.setattr(runner, "_killpg", _killpg)
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+    job = jobs.read_jobs(jobs.jobs_path(config))[jobs.DEFAULT_JOB]
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._one_cycle(_args(), config, job, jobs.jobs_path(config))
+
+    assert held_at_kill == [True], (
+        f"expected one signal sent while the lock was still held, got {held_at_kill}")
+    assert not os.path.exists(lock_path), "the lock was left behind after the interrupt"
+
+
+@contextlib.contextmanager
+def _ctrl_c_once_started(pidfile):
+    """Send this process a real SIGINT 0.2 s after ``pidfile`` appears, while the block runs.
+
+    Python only raises KeyboardInterrupt if SIGINT has a handler. A test run started as a
+    background job or from a harness inherits SIGINT as ignored, so the default handler is
+    installed here and the old disposition put back afterwards.
+    """
+    import signal as _signal
+    import threading
+
+    stop = threading.Event()
+
+    def _press_ctrl_c():
+        deadline = time.monotonic() + 10
+        while not pidfile.exists() and time.monotonic() < deadline:
+            if stop.wait(0.05):
+                return
+        if stop.wait(0.2):
+            return
+        os.kill(os.getpid(), _signal.SIGINT)
+
+    try:
+        old_handler = _signal.signal(_signal.SIGINT, _signal.default_int_handler)
+    except ValueError:
+        pytest.skip("signal handlers can only be set from the main thread")
+    presser = threading.Thread(target=_press_ctrl_c)
+    presser.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        presser.join()
+        _signal.signal(_signal.SIGINT, old_handler)
+
+
+def _kill_leftovers(started, pidfile):
+    """Best-effort cleanup so a failing test leaks no process. Raw os calls, on purpose: it has
+    to work when the code under test is broken."""
+    import signal as _signal
+
+    for pid in started:
+        try:
+            os.killpg(os.getpgid(pid), _signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            pass
+    if pidfile.exists():
+        try:
+            os.kill(int(pidfile.read_text()), _signal.SIGKILL)
+        except (OSError, ValueError):
+            pass
+
+
+def test_ctrl_c_kills_a_real_child_and_its_worker(tmp_path, monkeypatch):
+    """A real SIGINT to this process while a real child and grandchild run. The grandchild
+    stands in for a worker pool, so the group kill has to reach it too."""
+    if not os.path.isdir("/proc"):
+        pytest.skip("no /proc on this platform to check the processes with")
+
+    pidfile = tmp_path / "grandchild.pid"
+    fake_python = tmp_path / "fake_python.py"
+    fake_python.write_text(
+        "#!/usr/bin/env python3\n"
+        "import subprocess, sys, time\n"
+        "gc = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(pidfile)!r}, 'w').write(str(gc.pid))\n"
+        "time.sleep(60)\n")
+    fake_python.chmod(0o755)
+
+    started = []
+    real_popen = runner.subprocess.Popen
+
+    def _tracking_popen(cmd, **kw):
+        proc = real_popen(cmd, **kw)
+        started.append(proc.pid)
+        return proc
+
+    monkeypatch.setattr(sys, "executable", str(fake_python))
+    monkeypatch.setattr(runner.subprocess, "Popen", _tracking_popen)
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+
+    try:
+        with _ctrl_c_once_started(pidfile), pytest.raises(KeyboardInterrupt):
+            runner._spawn(["irrelevant"], dict(os.environ))
+        assert pidfile.exists(), "the child never got to start its grandchild"
+        grandchild_pid = int(pidfile.read_text())
+        assert _proc_gone(started[0]), f"child {started[0]} is still alive after Ctrl-C"
+        assert _proc_gone(grandchild_pid), (
+            f"grandchild {grandchild_pid} is still alive after Ctrl-C")
+    finally:
+        _kill_leftovers(started, pidfile)
+
+
+def test_ctrl_c_releases_the_run_lock_only_after_a_worker_that_ignores_sigterm_is_gone(
+        tmp_path, monkeypatch):
+    """A real child starts a worker that ignores SIGTERM. The child ends on SIGTERM and the
+    worker stays until SIGKILL. The run lock is released only once the worker is gone."""
+    from contextlake.schedule import runlock
+
+    if not os.path.isdir("/proc"):
+        pytest.skip("no /proc on this platform to check the processes with")
+
+    pidfile = tmp_path / "worker.pid"
+    worker = tmp_path / "worker.py"
+    worker.write_text(
+        "import os, signal, time\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"open({str(pidfile)!r}, 'w').write(str(os.getpid()))\n"
+        "time.sleep(60)\n")
+    fake_python = tmp_path / "fake_python.py"
+    fake_python.write_text(
+        "#!/usr/bin/env python3\n"
+        "import subprocess, sys, time\n"
+        f"subprocess.Popen([sys.executable, {str(worker)!r}])\n"
+        "time.sleep(60)\n")
+    fake_python.chmod(0o755)
+
+    monkeypatch.setattr(gates, "check", lambda cfg: gates.GateResult(True, ""))
+    _install_job(tmp_path)
+    config = _config(tmp_path)
+    job = jobs.read_jobs(jobs.jobs_path(config))[jobs.DEFAULT_JOB]
+    started = []
+    real_popen = runner.subprocess.Popen
+    worker_alive_at_release = []
+    real_release = runlock.RunLock.release
+
+    def _tracking_popen(cmd, **kw):
+        proc = real_popen(cmd, **kw)
+        started.append(proc.pid)
+        return proc
+
+    def _release(self):
+        worker_alive_at_release.append(os.path.exists(f"/proc/{int(pidfile.read_text())}"))
+        real_release(self)
+
+    monkeypatch.setattr(sys, "executable", str(fake_python))
+    monkeypatch.setattr(runner.subprocess, "Popen", _tracking_popen)
+    monkeypatch.setattr(runner, "log", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "_STOP_GRACE_S", 0.5)
+    monkeypatch.setattr(runlock.RunLock, "release", _release)
+
+    try:
+        with _ctrl_c_once_started(pidfile), pytest.raises(KeyboardInterrupt):
+            runner._one_cycle(_args(), config, job, jobs.jobs_path(config))
+        assert worker_alive_at_release == [False], (
+            "the run lock was released while the worker that ignores SIGTERM was still alive")
+    finally:
+        _kill_leftovers(started, pidfile)
 
 
 # ---- the job name has to reach the child ---------------------------------

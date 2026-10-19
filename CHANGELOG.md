@@ -256,6 +256,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `CONTRIBUTING.md` said a test recomputes both `site/llms.txt` and `site/llms-full.txt`. A
   test checks `site/llms-full.txt` alone. `site/llms.txt` is not committed and every deploy
   rebuilds it.
+- **Ctrl-C on `schedule run` now stops the scheduled child and everything it started.** The
+  child runs in a session of its own, so Ctrl-C reached only the scheduler. The command printed
+  "Operation cancelled by user" and exited 130, the run lock was released, and the child kept
+  writing to the store and the mirror. The next timer tick or a second manual run then started
+  another child beside it. Ctrl-C now sends SIGTERM to the child's process group and waits up to
+  5 seconds for the child and every member of the group to end. It then sends SIGKILL to any
+  that remain, waits up to 5 seconds more, and only then releases the lock. A second Ctrl-C
+  sends SIGKILL at once and waits the same 5 seconds. On Windows the run waits for the child
+  only. 10.0.0rc4 left the child running.
 
 ### Security
 

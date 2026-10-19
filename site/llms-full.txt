@@ -6165,6 +6165,14 @@ contextlake schedule run --foreground
 `--foreground` loops here, sleeping between cycles, and does not re-read the config file
 mid-loop; restart the container to pick up an edited `schedule_interval`.
 
+Press Ctrl-C to stop it. While a cycle is running, the run sends SIGTERM to the child and
+everything the child started. It waits up to 5 seconds for all of them to end, sends SIGKILL to any
+that remain, waits up to 5 seconds more, and exits with code 130. A second Ctrl-C skips the SIGTERM
+wait and sends SIGKILL at once, then waits. A plain `schedule run` started by hand stops the same
+way. While the loop is asleep between cycles, Ctrl-C ends it with code 0.
+
+On Windows the run ends the child tree with `taskkill` and waits for the child only.
+
 Neither `--foreground` nor a pod needs `schedule install` first. With no job record, these run the
 built-in default job, `bootstrap`:
 
@@ -10239,6 +10247,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `CONTRIBUTING.md` said a test recomputes both `site/llms.txt` and `site/llms-full.txt`. A
   test checks `site/llms-full.txt` alone. `site/llms.txt` is not committed and every deploy
   rebuilds it.
+- **Ctrl-C on `schedule run` now stops the scheduled child and everything it started.** The
+  child runs in a session of its own, so Ctrl-C reached only the scheduler. The command printed
+  "Operation cancelled by user" and exited 130, the run lock was released, and the child kept
+  writing to the store and the mirror. The next timer tick or a second manual run then started
+  another child beside it. Ctrl-C now sends SIGTERM to the child's process group and waits up to
+  5 seconds for the child and every member of the group to end. It then sends SIGKILL to any
+  that remain, waits up to 5 seconds more, and only then releases the lock. A second Ctrl-C
+  sends SIGKILL at once and waits the same 5 seconds. On Windows the run waits for the child
+  only. 10.0.0rc4 left the child running.
 
 ### Security
 

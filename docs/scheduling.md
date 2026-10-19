@@ -372,6 +372,14 @@ contextlake schedule run --foreground
 `--foreground` loops here, sleeping between cycles, and does not re-read the config file
 mid-loop; restart the container to pick up an edited `schedule_interval`.
 
+Press Ctrl-C to stop it. While a cycle is running, the run sends SIGTERM to the child and
+everything the child started. It waits up to 5 seconds for all of them to end, sends SIGKILL to any
+that remain, waits up to 5 seconds more, and exits with code 130. A second Ctrl-C skips the SIGTERM
+wait and sends SIGKILL at once, then waits. A plain `schedule run` started by hand stops the same
+way. While the loop is asleep between cycles, Ctrl-C ends it with code 0.
+
+On Windows the run ends the child tree with `taskkill` and waits for the child only.
+
 Neither `--foreground` nor a pod needs `schedule install` first. With no job record, these run the
 built-in default job, `bootstrap`:
 
