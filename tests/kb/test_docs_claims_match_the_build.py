@@ -343,6 +343,70 @@ def test_the_embeddings_pair_really_is_the_conditional_two():
         f"_TOOL_COUNT_PATTERNS assumes exactly two, so both must be updated together")
 
 
+def _tools_that_refuse_a_scoped_key() -> dict[str, set[str]]:
+    """Which of the two fleet-document tools refuse a key limited to part of the store.
+
+    Run, not read from source. A tool refuses when the scoped answer reports no repositories
+    while the unscoped answer over the same store reports some. Two policies: a key limited to
+    one repository, and the `--no-external` key, which is limited to every repository (`**`).
+    """
+    from contextlake.kb.model import Node, Repo
+    from contextlake.kb.scoped_store import ScopedStore, open_request_scope, reset_request_scope
+    from contextlake.kb.server import build_server
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    async def ask(store, tool, args):
+        from mcp import Client
+
+        async with Client(build_server(store)) as client:
+            result = await client.call_tool(tool, args)
+        return result.structured_content
+
+    counts = {"get_fleet_doc": ("repo_count", {"name": "overview"}), "graph_health": ("repos", {})}
+    refused: dict[str, set[str]] = {}
+    with tempfile.TemporaryDirectory() as d:
+        store = SqliteStore(Path(d) / "k.sqlite")
+        for rid in ("alpha/api", "beta/web"):
+            store.upsert_repo(Repo(id=rid, path=str(Path(d) / rid.replace("/", "_"))))
+            store.upsert_nodes(rid, [Node(id=rid + ":a", repo=rid, kind="function", name="a")])
+        token = open_request_scope()
+        try:
+            for tool, (field, args) in counts.items():
+                assert asyncio.run(ask(store, tool, args))[field] == 2, tool   # positive control
+            for label, patterns in (("one repository", ["alpha/*"]), ("--no-external", ["**"])):
+                scoped = ScopedStore(store, lambda p=patterns: (p, False))
+                refused[label] = {tool for tool, (field, args) in counts.items()
+                                  if asyncio.run(ask(scoped, tool, args))[field] == 0}
+        finally:
+            reset_request_scope(token)
+            store.close()
+    return refused
+
+
+def test_the_docs_name_as_refusing_a_scoped_key_only_the_tools_that_do():
+    """`docs/cli-reference.md` said `get_fleet_doc` AND `graph_health` refuse a scoped key.
+
+    `graph_health` answers one, over the repositories the key may read (it carries a
+    SCOPE-EXEMPT note in server.py saying so on purpose). A reader who believed the page
+    expected a refusal and got counts. Every tool a "refuse" sentence names beside
+    `get_fleet_doc` must be one that really refuses.
+    """
+    by_policy = _tools_that_refuse_a_scoped_key()
+    # The two sentences describe both keys alike, so the build has to agree for both.
+    assert len({frozenset(v) for v in by_policy.values()}) == 1, by_policy
+    refused = next(iter(by_policy.values()))
+    assert "get_fleet_doc" in refused, "the control: this tool is refused to a scoped key"
+    named: set[str] = set()
+    text = " ".join(_text("docs/cli-reference.md").split())
+    for sentence in re.split(r"(?<=\.) ", text):
+        if "`get_fleet_doc`" in sentence and re.search(r"\brefus", sentence):
+            named |= set(re.findall(r"`(\w+)`", sentence)) & {"get_fleet_doc", "graph_health"}
+    assert "get_fleet_doc" in named, "no sentence names it, so the check below is vacuous"
+    assert named <= refused, (
+        f"docs/cli-reference.md says {sorted(named - refused)} refuse a scoped key; "
+        f"the build answers it")
+
+
 def test_the_documented_key_repos_example_matches_a_real_repo_id():
     """The cli reference taught `--repos acme/*`. A repo id from an `origin` remote names the
     forge host (`gitlab.example.com/acme/forecast-api`), `*` stops at a `/`, and matching is

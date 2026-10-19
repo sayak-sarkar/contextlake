@@ -362,8 +362,8 @@ def test_a_freed_proxys_verdict_never_reaches_a_new_one(request_scope):
     CPython recycles the address of a freed object, so a memo keyed on `id()` hands a
     newly constructed proxy the cached scope of a DEAD one. Measured on the keyed-by-id
     build: 1988 collisions in 2000 trials, with a proxy holding NO principal reporting
-    `is_scoped() == False` -- the verdict that decides whether the fleet-wide readers
-    (`get_fleet_doc`, `graph_health`) refuse a caller.
+    `is_scoped() == False` -- the verdict that decides whether the fleet-wide reader
+    (`get_fleet_doc`) refuses a caller.
 
     It reached the suite as a 1-in-8 flake under `--cov`, because coverage shifts the
     allocation pattern that decides whether an address is reused. Seven clean runs and

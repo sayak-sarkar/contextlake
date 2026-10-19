@@ -304,9 +304,11 @@ class ScopedStore:
     def is_scoped(self) -> bool:
         """Whether ANY repo scope applies to this caller.
 
-        The fleet-wide disk readers (``get_fleet_doc``, ``graph_health``) have no
-        repo argument to check, so they refuse a scoped caller outright rather than
-        serve a document about repositories it cannot list.
+        The fleet-wide disk reader (``get_fleet_doc``) has no repo argument to
+        check, so it refuses a scoped caller outright rather than serve a document
+        about repositories it cannot list. ``graph_health`` does not ask: it is
+        scoped through ``list_repos`` and answers over the repositories the caller
+        can read (see the SCOPE-EXEMPT note in its body).
         """
         scope = self._scope()
         return scope is None or bool(scope[0])

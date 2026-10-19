@@ -340,9 +340,12 @@ text for those two keys. Add `--owners real` to read the pages.
 
 **`--repos` limits what the key can read.** A key created `--repos 'gitlab.example.com/acme/*'`
 sees only repositories that match one of its globs. Search, graph, repo-list and stats answers
-leave the others out. A tool that reads a whole-fleet document (`get_fleet_doc`, `graph_health`)
-refuses a scoped key, since it has no repo argument to check. A node id does not carry the
-repository it came from, so the filter runs inside the store and not on the call.
+leave the others out. A tool that reads a whole-fleet document (`get_fleet_doc`) refuses a
+scoped key, since it has no repo argument to check. `graph_health` answers a scoped key over the
+repositories it can read: the counts and the named repositories leave the others out.
+
+A node id does not carry the repository it came from, so the filter runs inside the store and
+not on the call.
 
 The vector searches (`semantic_search`, `hybrid_search` and the search route of `ask`) rank the
 whole fleet, then drop what the key cannot read. For a scoped key they widen the ranking until
@@ -382,7 +385,9 @@ trust with it.
 `--repos` and no `--no-external` reads connector content in every answer, with or without
 `--external`. `--no-external` turns the key into one limited to every repository (`**`), so
 it also loses what any repo-limited key loses: ingested documents (`kb ingest`), and the
-whole-fleet documents and cluster pages (`get_fleet_doc`, `graph_health`), which refuse it.
+whole-fleet documents and cluster pages (`get_fleet_doc`), which refuse it. `graph_health` still
+answers it, over the repositories it can read.
+
 `--external` together with `--no-external` exits `2` and writes no key. A hand-edited record
 with both reads as `--no-external`.
 

@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flag named. They now exit 2 like any other bad duration, with the flag and the longest allowed
   value, for example `--expires '3000000d' is out of range (the longest is 2912152d)`. The key
   file is unchanged. A script that matched exit 1 for this input now gets 2.
+- **The key docs no longer say `graph_health` refuses a `--repos` or `--no-external` key.**
+  `docs/cli-reference.md` listed it beside `get_fleet_doc` as a tool that refuses such a key. It
+  answers, over the repositories the key can read, and the code says so on purpose. Only
+  `get_fleet_doc` refuses. A reader who believed the page expected a refusal and got counts. No
+  behaviour changed.
 
 ### Security
 
