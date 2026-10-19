@@ -66,6 +66,11 @@ escape, and `%(name)s` is not expanded. A file that cannot be parsed stops the r
 names the file and the line. Two causes are a setting above the `[contextlake]` header and a key set
 twice.
 
+The file is read as UTF-8, the encoding `contextlake init` writes, so a path with an accented letter
+means the same on every system. A leading byte order mark is accepted. A file saved in another
+encoding, such as the Windows ANSI code page, stops the run with a message that names the file. Save
+it as UTF-8.
+
 ## Overriding on the command line
 
 Any setting can be overridden per-invocation. The config file is the recommended home for persistent

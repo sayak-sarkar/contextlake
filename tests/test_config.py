@@ -1,5 +1,6 @@
 """Tests for configuration loading and precedence."""
 
+import builtins
 import os
 from pathlib import Path
 
@@ -295,7 +296,7 @@ def test_an_ini_file_that_is_not_text_is_a_message_that_names_the_file(tmp_path,
     binary = tmp_path / "binary.ini"
     binary.write_bytes(b"[contextlake]\ngitlab_group = \xff\xfe\n")
 
-    with pytest.raises(ConfigError, match=r"binary\.ini: it is not a valid INI file"):
+    with pytest.raises(ConfigError, match=r"binary\.ini: it is not valid UTF-8"):
         load_config(str(binary))
 
 
@@ -393,6 +394,57 @@ def test_an_unparsable_config_is_a_config_error_naming_file_and_line(
     assert f"(line {line})" in msg
     assert reason in msg
     assert "secret-value" not in msg
+
+
+def _open_with_a_single_byte_default(monkeypatch):
+    """Make `open()` without an encoding behave as it does on Windows (the ANSI code page) or
+    under LC_ALL=C: a single-byte codec, not UTF-8. configparser opens the file this way;
+    since Python 3.10 it passes the placeholder "locale" instead of None."""
+    real_open = builtins.open
+
+    def ansi_open(file, mode="r", *args, encoding=None, **kwargs):
+        if "b" not in mode and encoding in (None, "locale"):
+            encoding = "cp1252"
+        return real_open(file, mode, *args, encoding=encoding, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", ansi_open)
+
+
+def test_a_non_ascii_value_is_read_as_utf_8_under_a_single_byte_default(tmp_path, monkeypatch):
+    """`init` writes the file as UTF-8, and the reader used the locale's encoding, so a
+    `work_dir` with an accented letter decoded to a two-character mojibake: a different path."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "accent.ini"
+    ini.write_bytes("[contextlake]\nwork_dir = /srv/Jos\u00e9-ws\n".encode("utf-8"))
+    _open_with_a_single_byte_default(monkeypatch)
+
+    assert load_config(str(ini))["work_dir"] == "/srv/Jos\u00e9-ws"
+
+
+def test_a_utf_8_byte_order_mark_does_not_hide_the_section_header(tmp_path, monkeypatch):
+    """Some Windows editors save UTF-8 with a BOM, which would otherwise glue to `[contextlake]`
+    and read as a setting above the header."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "bom.ini"
+    ini.write_bytes(b"\xef\xbb\xbf[contextlake]\nwork_dir = /srv/ws\n")
+
+    assert load_config(str(ini))["work_dir"] == "/srv/ws"
+
+
+def test_a_config_that_is_not_utf_8_is_a_config_error_naming_the_file(tmp_path, monkeypatch):
+    """A file saved in a single-byte code page raised UnicodeDecodeError: a traceback, and a
+    message that quotes the bytes. The message names the file and the fix, and not the value."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "ansi.ini"
+    ini.write_bytes(b"[contextlake]\nwork_dir = /srv/Jos\xe9-secret\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(str(ini))
+
+    msg = str(exc.value)
+    assert str(ini) in msg
+    assert "not valid UTF-8" in msg
+    assert "secret" not in msg
 
 
 def test_get_cache_paths_joins_dir_and_names():

@@ -146,6 +146,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placeholder-group error. A CI job that ran `init --local` under the variable and got 0 now
   gets 2. Unset the variable, or run `init --config PATH` and pass the same `--config PATH` to
   later commands.
+- **The mirror config file is now read as UTF-8 on every system, and a file in another encoding
+  stops the run with a one-line error.** `contextlake init` writes UTF-8, but the reader used
+  the locale's encoding, so a `work_dir` with an accented letter decoded to a different path
+  under a single-byte locale such as the Windows ANSI code page. A file that is not valid UTF-8
+  used to end in a `UnicodeDecodeError` traceback; it now names the file. If you saved
+  `.contextlake.ini` in the ANSI code page, save it again as UTF-8. A leading byte order mark is
+  accepted.
 
 ### Fixed
 

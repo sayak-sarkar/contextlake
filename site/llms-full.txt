@@ -2168,6 +2168,11 @@ escape, and `%(name)s` is not expanded. A file that cannot be parsed stops the r
 names the file and the line. Two causes are a setting above the `[contextlake]` header and a key set
 twice.
 
+The file is read as UTF-8, the encoding `contextlake init` writes, so a path with an accented letter
+means the same on every system. A leading byte order mark is accepted. A file saved in another
+encoding, such as the Windows ANSI code page, stops the run with a message that names the file. Save
+it as UTF-8.
+
 ## Overriding on the command line
 
 Any setting can be overridden per-invocation. The config file is the recommended home for persistent
@@ -10229,6 +10234,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   placeholder-group error. A CI job that ran `init --local` under the variable and got 0 now
   gets 2. Unset the variable, or run `init --config PATH` and pass the same `--config PATH` to
   later commands.
+- **The mirror config file is now read as UTF-8 on every system, and a file in another encoding
+  stops the run with a one-line error.** `contextlake init` writes UTF-8, but the reader used
+  the locale's encoding, so a `work_dir` with an accented letter decoded to a different path
+  under a single-byte locale such as the Windows ANSI code page. A file that is not valid UTF-8
+  used to end in a `UnicodeDecodeError` traceback; it now names the file. If you saved
+  `.contextlake.ini` in the ANSI code page, save it again as UTF-8. A leading byte order mark is
+  accepted.
 
 ### Fixed
 

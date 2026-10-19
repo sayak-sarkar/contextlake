@@ -324,13 +324,21 @@ def _read_section(path, explicit=False):
     # later mirror command raise InterpolationSyntaxError.
     parser = configparser.ConfigParser(interpolation=None)
     try:
-        with open(path) as f:
+        # UTF-8, the encoding `contextlake init` writes. Without it the file is read in the
+        # locale's encoding, which is not UTF-8 on Windows or under LC_ALL=C, and a
+        # `work_dir` with an accented character decoded to a different path. `utf-8-sig`
+        # reads the same text and also drops the BOM that some Windows editors add.
+        with open(path, encoding='utf-8-sig') as f:
             parser.read_file(f, path)
     except OSError as e:
         if explicit:
             raise ConfigError(f"--config file cannot be read: {path} ({e.strerror or e})") from e
         return {}
-    except (configparser.Error, UnicodeDecodeError) as e:
+    except UnicodeDecodeError:
+        wrong = _wrong_kind(path) if explicit else None
+        raise (wrong or ConfigError(f"Cannot read the config file {path}: it is not valid "
+                                    "UTF-8. Save it as UTF-8.")) from None
+    except configparser.Error as e:
         wrong = _wrong_kind(path) if explicit else None
         raise (wrong or _ini_error(path, e)) from None
     found = [section for section in SECTIONS if section in parser]

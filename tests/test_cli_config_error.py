@@ -97,3 +97,15 @@ def test_a_zero_max_retries_in_the_config_stops_the_run_once(tmp_path, capsys):
     assert "max_retries: 0 is not valid" in out
     assert out.count("max_retries") == 1
     assert "Traceback" not in out
+
+
+def test_a_config_that_is_not_utf_8_exits_clean(tmp_path, capsys):
+    ini = tmp_path / "ansi.ini"
+    ini.write_bytes(b"[contextlake]\ngitlab_group = acme\nwork_dir = /srv/Jos\xe9\n")
+
+    code = _status(ini)
+    out = capsys.readouterr().out
+
+    assert code == 1
+    assert "not valid UTF-8" in out
+    assert "Traceback" not in out
