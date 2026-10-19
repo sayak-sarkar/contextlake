@@ -10486,6 +10486,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   traceback.** In a read-only directory, below a path that is a file, or on a full disk, the
   write raised an `OSError` that nothing caught. The command now prints `Cannot write <file>:
   <reason>`, points to `--config PATH`, and skips the "Next:" steps.
+- **`bootstrap --config kb.toml` now always prints the message that names `--kb-config`.** On
+  `bootstrap`, `--config` is the mirror INI, and the check for a knowledge config ran after the
+  config loaded. Without `--group`, the user got "No group configured ... or pass --config PATH"
+  instead, which repeats the mistake. With a real kb.toml, `--group` did not help: the run ended
+  in "Cannot read the config file: a section appears twice". The check now runs first and exits
+  2.
 
 ### Security
 

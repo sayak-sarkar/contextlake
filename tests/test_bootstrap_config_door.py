@@ -21,6 +21,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 
 
@@ -76,6 +78,73 @@ def test_a_real_kb_toml_passed_to_a_mirror_config_flag_is_refused_with_exit_two(
         assert r.returncode == 2, f"{args[0]} exited {r.returncode}\n{out[-1500:]}"
         assert "--kb-config" in out and "mirror INI" in out
         assert "Traceback" not in out
+
+
+def _kb_toml(tmp_path, real):
+    """A kb.toml. The real shape has two `[[sources]]` tables, which an INI parser rejects as
+    a repeated section. The one-key shape parses cleanly as an INI, which hid that."""
+    kb_toml = tmp_path / "kb.toml"
+    text = f'[kb]\nstore_dir = "{(tmp_path / "store").as_posix()}"\n'
+    if real:
+        text += ('\n[[sources]]\ntype = "mcp"\nname = "one"\n\n'
+                 '[[sources]]\ntype = "mcp"\nname = "two"\n')
+    kb_toml.write_text(text, encoding="utf-8")
+    return kb_toml
+
+
+@pytest.mark.parametrize("real", [False, True], ids=["one-key", "real"])
+@pytest.mark.parametrize("extra", [[], ["--group", "demo-org"], ["--dry-run"]],
+                         ids=["no-group", "group", "dry-run"])
+def test_the_kb_toml_refusal_is_the_message_printed_whatever_else_is_wrong(
+        tmp_path, extra, real):
+    """The refusal sat inside `_bootstrap`, behind two earlier failures. Without `--group` the
+    placeholder-group refusal printed first and said "or pass ... --config PATH", the mistake
+    already made. With a real kb.toml, even `--group` hit "a section appears twice" while the
+    file was parsed as an INI. Both exit non-zero, so the exit code alone cannot tell them from
+    the right refusal: the output has to."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    kb_toml = _kb_toml(tmp_path, real)
+
+    r = _run(["bootstrap", "--config", str(kb_toml), "--no-sync", *extra], cwd=tmp_path, home=home)
+    out = r.stdout + r.stderr
+
+    assert r.returncode == 2, out[-2000:]
+    assert "--kb-config" in out
+    assert "No group configured" not in out
+    assert "section appears twice" not in out
+    assert "still the placeholder" not in out
+
+
+def test_a_missing_toml_config_still_gets_the_not_found_message(tmp_path):
+    """The early refusal reads the file, so it must leave a path that does not exist to
+    load_config, whose message names the real problem."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+
+    r = _run(["bootstrap", "--config", str(tmp_path / "nope.toml"), "--group", "demo-org",
+              "--no-sync"], cwd=tmp_path, home=home)
+    out = r.stdout + r.stderr
+
+    assert r.returncode == 1, out[-2000:]
+    assert "--config path not found" in out
+    assert "looks like a knowledge config" not in out
+
+
+def test_a_mirror_ini_passed_to_bootstrap_config_is_not_refused(tmp_path):
+    """The control for the early refusal: a real INI must still get through to the plan."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    ini = tmp_path / "mirror.ini"
+    ini.write_text(f"[contextlake]\ngitlab_group = demo-org\nwork_dir = {tmp_path / 'ws'}\n"
+                   f"cache_dir = {tmp_path / 'cache'}\n", encoding="utf-8")
+
+    r = _run(["bootstrap", "--config", str(ini), "--dry-run", "--no-sync"],
+             cwd=tmp_path, home=home)
+    out = r.stdout + r.stderr
+
+    assert r.returncode == 0, out[-2000:]
+    assert "looks like a knowledge config" not in out
 
 
 # --- B0-5 / B0-6: a partial success is not a failure, and a supplied --group is a group --

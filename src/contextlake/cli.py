@@ -2283,6 +2283,38 @@ def _bootstrap_plan(args, config, work_dir):
     return 0
 
 
+def _refuse_kb_config_as_mirror_ini(args):
+    """Log the refusal and return True when bootstrap's ``--config`` looks like a kb.toml.
+
+    ``--config`` is the mirror INI and ``--kb-config`` is the knowledge config, and a
+    reasonable person passes their kb.toml to ``--config``. Called from ``_run`` BEFORE the
+    config loads, and again from ``_bootstrap`` for a caller that skips ``_run``. After the
+    load it was too late: the group refusal printed first and told the user to pass
+    ``--config PATH``, which is the mistake already made, and a kb.toml with two ``[[sources]]``
+    tables failed to parse as an INI ("a section appears twice") before this was reached.
+    """
+    from pathlib import Path
+
+    from . import style
+
+    given = Path(expand_path(args.config))
+    looks_like_kb = given.suffix.lower() == ".toml"
+    if not looks_like_kb and given.is_file():
+        try:
+            looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            looks_like_kb = False
+    if not looks_like_kb:
+        return False
+    log(style.fail(
+        f"--config {args.config} looks like a knowledge config, but on "
+        f"`bootstrap` --config is the mirror INI."))
+    log("  The knowledge stages take --kb-config, so as written this would "
+        "index into whatever store the default kb.toml names.")
+    log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
+    return True
+
+
 def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     """One-command turnkey setup: mirror repos, build the knowledge layer, and write
     editor steering. Optional/unconfigured stages are skipped; a failing stage warns
@@ -2305,24 +2337,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     # Refusing rather than guessing. Silently reinterpreting the flag would be a second
     # guess about which store the user meant, and guessing wrong is the whole defect.
     if getattr(args, "config", None) and not getattr(args, "kb_config", None):
-        from pathlib import Path
-
-        from . import style
-
-        given = Path(expand_path(args.config))
-        looks_like_kb = given.suffix.lower() == ".toml"
-        if not looks_like_kb and given.is_file():
-            try:
-                looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                looks_like_kb = False
-        if looks_like_kb:
-            log(style.fail(
-                f"--config {args.config} looks like a knowledge config, but on "
-                f"`bootstrap` --config is the mirror INI."))
-            log("  The knowledge stages take --kb-config, so as written this would "
-                "index into whatever store the default kb.toml names.")
-            log(f"  Re-run with: contextlake bootstrap --kb-config {args.config}")
+        if _refuse_kb_config_as_mirror_ini(args):
             return 2
 
     # After the validation above, so a dry run refuses what a real run would refuse, and
@@ -2841,6 +2856,14 @@ def _run(argv, metrics):
             if args.verbose:
                 raise
             sys.exit(1)
+
+    # `bootstrap --config kb.toml` is refused before the config loads (see
+    # _refuse_kb_config_as_mirror_ini). A missing path is left to load_config's own message.
+    if (args.command == "bootstrap" and getattr(args, "config", None)
+            and not getattr(args, "kb_config", None)
+            and os.path.exists(expand_path(args.config))
+            and _refuse_kb_config_as_mirror_ini(args)):
+        sys.exit(2)
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.
