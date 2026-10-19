@@ -222,6 +222,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was in the JavaScript family, so every JavaScript or TypeScript definition was rejected as a
   cross-language match and the call had no `calls` edge. Calls inside a function already worked.
   The next `kb index` re-indexes the repository and adds the missing edges.
+- **`kb index` now names the generated and oversized files it skips.** A file with a `DO NOT
+  EDIT` or `@generated` marker in its first 2 KB, a name such as `*.designer.cs`, or a size over
+  `max_file_bytes` left the graph with exit 0 and no line about it. Only `-v` showed counts, and
+  it named no file. The run now prints one line per group with the first five paths, such as `1
+  file(s) over max_file_bytes skipped: big.py`, and how to index them anyway. `-v` lists every
+  skipped file. A run that skips none prints nothing.
 
 ### Security
 

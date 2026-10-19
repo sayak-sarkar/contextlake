@@ -1643,8 +1643,10 @@ class WalkCounts:
     """
 
     files: int = 0
-    generated: int = 0
-    oversize: int = 0
+    #: The paths skipped as generated or over `max_file_bytes`. Lists and not counters,
+    #: because a bare "skipped 3" leaves the reader to find which three files left the graph.
+    generated: list = field(default_factory=list)
+    oversize: list = field(default_factory=list)
     ignored: int = 0
     #: Extension -> count for files no parser claimed. A Swift, Dart or Vue tree used to
     #: index to `0 nodes, 0 edges`, exit 0, and report `skipped 0 generated, 0 oversized,
@@ -2770,9 +2772,9 @@ def _select_file(
 ) -> SourceFile | None:
     """One file's full accept/skip decision, read included; None means skipped.
 
-    Every skip increments its counter here rather than being dropped silently —
-    the summary line ``index_repo_dir`` logs is the only place a user learns that
-    a file was passed over.
+    Every skip is recorded here and never dropped silently. ``index_repo_dir`` names the
+    generated and oversized files at the default verbosity, and prints a line for each with
+    ``-v``; the ignored ones are only counted in its ``-v`` summary.
     """
     ext = os.path.splitext(fn)[1]
     kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
@@ -2791,13 +2793,15 @@ def _select_file(
     # Generated code by name, and oversized blobs by stat — both decided without
     # reading the file.
     if _generated(kind, skip_generated, lambda: _is_generated_name(fn)):
-        counts.generated += 1
+        counts.generated.append(rel)
+        log(f"  skip {rel}: generated file name", level=logging.DEBUG, inline=True)
         return None
     if _not_regular(fpath):
         log(f"  skip {rel}: not a regular file")
         return None
     if _oversize(fpath, kind, max_file_bytes):
-        counts.oversize += 1
+        counts.oversize.append(rel)
+        log(f"  skip {rel}: over max_file_bytes", level=logging.DEBUG, inline=True)
         return None
     try:
         source = fpath.read_bytes()
@@ -2805,7 +2809,8 @@ def _select_file(
         log(f"  skip {rel}: {e}")
         return None
     if _generated(kind, skip_generated, lambda: _has_generated_header(source)):
-        counts.generated += 1
+        counts.generated.append(rel)
+        log(f"  skip {rel}: generated file header", level=logging.DEBUG, inline=True)
         return None
     # `lang_for`, not `LANG_BY_EXT[ext]`: a name-routed file has an extension the
     # table has never heard of (`Dockerfile.prod`) or none at all (`Makefile`), and
@@ -3370,8 +3375,18 @@ def index_repo_dir(
     _resolve_pending_methods(by_id, shard.edges)
     resolve_stats: dict = {}
     shard.edges.extend(refs.resolved_edges(by_id, stats=resolve_stats))
-    log(f"  parsed {counts.files} file(s); skipped {counts.generated} generated, "
-        f"{counts.oversize} oversized, {counts.ignored} ignored", level=logging.DEBUG)
+    log(f"  parsed {counts.files} file(s); skipped {len(counts.generated)} generated, "
+        f"{len(counts.oversize)} oversized, {counts.ignored} ignored", level=logging.DEBUG)
+    # Said at NORMAL verbosity, with the names. A generated file and an oversized file leave
+    # the graph with exit 0, and the docs promise no silent gap. Silent when zero, so it
+    # never becomes boilerplate. The names are bounded because a legacy tree can hold
+    # thousands of designer files; `-v` prints a line for each.
+    if counts.generated:
+        log(f"  {len(counts.generated)} generated file(s) skipped: "
+            f"{_some_names(counts.generated)} (set [kb] skip_generated = false to index them)")
+    if counts.oversize:
+        log(f"  {len(counts.oversize)} file(s) over max_file_bytes skipped: "
+            f"{_some_names(counts.oversize)} (raise [kb] max_file_bytes, now {max_file_bytes})")
     # Said at NORMAL verbosity, and loudest when nothing was parsed at all. A tree in a
     # language contextlake has no grammar for produced `0 nodes, 0 edges`, exit 0, and a
     # skip line of all zeros -- which reads as "this repo is empty" rather than "this
@@ -3412,6 +3427,13 @@ def index_repo_dir(
             f"{_MAX_AMBIG_FANOUT} places and were left unresolved; callers through "
             f"those names will be missing")
     return shard
+
+
+def _some_names(paths: list[str], shown: int = 5) -> str:
+    """The first few paths in sorted order, then a count of the rest."""
+    names = sorted(paths)
+    more = f" (+{len(names) - shown} more, -v lists them)" if len(names) > shown else ""
+    return ", ".join(names[:shown]) + more
 
 
 def _repo_commit_epoch(path: str) -> int:

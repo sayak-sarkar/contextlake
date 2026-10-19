@@ -160,9 +160,14 @@ match:
 The marker list catches more than it looks. A file whose banner only says "DO NOT EDIT" is
 skipped too.
 
-All of that is derived noise rather than real source, and **every skip is reported**, so there
-are no silent gaps. To index them anyway, set `[kb] skip_generated = false` or raise
+All of that is derived noise, not real source. A run that skips generated or oversized
+files prints one line for each group with the first five paths, such as
+`1 file(s) over max_file_bytes skipped: big.py`. `-v` prints a line for every skipped file. A run
+that skips none prints nothing. To index them anyway, set `[kb] skip_generated = false` or raise
 `max_file_bytes`.
+
+Files matched by `.contextlakeignore` are only counted, in the `-v` summary, because you chose
+those patterns.
 
 ### The per-repository memory budget
 
