@@ -486,14 +486,22 @@ def cmd_init(args) -> int:
     # check above refuses to create. The knowledge layer needs no mirror to work:
     # `kb index --source PATH` reads repositories wherever they already are.
     wrote_any = False
-    if not no_mirror:
-        wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group),
-                           force=force)
-    else:
-        want_kb = True          # the knowledge layer IS the point of this path
-    if want_kb:
-        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir, wiki_model),
-                            force=force)
+    try:
+        if not no_mirror:
+            wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group),
+                               force=force)
+        else:
+            want_kb = True          # the knowledge layer IS the point of this path
+        if want_kb:
+            wrote_any |= _write(kb_config_file,
+                                _kb_toml(enable_embeddings, store_dir, wiki_model), force=force)
+    except OSError as e:
+        # A read-only directory, a parent that is a file, a full disk. Only Ctrl-C is
+        # guarded around this command, so each of these was a raw traceback. Return
+        # before the "Next:" steps, which assume the config is there.
+        log(style.fail(f"Cannot write {e.filename or 'the config file'}: {e.strerror or e}."))
+        log("  Check that the directory exists and you can write to it, or pass --config PATH.")
+        return 1
 
     # --- optional data source(s) ---------------------------------------------
     # Purely optional and skippable: default is "no", and --skip-interactive

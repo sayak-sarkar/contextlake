@@ -10474,6 +10474,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stripped to an empty string, and replacing an empty string puts the placeholder between every
   character, so a line read `~C~l~o~n~e~d~`. The root is now left out of the redaction paths.
   Other paths are redacted as before.
+- **`contextlake init` now says which file it cannot write, and exits 1, instead of printing a
+  traceback.** In a read-only directory, below a path that is a file, or on a full disk, the
+  write raised an `OSError` that nothing caught. The command now prints `Cannot write <file>:
+  <reason>`, points to `--config PATH`, and skips the "Next:" steps.
 
 ### Security
 

@@ -196,6 +196,20 @@ def test_init_force_overwrites(tmp_path, monkeypatch):
     assert "gitlab_group = acme" in cfg.read_text()
 
 
+def test_init_reports_a_config_it_cannot_write_and_exits_1(tmp_path, monkeypatch, gls_logs):
+    """A read-only directory, a parent that is a file and a full disk each reached the user as
+    a raw OSError traceback. The parent here is a regular file, so the test needs no chmod
+    (which neither root nor Windows honours)."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("")
+
+    rc = init_cmd.cmd_init(_args(config=str(blocker / "c.ini"), platform="github", group="acme"))
+
+    assert rc == 1
+    assert f"Cannot write {blocker}" in gls_logs.text
+    assert "Next:" not in gls_logs.text
+
+
 def test_init_rejects_unknown_platform(tmp_path, monkeypatch):
     rc = _run(tmp_path, monkeypatch, platform="sourceforge", group="acme")
     assert rc == 2
