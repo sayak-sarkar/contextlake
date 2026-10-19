@@ -3,6 +3,8 @@
 import os
 import subprocess
 
+import pytest
+
 from conftest import FakeCompleted, make_local_repo
 from contextlake import core
 from contextlake.cli import apply_cli_overrides, build_parser
@@ -304,6 +306,43 @@ def test_unpinned_summary_does_not_say_the_repo_stayed_put(
     switch_repository_branches(str(tmp_path), dict(cfg, dry_run="true"), "g")
     line = [ln for ln in gls_logs.text.splitlines() if "have no branch" in ln][0]
     assert "each would be on its most active branch instead" in line
+
+
+def _unpinned_summary(tmp_path, monkeypatch, gls_logs, cfg, names):
+    """Run the pass with every repo in ``names`` reporting `unpinned`; return the summary line."""
+    for n in names:
+        make_local_repo(tmp_path, n)
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g: {n: dict(PROJECTS["a"]) for n in names})
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, c: ("unpinned", p, "develop -> main (no branch 'x' here)"))
+    switch_repository_branches(str(tmp_path), cfg, "g")
+    return [ln for ln in gls_logs.text.splitlines() if "have no branch" in ln][0]
+
+
+@pytest.mark.parametrize("fleet_branch", ["", "release/24.1"], ids=["no-branch", "branch-beaten"])
+def test_unpinned_summary_names_the_branch_map_pin_the_repo_missed(
+    tmp_path, base_config, monkeypatch, gls_logs, fleet_branch
+):
+    """A repo pinned only by `branch_map` printed `no branch ''`, and one whose map entry beat
+    `branch` printed the fleet-wide name, which it was never asked for."""
+    cfg = dict(base_config, branch=fleet_branch, branch_map="a=nosuchbranch")
+
+    line = _unpinned_summary(tmp_path, monkeypatch, gls_logs, cfg, ["a"])
+
+    assert "have no branch 'nosuchbranch'; each" in line
+
+
+def test_unpinned_summary_with_several_pins_does_not_name_one_of_them(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    cfg = dict(base_config, branch="", branch_map="a=one,b=two")
+
+    line = _unpinned_summary(tmp_path, monkeypatch, gls_logs, cfg, ["a", "b"])
+
+    assert "2 repo(s) have no branch they are pinned to; each" in line
+    assert "Without their pinned branch:" in gls_logs.text
 
 
 def test_branches_honours_the_repos_filter(tmp_path, base_config, monkeypatch):

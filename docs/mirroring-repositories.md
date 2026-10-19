@@ -325,7 +325,9 @@ branch_map = team/api=develop, legacy-*=maintenance, acme/one-off=spike
 - It **beats** `branch`. Anything the map does not match falls back to `branch`, and then to
   the most-active selection.
 - A repository whose mapped branch does not exist is reported as `unpinned`, as with
-  `branch`. It is put on its most active branch instead, and the run says so.
+  `branch`. It is put on its most active branch instead, and the run says so. The summary
+  line names the missing branch when the repositories share one. When the pins differ, it
+  says `no branch they are pinned to`, and each repository's own line names its branch.
 - A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
   pinning none.
 

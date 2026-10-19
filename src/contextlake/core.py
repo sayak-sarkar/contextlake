@@ -2242,9 +2242,15 @@ def switch_repository_branches(work_dir, config, gitlab_group):
         # Not "stayed on": a repository on a safe branch is checked out to its most
         # active one, and the line above for that repository says `old -> new`.
         where = "would be on" if _is_truthy(config, "dry_run") else "is on"
-        log(f"  {len(buckets['unpinned'])} repo(s) have no branch "
-            f"{config.get('branch', '')!r}; each {where} its most active branch instead")
-        _report_list("Without that branch", buckets["unpinned"], limit=5)
+        # The pins these repositories missed, resolved as each one was. `config["branch"]`
+        # is empty when only `branch_map` pinned them, and not the name when the map beat it.
+        pins = sorted({resolve_branch_pin(projects[p].get("full_path", p), p, config)
+                       for p in buckets["unpinned"]})
+        missed = f"no branch {pins[0]!r}" if len(pins) == 1 else "no branch they are pinned to"
+        log(f"  {len(buckets['unpinned'])} repo(s) have {missed}; "
+            f"each {where} its most active branch instead")
+        _report_list("Without that branch" if len(pins) == 1 else "Without their pinned branch",
+                     buckets["unpinned"], limit=5)
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
