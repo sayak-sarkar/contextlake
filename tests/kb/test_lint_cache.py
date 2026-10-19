@@ -18,7 +18,8 @@ from datetime import date
 
 from contextlake.kb.cmds import lint as lint_mod
 from contextlake.kb.cmds.lint import lint_result
-from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.model import EXTERNAL_REPO, Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.scoped_store import ScopedStore
 from contextlake.kb.store.shards import GraphShard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
 
@@ -206,3 +207,99 @@ def test_the_cache_holds_the_count_and_a_capped_sample_of_dangling_edges(tmp_pat
     assert len(second["dangling_sample"]) == 20
     [(_, held)] = lint_mod._lint_cache.values()
     assert max(len(v) for v in held.values() if isinstance(v, list)) <= 20
+
+
+# --- a scoped proxy: an edge into a repository the caller cannot read -----------------
+
+ALPHA = "gitlab.example.com/alpha/svc"
+BRAVO = "gitlab.example.com/bravo/svc"
+
+
+def _fleet(tmp_path):
+    """Two repos and four edges out of alpha: one into bravo, one into `(external)`, one to
+    a node nobody holds, one inside alpha. Only the third is dangling."""
+    store = SqliteStore(tmp_path / "index.sqlite")
+    alpha = [Node(id=f"{ALPHA}#calcRate", repo=ALPHA, kind="function", name="calcRate"),
+             Node(id=f"{ALPHA}#calcTax", repo=ALPHA, kind="function", name="calcTax")]
+    bravo = [Node(id=f"{BRAVO}#billingCore", repo=BRAVO, kind="function", name="billingCore"),
+             Node(id=f"{BRAVO}#ledger", repo=BRAVO, kind="function", name="ledger")]
+    ext = [Node(id="ticket#7", repo=EXTERNAL_REPO, kind="ticket", name="ticket 7")]
+    a_edges = [_edge(alpha[0].id, dst) for dst in
+               (bravo[0].id, "ticket#7", f"{ALPHA}#ghost", alpha[1].id)]
+    b_edges = [_edge(bravo[0].id, bravo[1].id)]
+    for rid, nodes, edges in ((ALPHA, alpha, a_edges), (BRAVO, bravo, b_edges)):
+        store.upsert_repo(Repo(id=rid, path=str(tmp_path / "checkout")))
+        write_shard(tmp_path, GraphShard(repo=rid, head_commit="h", nodes=nodes, edges=edges))
+        store.upsert_nodes(rid, nodes)
+        store.upsert_edges(rid, edges)
+    store.upsert_nodes(EXTERNAL_REPO, ext)
+    return store
+
+
+def _alpha_only(store, *, external=False):
+    return ScopedStore(store, lambda: ([f"{ALPHA.rsplit('/', 1)[0]}/*"], external))
+
+
+def test_an_edge_into_a_denied_repo_is_not_counted_or_named_for_a_scoped_caller(tmp_path):
+    """The proxy answers None for a node it hides, the same as for a node that is missing,
+    so a valid alpha-to-bravo edge read as dangling for a key scoped to alpha, and the
+    sample carried bravo's repo id and symbol name."""
+    lint_mod._lint_cache.clear()
+    store = _fleet(tmp_path)
+
+    whole = lint_result(store, tmp_path)
+    assert (whole["repos"], whole["checked"], whole["dangling"]) == (2, 5, 1)
+
+    res = lint_result(_alpha_only(store), tmp_path)
+
+    # The ghost edge and the alpha-to-alpha edge are the caller's own, the other two are not.
+    assert (res["repos"], res["checked"], res["dangling"]) == (1, 2, 1)
+    assert [d["dst"] for d in res["dangling_sample"]] == [f"{ALPHA}#ghost"]
+    assert "bravo" not in json.dumps(res) and "ticket" not in json.dumps(res)
+
+
+def test_a_scoped_caller_with_the_external_grant_checks_the_external_edge(tmp_path):
+    """Positive control: the skip is by what the caller may read, not by the node's kind.
+    With `--external` the edge into `(external)` is checked, and it resolves."""
+    lint_mod._lint_cache.clear()
+    store = _fleet(tmp_path)
+
+    res = lint_result(_alpha_only(store, external=True), tmp_path)
+
+    assert (res["checked"], res["dangling"]) == (3, 1)
+    assert "bravo" not in json.dumps(res)
+
+
+def test_two_scopes_over_the_same_repos_do_not_share_one_cache_entry(tmp_path):
+    """Both callers read exactly one repo, so the shard fingerprint is equal. They differ on
+    the `(external)` node, so the walk is not. Keyed on the directory alone, whichever ran
+    second was handed the first one's `checked`."""
+    lint_mod._lint_cache.clear()
+    store = _fleet(tmp_path)
+
+    without = lint_result(_alpha_only(store), tmp_path)
+    with_ext = lint_result(_alpha_only(store, external=True), tmp_path)
+    again = lint_result(_alpha_only(store), tmp_path)
+
+    assert (without["checked"], with_ext["checked"], again["checked"]) == (2, 3, 2)
+
+
+def test_graph_health_over_mcp_does_not_count_an_edge_into_a_denied_repo(tmp_path):
+    """The same through the tool a key calls, which wraps the proxy in `build_server`."""
+    import asyncio
+
+    from mcp import Client
+
+    from contextlake.kb.server import build_server
+
+    lint_mod._lint_cache.clear()
+    store = _fleet(tmp_path)
+    server = build_server(_alpha_only(store))
+
+    async def go():
+        async with Client(server) as client:
+            return (await client.call_tool("graph_health", {})).structured_content
+
+    out = asyncio.run(go())
+    assert (out["repos"], out["checked"], out["dangling"]) == (1, 2, 1), out
+    assert "bravo" not in json.dumps(out)

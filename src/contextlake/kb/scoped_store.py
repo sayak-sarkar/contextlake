@@ -289,7 +289,7 @@ class ScopedStore:
 
     def hides_vector_hit(self, node_id: str) -> bool:
         """PUBLIC. Whether a vector hit names a node that EXISTS but this caller may not
-        read, for :class:`ScopedVectorStore`.
+        read, for :class:`ScopedVectorStore` and the ``graph_health`` edge walk.
 
         A hit whose node the real store does not hold is NOT hidden: it is a stale vector
         row, and the tool that receives it counts it as stale. Through this proxy a hidden

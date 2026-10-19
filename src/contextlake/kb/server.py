@@ -2209,6 +2209,9 @@ def build_server(
         # SCOPE-EXEMPT: scoped through the store, not by a gate.
         # `lint_result` walks `store.list_repos()`, which the proxy filters, so every
         # count and every named repo below is already computed over the visible set.
+        # An edge into a node the caller cannot read is left out of `checked`,
+        # `dangling` and the sample, so the walk neither counts it as missing nor
+        # names the denied endpoint.
         # Measured over a real HTTP server on 2026-09-08: a key granted one of two
         # repositories reads `repos: 1`, an unscoped key reads `repos: 2`. Adding
         # `_fleet_readable()` here would refuse the tool outright and lose that

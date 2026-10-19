@@ -17,7 +17,7 @@ from ._common import (
     kb_config,
 )
 
-_lint_cache: dict[str, tuple] = {}
+_lint_cache: dict[tuple, tuple] = {}
 _LINT_CACHE_MAX = 8   # a handful of stores per process; bounded so a long-lived server cannot grow
 
 
@@ -50,8 +50,17 @@ def _ensure_invalidator_registered() -> None:
     _invalidator_registered = True
 
 
-def _lint_cache_key(store_dir) -> str:
-    return str(store_dir)
+def _lint_cache_key(store, store_dir) -> tuple:
+    """The store directory plus WHAT THE CALLER CAN READ.
+
+    The walk below decides "hidden" and "missing" through the store it was handed, so a
+    scoped proxy gives a different answer to a different scope. The shard fingerprint
+    names only the visible repos, and two keys can read the same repos and still differ
+    on a node outside them (`--external` shows the `(external)` partition). Keyed on the
+    directory alone, one key's walk was served to the other.
+    """
+    visible = getattr(store, "visible_partitions", None)
+    return (str(store_dir), tuple(visible()) if visible else None)
 
 
 def _store_fingerprint(store, store_dir, resolve_shard):
@@ -159,7 +168,7 @@ def lint_result(store, store_dir) -> dict:
     fingerprint = _store_fingerprint(store, store_dir, resolve_shard)
     walked = None
     if fingerprint is not None:
-        cached = _lint_cache.get(_lint_cache_key(store_dir))
+        cached = _lint_cache.get(_lint_cache_key(store, store_dir))
         if cached is not None and cached[0] == fingerprint:
             walked = copy.deepcopy(cached[1])
     if walked is None:
@@ -167,11 +176,24 @@ def lint_result(store, store_dir) -> dict:
         dangling: list[dict] = []
         checked = 0
         node_cache: dict[str, bool] = {}
+        hidden_cache: dict[str, bool] = {}
+        # A scoped proxy answers None for a node that exists but the caller may not read,
+        # the same as for one that is missing. Read as missing, an edge into a denied
+        # repository counted as dangling and the sample named that repository. The proxy
+        # alone can tell the two apart. Any other store has no such method.
+        hides = getattr(store, "hides_vector_hit", None)
 
         def _exists(node_id: str) -> bool:
             if node_id not in node_cache:
                 node_cache[node_id] = store.get_node(node_id) is not None
             return node_cache[node_id]
+
+        def _hidden(node_id: str) -> bool:
+            if hides is None:
+                return False
+            if node_id not in hidden_cache:
+                hidden_cache[node_id] = hides(node_id)
+            return hidden_cache[node_id]
 
         for r in repos:
             shard = read_shard(store_dir, r.id)
@@ -184,6 +206,8 @@ def lint_result(store, store_dir) -> dict:
             if shard.parser_version != PARSER_VERSION:
                 parser_stale_repos.append(r.id)
             for e in shard.edges:
+                if _hidden(e.src) or _hidden(e.dst):
+                    continue  # not the caller's to check, count or name
                 checked += 1
                 if not _exists(e.src) or not _exists(e.dst):
                     dangling.append({"repo": r.id, "src": e.src,
@@ -196,7 +220,8 @@ def lint_result(store, store_dir) -> dict:
         if fingerprint is not None:
             # Copied in and out, so a caller that mutates the dict it was handed cannot
             # corrupt the entry the next caller receives.
-            _lint_cache[_lint_cache_key(store_dir)] = (fingerprint, copy.deepcopy(walked))
+            _lint_cache[_lint_cache_key(store, store_dir)] = (
+                fingerprint, copy.deepcopy(walked))
             while len(_lint_cache) > _LINT_CACHE_MAX:
                 _lint_cache.pop(next(iter(_lint_cache)))
     parser_stale_repos = walked["parser_stale_repos"]
