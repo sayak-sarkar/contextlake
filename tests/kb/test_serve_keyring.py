@@ -733,6 +733,66 @@ def test_a_refused_start_never_says_the_server_is_up(tmp_path, monkeypatch,
     assert "Serving knowledge graph over MCP" not in out, out
 
 
+# An invented value in the shape of a minted key. It is not a credential.
+_KEY_SHAPED = "ctxlake_INVENTED_TEST_TOKEN_NOT_A_KEY"
+
+
+def _key_shaped_with_a_live_key(tmp_path, monkeypatch):
+    return {"keys_file": _key_file(tmp_path / "mcp-keys.json")}
+
+
+def _key_shaped_with_every_key_expired(tmp_path, monkeypatch):
+    path = tmp_path / "mcp-keys.json"
+    keyfile.write_document(path, [_record("ksexp", expires_at=_LAPSED)])
+    return {"keys_file": path}
+
+
+def _key_shaped_with_every_key_revoked(tmp_path, monkeypatch):
+    path = tmp_path / "mcp-keys.json"
+    keyfile.write_document(path, [_record("ksrev", revoked_at="2026-02-02T00:00:00Z")])
+    return {"keys_file": path}
+
+
+def _key_shaped_with_no_key_file(tmp_path, monkeypatch):
+    _unnamed_default(tmp_path, monkeypatch)
+    return {"keys_file": None}
+
+
+@pytest.mark.parametrize("build", [
+    _key_shaped_with_a_live_key,
+    _key_shaped_with_every_key_expired,
+    _key_shaped_with_every_key_revoked,
+    _key_shaped_with_no_key_file,
+], ids=["live-key", "all-expired", "all-revoked", "no-key-file"])
+def test_a_key_shaped_pinned_token_refuses_before_any_line_says_the_server_is_up(
+        tmp_path, monkeypatch, build):
+    """`CONTEXTLAKE_MCP_TOKEN=ctxlake_...` is refused in `build_http_app`, after the banner.
+
+    With a live key file the start printed "bypasses every per-key limit and
+    scope" and "MCP server on http://...", then exited 1 with "holds a value
+    starting with 'ctxlake_'". No socket opened, so nothing was exposed, but
+    the output named a server that never existed. The refusal now runs in
+    `cmd_serve` before any of those lines, in every key-file state: the
+    expired and revoked rows reach the pinned-token and minting branches, which
+    each used to hand the value on.
+    """
+    kwargs = build(tmp_path, monkeypatch)
+    args = _serve_args(tmp_path)
+    sink = _capture_in_order(monkeypatch)
+
+    rc, captured, minted = _run_serve(args, monkeypatch, env_token=_KEY_SHAPED, **kwargs)
+
+    out = sink.text
+    assert rc == 1
+    assert captured == {}, "the server started"
+    assert minted == [], "a credential was drawn for a start that refused"
+    assert "holds a value starting with" in out, out
+    for said in ("MCP server on", "Serving knowledge graph over MCP", "bypasses every per-key",
+                 "Bearer token:"):
+        assert said not in out, f"{said!r} printed for a start that refused\n{out}"
+    assert _KEY_SHAPED not in out, "the refused value was echoed"
+
+
 def test_the_banner_comes_after_every_line_the_start_refuses_on(tmp_path,
                                                                 monkeypatch):
     """The other direction, on the one zero-live state that still starts.

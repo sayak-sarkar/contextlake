@@ -9954,6 +9954,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answers, over the repositories the key can read, and the code says so on purpose. Only
   `get_fleet_doc` refuses. A reader who believed the page expected a refusal and got counts. No
   behaviour changed.
+- **`kb serve` refuses a `ctxlake_`-shaped `CONTEXTLAKE_MCP_TOKEN` before it prints the
+  banner.** With a live key file it printed that the variable bypasses every per-key limit and
+  scope, then `MCP server on http://...`, then exited 1 with the refusal. No socket opened, but
+  the output described a server that never started. It now prints `Refusing to start: ...` with
+  no banner and no bypass line, still exit 1, in every key-file state.
 
 ### Security
 

@@ -146,7 +146,14 @@ def _load_keyring(args):
 
 def cmd_serve(args) -> int:
     # imported here so `query`/`index` don't load it
-    from ..server import HTTP_TRANSPORTS, TOKEN_ENV, _host_header_form, resolve_token, run_server
+    from ..server import (
+        HTTP_TRANSPORTS,
+        TOKEN_ENV,
+        _host_header_form,
+        refuse_key_shaped_token,
+        resolve_token,
+        run_server,
+    )
 
     # CLI exposes "http"; the MCP SDK calls it "streamable-http". "sse" (the
     # legacy HTTP+SSE transport) passes through unchanged -- it's a real,
@@ -309,6 +316,15 @@ def cmd_serve(args) -> int:
             # quota defaults were read out of the same trusted `[serve]` table.
             keys_only = bool(getattr(args, "keys_only", False))
             env_token = (os.environ.get(TOKEN_ENV) or "").strip()
+            # A key-shaped value is refused in build_http_app too, but that runs
+            # after the banner. With live keys it printed "bypasses every per-key
+            # limit and scope" and "MCP server on ..." for a start that then
+            # exited 1, so it is refused here, before any line says otherwise.
+            try:
+                refuse_key_shaped_token(env_token)
+            except ValueError as exc:
+                print(f"  Refusing to start: {exc}", file=sys.stderr)
+                return 1
             if keys_only and env_token:
                 print(f"  --keys-only refused: ${TOKEN_ENV} is set, and it "
                       "would bypass every per-key control. Unset the "
