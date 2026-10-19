@@ -451,10 +451,11 @@ def _abstain_note(gate: dict) -> str:
     """Rejection-log suffix counting reviewers that returned nothing parseable.
 
     Worth surfacing because a *broken* reviewer and a *strict* one look identical
-    otherwise: a reviewer that errors back an empty string (a missing API key, a
-    CLI not on PATH -- CliLlm returns "" on non-zero exit rather than raising)
-    abstains on every lens, which rejects every page at score 0.0. Without this
-    the run reads as a page-quality problem instead of a misconfiguration.
+    otherwise: a reviewer that errors back an empty string (a CLI on PATH that
+    exits non-zero, which CliLlm turns into "" rather than raising) abstains on
+    every lens, which rejects every page that reaches the council at score 0.0.
+    Without this the run reads as a page-quality problem instead of a
+    misconfiguration. A CLI not on PATH raises instead, and the page fails.
     """
     abstained = gate.get("abstained") or 0
     return f", {abstained} reviewer(s) returned nothing parseable" if abstained else ""

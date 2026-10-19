@@ -240,9 +240,11 @@ separately.
   as zero.
 - **`N reviewer(s) returned nothing parseable`**, on a rejection, tells you how many lenses
   abstained. When that count equals your `council_size` on every page, suspect a *misconfigured
-  reviewer* (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
-  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
-  council.
+  reviewer* (a review CLI that is installed but exits with an error) instead of weak pages. A
+  reviewer that returns nothing rejects every page that reaches the council at score 0.0, which
+  otherwise looks identical to a strict council. A missing API key or a review CLI not on PATH
+  fails the page instead, with an HTTP error or `llm provider=cli: command '<name>' not found on
+  PATH`.
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
   opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
   For `http` the line is `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)`; for `sse`

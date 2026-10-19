@@ -4572,8 +4572,11 @@ is not free. A run makes **pages x `council_size`** review calls against that pr
 default is 3 lenses per page. Set `council_size = 1` to cut that threefold.
 
 One thing to watch: `contextlake doctor` checks the *generation* provider only. A missing key for
-the review provider shows up as a run where every page is rejected with
-`N reviewer(s) returned nothing parseable`, not as a doctor warning.
+a hosted review provider (`anthropic`, `openai`) does not reject pages. The provider's refusal
+reaches `kb wiki` as an HTTP error, and the page fails. A review CLI that is installed but exits
+with an error rejects every page that reaches the council instead, with `N reviewer(s) returned
+nothing parseable`. A review CLI that is not on PATH fails the page, with `llm provider=cli:
+command '<name>' not found on PATH`.
 
 The number of symbols sampled into that grounding set scales with the repo's size, rather than
 being a flat 15:
@@ -9838,9 +9841,11 @@ separately.
   as zero.
 - **`N reviewer(s) returned nothing parseable`**, on a rejection, tells you how many lenses
   abstained. When that count equals your `council_size` on every page, suspect a *misconfigured
-  reviewer* (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
-  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
-  council.
+  reviewer* (a review CLI that is installed but exits with an error) instead of weak pages. A
+  reviewer that returns nothing rejects every page that reaches the council at score 0.0, which
+  otherwise looks identical to a strict council. A missing API key or a review CLI not on PATH
+  fails the page instead, with an HTTP error or `llm provider=cli: command '<name>' not found on
+  PATH`.
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** as the last line before it
   opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
   For `http` the line is `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)`; for `sse`
@@ -10621,6 +10626,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script read success. The run now stops before it writes anything, names the repo, and points
   to `contextlake kb index`. A run over every repo still skips such a repo without a message.
   10.0.0rc4 and earlier are affected.
+- **The wiki docs now say a missing review key or a review CLI not on PATH fails the page.**
+  `generating-the-wiki.md` said a missing key for a hosted `review_provider` rejects every page
+  with `N reviewer(s) returned nothing parseable`, and `console-output.md` listed a missing API
+  key and a review CLI not on PATH as causes of that count. Both stop the page instead: the
+  provider's refusal arrives as an HTTP error, and a missing command logs `llm provider=cli:
+  command '<name>' not found on PATH`. The run reads `1 failed`, not `1 rejected`. A review CLI
+  that is installed but exits with an error, times out or prints nothing abstains, and rejects
+  every page that reaches the council. The docs for 10.0.0rc4 and earlier carry the wrong text.
 
 ### Security
 

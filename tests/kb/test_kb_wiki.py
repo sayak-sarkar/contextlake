@@ -1585,6 +1585,90 @@ def test_cmd_wiki_counts_a_failed_cli_call_as_failed_not_rejected(
     _only_the_structural_page_survives(store_dir)
 
 
+def test_cmd_wiki_a_hosted_reviewer_with_no_key_fails_the_page_instead_of_abstaining(
+    tmp_path, monkeypatch, gls_logs
+):
+    """The docs say a missing key for a hosted review provider fails the page. The API's
+    HTTP error is not caught below the page loop, so the page counts as failed. A reply
+    that does not parse abstains and prints 'N reviewer(s) returned nothing parseable'."""
+    import urllib.error
+
+    import contextlake.kb.llm.anthropic as llm_anthropic
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    store_dir = _setup_repo(tmp_path)
+    (tmp_path / "kb.toml").write_text(_CFG_REVIEWER.format(store=store_dir.as_posix()))
+    sent = []
+
+    def refuse(url, payload, timeout, headers=None):
+        sent.append(headers)
+        raise urllib.error.HTTPError(url, 401, "Unauthorized", {}, None)
+
+    monkeypatch.setattr(llm_anthropic, "post_json", refuse)
+    # Only the generator is replaced. The reviewer is the real AnthropicLlm, built by the
+    # real build_review_llm from the toml above, with no key in the environment.
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95, name="builtin"))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
+    text = gls_logs.text
+    assert sent and sent[0]["x-api-key"] == ""      # the call really went out keyless
+    assert "HTTP Error 401: Unauthorized" in text
+    assert "returned nothing parseable" not in text
+    assert "rejected by council" not in text
+    assert "0 written, 0 rejected, 0 unchanged (skipped), 1 failed" in text
+    _only_the_structural_page_survives(store_dir)
+
+
+def test_cmd_wiki_a_review_cli_that_exits_with_an_error_abstains_on_every_lens(
+    tmp_path, monkeypatch, gls_logs
+):
+    """The contrast to the test above, and the case the docs name for the abstain count: a
+    review CLI that is installed but exits non-zero returns "", so every lens abstains and
+    the page is rejected at score 0.0. The run exits 0."""
+    import sys
+
+    from contextlake.kb.llm.cli import CliLlm
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    (tmp_path / "kb.toml").write_text(_CFG_REVIEWER.format(store=store_dir.as_posix()))
+    reviewer = CliLlm(command=sys.executable, args=["-c", "import sys; sys.exit(1)"])
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95, name="builtin"))
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: reviewer)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    text = gls_logs.text
+    assert "rejected by council (score 0.0, 3 reviewer(s) returned nothing parseable)" in text
+    assert "0 written, 1 rejected" in text
+    _only_the_structural_page_survives(store_dir)
+
+
+def test_cmd_wiki_a_review_cli_not_on_path_fails_the_page_instead_of_abstaining(
+    tmp_path, monkeypatch, gls_logs
+):
+    """A review CLI that is not installed is a misconfiguration CliLlm raises on, not an
+    empty reply. The raise reaches the page loop, so the page counts as failed and the log
+    names the missing command. An installed CLI that exits non-zero, times out or prints
+    nothing abstains."""
+    from contextlake.kb.llm.cli import CliLlm
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    (tmp_path / "kb.toml").write_text(_CFG_REVIEWER.format(store=store_dir.as_posix()))
+    reviewer = CliLlm(command="contextlake-no-such-review-cli", args=[])
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95, name="builtin"))
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: reviewer)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
+    text = gls_logs.text
+    assert "llm provider=cli: command 'contextlake-no-such-review-cli' not found on PATH" in text
+    assert "returned nothing parseable" not in text
+    assert "rejected by council" not in text
+    assert "0 written, 0 rejected, 0 unchanged (skipped), 1 failed" in text
+    _only_the_structural_page_survives(store_dir)
+
+
 def test_cmd_wiki_summary_surfaces_a_partial_failure(tmp_path, monkeypatch, gls_logs):
     """Before the fix, a repo that failed mid-run was silently dropped from the
     summary line (still ✓, still 'success') as long as at least one other repo

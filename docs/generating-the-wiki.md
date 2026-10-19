@@ -148,8 +148,11 @@ is not free. A run makes **pages x `council_size`** review calls against that pr
 default is 3 lenses per page. Set `council_size = 1` to cut that threefold.
 
 One thing to watch: `contextlake doctor` checks the *generation* provider only. A missing key for
-the review provider shows up as a run where every page is rejected with
-`N reviewer(s) returned nothing parseable`, not as a doctor warning.
+a hosted review provider (`anthropic`, `openai`) does not reject pages. The provider's refusal
+reaches `kb wiki` as an HTTP error, and the page fails. A review CLI that is installed but exits
+with an error rejects every page that reaches the council instead, with `N reviewer(s) returned
+nothing parseable`. A review CLI that is not on PATH fails the page, with `llm provider=cli:
+command '<name>' not found on PATH`.
 
 The number of symbols sampled into that grounding set scales with the repo's size, rather than
 being a flat 15:
