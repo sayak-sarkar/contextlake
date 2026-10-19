@@ -264,5 +264,32 @@ def test_state_reads_the_next_run_and_the_command(monkeypatch):
     assert state["interval_s"] is None
 
 
+def test_state_reads_a_quoted_command_whose_path_holds_a_space(monkeypatch):
+    """`render` writes the command with list2cmdline, which wraps a path that holds a space in
+    quotes, and a venv under C:\\Program Files is the ordinary case. Cutting the value at the
+    first space returned the opening quote and half the path, so `status` reported a working
+    interpreter as moved."""
+    command = subprocess.list2cmdline(_argv())
+    # The fixture must differ from the unquoted case, or this test passes without the fix.
+    assert command.startswith('"C:\\Program Files\\venv\\python.exe" -m ')
+    monkeypatch.setattr(windows, "_schtasks", lambda *a: _ok(stdout=(
+        "TaskName:      \\contextlake\\default\n"
+        f"Task To Run:   {command}\n")))
+
+    assert windows.WindowsAdapter().state(_job())["exec_path"] == _argv()[0]
+
+
+@pytest.mark.parametrize("command, program", [
+    (r'"C:\Program Files\venv\python.exe" -m contextlake', r"C:\Program Files\venv\python.exe"),
+    (r'"C:\Program Files\venv\python.exe"', r"C:\Program Files\venv\python.exe"),
+    (r"C:\venv\python.exe -m contextlake", r"C:\venv\python.exe"),
+    (r"C:\venv\python.exe", r"C:\venv\python.exe"),
+    ('""', None),
+    ("", None),
+])
+def test_program_is_the_quoted_text_or_the_first_word(command, program):
+    assert windows._program(command) == program
+
+
 def test_usable_is_false_on_this_machine():
     assert (windows.WindowsAdapter().usable() is False) or __import__("sys").platform == "win32"

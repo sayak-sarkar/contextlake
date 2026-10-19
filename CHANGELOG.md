@@ -288,6 +288,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lock on `schedule-run.lock.guard`, a file beside it in the cache directory, for those steps,
   and the second run skips with `Skipping this run`. A filesystem that cannot take OS locks
   leaves that step unguarded, as before. 10.0.0rc4 let both runs start.
+- **`schedule status` on Windows no longer reports a working interpreter as moved when its path
+  holds a space.** The install writes the task command with the interpreter path in double
+  quotes, which any path under `C:\Program Files` needs. `status` read the program back as the
+  text before the first space, so it got the opening quote and half the path, found no such
+  file, and printed "has moved or been deleted, so every run fails silently" while the
+  interpreter was still there. It now reads the quoted path whole. 10.0.0rc4 printed the false
+  warning.
 
 ### Security
 

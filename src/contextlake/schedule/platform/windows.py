@@ -15,6 +15,7 @@ Do not describe this backend as verified by execution.
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -52,6 +53,17 @@ def nearest_expressible(seconds):
 def _schtasks(*argv):
     return subprocess.run(["schtasks", *argv], capture_output=True, text=True,
                           errors="replace", check=False)
+
+
+def _program(command):
+    """The program in a ``Task To Run`` value, or ``None`` for an empty one.
+
+    ``render`` writes the command with ``list2cmdline``, which wraps a path that holds a space
+    in double quotes. Cutting at the first space then returned the opening quote and the text
+    before the space, and ``status`` reported the interpreter as moved.
+    """
+    match = re.match(r'"([^"]*)"|(\S+)', command)
+    return (match.group(1) or match.group(2)) if match else None
 
 
 def _task_names(csv_output) -> list:
@@ -184,7 +196,7 @@ class WindowsAdapter(Adapter):
                 if key == "next run time" and value:
                     next_run = value
                 elif key == "task to run" and value:
-                    exec_path = value.split()[0] if value.split() else None
+                    exec_path = _program(value)
             # The repeat interval is not reported in a form that survives
             # localisation, so it is left as None: "cannot tell" rather than a
             # parse that works on one Windows and not another.
