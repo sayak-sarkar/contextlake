@@ -16,12 +16,14 @@ invoke the builder, which also copies assets and shells out to git; it reuses th
 builder's own ``PAGES``, ``LLMS_INTRO``, ``de_emdash`` and ``linkify``, so the two
 cannot drift apart the way a hand-copied expectation would.
 
-``markdown`` is imported at ``build_docs`` module scope and is not a runtime
-dependency, so this skips wherever it is absent rather than failing there.
+``site/build_docs.py`` imports ``markdown`` only inside ``main()``, so this test does not
+skip where ``markdown`` is absent. Keep that import out of module scope: a module-scope
+import makes ``importorskip`` skip the check there.
 """
 
 from __future__ import annotations
 
+import ast
 import pathlib
 import sys
 
@@ -84,3 +86,28 @@ def test_every_docs_page_is_in_the_site_page_list_or_marked_github_only():
     assert not unregistered, (
         f"add these to PAGES (or to TO_GH if they stay on GitHub) in site/build_docs.py: "
         f"{unregistered}")
+
+
+def test_build_docs_imports_markdown_only_inside_a_function():
+    """`markdown` is not a runtime dependency. A module-scope import in `site/build_docs.py`
+    makes `importorskip` skip the two sync tests that call `_build_docs()` wherever `markdown`
+    is absent, so the committed `llms-full.txt` could drift unchecked. This test never calls
+    `_build_docs()`, so it still runs there and fails. The import belongs inside `main()`."""
+    tree = ast.parse((SITE / "build_docs.py").read_text(encoding="utf-8"))
+    found = []
+
+    def visit(node):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            if isinstance(child, ast.Import):
+                names = [a.name for a in child.names]
+            elif isinstance(child, ast.ImportFrom):
+                names = [child.module or ""]
+            else:
+                names = []
+            found.extend(n for n in names if n.split(".")[0] == "markdown")
+            visit(child)
+
+    visit(tree)
+    assert not found, f"move this import into main() in site/build_docs.py: {found}"

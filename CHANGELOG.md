@@ -179,6 +179,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `release.yml` said `llm-local` compiles from source, and the slim image step was named "no
   baked GGUF". A maintainer could re-add the index or the pin on that advice. The text now
   matches the build. The change touches comments and one step name, not the build.
+- **The llms-full sync test no longer claims it skips without `markdown`.** Its docstring said
+  `site/build_docs.py` imports `markdown` at module scope. That has been false since the import
+  moved into `main()`. A maintainer who trusted it could restore the module-scope import and
+  make the check skip wherever `markdown` is absent. A new test fails if that import returns.
+  Test-only change.
 
 ### Security
 
