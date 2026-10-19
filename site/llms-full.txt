@@ -3928,10 +3928,10 @@ Source: https://sayak.in/contextlake/searching-semantically
 
 # Semantic search
 
-Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Set `enabled = true` under `[embeddings]` in the config,
-run `contextlake kb embed` to vectorize the indexed nodes into a local store, and `serve` then exposes two
-retrieval tools:
+Semantic search adds natural-language retrieval on top of the graph, so you can find code by
+what it does even when you don't know its name. It is on by default since 7.7.0. Set
+`enabled = false` under `[embeddings]` to turn it off. Run `contextlake kb embed` to
+vectorize the indexed nodes into a local store, and `serve` then exposes two retrieval tools:
 
 - **`semantic_search`** for queries where the exact symbol name is unknown.
 - **`hybrid_search`**, which seeds Personalized PageRank with the embedding hits and propagates relevance
@@ -7251,12 +7251,13 @@ would report shares and disagreements that are not true of the whole, and a read
 not tell the page had been scoped, so a run naming particular repos skips it and says it
 did. `get_fleet_doc` names that as the likely cause when the page is missing.
 
-`semantic_search` / `hybrid_search` are the two exceptions: they register **only when
-embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
-`kb.toml` (the section on its own is not enough, `enabled` defaults to `false`) and a
-`contextlake kb embed` run to create the vector store. Without both, the server starts
-fine and says so, the two tools are absent from the tool list, and everything
-above still works.
+`semantic_search` and `hybrid_search` are the two exceptions. They register **only when
+embeddings exist**, which takes an embedder that loads and a vector store. `[embeddings]` is on
+by default (since 7.7.0), so the embedder needs no setting unless `kb.toml` says
+`enabled = false`. It needs a provider: a local Ollama, the built-in CPU model
+(`pip install 'contextlake[kb-full]'`) or `provider = "openai"` with a key.
+`contextlake kb embed` creates the vector store. Without both, the server starts and says so,
+the two tools are absent, and everything above still works.
 
 ## The quick way: let contextlake wire your editors
 
@@ -9922,6 +9923,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same value ended in a tool error. A limited key got an empty answer, so the same call gave
   three different answers by key and backend. `k` below 0 is now read as 0, as `search_code` and
   the other limit arguments already did. 10.0.0rc4 sliced from the end.
+- **The docs and the `kb embed` hint now say semantic search is on by default.**
+  `docs/serving-over-mcp.md` said `[embeddings] enabled` defaults to `false`, and
+  `docs/searching-semantically.md` called the feature optional. Both were wrong since 7.7.0.
+  `kb embed` printed "Semantic search is off (opt-in)" when the user had turned it off. It now
+  says `[embeddings] enabled = false`. The two MCP tools appear once an embedder can load and
+  `kb embed` has built the vector store. No setting is needed.
 
 ### Security
 

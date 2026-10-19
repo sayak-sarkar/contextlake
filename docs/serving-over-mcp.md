@@ -121,12 +121,13 @@ would report shares and disagreements that are not true of the whole, and a read
 not tell the page had been scoped, so a run naming particular repos skips it and says it
 did. `get_fleet_doc` names that as the likely cause when the page is missing.
 
-`semantic_search` / `hybrid_search` are the two exceptions: they register **only when
-embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
-`kb.toml` (the section on its own is not enough, `enabled` defaults to `false`) and a
-`contextlake kb embed` run to create the vector store. Without both, the server starts
-fine and says so, the two tools are absent from the tool list, and everything
-above still works.
+`semantic_search` and `hybrid_search` are the two exceptions. They register **only when
+embeddings exist**, which takes an embedder that loads and a vector store. `[embeddings]` is on
+by default (since 7.7.0), so the embedder needs no setting unless `kb.toml` says
+`enabled = false`. It needs a provider: a local Ollama, the built-in CPU model
+(`pip install 'contextlake[kb-full]'`) or `provider = "openai"` with a key.
+`contextlake kb embed` creates the vector store. Without both, the server starts and says so,
+the two tools are absent, and everything above still works.
 
 ## The quick way: let contextlake wire your editors
 

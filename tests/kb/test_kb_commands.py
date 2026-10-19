@@ -600,6 +600,10 @@ def test_embed_unavailable_hint_is_actionable():
 
     off = _embed_unavailable_hint(EmbeddingsCfg(enabled=False))
     assert "enabled = true" in off                       # the opt-in step is always named
+    # It is on by default since 7.7.0, so "off" means the user turned it off: say that, not
+    # "opt-in", which told a reader it was never switched on.
+    assert "opt-in" not in off
+    assert "enabled = false" in off
     on_no_engine = _embed_unavailable_hint(EmbeddingsCfg(enabled=True))
 
     if importlib.util.find_spec("model2vec") is None:

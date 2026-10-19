@@ -1,9 +1,9 @@
 # Semantic search
 
-Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Set `enabled = true` under `[embeddings]` in the config,
-run `contextlake kb embed` to vectorize the indexed nodes into a local store, and `serve` then exposes two
-retrieval tools:
+Semantic search adds natural-language retrieval on top of the graph, so you can find code by
+what it does even when you don't know its name. It is on by default since 7.7.0. Set
+`enabled = false` under `[embeddings]` to turn it off. Run `contextlake kb embed` to
+vectorize the indexed nodes into a local store, and `serve` then exposes two retrieval tools:
 
 - **`semantic_search`** for queries where the exact symbol name is unknown.
 - **`hybrid_search`**, which seeds Personalized PageRank with the embedding hits and propagates relevance

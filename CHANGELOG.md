@@ -47,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same value ended in a tool error. A limited key got an empty answer, so the same call gave
   three different answers by key and backend. `k` below 0 is now read as 0, as `search_code` and
   the other limit arguments already did. 10.0.0rc4 sliced from the end.
+- **The docs and the `kb embed` hint now say semantic search is on by default.**
+  `docs/serving-over-mcp.md` said `[embeddings] enabled` defaults to `false`, and
+  `docs/searching-semantically.md` called the feature optional. Both were wrong since 7.7.0.
+  `kb embed` printed "Semantic search is off (opt-in)" when the user had turned it off. It now
+  says `[embeddings] enabled = false`. The two MCP tools appear once an embedder can load and
+  `kb embed` has built the vector store. No setting is needed.
 
 ### Security
 

@@ -19,8 +19,9 @@ from ._common import (
 def _embed_unavailable_hint(cfg) -> str:
     """Why is there no embedder, and the exact one-liner to fix it.
 
-    `build_embedder` returns None either because semantic search is off (the
-    opt-in default) or because it is on but no engine is installed/reachable.
+    `build_embedder` returns None either because semantic search is off
+    (`enabled = false` in the config) or because it is on but no engine is
+    installed/reachable.
     Either way the old "Embeddings are disabled" message left the user stuck — so
     spell out the install + enable steps, tailored to what is actually missing.
     """
@@ -29,7 +30,7 @@ def _embed_unavailable_hint(cfg) -> str:
     if not getattr(cfg, "enabled", False):
         install = ("" if has_local
                    else "install the embedder (pip install 'contextlake[kb-full]'), then ")
-        return ("Semantic search is off (opt-in). To enable it: " + install
+        return ("Semantic search is off ([embeddings] enabled = false). To enable it: " + install
                 + 'set [embeddings] enabled = true in kb.toml (provider "auto"). '
                 "The first embed downloads a small CPU model (~30MB, one-time).")
     if not has_local:
