@@ -524,16 +524,23 @@ class ScopedVectorStore:
             return self._vectors.search(query, k=k, repo=repo)
         if k <= 0 or (repo and not self._scoped.allows_repo(repo)):
             return []
-        ask = k
+        # sqlite-vec takes a KNN window of 4096 rows and its store asks for `ask * 8`, so a
+        # step past the store's `max_k` examines nothing more. The brute-force store has no
+        # window, sets no `max_k` and keeps the full ceiling. The first ask is clamped too:
+        # a caller's k above `max_k` would fill the window on round one and end the loop
+        # with no log line.
+        window = getattr(self._vectors, "max_k", None)
+        ceiling = _SCOPED_SEARCH_CEILING if window is None else min(_SCOPED_SEARCH_CEILING, window)
+        ask = k if window is None else min(k, ceiling)
         while True:
             rows = self._vectors.search(query, k=ask, repo=repo)
             kept = [r for r in rows if not self._scoped.hides_vector_hit(r[0])]
             if len(kept) >= k or len(rows) < ask:
                 return kept[:k]
-            if ask >= _SCOPED_SEARCH_CEILING:
+            if ask >= ceiling:
                 from ..logging_setup import log
                 log(f"scoped vector search stopped at {ask} rows with {len(kept)} "
                     f"readable; later matches were not examined",
                     level=logging.WARNING)
                 return kept[:k]
-            ask = min(ask * 4, _SCOPED_SEARCH_CEILING)
+            ask = min(ask * 4, ceiling)

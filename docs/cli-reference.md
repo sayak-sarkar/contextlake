@@ -336,6 +336,13 @@ leave the others out. A tool that reads a whole-fleet document (`get_fleet_doc`,
 refuses a scoped key, since it has no repo argument to check. A node id does not carry the
 repository it came from, so the filter runs inside the store and not on the call.
 
+The vector searches (`semantic_search`, `hybrid_search` and the search route of `ask`) rank the
+whole fleet, then drop what the key cannot read. For a scoped key they widen the ranking until
+they hold enough readable hits. With sqlite-vec (the `kb-vec` extra) they stop at the 512
+nearest nodes, its limit. With the built-in fallback store they stop at 10,000. If fewer
+readable hits sit inside that limit, the call returns the ones it found, which can be none, and
+the server logs `scoped vector search stopped at <n> rows`.
+
 A glob is matched against the repository id, not the folder name:
 
 - A repository with an `origin` remote has that remote's host and path, in lowercase, as its id:

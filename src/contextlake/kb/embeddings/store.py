@@ -223,6 +223,10 @@ class SqliteVecStore:
 
     name = "sqlite-vec"
 
+    #: The k whose window fits sqlite-vec's limit. A caller that widens k on purpose
+    #: (`ScopedVectorStore`) stops here. The brute-force store has no window and sets none.
+    max_k = MAX_SEARCH_K
+
     def __init__(self, path: str | Path, *, chunk_size: int = 1024):
         self.path = str(path)
         # vec0 requires the chunk size to be a positive multiple of 8.

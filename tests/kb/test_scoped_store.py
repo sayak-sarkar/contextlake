@@ -651,3 +651,152 @@ def test_a_denied_repo_filter_and_a_gone_key_return_nothing(vector_world, reques
     assert ScopedVectorStore(vs, scoped).search([1.0, 0.0], k=10, repo="bravo/payments") == []
     gone = ScopedVectorStore(vs, ScopedStore(st, lambda: None))
     assert gone.search([1.0, 0.0], k=30) == []
+
+
+# --------------------------------------------------------------------------
+# The escalation stays inside the window the vector backend accepts
+# --------------------------------------------------------------------------
+
+class _WindowedVectors:
+    """The vector backend's window rule, without the native dependency.
+
+    sqlite-vec is asked for `k * 8` rows and refuses a window over 4096. Every row is a
+    node in a repository the key cannot read, so the loop never fills and keeps asking.
+    """
+
+    max_k = 512  # what SqliteVecStore sets: the largest k whose window fits
+
+    def __init__(self):
+        self.asked = []
+
+    def has_any(self, repo_ids=None):
+        return True
+
+    def search(self, query, k=10, repo=None):
+        self.asked.append(k)
+        if k * 8 > 4096:
+            raise RuntimeError(f"k value in knn query too large, provided {k * 8} "
+                               "and the limit is 4096")
+        return [(f"hidden{i}", 1.0) for i in range(k)]
+
+
+class _HiddenNodesStore(_FakeStore):
+    def get_node(self, node_id):
+        return _Node(node_id, "other/api") if node_id.startswith("hidden") else None
+
+
+@pytest.mark.parametrize("k", [8, 10, 20, 600])
+def test_a_scoped_vector_search_never_asks_past_the_backend_window(request_scope,
+                                                                    gls_logs, k):
+    """The loop grew 10, 40, 160, 640 and the step at 640 asked for 5120 rows, so the
+    tool call failed with the backend's error where it used to answer with fewer hits.
+    A `k` above the window failed on the first round for the same reason."""
+    from contextlake.kb.embeddings.store import MAX_SEARCH_K
+
+    vectors = _WindowedVectors()
+    scoped = ScopedStore(_HiddenNodesStore(), lambda: (["acme/*"], False))
+
+    assert ScopedVectorStore(vectors, scoped).search([1.0, 0.0], k=k) == []
+
+    assert max(vectors.asked) == MAX_SEARCH_K, vectors.asked
+    assert f"stopped at {MAX_SEARCH_K} rows" in gls_logs.text
+
+
+def _ranked_world(tmp_path, vs, hidden, readable):
+    """`hidden` bravo vectors nearer the query than `readable` alpha ones, in `vs`."""
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    st = SqliteStore(tmp_path / "kb.sqlite")
+    st.upsert_nodes("alpha/orders", [
+        Node(id=f"mine{i}", repo="alpha/orders", kind="function", name=f"mine{i}")
+        for i in range(readable)])
+    st.upsert_nodes("bravo/payments", [
+        Node(id=f"theirs{i}", repo="bravo/payments", kind="function", name=f"theirs{i}")
+        for i in range(hidden)])
+    vs.upsert([(f"mine{i}", "alpha/orders", [0.7, 0.7]) for i in range(readable)]
+              + [(f"theirs{i}", "bravo/payments", [1.0, 0.0]) for i in range(hidden)])
+    return st, vs
+
+
+def _sqlite_vec_world(tmp_path, hidden, readable):
+    """The ranked world on sqlite-vec."""
+    pytest.importorskip("sqlite_vec")
+    from contextlake.kb.embeddings.store import SqliteVecStore
+
+    return _ranked_world(tmp_path, SqliteVecStore(tmp_path / "embeddings.sqlite"),
+                         hidden, readable)
+
+
+def test_a_scoped_search_on_sqlite_vec_stops_instead_of_raising(tmp_path, request_scope,
+                                                                 gls_logs):
+    """The real backend, with 700 hidden vectors ahead of the 3 readable ones: 10 and 8 and
+    20 are what `semantic_search`, `ask` and `hybrid_search` pass. The answer is empty and
+    the stop is logged, which is the end the loop already had for the text search."""
+    st, vs = _sqlite_vec_world(tmp_path, hidden=700, readable=3)
+    try:
+        wrapped = ScopedVectorStore(vs, ScopedStore(st, lambda: (["alpha/*"], False)))
+        for k in (10, 8, 20):
+            assert wrapped.search([1.0, 0.0], k=k) == []
+        assert "stopped at 512 rows" in gls_logs.text
+
+        answer = _semantic(_server_over(st, vs, ["alpha/*"]), query="mine0")
+        assert answer["nodes"] == []
+    finally:
+        vs.close()
+        st.close()
+
+
+def test_a_scoped_search_on_sqlite_vec_still_finds_hits_inside_the_window(tmp_path,
+                                                                           request_scope):
+    """Positive control: 200 hidden vectors take the loop to 512, the three readable ones
+    rank 201st to 203rd, and they are found. A cap that cut the loop short of that would
+    pass the test above and cost the escalation itself."""
+    st, vs = _sqlite_vec_world(tmp_path, hidden=200, readable=3)
+    try:
+        wrapped = ScopedVectorStore(vs, ScopedStore(st, lambda: (["alpha/*"], False)))
+        assert sorted(_ids(wrapped.search([1.0, 0.0], k=10))) == ["mine0", "mine1", "mine2"]
+    finally:
+        vs.close()
+        st.close()
+
+
+def test_a_scoped_search_on_the_brute_store_keeps_the_full_ceiling(tmp_path, request_scope):
+    """The brute-force store (the `auto` fallback without the kb-vec extra) has no KNN
+    window, so the 512 limit of sqlite-vec does not apply to it. 600 hidden vectors rank
+    ahead of 3 readable ones; a ceiling of 512 on every backend returned nothing here."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    st, vs = _ranked_world(tmp_path, VectorStore(tmp_path / "embeddings.sqlite"),
+                           hidden=600, readable=3)
+    try:
+        wrapped = ScopedVectorStore(vs, ScopedStore(st, lambda: (["alpha/*"], False)))
+        assert sorted(_ids(wrapped.search([1.0, 0.0], k=10))) == ["mine0", "mine1", "mine2"]
+    finally:
+        vs.close()
+        st.close()
+
+
+class _UnwindowedVectors:
+    """A backend with no window rule and no `max_k`, like the brute-force store."""
+
+    def __init__(self):
+        self.asked = []
+
+    def has_any(self, repo_ids=None):
+        return True
+
+    def search(self, query, k=10, repo=None):
+        self.asked.append(k)
+        return [(f"hidden{i}", 1.0) for i in range(k)]
+
+
+def test_a_scoped_search_without_a_window_asks_for_the_k_it_was_given(request_scope, gls_logs):
+    """rc4 passed the caller's k through on round one, and a k above the 10,000 ceiling
+    got that many rows. A backend with no window keeps both."""
+    vectors = _UnwindowedVectors()
+    scoped = ScopedStore(_HiddenNodesStore(), lambda: (["acme/*"], False))
+
+    assert ScopedVectorStore(vectors, scoped).search([1.0, 0.0], k=12_000) == []
+
+    assert vectors.asked == [12_000]
+    assert "stopped at 12000 rows" in gls_logs.text

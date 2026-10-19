@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script passes a blank value on purpose, drop the flag so a lower tier answers. 10.0.0rc4 fell
   through.
 
+### Fixed
+
+- **A key limited with `--repos` no longer gets a tool error from `semantic_search`,
+  `hybrid_search` or `ask` on the sqlite-vec vector backend.** When the key's readable hits were
+  not among the first 160 nearest nodes, the search widened to 640 nodes. sqlite-vec refuses
+  that window (it takes 4096 rows and the store asks for 8 per node), so the call failed with `k
+  value in knn query too large`. The search now stops at 512 nodes, the most sqlite-vec takes,
+  returns the readable hits it found, and logs `scoped vector search stopped`. A `k` above 512
+  is cut to the same window for a limited key on sqlite-vec, and a readable hit ranked below the
+  512th fleet-wide is not returned there. 10.0.0rc4 raised the error. The built-in fallback
+  store has no window and keeps its 10,000-node limit.
+
 ## [10.0.0rc4] - 2026-10-18
 
 ### Changed
