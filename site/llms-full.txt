@@ -2290,9 +2290,14 @@ project-local file.
 
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
 key. The rest of the file still applies: `store_dir`, `languages`, `max_file_bytes`, `[[rules]]`,
-`[embeddings] provider`, and any non-`cli` LLM provider all keep working from a local file. What a
-local file can no longer do is name the host a request goes to, or the env var read for its
-credential, in `[llm]`, `[embeddings]` or `[[sources]]`.
+and a `provider` that stays on your machine (`ollama`, `builtin`, `auto`) for `[llm]` or
+`[embeddings]` all keep working from a local file. What a local file can no longer do is name the
+host a request goes to, or the env var read for its credential, in `[llm]`, `[embeddings]` or
+`[[sources]]`.
+
+A local `provider = "openai"` or `"anthropic"` does not keep working. It switches its tier off, as
+described above, and a local `review_provider` that names either one is dropped. Move those
+settings to `~/.contextlake/kb.toml`, or reach them with `--config PATH`.
 
 That last point changes what `contextlake kb source add ... --local` can scope. A `type = "mcp"`
 document source still works from a local file over its `url`; its `command` has to live in the
@@ -10392,6 +10397,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--config` in play, you could not tell which to fix. The message now names the file, and the
   line when the parser gives one. A yes/no setting names it at the end, as `(set in FILE)`. A
   validation error shows the table, the key and the reason, and no longer repeats the value.
+- **The configuration page no longer says a project-local `openai` or `anthropic` provider keeps
+  working.** `docs/configuration.md` said `[embeddings] provider` and any non-`cli` LLM provider
+  keep working from a `.contextlake.kb.toml` found by walking up from the current directory. A
+  discovered `provider = "openai"` or `"anthropic"` switches its tier off for the run, and a
+  discovered `review_provider` that names either one is dropped. The page now lists `ollama`,
+  `builtin` and `auto` as the providers that keep working, and says to move the other two to
+  `~/.contextlake/kb.toml` or pass `--config PATH`.
 
 ### Security
 

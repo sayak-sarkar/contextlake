@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from contextlake.kb.trust import PRIVILEGED_SOURCE_KEYS
+from contextlake.kb.trust import CREDENTIAL_PROVIDERS, PRIVILEGED_SOURCE_KEYS
 
 ROOT = Path(__file__).resolve().parents[2]
 TABLES = ("SECURITY.md", "docs/configuration.md")
@@ -40,3 +40,31 @@ def test_the_trust_table_names_every_privileged_source_key(name):
     assert not missing, (
         f"{name} does not list {missing} among the gated `[[sources]]` keys that "
         "kb/trust.py refuses from a discovered config file")
+
+
+# For each page, a phrase that only the paragraph listing what a discovered file can still
+# do contains.
+STILL_WORKS = (
+    ("SECURITY.md", "The rest of that file still applies"),
+    ("docs/configuration.md", "keep working from a local file"),
+)
+
+
+@pytest.mark.parametrize(("name", "marker"), STILL_WORKS)
+def test_the_still_works_list_carves_out_every_credential_provider(name, marker):
+    """configuration.md said "any non-`cli` LLM provider" keeps working from a discovered
+    file. The code switches an `openai` or `anthropic` tier off for the run
+    (REFUSE_DISCOVERED_CREDENTIAL_PROVIDER), so a reader who followed the page lost the tier.
+
+    The carve-out can sit in the list's paragraph or in the next one, so both are searched.
+    """
+    paras = re.split(r"\n\s*\n", (ROOT / name).read_text(encoding="utf-8"))
+    at = next((i for i, p in enumerate(paras) if marker in p), None)
+    assert at is not None, f"{name} has no paragraph with {marker!r}, so the check is vacuous"
+    window = "\n\n".join(paras[at:at + 2])
+    missing = [pr for pr in sorted(CREDENTIAL_PROVIDERS) if f"`{pr}`" not in window
+               and f'"{pr}"' not in window]
+    assert not missing, (
+        f"{name}: the paragraph that lists what still works from a discovered file, and "
+        f"the one after it, do not name {missing}. kb/config.py switches those off")
+    assert "non-`cli`" not in window

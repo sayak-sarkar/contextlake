@@ -205,9 +205,14 @@ project-local file.
 
 In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
 key. The rest of the file still applies: `store_dir`, `languages`, `max_file_bytes`, `[[rules]]`,
-`[embeddings] provider`, and any non-`cli` LLM provider all keep working from a local file. What a
-local file can no longer do is name the host a request goes to, or the env var read for its
-credential, in `[llm]`, `[embeddings]` or `[[sources]]`.
+and a `provider` that stays on your machine (`ollama`, `builtin`, `auto`) for `[llm]` or
+`[embeddings]` all keep working from a local file. What a local file can no longer do is name the
+host a request goes to, or the env var read for its credential, in `[llm]`, `[embeddings]` or
+`[[sources]]`.
+
+A local `provider = "openai"` or `"anthropic"` does not keep working. It switches its tier off, as
+described above, and a local `review_provider` that names either one is dropped. Move those
+settings to `~/.contextlake/kb.toml`, or reach them with `--config PATH`.
 
 That last point changes what `contextlake kb source add ... --local` can scope. A `type = "mcp"`
 document source still works from a local file over its `url`; its `command` has to live in the

@@ -339,6 +339,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--config` in play, you could not tell which to fix. The message now names the file, and the
   line when the parser gives one. A yes/no setting names it at the end, as `(set in FILE)`. A
   validation error shows the table, the key and the reason, and no longer repeats the value.
+- **The configuration page no longer says a project-local `openai` or `anthropic` provider keeps
+  working.** `docs/configuration.md` said `[embeddings] provider` and any non-`cli` LLM provider
+  keep working from a `.contextlake.kb.toml` found by walking up from the current directory. A
+  discovered `provider = "openai"` or `"anthropic"` switches its tier off for the run, and a
+  discovered `review_provider` that names either one is dropped. The page now lists `ollama`,
+  `builtin` and `auto` as the providers that keep working, and says to move the other two to
+  `~/.contextlake/kb.toml` or pass `--config PATH`.
 
 ### Security
 
