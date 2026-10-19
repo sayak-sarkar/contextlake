@@ -24,6 +24,7 @@ import time
 
 from . import __version__, netguard, observability
 from .config import (
+    CONFIG_ORIGIN,
     DEFAULT_CONFIG,
     ConfigError,
     expand_path,
@@ -1967,7 +1968,8 @@ def apply_cli_overrides(args, config):
             # A file may write `yes`, `on` or `1`. Every reader compares against "true", so
             # the spelling is normalised here, once, and an unknown one stops the run
             # before any repository is touched.
-            config[name] = parse_bool(name, config[name])
+            config[name] = parse_bool(
+                name, config[name], config.get(CONFIG_ORIGIN, {}).get(name))
 
     for name in _SCALAR_FLAGS:
         value = getattr(args, name, None)

@@ -24,6 +24,20 @@ def test_missing_config_path_exits_clean_not_traceback(tmp_path, capsys):
     assert "Traceback" not in out
 
 
+def test_a_toml_syntax_error_exits_clean_and_names_the_file(tmp_path, capsys):
+    """The parser's message has a line and a column and no file. With a global file, a
+    discovered file, --config and the mirror INI in play, the owner could not tell which
+    one to fix."""
+    bad = tmp_path / "bad.toml"
+    bad.write_text("[kb\n")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["kb", "source", "list", "--config", str(bad)])
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert f"{bad}: " in out
+    assert "Traceback" not in out
+
+
 def _raising_dispatch(monkeypatch):
     """Point kb dispatch at the failure a full disk actually produces."""
     import sqlite3

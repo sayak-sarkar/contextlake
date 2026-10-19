@@ -28,9 +28,10 @@ skip the discovered tier altogether.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ..config import ConfigError, expand_path, find_ancestor_config  # noqa: F401 -- re-exported
 from ..logging_setup import log
@@ -293,6 +294,44 @@ def _read_toml(path: str | None) -> dict:
         return tomllib.load(f)
 
 
+def _toml_error(src: str, exc: Exception) -> ConfigError:
+    """A ConfigError that names the file a TOML error came from.
+
+    The parser's message has a line and a column and no file, and up to three config files
+    are in play. A mirror INI given to a kb command fails at the first value TOML cannot
+    read, so a file with a `[contextlake]` header is called what it is.
+    """
+    path = Path(expand_path(src))
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        text = ""
+    hint = ("\n  This is a mirror INI file (it has a [contextlake] section). A kb command "
+            "reads a kb.toml; the INI goes to a mirror command."
+            if re.search(r"^\s*\[contextlake\]", text, re.MULTILINE) else "")
+    return ConfigError(f"{path}: {exc}{hint}")
+
+
+_MODEL_TABLES = {"EmbeddingsCfg": "embeddings", "LlmCfg": "llm", "SourceCfg": "sources",
+                 "RuleCfg": "rules", "KbConfig": "kb"}
+
+
+def _validation_error(exc: ValidationError, key_src: dict) -> ConfigError:
+    """A ConfigError that names, for each bad value, the file that set it and the key.
+
+    pydantic's own text names the model class and repeats the value. This one does neither:
+    the value is text the file's author chose.
+    """
+    table = _MODEL_TABLES.get(exc.title, exc.title)
+    label = f"[[{table}]]" if table in ("sources", "rules") else f"[{table}]"
+    lines = []
+    for err in exc.errors():
+        key = str(err["loc"][0]) if err["loc"] else ""
+        src = key_src.get((table, key)) or key_src.get((table, ""), "a config file")
+        lines.append(f"{src}: {label} {key}: {err['msg']}")
+    return ConfigError("\n".join(lines))
+
+
 def load_kb_config(config_path: str | None = None) -> KbConfig:
     """Load and merge KB config from the precedence chain.
 
@@ -344,6 +383,11 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     # loop below.
     egress_refused: set[str] = set()
     provider_privileged: dict[str, bool] = {}
+    # Which file set each value, last file wins like the merge: (table, key), or (table, "")
+    # for `sources` and `rules`, which a later file replaces as a whole. Read after the trust
+    # drop, so a refused key never names the file that was refused. Used to name the file
+    # when a value fails validation below.
+    key_src: dict[tuple[str, str], str] = {}
     for src in (GLOBAL_CONFIG, local_config, config_path):
         # Provenance gate. A config file the user never named -- i.e. the one
         # found by walking up from cwd -- may not carry keys that become a
@@ -353,7 +397,11 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         # command, and to redirect every embedding request off the machine.
         # Everything else in that file still applies. See kb/trust.py.
         privileged = is_privileged_source(src, config_path, global_config=GLOBAL_CONFIG)
-        for table, values in _read_toml(src).items():
+        try:
+            tables = _read_toml(src)
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+            raise _toml_error(src, e) from e
+        for table, values in tables.items():
             if table == "kb" and "store_dir" in values:
                 # Remember WHICH file set the store, not just what it was set to. The
                 # merge is last-wins, so this ends up naming the file that decided it.
@@ -365,6 +413,8 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
                         k in EGRESS_KEYS and requires_privileged_source(table, k, v)
                         for k, v in raw.items()):
                     egress_refused.add(table)
+            for k in (values if isinstance(values, dict) else ("",)):
+                key_src[(table, k)] = str(Path(expand_path(src)))
             if table in EGRESS_TABLES and isinstance(values, dict) and "provider" in values:
                 # Read AFTER the drop and overwritten per source, so this ends up
                 # naming the file whose provider WON: a refused `provider = "cli"`
@@ -433,22 +483,25 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
                 f"{config_path} does not set [kb] store_dir, so the store comes from "
                 f"{where}: {Path(expand_path(kb.get('store_dir', default_store_dir())))}"))
             log("  Set [kb] store_dir in that file to target a different store.")
-    cfg = KbConfig(
-        store_dir=kb.get("store_dir", default_store_dir()),
-        languages=kb.get("languages") or None,
-        skip_generated=kb.get("skip_generated", True),
-        max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
-        max_repo_memory=kb.get("max_repo_memory", DEFAULT_MAX_REPO_MEMORY),
-        index_workers=kb.get("index_workers", None),
-        anonymize=_anonymize_value(kb.get("anonymize")),
-        embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
-        llm=LlmCfg(**merged.get("llm", {})),
-        sources=[SourceCfg(**s) for s in merged.get("sources", [])],
-        rules=[RuleCfg(**r) for r in merged.get("rules", [])],
-        loaded_from=loaded_from,
-        searched=searched,
-        refused_tiers=tuple(tiers_off),
-    )
+    try:
+        cfg = KbConfig(
+            store_dir=kb.get("store_dir", default_store_dir()),
+            languages=kb.get("languages") or None,
+            skip_generated=kb.get("skip_generated", True),
+            max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
+            max_repo_memory=kb.get("max_repo_memory", DEFAULT_MAX_REPO_MEMORY),
+            index_workers=kb.get("index_workers", None),
+            anonymize=_anonymize_value(kb.get("anonymize")),
+            embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
+            llm=LlmCfg(**merged.get("llm", {})),
+            sources=[SourceCfg(**s) for s in merged.get("sources", [])],
+            rules=[RuleCfg(**r) for r in merged.get("rules", [])],
+            loaded_from=loaded_from,
+            searched=searched,
+            refused_tiers=tuple(tiers_off),
+        )
+    except ValidationError as e:
+        raise _validation_error(e, key_src) from e
     # Registered here, where the store's location becomes known, rather than where
     # a store is opened. `_open_store` looked like the choke point and is not:
     # `doctor` constructs its own SqliteStore, so `--redact doctor` printed the

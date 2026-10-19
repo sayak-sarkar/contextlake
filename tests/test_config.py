@@ -1,6 +1,7 @@
 """Tests for configuration loading and precedence."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -162,15 +163,30 @@ def test_discovered_config_with_a_misspelled_header_is_still_skipped(tmp_path, m
     assert load_config()["gitlab_group"] == DEFAULT_CONFIG["gitlab_group"]
 
 
+_EXAMPLE_KB_TOML = (Path(__file__).resolve().parents[1] / "examples" / "kb.toml.example")
+
+# A kb.toml with two `[[sources]]` blocks does not parse as an INI: the section name repeats.
+# A multi-line array whose closing bracket is at column 0 does not parse either.
+_TWO_SOURCES = ('[kb]\nstore_dir = "/srv/store"\n\n[[sources]]\ntype = "web"\nname = "a"\n\n'
+                '[[sources]]\ntype = "web"\nname = "b"\n')
+_MULTILINE_ARRAY = '[llm]\ncommand = "claude"\nargs = [\n"-p",\n]\n'
+
+
 @pytest.mark.parametrize("name, text", [
     ("kb.toml", '[kb]\nstore_dir = "/srv/store"\n'),
     ("notes.cfg", "[llm]\nprovider = openai\n"),
     ("empty.toml", ""),
-])
+    ("two-sources.cfg", _TWO_SOURCES),
+    ("two-sources.toml", _TWO_SOURCES),
+    ("array.cfg", _MULTILINE_ARRAY),
+    ("shipped-example.cfg", _EXAMPLE_KB_TOML.read_text(encoding="utf-8")),
+], ids=["kb-toml", "llm-table", "empty-toml", "two-sources-by-header", "two-sources-by-name",
+        "multiline-array", "shipped-example"])
 def test_a_knowledge_config_as_explicit_config_exits_two_and_names_the_right_flag(
         tmp_path, monkeypatch, name, text):
     """The same mistake `bootstrap` has refused with exit 2 since it got `--kb-config`. It now
-    comes from the loader, so `mirror` and `schedule` verbs refuse it too."""
+    comes from the loader, so `mirror` and `schedule` verbs refuse it too, whether or not the
+    file happens to parse as an INI."""
     _isolate_globals(monkeypatch, tmp_path)
     kb = tmp_path / name
     kb.write_text(text)
@@ -180,6 +196,22 @@ def test_a_knowledge_config_as_explicit_config_exits_two_and_names_the_right_fla
 
     assert exc.value.exit_code == 2
     assert "mirror INI" in str(exc.value) and "--kb-config" in str(exc.value)
+
+
+@pytest.mark.parametrize("name", ["mirror.ini", "mirror.toml"])
+def test_a_broken_mirror_ini_gets_its_parse_error_whatever_its_name(
+        tmp_path, monkeypatch, name):
+    """A `.toml` name alone said "knowledge config", so a broken mirror INI saved as
+    `mirror.toml` was sent to `--kb-config` instead of to its duplicate line."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / name
+    ini.write_text("[contextlake]\ngitlab_group = a\n[contextlake]\nwork_dir = b\n")
+
+    with pytest.raises(ConfigError, match="already exists") as exc:
+        load_config(str(ini))
+
+    assert not isinstance(exc.value, WrongConfigFile)
+    assert str(ini) in str(exc.value)
 
 
 @pytest.fixture
@@ -233,6 +265,84 @@ def test_cli_exits_two_for_a_knowledge_config_on_both_load_paths(
     assert exc.value.code == 2
     assert "--kb-config" in capsys.readouterr().out
     assert update_calls == []
+
+
+# --- an INI parse error or a bad yes/no value names the file that caused it ---------------
+
+@pytest.mark.parametrize("text, expected", [
+    ("gitlab_group = a\n", "File contains no section headers. (line 1)"),
+    ("[contextlake]\ngitlab_group = a\njunk line\n", "parsing errors"),
+    ("[contextlake]\ngitlab_group = a\n[contextlake]\n", "already exists"),
+    ("[contextlake]\nwork_dir = /srv/100%\n", "(key work_dir in [contextlake])"),
+], ids=["no-header", "junk-line", "duplicate-section", "percent-in-value"])
+def test_an_ini_syntax_error_is_a_message_that_names_the_file(
+        tmp_path, monkeypatch, text, expected):
+    """These left load_config as a raw traceback, and the `%` one named neither the file nor
+    the key. The file is a discovered one here: the rule is for every file in the chain."""
+    _isolate_globals(monkeypatch, tmp_path)
+    local = tmp_path / ".contextlake.ini"
+    local.write_text(text)
+    monkeypatch.setattr("contextlake.config.LOCAL_CONFIG_FILE", str(local))
+
+    with pytest.raises(ConfigError) as exc:
+        load_config()
+
+    assert str(local) in str(exc.value) and expected in str(exc.value)
+
+
+def test_an_ini_file_that_is_not_text_is_a_message_that_names_the_file(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    binary = tmp_path / "binary.ini"
+    binary.write_bytes(b"[contextlake]\ngitlab_group = \xff\xfe\n")
+
+    with pytest.raises(ConfigError, match=r"binary\.ini: .*codec can't decode"):
+        load_config(str(binary))
+
+
+def test_a_bad_yes_no_value_names_the_file_that_set_it(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from contextlake.cli import apply_cli_overrides
+
+    _isolate_globals(monkeypatch, tmp_path)
+    glob = tmp_path / "global.ini"
+    glob.write_text("[contextlake]\ngitlab_group = g\nprotect_working_branches = yes\n")
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(glob))
+    named = tmp_path / "named.ini"
+    named.write_text("[contextlake]\ngitlab_group = g\ndry_run = sure\n")
+
+    with pytest.raises(ConfigError) as exc:
+        apply_cli_overrides(SimpleNamespace(), load_config(str(named)))
+
+    msg = str(exc.value)
+    assert "dry_run: 'sure' is not one of" in msg and msg.endswith(f"(set in {named})")
+
+    glob.write_text("[contextlake]\nprotect_working_branches = maybe\n")   # now only this is bad
+    named.write_text("[contextlake]\ngitlab_group = g\n")
+    with pytest.raises(ConfigError, match=rf"protect_working_branches: 'maybe' .*{glob.name}"):
+        apply_cli_overrides(SimpleNamespace(), load_config(str(named)))
+
+
+def test_a_flag_on_the_command_line_still_wins_over_a_bad_file_value(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from contextlake.cli import apply_cli_overrides
+
+    _isolate_globals(monkeypatch, tmp_path)
+    named = tmp_path / "named.ini"
+    named.write_text("[contextlake]\ngitlab_group = g\ndry_run = sure\n")
+
+    config = apply_cli_overrides(SimpleNamespace(dry_run=True), load_config(str(named)))
+
+    assert config["dry_run"] == "true"
+
+
+def test_the_origin_map_is_set_by_load_config_and_not_by_a_file(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    named = tmp_path / "named.ini"
+    named.write_text("[contextlake]\ngitlab_group = g\n_config_origin = forged\n")
+
+    assert load_config(str(named))["_config_origin"]["gitlab_group"] == str(named)
 
 
 def test_get_cache_paths_joins_dir_and_names():

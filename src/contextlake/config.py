@@ -50,18 +50,21 @@ _BOOLEAN_WORDS = {'true': 'true', 'yes': 'true', 'on': 'true', '1': 'true',
                   'false': 'false', 'no': 'false', 'off': 'false', '0': 'false'}
 
 
-def parse_bool(key, value):
+def parse_bool(key, value, source=None):
     """``'true'`` or ``'false'`` for a yes/no setting, in any spelling configparser accepts.
 
-    Raises :class:`ConfigError` for anything else. An unrecognised value used to read as
-    false, so ``dry_run = yes`` ran for real and ``require_clean_workspace = yes`` turned
-    its guard off, both with no message. Refusing the run fails closed instead.
+    Raises :class:`ConfigError` for anything else, naming ``source`` (the file that set the
+    value) when it is known. An unrecognised value used to read as false, so
+    ``dry_run = yes`` ran for real and ``require_clean_workspace = yes`` turned its guard
+    off, both with no message. Refusing the run fails closed instead.
     """
     try:
         return _BOOLEAN_WORDS[str(value).strip().lower()]
     except KeyError:
+        where = f" (set in {source})" if source else ""
         raise ConfigError(
-            f"{key}: {value!r} is not one of true, false, yes, no, on, off, 1, 0") from None
+            f"{key}: {value!r} is not one of true, false, yes, no, on, off, 1, 0{where}"
+        ) from None
 
 
 # Where the forge-project cache lands when nothing configures it.
@@ -241,10 +244,58 @@ CACHE_LOCATION_KEYS = ('cache_dir', 'cache_file', 'cache_json')
 # user chose, so it leaves the token on.
 FORGE_TOKEN_REFUSED = '_forge_token_refused'  # noqa: S105 - a config key name, not a secret
 
+# Set in the merged config: which file set each key, as {key: path}. apply_cli_overrides
+# checks the yes/no keys after the merge, and a bad value there has to name its file. Like
+# FORGE_TOKEN_REFUSED it is set only here and never read from a file.
+CONFIG_ORIGIN = '_config_origin'
 
-# Tables a knowledge config (kb.toml) has and a mirror INI does not. A file with one of
-# them, or one that ends in .toml, is a kb.toml handed to a command that reads the INI.
+
+# Tables a knowledge config (kb.toml) has and a mirror INI does not. A file with a header for
+# one of them, or one that ends in .toml, is a kb.toml handed to a command that reads the INI.
 _KB_TABLES = ('kb', 'embeddings', 'llm', 'sources', 'rules')
+
+
+def _wrong_kind(path):
+    """The error for a kb.toml given where the mirror INI is read, or None if it is not one.
+
+    Read from the raw text, because a kb.toml with two ``[[sources]]`` blocks does not parse
+    as an INI: the section name repeats. A multi-line array whose closing bracket is at
+    column 0 does not parse either. A ``[contextlake]`` header means a mirror INI, whatever
+    the file is called, so a broken one gets its own parse error.
+    """
+    try:
+        with open(path, errors='replace') as f:
+            text = f.read()
+    except OSError:
+        text = ''
+    if re.search(r'^\s*\[contextlake\]', text, re.MULTILINE):
+        return None
+    if not path.lower().endswith('.toml'):
+        headers = re.findall(r'^\s*\[+\s*([^\]\s]+)\s*\]+', text, re.MULTILINE)
+        if not any(h.lower() in _KB_TABLES for h in headers):
+            return None
+    return WrongConfigFile(
+        f"--config {path} looks like a knowledge config, but this command reads "
+        "the mirror INI.\n  A mirror INI has a [contextlake] section. Give a "
+        "kb.toml to a `kb` command with --config, or to `bootstrap` with --kb-config.")
+
+
+def _ini_error(path, exc):
+    """A :class:`ConfigError` for an INI file configparser cannot parse, naming the file.
+
+    These used to leave ``load_config`` as a raw traceback, and an interpolation error
+    names neither the file nor the key, so the key is added from the exception.
+    """
+    text = str(exc)
+    first = text.splitlines()[0]
+    lines = re.findall(r"\[line\s+(\d+)\]", text)
+    if getattr(exc, 'lineno', None):
+        lines = [str(exc.lineno)]
+    where = f" (line {', '.join(lines)})" if lines and '[line' not in first else ""
+    if isinstance(exc, configparser.InterpolationError):
+        where += f" (key {exc.option} in [{exc.section}])"
+    head = first if path in first else f"{path}: {first}"
+    return ConfigError(f"{head}{where}")
 
 
 def _read_section(path, explicit=False):
@@ -269,15 +320,15 @@ def _read_section(path, explicit=False):
         if explicit:
             raise ConfigError(f"--config file cannot be read: {path} ({e.strerror or e})") from e
         return {}
+    except (configparser.Error, UnicodeDecodeError) as e:
+        wrong = _wrong_kind(path) if explicit else None
+        raise (wrong or _ini_error(path, e)) from e
     found = [section for section in SECTIONS if section in parser]
     if explicit and not found:
         have = ', '.join(parser.sections()) or 'none'
-        if path.lower().endswith('.toml') or any(
-                s.strip('[]').lower() in _KB_TABLES for s in parser.sections()):
-            raise WrongConfigFile(
-                f"--config {path} looks like a knowledge config, but this command reads "
-                "the mirror INI.\n  A mirror INI has a [contextlake] section. Give a "
-                "kb.toml to a `kb` command with --config, or to `bootstrap` with --kb-config.")
+        wrong = _wrong_kind(path)
+        if wrong:
+            raise wrong
         raise ConfigError(
             f"--config file has no [contextlake] section: {path}\n"
             f"  Sections found: {have}. Section names are case-sensitive.\n"
@@ -285,8 +336,11 @@ def _read_section(path, explicit=False):
             "precedence chain, which may point at a different workspace than the one you "
             "meant to use.")
     values = {}
-    for section in found:
-        values.update(parser[section])
+    try:
+        for section in found:
+            values.update(parser[section])
+    except configparser.Error as e:    # a `%` in a value, read as an interpolation
+        raise _ini_error(path, e) from e
     return values
 
 
@@ -394,6 +448,9 @@ def load_config(config_path=None, cli_group=None):
     config.update(global_values)              # global (~/.contextlake.ini)
     config.update(local_values)               # nearest ancestor's local config
     config.update(explicit_values)            # explicit --config path
+    config[CONFIG_ORIGIN] = {key: path for path, values in (
+        (CONFIG_FILE, global_values), (local_config_file, local_values),
+        (config_path, explicit_values)) for key in values}
 
     # Set only here, never from a file.
     config.pop(FORGE_TOKEN_REFUSED, None)

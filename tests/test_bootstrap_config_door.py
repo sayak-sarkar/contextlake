@@ -56,6 +56,28 @@ def test_bootstrap_refuses_a_kb_toml_passed_to_the_mirror_config_flag(tmp_path):
     assert "mirror INI" in out
 
 
+def test_a_real_kb_toml_passed_to_a_mirror_config_flag_is_refused_with_exit_two(tmp_path):
+    """The refusal above was tried on a two-line file. A kb.toml with two `[[sources]]` blocks
+    does not parse as an INI: the section name repeats (DuplicateSectionError). So it raised
+    before any refusal could name the right flag. Run in a subprocess with a scratch HOME so
+    nothing can reach the developer's real ~/work."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    kb_toml = tmp_path / "kb.toml"
+    kb_toml.write_text((REPO / "examples" / "kb.toml.example").read_text(encoding="utf-8"),
+                       encoding="utf-8")
+
+    for args in (["bootstrap", "--group", "demo-org", "--workspace", str(ws), "--no-sync",
+                  "--dry-run"], ["mirror", "status", "--group", "demo-org"]):
+        r = _run([args[0], "--config", str(kb_toml), *args[1:]], cwd=tmp_path, home=home)
+        out = r.stdout + r.stderr
+        assert r.returncode == 2, f"{args[0]} exited {r.returncode}\n{out[-1500:]}"
+        assert "--kb-config" in out and "mirror INI" in out
+        assert "Traceback" not in out
+
+
 # --- B0-5 / B0-6: a partial success is not a failure, and a supplied --group is a group --
 
 def test_the_no_config_warning_does_not_fire_when_group_was_supplied(tmp_path):

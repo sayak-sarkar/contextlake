@@ -330,6 +330,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file, and printed "has moved or been deleted, so every run fails silently" while the
   interpreter was still there. It now reads the quoted path whole. 10.0.0rc4 printed the false
   warning.
+- **A TOML or INI parse error, a kb.toml value that fails validation and a bad yes/no value now
+  name the config file.** A TOML syntax error, a value that fails validation
+  (`accept_score = "high"`) and a yes/no setting that is not a yes/no word printed a reason with
+  no file. A mirror INI with a value TOML cannot read, given to a `kb` command, printed
+  `Invalid value` with no file. That error now names the file and says it is a mirror INI. An
+  INI file that does not parse printed a traceback. With a global file, a project file and
+  `--config` in play, you could not tell which to fix. The message now names the file, and the
+  line when the parser gives one. A yes/no setting names it at the end, as `(set in FILE)`. A
+  validation error shows the table, the key and the reason, and no longer repeats the value.
 
 ### Security
 

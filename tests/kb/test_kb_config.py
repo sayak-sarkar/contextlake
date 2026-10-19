@@ -304,3 +304,138 @@ def test_sources_and_rules_stay_wholesale_replaced(tmp_path, monkeypatch):
 
     assert [s.name for s in c.sources] == ["local-src"], \
         "local sources list must replace, not merge"
+
+
+# --- a TOML parse or validation error names the file that caused it -------------------------
+#
+# Up to three files are in play (global, discovered, and --config). The parser and pydantic
+# messages named none of them, so the owner had to search for the file to fix.
+
+def _discovered(monkeypatch, tmp_path, text):
+    """Make `text` the file found by walking up, without letting it be the --config one."""
+    local = tmp_path / ".contextlake.kb.toml"
+    local.write_text(text)
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(local))
+    return str(local)
+
+
+def test_a_toml_syntax_error_names_the_file(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    local = _discovered(monkeypatch, tmp_path, "[embeddings\nprovider = 'builtin'\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_kb_config()
+
+    assert str(exc.value).startswith(f"{local}: ")
+    assert "line 1" in str(exc.value)
+
+
+def test_a_toml_syntax_error_in_the_named_file_names_that_file(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    named = tmp_path / "named.toml"
+    named.write_text("[kb]\nstore_dir = \n")
+
+    with pytest.raises(ConfigError, match=r"named\.toml: "):
+        load_kb_config(str(named))
+
+
+def test_a_mirror_ini_given_to_a_kb_command_is_called_a_mirror_ini(tmp_path, monkeypatch):
+    """`[contextlake]` is a valid TOML header, so the file fails at its first `key = value`
+    line with "Invalid value", which says nothing about the file being the wrong kind."""
+    _isolate(monkeypatch, tmp_path)
+    ini = tmp_path / "mirror.ini"
+    ini.write_text("[contextlake]\ngitlab_group = my-group\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_kb_config(str(ini))
+
+    assert str(exc.value).startswith(f"{ini}: Invalid value")
+    assert "mirror INI" in str(exc.value)
+
+
+def test_a_toml_error_is_not_called_a_mirror_ini_without_the_header(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    named = tmp_path / "named.toml"
+    named.write_text("[kb]\nstore_dir = \n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_kb_config(str(named))
+
+    assert "mirror INI" not in str(exc.value)
+
+
+def test_a_bad_value_names_its_file_and_key_and_not_the_value(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    local = _discovered(monkeypatch, tmp_path, '[llm]\naccept_score = "high-secret-text"\n')
+
+    with pytest.raises(ConfigError) as exc:
+        load_kb_config()
+
+    msg = str(exc.value)
+    assert msg.startswith(f"{local}: [llm] accept_score: ")
+    assert "valid number" in msg
+    assert "high-secret-text" not in msg and "LlmCfg" not in msg
+
+
+def test_a_bad_value_names_the_file_that_won_the_merge(tmp_path, monkeypatch):
+    """The global file is fine and the named one is not, and the reverse: the message names
+    the file whose value reached the model."""
+    _isolate(monkeypatch, tmp_path)
+    glob = tmp_path / "global.toml"
+    glob.write_text('[llm]\nmax_tokens = "many"\n')
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(glob))
+    named = tmp_path / "named.toml"
+    named.write_text('[llm]\nmodel = "m"\n')
+
+    with pytest.raises(ConfigError, match=rf"{glob.name}: \[llm\] max_tokens: "):
+        load_kb_config(str(named))
+
+    named.write_text('[llm]\nmax_tokens = "lots"\n')
+    with pytest.raises(ConfigError, match=rf"{named.name}: \[llm\] max_tokens: "):
+        load_kb_config(str(named))
+
+
+def test_a_bad_value_does_not_name_a_file_whose_key_was_refused(tmp_path, monkeypatch):
+    """A discovered file may not set `base_url`, so its line is dropped before the merge. The
+    bad value is the global file's, and the message has to name that file."""
+    _isolate(monkeypatch, tmp_path)
+    glob = tmp_path / "global.toml"
+    glob.write_text("[llm]\nbase_url = 5\n")
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(glob))
+    _discovered(monkeypatch, tmp_path, '[llm]\nbase_url = "http://127.0.0.1:9/v1"\n')
+
+    with pytest.raises(ConfigError) as exc:
+        load_kb_config()
+
+    assert str(exc.value).startswith(f"{glob}: [llm] base_url: ")
+
+
+def test_a_bad_value_that_a_later_file_replaces_is_still_accepted(tmp_path, monkeypatch):
+    """Validation is of the merged value, as before. Checking each file on its own would
+    newly refuse a global typo that the named file already overrides."""
+    _isolate(monkeypatch, tmp_path)
+    glob = tmp_path / "global.toml"
+    glob.write_text('[llm]\nmax_tokens = "many"\n')
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(glob))
+    named = tmp_path / "named.toml"
+    named.write_text("[llm]\nmax_tokens = 2048\n")
+
+    assert load_kb_config(str(named)).llm.max_tokens == 2048
+
+
+def test_a_source_missing_its_name_names_the_file_and_table(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    named = tmp_path / "named.toml"
+    named.write_text('[[sources]]\ntype = "web"\n')
+
+    with pytest.raises(ConfigError, match=rf"{named.name}: \[\[sources\]\] name: Field required"):
+        load_kb_config(str(named))
+
+
+def test_a_bad_kb_table_value_names_the_file(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    named = tmp_path / "named.toml"
+    named.write_text('[kb]\nmax_file_bytes = "big"\n')
+
+    with pytest.raises(ConfigError, match=rf"{named.name}: \[kb\] max_file_bytes: "):
+        load_kb_config(str(named))

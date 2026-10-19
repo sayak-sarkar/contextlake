@@ -83,6 +83,12 @@ empty file does not count either. If any of these fails, the command stops with 
 nothing. It does not fall back to `~/.contextlake.ini` or to the defaults. A `kb.toml` given here
 exits with `2`: pass it to a `kb` command with `--config`, or to `bootstrap` with `--kb-config`.
 
+Three kinds of config error name the file that caused them: a TOML or INI file that does not parse
+(with the line when the parser gives one), a value a setting does not accept (with the table or key,
+and the reason), and a yes/no setting that is not a yes/no word. A validation error does not repeat the
+value. A yes/no setting quotes the word it read. When a `[contextlake]` INI file is given to a `kb`
+command, the error says it is a mirror INI.
+
 ## Directory-scoped config
 
 A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
@@ -258,8 +264,8 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 
 The yes/no settings are `dry_run`, `clean_corrupted`, `adaptive_workers`, `protect_working_branches`,
 `require_clean_workspace` and `auto_stash`. Write `true` or `false`. `yes`, `no`, `on`, `off`, `1` and
-`0` also work, in any letter case. Any other value stops the run with an error that names the key,
-before any repository is touched. A flag on the command line, such as `--dry-run`, wins over the file.
+`0` also work, in any letter case. Any other value stops the run with an error that names the key and
+the file that set it, before any repository is touched. A flag on the command line, such as `--dry-run`, wins over the file.
 
 | Setting | Description | Default | Example |
 | --- | --- | --- | --- |
