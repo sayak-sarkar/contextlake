@@ -10,7 +10,14 @@ from ...logging_setup import log
 from ..config import apply_llm_overrides
 from ..connectors.text_match import link_documents_to_symbols
 from ..paths import is_plain_id, within
-from ..store.shards import GraphShard, read_shard, shard_path, store_partition, write_shard
+from ..store.shards import (
+    GraphShard,
+    read_shard,
+    resolve_shard,
+    shard_path,
+    store_partition,
+    write_shard,
+)
 from ._common import (
     _connect_targets,
     _guard_store,
@@ -799,6 +806,16 @@ def cmd_wiki(args) -> int:
                         f"repo(s) do exist; nothing was written, because a run that "
                         f"silently drops part of what you asked for cannot be told from "
                         f"one that served all of it.")
+                return 1
+            # Known to the store is not the same as buildable. A page is made from the
+            # shard file, and a repo row can outlive it (a store copied in part, a file
+            # removed by hand). The loops skipped such a repo without a word, so the
+            # summary read "0 unchanged (skipped)" and the run exited 0. Same verdict as
+            # an unknown id, for the same reason.
+            no_shard = sorted(r for r in wanted if resolve_shard(store_dir, r)[0] is None)
+            if no_shard:
+                log(f"No graph shard on disk for {', '.join(no_shard)}, so there is no page "
+                    "to build and nothing was written. Re-index with `contextlake kb index`.")
                 return 1
 
         structural_briefs: dict = {}

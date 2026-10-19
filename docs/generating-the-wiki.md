@@ -94,6 +94,10 @@ Two ways to turn the tier on.
 For example, `contextlake kb wiki acme/forecast-api --llm builtin` enables the tier and scopes
 generation to that repo.
 
+A repo id you name must be indexed, with a graph shard on disk. If any id matches no indexed repo,
+or matches a repo whose shard is gone (after a partial copy of the store, for example), the run
+exits 1 and writes nothing. Re-index the repo with `contextlake kb index`.
+
 `auto` picks for you, in order: a reachable local Ollama that already has the model pulled, else
 the built-in CPU model, else it skips the tier. See [Model providers](model-providers.md).
 

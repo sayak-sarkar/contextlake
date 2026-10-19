@@ -128,3 +128,36 @@ def test_no_filter_still_regenerates_everything(tmp_path):
 
     assert _wiki(cfg) == 0
     assert {p.name for p in _pages(store_dir)} == names
+
+
+def _drop_shard(store_dir, repo_stem):
+    """Delete a repo's shard and keep its row: a store copied in part, or a file removed by
+    hand. The row is what `kb wiki` matches a requested id against."""
+    from contextlake.kb.store.shards import shard_path
+
+    path = shard_path(store_dir, repo_stem)
+    assert path.exists(), "fixture must have the shard it is about to remove"
+    path.unlink()
+
+
+def test_a_requested_repo_with_no_shard_exits_1_and_is_named(tmp_path, gls_logs):
+    """The id matches a store row, so the unknown-id check passed. The page is built from the
+    shard file, which was gone, so the loop skipped the repo without a word: the summary read
+    `0 written, 0 rejected, 0 unchanged (skipped)` and the run exited 0. A script reads that
+    as a repo whose page is current."""
+    store_dir, cfg = _two_repo_store(tmp_path)
+    assert _wiki(cfg) == 0
+    pages = _pages(store_dir)
+    stem = next(p.name[: -len(".md")] for p in pages if p.name.startswith("repoA"))
+    other = next(p.name[: -len(".md")] for p in pages if p.name.startswith("repoB"))
+    _drop_shard(store_dir, stem)
+    for p in pages:
+        p.unlink()
+
+    assert _wiki(cfg, stem) == 1
+    assert stem in gls_logs.text and "No graph shard" in gls_logs.text, gls_logs.text
+    assert _pages(store_dir) == [], "a request that could not be served wrote pages"
+
+    # Half-served is the same verdict as for an unknown id: the good repo is not written.
+    assert _wiki(cfg, stem, other) == 1
+    assert _pages(store_dir) == [], "a partly-served request wrote pages anyway"

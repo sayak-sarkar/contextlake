@@ -480,6 +480,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overview and its council again. The overview now names only the subsystems that have a page or
   are picked for one in that run, and the first run after the upgrade rewrites it once.
   10.0.0rc4 and earlier are affected.
+- **`kb wiki <repo>` now exits 1 and names a requested repo that has no graph shard.** The id
+  check read the store's repo rows, so a repo whose shard file was gone passed it. Both stages
+  then skipped the repo without a word, the summary counted nothing, and the run exited 0, so a
+  script read success. The run now stops before it writes anything, names the repo, and points
+  to `contextlake kb index`. A run over every repo still skips such a repo without a message.
+  10.0.0rc4 and earlier are affected.
 
 ### Security
 
