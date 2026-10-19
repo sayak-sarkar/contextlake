@@ -129,6 +129,9 @@ source" becomes a number, not a vibe. Score any retriever with `--retriever fts|
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.
 
+All four numbers read the first `k` results, set with `--limit` (default 10). A right node ranked
+after `k` is a miss in precision, recall, MRR and hit-rate, however many ids the golden entry lists.
+
 ### Which metric to gate on
 
 If you wire `kb eval` into CI, gate on **MRR**, not on hit-rate alone. Hit-rate asks whether the

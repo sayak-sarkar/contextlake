@@ -412,10 +412,12 @@ def evaluate(store: Store, golden: list[GoldenQuery], *, k: int = 10,
     per = []
     all_checks: list[CitationCheck] = []
     for gq in golden:
-        # fetch a few extra so recall isn't capped by k when expected has many ids
-        retrieved = retriever(gq.query, max(k, len(gq.expected)), gq.kind, gq.repo)
+        # Every number below reads the first k results. Fetching max(k, len(expected)) let a
+        # hit at rank k+1 count in the MRR and the hit-rate (not in P@k or R@k, which slice),
+        # so a golden entry with more ids than k scored higher than one with a single id.
+        retrieved = retriever(gq.query, k, gq.kind, gq.repo)
         keys = _keys(retrieved, gq, store)
-        rr = reciprocal_rank(keys, gq.expected)
+        rr = reciprocal_rank(keys[:k], gq.expected)
         tokens = _result_tokens(store, retrieved[:k]) if store is not None else 0
         row = {
             "query": gq.query,

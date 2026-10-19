@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or `CONTEXTLAKE_KEYS_FILE` already refused. Both now exit 1 and name the key, and `kb keys
   --json` writes a `key_file_error` document. If your config has a blank `keys_file`, give it
   the path to your key file or remove the line.
+- **`kb eval` scores MRR and hit-rate on the first `--limit` results only.** 10.0.0rc4 fetched
+  as many results as the golden entry has `expected` ids when that is more than `--limit`, and
+  counted a hit ranked after `--limit`. Precision and recall already ignored it, so a run with
+  `--limit 1` on an entry with two ids printed `P@k=0.0 R@k=0.0 MRR=0.5 hit-rate=1.0`. Such a
+  run now prints `MRR=0.0 hit-rate=0.0`. The shipped CI gate is unchanged: it runs at the
+  default `--limit 10` on entries with one id. If you gate on MRR or hit-rate with a golden file
+  whose entries list more ids than `--limit`, measure the floor again.
 
 ### Fixed
 

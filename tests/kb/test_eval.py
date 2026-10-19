@@ -43,6 +43,34 @@ def test_evaluate_aggregates_with_a_stub_retriever():
     assert r["recall@k"] == 0.5                         # (1.0 + 0.0) / 2
 
 
+def test_a_hit_ranked_past_k_is_not_a_hit_or_a_reciprocal_rank():
+    """`expected` lists two ids and `k` is 1, so the fetch used to be 2 deep. The id at rank
+    2 then counted in hit-rate and MRR while P@1 and R@1 read 0.0: the same retriever scored
+    1.0 or 0.0 depending on how many ids the golden entry listed."""
+    golden = [GoldenQuery("q", ["a", "never-indexed"])]
+    asked = []
+
+    def ignores_the_limit(query, k, kind=None, repo=None):
+        asked.append(k)
+        return ["x", "a"]
+
+    def honours_the_limit(query, k, kind=None, repo=None):
+        return ["x", "a"][:k]
+
+    for stub in (ignores_the_limit, honours_the_limit):
+        r = evaluate(None, golden, k=1, retriever=stub)
+        assert r["hit_rate"] == 0.0, stub.__name__
+        assert r["mrr"] == 0.0, stub.__name__
+        assert r["precision@k"] == 0.0 and r["recall@k"] == 0.0
+        assert r["per_query"][0]["hit"] is False and r["per_query"][0]["rr"] == 0.0
+    assert asked == [1], "the retriever is asked for k results, not for len(expected)"
+
+    # The same hit inside k still counts: a one-id entry and a two-id entry read alike.
+    for expected in (["a"], ["a", "never-indexed"]):
+        r = evaluate(None, [GoldenQuery("q", expected)], k=2, retriever=honours_the_limit)
+        assert r["hit_rate"] == 1.0 and r["mrr"] == pytest.approx(0.5), expected
+
+
 def test_load_golden(tmp_path):
     p = tmp_path / "g.json"
     p.write_text(json.dumps({"queries": [
