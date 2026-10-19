@@ -317,8 +317,8 @@ one lowercase word everywhere, even at the start of a sentence.
 [site/build_docs.py](site/build_docs.py) from an explicit page list. A new `docs/*.md` that is not
 added to `PAGES` (or deliberately to `TO_GH`) is unreachable from the site nav, the sitemap,
 `llms.txt` and search. The build does not stop it. `tests/test_llms_full_is_in_sync.py` fails and
-names the page. Run the build after any docs change, because `site/llms.txt` and
-`site/llms-full.txt` are generated from the same list and a test compares them against the source:
+names the page. Run the build after any docs change, because `site/llms-full.txt` is generated from
+the same list and a test compares it against the source:
 
 ```bash
 python site/build_docs.py

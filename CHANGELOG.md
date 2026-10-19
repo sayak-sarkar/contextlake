@@ -252,6 +252,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   took 204 s. The parser now remembers each parent it has found, and the same file takes 9.7 s.
   A file with 30 levels and 4,000 functions went from 1.5 s to 0.8 s. The graph is identical, so
   no re-index is needed.
+- **The contributor docs no longer say a test checks `site/llms.txt`.** `adding-a-language.md`
+  and `CONTRIBUTING.md` said a test recomputes both `site/llms.txt` and `site/llms-full.txt`. A
+  test checks `site/llms-full.txt` alone. `site/llms.txt` is not committed and every deploy
+  rebuilds it.
 
 ### Security
 

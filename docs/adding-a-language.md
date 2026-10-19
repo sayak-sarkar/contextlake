@@ -200,8 +200,10 @@ forgotten.
 
 ### 9. Regenerate the site, then write the changelog
 
-`site/llms.txt` and `site/llms-full.txt` are generated from the docs, and a test recomputes them and
-compares byte for byte. Editing `README.md` or any `docs/*.md` fails that test until you regenerate:
+`site/llms-full.txt` is generated from the docs, and a test recomputes it and compares byte for byte.
+Editing `README.md` or any `docs/*.md` fails that test until you regenerate. The builder also writes
+`site/llms.txt`, a list of the pages. Git ignores that file, every deploy rebuilds it, and no test
+checks it. Regenerate with:
 
 ```bash
 python site/build_docs.py
