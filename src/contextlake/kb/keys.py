@@ -212,7 +212,7 @@ __all__ = [
     "EXPIRED", "ID_PREFIX", "KEY_LEN", "KEY_PREFIX", "LIVE", "NEVER",
     "RECORD_FIELDS", "REVOKED", "SECRET_BYTES", "TS_FORMAT",
     "KeyRecord", "check_format", "create", "decoy_state", "digest", "mint",
-    "new_id", "parse_expiry", "prune", "revoke", "rotate", "verify_key",
+    "new_id", "parse_expiry", "prune", "revoke", "rotate", "shift", "verify_key",
 ]
 
 # 0-9, then A-Z, then a-z. The order is part of the format: it decides what
@@ -586,6 +586,23 @@ def new_id(taken) -> str:
     raise RuntimeError(f"no free key id after {_ID_ATTEMPTS} draws")
 
 
+def shift(moment: datetime, seconds: float, flag: str, text: str) -> datetime:
+    """``moment`` moved by ``seconds`` (negative goes back), or a ``ValueError`` naming ``flag``.
+
+    A duration that lands past year 9999, or before year 1, raises ``OverflowError`` from
+    ``timedelta`` or ``datetime``. That is not a ``ValueError``, so it skipped every handler
+    that turns a bad duration into exit 2 and reached the operator as "Error: date value out
+    of range" at exit 1, with no flag named. The parser accepts any digits, so the range is
+    checked here, where the date is made.
+    """
+    try:
+        return moment + timedelta(seconds=seconds)
+    except OverflowError as exc:
+        edge = datetime.max if seconds > 0 else datetime.min
+        days = abs(edge.replace(tzinfo=timezone.utc) - moment).days
+        raise ValueError(f"{flag} {text!r} is out of range (the longest is {days}d)") from exc
+
+
 def parse_expiry(text: str | None) -> float | None:
     """Seconds until expiry, or ``None`` for the literal ``never``.
 
@@ -627,7 +644,8 @@ def create(records: list[KeyRecord], name: str, *, expires: str | None = None,
         name=name,
         digest=key_digest,
         created_at=_stamp(moment),
-        expires_at=None if seconds is None else _stamp(moment + timedelta(seconds=seconds)),
+        expires_at=(None if seconds is None
+                    else _stamp(shift(moment, seconds, "--expires", expires or DEFAULT_EXPIRY))),
         grant_version=grant_version,
         policy=copy.deepcopy(policy) if policy else {},
     )
@@ -677,7 +695,7 @@ def rotate(records: list[KeyRecord], record: KeyRecord, *,
     """
     moment = now or _now()
     seconds = parse_duration(overlap)
-    window = moment + timedelta(seconds=seconds)
+    window = shift(moment, seconds, "--overlap", overlap)
     existing = _parse_ts(record.expires_at)
     # Computed before the new record is appended, so every way this call can
     # raise happens while the keyring is untouched. Otherwise a bad argument

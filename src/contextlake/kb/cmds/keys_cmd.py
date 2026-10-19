@@ -36,7 +36,7 @@ import json
 import os
 import stat as stat_module
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import NamedTuple
 
 from ... import style
@@ -1426,9 +1426,11 @@ def _cmd_rotate(args) -> int:
         # first and `--expires` second and raises the same ValueError for both.
         # One `except` around the call cannot say which flag was wrong, so a bad
         # `--expires` would come back coded `bad_overlap` and send the operator to
-        # the flag they typed correctly. The re-parse costs one regex.
+        # the flag they typed correctly. The re-parse costs one regex. `shift` also
+        # refuses an `--overlap` that lands past year 9999, which is not a parse error.
         try:
-            keys_mod.parse_duration(overlap)
+            keys_mod.shift(datetime.now(timezone.utc), keys_mod.parse_duration(overlap),
+                           "--overlap", overlap)
         except ValueError as exc:
             raise _BadUsage("bad_overlap", str(exc), value=overlap,
                             detail=str(exc)) from exc
@@ -1692,10 +1694,10 @@ def _since_cutoff(args):
     from ...schedule.recommend import parse_duration
 
     try:
-        seconds = parse_duration(raw)
+        return keys_mod.shift(datetime.now(timezone.utc), -float(parse_duration(raw)),
+                              "--since", raw)
     except ValueError as exc:
         raise _BadUsage("bad_since", str(exc), value=raw, detail=str(exc)) from exc
-    return datetime.now(timezone.utc) - timedelta(seconds=float(seconds))
 
 
 def _num(value) -> str:

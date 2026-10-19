@@ -260,6 +260,11 @@ contextlake kb keys usage --since 24h
 `list` shows live keys. `list --all` adds revoked and expired keys and a `STATE` column that
 reads `live`, `revoked` or `expired` on each row. `list --json` carries `state` on every key.
 
+`--expires`, `--overlap` and `--since` take a duration: `45s`, `30m`, `2h` or `7d`. A duration
+that lands past the year 9999 (or, for `--since`, before the year 1) exits `2`, names the flag
+and gives the longest allowed. Nothing is written. Use `--expires never` for a key that does
+not expire.
+
 **The key is shown once, and only once.** It is printed to standard error at creation and
 never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
 to print later. A key nobody wrote down is rotated, never recovered:

@@ -567,6 +567,41 @@ def test_rotate_leaves_the_keyring_alone_when_it_raises():
         assert old.rotated_to is None
 
 
+@pytest.mark.parametrize("duration", ["3000000d", "99999999999d", "9" * 400 + "d"])
+def test_a_duration_past_year_9999_is_a_value_error_naming_the_flag(duration):
+    """`moment + timedelta(...)` raised OverflowError, which the CLI handlers do not catch.
+
+    A ValueError that names the flag is what `kb keys` maps to exit 2. The keyring must be
+    untouched afterwards, for `rotate` as for `create`.
+    """
+    now = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+    records: list[keys.KeyRecord] = []
+    old, _key = keys.create(records, "alice-laptop", expires="30d", now=now)
+
+    with pytest.raises(ValueError, match=r"^--expires .* out of range \(the longest is \d+d\)"):
+        keys.create(records, "bob", expires=duration, now=now)
+    with pytest.raises(ValueError, match=r"^--expires "):
+        keys.rotate(records, old, expires=duration, now=now)
+    with pytest.raises(ValueError, match=r"^--overlap "):
+        keys.rotate(records, old, overlap=duration, now=now)
+    assert records == [old] and old.rotated_to is None
+    assert old.expires_at == "2026-03-31T12:00:00Z"
+
+
+def test_shift_stops_at_the_last_day_of_year_9999_and_not_a_day_before():
+    now = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+    last = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    longest = (last - now).total_seconds()
+    assert keys.shift(now, longest, "--expires", "x") == last
+    with pytest.raises(ValueError, match="--expires"):
+        keys.shift(now, longest + 1, "--expires", "x")
+    # Backward is bounded by year 1, not year 9999.
+    assert keys.shift(now, -3600.0, "--since", "1h") == now - timedelta(hours=1)
+    with pytest.raises(ValueError, match="--since"):
+        keys.shift(now, -(now - datetime(1, 1, 1, tzinfo=timezone.utc)).total_seconds() - 1,
+                   "--since", "x")
+
+
 def test_prune_never_removes_a_live_record():
     """Four records, and only the two terminal ones older than the cutoff go.
 

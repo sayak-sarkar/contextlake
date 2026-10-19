@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   OverflowError, and the caller saw "Error executing tool search_code" with no mention of
   `limit`. The limit is now capped at 2**63 - 1, so an oversized value returns every match, as a
   large one already did. Nothing was written in the failing case.
+- **`kb keys` exits 2 and names the flag when a duration is out of range.**
+  `create --expires 3000000d` (and `rotate --expires`, `rotate --overlap`, `usage --since`)
+  exited 1 with "date value out of range" or "Python int too large to convert to C int", with no
+  flag named. They now exit 2 like any other bad duration, with the flag and the longest allowed
+  value, for example `--expires '3000000d' is out of range (the longest is 2912152d)`. The key
+  file is unchanged. A script that matched exit 1 for this input now gets 2.
 
 ### Security
 

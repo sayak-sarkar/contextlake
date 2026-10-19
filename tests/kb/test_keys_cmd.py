@@ -1977,6 +1977,34 @@ def test_the_error_document_carries_a_code_for_every_refusal(run, keys_file):
         assert json.loads(result.out)["error"] == code, argv
 
 
+@pytest.mark.parametrize("duration", ["3000000d", "99999999999d", "9" * 400 + "d"])
+def test_a_duration_past_year_9999_is_a_usage_error_not_a_crash(run, keys_file, duration):
+    """The duration parser takes any digits, so the date check happens where the date is made.
+
+    `datetime + timedelta` raised OverflowError, which is not a ValueError, so every handler
+    that turns a bad duration into exit 2 missed it. The operator got "Error: date value out
+    of range" at exit 1, with no flag named. Four flags make a date this way. The file must be
+    byte-identical after each refusal: a `rotate` that failed late would leave a half-link.
+    """
+    run("create", "alice")
+    rotate_id = _only_id(keys_file)
+    before = keys_file.read_bytes()
+    cases = [
+        (("create", "bob", "--expires", duration), "bad_expires", "--expires"),
+        (("rotate", rotate_id, "--expires", duration), "bad_expires", "--expires"),
+        (("rotate", rotate_id, "--overlap", duration), "bad_overlap", "--overlap"),
+        (("usage", "--since", duration), "bad_since", "--since"),
+    ]
+    for argv, code, flag in cases:
+        assert run(*argv).code == 2, argv
+        result = run(*argv, "--json")
+        assert result.code == 2, argv
+        document = json.loads(result.out)
+        assert document["error"] == code, argv
+        assert document["detail"].startswith(f"{flag} ") and "out of range" in document["detail"]
+        assert keys_file.read_bytes() == before, argv
+
+
 def test_the_key_in_argv_refusal_never_echoes_the_key(run, keys_file):
     """The one place a house error document does NOT echo its target.
 
