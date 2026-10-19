@@ -3918,7 +3918,12 @@ accept:
   `conversations_history`).
 - `group`: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
   The group is not added to the path. Other repos are skipped with no message.
-- `per_page`: the API page size (default `50`).
+- `per_page`: for a GitLab source, how many open merge requests and issues one call asks for
+  (default `50`). No other source type reads it.
+- `max_pages`: for an `api` source, the most pages it reads when the response links to a next page
+  (default `50`). If more pages remain at the cap, the run logs
+  `api source: stopped at the 50-page cap with more pages available` and keeps what it read.
+  Raise `max_pages` to read the rest.
 
 ## See also
 
@@ -10099,6 +10104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved into `main()`. A maintainer who trusted it could restore the module-scope import and
   make the check skip wherever `markdown` is absent. A new test fails if that import returns.
   Test-only change.
+- **The sources docs say which source type reads `per_page`.** The page listed `per_page` as
+  the page size for connector and ingest sources, but only a GitLab source reads it. On an `api`
+  source it did nothing and raised no warning. The page now says so, and documents `max_pages`,
+  the key that caps how many pages an `api` source reads (default 50). Docs only.
 
 ### Security
 

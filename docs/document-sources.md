@@ -358,7 +358,12 @@ accept:
   `conversations_history`).
 - `group`: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
   The group is not added to the path. Other repos are skipped with no message.
-- `per_page`: the API page size (default `50`).
+- `per_page`: for a GitLab source, how many open merge requests and issues one call asks for
+  (default `50`). No other source type reads it.
+- `max_pages`: for an `api` source, the most pages it reads when the response links to a next page
+  (default `50`). If more pages remain at the cap, the run logs
+  `api source: stopped at the 50-page cap with more pages available` and keeps what it read.
+  Raise `max_pages` to read the rest.
 
 ## See also
 

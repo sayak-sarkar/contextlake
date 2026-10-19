@@ -184,6 +184,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved into `main()`. A maintainer who trusted it could restore the module-scope import and
   make the check skip wherever `markdown` is absent. A new test fails if that import returns.
   Test-only change.
+- **The sources docs say which source type reads `per_page`.** The page listed `per_page` as
+  the page size for connector and ingest sources, but only a GitLab source reads it. On an `api`
+  source it did nothing and raised no warning. The page now says so, and documents `max_pages`,
+  the key that caps how many pages an `api` source reads (default 50). Docs only.
 
 ### Security
 

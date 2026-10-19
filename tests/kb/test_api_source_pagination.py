@@ -16,13 +16,19 @@ would encode the same assumption twice.
 from __future__ import annotations
 
 import http.server
+import inspect
 import json
+import re
 import socketserver
 import threading
+from pathlib import Path
 
 import pytest
 
+from contextlake.kb.connectors.gitlab import GitLabConnector
 from contextlake.kb.sources.api import ApiSource, _next_from_link_header
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "document-sources.md"
 
 
 @pytest.fixture
@@ -118,3 +124,26 @@ def test_a_self_referential_next_does_not_loop(paging_server, monkeypatch):
     monkeypatch.setattr(src, "_fetch_one", looping)
     list(src.iter_documents())
     assert calls["n"] <= 2, f"followed a self-referential next {calls['n']} times"
+
+
+def _documented_key(key):
+    """The text of the `- `key`: ...` bullet in the docs page's extra-keys list, or None."""
+    m = re.search(rf"^- `{key}`: (.*?)(?=^- `|^## )", DOCS.read_text(encoding="utf-8"),
+                  re.M | re.S)
+    return m.group(1) if m else None
+
+
+def test_the_docs_name_the_source_type_that_reads_each_paging_key():
+    """The page listed `per_page` as "the API page size" for connector and ingest sources.
+    Only the GitLab connector reads it. The `api` source drops it without a word, and its real
+    cap, `max_pages`, was not on the page. Both facts are read from the code, so a source type
+    that starts reading `per_page` makes this fail and sends the editor to the page."""
+    assert "per_page" in inspect.signature(GitLabConnector.__init__).parameters
+    api_params = inspect.signature(ApiSource.__init__).parameters
+    assert "per_page" not in api_params, "an api source reads per_page now; update the docs page"
+    assert "max_pages" in api_params
+
+    per_page = _documented_key("per_page")
+    assert per_page is not None and "GitLab" in per_page
+    max_pages = _documented_key("max_pages")
+    assert max_pages is not None and "`api` source" in max_pages
