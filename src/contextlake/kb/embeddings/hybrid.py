@@ -76,4 +76,4 @@ def hybrid_search(store, vector_store, embedder, query, *, k=10, seeds=20, hops=
     personalization = {nid: sim for nid, sim in seed_hits if nid in nodes}
     scores = _ppr(nodes, adjacency, personalization, damping=damping, iters=iters)
     ranked = sorted(scores.items(), key=lambda t: t[1], reverse=True)
-    return ranked[:k]
+    return ranked[:max(k, 0)]

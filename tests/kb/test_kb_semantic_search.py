@@ -149,3 +149,86 @@ def test_semantic_search_absent_without_embedder(tmp_path):
         assert "search_code" in names  # graph tools still present
     finally:
         store.close()
+
+
+# --- a negative k ---------------------------------------------------------------------------
+
+def _ledger_store(tmp_path):
+    """Ten vectors, and a class with three subclasses, for the tools that take `k`.
+
+    Ten and three are the counts a negative slice makes visible: `[:-3]` of ten is seven, and
+    `[:-1]` of three is two, where `[:0]` is none of them."""
+    from datetime import date
+
+    from contextlake.kb.model import Confidence, Edge, Provenance
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    funcs = [Node(id=f"fn{i}", repo="r", kind="function", name=f"Ledger{i}") for i in range(10)]
+    classes = [Node(id="BaseLedger", repo="r", kind="class", name="BaseLedger", file="b.py",
+                    line_start=1)]
+    classes += [Node(id=f"SubLedger{i}", repo="r", kind="class", name=f"SubLedger{i}",
+                     file="c.py", line_start=i) for i in range(1, 4)]
+    store.upsert_nodes("r", funcs + classes)
+    store.upsert_edges("r", [
+        Edge(src=f"SubLedger{i}", dst="BaseLedger", relation="inherits",
+             confidence=Confidence.EXTRACTED,
+             provenance=Provenance(source_file="c.py", source_line=i,
+                                   verified_at=date(2026, 10, 1)))
+        for i in range(1, 4)])
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    vs.upsert([(f"fn{i}", "r", [1.0, 0.01 * i]) for i in range(10)])
+    return store, vs
+
+
+def _ledger_call(tmp_path, tool, args):
+    store, vs = _ledger_store(tmp_path)
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        return _unwrap(asyncio.run(_call(server, tool, args)).structured_content)
+    finally:
+        vs.close()
+        store.close()
+
+
+def test_semantic_and_hybrid_search_cut_a_negative_k_to_nothing(tmp_path):
+    """A negative `k` sliced the ranking from the end: `k=-3` over ten vectors returned the
+    top seven with `truncated: false`, so the caller read a shortened list as the answer."""
+    for tool in ("semantic_search", "hybrid_search"):
+        full = _ledger_call(tmp_path, tool, {"query": "Ledger", "k": 10})
+        assert len(full["nodes"]) == 10, tool        # the control: ten exist to be cut
+        for k in (-1, -3):
+            res = _ledger_call(tmp_path, tool, {"query": "Ledger", "k": k})
+            assert res["nodes"] == [], (tool, k)
+
+
+def test_ask_cuts_a_negative_k_to_nothing_on_the_search_and_subclass_routes(tmp_path):
+    """`ask` had two more sites: `subs[:k]` dropped one subclass per unit of -k, and
+    `len(subs) > k` read True with no subclass at all."""
+    full = _ledger_call(tmp_path, "ask", {"question": "what extends BaseLedger", "k": 8})
+    assert full["route"] == "subclasses"
+    assert len(full["nodes"]) == 3 and full["truncated"] is False   # the control
+
+    cut = _ledger_call(tmp_path, "ask", {"question": "what extends BaseLedger", "k": -1})
+    assert cut["nodes"] == [] and cut["truncated"] is True          # three exist, none shown
+
+    none = _ledger_call(tmp_path, "ask", {"question": "what extends SubLedger1", "k": -1})
+    assert none["route"] == "subclasses"
+    assert none["nodes"] == [] and none["truncated"] is False       # nothing was cut
+
+    vector = _ledger_call(tmp_path, "ask", {"question": "Ledger", "k": -3})
+    assert vector["nodes"] == []
+
+
+def test_the_vector_store_and_the_ranking_do_not_slice_from_the_end(tmp_path):
+    """The two library slices, called directly: the tools floor `k` first, so these only see a
+    negative one from another caller."""
+    from contextlake.kb.embeddings.hybrid import hybrid_search
+
+    store, vs = _ledger_store(tmp_path)
+    try:
+        assert len(vs.search([1.0, 0.0], k=10)) == 10
+        assert vs.search([1.0, 0.0], k=-3) == []
+        assert hybrid_search(store, vs, _FakeEmbedder(), "Ledger", k=-3) == []
+    finally:
+        vs.close()
+        store.close()

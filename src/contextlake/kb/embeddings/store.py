@@ -573,7 +573,7 @@ def _collapse_chunks(scored, k: int):
         node_id = base_node_id(key)
         if score > best.get(node_id, float("-inf")):
             best[node_id] = score
-    return sorted(best.items(), key=lambda t: t[1], reverse=True)[:k]
+    return sorted(best.items(), key=lambda t: t[1], reverse=True)[:max(k, 0)]
 
 
 def build_vector_store(path: str | Path, *, backend: str = "auto", chunk_size: int = 1024):

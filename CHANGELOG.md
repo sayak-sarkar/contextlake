@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so `::1` and `[::1]` are the same bind, and `[::]` counts as the wildcard bind it is. The
   startup line now writes an IPv6 host in brackets, `http://[::1]:8765/mcp`. For `::1` it
   printed `http://::1:8765/mcp`, which is not a URL. 10.0.0rc4 did not bind the bracketed form.
+- **A negative `k` on `semantic_search`, `hybrid_search` or `ask` now returns no hits instead of
+  a shortened list.** The tools set no lower bound on `k`, so `k=-3` over ten vectors returned
+  the top seven with `truncated` false, and `ask` dropped one subclass per unit of `-k`. With no
+  subclass at all, `ask` reported `truncated` true for `k=-1`. On the sqlite-vec backend the
+  same value ended in a tool error. A limited key got an empty answer, so the same call gave
+  three different answers by key and backend. `k` below 0 is now read as 0, as `search_code` and
+  the other limit arguments already did. 10.0.0rc4 sliced from the end.
 
 ### Security
 

@@ -2312,6 +2312,9 @@ def build_server(
             and would otherwise return its k nearest regardless.
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
             ingested), not extracted code facts — verify against the cited file."""
+            # No schema lower bound on `k`: a negative one sliced the hits from the END
+            # and reported a shortened list as complete. Floored at 0 like `_budget`.
+            k = max(k, 0)
             if (unknown := _unknown_repo_note(repo)):
                 return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
             if not query.strip():
@@ -2344,6 +2347,7 @@ def build_server(
             cosine). Empty when nothing in the query is indexed at all."""
             from .embeddings.hybrid import hybrid_search as _hybrid
 
+            k = max(k, 0)  # see `semantic_search`
             if (unknown := _unknown_repo_note(repo)):
                 return NodesOut(nodes=[], total=0, truncated=False, note=unknown)
             if not query.strip():
@@ -2376,6 +2380,9 @@ def build_server(
         tool (find_definition, find_callers, blast_radius, …) — this is the convenience
         front door over them, not a replacement. "What does X depend on?" has no route
         and is a search; for that, use repo_dependencies with direction "out"."""
+        # `k` reaches the slices and the vector search below as given. See `semantic_search`;
+        # `subs[:k]` and `len(subs) > k` also disagreed about a negative `k`.
+        k = max(k, 0)
         from .router import (
             CALLERS,
             DEFINITION,
