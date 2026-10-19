@@ -16,7 +16,14 @@ import urllib.request
 from ...logging_setup import log
 from .._util import num_option
 from .api import _dig
-from .base import _OPENER, NOT_HTTP_REASON, Document, FetchFailures, url_is_fetchable
+from .base import (
+    _OPENER,
+    NOT_HTTP_REASON,
+    Document,
+    FetchFailures,
+    id_without_one,
+    url_is_fetchable,
+)
 
 
 def _has_next_page(obj, _depth: int = 0) -> bool:
@@ -48,7 +55,8 @@ class GraphQLSource(FetchFailures):
       - ``items``: dotted path into the response, rooted at ``data`` (e.g.
         ``repository.issues.nodes``); default: ``data`` itself
       - ``id_field`` / ``title_field`` / ``text_field``: record keys (default
-        ``id`` / ``title`` / ``text``); a record without text is skipped
+        ``id`` / ``title`` / ``text``); a record without text is skipped; a record with no
+        id, or a null or empty one, gets an id made from its title and text
       - ``token_env``: name of an env var holding a bearer token (optional)
       - ``timeout``: seconds (default 20)
     """
@@ -137,8 +145,9 @@ class GraphQLSource(FetchFailures):
             text = rec.get(self.text_field)
             if not text:
                 continue
-            # A null or empty id is a record without one, not the id "None".
+            # An absent, null or empty id is a record without one: see `id_without_one`.
             rid = rec.get(self.id_field)
-            rid = str(i) if rid is None or rid == "" else str(rid)
-            yield Document(id=rid, title=str(rec.get(self.title_field) or rid),
-                           text=str(text), uri=self.url, attrs={"index": i})
+            title = rec.get(self.title_field)
+            rid = id_without_one(title, text) if rid is None or rid == "" else str(rid)
+            yield Document(id=rid, title=str(title or rid), text=str(text), uri=self.url,
+                           attrs={"index": i})

@@ -139,17 +139,19 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
     return len(embedded_nodes), written_vectors, stopped_early
 
 
-def _distinct_id(doc_id: str, taken: set[str]) -> str:
+def _distinct_id(doc_id: str, taken: set[str], reserved: frozenset[str] = frozenset()) -> str:
     """``doc_id``, or ``doc_id#2``, ``doc_id#3`` and so on when ``taken`` already holds it.
 
     A node id is the partition plus the document id, so two documents of one source with
     the same id are ONE node: the later replaced the earlier, while the summary counted
-    both. `#` is safe as a suffix: the chunk separator in a vector key is a control
-    character (`embeddings.store.chunk_key`), so a suffixed id never reads as a chunk key.
+    both. A suffix skips every id in ``reserved`` (the ids the source's own records carry),
+    so a real id such as ``a#2`` never moves because an earlier record repeated ``a``. `#`
+    is safe as a suffix: the chunk separator in a vector key is a control character
+    (`embeddings.store.chunk_key`), so a suffixed id never reads as a chunk key.
     The result is added to ``taken``.
     """
     unique, n = doc_id, 2
-    while unique in taken:
+    while unique in taken or (unique != doc_id and unique in reserved):
         unique = f"{doc_id}#{n}"
         n += 1
     taken.add(unique)
@@ -341,8 +343,10 @@ def cmd_ingest(args) -> int:
                 taken: set[str] = set()
                 repeated = 0
                 try:
-                    for doc in src.iter_documents():
-                        doc_id = _distinct_id(doc.id, taken)
+                    docs = list(src.iter_documents())
+                    reserved = frozenset(d.id for d in docs)
+                    for doc in docs:
+                        doc_id = _distinct_id(doc.id, taken, reserved)
                         if doc_id != doc.id:
                             repeated += 1
                         nodes.append(Node(id=f"{repo_id}:{doc_id}", repo=repo_id,
@@ -355,9 +359,11 @@ def cmd_ingest(args) -> int:
                     failed += 1
                     continue
                 if repeated:
+                    fix = (". Set id_field to a field that is unique per record"
+                           if stype in ("api", "graphql") else "")
                     log(f"  {name}: {repeated} document(s) repeated the id of an earlier "
-                        "one, so they are stored as <id>#2, <id>#3 and so on. Give each "
-                        "record a unique id (api source: set id_field)", inline=True)
+                        f"one, so they are stored as <id>#2, <id>#3 and so on{fix}",
+                        inline=True)
                 misses = list(getattr(src, "failures", ()))
                 if not nodes:
                     # "empty" and "broken" produced the SAME line here, and the network

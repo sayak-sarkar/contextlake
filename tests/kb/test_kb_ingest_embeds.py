@@ -98,22 +98,16 @@ class _JsonResponse:
         return False
 
 
-def test_records_that_repeat_or_lack_an_id_are_all_stored_and_counted(
-        tmp_path, monkeypatch, capsys):
-    """Four records, two sharing the id d1 and two with a null id, ran as `4 document(s)`
-    and `4 embedded` while the store held two nodes and two vectors: the later record of
-    each pair replaced the earlier one, and nothing said so."""
+def _ingest_api_records(tmp_path, monkeypatch, records):
+    """Run `kb ingest --path <url> --source-type api` over ``records``.
+
+    Returns the exit code and the `(node_id, name)` rows of the `@ingest:cli` partition.
+    """
     import sqlite3
 
     import contextlake.kb.sources.api as apimod
 
     monkeypatch.setenv("HOME", str(tmp_path))
-    records = [
-        {"id": "d1", "title": "First", "text": "one"},
-        {"id": "d1", "title": "Second", "text": "two"},
-        {"id": None, "title": "Third", "text": "three"},
-        {"id": None, "title": "Fourth", "text": "four"},
-    ]
     monkeypatch.setattr(apimod, "_OPENER", types.SimpleNamespace(
         open=lambda req, timeout=None: _JsonResponse(records)))
     monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: _FakeEmbedder())
@@ -124,28 +118,97 @@ def test_records_that_repeat_or_lack_an_id_are_all_stored_and_counted(
         main(["kb", "ingest", "--path", "http://items.invalid/all", "--source-type", "api",
               "--config", str(cfg)])
 
-    out = capsys.readouterr().out
-    assert e.value.code == 0
     db = sqlite3.connect(tmp_path / "kb" / "index.sqlite")
     try:
         rows = db.execute("SELECT node_id, name FROM nodes WHERE repo_id = '@ingest:cli' "
                           "ORDER BY name").fetchall()
     finally:
         db.close()
-    assert sorted(rows) == [("@ingest:cli:2", "Third"), ("@ingest:cli:3", "Fourth"),
-                            ("@ingest:cli:d1", "First"), ("@ingest:cli:d1#2", "Second")]
+    return e.value.code, rows
+
+
+def test_records_that_repeat_or_lack_an_id_are_all_stored_and_counted(
+        tmp_path, monkeypatch, capsys):
+    """Four records, two sharing the id d1 and two with a null id, ran as `4 document(s)`
+    and `4 embedded` while the store held two nodes and two vectors: the later record of
+    each pair replaced the earlier one, and nothing said so."""
+    from contextlake.kb.sources.base import id_without_one
+
+    code, rows = _ingest_api_records(tmp_path, monkeypatch, [
+        {"id": "d1", "title": "First", "text": "one"},
+        {"id": "d1", "title": "Second", "text": "two"},
+        {"id": None, "title": "Third", "text": "three"},
+        {"id": None, "title": "Fourth", "text": "four"},
+    ])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert sorted(rows) == sorted([
+        (f"@ingest:cli:{id_without_one('Third', 'three')}", "Third"),
+        (f"@ingest:cli:{id_without_one('Fourth', 'four')}", "Fourth"),
+        ("@ingest:cli:d1", "First"), ("@ingest:cli:d1#2", "Second")])
     assert _vector_count(tmp_path / "kb") == 4
     assert "cli: 1 document(s) repeated the id of an earlier one" in out
+    assert "Set id_field to a field that is unique per record" in out
     assert "cli: 4 document(s), 4 embedded" in out
     assert "Ingest complete: 4 document(s) aggregated, 4 embedded" in out
 
 
-def test_a_suffixed_id_never_takes_one_a_later_record_really_has():
+def test_a_record_without_an_id_never_takes_the_id_of_a_record_that_has_one(
+        tmp_path, monkeypatch):
+    """A null id took its position in the list, so a null at position 1 took the id "1" and
+    the real record with that id was renamed "1#2": a real record's node id depended on
+    the other records of its source."""
+    from contextlake.kb.sources.base import id_without_one
+
+    code, rows = _ingest_api_records(tmp_path, monkeypatch, [
+        {"id": "a", "title": "Named", "text": "named"},
+        {"id": None, "title": "Anon", "text": "no id"},
+        {"id": "1", "title": "Real one", "text": "a real id that looks like a position"},
+        {"title": "Absent", "text": "no id key at all"},
+    ])
+
+    assert code == 0
+    assert dict((name, nid) for nid, name in rows) == {
+        "Named": "@ingest:cli:a", "Real one": "@ingest:cli:1",
+        "Anon": f"@ingest:cli:{id_without_one('Anon', 'no id')}",
+        "Absent": f"@ingest:cli:{id_without_one('Absent', 'no id key at all')}"}
+
+
+def test_the_repeated_id_line_names_id_field_only_for_a_source_that_has_one(
+        tmp_path, monkeypatch, capsys):
+    """The hint was worded for the api source and printed for every type."""
+    import contextlake.kb.sources as sources
+    from contextlake.kb.sources.base import Document
+
+    class _Repeats:
+        def iter_documents(self):
+            return iter([Document(id="x", title="One", text="one"),
+                         Document(id="x", title="Two", text="two")])
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(sources, "build_source", lambda _type, **_o: _Repeats())
+    monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: None)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "ingest", "--path", str(tmp_path), "--config", str(cfg)])
+
+    out = capsys.readouterr().out
+    assert e.value.code == 0
+    assert "cli: 1 document(s) repeated the id of an earlier one" in out
+    assert "id_field" not in out
+
+
+def test_a_suffix_never_takes_an_id_that_a_later_record_has():
     from contextlake.kb.cmds.ingest import _distinct_id
 
+    ids = ("a", "a", "a#2", "a", "b")
     taken: set[str] = set()
-    assert [_distinct_id(i, taken) for i in ("a", "a", "a#2", "a", "b")] == [
-        "a", "a#2", "a#2#2", "a#3", "b"]
+    out = [_distinct_id(i, taken, frozenset(ids)) for i in ids]
+    assert out == ["a", "a#3", "a#2", "a#4", "b"]
+    assert len(set(out)) == len(out)
 
 
 class _IdentifiedEmbedder:

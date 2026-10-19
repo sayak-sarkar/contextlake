@@ -205,6 +205,42 @@ def test_the_page_cap_message_does_not_send_enrich_to_max_pages(env, gls_logs):
     assert not [r for r in main.requests if "page=2" in r["path"]], "a second page was read"
 
 
+def _search_with(monkeypatch, payloads, terms):
+    """What `kb enrich` keeps from `_api_search` when each term returns ``payloads[term]``."""
+    from contextlake.kb.connectors.enrich import _api_search
+    from contextlake.kb.sources import api as apimod
+
+    monkeypatch.setattr(apimod.ApiSource, "_fetch", lambda self: next(
+        recs for term, recs in payloads.items() if f"q={term}" in self.url))
+    cfg = {"name": "tracker", "search_url": "https://tracker.invalid/search?q={term}"}
+    return _api_search(cfg, terms)
+
+
+def test_a_record_without_an_id_does_not_displace_a_real_id_from_another_search(monkeypatch):
+    """A null id took its position in the list, so the null record of one search and a real
+    record with the id "0" in the next shared an id, and the cross-term dedupe kept only the
+    first of the two."""
+    docs = _search_with(monkeypatch, {
+        "alpha": [{"id": None, "title": "A-null", "text": "alpha record without an id"}],
+        "beta": [{"id": "0", "title": "B-real", "text": "beta record with the id 0"}],
+    }, ["alpha", "beta"])
+
+    assert sorted(d.title for d in docs) == ["A-null", "B-real"]
+    assert len({d.id for d in docs}) == 2
+
+
+def test_the_same_record_without_an_id_is_kept_once_across_searches(monkeypatch):
+    """The dedupe still works for a record with no id: it returns for two terms with the
+    same title and text, so it keeps one id and one copy, wherever it sits in the list."""
+    same = {"id": None, "title": "Shared", "text": "one record both terms find"}
+    docs = _search_with(monkeypatch, {
+        "alpha": [same],
+        "beta": [{"id": "x", "title": "Other", "text": "other"}, dict(same)],
+    }, ["alpha", "beta"])
+
+    assert sorted(d.title for d in docs) == ["Other", "Shared"]
+
+
 def test_the_run_cap_stops_queries_and_keeps_repos_not_searched(env):
     main = _Server(lambda path: (200, {}, _issues(_term(path), n=3)))
     try:
