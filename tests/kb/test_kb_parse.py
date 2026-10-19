@@ -648,6 +648,238 @@ def test_parse_php():
     assert {"Base", "Auditable"} <= {base for _s, base, _f, _l in inh}
 
 
+def _qualified(nodes, kind):
+    return sorted(n.qualified_name for n in nodes if n.kind == kind)
+
+
+def _call_sites(nodes, calls):
+    """`{(qualified name of the caller, callee name)}` -- the caller by qualified name,
+    because two methods called `Close` are told apart by nothing else."""
+    by_id = {n.id: n.qualified_name or n.name for n in nodes}
+    return {(by_id[src], callee) for src, callee, _f, _l in calls}
+
+
+def test_go_methods_with_one_name_on_two_receivers_are_two_nodes():
+    """The receiver is part of a Go method's identity. Without it `(r *Repo) Close` and
+    `(c *Client) Close` shared a kind, a qualified name and a parameter list, so they got
+    one id, the second was dropped, and its calls were credited to the first."""
+    src = (b"package p\n"
+           b"func (r *Repo) Close() error { return helperA() }\n"
+           b"func (c *Client) Close() error { return helperB() }\n"
+           b"func helperA() error { return nil }\n"
+           b"func helperB() error { return nil }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.go", src, "go")
+    assert _qualified(nodes, "method") == ["f.go::Client.Close", "f.go::Repo.Close"]
+    assert _call_sites(nodes, calls) == {("f.go::Repo.Close", "helperA"),
+                                         ("f.go::Client.Close", "helperB")}
+
+
+def test_go_receiver_spellings_all_name_the_base_type():
+    """`*T`, `T`, an unnamed receiver and a generic `T[K]` are all methods on `T`."""
+    src = (b"package p\n"
+           b"func (r *Repo) A() {}\n"
+           b"func (r Repo) B() {}\n"
+           b"func (Repo) C() {}\n"
+           b"func (s *Stack[T]) D() {}\n"
+           b"func (Pair[K, V]) E() {}\n")
+    nodes, _e, _c, _i = parse_source("r", "f.go", src, "go")
+    assert _qualified(nodes, "method") == [
+        "f.go::Pair.E", "f.go::Repo.A", "f.go::Repo.B", "f.go::Repo.C", "f.go::Stack.D"]
+
+
+def test_rust_methods_with_one_name_in_two_impls_are_two_nodes():
+    src = (b"struct A; struct B;\n"
+           b"impl A { fn new(x: i32) -> A { mk_a() } }\n"
+           b"impl B { fn new(x: i32) -> B { mk_b() } }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == ["f.rs::A.new", "f.rs::B.new"]
+    assert _call_sites(nodes, calls) == {("f.rs::A.new", "mk_a"), ("f.rs::B.new", "mk_b")}
+
+
+def test_rust_two_traits_on_one_type_are_two_nodes():
+    """`impl Display for A` and `impl Debug for A` both define `fmt(&self, f)`. The type
+    alone would still merge them, and that pair is the commonest one in Rust."""
+    src = (b"impl fmt::Display for A {\n"
+           b"    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { show() }\n}\n"
+           b"impl fmt::Debug for A {\n"
+           b"    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { dump() }\n}\n"
+           b"impl fmt::Display for B {\n"
+           b"    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { other() }\n}\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == [
+        "f.rs::A as fmt.Debug.fmt", "f.rs::A as fmt.Display.fmt", "f.rs::B as fmt.Display.fmt"]
+    assert _call_sites(nodes, calls) == {("f.rs::A as fmt.Display.fmt", "show"),
+                                         ("f.rs::A as fmt.Debug.fmt", "dump"),
+                                         ("f.rs::B as fmt.Display.fmt", "other")}
+
+
+def test_rust_module_path_stays_in_an_impl_name():
+    """`std::fmt::Display` reads `std.fmt.Display`, and the same path written from the crate
+    root (`::std::fmt::Display`) reads `.std.fmt.Display`. A path inside a generic argument
+    stays whole, with its `::`."""
+    src = (b"impl std::fmt::Display for A { fn fmt(&self) {} }\n"
+           b"impl ::std::fmt::Display for B { fn fmt(&self) {} }\n"
+           b"impl ::Foo for D { fn go(&self) {} }\n"
+           b"impl From<std::io::Error> for E { fn from(e: std::io::Error) -> Self { E } }\n")
+    nodes, _e, _c, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == [
+        "f.rs::A as std.fmt.Display.fmt", "f.rs::B as .std.fmt.Display.fmt",
+        "f.rs::D as .Foo.go", "f.rs::E as From<std::io::Error>.from"]
+
+
+def test_rust_types_and_traits_of_one_name_on_two_paths_are_two_nodes():
+    """`a::T` and `b::T` are two types, and `a::Tr` and `b::Tr` are two traits. The leading
+    path was dropped from the name, so each pair got one id, the second was dropped, and its
+    calls were credited to the first."""
+    src = (b"impl a::T { fn f(&self) { one(); } }\n"
+           b"impl b::T { fn f(&self) { two(); } }\n"
+           b"impl a::Tr for X { fn g(&self) { three(); } }\n"
+           b"impl b::Tr for X { fn g(&self) { four(); } }\n"
+           b"impl fmt::Display for a::E { fn fmt(&self) { five(); } }\n"
+           b"impl fmt::Display for b::E { fn fmt(&self) { six(); } }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == [
+        "f.rs::X as a.Tr.g", "f.rs::X as b.Tr.g", "f.rs::a.E as fmt.Display.fmt",
+        "f.rs::a.T.f", "f.rs::b.E as fmt.Display.fmt", "f.rs::b.T.f"]
+    assert _call_sites(nodes, calls) == {
+        ("f.rs::a.T.f", "one"), ("f.rs::b.T.f", "two"), ("f.rs::X as a.Tr.g", "three"),
+        ("f.rs::X as b.Tr.g", "four"), ("f.rs::a.E as fmt.Display.fmt", "five"),
+        ("f.rs::b.E as fmt.Display.fmt", "six")}
+
+
+def test_rust_type_path_and_enclosing_mod_name_one_type_alike():
+    """`impl a::T` and `mod a { impl T }` define on the same type, so they read alike."""
+    spelled = parse_source("r", "f.rs", b"impl a::T { fn f(&self) {} }\n", "rust")[0]
+    nested = parse_source("r", "f.rs", b"mod a { impl T { fn f(&self) {} } }\n", "rust")[0]
+    assert _qualified(spelled, "function") == _qualified(nested, "function") == ["f.rs::a.T.f"]
+
+
+def test_rust_generic_arguments_keep_impls_apart():
+    src = (b"impl Into<A> for X { fn into(self) -> A { to_a() } }\n"
+           b"impl Into<B> for X { fn into(self) -> B { to_b() } }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == ["f.rs::X as Into<A>.into",
+                                             "f.rs::X as Into<B>.into"]
+    assert _call_sites(nodes, calls) == {("f.rs::X as Into<A>.into", "to_a"),
+                                         ("f.rs::X as Into<B>.into", "to_b")}
+
+
+def test_rust_modules_are_scopes():
+    src = (b"mod net { fn open() { dial(); } }\n"
+           b"mod fs { fn open() { read(); } mod deep { fn open() {} } impl T { fn go() {} } }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    assert _qualified(nodes, "function") == [
+        "f.rs::fs.T.go", "f.rs::fs.deep.open", "f.rs::fs.open", "f.rs::net.open"]
+    assert _call_sites(nodes, calls) == {("f.rs::net.open", "dial"),
+                                         ("f.rs::fs.open", "read")}
+
+
+def test_rust_scope_blocks_do_not_become_nodes_or_change_kinds():
+    """`impl` and `mod` name a scope. They are not definitions, so they add no node, the
+    functions inside stay functions, and each is still contained by the file."""
+    src = b"mod m { impl A { fn f() {} } }\nfn top() {}\n"
+    nodes, edges, _c, _i = parse_source("r", "f.rs", src, "rust")
+    assert sorted((n.kind, n.name) for n in nodes if n.kind != "file") == [
+        ("function", "f"), ("function", "top")]
+    file_id = next(n.id for n in nodes if n.kind == "file")
+    assert {e.src for e in edges if e.relation == "contains"} == {file_id}
+
+
+def test_php_namespaces_are_scopes_in_both_spellings():
+    """`namespace A;` governs the statements that FOLLOW it, so it is a preceding sibling
+    of the definitions and not their ancestor. `namespace C { }` is an ancestor."""
+    src = (b"<?php\nnamespace A;\nfunction f() { fa(); }\n"
+           b"namespace B;\nfunction f() { fb(); }\nclass K { function m() {} }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.php", src, "php")
+    assert _qualified(nodes, "function") == ["f.php::A.f", "f.php::B.f"]
+    assert _call_sites(nodes, calls) == {("f.php::A.f", "fa"), ("f.php::B.f", "fb")}
+    assert "f.php::B.K.m" in _qualified(nodes, "method")
+    braced = (b"<?php\nnamespace C { function f() { fc(); } }\n"
+              b"namespace D { function f() { fd(); } }\n")
+    nodes, _e, calls, _i = parse_source("r", "g.php", braced, "php")
+    assert _qualified(nodes, "function") == ["g.php::C.f", "g.php::D.f"]
+    assert _call_sites(nodes, calls) == {("g.php::C.f", "fc"), ("g.php::D.f", "fd")}
+
+
+def test_php_namespace_lookup_is_read_once_per_file(monkeypatch):
+    """Looking back through the siblings for each definition made N top-level functions cost
+    N squared: 24.7 s for 8,000. The statements are read once, and a generous time bound
+    backs the call count up."""
+    import time
+
+    import contextlake.kb.parse as parse_mod
+
+    calls = []
+    real = parse_mod._php_open_namespaces
+    monkeypatch.setattr(parse_mod, "_php_open_namespaces",
+                        lambda root: calls.append(1) or real(root))
+    n = 8000
+    src = "<?php\nnamespace A;\n" + "".join(f"function f{i}() {{ g(); }}\n" for i in range(n))
+    start = time.monotonic()
+    nodes, _e, _c, _i = parse_source("r", "big.php", src.encode(), "php")
+    elapsed = time.monotonic() - start
+    assert len(calls) == 1
+    assert elapsed < 10
+    assert len([x for x in nodes if x.qualified_name == "big.php::A.f7999"]) == 1
+
+
+def test_a_symbol_named_like_its_scope_block_is_not_a_constructor():
+    """The ctor marker in an id slug means "named like its class". A function `parser` in
+    `mod parser`, or a class `Foo` in `namespace Foo`, is not one."""
+    nodes, _e, _c, _i = parse_source("r", "f.rs", b"mod parser { fn parser() {} }\n", "rust")
+    fn = next(n for n in nodes if n.kind == "function")
+    assert "ctor" not in fn.id
+    nodes, _e, _c, _i = parse_source("r", "f.php", b"<?php\nnamespace Foo;\nclass Foo {}\n", "php")
+    cls = next(n for n in nodes if n.kind == "class")
+    assert "ctor" not in cls.id
+
+
+def test_index_credits_each_method_body_to_its_own_node(tmp_path):
+    """End to end through resolution: before, `helperB` was credited to the first `Close`."""
+    (tmp_path / "t.go").write_text(
+        "package p\n"
+        "func (r *Repo) Close() error { return helperA() }\n"
+        "func (c *Client) Close() error { return helperB() }\n"
+        "func helperA() error { return nil }\n"
+        "func helperB() error { return nil }\n")
+    shard = index_repo_dir(str(tmp_path), "demo/go")
+    by_id = {n.id: n for n in shard.nodes}
+    assert {(by_id[e.src].qualified_name, by_id[e.dst].name)
+            for e in shard.edges if e.relation == "calls"} == {
+        ("t.go::Repo.Close", "helperA"), ("t.go::Client.Close", "helperB")}
+
+
+def test_a_call_to_a_name_two_methods_share_links_to_each(tmp_path):
+    """Two nodes are two candidates. A call to `Close`, in another file too, gets an ambiguous
+    edge to each, as a call to `f` does when two files define `f`. The base tree merged the
+    two methods and gave one inferred edge. docs/code-graph-model.md says this."""
+    (tmp_path / "a.go").write_text(
+        "package p\nfunc (r *Repo) Close() {}\nfunc (c *Client) Close() {}\n")
+    (tmp_path / "b.go").write_text("package p\nfunc use(r *Repo) { r.Close() }\n")
+    shard = index_repo_dir(str(tmp_path), "demo/go")
+    by_id = {n.id: n for n in shard.nodes}
+    calls = [e for e in shard.edges if e.relation == "calls"]
+    assert {by_id[e.dst].qualified_name for e in calls} == {
+        "a.go::Repo.Close", "a.go::Client.Close"}
+    assert {e.confidence for e in calls} == {Confidence.AMBIGUOUS}
+
+
+@pytest.mark.parametrize("lang,rel,src", [
+    ("rust", "f.rs", b"#[cfg(unix)]\nimpl A { fn open() { one(); } }\n"
+                     b"#[cfg(windows)]\nimpl A { fn open() { two(); } }\n"),
+    ("rust", "f.rs", b"#[cfg(unix)]\nmod m { fn open() { one(); } }\n"
+                     b"#[cfg(windows)]\nmod m { fn open() { two(); } }\n"),
+    ("php", "f.php", b"<?php\nif (!function_exists('f')) { function f() { one(); } }"
+                     b" else { function f() { two(); } }\n"),
+])
+def test_two_symbols_of_one_name_in_one_block_still_share_a_node(lang, rel, src):
+    """The limit docs/code-graph-model.md names. A `#[cfg]` copy of an `impl` or a `mod`, or the
+    two branches of a PHP `if`, leaves both symbols with one block and one name, so they get one
+    id. When one of these is fixed, this test fails: change that sentence of the docs with it."""
+    nodes, _e, _c, _i = parse_source("r", rel, src, lang)
+    assert len([n for n in nodes if n.kind == "function"]) == 1
+
+
 def test_parse_scala():
     src = (b"trait Handler { def serve(): Unit }\n"
            b"class Server(a: String) extends Handler { def serve(): Unit = { help() } }\n"

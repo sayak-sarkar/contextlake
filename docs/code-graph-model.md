@@ -94,6 +94,29 @@ Missing yours? "Pluggable" is a literal claim: a language is a grammar package p
 entries. [Adding a language](adding-a-language.md) is the ordered recipe, with the verification
 commands that prove a new grammar works.
 
+#### Same name, different block
+
+Go, Rust and PHP put a symbol's block in its qualified name. Two symbols of one name in
+different blocks are therefore two nodes, and each keeps the calls from its own body. A call to
+their shared name gets an ambiguous edge to each of them, as it does for same-named functions in
+two files. The generated API reference shows the name in each heading, such as `Repo.Close`.
+
+- **Go** uses the receiver type. `func (r *Repo) Close` is `Repo.Close` and
+  `func (c *Client) Close` is `Client.Close`. A pointer, a value, an unnamed receiver and a
+  generic `Stack[T]` all name the base type.
+- **Rust** uses `impl` and `mod` blocks. `impl A { fn new }` is `A.new`, and `mod net { fn open }`
+  is `net.open`. A trait impl names both: `impl Display for A { fn fmt }` is `A as Display.fmt`,
+  apart from `A as Debug.fmt`. A module path stays, with `.` for `::`: `impl a::Tr for X` is
+  `X as a.Tr`, and `impl a::T` is `a.T`, as `mod a { impl T }` is. Generic arguments stay as
+  written, so `Into<A>` and `Into<B>` differ.
+- **PHP** uses the namespace, in both the `namespace A;` and the `namespace A { }` spelling.
+
+An `impl` or a `mod` is not a node. It adds a segment to the name and nothing else.
+
+Two symbols of one name in the same block still share one node. Two cases are known: Rust items
+in `#[cfg]`-gated copies of one `impl` or `mod`, and PHP functions defined in both branches of an
+`if`.
+
 #### C++ completeness
 
 C and C++ get extra handling, because both languages spread one thing across several files.

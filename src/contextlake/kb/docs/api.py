@@ -84,7 +84,10 @@ def scoped_name(node) -> str:
     with `name` falls back to `name` rather than producing a heading that contradicts the
     entry beneath it.
     """
-    tail = (node.qualified_name or "").rsplit("::", 1)[-1].strip()
+    # Split on the FIRST `::` only: it ends the file prefix. A Rust name can hold more, in a
+    # path or a generic argument (`A as From<io::Error>.from`), and cutting at the last one
+    # would leave `Error>.from`.
+    tail = (node.qualified_name or "").split("::", 1)[-1].strip()
     if tail and tail != node.name and tail.endswith(node.name):
         return tail
     return node.name

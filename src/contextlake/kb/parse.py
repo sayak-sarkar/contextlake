@@ -394,7 +394,13 @@ def _has_generated_header(source: bytes) -> bool:
 # and `a_b.py` stop sharing a node; package ids fold by each ecosystem's own rule. Every
 # stored id of those kinds changes, so every repository must be indexed again, and an
 # unchanged commit would otherwise keep the merged nodes forever.
-PARSER_VERSION = "13"
+# "14" fixes symbols that shared an id (PARSE-1). Two Go methods of one name on different
+# receivers, two Rust functions of one name in different `impl` or `mod` blocks, and two PHP
+# functions of one name in different namespaces were one node, with the second dropped and
+# its calls credited to the first. The block that scopes them is now part of the qualified
+# name, so every Go, Rust and PHP symbol inside such a block gets a new id and a re-index
+# adds the nodes and call edges that were missing.
+PARSER_VERSION = "14"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -491,6 +497,18 @@ _QUERYLESS_LANGS = ("css", "html", "nix", "svelte", "vue", "make", "dockerfile")
 for _markup in _QUERYLESS_LANGS:
     _DEF_TYPES[_markup] = {}
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
+
+# Blocks that name a scope without being a definition. They are not in `_DEF_TYPES` because
+# that table also drives containment, call attribution and the method re-kind, and none of
+# those should treat an `impl` as a node. Only the qualified name reads this table, so that
+# `impl A { fn new }` and `impl B { fn new }`, or the same function in two PHP namespaces,
+# do not collapse into one id.
+_SCOPE_TYPES = {
+    "rust": frozenset({"impl_item", "mod_item"}),
+    "php": frozenset({"namespace_definition"}),
+}
+# ...plus Go, whose scope is the receiver written on the method itself.
+_SCOPED_LANGS = frozenset({"go", *_SCOPE_TYPES})
 
 # Queries capture definition *name* identifiers (@def) and import targets (@import).
 _QUERIES = {
@@ -881,18 +899,71 @@ def _def_node(name_node: ts.Node, def_types: set[str]) -> ts.Node | None:
     return node
 
 
-def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
+def _enclosing_defs(name_node: ts.Node, def_types: set[str],
+                    scope_types: frozenset[str] = frozenset()) -> list[ts.Node]:
     """Definition nodes enclosing this name's definition, innermost first (the name's
-    own definition node is excluded)."""
+    own definition node is excluded).
+
+    ``scope_types`` adds the blocks of ``_SCOPE_TYPES`` to the walk, in ancestor order, so
+    that ``mod m { impl A { fn f } }`` reads ``m`` then ``A``.
+    """
     own = _def_node(name_node, def_types)
     out = []
     node = own.parent if own is not None else (
         name_node.parent.parent if name_node.parent else None)
     while node is not None:
-        if node.type in def_types:
+        if node.type in def_types or node.type in scope_types:
             out.append(node)
         node = node.parent
     return out
+
+
+def _go_receiver(def_ts: ts.Node) -> str | None:
+    """The type a Go method is declared on: ``Repo`` for ``(r *Repo)``, ``(r Repo)``,
+    ``(Repo)`` and ``(s *Repo[T])``. A Go method is a top-level declaration, so the
+    receiver is the only thing that says which type it belongs to."""
+    if def_ts.type != "method_declaration":
+        return None
+    recv = def_ts.child_by_field_name("receiver")
+    param = next((c for c in recv.named_children if c.type == "parameter_declaration"),
+                 None) if recv is not None else None
+    typ = param.child_by_field_name("type") if param is not None else None
+    while typ is not None and typ.type == "pointer_type" and typ.named_children:
+        typ = typ.named_children[0]
+    if typ is not None and typ.type == "generic_type":
+        typ = typ.child_by_field_name("type")
+    return typ.text.decode("utf-8", "replace") if typ is not None else None
+
+
+def _php_open_namespaces(root: ts.Node) -> list[ts.Node]:
+    """The ``namespace A;`` statements of a PHP file, in source order.
+
+    That spelling has no body: it governs the statements that FOLLOW it, so it is a sibling
+    of the definitions and never their ancestor. The braced spelling, ``namespace A { ... }``,
+    is an ancestor and is found by the ordinary walk. Read once per file: looking back
+    through the siblings for each definition made a file of N functions cost N squared, 24.7 s
+    for 8,000.
+    """
+    return [c for c in root.children
+            if c.type == "namespace_definition" and c.child_by_field_name("body") is None]
+
+
+def _scope_names(name_node: ts.Node, def_ts: ts.Node, def_types: set[str], lang: str,
+                 open_namespaces: list[ts.Node]) -> list[str]:
+    """The names above a definition, outermost first, for its qualified name.
+
+    A superset of the definition ancestors: it also reads the ``_SCOPE_TYPES`` blocks, the
+    PHP ``namespace A;`` statements of the file and a Go receiver. The ids of those symbols
+    depend on it.
+    """
+    enclosing = _enclosing_defs(name_node, def_types, _SCOPE_TYPES.get(lang, frozenset()))
+    ns = next((n for n in reversed(open_namespaces) if n.start_byte < def_ts.start_byte), None)
+    if ns is not None:
+        enclosing.append(ns)
+    names = [nm for nm in (_def_name_text(n, lang) for n in reversed(enclosing)) if nm]
+    if lang == "go" and (recv := _go_receiver(def_ts)):
+        names.append(recv)
+    return names
 
 
 def _conditional_root(node: ts.Node) -> int | None:
@@ -1182,12 +1253,18 @@ def parse_source(
         if def_ts is not None:
             def_worklist.append((def_ts, name_node, extra_scope))
 
+    open_namespaces = _php_open_namespaces(tree.root_node) if lang == "php" else []
     for def_ts, name_node, extra_scope in def_worklist:
         name = name_node.text.decode("utf-8", "replace")
         enclosing = _enclosing_defs(name_node, def_types)
         scope = [nm for nm in (_def_name_text(n, lang) for n in reversed(enclosing))
                  if nm]
-        full_scope = scope + extra_scope if extra_scope else scope
+        # `scope` stays definitions only: `enclosing_name` below marks a constructor, and
+        # a function named like its `mod` or a class named like its namespace is not one.
+        full_scope = (_scope_names(name_node, def_ts, def_types, lang, open_namespaces)
+                      if lang in _SCOPED_LANGS else scope)
+        if extra_scope:
+            full_scope = full_scope + extra_scope
         # A test macro with a body parses as a function_definition whose name is the
         # MACRO, so the case's real name is thrown away and every case in the repo
         # collapses onto one node. Recover the name from the macro's arguments.
@@ -2072,8 +2149,35 @@ def _def_name_text(node: ts.Node, lang: str) -> str | None:
                 if child.type in ("alias", "identifier"):
                     return child.text.decode("utf-8", "replace")
         return None
+    if lang == "rust" and node.type == "impl_item":
+        return _rust_impl_name(node)
     nm = node.child_by_field_name("name")
     return nm.text.decode("utf-8", "replace") if nm is not None else None
+
+
+def _rust_type_text(node: ts.Node) -> str:
+    """A type as written, on one line. A leading module path stays, with ``.`` for each ``::``:
+    ``a::T`` reads ``a.T``, ``fmt::Display`` reads ``fmt.Display``, and ``::std::fmt::Display``
+    reads ``.std.fmt.Display``. ``impl a::T`` and ``impl b::T`` are two types, and
+    ``impl a::Tr for X`` and ``impl b::Tr for X`` are two traits, so the path is part of the
+    name. Generic arguments stay as written, paths and all: ``Into<A>`` and ``Into<B>`` differ."""
+    text = " ".join(node.text.decode("utf-8", "replace").split())
+    head = re.match(r"(?:::)?(?:\w+::)*", text).group(0)
+    return head.replace("::", ".") + text[len(head):]
+
+
+def _rust_impl_name(impl: ts.Node) -> str | None:
+    """``A`` for ``impl A``, ``A as Display`` for ``impl Display for A``.
+
+    An `impl` has no name field. The type alone is not enough: ``impl Display for A`` and
+    ``impl Debug for A`` both define ``fmt(&self, f)``, and that pair is the commonest in Rust.
+    """
+    typ = impl.child_by_field_name("type")
+    if typ is None:
+        return None
+    trait = impl.child_by_field_name("trait")
+    name = _rust_type_text(typ)
+    return f"{name} as {_rust_type_text(trait)}" if trait is not None else name
 
 
 # The name a language spells its process entry point with. Case matters: C# is `Main`

@@ -220,6 +220,32 @@ def test_scoped_name_strips_a_file_prefix():
     assert scoped_name(n) == "Driver.run"
 
 
+def test_scoped_name_keeps_a_path_inside_a_rust_impl_name():
+    """Only the first `::` ends the file prefix; a Rust name holds more of them.
+
+    The index names a trait impl `A as From<io::Error>.from`, and keeps a path inside a
+    generic argument. Cutting at the LAST `::` left `Error>.from` as the heading.
+    """
+    a = _node("a", "function", "from", "src/lib.rs", 3,
+              qn="src/lib.rs::MyError as From<io::Error>.from")
+    b = _node("b", "function", "try_from", "src/lib.rs", 7,
+              qn="src/lib.rs::MyError as TryFrom<std::num::ParseIntError>.try_from")
+    assert scoped_name(a) == "MyError as From<io::Error>.from"
+    assert scoped_name(b) == "MyError as TryFrom<std::num::ParseIntError>.try_from"
+
+
+def test_a_rust_trait_impl_heading_keeps_the_method_name():
+    """The rendered heading is the user-visible output; it must still name `from`."""
+    shard = GraphShard(
+        repo=REPO, head_commit="h1",
+        nodes=[_node("f", "function", "from", "src/lib.rs", 3,
+                     qn="src/lib.rs::MyError as From<io::Error>.from")],
+        edges=[])
+    page = render_api_reference(shard, repo_id=REPO)
+    assert "### `MyError as From<io::Error>.from`" in page
+    assert "### `Error>.from" not in page
+
+
 def test_scoped_name_falls_back_when_the_scope_disagrees():
     """A `qualified_name` that does not end in the node's own name is not used.
 

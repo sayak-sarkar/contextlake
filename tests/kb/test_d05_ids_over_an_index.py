@@ -177,6 +177,7 @@ def test_a_parser_12_store_upgrades_with_a_plain_kb_index(tmp_path, monkeypatch,
     12, and `kb index` WITHOUT --force. The version change must make it re-index, the old
     ids must go (the repo partition is replaced; the old package node sits in the shared
     `(packages)` partition and must be pruned) and no edge may dangle."""
+    from contextlake.kb.parse import PARSER_VERSION
     from contextlake.kb.state import indexed_parser_version
 
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
@@ -195,7 +196,7 @@ def test_a_parser_12_store_upgrades_with_a_plain_kb_index(tmp_path, monkeypatch,
 
     store = _index_by(tmp_path, how)
     try:
-        assert indexed_parser_version(store, tmp_path / "store", repo_id) == "13"
+        assert indexed_parser_version(store, tmp_path / "store", repo_id) == PARSER_VERSION
         assert [nid for nid in stale if store.get_node(nid) is not None] == []
         assert _dangling(store) == []
     finally:
