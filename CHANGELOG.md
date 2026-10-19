@@ -265,6 +265,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that remain, waits up to 5 seconds more, and only then releases the lock. A second Ctrl-C
   sends SIGKILL at once and waits the same 5 seconds. On Windows the run waits for the child
   only. 10.0.0rc4 left the child running.
+- **Two scheduled runs that start together no longer both take the run lock.** The lock read the
+  holder, judged it and wrote its own record as separate steps. Two runs that started in the
+  same moment, such as two jobs whose intervals fall on one cron minute, both read no holder,
+  both took the lock and both ran against one mirror and one store. The lock now takes an OS
+  lock on `schedule-run.lock.guard`, a file beside it in the cache directory, for those steps,
+  and the second run skips with `Skipping this run`. A filesystem that cannot take OS locks
+  leaves that step unguarded, as before. 10.0.0rc4 let both runs start.
 
 ### Security
 

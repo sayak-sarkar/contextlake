@@ -90,6 +90,14 @@ The default job runs `contextlake bootstrap` on most cycles, and switches to
 `contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
 re-embedded) once `schedule_full_every` has passed since the last successful full run.
 
+Two scheduled runs never overlap on one machine. A run takes a lock file, `schedule-run.lock`,
+in the cache directory. A second run that finds a live holder logs `Skipping this run` and exits
+0. Runs that start in the same instant are decided one at a time through an OS lock on
+`schedule-run.lock.guard`, a file that stays on disk. A filesystem that cannot take OS locks
+leaves that step unguarded, so two runs that start in the same instant can both take the lock
+there. The lock covers one machine: a run on another host that shares the cache directory is
+not seen.
+
 ## Set, reset, and unset
 
 Three layers decide what interval a job runs on, and only one of them is read back as the truth:

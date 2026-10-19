@@ -5883,6 +5883,14 @@ The default job runs `contextlake bootstrap` on most cycles, and switches to
 `contextlake bootstrap --force` (a full rebuild: every repository re-parsed, every node
 re-embedded) once `schedule_full_every` has passed since the last successful full run.
 
+Two scheduled runs never overlap on one machine. A run takes a lock file, `schedule-run.lock`,
+in the cache directory. A second run that finds a live holder logs `Skipping this run` and exits
+0. Runs that start in the same instant are decided one at a time through an OS lock on
+`schedule-run.lock.guard`, a file that stays on disk. A filesystem that cannot take OS locks
+leaves that step unguarded, so two runs that start in the same instant can both take the lock
+there. The lock covers one machine: a run on another host that shares the cache directory is
+not seen.
+
 ## Set, reset, and unset
 
 Three layers decide what interval a job runs on, and only one of them is read back as the truth:
@@ -10256,6 +10264,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that remain, waits up to 5 seconds more, and only then releases the lock. A second Ctrl-C
   sends SIGKILL at once and waits the same 5 seconds. On Windows the run waits for the child
   only. 10.0.0rc4 left the child running.
+- **Two scheduled runs that start together no longer both take the run lock.** The lock read the
+  holder, judged it and wrote its own record as separate steps. Two runs that started in the
+  same moment, such as two jobs whose intervals fall on one cron minute, both read no holder,
+  both took the lock and both ran against one mirror and one store. The lock now takes an OS
+  lock on `schedule-run.lock.guard`, a file beside it in the cache directory, for those steps,
+  and the second run skips with `Skipping this run`. A filesystem that cannot take OS locks
+  leaves that step unguarded, as before. 10.0.0rc4 let both runs start.
 
 ### Security
 

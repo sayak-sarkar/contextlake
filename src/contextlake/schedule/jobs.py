@@ -127,8 +127,9 @@ def _write_document(path, mapping) -> None:
     run` and a timer-triggered one finishing at the same moment could drop
     one job's increment, which delays that job's backoff by one run rather
     than corrupting anything. Task 7's single-writer run lock
-    (``schedule/runlock.py``) makes two scheduled runs on one machine
-    impossible, which closes the path that matters. Do not add locking here.
+    (``schedule/runlock.py``) keeps two scheduled runs on one machine from
+    overlapping, on any filesystem that takes OS locks, which closes the
+    path that matters. Do not add locking here.
     """
     payload = {"version": 1, "jobs": {
         name: {"argv": job.argv, "full_argv": job.full_argv,

@@ -10,11 +10,22 @@ second writer.
 """
 from __future__ import annotations
 
+import errno
 import json
 import os
 import socket
+import time
+from contextlib import contextmanager
 
 FILENAME = "schedule-run.lock"
+# The OS lock that makes the read, judge and take steps of `acquire` one step between
+# processes. Its file sits beside the lock and stays on disk, as `kb/lock.py`'s does:
+# deleting it would let one process lock the old file while another creates and locks a new one.
+GUARD_SUFFIX = ".guard"
+# A holder keeps the guard for one read, one liveness check and one small file write,
+# which is milliseconds. One still there after this long is stuck, so the caller is refused.
+GUARD_WAIT = 5.0
+GUARD_POLL = 0.01
 
 
 class RunBusy(RuntimeError):
@@ -22,9 +33,10 @@ class RunBusy(RuntimeError):
 
     def __init__(self, holder):
         self.holder = holder
-        super().__init__(
-            f"another scheduled run is in progress: pid {holder.get('pid')} "
-            f"running job {holder.get('job')!r}")
+        # A holder that could not be read (a stuck guard) names nobody.
+        who = (f": pid {holder.get('pid')} running job {holder.get('job')!r}"
+               if holder.get("pid") else "")
+        super().__init__(f"another scheduled run is in progress{who}")
 
     def __reduce__(self):
         """Rebuild from the holder dict, not from ``args``.
@@ -55,6 +67,47 @@ def _alive(pid) -> bool:
     return True
 
 
+def _try_lock(fd) -> bool:
+    """Take an OS lock on ``fd`` without waiting. False when another holder has it.
+
+    ``flock`` and not ``lockf``: a ``flock`` belongs to the open file description, so two
+    descriptors conflict even inside one process. The kernel drops the lock when the holder
+    exits, so a crashed run leaves nothing to clean up. Same as ``kb.keyfile._try_lock``,
+    which this core-tier module cannot import. ``fcntl`` and ``msvcrt`` are imported here
+    because only one of them exists on a given platform.
+    """
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(fd, 0, os.SEEK_SET)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            if exc.errno in (errno.EACCES, getattr(errno, "EDEADLOCK", errno.EACCES)):
+                return False
+            raise
+        return True
+    import fcntl
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
+
+
+def _unlock(fd) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(fd, fcntl.LOCK_UN)
+
+
 class RunLock:
     """Context manager. Raises :class:`RunBusy` when a live peer holds it."""
 
@@ -70,23 +123,61 @@ class RunLock:
             return None
         return holder if isinstance(holder, dict) else None
 
+    @contextmanager
+    def _guard(self):
+        """Hold the guard while a process decides whether the lock is free and takes it.
+
+        Without it, two runs that started together both read no holder, both judged the
+        lock free and both took it. An OS lock, so the kernel drops it when its holder
+        exits and a guard is never stale. A filesystem that cannot lock leaves the step
+        unguarded, which is what it was before the guard.
+        """
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(self.path + GUARD_SUFFIX, flags, 0o600)
+        except OSError:
+            fd = None
+        locked = False
+        try:
+            if fd is not None:
+                for _ in range(round(GUARD_WAIT / GUARD_POLL)):
+                    try:
+                        locked = _try_lock(fd)
+                    except OSError:
+                        break
+                    if locked:
+                        break
+                    time.sleep(GUARD_POLL)
+                else:
+                    raise RunBusy(self._read() or {})
+            yield
+        finally:
+            if fd is not None:
+                if locked:
+                    try:
+                        _unlock(fd)
+                    except OSError:
+                        pass  # closing the descriptor below drops the lock either way
+                os.close(fd)
+
     def acquire(self):
-        holder = self._read()
-        if holder is not None:
-            same_host = holder.get("host") == socket.gethostname()
-            if same_host and _alive(holder.get("pid")):
-                raise RunBusy(holder)
-            # A corrupt file, a dead pid, or a lock written on another host.
-            # The host check scopes this guarantee to one machine: on shared
-            # storage (NFS, EFS, a shared PVC) a peer on another host can be
-            # a live writer this lock cannot see. See RunBusy's own docstring
-            # ("on this machine").
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-        tmp = self.path + f".{os.getpid()}.tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"pid": os.getpid(), "job": self.job,
-                       "host": socket.gethostname()}, fh)
-        os.replace(tmp, self.path)
+        with self._guard():
+            holder = self._read()
+            if holder is not None:
+                same_host = holder.get("host") == socket.gethostname()
+                if same_host and _alive(holder.get("pid")):
+                    raise RunBusy(holder)
+                # A corrupt file, a dead pid, or a lock written on another host.
+                # The host check scopes this guarantee to one machine: on shared
+                # storage (NFS, EFS, a shared PVC) a peer on another host can be
+                # a live writer this lock cannot see. See RunBusy's own docstring
+                # ("on this machine").
+            tmp = self.path + f".{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"pid": os.getpid(), "job": self.job,
+                           "host": socket.gethostname()}, fh)
+            os.replace(tmp, self.path)
         return self
 
     def release(self):
