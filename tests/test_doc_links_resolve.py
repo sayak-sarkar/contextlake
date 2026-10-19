@@ -15,6 +15,9 @@ Scope, and why it stops where it does:
 * **Absolute GitHub blob URLs into this same repo** are resolved back to a local path.
   README and QUICKSTART use those so the links work on PyPI and on GitHub, and a rename
   breaks them identically — it just does not look like a relative link.
+* **Code cites on `explained.md` and the `asking-the-graph.md` sample.** The first names a
+  file and a symbol, never a line number, and the symbol must be in that file. The second
+  prints `path:line` cites, and each line must hold the name the example is about.
 * **External URLs are not fetched.** A test that reaches the network is a test that fails
   for reasons unrelated to the change in front of you.
 
@@ -123,3 +126,47 @@ def test_the_checker_would_notice_a_broken_link():
     assert _slug("Shell completion") in {_slug(a) for a in _anchors(real)}
     assert _slug("a section that does not exist") not in {_slug(a) for a in _anchors(real)}
     assert not (DOCS / "usage.md#shell-completion").exists()
+
+
+# Each cite on explained.md: the exact text the page carries, the file it names, and the
+# text that file must hold. A line number would be wrong after the next edit above it
+# (it was: the cites pointed at a bare `#` and a docstring), so the page names a symbol.
+EXPLAINED_CITES = [
+    ("the `edges` table in `src/contextlake/kb/store/sqlite_store.py`",
+     "src/contextlake/kb/store/sqlite_store.py", "source_file TEXT, source_line INTEGER"),
+    ("`hush_hf_hub()` in `src/contextlake/kb/_util.py`",
+     "src/contextlake/kb/_util.py", 'os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY"'),
+]
+
+
+def test_explained_cites_name_a_symbol_that_is_in_the_file_they_cite():
+    page = (DOCS / "explained.md").read_text(encoding="utf-8")
+    for cite, rel, needle in EXPLAINED_CITES:
+        assert cite in page, f"explained.md no longer carries the cite {cite!r}; update this list"
+        assert needle in (REPO / rel).read_text(encoding="utf-8"), (
+            f"explained.md cites {rel} for {needle!r}, which the file no longer holds")
+    line_cites = re.findall(r"src/contextlake/[\w/]+\.py:\d+", page)
+    assert not line_cites, f"cite a symbol, not a line number, on explained.md: {line_cites}"
+
+
+def test_the_ambiguity_sample_cites_lines_that_hold_the_name_it_is_about():
+    """The sample in asking-the-graph.md prints `path:line` cites, as the tool does. It cited
+    `sqlite_store.py:179`, a docstring delimiter, and `def close` was at line 221. Each cite
+    must hit a line that holds `close`, and a `--node` id must end in the line it sits beside."""
+    page = (DOCS / "asking-the-graph.md").read_text(encoding="utf-8")
+    block = re.search(r"```text\n(Impact of changing close.*?)```", page, re.S)
+    assert block, "the 'Impact of changing close' sample moved; update this test"
+    cited = 0
+    for line in block.group(1).splitlines():
+        for rel, number in re.findall(r"((?:src|site)/[\w/.-]+\.(?:py|js)):(\d+)", line):
+            source = (REPO / rel).read_text(encoding="utf-8").splitlines()
+            held = source[int(number) - 1] if int(number) <= len(source) else "<past the end>"
+            assert "close" in held, (
+                f"asking-the-graph.md cites {rel}:{number}, which does not hold `close`: "
+                f"{held.strip()!r}")
+            cited += 1
+        node = re.search(r"--node \S+_(\d+)\b", line)
+        if node:
+            assert f":{node.group(1)} " in line, (
+                f"the node id and the cite disagree: {line.strip()}")
+    assert cited >= 4, "the sample cites fewer files than it did; this test examined too little"

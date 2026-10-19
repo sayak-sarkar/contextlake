@@ -837,14 +837,15 @@ Graph size varies a lot with the shape of the tree, so any claim about it needs 
 caveat. These four do not. They are properties of the design, each one a line you can go and read.
 
 - **Every edge records where it came from.** `source_file` and `source_line` sit on the edge row
-  itself, not on the node (`src/contextlake/kb/store/sqlite_store.py:58`). That is what lets an
-  answer say which line made it believe two things are connected, instead of only that they are.
+  itself, not on the node (the `edges` table in `src/contextlake/kb/store/sqlite_store.py`). That
+  is what lets an answer say which line made it believe two things are connected, instead of only
+  that they are.
 - **Offline is a mode, not a hope.** `--offline`, or `CONTEXTLAKE_OFFLINE=1`, raises instead of
   connecting (`src/contextlake/netguard.py`). You can turn the network off and watch it keep
   working, which is a different claim from "it happens not to call out today".
 - **No telemetry, and it turns off someone else's.** contextlake reports nothing anywhere, and it
   sets `HF_HUB_DISABLE_TELEMETRY=1` so a model download does not report on your behalf
-  (`src/contextlake/kb/_util.py:53`).
+  (`hush_hf_hub()` in `src/contextlake/kb/_util.py`).
 - **Diagrams come out of the graph.** `kb graph` renders the same store you query, to HTML, DOT,
   Mermaid, GraphML or Cypher, so the picture and the answers cannot disagree with each other.
 
@@ -6441,7 +6442,7 @@ and a footer counts how much of the answer rests on name-only matching:
 Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
   seed: function site/cmdk.js:113 (3 matched 'close'; used the first)
         or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
-        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+        or: method src/contextlake/kb/store/sqlite_store.py:221  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_221
   h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
   1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
 ```
@@ -10108,6 +10109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the page size for connector and ingest sources, but only a GitLab source reads it. On an `api`
   source it did nothing and raised no warning. The page now says so, and documents `max_pages`,
   the key that caps how many pages an `api` source reads (default 50). Docs only.
+- **Source cites in two docs pages now point at the code they name.** `explained.md` cited
+  `sqlite_store.py:58` (a bare `#`) and `_util.py:53` (docstring text) for claims about edge
+  provenance and telemetry, and the sample in `asking-the-graph.md` cited a docstring line for
+  `close`. The code was right, but a reader who opened a cite found nothing. `explained.md`
+  now names the symbol, and the sample cites the real line. Docs only.
 
 ### Security
 

@@ -443,14 +443,15 @@ Graph size varies a lot with the shape of the tree, so any claim about it needs 
 caveat. These four do not. They are properties of the design, each one a line you can go and read.
 
 - **Every edge records where it came from.** `source_file` and `source_line` sit on the edge row
-  itself, not on the node (`src/contextlake/kb/store/sqlite_store.py:58`). That is what lets an
-  answer say which line made it believe two things are connected, instead of only that they are.
+  itself, not on the node (the `edges` table in `src/contextlake/kb/store/sqlite_store.py`). That
+  is what lets an answer say which line made it believe two things are connected, instead of only
+  that they are.
 - **Offline is a mode, not a hope.** `--offline`, or `CONTEXTLAKE_OFFLINE=1`, raises instead of
   connecting (`src/contextlake/netguard.py`). You can turn the network off and watch it keep
   working, which is a different claim from "it happens not to call out today".
 - **No telemetry, and it turns off someone else's.** contextlake reports nothing anywhere, and it
   sets `HF_HUB_DISABLE_TELEMETRY=1` so a model download does not report on your behalf
-  (`src/contextlake/kb/_util.py:53`).
+  (`hush_hf_hub()` in `src/contextlake/kb/_util.py`).
 - **Diagrams come out of the graph.** `kb graph` renders the same store you query, to HTML, DOT,
   Mermaid, GraphML or Cypher, so the picture and the answers cannot disagree with each other.
 

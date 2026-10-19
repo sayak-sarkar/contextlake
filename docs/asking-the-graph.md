@@ -176,7 +176,7 @@ and a footer counts how much of the answer rests on name-only matching:
 Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
   seed: function site/cmdk.js:113 (3 matched 'close'; used the first)
         or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
-        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+        or: method src/contextlake/kb/store/sqlite_store.py:221  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_221
   h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
   1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
 ```

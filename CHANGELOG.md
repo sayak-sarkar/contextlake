@@ -188,6 +188,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the page size for connector and ingest sources, but only a GitLab source reads it. On an `api`
   source it did nothing and raised no warning. The page now says so, and documents `max_pages`,
   the key that caps how many pages an `api` source reads (default 50). Docs only.
+- **Source cites in two docs pages now point at the code they name.** `explained.md` cited
+  `sqlite_store.py:58` (a bare `#`) and `_util.py:53` (docstring text) for claims about edge
+  provenance and telemetry, and the sample in `asking-the-graph.md` cited a docstring line for
+  `close`. The code was right, but a reader who opened a cite found nothing. `explained.md`
+  now names the symbol, and the sample cites the real line. Docs only.
 
 ### Security
 
