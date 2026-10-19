@@ -29,6 +29,16 @@ OWNERS = "owners"
 EXPLAIN = "explain"
 SEARCH = "search"
 
+# The subject of "who DO YOU THINK depends on X": the "do" belongs to the verb of thinking
+# after the pronoun, not to "depend". "all" covers "do you all think".
+_PRONOUN = r"(?:you|we|they|i|he|she)(?:\s+all)?"
+# A verb of thinking or saying. Only the plural "depend" needs the list: after a pronoun
+# and one word, "depends" is third person singular, so the word cannot be an adverb as it
+# can in "what do we still depend on".
+_OPINION_VERB = (
+    r"(?:think|know|believe|suppose|guess|reckon|imagine|expect|assume|suspect|"
+    r"understand|remember|recall|say|claim|figure|find|hope|see|feel|wonder|bet)")
+
 # Ordered (most specific first). The first pattern that matches wins, so a
 # change-verb question routes to impact before the bare "depends on" would send
 # it to dependents, and "what does X depend on" routes to search before it.
@@ -53,8 +63,13 @@ _RULES: list[tuple[str, re.Pattern]] = [
     # untouched. "Do not" is skipped: "which repos do not depend on X" is still about X.
     # So is a relative clause, "which repos do we have that depend on X": the lookbehind
     # leaves a "depend" whose subject is "that", "which" or "who" to the next rule.
+    # A pronoun after the "do" skips it when the "do" belongs to a verb of thinking: in "who
+    # do you think depends on X" the question is about X. One word and "depends" is enough.
+    # The plural "depend" needs a listed verb, as "what do we still depend on" is outgoing.
+    # The pronoun is required so that a subject named "claim" or "say" stays outgoing.
     (SEARCH, re.compile(
         r"\b(what|which|who|how\s+(many|much))\b[^?.!,;:]*?\b(does|do|did)\b(?!\s+not\b)"
+        rf"(?!\s+{_PRONOUN}\s+(?:\S+\s+depends|{_OPINION_VERB}\s+depend)\s+on\b)"
         r"[^?.!,;:]*?(?<!that )(?<!which )(?<!who )\bdepends?\s+on\b", re.I)),
     (DEPENDENTS, re.compile(
         r"\b(what\s+depends\s+on|who\s+depends\s+on|depends?\s+on|dependents?\s+of|"

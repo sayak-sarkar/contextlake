@@ -9976,6 +9976,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full-text results; it now shows vector hits. The window is now capped at 4096 rows, so a large
   `k` returns as many hits as the window holds, or fewer when one document owns several chunks
   of it. Keys limited by `--repos` were already capped.
+- **`ask` again sends "Who do you think depends on X?" to the dependents of X.** 10.0.0rc4 sent
+  it to search. The rule that sends "What does X depend on?" to search read the "do" in "do you
+  think" and "do you know" as the helper verb of "depend". "Which team do you know depends on
+  X?" and "How many services do we think depend on X?" returned name matches, not dependents.
+  A pronoun (`you`, `we`, `they`, `I`, `he`, `she`) after the "do" now keeps the question on
+  the dependents route when one word and "depends" follow, or a verb such as think, know or say
+  and "depend". "What does X depend on?", "What do we still depend on?" and "What do you think X
+  depends on?" still go to search.
 
 ### Security
 

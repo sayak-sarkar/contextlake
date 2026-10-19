@@ -84,6 +84,17 @@ _OUTGOING_DEPENDENCY_QUESTIONS = [
     "Who does payments-api depend on?",
     "What does payments-api depend on in production?",
     "What does payments-api depend on? Name the packages.",
+    # A subject that is also a verb of thinking or saying stays outgoing.
+    "What does claim depend on?",
+    "What does the Claim module depend on?",
+    "What does say depend on?",
+    # A pronoun and an adverb before the plural "depend" is not a verb of thinking.
+    "What do we still depend on?",
+    "What do we all depend on?",
+    "Which services do we now depend on?",
+    # The "do" of a verb of thinking, with the dependent named after it.
+    "What do you think payments-api depends on?",
+    "What does the team think payments-api depends on?",
 ]
 
 
@@ -110,6 +121,21 @@ _INCOMING_DEPENDENCY_QUESTIONS = [
     ("what does payments-api do, and which repos depend on it", "payments-api"),
     ("which repos do we have that depend on payments-api", "payments-api"),
     ("which repos does the team own that depend on payments-api", "payments-api"),
+    # A verb of thinking or saying takes the "do": the wh-word is still about the incoming
+    # side. The SEARCH rule read that "do" as the helper verb of "depend".
+    ("Who do you think depends on payments-api?", "payments-api"),
+    ("What do you think depends on payments-api?", "payments-api"),
+    ("Which team do you know depends on payments-api?", "payments-api"),
+    ("Which repos do you know depend on payments-api?", "payments-api"),
+    ("how many services do we think depend on payments-api", "payments-api"),
+    ("Who did you say depends on payments-api?", "payments-api"),
+    ("Who do you figure depends on payments-api?", "payments-api"),
+    ("Who do you hope depends on payments-api?", "payments-api"),
+    ("Which repos do you find depend on payments-api?", "payments-api"),
+    ("Who do you all think depends on payments-api?", "payments-api"),
+    # "depends" after a pronoun and one word needs no listed verb, only the plural does.
+    ("Who do you presume depends on payments-api?", "payments-api"),
+    ("Who do they gather depends on payments-api?", "payments-api"),
 ]
 
 
