@@ -579,9 +579,10 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
     _repos = [r for r in store.list_repos() if not wanted or r.id in wanted]
     _repo_paths = {r.id: r.path for r in _repos}
     for repo_id in [r.id for r in _repos]:
-        # The module plan first, because the whole-repo brief takes it: the generated
-        # path passes `subsystem_modules` so its page can name the subsystem pages, and
-        # a brief built without it is a DIFFERENT brief that path cannot reuse.
+        # The module plan first, because the whole-repo page renders its module table.
+        # The brief carries no `subsystem_modules`: which modules have a page is only
+        # known after the module loop below, so the generated path sets that list on the
+        # brief it reuses (see `_run_page`).
         #
         # The node count for that plan comes from the SHARD, not from a preliminary
         # brief. Building one brief to size the repo and a second to carry the modules
@@ -608,8 +609,7 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
         # with the modules: `([], False)` means the index is not answering, and the
         # generated path must still refuse to prune on it.
         plans[repo_id] = (modules, may_prune)
-        brief = repo_brief(store_dir, repo_id, store=store,
-                           subsystem_modules=modules or None)
+        brief = repo_brief(store_dir, repo_id, store=store)
         if brief is None or not brief.get("coverage_total"):
             # No FILE-BACKED symbol either: the graph holds only fleet-wide package or
             # module nodes, so every section would describe something that is not this
@@ -1118,7 +1118,8 @@ def cmd_wiki(args) -> int:
             # Every brief there is built with these same arguments precisely so this
             # lookup is sound; a mismatch would silently hand the generated page a brief
             # scoped differently from the one it asked for, which no test could see
-            # because both are valid briefs.
+            # because both are valid briefs. The subsystem list is set below, once the
+            # reuse has happened.
             # Bound unconditionally: `generate_page` below takes it too, so leaving it
             # inside the fallback made it unbound on every reused-brief run. Ruff cannot
             # see that (both uses are in the same function) and the tests found it, which
@@ -1130,6 +1131,15 @@ def cmd_wiki(args) -> int:
                 brief = repo_brief(store_dir, repo_id, store=brief_store,
                                    path_prefix=path_prefix,
                                    subsystem_modules=subsystem_modules)
+            elif brief.get("subsystem_modules") != (subsystem_modules or []):
+                # Named here, not taken from the plan. The prompt and the footer must name
+                # the modules that have a page, which is what the freshness check above
+                # compares them with. The plan holds more than gets one: the structural
+                # stage stops at `_MAX_STRUCTURAL_MODULE_PAGES` and skips a module whose
+                # scoped brief is empty. Naming those pointed at pages that do not exist,
+                # and the footer then never matched the check, so the overview was
+                # regenerated on every run.
+                brief = {**brief, "subsystem_modules": subsystem_modules or []}
             # A module `repo_modules()` (SQLite index) said has real content can
             # still come back empty here if the shard (JSON, a different
             # persistence layer -- see _module_page_plan) disagrees, e.g. a

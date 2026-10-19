@@ -2271,6 +2271,47 @@ def test_cmd_wiki_backfills_subsystem_naming_onto_an_unchanged_commit(
     assert third.page_prompts == []
 
 
+@pytest.mark.slow
+def test_cmd_wiki_overview_names_only_modules_that_have_a_page(tmp_path, monkeypatch, gls_logs):
+    """The structural stage writes pages for the largest `_MAX_STRUCTURAL_MODULE_PAGES`
+    modules and builds the overview brief from ALL of them. The generated overview reused
+    that brief, so its prompt and footer named a module with no page, while the freshness
+    check compares the footer with the modules that DO have one. With one module over the
+    cap the two never matched, and every run on an unchanged commit paid for the overview
+    again."""
+    from contextlake.kb.cmds.wiki import _MAX_STRUCTURAL_MODULE_PAGES
+    from contextlake.kb.wiki.generate import recorded_subsystems
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    n_modules = _MAX_STRUCTURAL_MODULE_PAGES + 1
+    # 25 symbols a module is the smallest that keeps 201 modules above the federated floor.
+    store_dir = _setup_federated_repo(tmp_path, n_modules=n_modules, nodes_per_module=25)
+    first = _CapturingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: first)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    modules_dir = store_dir / "wiki" / "_modules"
+    paged = {f.stem.split("__", 1)[1] for f in modules_dir.glob("fed__mod*.md")}
+    assert len(paged) == _MAX_STRUCTURAL_MODULE_PAGES
+    (unpaged,) = {f"mod{i}" for i in range(n_modules)} - paged
+
+    overview = store_dir / "wiki" / "fed.md"
+    assert set(recorded_subsystems(overview.read_text()).split(",")) == paged
+    prompt = next(p for p in first.page_prompts if "ONLY the" not in p)
+    line = next(ln for ln in prompt.splitlines() if "broken into subsystems" in ln)
+    assert set(line.split("wiki page: ", 1)[1].split(". ", 1)[0].split(", ")) == paged
+    overview_mtime = overview.stat().st_mtime_ns
+
+    second = _CapturingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: second)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert "does not name the subsystem pages" not in gls_logs.text
+    assert [p for p in second.page_prompts if "ONLY the" not in p] == []
+    assert overview.stat().st_mtime_ns == overview_mtime
+    assert unpaged not in recorded_subsystems(overview.read_text()).split(",")
+
+
 def test_coverage_ratio_is_comparable_between_a_repo_and_its_module_page(tmp_path):
     """The "Grounded in N/M ... (P%)" fact must mean the same thing on a
     whole-repo page and on one of its module pages. A module-scoped brief can

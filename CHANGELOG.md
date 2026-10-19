@@ -465,6 +465,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `wiki/<slug>.md`, a file that does not exist, instead of the page under `wiki/_clusters/`. If
   an earlier release already replaced a repo's rows, run `kb wiki --force <repo id>` to restore
   them. Stored cluster citations are corrected when the cluster page is next regenerated.
+- **`kb wiki` no longer regenerates a large repo's overview on every run.** With more than 200
+  qualifying modules, the overview named a subsystem that has no page, because the structural
+  pages stop at the largest 200. The freshness check compares the footer with the modules that
+  have a page, so the two never matched, and each run on an unchanged commit paid for the
+  overview and its council again. The overview now names only the subsystems that have a page or
+  are picked for one in that run, and the first run after the upgrade rewrites it once.
+  10.0.0rc4 and earlier are affected.
 
 ### Security
 

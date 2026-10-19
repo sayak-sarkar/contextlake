@@ -318,6 +318,11 @@ The run says how many are still waiting, rather than going quiet about it:
 **Once subsystem pages exist**, the whole-repo overview names and briefly describes each one and
 links to it, instead of summarising their internals inline.
 
+The overview names only the subsystems that have a page on disk or are picked for one in that
+run. This matters above 200 qualifying modules: the structural pages cover the largest 200, and
+the overview names those until later runs reach the rest. On an unchanged commit it is not
+regenerated.
+
 One catch: the overview only picks that up the next time it is regenerated. A repo
 already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
 pages still generate. So an existing store gets the naming after its next commit, or on a
