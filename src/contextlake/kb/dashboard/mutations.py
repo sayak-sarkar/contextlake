@@ -107,11 +107,14 @@ def _derive_dest_name(url: str) -> str:
 
 
 def _persist_repo(store, store_dir, repo_id: str, path: Path, head: str | None, shard) -> None:
+    from ..cmds._common import _git_branch
     from ..model import Repo
     from ..state import mark_repo_indexed
     from ..store.shards import archive_shard, reindex_shard, write_shard
 
-    store.upsert_repo(Repo(id=repo_id, path=str(path)))
+    # The branch too, like cmds/index.py does: `upsert_repo` writes every column it is
+    # given, so a Repo with no branch replaced the one `kb index` had recorded with NULL.
+    store.upsert_repo(Repo(id=repo_id, path=str(path), default_branch=_git_branch(path)))
     write_shard(store_dir, shard)
     archive_shard(store_dir, shard)
     reindex_shard(store, store_dir, repo_id)

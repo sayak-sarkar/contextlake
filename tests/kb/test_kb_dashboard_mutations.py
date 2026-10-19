@@ -22,9 +22,9 @@ def _git(repo, *args):
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
-def _init_repo(path, *, with_remote_origin=None):
+def _init_repo(path, *, with_remote_origin=None, branch=None):
     path.mkdir(parents=True, exist_ok=True)
-    _git(path, "init", "-q")
+    _git(path, "init", "-q", *(["-b", branch] if branch else []))
     _git(path, "config", "user.email", "t@example.com")
     _git(path, "config", "user.name", "T")
     (path / "a.py").write_text("def a():\n    pass\n")
@@ -104,6 +104,31 @@ def test_sync_repo_pulls_and_reindexes(tmp_path):
     store.close()
 
 
+def test_sync_repo_records_the_branch_it_reindexed(tmp_path):
+    """``upsert_repo`` writes every column it is given, so a sync that built its Repo
+    with no branch replaced the one ``kb index`` recorded with NULL, and the fleet
+    overview and the MCP repo list showed none. The row starts on a different branch
+    name than the checkout, so only a branch read from git can pass."""
+    origin = _init_repo(tmp_path / "origin", branch="trunk")
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True, capture_output=True)
+    head = subprocess.run(["git", "-C", str(clone), "rev-parse", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="acme/app", path=str(clone), default_branch="old-name",
+                           head_commit=head))
+    store.mark_indexed("acme/app", head, "2026-01-01T00:00:00Z")
+    (origin / "b.py").write_text("def b():\n    pass\n")
+    _git(origin, "add", ".")
+    _git(origin, "commit", "-q", "-m", "add b")
+
+    result = mut.sync_repo(store, tmp_path, "acme/app")
+
+    assert result["changed"] is True
+    assert store.get_repo("acme/app").default_branch == "trunk"
+    store.close()
+
+
 # --- add_repo --------------------------------------------------------------
 
 def test_add_repo_rejects_bad_url(tmp_path):
@@ -132,6 +157,21 @@ def test_add_repo_clones_and_indexes(tmp_path, monkeypatch):
     assert (workspace / "origin").is_dir()
     assert result["nodes"] >= 1
     assert store.get_repo("acme/origin") is not None
+    store.close()
+
+
+def test_add_repo_records_the_branch_it_cloned(tmp_path, monkeypatch):
+    """A repo added from the dashboard never received a branch, for the reason
+    ``test_sync_repo_records_the_branch_it_reindexed`` gives."""
+    monkeypatch.setattr(mut, "validate_clone_url", lambda url: None)
+    monkeypatch.setattr("contextlake.kb.repo_identity.resolve_repo_id", lambda path: "acme/origin")
+    origin = _init_repo(tmp_path / "origin", branch="trunk")
+    store = SqliteStore(tmp_path / "index.sqlite")
+
+    result = mut.add_repo(store, tmp_path, tmp_path / "ws", str(origin))
+
+    assert result["ok"] is True
+    assert store.get_repo("acme/origin").default_branch == "trunk"
     store.close()
 
 

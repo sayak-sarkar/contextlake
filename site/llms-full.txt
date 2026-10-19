@@ -10041,6 +10041,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to another process. The pidfile now records the server's start time (on systems with `/proc`),
   a status poll deletes it once the server is gone, and a pid with a different start time reads
   as Stopped. A pid owned by another user no longer holds the card on Running.
+- **Dashboard Sync now and Add repo no longer blank a repo's branch.** Both actions saved the
+  repo row without its `default_branch`, which overwrote the branch `kb index` had recorded with
+  nothing. The fleet overview and the MCP repo list then showed no branch until the next
+  `kb index`, and a repo added from the dashboard never had one. Both actions now record the
+  checked-out branch.
 
 ### Security
 
