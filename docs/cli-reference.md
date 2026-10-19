@@ -220,6 +220,10 @@ container whose volume mount did not appear starts with the named path empty, an
 used to mint one unscoped shared token and print stderr that read like a fresh machine. Only
 the default tier, with nobody naming anything, may mint.
 
+A blank value is refused the same way, exit 1. `--keys-file ""` and `CONTEXTLAKE_KEYS_FILE=`
+come from a shell that expanded an unset variable, such as `--keys-file "$KEYS_FILE"`. They do
+not fall back to the default path. Leave the flag or the variable out to use a lower tier.
+
 A `[serve] keys_file` in a `.contextlake.kb.toml` found by walking up from the current
 directory is ignored, and the run says so on one line. That file sits inside a repository
 checkout, so anything it points at gets committed. Pass `--config <file>`, or set the key in

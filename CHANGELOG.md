@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`kb serve --keys-file ""` now exits 1 instead of starting on a shared token.** A blank
+  `--keys-file`, such as `--keys-file "$KEYS_FILE"` with the variable unset, skipped the flag
+  and fell through to the default key file. With no file there, the server took it for a first
+  start, printed one unscoped shared token and served, and scoped keys were never read. A blank
+  `$CONTEXTLAKE_KEYS_FILE` already refused. Both now refuse and name what was blank. If a start
+  script passes a blank value on purpose, drop the flag so a lower tier answers. 10.0.0rc4 fell
+  through.
+
 ## [10.0.0rc4] - 2026-10-18
 
 ### Changed

@@ -1692,6 +1692,32 @@ def test_a_blank_keys_file_variable_refuses_instead_of_using_the_default(
         env={keyfile.KEYS_FILE_ENV: "  "})[1] == keyfile.SOURCE_CLI
 
 
+def test_a_blank_keys_file_flag_refuses_instead_of_using_the_default(
+        tmp_path, isolated_config, monkeypatch):
+    """`--keys-file ""` is the same shell accident as a blank variable.
+
+    `--keys-file "$KEYS_FILE"` with the variable unset passes the empty string.
+    The CLI tier tested truthiness, so the blank value skipped it and resolved
+    to the default path with source "default", the one source that may mint an
+    unscoped shared token. Only None (the flag not given) reaches the lower
+    tiers."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    for blank in ("", "   ", "\t\n"):
+        with pytest.raises(keyfile.KeyFileError) as caught:
+            keyfile.resolve_keys_file_with_source(blank, env={})
+        assert "--keys-file" in str(caught.value)
+        assert str(keyfile.default_keys_file()) in str(caught.value)
+
+    # A blank flag is refused even when a lower tier names a path: the operator
+    # typed the flag, so another tier answering for it hides the mistake.
+    with pytest.raises(keyfile.KeyFileError):
+        keyfile.resolve_keys_file_with_source(
+            "", env={keyfile.KEYS_FILE_ENV: str(tmp_path / "named.json")})
+    # Not given at all is still the lower tiers' decision.
+    assert keyfile.resolve_keys_file_with_source(None, env={}) == (
+        keyfile.default_keys_file(), keyfile.SOURCE_DEFAULT)
+
+
 def test_resolve_keys_file_is_the_same_walk_without_the_source(tmp_path,
                                                                isolated_config,
                                                                monkeypatch):

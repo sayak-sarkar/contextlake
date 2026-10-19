@@ -542,22 +542,33 @@ def resolve_keys_file_with_source(cli_path=None, *, env=None, config_path=None,
     PRESENT; the empty-directory case is refused by the write verb instead. See
     the module docstring.
 
-    **A SET BUT BLANK ``$CONTEXTLAKE_KEYS_FILE`` RAISES.** It is not "unset". A
-    shell that expanded an unset variable into the value, or a container passing
-    ``--env CONTEXTLAKE_KEYS_FILE=`` from an empty template, produces it, and
-    falling through to the default path then puts an EMPTY default in front of
-    ``cmd_serve``, which mints an unscoped shared token for a deployment that
-    asked for a key file. ``$CONTEXTLAKE_MCP_TOKEN`` already answers the same
-    input in the fail-closed direction (``server.resolve_token``: blank is not
-    honoured as a token, a fresh one is minted), and two env vars that read one
-    shell accident in opposite directions is the asymmetry this closes. Raised
-    here and not in ``cmd_serve`` because ``kb keys create`` must not silently
-    write to the default path on that input either.
+    **A SET BUT BLANK ``--keys-file`` OR ``$CONTEXTLAKE_KEYS_FILE`` RAISES.** It
+    is not "unset". A shell that expanded an unset variable into the value, or a
+    container passing ``--env CONTEXTLAKE_KEYS_FILE=`` from an empty template,
+    produces it, and falling through to the default path then puts an EMPTY
+    default in front of ``cmd_serve``, which mints an unscoped shared token for a
+    deployment that asked for a key file. ``$CONTEXTLAKE_MCP_TOKEN`` already
+    answers the same input in the fail-closed direction
+    (``server.resolve_token``: blank is not honoured as a token, a fresh one is
+    minted), and two env vars that read one shell accident in opposite
+    directions is the asymmetry this closes. ``--keys-file ""`` is the same
+    accident (``--keys-file "$KEYS_FILE"`` with the variable unset) and the CLI
+    tier used to test truthiness, so it fell through to the default. Raised here
+    and not in ``cmd_serve`` because ``kb keys create`` must not silently write
+    to the default path on that input either.
     """
     warn = warn or _default_warn
     env = os.environ if env is None else env
-    if cli_path:
-        return _expand(cli_path), SOURCE_CLI
+    if cli_path is not None:
+        from_cli = str(cli_path).strip()
+        if not from_cli:
+            raise KeyFileError(
+                "--keys-file is set and blank. Refusing to fall back to "
+                f"{default_keys_file()}: a blank value is a shell that expanded "
+                "an unset variable, not a decision to use the default. Point it "
+                "at the key file, or drop the flag."
+            )
+        return _expand(from_cli), SOURCE_CLI
     raw_env = env.get(KEYS_FILE_ENV)
     # Read RAW, then strip. `(value or "").strip()` collapses unset and
     # set-but-blank into one branch, and that collapse is the whole defect.

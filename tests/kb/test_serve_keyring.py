@@ -560,6 +560,29 @@ def test_a_blank_keys_file_variable_refuses_the_start(tmp_path, monkeypatch,
     assert keyfile.KEYS_FILE_ENV in err
 
 
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_a_blank_keys_file_flag_refuses_the_start(tmp_path, monkeypatch, capsys,
+                                                  blank):
+    """`--keys-file ""` reaches `cmd_serve` as a refusal, not as a first start.
+
+    With nothing at the default path this used to mint one unscoped shared
+    token and serve, for an operator who passed `--keys-file "$KEYS_FILE"` with
+    the variable unset. The env tier already refused the same input."""
+    from contextlake.kb import keyfile
+
+    _unnamed_default(tmp_path, monkeypatch)
+    args = _serve_args(tmp_path)
+
+    rc, captured, minted = _run_serve(args, monkeypatch, keys_file=blank)
+
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert captured == {} and minted == []
+    assert "Bearer token:" not in err
+    assert "--keys-file" in err and "blank" in err
+    assert not keyfile.default_keys_file().exists()
+
+
 def test_a_key_file_this_reader_cannot_account_for_refuses(tmp_path, monkeypatch,
                                                            capsys):
     """The fifth content state, injected through the `keys_module` seam.
