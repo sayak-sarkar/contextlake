@@ -131,14 +131,43 @@ def test_the_extras_parser_sees_the_extras() -> None:
 
 def test_security_md_names_exactly_the_extras_no_audit_job_covers() -> None:
     """SECURITY.md said pip-audit covered "every shipped extra". kb-ocr, kb-video,
-    kb-transcribe and kb-dockerfile were in no audit job, and a CVE in them turned nothing red."""
+    kb-transcribe and kb-dockerfile were in no audit job, and a CVE in them turned nothing red.
+
+    Every extra is audited now, so the set is empty and SECURITY.md has no `Not audited by any
+    job:` line. A new extra that no job installs makes the set non-empty, and this fails until
+    the extra is added to a job or named on that line."""
     security = _flat(REPO / "SECURITY.md")
     m = re.search(r"Not audited by any job: ((?:`[a-z0-9-]+`(?:, )?)+)\.", security)
-    assert m, "SECURITY.md has no `Not audited by any job: ...` line"
-    named = set(re.findall(r"`([a-z0-9-]+)`", m.group(1)))
+    named = set(re.findall(r"`([a-z0-9-]+)`", m.group(1))) if m else set()
     assert named == _unaudited_extras(), (
         "SECURITY.md and security.yml disagree about which extras are audited")
     assert "every shipped extra" not in security
+
+
+def test_the_resolved_audit_job_lists_the_extras_that_hold_pillow() -> None:
+    """kb-ocr reads repository images with Pillow, so the job that audits the resolved set
+    must resolve kb-ocr, kb-video and kb-transcribe, and its canary must look for rapidocr."""
+    workflow = (REPO / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
+    resolve = re.search(r"--report resolved\.json \\\n\s*'\.\[([a-z0-9,-]+)\]'", workflow)
+    assert resolve, "security.yml no longer resolves a list of extras into resolved.json"
+    assert {"kb-ocr", "kb-video", "kb-transcribe"} <= set(resolve.group(1).split(","))
+    assert re.search(r"for pkg in [^;]*\brapidocr_onnxruntime\b", workflow)
+    assert "ignore-vuln" not in workflow, "the audit has an ignore list"
+
+
+def test_kb_ocr_requires_a_fixed_pillow() -> None:
+    """The extra holds an unconditional floor on Pillow, so no Python gets a Pillow 12."""
+    deps = _extras()["kb-ocr"]
+    assert '"pillow>=13.0"' in deps
+    assert "pillow>=13.0;" not in deps, "a marker on the Pillow floor lets Pillow 12 install"
+
+
+def test_kb_fastembed_does_not_install_the_fastembed_library() -> None:
+    """fastembed requires Pillow below 13, which holds the eight advisories above."""
+    deps = _extras()["kb-fastembed"]
+    assert not re.search(r"fastembed\s*[<>=!~]", deps) and '"fastembed"' not in deps
+    for needed in ("onnxruntime", "tokenizers", "huggingface_hub", "numpy"):
+        assert f'"{needed}' in deps, f"kb-fastembed no longer lists {needed}"
 
 
 _WORKFLOWS = REPO / ".github" / "workflows"

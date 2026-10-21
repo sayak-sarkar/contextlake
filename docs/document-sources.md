@@ -129,6 +129,11 @@ leaves the machine. The offline boundary holds for images exactly as it does for
 It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.
 
+rapidocr opens each image file with Pillow, so a Pillow advisory reaches files in your
+repositories that this tool did not write. `[kb-ocr]` therefore requires Pillow 13 or newer.
+Pillow 13 needs Python 3.11 or newer. On Python 3.10 the extra fails to install: pip reports
+no matching Pillow, because the only Pillow for 3.10 is version 12, which has eight advisories.
+
 An OCR'd document is marked. Its node carries `ocr = true` in `attrs`, because OCR misreads and a
 reader deciding how far to trust a line should not have to infer that from a file extension.
 

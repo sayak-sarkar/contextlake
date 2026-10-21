@@ -6,7 +6,7 @@ fixed-length vectors; the rest of the knowledge layer stays provider-agnostic.
 
 from __future__ import annotations
 
-import importlib.util
+import importlib.util  # noqa: F401 -- tests patch base.importlib.util.find_spec
 from abc import ABC, abstractmethod
 
 from .._util import ollama_has_model, ollama_reachable
@@ -69,12 +69,11 @@ def embedder_runtime_state(embedder) -> tuple[bool | None, str]:
     # carrying the same three attributes deserves the same answer.
     if not (engine and model_id and cache_dir):
         return True, ""
-    from .builtin import _ENGINE_EXTRA
+    from .builtin import engine_installed, install_command
 
-    if importlib.util.find_spec(engine) is None:
-        extra = _ENGINE_EXTRA.get(engine, "kb-local")
+    if not engine_installed(engine, model_id):
         return False, (f"the {engine!r} engine is not installed "
-                       f"(pip install 'contextlake[{extra}]')")
+                       f"({install_command(engine, model_id)})")
     from ..model_cache import is_cached
 
     if not is_cached(cache_dir, model_id):
@@ -169,8 +168,9 @@ def _resolve_auto_embedder(cfg) -> Embedder | None:
         return OllamaEmbedder(model=model, base_url=base_url,
                               batch_size=getattr(cfg, "batch_size", 64))
     engine = (getattr(cfg, "engine", "model2vec") or "model2vec").lower()
-    module = "fastembed" if engine == "fastembed" else "model2vec"
-    # find_spec locates the package without importing the heavy module.
-    if importlib.util.find_spec(module) is not None:
+    from .builtin import engine_installed
+
+    # find_spec locates the packages without importing the heavy modules.
+    if engine_installed(engine, getattr(cfg, "model", None)):
         return _build_builtin_embedder(cfg)
     return None

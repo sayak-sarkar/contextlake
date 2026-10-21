@@ -42,7 +42,9 @@ the model pulled, and otherwise to the built-in CPU model.
   walking up from the current directory.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
-    (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
+    (~67MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`. That extra installs
+    onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
+    fastembed model needs `pip install fastembed`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
     via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
     compiler, no custom index).

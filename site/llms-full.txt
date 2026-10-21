@@ -985,13 +985,18 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-full]` | `[kb]` plus the built-in CPU embedder and the sqlite-vec ANN backend | The default choice: local semantic search with no Ollama and no API key |
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
-| `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
+| `[kb-fastembed]` | A higher-quality ONNX embedder (model about 67 MB). It installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library | Better semantic ranking, at a larger download. The vectors are the same ones the fastembed library gave, so a store built before needs no re-embed |
 | `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
 | `[kb-ocr]` | Local OCR for ingesting images (rapidocr-onnxruntime, about 390 MB) | Screenshots, exported diagrams and whiteboards. Models ship inside the wheel, so nothing is downloaded and no image leaves the machine |
 | `[kb-video]` | Decode a video and OCR its frames (`av`, about 115 MB on top of `[kb-ocr]`) | Recorded demos and walkthroughs. `av` bundles ffmpeg, so there is no system package to install, and nothing is downloaded at runtime |
 | `[kb-transcribe]` | The spoken track of a video (faster-whisper, about 438 MB on top of `[kb-video]`) | Recorded design reviews, where the decision is spoken rather than shown. The speech model is fetched once and cached, like `[kb-local]`'s embedder |
 | `[kb-dockerfile]` | The Dockerfile grammar | Indexing `Dockerfile`s. Optional only because the grammar ships wheels for macOS arm64 and Linux x86_64 and no source distribution, so requiring it would break installation everywhere else. Without it, Dockerfiles are skipped and the run says so and names this extra |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
+
+`[kb-ocr]`, `[kb-video]` and `[kb-transcribe]` need Pillow 13, which has the fixes for eight
+security advisories in Pillow 12. Pillow 13 needs Python 3.11 or newer. On Python 3.10 these
+three fail to install, because no Pillow 13 exists for 3.10. Use Python 3.11 or newer for them.
+See [SECURITY.md](../SECURITY.md#pillow-12-eight-advisories).
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -1195,7 +1200,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 | Flag | Effect |
 | --- | --- |
 | `--fix` | Install every missing dependency the resolved config calls for |
-| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `[kb-local]` otherwise) |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `fastembed` itself for another fastembed model, `[kb-local]` otherwise) |
 | `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
 | `--skip-interactive` | Never prompt: privileged commands are printed, not run |
 
@@ -3831,6 +3836,11 @@ leaves the machine. The offline boundary holds for images exactly as it does for
 It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.
 
+rapidocr opens each image file with Pillow, so a Pillow advisory reaches files in your
+repositories that this tool did not write. `[kb-ocr]` therefore requires Pillow 13 or newer.
+Pillow 13 needs Python 3.11 or newer. On Python 3.10 the extra fails to install: pip reports
+no matching Pillow, because the only Pillow for 3.10 is version 12, which has eight advisories.
+
 An OCR'd document is marked. Its node carries `ocr = true` in `attrs`, because OCR misreads and a
 reader deciding how far to trust a line should not have to infer that from a file extension.
 
@@ -4415,7 +4425,7 @@ first batch passes the check, or at the end of the source when every body is emp
 | --- | --- | --- |
 | `minishlab/potion-base-8M` | the default | A **static** model: it looks each token up in a table instead of running a transformer forward pass. Small enough to ship as a CPU default, fast enough that query latency is not the thing you notice. |
 | `minishlab/potion-base-32M` | `model = "minishlab/potion-base-32M"` under `[embeddings]` | The larger sibling of the same family. |
-| `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. |
+| `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. The extra installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library. The vectors match fastembed 0.9.0, so a store built with it needs no re-embed. Another fastembed model needs `pip install fastembed`. |
 
 On a store that already holds vectors the identity guard refuses to mix models, so switch on
 a fresh vector store. `kb ingest` takes one probe vector. When the embedder answers, the
@@ -5261,7 +5271,9 @@ the model pulled, and otherwise to the built-in CPU model.
   walking up from the current directory.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
-    (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
+    (~67MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`. That extra installs
+    onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
+    fastembed model needs `pip install fastembed`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
     via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
     compiler, no custom index).
@@ -10764,6 +10776,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still make a shared node that a limited key can read. The next `kb index` re-indexes by itself
   and removes the old shared nodes. Saved ids of those modules stop resolving. 10.0.0rc4
   returned the path.
+- **`kb-fastembed` no longer installs fastembed, and `kb-ocr` requires Pillow 13, which clears
+  eight Pillow CVEs.** CVE-2026-112895, CVE-2026-112400, CVE-2026-112397, CVE-2026-112896,
+  CVE-2026-112897, CVE-2026-112395, CVE-2026-112404 and CVE-2026-112899 affect Pillow 12.3.0 and
+  are fixed only in 13.0.0. `kb-fastembed` pulled in Pillow 12 through fastembed, and
+  contextlake never called Pillow on that path. `kb-ocr`, `kb-video` and `kb-transcribe` open
+  repository images with Pillow, so those images reached Pillow 12 wherever it was installed.
+  `engine = "fastembed"` now runs `BAAI/bge-small-en-v1.5` on onnxruntime and gives the same
+  vectors as fastembed 0.9.0 on the CPU, so a store it built needs no re-embed. Another
+  fastembed model needs `pip install fastembed`.
+  `kb-ocr`, `kb-video` and `kb-transcribe` no longer install on Python 3.10, because Pillow 13
+  needs Python 3.11.
 
 ## [10.0.0rc4] - 2026-10-18
 

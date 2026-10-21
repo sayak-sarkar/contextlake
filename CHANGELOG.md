@@ -578,6 +578,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still make a shared node that a limited key can read. The next `kb index` re-indexes by itself
   and removes the old shared nodes. Saved ids of those modules stop resolving. 10.0.0rc4
   returned the path.
+- **`kb-fastembed` no longer installs fastembed, and `kb-ocr` requires Pillow 13, which clears
+  eight Pillow CVEs.** CVE-2026-112895, CVE-2026-112400, CVE-2026-112397, CVE-2026-112896,
+  CVE-2026-112897, CVE-2026-112395, CVE-2026-112404 and CVE-2026-112899 affect Pillow 12.3.0 and
+  are fixed only in 13.0.0. `kb-fastembed` pulled in Pillow 12 through fastembed, and
+  contextlake never called Pillow on that path. `kb-ocr`, `kb-video` and `kb-transcribe` open
+  repository images with Pillow, so those images reached Pillow 12 wherever it was installed.
+  `engine = "fastembed"` now runs `BAAI/bge-small-en-v1.5` on onnxruntime and gives the same
+  vectors as fastembed 0.9.0 on the CPU, so a store it built needs no re-embed. Another
+  fastembed model needs `pip install fastembed`.
+  `kb-ocr`, `kb-video` and `kb-transcribe` no longer install on Python 3.10, because Pillow 13
+  needs Python 3.11.
 
 ## [10.0.0rc4] - 2026-10-18
 

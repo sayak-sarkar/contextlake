@@ -278,13 +278,40 @@ the generator, not the HTML files it already wrote.
 
 ## Dependency advisories, and how they are dispositioned
 
-`pip-audit` runs in CI over the **resolved** dependency set of every extra except the ones
-listed below, and it carries **no ignore list**. A suppression that outlives its reason turns a
-security gate into decoration, so an advisory here is either fixed or the job is red.
+`pip-audit` runs in CI over the **resolved** dependency set of every extra but `dev`, and it
+carries **no ignore list**. A suppression that outlives its reason turns a security gate into
+decoration, so an advisory here is either fixed or the job is red. A separate job audits an
+install of `dev`.
 
-Not audited by any job: `kb-ocr`, `kb-transcribe`, `kb-video`. They pull in `onnxruntime`,
-OpenCV, `av` and `faster-whisper`. An advisory in those packages does not turn a security job
-red. If you install them, run `pip-audit` on that environment yourself.
+The resolved set includes `kb-ocr`, `kb-video` and `kb-transcribe`, which pull in `onnxruntime`,
+OpenCV, `av` and `faster-whisper`. The resolve runs on Python 3.13, so it does not see how pip
+resolves on other Python versions. The Pillow section below has one such case.
+
+### Pillow 12 (eight advisories)
+
+`CVE-2026-112895`, `CVE-2026-112400`, `CVE-2026-112397`, `CVE-2026-112896`,
+`CVE-2026-112897`, `CVE-2026-112395`, `CVE-2026-112404` and `CVE-2026-112899` affect
+Pillow 12.3.0. All eight are fixed only in Pillow 13.0.0. Two extras brought Pillow 12 in:
+
+- `kb-fastembed` installed the `fastembed` library, which requires Pillow below 13. contextlake
+  never called Pillow on that path.
+- `kb-ocr`, and so `kb-video` and `kb-transcribe`, install `rapidocr-onnxruntime`, which opens
+  each image with Pillow. The `files` source hands it the image files it finds in your
+  repositories, so Pillow parsed files this tool did not write.
+
+`kb-fastembed` no longer installs `fastembed`. It installs onnxruntime, tokenizers,
+huggingface_hub and numpy, and contextlake runs the same model on them. `kb-ocr` now requires
+`pillow>=13.0`. A resolve of every extra on Python 3.13 and 3.14 gives Pillow 13.0.0 and
+`pip-audit` reports no known vulnerabilities.
+
+**Python 3.10.** Pillow 13 needs Python 3.11 or newer, and no fixed Pillow exists for 3.10.
+On 3.10 pip fails to install `kb-ocr`, `kb-video` and `kb-transcribe`. For `kb-ocr` and
+`kb-video` the error is "No matching distribution found for pillow>=13.0". Use Python 3.11
+or newer for them. `kb-fastembed` still installs on 3.10.
+
+**Another fastembed model.** `engine = "fastembed"` with a model other than
+`BAAI/bge-small-en-v1.5` still needs `pip install fastembed`. That installs Pillow 12.3.0
+and its eight advisories.
 
 ### CVE-2025-69872 (diskcache) -- resolved in 7.0.0 by removal
 

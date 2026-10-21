@@ -111,9 +111,30 @@ kb-dockerfile = ["tree-sitter-dockerfile>=0.2"]
 # and no API key. Static model2vec embeddings (~30MB, auto-downloaded on first
 # use); numpy inference, no onnxruntime. See docs/knowledge-layer.md.
 kb-local = ["model2vec>=0.3", "huggingface_hub>=0.20"]
-# Optional higher-quality built-in embedder engine (ONNX bge-small via fastembed,
-# ~90MB). Heavier than kb-local; selected with `engine = "fastembed"`.
-kb-fastembed = ["fastembed>=0.3"]
+# Optional higher-quality built-in embedder engine (ONNX bge-small, about 67MB).
+# Heavier than kb-local; selected with `engine = "fastembed"`.
+#
+# The extra does not install the fastembed library. fastembed 0.9.0 requires Pillow below
+# 13, so a resolve gives Pillow 12.3.0, which has eight security advisories (CVE-2026-112895,
+# -112400, -112397, -112896, -112897, -112395, -112404, -112899), all fixed only in 13.0.0.
+# contextlake uses only fastembed's TextEmbedding for one model, and never calls Pillow.
+# kb/embeddings/onnx_bge.py runs that model on the packages below, which carry the version
+# markers fastembed 0.9.0 gives them, and gives the same vectors. A model other than
+# BAAI/bge-small-en-v1.5 still needs `pip install fastembed`. Upstream's change to allow
+# Pillow 13 is qdrant/fastembed#830.
+kb-fastembed = [
+    "huggingface_hub>=0.20,<2.0",
+    "numpy>=1.21; python_version == '3.11'",
+    "numpy>=1.21,<2.3.0; python_version == '3.10'",
+    "numpy>=1.26; python_version == '3.12'",
+    "numpy>=2.1.0; python_version == '3.13'",
+    "numpy>=2.3.0; python_version >= '3.14'",
+    "onnxruntime>1.21.0,!=1.24.0,!=1.24.1; python_version == '3.13'",
+    "onnxruntime>=1.17.0,!=1.20.0,!=1.24.0,!=1.24.1; python_version >= '3.11' and python_version < '3.13'",
+    "onnxruntime>=1.17.0,!=1.20.0,<1.24; python_version == '3.10'",
+    "onnxruntime>=1.24.2; python_version >= '3.14'",
+    "tokenizers>=0.15,<1.0",
+]
 # One-step "everything for local semantic search" convenience extra: the knowledge
 # layer + the built-in CPU embedder + the sqlite-vec ANN backend. Install this when
 # you want index -> embed -> semantic search to just work, with no Ollama or API key.
@@ -137,7 +158,16 @@ kb-pdf = ["pypdf>=5.0"]
 # vision LLM per image, which would have been the first ingest path to leave local-first.
 # Heavy (it pulls onnxruntime and opencv), hence its own extra rather than a place in
 # `kb` -- the same call `kb-fastembed` makes for the same reason.
-kb-ocr = ["rapidocr-onnxruntime>=1.2"]
+#
+# pillow>=13.0 is a floor on a package rapidocr already requires, with no cap of its own.
+# rapidocr opens every image it reads with PIL.Image.open, and `files` hands it the image
+# files it finds in the repositories, so Pillow parses files this tool did not write.
+# Pillow 12.3.0 has eight security advisories (CVE-2026-112895, -112400, -112397, -112896,
+# -112897, -112395, -112404, -112899), all fixed only in 13.0.0. Pillow 13.0.0 requires
+# Python 3.11 or newer, so on Python 3.10 pip finds no matching Pillow and fails to install
+# this extra (and kb-video and kb-transcribe, which include it). That is intended: the
+# alternative installs a Pillow with the eight advisories.
+kb-ocr = ["rapidocr-onnxruntime>=1.2", "pillow>=13.0"]
 # Video, in two layers because they make different promises. `kb-video` only decodes:
 # `av` bundles ffmpeg, so there is no system package to install first, and frames are
 # read by the OCR engine above, which downloads nothing. `kb-transcribe` adds the spoken

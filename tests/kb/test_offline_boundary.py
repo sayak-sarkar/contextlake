@@ -62,7 +62,8 @@ def test_embed_offline_with_no_embedder_is_a_graceful_noop(tmp_path, no_network,
     # and passed only if an earlier test in the same process had downloaded it.
     real_find_spec = importlib.util.find_spec
     monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a, **k: (
-        None if name in ("model2vec", "fastembed") else real_find_spec(name, *a, **k)))
+        None if name in ("model2vec", "fastembed", "onnxruntime")
+        else real_find_spec(name, *a, **k)))
     cfg = _cfg(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     assert _run(["kb", "embed", "--config", str(cfg)]) == 0

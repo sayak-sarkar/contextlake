@@ -142,6 +142,11 @@ def test_model2vec_is_given_a_folder_not_a_repo_id(hub, monkeypatch):
     assert hub.online == []
 
 
+# The fastembed library now loads only the models that are not the default one. The default
+# model runs on onnxruntime directly, and tests/kb/test_onnx_bge.py covers that path.
+OTHER_FASTEMBED_MODEL = "BAAI/bge-base-en-v1.5"
+
+
 class _FastEmbed:
     def __init__(self, behaviour):
         self.calls = []
@@ -164,7 +169,7 @@ def test_fastembed_tries_its_own_cache_first(behaviour, expected, monkeypatch):
 
     monkeypatch.delenv(netguard.OFFLINE_ENV, raising=False)
     fake = _FastEmbed(behaviour)
-    BuiltinEmbedder(engine="fastembed")._load_fastembed(fake)
+    BuiltinEmbedder(engine="fastembed", model=OTHER_FASTEMBED_MODEL)._load_fastembed(fake)
     assert [c.get("local_files_only") for c in fake.calls] == expected
 
 
@@ -174,5 +179,5 @@ def test_fastembed_offline_does_not_go_online(monkeypatch):
     monkeypatch.setenv(netguard.OFFLINE_ENV, "1")
     fake = _FastEmbed(ValueError("not in cache"))
     with pytest.raises(ValueError):
-        BuiltinEmbedder(engine="fastembed")._load_fastembed(fake)
+        BuiltinEmbedder(engine="fastembed", model=OTHER_FASTEMBED_MODEL)._load_fastembed(fake)
     assert len(fake.calls) == 1

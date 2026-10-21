@@ -80,8 +80,9 @@ EGRESS_TABLES = frozenset({"llm", "embeddings"})
 # `cache_dir` is where the built-in embedder and the built-in LLM put their
 # models. Both loaders set HF_HOME to it for the rest of the process unless the
 # user already set one (embeddings/builtin.py and llm/builtin.py `_ensure_model`,
-# `os.environ.setdefault`), the fastembed engine passes it to the library, and
-# the download then writes `models--<repo>` folders under it (model_cache.py).
+# `os.environ.setdefault`), the fastembed engine reads and writes its model folders under it
+# (embeddings/onnx_bge.py), and the download then writes `models--<repo>` folders under it
+# (model_cache.py).
 # It runs nothing and sends nothing, so it was ungated, and a discovered file
 # could choose a folder this tool writes into. The mirror config gates the same
 # idea in `config.CACHE_LOCATION_KEYS`.

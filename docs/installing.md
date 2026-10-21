@@ -78,13 +78,18 @@ declares a single console script and ships no top-level launcher, so it is not t
 | `[kb-full]` | `[kb]` plus the built-in CPU embedder and the sqlite-vec ANN backend | The default choice: local semantic search with no Ollama and no API key |
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
-| `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
+| `[kb-fastembed]` | A higher-quality ONNX embedder (model about 67 MB). It installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library | Better semantic ranking, at a larger download. The vectors are the same ones the fastembed library gave, so a store built before needs no re-embed |
 | `[kb-pdf]` | The PDF text-layer reader for ingest (pypdf, pure Python) | Design docs, RFCs and decision records that arrive as PDFs |
 | `[kb-ocr]` | Local OCR for ingesting images (rapidocr-onnxruntime, about 390 MB) | Screenshots, exported diagrams and whiteboards. Models ship inside the wheel, so nothing is downloaded and no image leaves the machine |
 | `[kb-video]` | Decode a video and OCR its frames (`av`, about 115 MB on top of `[kb-ocr]`) | Recorded demos and walkthroughs. `av` bundles ffmpeg, so there is no system package to install, and nothing is downloaded at runtime |
 | `[kb-transcribe]` | The spoken track of a video (faster-whisper, about 438 MB on top of `[kb-video]`) | Recorded design reviews, where the decision is spoken rather than shown. The speech model is fetched once and cached, like `[kb-local]`'s embedder |
 | `[kb-dockerfile]` | The Dockerfile grammar | Indexing `Dockerfile`s. Optional only because the grammar ships wheels for macOS arm64 and Linux x86_64 and no source distribution, so requiring it would break installation everywhere else. Without it, Dockerfiles are skipped and the run says so and names this extra |
 | `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
+
+`[kb-ocr]`, `[kb-video]` and `[kb-transcribe]` need Pillow 13, which has the fixes for eight
+security advisories in Pillow 12. Pillow 13 needs Python 3.11 or newer. On Python 3.10 these
+three fail to install, because no Pillow 13 exists for 3.10. Use Python 3.11 or newer for them.
+See [SECURITY.md](../SECURITY.md#pillow-12-eight-advisories).
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -288,7 +293,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 | Flag | Effect |
 | --- | --- |
 | `--fix` | Install every missing dependency the resolved config calls for |
-| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `[kb-local]` otherwise) |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` (`embedder` resolves against your config: `[kb-fastembed]` when `engine = "fastembed"`, `fastembed` itself for another fastembed model, `[kb-local]` otherwise) |
 | `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
 | `--skip-interactive` | Never prompt: privileged commands are printed, not run |
 

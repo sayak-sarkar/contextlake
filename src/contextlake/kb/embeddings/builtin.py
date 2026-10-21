@@ -5,8 +5,11 @@ dir (default ``~/.contextlake/models``) on first use:
 
 - ``model2vec`` (default): static potion embeddings, numpy inference, ~30MB. Very
   fast on CPU at scale. Needs the ``kb-local`` extra.
-- ``fastembed``: ONNX bge-small via onnxruntime, higher quality, ~90MB. Needs the
-  ``kb-fastembed`` extra.
+- ``fastembed``: ONNX bge-small, higher quality, about 67MB. Needs the ``kb-fastembed``
+  extra, which installs onnxruntime, tokenizers, huggingface_hub and numpy. The default model
+  runs on those directly (``onnx_bge.py``) and gives the vectors the fastembed library gives.
+  The fastembed library is not installed and not imported for it, because fastembed requires
+  Pillow below 13. Any other model id with this engine still needs ``pip install fastembed``.
 
 The model is loaded **lazily** on the first ``embed()`` call, so importing and
 constructing this class is cheap and never touches the network — which keeps the
@@ -15,9 +18,11 @@ provider factory and its tests offline/CI-safe.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
 
+from . import onnx_bge
 from .base import Embedder
 
 DEFAULT_CACHE_DIR = "~/.contextlake/models"
@@ -29,6 +34,38 @@ _ENGINE_DEFAULT_MODEL = {
     "fastembed": "BAAI/bge-small-en-v1.5",
 }
 _ENGINE_EXTRA = {"model2vec": "kb-local", "fastembed": "kb-fastembed"}
+
+# What the default fastembed model imports. This is the kb-fastembed extra.
+_ONNX_MODULES = ("onnxruntime", "tokenizers", "huggingface_hub", "numpy")
+
+
+def engine_modules(engine: str, model_id: str | None = None) -> tuple[str, ...]:
+    """The top-level modules ``engine`` imports to run ``model_id``.
+
+    ``fastembed`` with its default model needs no fastembed library, so probing for that
+    module would call a working install broken. Any other fastembed model still needs it.
+    """
+    if engine != "fastembed":
+        return ("model2vec",)
+    return _ONNX_MODULES if onnx_bge.is_default_model(model_id) else ("fastembed",)
+
+
+def engine_installed(engine: str, model_id: str | None = None) -> bool:
+    """True if every module ``engine_modules`` names can be found. Imports none of them."""
+    for name in engine_modules(engine, model_id):
+        try:
+            if importlib.util.find_spec(name) is None:
+                return False
+        except (ImportError, ValueError):   # a broken or partial install counts as absent
+            return False
+    return True
+
+
+def install_command(engine: str, model_id: str | None = None) -> str:
+    """The ``pip install`` line that supplies ``engine_modules``."""
+    if engine_modules(engine, model_id) == ("fastembed",):
+        return "pip install fastembed"
+    return f"pip install 'contextlake[{_ENGINE_EXTRA.get(engine, 'kb-local')}]'"
 
 
 class BuiltinEmbedder(Embedder):
@@ -76,13 +113,37 @@ class BuiltinEmbedder(Embedder):
             except ImportError as e:
                 raise self._missing_extra_error(e) from e
             self._model = self._load_model2vec(StaticModel)
-        else:  # fastembed
+        elif onnx_bge.is_default_model(self.model_id):   # fastembed's default model
+            self._model = self._load_onnx_bge()
+        else:   # another fastembed model: the library itself
             try:
                 from fastembed import TextEmbedding
             except ImportError as e:
-                raise self._missing_extra_error(e) from e
+                raise ImportError(
+                    f"The model {self.model_id!r} needs the fastembed library. The "
+                    "'kb-fastembed' extra does not install it, because fastembed requires "
+                    "Pillow below 13, and the newest Pillow below 13 has security advisories "
+                    f"fixed only in 13. The default model {onnx_bge.MODEL_ID!r} does not "
+                    "need it. Install it with: pip install fastembed"
+                ) from e
             self._model = self._load_fastembed(TextEmbedding)
         return self._model
+
+    def _load_onnx_bge(self):
+        """The default fastembed model on onnxruntime. Disk first, then the network.
+
+        Reads the cache folders fastembed writes under `cache_dir`, so a model it already
+        downloaded is found. The network is used only when no complete copy is on disk and
+        offline mode is off; offline, the error names the model and the folder.
+        """
+        try:
+            import huggingface_hub  # noqa: F401
+            import numpy  # noqa: F401
+            import onnxruntime  # noqa: F401
+            import tokenizers  # noqa: F401
+        except ImportError as e:
+            raise self._missing_extra_error(e) from e
+        return onnx_bge.load(self.cache_dir)
 
     def _load_model2vec(self, static_model):
         """Load from a FOLDER, so model2vec never contacts the Hub for a model on disk.
@@ -106,7 +167,9 @@ class BuiltinEmbedder(Embedder):
             return static_model.from_pretrained(fetch_snapshot(self.model_id, complete=True))
 
     def _load_fastembed(self, text_embedding):
-        """fastembed's own cache first (`local_files_only=True`), then the network.
+        """The fastembed library, for a model other than the default one.
+
+        fastembed's own cache first (`local_files_only=True`), then the network.
 
         fastembed keeps its own cache layout under `cache_dir`, so the lookup stays inside
         fastembed: moving it to a hub snapshot path would download every user's model

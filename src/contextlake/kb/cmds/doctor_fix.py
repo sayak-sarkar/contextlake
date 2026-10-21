@@ -173,10 +173,21 @@ def _llm_wants_builtin(cfg) -> bool:
     return not (ollama_reachable(base_url) and ollama_has_model(base_url, model))
 
 
-def _embedder_module(cfg) -> tuple[str, str]:
-    """(module, pip extra) for the built-in embedder this config would use."""
+def _embedder_need(cfg) -> tuple[tuple[str, ...], str, str]:
+    """(modules, pip requirement, engine) for the built-in embedder this config would use.
+
+    The default fastembed model runs on onnxruntime directly, so its modules are not
+    `fastembed` and its requirement is the `kb-fastembed` extra. Another fastembed model
+    needs the fastembed library itself.
+    """
+    from ..embeddings.builtin import engine_modules
+
     engine = (getattr(cfg.embeddings, "engine", "model2vec") or "model2vec").lower()
-    return ("fastembed", "kb-fastembed") if engine == "fastembed" else ("model2vec", "kb-local")
+    modules = engine_modules(engine, getattr(cfg.embeddings, "model", None))
+    if modules == ("fastembed",):
+        return modules, "fastembed", engine
+    extra = "kb-fastembed" if engine == "fastembed" else "kb-local"
+    return modules, f"contextlake[{extra}]", engine
 
 
 def _embeddings_want_builtin(cfg) -> bool:
@@ -208,9 +219,16 @@ def _remedy(key: str, cfg) -> Remedy | None:
                       argv, privileged=True)
 
     if key == "embedder":
-        module, extra = _embedder_module(cfg)
-        return Remedy(key, f"built-in embedder for semantic search ({module})",
-                      _pip(f"contextlake[{extra}]"))
+        _modules, requirement, engine = _embedder_need(cfg)
+        notes = []
+        if requirement == "fastembed":
+            notes.append(
+                "The 'kb-fastembed' extra does not install fastembed. fastembed requires "
+                "Pillow below 13, and the newest Pillow below 13 has security advisories "
+                "fixed only in 13. The default model, BAAI/bge-small-en-v1.5, needs no "
+                "fastembed.")
+        return Remedy(key, f"built-in embedder for semantic search ({engine})",
+                      _pip(requirement), notes=notes)
 
     if key == "vectors":
         return Remedy(key, "sqlite-vec ANN backend for semantic search at scale",
@@ -255,8 +273,8 @@ def build_plan(cfg, requested: str) -> tuple[list[Remedy], list[str]]:
             notes.append(_NO_PKG_MANAGER)
 
     if _embeddings_want_builtin(cfg):
-        module, _extra = _embedder_module(cfg)
-        if not _module_present(module):
+        modules, _requirement, _engine = _embedder_need(cfg)
+        if not all(_module_present(name) for name in modules):
             plan.append(_remedy("embedder", cfg))
 
     if cfg.embeddings.enabled and cfg.embeddings.vector_backend in ("auto", "sqlite-vec"):

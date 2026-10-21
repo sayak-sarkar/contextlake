@@ -118,7 +118,7 @@ first batch passes the check, or at the end of the source when every body is emp
 | --- | --- | --- |
 | `minishlab/potion-base-8M` | the default | A **static** model: it looks each token up in a table instead of running a transformer forward pass. Small enough to ship as a CPU default, fast enough that query latency is not the thing you notice. |
 | `minishlab/potion-base-32M` | `model = "minishlab/potion-base-32M"` under `[embeddings]` | The larger sibling of the same family. |
-| `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. |
+| `bge-small` (ONNX) | the `kb-fastembed` extra plus `engine = "fastembed"` | A real transformer instead of a static lookup. The extra installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library. The vectors match fastembed 0.9.0, so a store built with it needs no re-embed. Another fastembed model needs `pip install fastembed`. |
 
 On a store that already holds vectors the identity guard refuses to mix models, so switch on
 a fresh vector store. `kb ingest` takes one probe vector. When the embedder answers, the

@@ -232,6 +232,38 @@ def test_fastembed_engine_selects_its_own_extra(tmp_path, nothing_installed):
     assert any("contextlake[kb-fastembed]" in r.argv for r in plan)
 
 
+_FASTEMBED_BODY = '[embeddings]\nenabled = true\nprovider = "builtin"\nengine = "fastembed"\n'
+
+
+def _embedder_plan(tmp_path, body):
+    from contextlake.kb.config import load_kb_config
+
+    plan, _ = doctor_fix.build_plan(load_kb_config(_kb_config(tmp_path, body)), "auto")
+    return [r for r in plan if r.key == "embedder"]
+
+
+def test_fastembed_engine_is_complete_without_the_fastembed_library(
+        tmp_path, monkeypatch, git_present):
+    # The kb-fastembed extra no longer installs fastembed. Asking for that module would plan
+    # the same pip install on every run.
+    monkeypatch.setattr(doctor_fix, "_module_present", lambda name: name != "fastembed")
+    assert _plan_keys(_FASTEMBED_BODY, tmp_path) == []
+
+
+def test_fastembed_engine_missing_one_of_its_modules_plans_the_extra(
+        tmp_path, monkeypatch, git_present):
+    monkeypatch.setattr(doctor_fix, "_module_present", lambda name: name != "tokenizers")
+    (remedy,) = _embedder_plan(tmp_path, _FASTEMBED_BODY)
+    assert "contextlake[kb-fastembed]" in remedy.argv
+
+
+def test_another_fastembed_model_plans_the_fastembed_library(tmp_path, nothing_installed):
+    body = _FASTEMBED_BODY + 'model = "BAAI/bge-base-en-v1.5"\n'
+    (remedy,) = _embedder_plan(tmp_path, body)
+    assert "fastembed" in remedy.argv and "contextlake[kb-fastembed]" not in remedy.argv
+    assert any("Pillow" in note for note in remedy.notes)
+
+
 def test_unknown_capability_is_rejected_without_running_anything(
         tmp_path, capsys, spy):
     code = _run(["doctor", "--config", _kb_config(tmp_path), "--fix", "nonsense"])

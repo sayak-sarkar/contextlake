@@ -41,10 +41,12 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.13"
-      - name: "Install (widest dependency surface: dev + release + every kb extra)"
+      - name: "Install (dev + release + kb, kb-vec, kb-local, kb-fastembed)"
         # `llm-local` (openvino-genai) is excluded HERE only to keep this job's
         # install small; it is an ordinary wheel now and no longer a toolchain
-        # flakiness risk. The resolve-and-audit job below covers it either way --
+        # flakiness risk. `kb-dockerfile`, `kb-pdf`, `kb-ocr`, `kb-video` and
+        # `kb-transcribe` are not installed here either. The resolve-and-audit job
+        # below covers all of them --
         # the compensating control this comment used to name ("it's still
         # covered by Dependabot version tracking") does NOT: the one real CVE in
         # the tree is a *transitive* dependency of that extra, and Dependabot
@@ -74,9 +76,11 @@ jobs:
   pip-audit-resolved:
     name: pip-audit (resolved set, includes llm-local)
     runs-on: ubuntu-latest
-    # Audits the dependency set contextlake actually SHIPS, including the
-    # `llm-local` extra that the environment-audit job above cannot install
-    # without a CMake toolchain.
+    # Audits the dependency set contextlake SHIPS: every extra except `dev`,
+    # which the environment-audit job above installs. That includes `llm-local`, which
+    # the job above cannot install without a CMake toolchain, and the image and video
+    # readers `kb-ocr`, `kb-video` and `kb-transcribe`, which the job above does not
+    # install either.
     #
     # Why this job exists at all: `llm-local` is what `Dockerfile`'s build-full
     # stage installs (so it is in `ghcr.io/...:latest`) and what `binaries.yml`
@@ -101,13 +105,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pip-audit
       - name: Resolve the shipped dependency set (no build, no install)
-        # Not listed: kb-ocr, kb-video, kb-transcribe. ci.yml installs them only on Python 3.12
-        # and this job runs 3.13, where nobody has run the resolve for them. SECURITY.md names
-        # them as unaudited, and tests/test_docs_supply_chain_claims.py fails if that list and
-        # this one drift apart.
+        # Every extra but `dev` is listed, `kb-ocr`, `kb-video` and `kb-transcribe` included.
+        # Their resolve was run on Python 3.13, the version this job uses. `kb-ocr` is here
+        # because rapidocr opens the images in a repository with Pillow, so a Pillow advisory
+        # reaches files this tool did not write. SECURITY.md names the extras no job audits
+        # (none now), and tests/test_docs_supply_chain_claims.py fails if that list and this
+        # one drift apart.
         run: |
           pip install --dry-run --ignore-installed --quiet --report resolved.json \
-            '.[kb,kb-dockerfile,kb-vec,kb-local,kb-fastembed,kb-pdf,llm-local,release]'
+            '.[kb,kb-dockerfile,kb-vec,kb-local,kb-fastembed,kb-pdf,kb-ocr,kb-video,kb-transcribe,llm-local,release]'
           jq -r '.install[] | "\(.metadata.name)==\(.metadata.version)"' resolved.json \
             | grep -viE '^contextlake==' | sort > resolved.txt
           echo "resolved $(wc -l < resolved.txt) packages"
@@ -124,11 +130,11 @@ jobs:
         # this subtree" with "does this subtree currently have a CVE", and would
         # turn the job red the day the finding is legitimately resolved.
         run: |
-          for pkg in openvino_genai twine numpy huggingface_hub; do
+          for pkg in openvino_genai twine numpy huggingface_hub rapidocr_onnxruntime; do
             grep -qiE "^${pkg//_/[-_]}==" resolved.txt \
               || { echo "::error::$pkg missing from the resolved set -- this audit is not covering what it claims to. Refusing to report clean."; exit 1; }
           done
-          echo "canary ok: llm-local, release and kb extras are all represented"
+          echo "canary ok: llm-local, release, kb and kb-ocr extras are all represented"
       - name: pip-audit (resolved set)
         # No suppressions. PYSEC-2026-2447 / GHSA-w8v5-vhqr-4h9v / CVE-2025-69872
         # (diskcache 5.6.3) was carried here as "known-unresolved, disposition
