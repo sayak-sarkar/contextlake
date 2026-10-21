@@ -159,3 +159,25 @@ jobs:
           Select-String -Path .contextlake.kb.toml -Pattern store_dir
           contextlake kb query anything --json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  docker:
+    # release.yml's `docker` job was the first build of the Dockerfile. It runs after the tag
+    # push, in parallel with the PyPI publish, so a break in the image showed up once PyPI
+    # already had the release. This job builds the slim target on every push to main, every
+    # pull request and every manual run. release.yml's `verify-ci` gate reads this run's
+    # conclusion, so a red build here refuses the tag.
+    # The full target is not built here: it installs the openvino-genai runtime and downloads
+    # the wiki model. Only release.yml builds it, after the tag and for a full release.
+    name: docker (slim image builds and starts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # BuildKit skips the `build-full` stage, which the slim target does not use.
+      DOCKER_BUILDKIT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Build the slim image
+        run: docker build --target slim -t contextlake:ci .
+      # The image's ENTRYPOINT is `contextlake`, so this runs `contextlake --version`.
+      - name: Run it
+        run: docker run --rm contextlake:ci --version

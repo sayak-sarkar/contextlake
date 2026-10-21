@@ -10386,6 +10386,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb impact` do, and exit 1 before any source is built or searched, also when no source is
   configured. One bad id in a list refuses the whole run. A job that passes an id the store does
   not hold now exits 1: correct the id.
+- **The container image runs Python 3.13, and `ci.yml` builds the slim image before a tag.** The
+  base image moves from `python:3.14-slim` to `python:3.13-slim`, the newest Python the CI
+  matrix tests. The image ran an interpreter that `ci.yml` does not test, and the first build of
+  the `Dockerfile` was the `docker` job of `release.yml`, after the tag push and beside the PyPI
+  publish. A new `docker` job in `ci.yml` builds the slim target and starts it with `--version`
+  on every push to `main`, pull request and manual run. A red `docker` job makes the `verify-ci`
+  gate refuse the tag. The full image is still built at the tag of a full release.
+  `dependabot.yml` now tells Dependabot to ignore `python` 3.14 and later. If you extend the
+  published image and need Python 3.14, use a release from 7.0.0 to 9.8.3.
 
 ### Fixed
 

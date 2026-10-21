@@ -36,3 +36,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # The image must not run a Python newer than the ci.yml matrix. The matrix and the
+    # pyproject classifiers stop at 3.13, because 3.14 is not tested. Raise this bound in
+    # the same change that adds 3.14 to the matrix and the classifiers.
+    # Commit a9db3ca9 removed the 3.14 classifier because nothing tests it.
+    ignore:
+      - dependency-name: "python"
+        versions: [">=3.14"]

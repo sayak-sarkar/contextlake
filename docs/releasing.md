@@ -56,6 +56,7 @@ pip install -e ".[release]"        # build + twine
    | `ci.yml`, `knowledge-layer` | `pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88` |
    | `ci.yml`, `extras` | `pytest` with every optional extra installed |
    | `ci.yml`, `windows` | seven path-handling and node-id test files, then `init --local` and `kb query` on Windows |
+   | `ci.yml`, `docker` | `docker build --target slim -t contextlake:ci .`, then `docker run --rm contextlake:ci --version` |
    | `release.yml`, release gate | `pytest -q` |
 
    **This step has now been narrower than the gate twice.** It read `ruff check src tests`
@@ -293,6 +294,20 @@ docker run -v "$PWD/repositories:/work/repositories" \
 docker run -v "$PWD/repositories:/work/repositories" \
   ghcr.io/sayak-sarkar/contextlake:slim doctor     # slim
 ```
+
+Both images build on `python:3.13-slim`, the newest Python the `ci.yml` matrix tests.
+`dependabot.yml` tells Dependabot to ignore `python` 3.14 and later until the matrix adds it.
+
+`ci.yml` builds the **slim** image on every push to `main`, every pull request and every
+manual run, then starts it with `--version`. A `Dockerfile` that does not build the `slim`
+target, or a `kb`, `kb-local` or `kb-vec` extra that does not install on the image's Python,
+turns `ci.yml` red before the tag. A break in the `full` target, or in the `llm-local` extra,
+does not: only `release.yml` builds the **full** image, after the tag. The `verify-ci` gate of
+`release.yml` refuses a tag when that run is red.
+
+The same job pulls the base image from Docker Hub and downloads the embedder from Hugging Face
+(`docker/prefetch_models.py`) on every run. An outage of either turns `ci.yml` red, and
+`verify-ci` then refuses the tag until a rerun of `ci.yml` passes.
 
 **Tags published:**
 

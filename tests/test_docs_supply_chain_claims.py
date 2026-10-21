@@ -219,6 +219,147 @@ def test_make_install_ci_is_the_kb_job_install() -> None:
     assert recipe == f'$(PIP) install -e "{in_ci[0]}"'
 
 
+def _ci_jobs() -> dict[str, str]:
+    """ci.yml's jobs, job id to the text of its block."""
+    text = (_WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    body = text.split("\njobs:\n", 1)[1]
+    parts = re.split(r"\n  ([a-z][a-z0-9-]*):\n", "\n" + body)
+    return dict(zip(parts[1::2], parts[2::2], strict=True))
+
+
+def _ci_matrix_pythons() -> list[tuple[int, int]]:
+    """Every Python minor version a ci.yml matrix lists, oldest first."""
+    text = (_WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    found = {tuple(int(n) for n in v.split("."))
+             for lst in re.findall(r"python-version: \[([^\]]*)\]", text)
+             for v in re.findall(r'"(\d+\.\d+)"', lst)}
+    assert found, "ci.yml no longer lists a Python matrix"
+    return sorted(found)
+
+
+def _image_python() -> tuple[int, int]:
+    """The Python minor version of the Dockerfile's digest-pinned base."""
+    text = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    m = re.search(r"^FROM python:(\d+)\.(\d+)-slim@sha256:[0-9a-f]{64} AS base$", text, re.M)
+    assert m, "the Dockerfile base is no longer a python:X.Y-slim image pinned by digest"
+    return int(m.group(1)), int(m.group(2))
+
+
+def _image_tag() -> str:
+    major, minor = _image_python()
+    return f"python:{major}.{minor}-slim"
+
+
+def test_the_image_runs_the_newest_python_the_ci_matrix_tests() -> None:
+    """The base image ran 3.14 while every ci.yml matrix stopped at 3.13, so the shipped
+    interpreter was one no job ran."""
+    assert _image_python() == _ci_matrix_pythons()[-1]
+
+
+def test_the_pyproject_classifiers_stop_at_the_image_python() -> None:
+    text = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+    newest = max(tuple(int(n) for n in v.split("."))
+                 for v in re.findall(r'"Programming Language :: Python :: (3\.\d+)"', text))
+    assert newest == _image_python()
+
+
+def test_the_dockerfile_refresh_comment_names_the_tag_it_pins() -> None:
+    """The comment gives the commands that re-resolve the digest. It named 3.14 and 3.12 after
+    the pin moved, and a maintainer who pasted the commands got a digest for another tag."""
+    text = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    tag = _image_tag()
+    assert re.findall(r"^#\s+docker pull (python:\S+)", text, re.M) == [tag]
+    assert re.findall(r"^#\s+docker inspect (python:\S+)", text, re.M) == [tag]
+    assert f"`{tag.split(':')[1]}` tag" in text
+
+
+def test_dependabot_ignores_the_python_after_the_ci_matrix() -> None:
+    """Dependabot proposes the next python image. Without this ignore it proposes 3.14, which
+    no job tests."""
+    text = (REPO / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    m = re.search(r'package-ecosystem: "docker"(?:(?!package-ecosystem).)*?'
+                  r'dependency-name: "python"\s+versions: \[">=(\d+)\.(\d+)"\]', text, re.S)
+    assert m, "the docker entry in dependabot.yml no longer ignores newer python images"
+    major, minor = _ci_matrix_pythons()[-1]
+    assert (int(m.group(1)), int(m.group(2))) == (major, minor + 1)
+
+
+def test_ci_builds_the_slim_image_and_starts_it() -> None:
+    """release.yml built the image first, after the tag and beside the PyPI publish. This job
+    builds it in ci.yml, whose conclusion the release gate reads."""
+    job = _ci_jobs()["docker"]
+    built = re.findall(r"run: docker build --target (\w+) -t (\S+) \.$", job, re.M)
+    started = re.findall(r"run: docker run --rm (\S+) --version$", job, re.M)
+    assert len(built) == 1 and len(started) == 1, "the docker job lost its build or its run step"
+    target, built_tag = built[0]
+    assert target == "slim", "the runbook says ci.yml builds the slim target"
+    assert started == [built_tag], "the docker job starts an image it did not build"
+    dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    assert re.search(rf"^FROM \S+ AS {target}$", dockerfile, re.M), f"no `{target}` stage"
+    # `docker run IMAGE --version` reaches the CLI only through this entrypoint.
+    assert re.search(r'^ENTRYPOINT \["contextlake"\]$', dockerfile, re.M), (
+        "the Dockerfile entrypoint is no longer `contextlake`, so `--version` reaches no CLI")
+    # A job-level or a step-level `if:` both make the build conditional.
+    assert not re.search(r"^\s*(?:-\s+)?if:", job, re.M), (
+        "the docker job has a condition, so the runbook is wrong")
+
+
+def _pinned_actions(block: str) -> set[str]:
+    return set(re.findall(r"uses: (\S+@[0-9a-f]{40})", block))
+
+
+def test_the_docker_job_uses_only_actions_the_other_ci_jobs_pin() -> None:
+    """A new action SHA cannot be checked offline, so the job may use only the ones ci.yml
+    already pins."""
+    jobs = _ci_jobs()
+    others = set().union(*(_pinned_actions(b) for name, b in jobs.items() if name != "docker"))
+    assert _pinned_actions(jobs["docker"]), "the docker job pins no action by SHA"
+    assert _pinned_actions(jobs["docker"]) <= others
+    assert not re.findall(r"uses: (?!\S+@[0-9a-f]{40})\S+", jobs["docker"])
+
+
+def test_the_runbook_table_has_a_row_for_every_ci_job() -> None:
+    runbook = (REPO / "docs" / "releasing.md").read_text(encoding="utf-8")
+    for block in _ci_jobs().values():
+        name = re.search(r"^    name: ([\w-]+)", block, re.M).group(1)
+        assert f"| `ci.yml`, `{name}` |" in runbook, f"releasing.md has no row for the {name} job"
+
+
+def test_the_runbook_names_the_python_the_images_build_on() -> None:
+    assert f"`{_image_tag()}`" in _releasing()
+
+
+def test_the_runbook_names_the_downloads_the_docker_job_makes() -> None:
+    """The slim build pulls its base image from Docker Hub and runs prefetch_models.py, which
+    downloads the embedder from Hugging Face. An outage of either turns ci.yml red, and the
+    runbook says so."""
+    dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
+    stage = re.search(r"^FROM deps AS build-slim$(.*?)(?=^FROM )", dockerfile, re.M | re.S)
+    assert stage, "the Dockerfile has no build-slim stage"
+    assert re.search(r"^RUN python docker/prefetch_models\.py$", stage.group(1), re.M), (
+        "build-slim no longer runs prefetch_models.py, so the runbook names a download it lacks")
+    # The base must stay `FROM python:X.Y-slim@...`: a name with no registry host is Docker Hub.
+    _image_python()
+    prefetch = (REPO / "docker" / "prefetch_models.py").read_text(encoding="utf-8")
+    assert "BuiltinEmbedder().embed(" in prefetch, "prefetch_models.py no longer warms the embedder"
+    runbook = _releasing()
+    for said in ("pulls the base image from Docker Hub",
+                 "downloads the embedder from Hugging Face (`docker/prefetch_models.py`)",
+                 "An outage of either turns `ci.yml` red"):
+        assert said in runbook, f"releasing.md no longer says: {said}"
+
+
+def test_contributing_counts_the_ci_cells() -> None:
+    """The count read ten after the docker job joined ci.yml. A cell is one matrix entry."""
+    cells = 0
+    for block in _ci_jobs().values():
+        matrix = re.search(r"python-version: \[([^\]]*)\]", block)
+        cells += len(re.findall(r'"\d+\.\d+"', matrix.group(1))) if matrix else 1
+    words = {"nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13}
+    said = re.search(r"CI runs (\w+) cells", (REPO / "CONTRIBUTING.md").read_text("utf-8"))
+    assert said and words.get(said.group(1)) == cells, f"CI has {cells} cells"
+
+
 def _ci_gate(name: str) -> list[str]:
     """The shell lines of one workflow's `verify-ci` step, without comments or the refusal.
 

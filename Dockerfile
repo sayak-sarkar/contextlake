@@ -27,11 +27,13 @@
 # The PyPI wheel remains the primary install; these images are for
 # turnkey/offline/no-toolchain use.
 
-# Base pinned by digest, not just the mutable `3.12-slim` tag, for reproducible
-# builds (D-4). Re-resolve when bumping:
-#   docker pull python:3.14-slim && \
-#   docker inspect python:3.14-slim --format '{{index .RepoDigests 0}}'
-FROM python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc AS base
+# Base pinned by digest, not only the mutable `3.13-slim` tag, for reproducible
+# builds (D-4). 3.13 is the newest Python the ci.yml matrix tests, so the image
+# runs an interpreter CI runs; .github/dependabot.yml ignores 3.14 and later until
+# the matrix and the pyproject classifiers add it. Re-resolve when bumping:
+#   docker pull python:3.13-slim && \
+#   docker inspect python:3.13-slim --format '{{index .RepoDigests 0}}'
+FROM python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS base
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
