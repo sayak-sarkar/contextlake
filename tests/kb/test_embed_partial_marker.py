@@ -48,10 +48,10 @@ provider = "ollama"
 batch_size = 2
 """
 
-# The two probe texts `cmd_embed` sends before any repo is touched. A fake that dies on
-# these makes the command return at pre-flight and never reach `embed_repo`, which is a
+# The probe text `cmd_embed` sends before any repo is touched. A fake that dies on it
+# makes the command return at pre-flight and never reach `embed_repo`, which is a
 # different test.
-_PROBES = {"contextlake", "contextlake embedder readiness probe"}
+_PROBES = {"contextlake embedder readiness probe"}
 
 
 class _Embedder:

@@ -125,11 +125,6 @@ a fresh vector store. `kb ingest` takes one probe vector. When the embedder answ
 check runs before any vector is cleared or any document is rewritten. A run refused at that
 check prints the error and `This run changed nothing`.
 
-`kb enrich` and `kb wiki` take the same probe once per run, before their first write, and a
-refused run exits 1 with the same two lines. `kb wiki` takes it after it has checked the repo
-ids you named. When the probe gets no answer they go on, and the guard can still refuse the
-first batch after they have cleared a partition's vectors.
-
 If the embedder gives no answer to the probe, nothing was proved. `kb ingest` still rewrites
 the documents. Until one source has passed the check, it clears a source's old vectors only
 after a batch of that source holds a vector that passes. A reply whose vectors are missing,
@@ -148,6 +143,18 @@ A source that clears before it writes can still be refused: the first batch that
 with another vector length fails the check after the clear. The source then keeps its new
 documents and has no vectors, the sources after it do not run, and the exit code is 1. Run
 `kb ingest` again to rebuild the vectors.
+
+`kb enrich` and `kb wiki` take one probe vector per run, before their first write. A refused
+run prints the error and `This run changed nothing`, exits 1 and keeps the stored vectors.
+`kb wiki` takes the probe after it has checked the repo ids you named. When the probe gets no
+answer they go on, and the guard can still refuse the first batch after they have cleared a
+partition's vectors.
+
+`kb embed` runs the check on the probe vector it takes at the start of each pass, `--watch`
+passes included. A refused run prints the error and exits 1 before it embeds any repo. In a
+one-shot run, a probe that fails or returns no vector also ends the run with exit 1 and writes
+no vectors. With `--watch`, that pass logs the same line, writes nothing, and the loop runs
+the next pass.
 
 Which one is better **on your code** has a local answer, and
 [`kb eval`](searching-semantically.md#measuring-retrieval-quality) is how to get it: build a

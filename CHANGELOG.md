@@ -212,6 +212,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host as GitLab serves its API: an ssh remote with a port gives the id host
   `git.example.com:2222`, and `glab` takes that as an HTTP host. A file found by walking up from
   the current directory may not set `gitlab_hosts`.
+- **`kb embed` checks the embedder identity on its one readiness probe.** The identity guard
+  used to run on a separate first probe and was skipped when that probe raised or returned no
+  vector. The readiness probe then answered. For a repo whose HEAD had moved since it was last
+  embedded (an incremental run skips a repo whose HEAD and parser version have not changed), a
+  changed model embedded the repo and the run exited 0 with no refusal. `kb embed` now sends one
+  probe per pass and runs the guard on its vector (`--watch` passes included). In a one-shot
+  run, it exits 1 with no vectors written when the probe fails or returns no vector. With
+  `--watch`, such a pass logs the line, writes nothing, and the loop runs the next pass. A
+  one-shot run whose first embedder call fails once now exits 1 where it used to carry on; run
+  `kb embed` again.
 
 ### Fixed
 

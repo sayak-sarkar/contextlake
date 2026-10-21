@@ -14,6 +14,7 @@ from ._common import (
     _watch_loop,
     kb_config,
 )
+from .ingest import _embedder_identity
 
 
 def _embed_unavailable_hint(cfg) -> str:
@@ -44,7 +45,7 @@ def _embed_unavailable_hint(cfg) -> str:
 def cmd_embed(args) -> int:
     from ..embeddings import build_embedder
     from ..embeddings.index import embed_repo
-    from ..embeddings.store import build_vector_store
+    from ..embeddings.store import build_vector_store, guard_store_identity
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "embed"):
@@ -65,18 +66,6 @@ def cmd_embed(args) -> int:
                                 backend=cfg.embeddings.vector_backend,
                                 chunk_size=cfg.embeddings.vector_chunk_size)
         try:
-            # Guard against re-embedding this store with a different model/dim (the
-            # brute search silently drops mismatched dims). Probe the dim once; a
-            # network failure here is left for the per-repo loop to report.
-            from ..embeddings.store import guard_store_identity
-            try:
-                probe = embedder.embed(["contextlake"])
-            except Exception:  # noqa: BLE001 - unreachable embedder; loop reports it
-                probe = None
-            if probe and probe[0]:
-                identity = getattr(embedder, "identity", None) or getattr(
-                    embedder, "name", "embedder")
-                guard_store_identity(vs, identity, len(probe[0]))
             # Incremental: skip a repo whose indexed HEAD hasn't moved since it was
             # last embedded. `--force` re-embeds; `--limit` (partial) never gates.
             from ..embeddings.index import EMBED_CONTENT_VERSION
@@ -111,7 +100,7 @@ def cmd_embed(args) -> int:
                 # fast with one actionable message, instead of repeating the same
                 # error for every repo in the fleet.
                 try:
-                    embedder.embed(["contextlake embedder readiness probe"])
+                    probe = embedder.embed(["contextlake embedder readiness probe"])
                 except Exception as e:  # noqa: BLE001
                     # str(e) alone has repeatedly been ambiguous in the field --
                     # several unrelated failure modes (a bad model id, a stale
@@ -124,6 +113,18 @@ def cmd_embed(args) -> int:
                     log(style.dim("  No vectors written. Fix the embedder above, then "
                                   "re-run: contextlake kb embed"))
                     return 1
+                if not (probe and probe[0]):
+                    log(style.warn("Embedder unavailable: the readiness probe returned no "
+                                   "vector"))
+                    log(style.dim("  No vectors written. Fix the embedder above, then "
+                                  "re-run: contextlake kb embed"))
+                    return 1
+                # Refuse to re-embed this store with a different model or dimension (the
+                # brute search silently drops mismatched dims). Run on the vector the probe
+                # returned, on every pass: the guard used to sit in a separate probe
+                # before this one, whose failure skipped it and let a changed model write
+                # vectors under the old identity.
+                guard_store_identity(vs, _embedder_identity(embedder), len(probe[0]))
                 log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
                     f"into the {vs.name} vector store")
                 total = failed = skipped = 0

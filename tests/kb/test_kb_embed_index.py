@@ -2,6 +2,8 @@
 
 from argparse import Namespace
 
+import pytest
+
 import contextlake.kb.embeddings as emb_pkg
 from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_embed
@@ -482,3 +484,142 @@ def test_embed_repo_still_clears_a_repo_that_lost_all_its_nodes(tmp_path):
         assert vs.count() == 0, "stale vectors survived an emptied repo"
     finally:
         vs.close()
+
+
+# --- the identity guard runs on the readiness probe's vector ----------------------
+
+class _ModelEmbedder:
+    """Two instances differ only in `identity`. ``script`` holds the replies to the first
+    calls: an exception to raise, or a list to return."""
+
+    def __init__(self, identity, *, script=()):
+        self.identity = self.name = identity
+        self._script = list(script)
+        self.calls = 0
+
+    def embed(self, texts):
+        self.calls += 1
+        if self._script:
+            reply = self._script.pop(0)
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+        return [[float(len(t)), 1.0] for t in texts]
+
+
+def _embedded_by(tmp_path):
+    """The identity the store recorded, and its vector count."""
+    vs = build_vector_store(tmp_path / "kbstore" / "embeddings.sqlite", backend="auto")
+    try:
+        row = vs.conn.execute(
+            "SELECT value FROM vec_meta WHERE key='embedder_identity'").fetchone()
+        return (row[0] if row else None), vs.count()
+    finally:
+        vs.close()
+
+
+def _seed_then_move_head(tmp_path, monkeypatch):
+    """Embed repo `r` with identity `fake:a`, then re-index it at a new HEAD so the next
+    plain run does not skip it. Returns ``(args, embed_repo calls)``."""
+    import contextlake.kb.embeddings.index as emb_index
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _setup_embed_repo(tmp_path, "h1")
+    base = dict(config=str(cfg), workspace=None, source=None, repo=None, limit=None,
+                force=False)
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _ModelEmbedder("fake:a"))
+    assert cmd_embed(Namespace(**base)) == 0
+    assert _embedded_by(tmp_path) == ("fake:a", 1)
+
+    _setup_embed_repo(tmp_path, "h2")
+    calls = []
+    real = emb_index.embed_repo
+    monkeypatch.setattr(emb_index, "embed_repo",
+                        lambda *a, **k: (calls.append(a[3]), real(*a, **k))[1])
+    return Namespace(**base), calls
+
+
+def test_cmd_embed_refuses_a_changed_embedder_and_writes_nothing(tmp_path, monkeypatch):
+    args, calls = _seed_then_move_head(tmp_path, monkeypatch)
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _ModelEmbedder("fake:b"))
+
+    with pytest.raises(ValueError, match="built with embedder 'fake:a'"):
+        cmd_embed(args)
+
+    assert calls == [], "a refused run embedded a repo"
+    assert _embedded_by(tmp_path) == ("fake:a", 1)
+
+
+@pytest.mark.parametrize(
+    "script", [[ConnectionError("first call timed out")], [[]], [[[]]]],
+    ids=["probe-raises", "probe-returns-nothing", "probe-returns-empty-vector"])
+def test_cmd_embed_does_not_embed_when_the_probe_gets_no_usable_vector(
+        tmp_path, monkeypatch, script):
+    """The guard used to run on a separate first probe and was skipped when that probe raised
+    or came back empty. The readiness probe then answered, and a changed model wrote its
+    vectors under the old identity with exit 0. One probe now feeds the guard, and a probe
+    with no vector ends the run before any repo is touched."""
+    args, calls = _seed_then_move_head(tmp_path, monkeypatch)
+    embedder = _ModelEmbedder("fake:b", script=script)
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: embedder)
+
+    assert cmd_embed(args) == 1
+
+    assert calls == [], "a repo was embedded after a probe that gave no vector"
+    assert _embedded_by(tmp_path) == ("fake:a", 1)
+
+
+def test_cmd_embed_watch_checks_the_identity_on_every_pass(tmp_path, monkeypatch):
+    """The guard sits inside the pass, so a store whose identity changes between two passes
+    is refused on the second one."""
+    import contextlake.kb.cmds.embed as embed_mod
+
+    args, calls = _seed_then_move_head(tmp_path, monkeypatch)
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _ModelEmbedder("fake:a"))
+
+    def two_passes(run_once, *, interval=60, **kw):
+        assert run_once() == 0
+        vs = build_vector_store(tmp_path / "kbstore" / "embeddings.sqlite", backend="auto")
+        try:
+            vs.conn.execute("INSERT OR REPLACE INTO vec_meta(key, value) "
+                            "VALUES('embedder_identity', 'fake:other')")
+            vs.conn.commit()
+        finally:
+            vs.close()
+        with pytest.raises(ValueError, match="built with embedder 'fake:other'"):
+            run_once()
+        return 2
+
+    monkeypatch.setattr(embed_mod, "_watch_loop", two_passes)
+    args.watch, args.interval = True, 0
+
+    assert cmd_embed(args) == 0
+    assert calls == ["r"], "the second pass embedded after the refusal"
+
+
+@pytest.mark.parametrize(
+    "script", [[ConnectionError("down")] * 2, [[], []]],
+    ids=["probe-raises", "probe-returns-nothing"])
+def test_cmd_embed_watch_runs_the_next_pass_after_a_pass_with_no_probe_vector(
+        tmp_path, monkeypatch, gls_logs, script):
+    """Under --watch a pass whose probe gets no vector logs the line and writes nothing, and
+    the real loop runs the next pass. Only a one-shot run turns that into exit 1."""
+    import contextlake.kb.cmds.embed as embed_mod
+
+    args, calls = _seed_then_move_head(tmp_path, monkeypatch)
+    embedder = _ModelEmbedder("fake:a", script=script)
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: embedder)
+    real_loop = embed_mod._watch_loop
+    monkeypatch.setattr(embed_mod, "_watch_loop", lambda run_once, *, interval=60: real_loop(
+        run_once, interval=0, iterations=2, sleep=lambda s: None))
+    args.watch, args.interval = True, 0
+    gls_logs.clear()
+
+    cmd_embed(args)
+
+    assert embedder.calls == 2, "the loop did not run a second pass"
+    # By record identity: the fixture can list one record twice.
+    lines = {id(r) for r in gls_logs.records if "Embedder unavailable" in r.getMessage()}
+    assert len(lines) == 2, "each pass logs the line once"
+    assert calls == [], "a repo was embedded after a probe that gave no vector"
+    assert _embedded_by(tmp_path) == ("fake:a", 1)
