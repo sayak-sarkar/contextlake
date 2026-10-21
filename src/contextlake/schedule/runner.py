@@ -52,6 +52,64 @@ def child_env(config, kind, job_name=None) -> dict:
     return env
 
 
+def _parse_command(argv):
+    """The parsed namespace of a job's command with the namespace collapsed (``command`` is
+    the verb), or ``None`` when it does not parse. Prints nothing: a record edited by hand to
+    something invalid is reported by the child that runs it, once."""
+    import contextlib
+    import io
+
+    from ..cli import _resolve_command, build_parser
+
+    parser = build_parser()
+    sink = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            parsed = parser.parse_args(list(argv))
+            _resolve_command(parsed, parser)
+    except SystemExit:
+        return None
+    return parsed
+
+
+def child_argv(argv, config=None, kb_config=None) -> list:
+    """``argv``, the command a job runs, with the config files this run was given in front.
+
+    ``config`` and ``kb_config`` are what the running process got on ITS OWN command line:
+    for a unit, the ``--config`` and ``--kb-config`` it was installed with. They are never a
+    path read from the job record. The record is a file on disk and ``reset`` renders the
+    unit from it, so a path taken from there would reach the child without the install
+    having put it in the unit. A config found by walking up is not here either: the child
+    finds it the same way, from the working directory it inherits.
+
+    Each command class gets the file it reads: ``bootstrap`` takes both, a ``kb`` verb the
+    knowledge config as ``--config``, a ``mirror`` verb the sync INI as ``--config``. Any
+    other command, or one that does not parse, gets nothing. A flag the job's own command
+    already sets is left alone.
+    """
+    if not (config or kb_config):
+        return list(argv)
+    parsed = _parse_command(argv)
+    if parsed is None:
+        return list(argv)
+    from ..cli import _ALIASES, _KB_COMMANDS, _MIRROR_NS, _NAMESPACE_OF
+
+    command = _ALIASES.get(parsed.command, parsed.command)
+    lead = []
+    if command == "bootstrap":
+        if config and not parsed.config:
+            lead += ["--config", str(config)]
+        if kb_config and not parsed.kb_config:
+            lead += ["--kb-config", str(kb_config)]
+    elif command in _KB_COMMANDS:
+        if kb_config and not parsed.config:
+            lead += ["--config", str(kb_config)]
+    elif _NAMESPACE_OF.get(command) == _MIRROR_NS:
+        if config and not parsed.config:
+            lead += ["--config", str(config)]
+    return lead + list(argv)
+
+
 def _spawn(argv, env, timeout=None) -> int:
     """Run one contextlake command as a child. Returns its exit code.
 
@@ -388,7 +446,10 @@ def _one_cycle(args, config, job, jobs_file, _return_gated=False):
     # postpone a rebuild this job never had.
     runs = history.for_job(history.read_runs(history.history_path(config)), job.name)
     kind = decide_kind(runs, _duration_or(config, "schedule_full_every", 7 * 86400.0))
-    argv = job.full_argv if kind == "full" else job.argv
+    # The child gets the config this run itself was given (see child_argv), so a unit
+    # installed with `--config X` runs its command with X, not with the global config.
+    argv = child_argv(job.full_argv if kind == "full" else job.argv,
+                      getattr(args, "config", None), getattr(args, "kb_config", None))
 
     try:
         with runlock.RunLock(runlock.runlock_path(config), job.name):

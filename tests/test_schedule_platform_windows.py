@@ -293,3 +293,211 @@ def test_program_is_the_quoted_text_or_the_first_word(command, program):
 
 def test_usable_is_false_on_this_machine():
     assert (windows.WindowsAdapter().usable() is False) or __import__("sys").platform == "win32"
+
+
+# ---- the working directory a job keeps -----------------------------------
+#
+# schtasks /Create has no working-directory option, so a job with a directory runs
+# `cmd /d /s /c "cd /d "DIR" && COMMAND"`. These checks parse the command the way Windows
+# does (the C runtime rules for the schtasks argument, then cmd's /s quote stripping), which
+# is the closest this machine gets to running it. They do not replace a run on Windows.
+
+def _cwd_job(cwd):
+    return jobstore.new_job("default", ["bootstrap"], "auto", "windows", origin={"cwd": cwd})
+
+
+def _argv_with_config():
+    return [r"C:\Program Files\venv\python.exe", "-m", "contextlake",
+            "--config", r"C:\Users\Me\My Work\x.ini", "schedule", "run", "--job", "default"]
+
+
+def _tr_value(rendered):
+    words = windows._split_cmdline(rendered["schtasks-command"])
+    return words[words.index("/TR") + 1]
+
+
+def _cmd_strips(arguments):
+    """What `cmd /s /c` runs: the text after /c with its first and last quote removed."""
+    assert arguments.startswith('cmd /d /s /c "') and arguments.endswith('"')
+    return arguments[len('cmd /d /s /c "'):-1]
+
+
+def test_a_job_without_a_directory_is_run_directly_as_before():
+    rendered = windows.WindowsAdapter().render(_job(), 3600, _argv())
+    assert _tr_value(rendered) == subprocess.list2cmdline(_argv())
+
+
+def test_a_job_with_a_directory_changes_to_it_then_runs_the_command():
+    rendered = windows.WindowsAdapter().render(
+        _cwd_job(r"C:\Users\Me\My Work"), 3600, _argv_with_config())
+    inner = _cmd_strips(_tr_value(rendered))
+    assert inner == (r'cd /d "C:\Users\Me\My Work" && "C:\Program Files\venv\python.exe" "-m" '
+                     r'"contextlake" "--config" "C:\Users\Me\My Work\x.ini" "schedule" "run" '
+                     r'"--job" "default"')
+
+
+def test_the_command_survives_the_schtasks_argument_and_comes_back_out_of_it():
+    cwd = "C:\\Users\\Me\\My Work\\"     # a trailing backslash is the awkward case
+    rendered = windows.WindowsAdapter().render(_cwd_job(cwd), 3600, _argv_with_config())
+    tr = _tr_value(rendered)
+    assert windows._launch(tr) == {"argv": _argv_with_config(), "cwd": cwd}
+
+
+def test_a_quote_or_control_character_in_the_directory_is_refused():
+    for bad in ('C:\\a"b', "C:\\a\nb"):
+        with pytest.raises(ValueError):
+            windows.WindowsAdapter().render(_cwd_job(bad), 3600, _argv())
+
+
+# `cmd` reads the whole /TR text before any program does. These paths hold the characters it
+# treats as syntax. In the wrapped form each word is in double quotes, which `cmd` reads as text.
+WORD_SETS = [
+    pytest.param([r"C:\Python\python.exe", "-m", "contextlake", "--config",
+                  r"C:\my&dir\cfg.ini", "schedule", "run"], id="ampersand"),
+    pytest.param([r"C:\Python\python.exe", "--config", r"C:\a^b\cfg.ini"], id="caret"),
+    pytest.param([r"C:\Python\python.exe", "--config", r"C:\a|b\cfg.ini"], id="pipe"),
+    pytest.param([r"C:\Python\python.exe", "--config", r"C:\a<b>c\cfg.ini"], id="angles"),
+    pytest.param([r"C:\Python\python.exe", "--config", r"C:\proj & co (1)\cfg.ini"],
+                 id="space-ampersand-parens"),
+    pytest.param([r"C:\Python\python.exe", "--config", "C:\\my dir\\"], id="trailing-backslash"),
+    pytest.param([r"C:\Python\python.exe", "--config", "C:\\a&b\\\\"], id="trailing-two"),
+    pytest.param([r"C:\Python\python.exe", "", "x"], id="empty-word"),
+]
+
+
+def _outside_quotes(text):
+    """The text `cmd` sees outside double quotes. `cmd` toggles on every quote and has no
+    escape, so a backslash before a quote does not stop the toggle."""
+    quoted, kept = False, []
+    for c in text:
+        if c == '"':
+            quoted = not quoted
+        elif not quoted:
+            kept.append(c)
+    return "".join(kept)
+
+
+@pytest.mark.parametrize("words", WORD_SETS)
+def test_no_cmd_syntax_reaches_cmd_outside_quotes(words):
+    rendered = windows.WindowsAdapter().render(_cwd_job(r"C:\proj & co"), 3600, words)
+    outside = " ".join(_outside_quotes(_cmd_strips(_tr_value(rendered))).split())
+    assert outside == "cd /d &&"        # the one `&&` the wrapper writes, nothing from a path
+
+
+@pytest.mark.parametrize("words", WORD_SETS)
+def test_the_quoted_words_come_back_out_of_the_read_back(words):
+    cwd = "C:\\proj & co\\"
+    tr = _tr_value(windows.WindowsAdapter().render(_cwd_job(cwd), 3600, words))
+    assert windows._launch(tr) == {"argv": words, "cwd": cwd}
+
+
+@pytest.mark.parametrize("word, quoted", [
+    ("abc", '"abc"'), ("", '""'), ("a b", '"a b"'), ("a\\b", '"a\\b"'),
+    ("a\\", '"a\\\\"'), ("a\\\\", '"a\\\\\\\\"'),
+])
+def test_a_word_is_quoted_and_its_trailing_backslashes_are_doubled(word, quoted):
+    assert windows._quote_word(word) == quoted
+    assert windows._split_cmdline(quoted) == [word]
+
+
+def test_a_percent_sign_is_refused_in_the_directory_and_in_any_word():
+    """`cmd` expands `%NAME%` even inside double quotes."""
+    with pytest.raises(ValueError, match="percent sign"):
+        windows.WindowsAdapter().render(_cwd_job(r"C:\50%TEMP%\proj"), 3600, _argv())
+    for words in ([r"C:\Python\python.exe", "--config", r"C:\50%TEMP%\x.ini"],
+                  [r"C:\Py%PATH%\python.exe", "-m", "contextlake"]):
+        with pytest.raises(ValueError, match="percent sign"):
+            windows.WindowsAdapter().render(_cwd_job(r"C:\proj"), 3600, words)
+    with pytest.raises(ValueError, match="percent sign"):
+        windows.WindowsAdapter().install(_cwd_job(r"C:\proj"), 3600,
+                                         [r"C:\Python\python.exe", "50%"])
+
+
+def test_an_exclamation_mark_is_refused_in_the_directory_and_in_any_word():
+    """`cmd` expands `!NAME!` even inside double quotes when delayed expansion is on, a
+    registry setting that nothing in the command turns off. The refusal has the shape the
+    percent sign has: a ValueError that names the character and says what to do."""
+    with pytest.raises(ValueError, match="exclamation mark") as caught:
+        windows.WindowsAdapter().render(_cwd_job(r"C:\Hello!\proj"), 3600, _argv())
+    assert "Install from a directory and a config path without them" in str(caught.value)
+    for words in ([r"C:\Python\python.exe", "--config", r"C:\!PATH!\x.ini"],
+                  [r"C:\Py!thon\python.exe", "-m", "contextlake"],
+                  [r"C:\Python\python.exe", "wow!"]):
+        with pytest.raises(ValueError, match="exclamation mark"):
+            windows.WindowsAdapter().render(_cwd_job(r"C:\proj"), 3600, words)
+    with pytest.raises(ValueError, match="exclamation mark"):
+        windows.WindowsAdapter().install(_cwd_job(r"C:\proj"), 3600,
+                                         [r"C:\Python\python.exe", "50!"])
+
+
+def test_the_refusal_names_all_three_characters_and_the_control_character():
+    with pytest.raises(ValueError) as caught:
+        windows.WindowsAdapter().render(_cwd_job("C:\\a!b"), 3600, _argv())
+    for named in ("quote", "percent sign", "exclamation mark", "control character"):
+        assert named in str(caught.value)
+
+
+def test_a_quote_or_control_character_in_a_word_is_refused():
+    for bad in ('C:\\a"b.ini', "C:\\a\nb.ini"):
+        with pytest.raises(ValueError):
+            windows.WindowsAdapter().render(
+                _cwd_job(r"C:\proj"), 3600, [r"C:\Python\python.exe", "--config", bad])
+
+
+def test_a_job_with_no_directory_is_not_wrapped_and_its_words_are_not_refused():
+    """The wrapper, its quoting and its refusals are for the `cmd` form only, and the direct
+    form is unchanged. Whether Task Scheduler expands `%VAR%` in the direct form is
+    [UNVERIFIED] without a Windows host, and outside this change."""
+    words = [r"C:\Python\python.exe", "--config", r"C:\50%TEMP%\a&b\x!y!.ini"]
+    rendered = windows.WindowsAdapter().render(_job(), 3600, words)
+    assert _tr_value(rendered) == subprocess.list2cmdline(words)
+    assert not _tr_value(rendered).startswith("cmd ")
+
+
+def test_install_creates_the_task_with_the_same_command_render_shows(monkeypatch):
+    calls = []
+    monkeypatch.setattr(windows, "_schtasks", lambda *a: calls.append(a) or _ok())
+    job = _cwd_job(r"C:\Users\Me\My Work")
+    windows.WindowsAdapter().install(job, 3600, _argv_with_config())
+    argv = list(calls[0])
+    rendered = windows.WindowsAdapter().render(job, 3600, _argv_with_config())
+    assert argv[argv.index("/TR") + 1] == _tr_value(rendered)
+    assert argv[argv.index("/TR") + 1].startswith("cmd /d /s /c ")
+
+
+def test_state_finds_the_interpreter_inside_the_cmd_wrapper(monkeypatch):
+    """Read as a plain command, the program is `cmd`, which is on no venv path, and `status`
+    would call the interpreter moved."""
+    command = _tr_value(windows.WindowsAdapter().render(
+        _cwd_job(r"C:\Users\Me\My Work"), 3600, _argv_with_config()))
+    monkeypatch.setattr(windows, "_schtasks", lambda *a: _ok(stdout=(
+        "TaskName:      \\contextlake\\default\n"
+        f"Task To Run:   {command}\n")))
+    state = windows.WindowsAdapter().state(_job())
+    assert state["exec_path"] == _argv_with_config()[0]
+    assert state["launch"] == {"argv": _argv_with_config(), "cwd": r"C:\Users\Me\My Work"}
+
+
+def test_state_reads_a_task_earlier_versions_wrote_as_having_no_directory(monkeypatch):
+    command = subprocess.list2cmdline(_argv())
+    monkeypatch.setattr(windows, "_schtasks", lambda *a: _ok(stdout=(
+        f"TaskName:      \\contextlake\\default\nTask To Run:   {command}\n")))
+    assert windows.WindowsAdapter().state(_job())["launch"] == {"argv": _argv(), "cwd": None}
+
+
+@pytest.mark.parametrize("text, words", [
+    (r'"C:\a b\p.exe" -m x', [r"C:\a b\p.exe", "-m", "x"]),
+    (r'p.exe "a b\\" c', ["p.exe", "a b\\", "c"]),
+    (r'p.exe a\"b', ['p.exe', 'a"b']),
+    ("  p.exe   x  ", ["p.exe", "x"]),
+    ("", []),
+])
+def test_the_command_line_splitter_follows_the_c_runtime_rules(text, words):
+    assert windows._split_cmdline(text) == words
+
+
+@pytest.mark.parametrize("words", [
+    [r"C:\a b\p.exe", "-m", "x"], ["p", 'say "hi"', "c d\\"], ["p", "", "x"],
+])
+def test_list2cmdline_output_splits_back_into_the_same_words(words):
+    assert windows._split_cmdline(subprocess.list2cmdline(words)) == words

@@ -26,7 +26,7 @@ import tempfile
 import time
 
 from ...logging_setup import log
-from .base import NO_CATCH_UP_PHRASE, Adapter, check_name
+from .base import NO_CATCH_UP_PHRASE, Adapter, check_name, usable_text
 
 BEGIN = "# >>> contextlake ({name}) >>>"
 END = "# <<< contextlake ({name}) <<<"
@@ -141,14 +141,11 @@ def splice(existing, name, block):
     return text + begin + "\n" + (block if block.endswith("\n") else block + "\n") + end + "\n"
 
 
-def _exec_path_from_block(text, name) -> str | None:
-    """The interpreter path out of one job's marked crontab block.
+def _block_command(text, name) -> str | None:
+    """The command field of the cron line in one job's marked block.
 
-    The block's cron line is ``<5 time fields> <command>``, and ``command``
-    is the shlex-quoted argv `render` wrote, so the first token after
-    splitting the time fields off, then shlex-splitting the remainder, is
-    the interpreter. Returns ``None`` when the block is absent or the line
-    does not parse: "cannot tell", never "missing".
+    The block's cron line is ``<5 time fields> <command>``. Returns ``None`` when the block is
+    absent or holds no such line: "cannot tell", never "missing".
     """
     begin, end = BEGIN.format(name=name), END.format(name=name)
     inside = False
@@ -164,12 +161,41 @@ def _exec_path_from_block(text, name) -> str | None:
         parts = stripped.split(None, 5)
         if len(parts) < 6:
             continue
-        try:
-            tokens = shlex.split(parts[5])
-        except ValueError:
-            return None
-        return tokens[0] if tokens else None
+        return parts[5]
     return None
+
+
+def _launch_from_command(command) -> dict | None:
+    """``{"argv": [...], "cwd": str | None}`` out of the command field `render` wrote.
+
+    ``render`` writes ``[cd DIR && ]ARGV >/dev/null 2>&1``, shlex-quoted, with each ``%``
+    written as ``\\%``, which cron turns back into ``%`` before the shell reads the line. A
+    line without the ``cd`` is the shape earlier versions wrote, and reads with ``cwd`` of
+    ``None``. ``None`` when the line does not parse, or opens with a ``cd`` of another shape.
+    """
+    try:
+        tokens = shlex.split(command.replace("\\%", "%"))
+    except ValueError:
+        return None
+    cwd = None
+    if tokens[:1] == ["cd"]:
+        if len(tokens) < 4 or tokens[2] != "&&":
+            return None
+        cwd, tokens = tokens[1], tokens[3:]
+    if tokens[-2:] == [">/dev/null", "2>&1"]:
+        tokens = tokens[:-2]
+    return {"argv": tokens, "cwd": cwd} if tokens else None
+
+
+def _exec_path_from_block(text, name) -> str | None:
+    """The interpreter path out of one job's marked crontab block.
+
+    The first word of the command after any leading ``cd DIR &&``. Returns ``None`` when the
+    block is absent or the line does not parse: "cannot tell", never "missing".
+    """
+    command = _block_command(text, name)
+    launch = _launch_from_command(command) if command else None
+    return launch["argv"][0] if launch else None
 
 
 def _interval_s_from_block(text, name) -> float | None:
@@ -302,7 +328,17 @@ class CronAdapter(Adapter):
     def render(self, job, interval_s, exec_argv, **_options) -> dict:
         name = check_name(job.name)
         actual_s, spec = nearest_expressible(interval_s)
+        if not all(usable_text(w) for w in (*exec_argv, job.cwd or "/")):
+            raise ValueError("a control character in the command or the working directory "
+                             "would start a new line of the crontab")
         command = " ".join(shlex.quote(str(a)) for a in exec_argv)
+        if job.cwd:
+            # `&&` so a directory that has gone leaves the job unrun, with cd's error on
+            # stderr, instead of running it in the wrong place.
+            command = f"cd {shlex.quote(job.cwd)} && {command}"
+        # cron turns an unescaped % in the command into a newline (crontab(5)), and the
+        # text after it into the job's standard input. A backslash keeps it a %.
+        command = command.replace("%", "\\%")
         # cron gives a bare environment and mails whatever a job prints
         # (cron(8)). Discarding this job's output on its own line stops a mail
         # per run on a box with no MTA, where every run would otherwise log a
@@ -361,7 +397,9 @@ class CronAdapter(Adapter):
         installed = BEGIN.format(name=name) in text
         exec_path = _exec_path_from_block(text, name) if installed else None
         interval_s = _interval_s_from_block(text, name) if installed else None
+        command = _block_command(text, name) if installed else None
         notes = [f"cron {NO_CATCH_UP_PHRASE} while this machine was asleep "
                 "or off."] if installed else []
         return {"installed": installed, "interval_s": interval_s, "next_run": None,
-                "exec_path": exec_path, "notes": notes}
+                "exec_path": exec_path, "notes": notes,
+                "launch": _launch_from_command(command) if command else None}

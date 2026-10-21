@@ -148,12 +148,19 @@ def cmd_interval(args, config) -> int:
         log(style.fail(str(e)))
         return 2
 
+    try:
+        # A job that exists keeps the config and directory it was installed with, so the
+        # same command run from another directory does not move it. A new job takes this run's.
+        origin = jobstore.origin_of(existing) if existing else adapters.capture_origin(args)
+    except ValueError as e:
+        log(style.fail(str(e)))
+        return 2
     job = jobstore.new_job(name, argv, setting, adapter.id,
-                           created=existing.created if existing else None)
+                           created=existing.created if existing else None, origin=origin)
+    exec_argv = adapters.job_exec_argv(job)
     on_battery = config.get("schedule_on_battery", "skip")
     try:
-        written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
-                                  on_battery=on_battery)
+        written = adapter.install(job, interval_s, exec_argv, on_battery=on_battery)
     except OSError as e:
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
         return 1
@@ -162,7 +169,7 @@ def cmd_interval(args, config) -> int:
     jobstore.write_job(jobs_file, job)
 
     adapters._report_installed(
-        adapter, job, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
+        adapter, job, interval_s, exec_argv, on_battery, why, written,
         lambda interval_str: (f"{style.ok()} Job {name!r}: contextlake "
                               f"{' '.join(argv)}, every {interval_str} on "
                               f"{adapter.id}."))

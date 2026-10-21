@@ -9,6 +9,9 @@ adapter and both are reported rather than papered over:
   ``base.NO_CATCH_UP_PHRASE`` for it, so `status` says it once rather than
   twice.
 
+``schtasks /Create`` has no option for the directory a task starts in. A job that needs
+one runs ``cmd /d /s /c "cd /d "DIR" && "WORD" "WORD" ..."``, see ``_task_command``.
+
 Not runnable on this machine. Everything here is verified by rendering the
 command and by asserting the exact ``schtasks`` argv, never by executing it.
 Do not describe this backend as verified by execution.
@@ -20,7 +23,7 @@ import shutil
 import subprocess
 import sys
 
-from .base import NO_CATCH_UP_PHRASE, Adapter, check_name
+from .base import NO_CATCH_UP_PHRASE, Adapter, check_name, usable_text
 
 #: Task Scheduler paths are a tree. A folder keeps every job this tool creates
 #: together and makes them enumerable without matching on a name prefix.
@@ -55,14 +58,104 @@ def _schtasks(*argv):
                           errors="replace", check=False)
 
 
+# What `_task_command` writes around the command of a job that has a working directory.
+_IN_DIRECTORY = re.compile(r'cmd /d /s /c "cd /d "(?P<cwd>[^"]+)" && (?P<command>.+)"', re.S)
+
+
+def _quote_word(word) -> str:
+    """``word`` inside double quotes, as the C runtime reads them. A run of backslashes at the
+    end is doubled, so that it cannot escape the closing quote. ``word`` holds no quote, see
+    ``_task_command``."""
+    tail = "\\" * (len(word) - len(word.rstrip("\\")))
+    return '"' + word + tail + '"'
+
+
+def _task_command(job, exec_argv) -> str:
+    """The ``/TR`` value: ``exec_argv`` as one command line, run from ``job.cwd`` if it has one.
+
+    ``schtasks /Create`` has no option for the directory a task starts in. A job that must
+    find a config by walking up from the directory it was installed in therefore runs
+    ``cmd``, which changes to that directory and then starts the command. ``/s`` makes
+    ``cmd`` strip the first and last quote of the text after ``/c`` and keep the rest, which
+    is what lets the command hold quotes of its own. ``/d`` skips the AutoRun commands in
+    the registry. A job with no working directory is not run through a shell.
+
+    ``cmd`` reads the text before the program does. ``list2cmdline`` quotes a word only when
+    it holds white space, so a path with ``&``, ``^``, ``|``, ``<`` or ``>`` would reach
+    ``cmd`` as shell syntax. In the wrapped form every word is therefore in double quotes,
+    which ``cmd`` reads as text. Quotes cannot make three characters safe, so they are refused:
+    ``%``, which ``cmd`` expands even inside quotes, ``!``, which ``cmd`` expands even inside
+    quotes when delayed expansion is on (a registry setting, off by default, that only
+    ``/v:off`` overrides, and this command does not pass it), and ``"``, which ends the quoted
+    text for ``cmd`` whatever backslashes come before it.
+    """
+    if not job.cwd:
+        return subprocess.list2cmdline([str(a) for a in exec_argv])
+    words = [str(a) for a in exec_argv]
+    for what, text in [("working directory", job.cwd), *(("command", w) for w in words)]:
+        if not usable_text(text) or any(c in text for c in '"%!'):
+            raise ValueError(
+                f"the {what} {text!r} has a quote, a percent sign, an exclamation mark or a "
+                f"control character in it, so it cannot be written into a Task Scheduler "
+                f"command. Install from a directory and a config path without them.")
+    command = " ".join(_quote_word(w) for w in words)
+    return f'cmd /d /s /c "cd /d "{job.cwd}" && {command}"'
+
+
+def _split_cmdline(text) -> list:
+    """The words of a command line by the Windows C runtime rules, which ``list2cmdline``
+    writes for: a double quote groups, a backslash is literal unless a run of them ends in a
+    quote, where each pair is one backslash and an odd one escapes the quote."""
+    words, i, n = [], 0, len(text)
+    while i < n:
+        if text[i] in " \t":
+            i += 1
+            continue
+        word, quoted = [], False
+        while i < n and (quoted or text[i] not in " \t"):
+            c = text[i]
+            if c == "\\":
+                j = i
+                while j < n and text[j] == "\\":
+                    j += 1
+                run = j - i
+                if j < n and text[j] == '"':
+                    word.append("\\" * (run // 2))
+                    if run % 2:
+                        word.append('"')
+                        j += 1
+                else:
+                    word.append("\\" * run)
+                i = j
+            elif c == '"':
+                quoted = not quoted
+                i += 1
+            else:
+                word.append(c)
+                i += 1
+        words.append("".join(word))
+    return words
+
+
+def _launch(command) -> dict | None:
+    """``{"argv": [...], "cwd": str | None}`` out of a ``Task To Run`` value, or ``None``
+    when it holds no word. Undoes :func:`_task_command`."""
+    wrapped = _IN_DIRECTORY.fullmatch(command.strip())
+    words = _split_cmdline(wrapped.group("command") if wrapped else command)
+    return {"argv": words, "cwd": wrapped.group("cwd") if wrapped else None} if words else None
+
+
 def _program(command):
     """The program in a ``Task To Run`` value, or ``None`` for an empty one.
 
     ``render`` writes the command with ``list2cmdline``, which wraps a path that holds a space
     in double quotes. Cutting at the first space then returned the opening quote and the text
-    before the space, and ``status`` reported the interpreter as moved.
+    before the space, and ``status`` reported the interpreter as moved. A command that
+    `_task_command` ran from a working directory is read for the program inside it, not
+    ``cmd``.
     """
-    match = re.match(r'"([^"]*)"|(\S+)', command)
+    wrapped = _IN_DIRECTORY.fullmatch(command.strip())
+    match = re.match(r'"([^"]*)"|(\S+)', wrapped.group("command") if wrapped else command)
     return (match.group(1) or match.group(2)) if match else None
 
 
@@ -99,7 +192,7 @@ class WindowsAdapter(Adapter):
         # list2cmdline, NOT shlex.quote. /TR takes ONE command string parsed by
         # Windows rules, which are not POSIX rules, and a venv path containing
         # a space is the ordinary case rather than the edge one.
-        command = subprocess.list2cmdline([str(a) for a in exec_argv])
+        command = _task_command(job, exec_argv)
         notes = []
         if abs(actual_s - float(interval_s)) > 1:
             from ..recommend import format_duration
@@ -130,7 +223,7 @@ class WindowsAdapter(Adapter):
 
     def install(self, job, interval_s, exec_argv, **options) -> list:
         rendered = self.render(job, interval_s, exec_argv, **options)
-        command = subprocess.list2cmdline([str(a) for a in exec_argv])
+        command = _task_command(job, exec_argv)
         result = _schtasks(*self._create_argv(
             rendered["name"], rendered["minutes"], command)[1:])
         if result.returncode != 0:
@@ -188,7 +281,7 @@ class WindowsAdapter(Adapter):
         task = task_name(job.name)
         result = _schtasks("/Query", "/TN", task, "/FO", "LIST", "/V")
         installed = result.returncode == 0
-        notes, interval_s, next_run, exec_path = [], None, None, None
+        notes, interval_s, next_run, exec_path, launch = [], None, None, None, None
         if installed:
             for line in result.stdout.splitlines():
                 key, _, value = line.partition(":")
@@ -197,6 +290,7 @@ class WindowsAdapter(Adapter):
                     next_run = value
                 elif key == "task to run" and value:
                     exec_path = _program(value)
+                    launch = _launch(value)
             # The repeat interval is not reported in a form that survives
             # localisation, so it is left as None: "cannot tell" rather than a
             # parse that works on one Windows and not another.
@@ -208,4 +302,5 @@ class WindowsAdapter(Adapter):
             "next_run": next_run,
             "exec_path": exec_path,
             "notes": notes,
+            "launch": launch,
         }

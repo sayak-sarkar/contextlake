@@ -79,12 +79,19 @@ def _run(*argv, input=None):  # noqa: A002 - matches subprocess.run's own name
                           errors="replace", check=False, input=input)
 
 
+#: Global flags that name a file on the machine that ran install. `exec_argv_for` puts them
+#: before `schedule`, and they mean nothing inside the image.
+_HOST_FILE_FLAGS = ("--config", "--kb-config")
+
+
 def _container_args(exec_argv) -> list:
     """The arguments the image should run, from the unit's exec argv.
 
     ``exec_argv_for`` builds ``[<interpreter>, "-m", "contextlake", ...]``. The
     interpreter is a path on the machine that ran install and means nothing
     inside the image, so the container takes everything AFTER the package name.
+    The same goes for a ``--config`` or ``--kb-config`` pair before `schedule`: its path is
+    on that machine too, and the container reads its own config.
 
     Split on the literal ``contextlake`` rather than sniffing the first element
     for "python": an interpreter can be named anything (``python3.12``, ``uv``,
@@ -92,9 +99,24 @@ def _container_args(exec_argv) -> list:
     silently produces a CronJob that cannot start.
     """
     args = [str(a) for a in exec_argv]
-    if "contextlake" in args:
-        return args[args.index("contextlake") + 1:]
+    if "contextlake" not in args:
+        return args
+    args = args[args.index("contextlake") + 1:]
+    while len(args) >= 2 and args[0] in _HOST_FILE_FLAGS:
+        args = args[2:]
     return args
+
+
+def host_config_notes(job, exec_argv) -> list:
+    """One note, when the job was installed with a config on this machine, that the container
+    does not get it. Empty for a job that has none, so the note means something."""
+    args = [str(a) for a in exec_argv]
+    after = args[args.index("contextlake") + 1:] if "contextlake" in args else []
+    if not (after[:1] and after[0] in _HOST_FILE_FLAGS or job.cwd):
+        return []
+    return ["this job was installed with a config file or a working directory on this "
+            "machine. Neither is passed to the container, which reads the config in its "
+            "own home directory."]
 
 
 def _yaml_list(items) -> str:
@@ -107,6 +129,7 @@ class K8sAdapter(Adapter):
     # so "catching up" is not a property this backend has either way. Reported
     # as False so nothing claims systemd's replay behaviour.
     catches_up_after_sleep = False
+    reads_host_config = False
     metadata_keys = frozenset({"schedule", "interval_s", "namespace", "notes", "name"})
 
     def usable(self) -> bool:
@@ -127,6 +150,7 @@ class K8sAdapter(Adapter):
         claim = f"{resource_name(name)}-state"
         notes.append(f"the CronJob mounts a PersistentVolumeClaim named {claim}. Create it "
                      f"in namespace {namespace} before the first run, or the pod stays Pending.")
+        notes.extend(host_config_notes(job, exec_argv))
         args = _container_args(exec_argv)
         manifest = f"""apiVersion: batch/v1
 kind: CronJob
@@ -251,7 +275,7 @@ spec:
                           "-o", "jsonpath={.spec.schedule}|{.status.lastScheduleTime}")
         except OSError as e:
             return {"installed": None, "interval_s": None, "next_run": None,
-                    "exec_path": None, "notes": [str(e)]}
+                    "exec_path": None, "notes": [str(e)], "launch": None}
         # None when the query failed without saying NotFound (no route to the cluster, an
         # expired login, a Forbidden). That is "cannot tell", not "not installed".
         installed, problem = installed_or_unknown(result, "k8s", NOT_FOUND)
@@ -276,4 +300,6 @@ spec:
             "next_run": next_run,
             "exec_path": exec_path,
             "notes": notes,
+            # The container's command is the CronJob's, not a unit on this machine.
+            "launch": None,
         }

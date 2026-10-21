@@ -245,3 +245,51 @@ def test_usable_is_false_on_this_machine():
 def _ok(returncode=0, stdout="", stderr=""):
     import subprocess
     return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr=stderr)
+
+
+# ---- the working directory a job keeps -----------------------------------
+
+def _cwd_job(cwd):
+    return jobstore.new_job("default", ["bootstrap"], "auto", "launchd", origin={"cwd": cwd})
+
+
+def test_a_job_with_a_directory_gets_a_working_directory_key():
+    rendered = launchd.LaunchdAdapter().render(_cwd_job("/Users/me/my ws"), 3600, _argv())
+    doc = plistlib.loads(rendered[launchd.plist_name("default")].encode())
+    assert doc["WorkingDirectory"] == "/Users/me/my ws"
+
+
+def test_a_job_without_a_directory_has_no_working_directory_key():
+    doc = plistlib.loads(_rendered()[launchd.plist_name("default")].encode())
+    assert "WorkingDirectory" not in doc
+
+
+def test_a_config_flag_in_the_command_reaches_the_plist_as_separate_words():
+    argv = ["/venv/bin/python", "-m", "contextlake", "--config", "/Users/me/my ws/x.ini",
+            "schedule", "run", "--job", "default"]
+    rendered = launchd.LaunchdAdapter().render(_job(), 3600, argv)
+    doc = plistlib.loads(rendered[launchd.plist_name("default")].encode())
+    assert doc["ProgramArguments"] == argv
+
+
+def test_state_reads_the_command_and_directory_back_off_the_plist(tmp_path, monkeypatch):
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+    adapter = launchd.LaunchdAdapter()
+    rendered = adapter.render(_cwd_job("/Users/me/ws"), 900, _argv())
+    (tmp_path / launchd.plist_name("default")).write_text(
+        rendered[launchd.plist_name("default")], encoding="utf-8")
+    assert adapter.state(_job())["launch"] == {"argv": _argv(), "cwd": "/Users/me/ws"}
+
+
+def test_state_reads_a_plist_earlier_versions_wrote_as_having_no_directory(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+    (tmp_path / launchd.plist_name("default")).write_bytes(plistlib.dumps({
+        "Label": launchd.label("default"), "ProgramArguments": _argv(), "StartInterval": 900}))
+    assert launchd.LaunchdAdapter().state(_job())["launch"] == {"argv": _argv(), "cwd": None}
+
+
+def test_state_has_no_launch_for_a_plist_it_cannot_parse(tmp_path, monkeypatch):
+    monkeypatch.setattr(launchd, "agent_dir", lambda: str(tmp_path))
+    (tmp_path / launchd.plist_name("default")).write_text("not a plist", encoding="utf-8")
+    assert launchd.LaunchdAdapter().state(_job())["launch"] is None

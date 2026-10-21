@@ -1,6 +1,10 @@
 """The cron adapter: expressible intervals, and never damaging a crontab."""
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
 import pytest
 
 from contextlake.schedule import jobs
@@ -271,3 +275,134 @@ def test_detect_prefers_systemd_over_cron_when_both_are_usable(monkeypatch):
     monkeypatch.setattr(systemd.SystemdAdapter, "usable", lambda self: True)
     monkeypatch.setattr(cron.CronAdapter, "usable", lambda self: True)
     assert base.detect() == "systemd"
+
+
+# ---- the working directory a job keeps -------------------------------------
+
+_LINE = "0 */6 * * * /opt/venv/bin/python -m contextlake schedule run --job default >/dev/null 2>&1"
+
+
+def _block(command_field, name="default"):
+    return (cron.BEGIN.format(name=name) + "\n"
+            + f"0 */6 * * * {command_field}\n"
+            + cron.END.format(name=name) + "\n")
+
+
+def _cwd_job(cwd, name="default"):
+    return jobs.new_job(name, ["bootstrap"], "auto", "cron", origin={"cwd": cwd})
+
+
+def test_a_job_with_a_directory_changes_to_it_first_and_only_runs_if_that_worked():
+    line = cron.CronAdapter().render(_cwd_job("/home/me/my ws"), 21600.0,
+                                     ["/opt/py", "-m", "contextlake", "schedule", "run",
+                                      "--job", "default"])["crontab"]
+    assert line == ("0 */6 * * * cd '/home/me/my ws' && /opt/py -m contextlake schedule run "
+                    "--job default >/dev/null 2>&1\n")
+
+
+def test_a_job_without_a_directory_renders_the_line_earlier_versions_wrote():
+    line = cron.CronAdapter().render(_job(), 21600.0,
+                                     ["/opt/venv/bin/python", "-m", "contextlake", "schedule",
+                                      "run", "--job", "default"])["crontab"]
+    assert line == _LINE + "\n"
+
+
+def test_a_percent_sign_is_escaped_because_cron_turns_it_into_a_newline():
+    line = cron.CronAdapter().render(_cwd_job("/home/me/100%"), 3600.0,
+                                     ["/opt/py", "--config", "/x/50%.ini"])["crontab"]
+    assert line.count("%") == line.count("\\%") == 2
+    assert "\\%" in line.split("&&")[0] and "\\%" in line.split("&&")[1]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="runs the line with sh")
+def test_the_rendered_line_starts_the_command_in_the_directory_with_the_arguments(tmp_path):
+    """Run the way cron runs it: `%` unescaped first (crontab(5)), then `sh -c`, from a
+    different directory. The interpreter is a script that writes down where it was started
+    and what it was given."""
+    out = tmp_path / "out.txt"
+    script = tmp_path / "fake python"
+    script.write_text(f'#!/bin/sh\npwd > "{out}"\nprintf "%s\\n" "$@" >> "{out}"\n',
+                      encoding="utf-8")
+    script.chmod(0o755)
+    where = tmp_path / "100% done"
+    where.mkdir()
+    argv = [str(script), "-m", "contextlake", "--config", "/etc/a b/x%y.ini", "schedule", "run",
+            "--job", "default"]
+    line = cron.CronAdapter().render(_cwd_job(str(where)), 3600.0, argv)["crontab"]
+    command = line.split(None, 5)[5].replace("\\%", "%")
+
+    subprocess.run(["sh", "-c", command], cwd=tmp_path.parent, check=True)
+
+    written = out.read_text(encoding="utf-8").splitlines()
+    assert written[0] == os.path.realpath(where)
+    assert written[1:] == argv[1:]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="runs the line with sh")
+def test_a_directory_that_has_gone_leaves_the_job_unrun(tmp_path):
+    """The job does not run in the wrong place. `cd` fails and `&&` stops the line."""
+    ran = tmp_path / "ran.txt"
+    script = tmp_path / "py"
+    script.write_text(f'#!/bin/sh\necho ran > "{ran}"\n', encoding="utf-8")
+    script.chmod(0o755)
+    line = cron.CronAdapter().render(_cwd_job(str(tmp_path / "gone")), 3600.0,
+                                     [str(script), "-m", "contextlake"])["crontab"]
+    command = line.split(None, 5)[5].replace("\\%", "%")
+    result = subprocess.run(["sh", "-c", command], cwd=tmp_path, check=False,
+                            capture_output=True)
+    assert result.returncode != 0
+    assert not ran.exists()
+
+
+def test_a_control_character_in_the_directory_is_refused_not_written():
+    with pytest.raises(ValueError, match="control character"):
+        cron.CronAdapter().render(_cwd_job("/ws\n* * * * * rm -rf x"), 3600.0, ["/opt/py"])
+
+
+def test_the_read_back_still_parses_a_line_earlier_versions_wrote():
+    """An rc4 unit has no `cd` and no `--config`. It reads as an interpreter with no
+    directory, so `status` can tell it apart from one that has them."""
+    text = _block(_LINE.split(None, 5)[5])
+    assert cron._exec_path_from_block(text, "default") == "/opt/venv/bin/python"
+    launch = cron._launch_from_command(cron._block_command(text, "default"))
+    assert launch == {"argv": ["/opt/venv/bin/python", "-m", "contextlake", "schedule", "run",
+                               "--job", "default"], "cwd": None}
+
+
+def test_the_read_back_skips_the_cd_and_returns_the_directory():
+    command = ("cd '/home/me/my ws' && /opt/py -m contextlake --config /a/x.ini schedule run "
+               "--job default >/dev/null 2>&1")
+    text = _block(command)
+    assert cron._exec_path_from_block(text, "default") == "/opt/py"
+    assert cron._launch_from_command(command) == {
+        "argv": ["/opt/py", "-m", "contextlake", "--config", "/a/x.ini", "schedule", "run",
+                 "--job", "default"], "cwd": "/home/me/my ws"}
+
+
+def test_the_read_back_round_trips_what_render_wrote(tmp_path):
+    argv = ["/opt/py", "-m", "contextlake", "--config", "/etc/a b/x%y.ini", "schedule", "run",
+            "--job", "default"]
+    line = cron.CronAdapter().render(_cwd_job("/home/me/100% ws"), 3600.0, argv)["crontab"]
+    launch = cron._launch_from_command(line.split(None, 5)[5])
+    assert launch == {"argv": argv, "cwd": "/home/me/100% ws"}
+
+
+def test_a_cd_that_is_not_the_shape_render_writes_reads_as_cannot_tell():
+    assert cron._launch_from_command("cd /x; /opt/py -m contextlake") is None
+    assert cron._launch_from_command("cd /x") is None
+    assert cron._exec_path_from_block(_block("cd /x"), "default") is None
+
+
+def test_state_reports_what_the_installed_line_runs_and_where(monkeypatch):
+    command = ("cd /ws && /x/python -m contextlake --config /a/x.ini schedule run --job default "
+               ">/dev/null 2>&1")
+    monkeypatch.setattr(cron, "_read_crontab", lambda: _block(command))
+    state = cron.CronAdapter().state(_job())
+    assert state["exec_path"] == "/x/python"
+    assert state["launch"]["cwd"] == "/ws"
+    assert "--config" in state["launch"]["argv"]
+
+
+def test_state_reports_no_launch_when_nothing_is_installed(monkeypatch):
+    monkeypatch.setattr(cron, "_read_crontab", lambda: EXISTING)
+    assert cron.CronAdapter().state(_job())["launch"] is None

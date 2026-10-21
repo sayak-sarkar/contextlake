@@ -10,7 +10,8 @@ and containers.
 ## Prerequisites
 
 - A configured workspace: `contextlake init`, or `.contextlake.ini` in place. See
-  [Configuration](configuration.md).
+  [Configuration](configuration.md). The job keeps the config you install it with, see
+  [Which config a scheduled run reads](#which-config-a-scheduled-run-reads).
 - Linux, with either a systemd user session or `crontab` available. Nothing else is supported
   yet; see [Platform differences](#platform-differences).
 
@@ -55,7 +56,7 @@ it recomputes and rewrites the job in place. It writes to three places:
 
 | What | Where |
 | --- | --- |
-| The job record (name, command, interval setting, failure count, last run) | `schedule-jobs.json`, beside the project cache |
+| The job record (name, command, interval setting, failure count, last run, and the config files and directory it was installed with) | `schedule-jobs.json`, beside the project cache |
 | The measured run history, appended to by every run | `schedule-history.jsonl`, beside the project cache |
 | The platform unit that fires | a systemd user timer (`~/.config/systemd/user/contextlake-<name>.timer` + `.service`), or a marked block in your crontab |
 
@@ -98,6 +99,76 @@ leaves that step unguarded, so two runs that start in the same instant can both 
 there. The lock covers one machine: a run on another host that shares the cache directory is
 not seen.
 
+### Which config a scheduled run reads
+
+`install` records the config files a run reads, so the unit uses them on each fire. Before, the unit
+carried no config and no directory, and loaded the global config. A job installed from another
+directory, or with `--config`, whose record sat under a different cache directory was not found.
+The run exited 2.
+
+- **A file you name.** `contextlake --config my.ini schedule install` puts the absolute path in the
+  unit's command. `contextlake --kb-config kb.toml schedule install` does the same for the
+  knowledge config. Type both flags before `schedule`: it does not take `--kb-config` after its own
+  name.
+- **A file found by walking up.** Installed from a directory under a `.contextlake.ini` or a
+  `.contextlake.kb.toml`, the unit starts in that directory and finds the file the same way. The
+  path is not passed as `--config`, so a found `.contextlake.ini` keeps its limits: it cannot set
+  the forge host, the token variable or the cache location. See
+  [Configuration](configuration.md#directory-scoped-config).
+- **Neither.** The unit uses the global config, `~/.contextlake.ini`.
+
+When the unit fires, `schedule run` passes the files it was given to the command it starts:
+
+| The job runs | The command gets |
+| --- | --- |
+| `bootstrap` (the default job) | `--config` and `--kb-config` |
+| a `mirror` command | `--config`, the sync INI |
+| a `kb` command, or `doctor` | the knowledge config, as `--config` |
+| anything else | nothing |
+
+A flag in the job's own command wins. A file found by walking up is not passed on: the command finds
+it from the directory it starts in. `schedule run --config my.ini` typed by hand, with or without
+`--foreground`, passes `my.ini` the same way.
+
+`reset` and an existing `interval` job keep the files they were installed with, even when you run
+them from another directory. To move a job to another config, run `install` with it. For a job made
+with `schedule interval`, add `--job NAME`, and add `--interval DURATION` to keep a pinned interval:
+`install` sets `auto` unless you pass one.
+
+How each platform keeps the directory:
+
+- systemd writes `WorkingDirectory=`, launchd writes `WorkingDirectory`, and cron writes `cd DIR &&`
+  before the command. cron also writes each `%` as `\%`, because an unescaped one ends a crontab
+  command.
+- Task Scheduler has no start-in directory. A job with one runs
+  `cmd /d /s /c "cd /d "DIR" && "WORD" "WORD" ..."`, with every word of the command in double quotes,
+  so that `&`, `^`, `|`, `<` and `>` in a path stay text. Like the rest of that adapter, this form is
+  checked by rendering and parsing only, see [Platform differences](#platform-differences).
+- In that form, a `%`, a `!` or a `"` in the directory or in any word is refused at install. `cmd`
+  expands `%` inside quotes. It expands `!` inside quotes when delayed expansion is on, a registry
+  setting that is off by default. A `"` ends the quoted text.
+- `k8s`, `aws` and `azure` start the image, not a process on this machine. They drop `--config` and
+  `--kb-config` from the container's arguments. When the job had a config or a directory, they print
+  one note: the container reads its own config.
+- A directory or config path with a control character, such as a newline, is refused at install.
+
+A unit installed by an earlier version has no directory and no `--config`. If its record sits under
+another config's cache directory, the unit finds no record and exits 2. Run `schedule install` again,
+from the same directory or with the same `--config`, to rewrite it. For a job with a pinned interval,
+add `--interval DURATION`: `install` sets `auto` unless you pass one.
+
+`schedule status` prints the files and directory a job was installed with. It warns in three cases:
+
+- The job's config is not one this command loaded.
+- The unit has no `--config` and no directory, but this command loaded a config.
+- The directory the unit starts in no longer exists. systemd, cron and Task Scheduler then start no
+  run. What launchd does with a missing directory was not checked, and the warning says so. This
+  warning is printed alone, with the command that installs the job again. It names a config found
+  from that directory only while the file still exists.
+
+For a `k8s`, `aws` or `azure` job it prints neither the lines nor the warnings, because the container
+reads its own config. `--json` still lists what the record holds.
+
 ## Set, reset, and unset
 
 Three layers decide what interval a job runs on, and only one of them is read back as the truth:
@@ -106,7 +177,7 @@ Three layers decide what interval a job runs on, and only one of them is read ba
 | --- | --- | --- |
 | The INI (`schedule_interval`, or `--interval` on `install`) | Supplies the starting value **when the job is created**. Ignored after that. | Editing `.contextlake.ini` before the first `install` |
 | The job record (`schedule-jobs.json`) | **Authoritative.** Holds `auto` or a pinned duration, plus the failure count that drives backoff. | `install`, `interval`, `reset`, `uninstall` |
-| The platform unit (the systemd timer or the crontab line) | Rendered *from* the job record's resolved interval. Never read back as truth; `status` reads it only to report drift or cron's rounding. | Rewritten every `install` / `reset` / `interval` |
+| The platform unit (the systemd timer or the crontab line) | Rendered *from* the job record's resolved interval. Never read back as truth; `status` reads it only to report drift, cron's rounding, and the command and directory it starts with. | Rewritten every `install` / `reset` / `interval` |
 
 Three commands change the job record:
 
@@ -446,6 +517,14 @@ measured history, and reports every way they disagree:
      registered platform in `_unchecked_platforms`, because none was checked.
    - `schedule status` also exits 1, and does not say "No schedule installed".
    - Repair or move the file, then run the command again.
+9. **`status` says the unit has no `--config` and no working directory, or reads a config this
+   command did not load.** The unit and this command use different configs. The warning prints the
+   command to run: `install` again for the first, `status` the way the unit runs for the second. See
+   [Which config a scheduled run reads](#which-config-a-scheduled-run-reads).
+10. **`status` says the working directory is not an existing directory.** The directory the job was
+    installed from was moved or deleted. The unit changes to it before it runs. systemd, cron and
+    Task Scheduler then start no run, and what launchd does with a missing directory was not
+    checked. Run the `install` command from the warning, in a directory that exists.
 
 ## See also
 

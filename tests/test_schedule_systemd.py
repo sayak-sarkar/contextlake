@@ -128,6 +128,105 @@ def test_percent_and_dollar_are_doubled_so_systemd_does_not_expand_them():
     assert line == "ExecStart=/opt/p%%d/$$HOME/py -m contextlake schedule run --job default"
 
 
+def _service(job, argv):
+    return systemd.SystemdAdapter().render(job, 3600.0, argv)["contextlake-default.service"]
+
+
+def _cwd_job(cwd):
+    return jobs.new_job("default", ["version"], "auto", "systemd", origin={"cwd": cwd})
+
+
+def test_a_job_with_a_directory_gets_a_working_directory_line():
+    """A user unit starts in the user's home directory, so a config found by walking up from
+    the install directory is reached only by starting there."""
+    service = _service(_cwd_job("/home/me/ws"), _exec_argv())
+    lines = service.splitlines()
+    assert "WorkingDirectory=/home/me/ws" in lines
+    assert lines.index("WorkingDirectory=/home/me/ws") < next(
+        i for i, line in enumerate(lines) if line.startswith("ExecStart="))
+
+
+def test_a_job_without_a_directory_has_no_working_directory_line():
+    assert "WorkingDirectory" not in _service(_job(), _exec_argv())
+
+
+def test_a_working_directory_with_a_space_or_a_quote_is_written_as_it_is():
+    """systemd reads the whole value as the path. Quotes would become part of the path:
+    `systemd-analyze verify` (systemd 258) on `WorkingDirectory="/tmp/a b/c"` reports "path
+    is not absolute"."""
+    assert 'WorkingDirectory=/tmp/a b/it"s' in _service(_cwd_job('/tmp/a b/it"s'), _exec_argv())
+
+
+def test_a_percent_in_the_working_directory_is_doubled_so_systemd_keeps_it():
+    assert "WorkingDirectory=/tmp/100%%" in _service(_cwd_job("/tmp/100%"), _exec_argv())
+
+
+def test_a_control_character_in_the_directory_is_refused_not_written():
+    """A newline starts a new directive, so a directory named for one would add its own."""
+    with pytest.raises(ValueError, match="control character"):
+        _service(_cwd_job("/tmp/ws\nExecStartPre=/bin/evil"), _exec_argv())
+
+
+def test_a_config_path_with_a_space_stays_one_word_in_exec_start():
+    argv = [sys.executable, "-m", "contextlake", "--config", "/home/me/my ws/x.ini",
+            "--kb-config", "/home/me/kb%d.toml", "schedule", "run", "--job", "default"]
+    service = _service(_job(), argv)
+    line = next(ln for ln in service.splitlines() if ln.startswith("ExecStart="))
+    assert '"/home/me/my ws/x.ini"' in line and "kb%%d.toml" in line
+    assert systemd._split_exec_line(line.split("=", 1)[1]) == argv
+
+
+@pytest.mark.parametrize("word", ["/a b/py", 'x"y', "x\\y", "100%", "$HOME", "plain", "", "a  b"])
+def test_exec_start_words_read_back_as_they_were_written(word):
+    line = systemd._exec_word(word)
+    assert systemd._split_exec_line(line) == [word]
+
+
+def test_an_exec_start_with_an_unclosed_quote_reads_as_cannot_tell():
+    assert systemd._split_exec_line('"/a b -m contextlake') is None
+
+
+def test_state_reads_the_command_and_directory_off_the_installed_service(monkeypatch, tmp_path):
+    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(systemd, "_systemctl",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""))
+    monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=yes\n")
+    argv = [sys.executable, "-m", "contextlake", "--config", "/home/me/my ws/x.ini",
+            "schedule", "run", "--job", "default"]
+    adapter = systemd.SystemdAdapter()
+    job = _cwd_job("/home/me/100% ws")
+    adapter.install(job, 3600.0, argv)
+    assert adapter.state(job)["launch"] == {"argv": argv, "cwd": "/home/me/100% ws"}
+
+    adapter.install(_job(), 3600.0, argv)
+    assert adapter.state(_job())["launch"] == {"argv": argv, "cwd": None}
+
+
+def test_state_reads_a_service_earlier_versions_wrote_as_having_no_directory(
+        monkeypatch, tmp_path):
+    """The rc4 shape: no WorkingDirectory and no `--config`. `launch` says so, where None
+    would say the unit could not be read."""
+    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(systemd, "_systemctl",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""))
+    monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=yes\n")
+    (tmp_path / "contextlake-default.timer").write_text("[Timer]\nOnUnitInactiveSec=60s\n")
+    (tmp_path / "contextlake-default.service").write_text(
+        "[Service]\nType=oneshot\nExecStart=/opt/py -m contextlake schedule run --job default\n")
+    launch = systemd.SystemdAdapter().state(_job())["launch"]
+    assert launch == {"argv": ["/opt/py", "-m", "contextlake", "schedule", "run", "--job",
+                               "default"], "cwd": None}
+
+
+def test_state_has_no_launch_when_the_service_cannot_be_read(monkeypatch, tmp_path):
+    monkeypatch.setattr(systemd, "unit_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(systemd, "_systemctl",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""))
+    monkeypatch.setattr(systemd, "_linger_status", lambda: "Linger=yes\n")
+    (tmp_path / "contextlake-default.timer").write_text("[Timer]\nOnUnitInactiveSec=60s\n")
+    assert systemd.SystemdAdapter().state(_job())["launch"] is None
+
+
 def test_quotes_and_backslashes_in_a_path_are_escaped_inside_the_quotes():
     line = _exec_start(['/tmp/a"b\\c d/py', *_RUN])
     assert line == 'ExecStart="/tmp/a\\"b\\\\c d/py" -m contextlake schedule run --job default'

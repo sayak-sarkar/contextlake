@@ -442,3 +442,47 @@ def test_the_module_says_to_use_the_k8s_adapter_on_eks_and_aks():
     move, and this module is the only place that says otherwise."""
     assert "EKS" in cloud.__doc__ and "AKS" in cloud.__doc__
     assert "--platform k8s" in cloud.__doc__
+
+
+# ---- a config on the machine that ran install -----------------------------
+
+def _pinned_argv():
+    from contextlake.schedule import adapters
+
+    return adapters.exec_argv_for("default", config="/home/me/x.ini",
+                                  kb_config="/home/me/kb.toml")
+
+
+def test_the_aws_container_command_has_no_host_config_path():
+    rendered = cloud.AwsAdapter().render(_job(), 3600, _pinned_argv())
+    assert "/home/me" not in rendered["schedule.json"]
+    command = json.loads(json.loads(rendered["schedule.json"])["Target"]["Input"])[
+        "containerOverrides"][0]["command"]
+    assert command == ["schedule", "run", "--job", "default"]
+
+
+def test_the_azure_command_has_no_host_config_path():
+    rendered = cloud.AzureAdapter().render(_job(platform="azure"), 3600, _pinned_argv())
+    assert "/home/me" not in rendered["az-command"]
+    assert "--args" in rendered["az-command"]
+
+
+def test_azure_install_sends_no_host_config_path(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cloud, "_cli", lambda *a, **k: calls.append(a) or _ok())
+    cloud.AzureAdapter().install(_job(platform="azure"), 3600, _pinned_argv())
+    assert "/home/me" not in " ".join(calls[0])
+
+
+def test_each_cloud_adapter_says_once_that_the_container_reads_its_own_config():
+    for adapter, job in ((cloud.AwsAdapter(), _job()),
+                         (cloud.AzureAdapter(), _job(platform="azure"))):
+        notes = adapter.render(job, 3600, _pinned_argv())["notes"]
+        assert sum("Neither is passed to the container" in n for n in notes) == 1
+
+
+def test_a_job_with_no_config_gets_no_container_config_note():
+    for adapter, job in ((cloud.AwsAdapter(), _job()),
+                         (cloud.AzureAdapter(), _job(platform="azure"))):
+        notes = adapter.render(job, 3600, _argv())["notes"]
+        assert not any("Neither is passed" in n for n in notes)

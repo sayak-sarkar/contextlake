@@ -78,8 +78,9 @@ def test_the_table_is_what_the_source_reads():
         if dest == "dry_run":
             continue        # read from the config (`dry_run = true` lands there too)
         assert {a for a, r in reads.items() if dest in r} == set(actions), dest
-    # and nothing a command reads is missing from the table
-    flags = {d for r in reads.values() for d in r} - {"action", "rest"}
+    # and nothing a command reads is missing from the table. `config` and `kb_config` are
+    # global options that every command takes, so no action is refused one.
+    flags = {d for r in reads.values() for d in r} - {"action", "rest", "config", "kb_config"}
     assert flags <= set(cmds.FLAG_ACTIONS)
 
 

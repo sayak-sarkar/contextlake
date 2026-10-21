@@ -97,6 +97,7 @@ class AwsAdapter(Adapter):
 
     id = "aws"
     catches_up_after_sleep = False
+    reads_host_config = False
     metadata_keys = frozenset({"rate", "interval_s", "minutes", "notes", "name"})
 
     def usable(self) -> bool:
@@ -107,7 +108,7 @@ class AwsAdapter(Adapter):
                **_options) -> dict:
         name = check_name(job.name)
         actual_s, minutes = nearest_expressible(interval_s)
-        from .k8s import _container_args
+        from .k8s import _container_args, host_config_notes
 
         args = _container_args(exec_argv)
         # rate() takes an INTEGER and a UNIT WORD. "rate(4200 seconds)" is not
@@ -136,6 +137,7 @@ class AwsAdapter(Adapter):
             },
         }
         notes = _rounding_note(actual_s, interval_s, "EventBridge Scheduler")
+        notes.extend(host_config_notes(job, exec_argv))
         notes.append(NO_FORBID_NOTE)
         notes.append("the ECS task must mount persistent storage (EFS). An "
                      "ephemeral store re-indexes the whole fleet every run, "
@@ -193,7 +195,7 @@ class AwsAdapter(Adapter):
                           "--query", "ScheduleExpression", "--output", "text")
         except OSError as e:
             return {"installed": None, "interval_s": None, "next_run": None,
-                    "exec_path": None, "notes": [str(e)]}
+                    "exec_path": None, "notes": [str(e)], "launch": None}
         # None when the query failed without saying ResourceNotFoundException (expired
         # credentials, a missing permission, no network): "cannot tell", not "not installed".
         installed, problem = installed_or_unknown(result, "aws", AWS_NOT_FOUND)
@@ -211,6 +213,7 @@ class AwsAdapter(Adapter):
             "next_run": None,
             "exec_path": None,
             "notes": notes,
+            "launch": None,
         }
 
 
@@ -219,6 +222,7 @@ class AzureAdapter(Adapter):
 
     id = "azure"
     catches_up_after_sleep = False
+    reads_host_config = False
     metadata_keys = frozenset({"cron", "interval_s", "minutes", "notes", "name"})
 
     def usable(self) -> bool:
@@ -227,7 +231,7 @@ class AzureAdapter(Adapter):
     def render(self, job, interval_s, exec_argv, resource_group=DEFAULT_RESOURCE_GROUP,
                environment="contextlake", image="", **_options) -> dict:
         from .cron import nearest_expressible as cron_nearest
-        from .k8s import DEFAULT_IMAGE, _container_args
+        from .k8s import DEFAULT_IMAGE, _container_args, host_config_notes
 
         name = check_name(job.name)
         # A Container Apps Job schedule trigger IS a cron expression, so it
@@ -235,6 +239,7 @@ class AzureAdapter(Adapter):
         actual_s, spec = cron_nearest(interval_s)
         args = _container_args(exec_argv)
         notes = _rounding_note(actual_s, interval_s, "a cron trigger")
+        notes.extend(host_config_notes(job, exec_argv))
         notes.append(NO_FORBID_NOTE)
         notes.append("the job must mount Azure Files for its store. An "
                      "ephemeral store re-indexes the whole fleet every run, "
@@ -310,7 +315,7 @@ class AzureAdapter(Adapter):
                                      ".cronExpression", "--output", "tsv")
         except OSError as e:
             return {"installed": None, "interval_s": None, "next_run": None,
-                    "exec_path": None, "notes": [str(e)]}
+                    "exec_path": None, "notes": [str(e)], "launch": None}
         installed, problem = installed_or_unknown(result, "azure", AZURE_NOT_FOUND)
         notes = [problem] if problem else []
         if installed:
@@ -324,4 +329,5 @@ class AzureAdapter(Adapter):
             "next_run": None,
             "exec_path": None,
             "notes": notes,
+            "launch": None,
         }

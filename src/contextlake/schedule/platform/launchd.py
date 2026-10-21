@@ -81,6 +81,11 @@ class LaunchdAdapter(Adapter):
             "ProcessType": "Background",
             "RunAtLoad": False,
         }
+        if job.cwd:
+            # launchd changes to this directory before it starts the job (launchd.plist(5)).
+            # A config found by walking up from the install directory is reached by running
+            # there.
+            plist["WorkingDirectory"] = job.cwd
         # launchd has no ConditionACPower. The battery gate is enforced in
         # `gates.check` at run time instead, which is why nothing is added
         # here rather than a key being invented that launchd would ignore.
@@ -142,7 +147,7 @@ class LaunchdAdapter(Adapter):
     def state(self, job) -> dict:
         path = os.path.join(agent_dir(), plist_name(job.name))
         installed = os.path.exists(path)
-        notes, interval_s, exec_path = [], None, None
+        notes, interval_s, exec_path, launch = [], None, None, None
         if installed:
             # Read the interval back off the INSTALLED plist rather than
             # reporting what was requested. They differ whenever an install
@@ -159,6 +164,9 @@ class LaunchdAdapter(Adapter):
             argv = data.get("ProgramArguments") or []
             if argv and isinstance(argv, list):
                 exec_path = str(argv[0])
+                launch = {"argv": [str(a) for a in argv],
+                          "cwd": str(data["WorkingDirectory"])
+                          if data.get("WorkingDirectory") else None}
         return {
             "installed": installed,
             "interval_s": interval_s,
@@ -168,4 +176,5 @@ class LaunchdAdapter(Adapter):
             "next_run": None,
             "exec_path": exec_path,
             "notes": notes,
+            "launch": launch,
         }

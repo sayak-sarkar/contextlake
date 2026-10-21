@@ -399,3 +399,55 @@ def test_state_is_none_when_there_is_no_client(monkeypatch):
     state = k8s.K8sAdapter().state(_job())
     assert state["installed"] is None
     assert state["notes"] == ["neither kubectl nor oc is on PATH"]
+
+
+# ---- a config on the machine that ran install -----------------------------
+
+def _pinned_argv():
+    from contextlake.schedule import adapters
+
+    return adapters.exec_argv_for("default", config="/home/me/x.ini",
+                                  kb_config="/home/me/kb.toml")
+
+
+def _container(doc):
+    return doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]
+
+
+def test_a_config_flag_and_its_host_path_never_reach_the_container_args():
+    rendered = k8s.K8sAdapter().render(_job(), 3600, _pinned_argv())
+    args = _container(yaml.safe_load(rendered["cronjob.yaml"]))["args"]
+    assert args == ["schedule", "run", "--job", "default"]
+    assert "/home/me" not in rendered["cronjob.yaml"]
+
+
+def test_the_container_args_strip_only_the_flags_before_the_subcommand():
+    """A flag the scheduled command itself takes after `schedule` is the image's to read."""
+    argv = ["/py", "-m", "contextlake", "--config", "/h/x.ini", "schedule", "run", "--job", "a"]
+    assert k8s._container_args(argv) == ["schedule", "run", "--job", "a"]
+    assert k8s._container_args(["/py", "-m", "contextlake", "schedule", "run", "--config",
+                                "/in/image.ini"]) == ["schedule", "run", "--config",
+                                                      "/in/image.ini"]
+
+
+def test_one_note_says_the_container_reads_its_own_config_when_the_job_had_one():
+    pinned = k8s.K8sAdapter().render(_job(), 3600, _pinned_argv())["notes"]
+    assert sum("Neither is passed to the container" in n for n in pinned) == 1
+
+    located = k8s.K8sAdapter().render(
+        jobstore.new_job("default", ["bootstrap"], "auto", "k8s", origin={"cwd": "/home/me/ws"}),
+        3600, _argv())["notes"]
+    assert sum("Neither is passed to the container" in n for n in located) == 1
+
+
+def test_a_job_with_no_config_gets_no_such_note():
+    from contextlake.schedule import adapters
+
+    notes = k8s.K8sAdapter().render(_job(), 3600, adapters.exec_argv_for("default"))["notes"]
+    assert not any("container" in n and "config" in n for n in notes)
+
+
+def test_the_cluster_adapter_does_not_claim_a_working_directory_or_config_of_its_own():
+    """The install report prints the config and directory lines only for an adapter whose
+    unit starts a process on this machine."""
+    assert k8s.K8sAdapter.reads_host_config is False

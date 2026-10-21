@@ -1746,6 +1746,12 @@ gap wins, then it is clamped to schedule_min and schedule_max.
 
 `recommend`, `status` and `list` change nothing. Everything else writes.
 
+An installed job keeps the config it was installed with. Name the sync INI with
+--config and the knowledge config with --kb-config, both before `schedule`
+(`schedule` does not take --kb-config after its own name). A config found by
+walking up from the current directory is reached by the unit starting in that
+directory.
+
 A flag of `schedule` itself (--job, --interval, --foreground, --history,
 --purge, --all, --yes, --json, --allow-ephemeral) works before OR after the
 action, same as any other contextlake command. Only `interval` is different:

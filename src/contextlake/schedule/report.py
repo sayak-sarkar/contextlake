@@ -11,6 +11,7 @@ Core tier. Nothing here may import ``contextlake.kb`` at module level, which
 from __future__ import annotations
 
 import json as jsonlib
+import os
 
 from ..logging_setup import log
 from . import adapters, gates, history, recommend
@@ -229,6 +230,112 @@ def _print_orphans(orphans, unchecked) -> None:
           "the unit on the platform.")
 
 
+def _schedule_command(name, action, config=None, cwd=None, interval=None) -> str:
+    """The `schedule` command a person can paste, with ``--config`` and a directory to start in
+    when the job has them. ``--job`` is added for a job that is not the default one. ``--interval``
+    is added, before the action, for an interval other than ``auto``: ``install`` sets ``auto``
+    unless it is given one, so a hint without it would unpin a job."""
+    import shlex
+
+    from . import jobs as jobstore
+
+    words = ["contextlake"] + (["--config", config] if config else []) + ["schedule"]
+    if name != jobstore.DEFAULT_JOB:
+        words += ["--job", name]
+    if interval and str(interval).strip().lower() != "auto":
+        words += ["--interval", str(interval)]
+    command = shlex.join(words + [action])
+    return f"cd {shlex.quote(cwd)} && {command}" if cwd else command
+
+
+# The platforms where a missing directory was checked to stop the command. systemd: the
+# systemd.exec(5) text was read, nothing was run. cron: the line `cd DIR && COMMAND` was run
+# with sh. Task Scheduler: `cmd /d /c "cd /d DIR && COMMAND"` was run without the quotes
+# around DIR, not through schtasks. launchd is not here: nothing was read or run for it.
+_STOPS_WHEN_MISSING = ("systemd", "cron", "windows")
+
+
+def _missing_directory_note(job, launch):
+    """A warning when the directory the job's unit starts in is gone, else ``None``.
+
+    Every unit that has a directory changes to it before it runs the command (systemd
+    ``WorkingDirectory=``, launchd ``WorkingDirectory``, and the ``cd`` that cron and Task
+    Scheduler write). systemd treats a missing one as fatal (systemd.exec(5)), and the ``&&``
+    after the ``cd`` of cron and Task Scheduler skips the command. Those three are in
+    ``_STOPS_WHEN_MISSING``; any other platform, launchd included, gets a sentence that says
+    what a missing directory does there was not checked, because nothing here ran it.
+    ``launch`` is what ``state()`` read from the installed unit. A unit that was read decides:
+    one that starts in no directory is not a finding, whatever the record holds. When the unit
+    could not be read (``None``), the directory in the record stands in, and the note says so.
+    A found config is named only while its file exists: when it sat in the directory that is
+    gone, no install directory finds it again.
+    """
+    from . import jobs as jobstore
+
+    if launch is None:
+        directory, subject = job.cwd, "The working directory recorded for this job"
+        effect = "A unit that starts in it cannot run the job."
+    else:
+        directory, subject = launch.get("cwd"), "The working directory of this job's unit"
+        effect = "The job cannot start there."
+    if not directory or os.path.isdir(directory):
+        return None
+    if job.platform not in _STOPS_WHEN_MISSING:
+        effect = (f"What {job.platform or 'this platform'} does with a missing directory "
+                  "was not checked.")
+    found = (job.config if job.config and job.config_source == jobstore.DISCOVERED
+             and os.path.isfile(job.config) else None)
+    again = _schedule_command(job.name, "install", interval=job.interval,
+                              config=job.config if job.config_source == jobstore.EXPLICIT
+                              else None)
+    sentences = [f"{subject}, {directory}, is not an existing directory.", effect]
+    if found:
+        sentences.append(f"The config it reads, {found}, was found from that directory.")
+    sentences.append("Install the job again from a directory "
+                     + ("that finds that file" if found else "that exists") + f": {again}")
+    return " ".join(sentences)
+
+
+def _config_notes(args, job, launch) -> list:
+    """Warnings about the directory the job's unit starts in, and about the sync INI this
+    command loaded against the one the job's unit reads.
+
+    ``launch`` is what ``state()`` read back from the installed unit: ``None`` means it could
+    not be read, which is not a finding about the config. A directory that is gone is the
+    first and only note, whatever the platform does with it: the ``cd`` that the mismatch note
+    suggests would fail in it. A unit with no ``--config`` and no
+    working directory loads only the global config. Three jobs look like that: a unit written
+    by an earlier version, a job installed from a directory with no config, and a job installed
+    from the global config alone and checked from a directory that has a local one. A job
+    record reads the same for all three, so the first config note below reads the unit, not the
+    record, and says nothing about how the unit came to be.
+    """
+    from . import jobs as jobstore
+
+    gone = _missing_directory_note(job, launch)
+    if gone:
+        return [gone]
+    loaded = adapters.loaded_configs(args)
+    if (loaded and launch is not None and launch.get("cwd") is None
+            and "--config" not in launch.get("argv", [])):
+        named = getattr(args, "config", None)
+        again = _schedule_command(job.name, "install", interval=job.interval,
+                                  config=adapters._absolute(named) if named else None)
+        return [f"The unit for this job starts with no --config and no working directory, so "
+                f"it reads only the global config. This command loaded {', '.join(loaded)}. "
+                f"To make the job use that config, install it again from this directory: "
+                f"{again}"]
+    if job.config and not any(adapters._same_file(job.config, path) for path in loaded):
+        explicit = job.config_source == jobstore.EXPLICIT
+        how = "named with --config" if explicit else f"found from {job.cwd}"
+        same_view = _schedule_command(job.name, "status",
+                                      config=job.config if explicit else None, cwd=job.cwd)
+        return [f"The unit for this job reads {job.config} ({how}). This command loaded "
+                f"{', '.join(loaded) or 'no config besides the global one'}. To see the job "
+                f"as its unit does, run: {same_view}"]
+    return []
+
+
 def cmd_status(args, config) -> int:
     """What is installed, what it will do, and every way it might be dead.
 
@@ -288,6 +395,7 @@ def cmd_status(args, config) -> int:
         except Exception:  # noqa: BLE001 - a sensor is never worth failing status over
             idle_inert = True
 
+    origin_text = {}
     for name, job in sorted(mapping.items()):
         notes = []
         # Constructing the adapter and reading its state are two separate
@@ -300,6 +408,11 @@ def cmd_status(args, config) -> int:
         # "does not replay a run missed" for systemd, which sets
         # ``Persistent=true`` and does replay one.
         adapter_id, catches_up = job.platform or "unknown", None
+        # A unit that starts a process here reads the config files named in the record. A
+        # container job (k8s, aws, azure) reads its own, so a host path and a "rerun status
+        # with it" hint would be false for it. Unknown, when no adapter could be built, is
+        # treated as the host case: the record is shown and the notes are given.
+        host_config = True
         try:
             adapter = adapters._adapter_for(args, job)
         except Exception as e:  # noqa: BLE001 - a broken adapter must not hide the record
@@ -307,6 +420,7 @@ def cmd_status(args, config) -> int:
                      "notes": [f"could not build the {job.platform} adapter: {e}"]}
         else:
             adapter_id, catches_up = adapter.id, adapter.catches_up_after_sleep
+            host_config = getattr(adapter, "reads_host_config", True)
             try:
                 state = adapter.state(job)
             except Exception as e:  # noqa: BLE001 - ditto, for a live read
@@ -323,6 +437,11 @@ def cmd_status(args, config) -> int:
         if installed is False:
             notes.append("This job is recorded but its unit is NOT installed. "
                          "Re-run `contextlake schedule install` to put it back.")
+        origin_text[name] = adapters.origin_lines(job) if host_config else []
+        if host_config:
+            for note in _config_notes(args, job, state.get("launch")):
+                if note not in notes:
+                    notes.append(note)
         # The interpreter the INSTALLED unit references, not the one running
         # this check: `exec_argv_for` builds the argv for a fresh install and
         # always resolves to sys.executable, so checking it here would ask
@@ -368,6 +487,7 @@ def cmd_status(args, config) -> int:
             "unit_installed": None if installed is None else bool(installed),
             "adapter": adapter_id,
             "next_run": state.get("next_run"), "command": job.argv,
+            **jobstore.origin_of(job),
             "recommendation": recommend.format_duration(rec.interval_s),
             "last_run": job.last_run, "last_exit": job.last_exit,
             "failures": job.failures, "notes": notes})
@@ -380,6 +500,8 @@ def cmd_status(args, config) -> int:
         glyph = style.ok() if (entry["unit_installed"] and not entry["notes"]) else style.warn()
         print(f"{glyph} {entry['name']}  ({entry['adapter']})")
         print(f"    runs:      contextlake {' '.join(entry['command'])}")
+        for line in origin_text[entry["name"]]:
+            print(f"    {line}")
         print(f"    interval:  {entry['effective_interval']}"
               + (f"  (set to {entry['interval_setting']})"
                  if entry["interval_setting"] != "auto" else "  (auto)"))

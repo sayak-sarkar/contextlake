@@ -13,6 +13,8 @@ import json
 import os
 from collections import namedtuple
 
+from .platform.base import usable_text
+
 FILENAME = "schedule-jobs.json"
 
 DEFAULT_JOB = "default"
@@ -22,11 +24,34 @@ DEFAULT_JOB = "default"
 DEFAULT_ARGV = ["bootstrap"]
 DEFAULT_FULL_ARGV = ["bootstrap", "--force"]
 
+# Where a config file named in a job record came from. Only an EXPLICIT path is ever
+# passed to the unit as ``--config``: that is the file the user named, and ``load_config``
+# keeps every key from it. A DISCOVERED path was found by walking up from the install
+# directory. It is recorded for reference, and the unit reaches the file by running in
+# ``cwd``. Passing it as ``--config`` would raise it to the trust of a file the user named.
+EXPLICIT = "explicit"
+DISCOVERED = "discovered"
+
+# Optional fields of a record. A record without them was written before they existed, or
+# had no config to keep. ``config`` is the sync INI, ``kb_config`` the knowledge config.
+ORIGIN_KEYS = ("config", "config_source", "kb_config", "kb_config_source", "cwd")
+
 Job = namedtuple("Job",
                  "name argv full_argv interval created platform "
-                 "failures last_run last_exit")
+                 "failures last_run last_exit " + " ".join(ORIGIN_KEYS),
+                 defaults=(None,) * len(ORIGIN_KEYS))
 
 _REQUIRED = ("argv", "interval")
+
+
+def usable_path(value) -> bool:
+    """Whether ``value`` can be written into a unit file or a crontab line.
+
+    An absolute path with no control character. A newline is legal in a Linux file name, and
+    in a unit file or a crontab it starts a new line, so a directory named for it would add a
+    directive or a job of its own.
+    """
+    return isinstance(value, str) and os.path.isabs(value) and usable_text(value)
 
 
 def jobs_path(config) -> str:
@@ -35,7 +60,8 @@ def jobs_path(config) -> str:
     return os.path.join(os.path.dirname(history_path(config)) or ".", FILENAME)
 
 
-def new_job(name, argv, interval, platform, full_argv=None, created=None) -> Job:
+def new_job(name, argv, interval, platform, full_argv=None, created=None,
+            origin=None) -> Job:
     """A fresh record. ``full_argv`` defaults to ``argv``: an ad-hoc job has one
     command and there is no forced variant of it to invent.
 
@@ -47,6 +73,9 @@ def new_job(name, argv, interval, platform, full_argv=None, created=None) -> Job
     ``created`` lets a caller preserve a job's original creation time across a
     rewrite. Task 8's ``cmd_install`` is idempotent and reuses this so
     reinstalling an existing job does not reset when it was first created.
+
+    ``origin`` holds the :data:`ORIGIN_KEYS` the job keeps: the config files its unit
+    reads and the directory it runs in. See ``adapters.capture_origin``.
     """
     from .history import utc_now_iso
 
@@ -55,7 +84,13 @@ def new_job(name, argv, interval, platform, full_argv=None, created=None) -> Job
         full_argv = list(DEFAULT_FULL_ARGV) if argv == DEFAULT_ARGV else list(argv)
     return Job(name=str(name), argv=argv, full_argv=[str(a) for a in full_argv],
                interval=str(interval), created=created or utc_now_iso(),
-               platform=str(platform), failures=0, last_run=None, last_exit=None)
+               platform=str(platform), failures=0, last_run=None, last_exit=None,
+               **{k: v for k, v in (origin or {}).items() if k in ORIGIN_KEYS})
+
+
+def origin_of(job) -> dict:
+    """The :data:`ORIGIN_KEYS` of ``job``, to carry onto a rewritten record."""
+    return {key: getattr(job, key) for key in ORIGIN_KEYS}
 
 
 class JobStoreUnreadable(ValueError):
@@ -91,7 +126,10 @@ def read_jobs(path, *, strict: bool = False) -> dict:
 
     A record whose ``argv`` is not a list of strings is dropped outright, not
     coerced: a shell string is what this store refuses to represent,
-    because these values are handed to a unit file that runs unattended.
+    because these values are handed to a unit file that runs unattended. The same goes
+    for a ``config``, ``kb_config`` or ``cwd`` that is not an absolute path free of control
+    characters. A source label that is missing or unknown reads as ``None``, and a path
+    with no known source is never passed to a unit.
     """
     out = {}
     for name, raw in _read_document(path, strict=strict).items():
@@ -104,12 +142,20 @@ def read_jobs(path, *, strict: bool = False) -> dict:
             continue
         if not (isinstance(full, list) and all(isinstance(a, str) for a in full)):
             continue
+        origin = {key: raw.get(key) for key in ("config", "kb_config", "cwd")}
+        if any(v is not None and not usable_path(v) for v in origin.values()):
+            continue
+        for key in ("config", "kb_config"):
+            label = raw.get(key + "_source")
+            origin[key + "_source"] = (
+                label if origin[key] is not None and label in (EXPLICIT, DISCOVERED)
+                else None)
         out[str(name)] = Job(
             name=str(name), argv=list(argv), full_argv=list(full),
             interval=str(raw.get("interval", "auto")),
             created=raw.get("created"), platform=raw.get("platform") or "",
             failures=int(raw.get("failures") or 0),
-            last_run=raw.get("last_run"), last_exit=raw.get("last_exit"))
+            last_run=raw.get("last_run"), last_exit=raw.get("last_exit"), **origin)
     return out
 
 
@@ -135,7 +181,9 @@ def _write_document(path, mapping) -> None:
         name: {"argv": job.argv, "full_argv": job.full_argv,
                "interval": job.interval, "created": job.created,
                "platform": job.platform, "failures": job.failures,
-               "last_run": job.last_run, "last_exit": job.last_exit}
+               "last_run": job.last_run, "last_exit": job.last_exit,
+               # Only the ones set, so a record with no config reads the same as before.
+               **{k: v for k, v in origin_of(job).items() if v is not None}}
         for name, job in mapping.items()}}
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     tmp = path + ".tmp"

@@ -135,6 +135,8 @@ steering, without touching an in-progress working tree.
 ### Before your first cron entry
 
 1. **Have a config file.** Cron does not read the directory you happened to be in when you tested.
+   `contextlake schedule install` keeps that directory and any `--config` for you, see
+   [Which config a scheduled run reads](scheduling.md#which-config-a-scheduled-run-reads).
 
    ```bash
    contextlake init                       # writes the file for you, prompting for each value

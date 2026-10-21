@@ -1,6 +1,10 @@
 """The job record: create, read, update, delete, and survive a bad file."""
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from contextlake.schedule import jobs
 
 
@@ -134,3 +138,70 @@ def test_argv_with_a_non_string_element_is_dropped(tmp_path):
         '"full_argv": ["kb", "wiki"], "interval": "1h"}}}',
         encoding="utf-8")
     assert jobs.read_jobs(str(path)) == {}
+
+
+# ---- the config a job keeps ---------------------------------------------
+
+_ORIGIN = {"config": "/ws/.contextlake.ini", "config_source": jobs.DISCOVERED,
+           "kb_config": "/state/kb.toml", "kb_config_source": jobs.EXPLICIT,
+           "cwd": "/ws"}
+
+
+def _write(path, **record):
+    base = {"argv": ["bootstrap"], "interval": "auto"}
+    path.write_text(json.dumps({"jobs": {"default": {**base, **record}}}), encoding="utf-8")
+
+
+def test_a_job_keeps_its_config_files_and_directory_across_a_round_trip(tmp_path):
+    path = str(tmp_path / "jobs.json")
+    jobs.write_job(path, jobs.new_job("default", ["bootstrap"], "auto", "cron",
+                                      origin=_ORIGIN))
+    assert jobs.origin_of(jobs.read_jobs(path)["default"]) == _ORIGIN
+
+
+def test_a_job_with_no_config_writes_none_of_the_new_keys(tmp_path):
+    """So the record of a job that keeps nothing is the document earlier versions wrote."""
+    path = tmp_path / "jobs.json"
+    jobs.write_job(str(path), jobs.new_job("default", ["bootstrap"], "auto", "cron"))
+    written = json.loads(path.read_text(encoding="utf-8"))["jobs"]["default"]
+    assert not set(jobs.ORIGIN_KEYS) & set(written)
+
+
+def test_a_record_written_before_these_fields_reads_with_none_of_them(tmp_path):
+    path = tmp_path / "jobs.json"
+    _write(path)
+    job = jobs.read_jobs(str(path))["default"]
+    assert jobs.origin_of(job) == {key: None for key in jobs.ORIGIN_KEYS}
+
+
+@pytest.mark.parametrize("field, value", [
+    ("cwd", "relative/dir"), ("cwd", "/ws\n[Service]"), ("config", "/a\r.ini"),
+    ("kb_config", "kb.toml"), ("config", 7), ("cwd", ["/ws"]),
+])
+def test_a_record_with_a_path_a_unit_cannot_hold_is_dropped(tmp_path, field, value):
+    """A newline in a directory name starts a new line of a unit file or a crontab, so a
+    record that carries one is not rendered."""
+    path = tmp_path / "jobs.json"
+    _write(path, **{field: value})
+    assert jobs.read_jobs(str(path)) == {}
+
+
+@pytest.mark.parametrize("record", [
+    {"config": "/ws/x.ini", "config_source": "trusted"},
+    {"config": "/ws/x.ini"},
+    {"config_source": jobs.EXPLICIT},
+])
+def test_a_path_with_a_missing_or_unknown_source_has_no_source(tmp_path, record):
+    """No label means the path is never passed to a unit as `--config`."""
+    path = tmp_path / "jobs.json"
+    _write(path, **record)
+    assert jobs.read_jobs(str(path))["default"].config_source is None
+
+
+def test_the_other_record_fields_survive_the_new_ones(tmp_path):
+    path = str(tmp_path / "jobs.json")
+    jobs.write_job(path, jobs.new_job("default", ["bootstrap"], "2h", "cron", origin=_ORIGIN))
+    jobs.record_outcome(path, "default", 1, "2026-08-26T01:00:00Z")
+    job = jobs.read_jobs(path)["default"]
+    assert (job.interval, job.failures, job.last_exit) == ("2h", 1, 1)
+    assert jobs.origin_of(job) == _ORIGIN

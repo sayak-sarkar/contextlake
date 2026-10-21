@@ -26,17 +26,22 @@ NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 # printing it twice when both sides know it.
 NO_CATCH_UP_PHRASE = "does not replay a run missed"
 
-# The five keys every adapter's state() must return. Named here, not only in
+# The keys every adapter's state() must return. Named here, not only in
 # the docstring, so tests/test_schedule_platform_registry.py can enforce it
 # against every registered adapter instead of trusting prose: `cmds.py` reads
 # each with `.get()`, so an adapter that omits a key fails silently, not
 # loudly, and a test fixture that omits one is exercising a path no real
 # adapter takes.
-STATE_KEYS = ("installed", "interval_s", "next_run", "exec_path", "notes")
+STATE_KEYS = ("installed", "interval_s", "next_run", "exec_path", "notes", "launch")
 
 
 class NoAdapter(RuntimeError):
     """No adapter by that name, or none usable here."""
+
+
+def usable_text(value) -> bool:
+    """Whether ``value`` has no control character. One in a line-based file starts a new line."""
+    return not any(ord(c) < 32 or ord(c) == 127 for c in str(value))
 
 
 def check_name(name) -> str:
@@ -100,6 +105,9 @@ class Adapter:
 
     id = ""
     catches_up_after_sleep = False
+    # Whether the unit starts a process on this machine, where a config path and a working
+    # directory mean something. A container adapter starts the image, which has its own.
+    reads_host_config = True
     # Keys `render()` returns that are facts about the install, not files to
     # write or show. Empty by default: every key an adapter returns is an
     # artefact unless it lists the key here. Only `cron` needs this today
@@ -145,14 +153,17 @@ class Adapter:
         """What is installed for ``job``, read from this platform, not
         from the job record.
 
-        Returns a dict with five keys: ``installed`` (bool, or ``None`` when the
+        Returns a dict with six keys: ``installed`` (bool, or ``None`` when the
         platform could not be asked, such as a cluster that is unreachable or a
         login that expired), ``interval_s``
         (the interval the unit itself holds, or ``None`` if unreadable),
         ``next_run`` (a platform-formatted timestamp, or ``None``),
         ``exec_path`` (the interpreter the installed unit runs, or ``None``
         when it cannot be read back), and ``notes`` (a list of strings, for
-        anything only this adapter can see, such as systemd's linger check).
+        anything only this adapter can see, such as systemd's linger check), and
+        ``launch``: ``{"argv": [...], "cwd": str | None}``, the command the installed unit
+        runs and the working directory it sets (``None`` when it sets none), or ``None``
+        when the unit cannot be read back or runs in a container.
         ``None`` always means "cannot tell" and must never be reported as a
         finding; only a value that is present and wrong is one.
         """

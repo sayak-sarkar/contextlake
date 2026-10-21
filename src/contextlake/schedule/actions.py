@@ -57,14 +57,21 @@ def cmd_install(args, config) -> int:
         return 2
 
     interval_s, why = resolve_interval(config, interval_setting)
+    try:
+        # Taken from this run, not from `existing`: installing again is how a job is moved to
+        # another config, or how a record written before these fields existed gets them.
+        origin = adapters.capture_origin(args)
+    except ValueError as e:
+        log(style.fail(str(e)))
+        return 2
     job = jobstore.new_job(name, argv, interval_setting, adapter.id, full_argv=full_argv,
-                           created=existing.created if existing else None)
+                           created=existing.created if existing else None, origin=origin)
+    exec_argv = adapters.job_exec_argv(job)
     on_battery = config.get("schedule_on_battery", "skip")
     if str(config.get("dry_run", "false")).lower() == "true":
         # `--dry-run`, or `dry_run = true` in the config. Everything above only reads, so
         # stopping here installs nothing and writes no job record.
-        rendered = adapter.render(job, interval_s, adapters.exec_argv_for(name),
-                                  on_battery=on_battery)
+        rendered = adapter.render(job, interval_s, exec_argv, on_battery=on_battery)
         log(f"Dry run: nothing installed. Job {name!r} on {adapter.id}, every "
             f"{recommend.format_duration(interval_s)}. {why}")
         for filename, text in rendered.items():
@@ -73,8 +80,7 @@ def cmd_install(args, config) -> int:
             log(f"\n----- {filename} -----\n{text}")
         return 0
     try:
-        written = adapter.install(job, interval_s, adapters.exec_argv_for(name),
-                                  on_battery=on_battery)
+        written = adapter.install(job, interval_s, exec_argv, on_battery=on_battery)
     except OSError as e:
         # Print the unit and say how to install it, then exit 1: nothing is scheduled, and
         # a script or CI step that reads the exit code must see that. It exited 0 until the
@@ -83,8 +89,7 @@ def cmd_install(args, config) -> int:
         # ConditionACPower=true, which on a read-only home is the only
         # artefact they get.
         log(style.fail(f"Could not install the {adapter.id} unit: {e}"))
-        rendered = adapter.render(job, interval_s, adapters.exec_argv_for(name),
-                                  on_battery=on_battery)
+        rendered = adapter.render(job, interval_s, exec_argv, on_battery=on_battery)
         for filename, text in rendered.items():
             if filename in adapter.metadata_keys:
                 continue
@@ -94,7 +99,7 @@ def cmd_install(args, config) -> int:
     jobstore.write_job(jobs_file, job)
 
     adapters._report_installed(
-        adapter, job, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
+        adapter, job, interval_s, exec_argv, on_battery, why, written,
         lambda interval_str: (f"{style.ok()} Installed job {name!r} on "
                               f"{adapter.id}, every {interval_str}."))
     return 0
@@ -258,13 +263,15 @@ def cmd_reset(args, config) -> int:
         log("No schedule installed. Nothing to reset.")
         return 1
 
+    # The record keeps the config and directory it was installed with, so a reset run from
+    # another directory writes the same unit. `schedule install` is what changes them.
     updated = job._replace(interval="auto", failures=0)
+    exec_argv = adapters.job_exec_argv(updated)
     interval_s, why = resolve_interval(config, "auto")
     on_battery = config.get("schedule_on_battery", "skip")
     try:
         adapter = adapters._adapter_for(args, updated)
-        written = adapter.install(updated, interval_s, adapters.exec_argv_for(name),
-                                  on_battery=on_battery)
+        written = adapter.install(updated, interval_s, exec_argv, on_battery=on_battery)
     except (base.NoAdapter, OSError) as e:
         log(style.fail(f"Could not rewrite the {updated.platform} unit: {e}"))
         return 1
@@ -277,6 +284,6 @@ def cmd_reset(args, config) -> int:
     jobstore.write_job(jobs_file, updated)
 
     adapters._report_installed(
-        adapter, updated, interval_s, adapters.exec_argv_for(name), on_battery, why, written,
+        adapter, updated, interval_s, exec_argv, on_battery, why, written,
         lambda interval_str: f"{style.ok()} Reset job {name!r} to auto, every {interval_str}.")
     return 0

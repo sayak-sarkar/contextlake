@@ -14,7 +14,7 @@ import re
 import shlex
 import subprocess
 
-from .base import Adapter, check_name, systemd_is_init
+from .base import Adapter, check_name, systemd_is_init, usable_text
 
 HEADER = ("# Managed by contextlake. Edits are overwritten by "
           "`contextlake schedule install`.\n")
@@ -44,6 +44,59 @@ def _exec_word(word) -> str:
     if _PLAIN_WORD.fullmatch(word):
         return word
     return '"' + word.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _split_exec_line(text) -> list | None:
+    """The words of one ``ExecStart=`` value, undoing what :func:`_exec_word` wrote.
+
+    ``None`` when a double quote is never closed. Reads only the shapes `_exec_word`
+    produces: white space between words, a quoted word with ``\\`` and ``\"`` escapes, and
+    ``%%`` and ``$$`` for a literal ``%`` and ``$``. A value written by hand may use more.
+    """
+    words, current, quoted, started, i = [], [], False, False, 0
+    while i < len(text):
+        c = text[i]
+        if quoted:
+            if c == "\\" and i + 1 < len(text):
+                current.append(text[i + 1])
+                i += 1
+            elif c == '"':
+                quoted = False
+            else:
+                current.append(c)
+        elif c == '"':
+            quoted = started = True
+        elif c.isspace():
+            if started:
+                words.append("".join(current))
+                current, started = [], False
+        else:
+            current.append(c)
+            started = True
+        i += 1
+    if quoted:
+        return None
+    if started:
+        words.append("".join(current))
+    return [w.replace("%%", "%").replace("$$", "$") for w in words]
+
+
+def _launch_from_service(path) -> dict | None:
+    """``{"argv": [...], "cwd": str | None}`` read from an installed service file, or ``None``
+    when it cannot be read or holds no parseable ``ExecStart=``. ``cwd`` is ``None`` for a
+    unit with no ``WorkingDirectory=``, which starts in the user's home directory."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    argv, cwd = None, None
+    for line in lines:
+        if line.startswith("ExecStart="):
+            argv = _split_exec_line(line.split("=", 1)[1])
+        elif line.startswith("WorkingDirectory="):
+            cwd = line.split("=", 1)[1].replace("%%", "%") or None
+    return {"argv": argv, "cwd": cwd} if argv else None
 
 
 def _exec_path_from_show(value) -> str | None:
@@ -113,7 +166,14 @@ class SystemdAdapter(Adapter):
     def render(self, job, interval_s, exec_argv, on_battery="skip", **_options) -> dict:
         name = check_name(job.name)
         seconds = max(1, int(round(float(interval_s))))
+        if not all(usable_text(w) for w in (*exec_argv, job.cwd or "/")):
+            raise ValueError("a control character in the command or the working directory "
+                             "would start a new line of the unit")
         exec_line = " ".join(_exec_word(word) for word in exec_argv)
+        # A space needs no quoting here, and a quote mark would become part of the path:
+        # `systemd-analyze verify` reports `WorkingDirectory="/tmp/a b/c"` as "path is not
+        # absolute". `%` starts a specifier, so it is doubled.
+        workdir = (f"WorkingDirectory={job.cwd.replace('%', '%%')}\n" if job.cwd else "")
         condition = ("ConditionACPower=true\n"
                      if str(on_battery).lower() != "run" else "")
         service = (
@@ -123,6 +183,7 @@ class SystemdAdapter(Adapter):
             + condition
             + "\n[Service]\n"
             + "Type=oneshot\n"
+            + workdir
             + f"ExecStart={exec_line}\n"
             # The job takes the run lock itself, so a hung run is bounded by
             # this rather than by the next timer tick.
@@ -239,9 +300,12 @@ class SystemdAdapter(Adapter):
             exec_show = _systemctl("show", service, "-p", "ExecStart")
             exec_value = exec_show.stdout.strip().split("=", 1)[-1]
             exec_path = _exec_path_from_show(exec_value)
+        launch = (_launch_from_service(os.path.join(unit_dir(), service))
+                  if installed else None)
         if "Linger=yes" not in _linger_status():
             notes.append(
                 "Linger is off, so this timer does NOT fire while you are logged "
                 "out. Turn it on with: loginctl enable-linger $USER")
         return {"installed": installed, "interval_s": interval_s,
-                "next_run": next_run, "exec_path": exec_path, "notes": notes}
+                "next_run": next_run, "exec_path": exec_path, "notes": notes,
+                "launch": launch}

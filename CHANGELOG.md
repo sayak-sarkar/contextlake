@@ -603,6 +603,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another length made the run end with a bare `Dimension mismatch` error. With the brute store
   it wrote a row that search skips, and the run exited 0. The embed phase now stops with `EMBED
   INCOMPLETE` and exit 1, and keeps the earlier batches.
+- **A scheduled unit now carries the config it was installed with.** A unit installed with
+  `--config X`, or from a directory with a local `.contextlake.ini`, ran with no config and no
+  working directory. It loaded the global config and exited 2 when that config's cache directory
+  held no job record. The cron line discards that output, so nothing showed it. The unit now
+  carries `--config` and `--kb-config` for the files you named, and `schedule run` passes them
+  to the command it starts: both to `bootstrap`, the sync INI to a `mirror` command, the
+  knowledge config to a `kb` command. Type `--kb-config` before `schedule`. For a file found by
+  walking up, the unit starts in the install directory and finds it there, so keys such as
+  `gitlab_host` are still dropped from it. cron also escapes `%` in the line, and a Task
+  Scheduler job with a directory refuses `%`, `!` and `"` in a path. `schedule status` prints
+  the recorded files. It warns when the unit and the command read different configs, and when
+  the directory the unit starts in no longer exists. A `k8s`, `aws` or `azure` job shows no
+  files and no warnings. A `schedule run --config X` typed by hand now passes `X` to the command
+  it starts. A unit installed by 10.0.0rc4 or earlier is not rewritten: run
+  `contextlake schedule install` again, from the same directory or with the same `--config` (add
+  `--job NAME` for a job made with `schedule interval`, and `--interval DURATION` to keep a
+  pinned interval).
 
 ### Security
 
