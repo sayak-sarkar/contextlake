@@ -13,6 +13,7 @@ from ._common import (
     _report_unknown_repos,
     kb_config,
 )
+from .ingest import _embedder_refused
 
 
 def _print_plan(store_dir, targets, sources) -> int:
@@ -101,6 +102,11 @@ def cmd_enrich(args) -> int:
                 )
 
         try:
+            # Before any source is searched or partition rewritten: `run_enrich_repo` clears
+            # a repo's vectors before it embeds, so a changed `[embeddings]` model would
+            # otherwise delete them and then be refused by the store's identity guard.
+            if vector_store is not None and _embedder_refused(vector_store, embedder):
+                return 1
             from ..resilience import degraded_calls
 
             # The verdict is taken from the calls, not from exceptions. Source methods

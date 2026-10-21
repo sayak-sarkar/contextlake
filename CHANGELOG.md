@@ -571,6 +571,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Setting `max_pages = 5` changed nothing. The warning now says `kb enrich` reads one page per
   search and ignores `max_pages`, and points to `limit` or `maxResults` in `search_url` to set
   the page size. `kb ingest` keeps the old advice.
+- **`kb enrich` and `kb wiki` no longer delete a partition's vectors when the embedder changed
+  and answers its probe.** After a change of the `[embeddings]` model or the vector dimension,
+  both commands cleared the partition's vectors and then the store's identity guard refused the
+  run, so the partition kept its rows and semantic search found nothing in it. When the embedder
+  answers its probe, both now check it first, exit 1 with the guard's error and leave the stored
+  vectors in place. This is a partial fix: when the probe gets no answer, `kb enrich` and
+  `kb wiki` still clear the partition before the guard refuses the first batch, so a changed
+  model can still remove the vectors. With embeddings on, a run of either command that passes
+  its up-front checks sends one extra embed call, the probe, before its first write. Switching
+  models still needs a fresh `embeddings.sqlite`.
 
 ### Security
 

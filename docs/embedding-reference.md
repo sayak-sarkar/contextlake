@@ -125,6 +125,11 @@ a fresh vector store. `kb ingest` takes one probe vector. When the embedder answ
 check runs before any vector is cleared or any document is rewritten. A run refused at that
 check prints the error and `This run changed nothing`.
 
+`kb enrich` and `kb wiki` take the same probe once per run, before their first write, and a
+refused run exits 1 with the same two lines. `kb wiki` takes it after it has checked the repo
+ids you named. When the probe gets no answer they go on, and the guard can still refuse the
+first batch after they have cleared a partition's vectors.
+
 If the embedder gives no answer to the probe, nothing was proved. `kb ingest` still rewrites
 the documents. Until one source has passed the check, it clears a source's old vectors only
 after a batch of that source holds a vector that passes. A reply whose vectors are missing,

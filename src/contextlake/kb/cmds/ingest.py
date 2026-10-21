@@ -53,6 +53,24 @@ def _check_embedder(vs, embedder) -> tuple[bool, str | None]:
     return True, None
 
 
+def _embedder_refused(vs, embedder) -> bool:
+    """Probe ``embedder`` against the identity guard of ``vs``; log why and return True if refused.
+
+    For a command that clears a partition's vectors before it embeds (`kb enrich`,
+    `kb wiki`). Called before the command's first write, so on True the caller returns 1
+    and the stored graph, files and vectors are as the last run left them. False when the
+    guard passed, and also when the probe got no answer: `_check_embedder` explains why that
+    is not a pass.
+    """
+    _checked, refusal = _check_embedder(vs, embedder)
+    if not refusal:
+        return False
+    log(style.fail(refusal))
+    log("  This run changed nothing: the graph, the files and the vectors are as the last "
+        "run left them.")
+    return True
+
+
 def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=False
                      ) -> tuple[int, int, str | None]:
     """Embed document *bodies* into the vector store (real RAG over content).
@@ -80,8 +98,9 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
     text that no longer exists. `cmd_ingest` is the only caller that passes `sweep`. It
     clears before the call only after a probe or an earlier source has passed the guard, so
     a refusal after that clear means the first batch came back with another vector length.
-    Callers that clear first and take no probe, such as `enrich` and `wiki`, can also get an
-    identity refusal after their clear.
+    `kb enrich` and `kb wiki` clear before they call this. Each probes the embedder first
+    (`_embedder_refused`), so a changed model is refused before the clear. When that probe
+    got no answer they clear anyway, and an identity refusal here can still follow the clear.
     """
     from ..embeddings.chunk import split_document
     from ..embeddings.store import chunk_key, guard_store_identity

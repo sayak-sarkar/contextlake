@@ -6,10 +6,14 @@ import re
 from argparse import Namespace
 from datetime import date
 
+import pytest
+
 import contextlake.kb.connectors.enrich as enrich
-from contextlake.cli import _resolve_command, build_parser
+from contextlake.cli import _resolve_command, build_parser, main
+from contextlake.kb import embeddings
 from contextlake.kb.commands import cmd_enrich
 from contextlake.kb.connectors.enrich import enrich_partition
+from contextlake.kb.embeddings.store import build_vector_store
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.sources.base import Document
 from contextlake.kb.state import check_schema
@@ -375,3 +379,88 @@ def test_enrich_with_no_source_and_no_id_still_exits_zero(tmp_path, monkeypatch,
     cfg, store_dir, calls = _seed_enrich_store(tmp_path, monkeypatch, config=_NO_SOURCE_CONFIG)
     assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO])) == 0
     assert "No term-searchable sources" in gls_logs.text
+
+
+# --- a changed embedder is refused before enrich clears a partition's vectors -----
+
+_CONFIG_FAKE_EMBED = _CONFIG + """
+[embeddings]
+enabled = true
+provider = "ollama"
+"""
+
+
+class _ModelEmbedder:
+    """Two instances differ only in `identity` and `dim`, as two models do."""
+
+    def __init__(self, identity, dim=2, *, flaky_first=False):
+        self.identity = self.name = identity
+        self.dim = dim
+        self._flaky_first = flaky_first
+        self.calls = 0
+
+    def embed(self, texts):
+        self.calls += 1
+        if self._flaky_first and self.calls == 1:
+            raise ConnectionError("first call timed out")
+        return [[1.0] + [float(i)] * (self.dim - 1) for i, _ in enumerate(texts)]
+
+
+def _vectors_of(store_dir, part):
+    vs = build_vector_store(store_dir / "embeddings.sqlite")
+    try:
+        return vs.count_repo(part)
+    finally:
+        vs.close()
+
+
+@pytest.mark.parametrize("dim_b", [2, 3], ids=["same-dimension", "new-dimension"])
+def test_enrich_refuses_a_changed_embedder_before_it_clears_any_vector(
+        tmp_path, monkeypatch, capsys, dim_b):
+    """`run_enrich_repo` cleared the repo's `@enrich` vectors and then embedded, so a changed
+    `[embeddings]` model deleted them before the store's identity guard refused the run. A
+    probe vector now goes through the guard first, as `kb ingest` does."""
+    cfg, store_dir, calls = _seed_enrich_store(
+        tmp_path, monkeypatch, config=_CONFIG_FAKE_EMBED)
+    docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1"),
+            Document(id="d2", title="Design doc", text="architecture notes", uri="https://x/2")]
+    monkeypatch.setattr(enrich, "search_source",
+                        lambda src, terms, **_kw: calls.append(terms) or docs)
+    part = enrich_partition(REPO)
+
+    def run(embedder):
+        monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: embedder)
+        with pytest.raises(SystemExit) as e:
+            main(["kb", "enrich", REPO, "--config", str(cfg)])
+        return e.value.code
+
+    assert run(_ModelEmbedder("openai:fake-a")) == 0
+    assert _vectors_of(store_dir, part) == 2
+    nodes_before = sorted(n.id for n in read_shard(store_dir, part).nodes)
+    calls.clear()
+    capsys.readouterr()
+
+    assert run(_ModelEmbedder("openai:fake-b", dim_b)) == 1
+
+    out = capsys.readouterr().out
+    assert out.strip(), "the capture saw nothing, so the assertions below prove nothing"
+    assert _vectors_of(store_dir, part) == 2, "the refused run cleared the partition's vectors"
+    assert sorted(n.id for n in read_shard(store_dir, part).nodes) == nodes_before
+    assert calls == [], "a source was searched on a run the guard refused"
+    assert "this embedding store was built with" in out
+    assert "This run changed nothing" in out
+
+
+def test_enrich_goes_on_when_the_probe_got_no_answer(tmp_path, monkeypatch, gls_logs):
+    """An embedder that timed out on the probe is not a refusal: the guard did not run, and
+    the embed phase reports an embedder that stays down. Today's behavior stays."""
+    cfg, store_dir, calls = _seed_enrich_store(
+        tmp_path, monkeypatch, config=_CONFIG_FAKE_EMBED)
+    docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: docs)
+    monkeypatch.setattr(embeddings, "build_embedder",
+                        lambda _cfg: _ModelEmbedder("openai:fake-a", flaky_first=True))
+
+    assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO])) == 0
+    assert _vectors_of(store_dir, enrich_partition(REPO)) == 1
+    assert "This run changed nothing" not in gls_logs.text

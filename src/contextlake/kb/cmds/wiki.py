@@ -24,7 +24,7 @@ from ._common import (
     _open_store,
     kb_config,
 )
-from .ingest import _embed_documents
+from .ingest import _embed_documents, _embedder_refused
 
 
 def _wiki_partition(repo_id: str) -> str:
@@ -148,9 +148,9 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     # `connect.py` and `forget.py` sweep vectors first, `ingest.py` and `enrich.py`
     # sweep nodes first, and each has its own reason. Order matters only where nothing
     # is rewritten afterwards, and there the vectors go first, so an interruption leaves
-    # nodes without vectors (which `kb embed` repairs) instead of vectors without nodes
-    # (which answer searches and which `kb lint` can only see for a whole empty
-    # partition).
+    # nodes without vectors instead of vectors without nodes (which answer searches and
+    # which `kb lint` can only see for a whole empty partition). `kb embed` does not
+    # restore a wiki partition's vectors: its pages are not an embeddable kind.
     #
     # Placed ABOVE the early return: an empty page produces no nodes, and returning
     # there without this would strand every vector the previous page wrote, not only
@@ -392,8 +392,9 @@ def _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id: str,
         # convention: this is a prune, so nothing rewrites either side afterwards and
         # an interruption between the two is permanent. Cleared the other way round it
         # leaves vectors with no nodes, which still answer semantic searches about a
-        # module that no longer qualifies. This way it leaves nodes with no vectors,
-        # which `kb embed` rebuilds. Same reasoning as `forget.py`'s clear order.
+        # module that no longer qualifies. This way it leaves nodes with no vectors, and
+        # the next run prunes the partition again. Same reasoning as `forget.py`'s clear
+        # order.
         if vs is not None:
             vs.clear_repo(part)
         store.clear_repo(part)
@@ -818,6 +819,13 @@ def cmd_wiki(args) -> int:
                 log(f"No graph shard on disk for {', '.join(no_shard)}, so there is no page "
                     "to build and nothing was written. Re-index with `contextlake kb index`.")
                 return 1
+
+        # After the repo filter, so a mistyped id costs no embed call, and before any page is
+        # stored: `_store_wiki_partition` clears a partition's vectors before it embeds, so a
+        # changed `[embeddings]` model would otherwise delete them and then be refused by the
+        # store's identity guard. Covers the structural, module, cluster and LLM pages.
+        if embedder is not None and vs is not None and _embedder_refused(vs, embedder):
+            return 1
 
         structural_briefs: dict = {}
         structural_pages: dict = {}
