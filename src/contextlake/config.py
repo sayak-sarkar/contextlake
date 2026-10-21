@@ -294,7 +294,7 @@ def _ini_error(path, exc):
     """A :class:`ConfigError` for an INI file configparser cannot parse, naming the file.
 
     These used to leave ``load_config`` as a raw traceback. Names the file, the line and
-    the kind of fault. Never ``str(exc)``: the parse errors quote the offending line, and
+    the type of fault. Never ``str(exc)``: the parse errors quote the offending line, and
     a config file's values are not echoed (see _warn_untrusted_forge_key).
     """
     lineno = getattr(exc, 'lineno', None)

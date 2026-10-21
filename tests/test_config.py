@@ -164,6 +164,16 @@ def test_discovered_config_with_a_misspelled_header_is_still_skipped(tmp_path, m
     assert load_config()["gitlab_group"] == DEFAULT_CONFIG["gitlab_group"]
 
 
+def test_a_discovered_config_that_cannot_be_opened_is_skipped(tmp_path, monkeypatch):
+    """Only a file the user named must be readable. A `.contextlake.ini` found by walking up
+    that cannot be opened (here a directory) is skipped, as a missing one is."""
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "none.ini"))
+    (tmp_path / ".contextlake.ini").mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert load_config()["gitlab_group"] == DEFAULT_CONFIG["gitlab_group"]
+
+
 _EXAMPLE_KB_TOML = (Path(__file__).resolve().parents[1] / "examples" / "kb.toml.example")
 
 # A kb.toml with two `[[sources]]` blocks does not parse as an INI: the section name repeats.
@@ -375,13 +385,14 @@ def test_a_work_dir_that_init_writes_with_a_percent_sign_round_trips(tmp_path, m
 
 @pytest.mark.parametrize("text, line, reason", [
     ("work_dir = /srv/secret-value\n[contextlake]\n", 1, "before any [contextlake] header"),
-    ("[contextlake]\ngitlab_group = a\ngitlab_group = secret-value\n", 3, "set twice"),
+    ("[contextlake]\ngitlab_group = a\nsecret_key = x\nsecret_key = secret-value\n", 4,
+     "set twice"),
     ("[contextlake]\ngitlab_group = a\nsecret-value\n", 3, "not \"key = value\""),
 ], ids=["no-header", "duplicate-key", "no-equals"])
 def test_an_unparsable_config_is_a_config_error_naming_file_and_line(
         tmp_path, monkeypatch, text, line, reason):
-    """Each of these escaped as a raw configparser traceback. The message must name the file
-    and line but not repeat the line: values in a config file are not echoed."""
+    """In 10.0.0rc4 each of these escaped as a raw configparser traceback. The message must name
+    the file and line but not repeat the line or name a key: a config file's text is not echoed."""
     _isolate_globals(monkeypatch, tmp_path)
     ini = tmp_path / "broken.ini"
     ini.write_text(text)
@@ -394,6 +405,21 @@ def test_an_unparsable_config_is_a_config_error_naming_file_and_line(
     assert f"(line {line})" in msg
     assert reason in msg
     assert "secret-value" not in msg
+    assert "secret_key" not in msg and "gitlab_group" not in msg
+
+
+def test_a_parse_error_is_raised_from_none(tmp_path, monkeypatch):
+    """configparser's exception quotes the offending line. Chained to the ConfigError, it would
+    print that line in any traceback, so the error is raised from None."""
+    _isolate_globals(monkeypatch, tmp_path)
+    ini = tmp_path / "broken.ini"
+    ini.write_text("[contextlake]\ngitlab_group = a\njunk line\n")
+
+    with pytest.raises(ConfigError) as exc:
+        load_config(str(ini))
+
+    assert exc.value.__cause__ is None
+    assert exc.value.__suppress_context__
 
 
 def _open_with_a_single_byte_default(monkeypatch):
@@ -432,8 +458,10 @@ def test_a_utf_8_byte_order_mark_does_not_hide_the_section_header(tmp_path, monk
 
 
 def test_a_config_that_is_not_utf_8_is_a_config_error_naming_the_file(tmp_path, monkeypatch):
-    """A file saved in a single-byte code page raised UnicodeDecodeError: a traceback, and a
-    message that quotes the bytes. The message names the file and the fix, and not the value."""
+    """In 10.0.0rc4, under a UTF-8 default locale, a file saved in a single-byte code page
+    raised UnicodeDecodeError: a traceback, and a message that quotes the bytes. Under a
+    single-byte default locale that file was read without error. The message names the file
+    and the fix, and not the value."""
     _isolate_globals(monkeypatch, tmp_path)
     ini = tmp_path / "ansi.ini"
     ini.write_bytes(b"[contextlake]\nwork_dir = /srv/Jos\xe9-secret\n")
