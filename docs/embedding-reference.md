@@ -148,6 +148,12 @@ A later batch of another vector length stops the embed phase for that source. Th
 the earlier batches stay, `kb ingest` prints `EMBED INCOMPLETE` with the lengths, and the exit
 code is 1.
 
+When the embed phase of a source stops early, because the embedder stopped answering or a batch
+came back unusable, the summary counts the documents left without vectors as
+`document(s) not embedded`. `target(s) unreadable` counts the targets a source could not read,
+such as pages, URLs and files. Both make the run exit 1. To exit 0, put the flag before the
+command: `contextlake --exit-zero-on-partial kb ingest`.
+
 `kb enrich` and `kb wiki` take one probe vector per run, before their first write. A refused
 run prints the error and `This run changed nothing`, exits 1 and keeps the stored vectors.
 `kb wiki` takes the probe after it has checked the repo ids you named. When the probe gets no

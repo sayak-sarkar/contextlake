@@ -337,7 +337,7 @@ def cmd_ingest(args) -> int:
         # much a failure of the run as a source that raised: the config asked for them
         # and the run does not carry their documents. Counting them only in the warning
         # above would leave the summary line and the exit code saying the run was clean.
-        total = embedded = partial = 0
+        total = embedded = partial = unembedded = 0
         # Vectors are counted apart from documents. With chunking the two differ by an
         # order of magnitude, and printing vectors where a reader expects documents
         # would report a corpus many times the size of the real one.
@@ -530,7 +530,9 @@ def cmd_ingest(args) -> int:
                         # without scrolling back to the warning.
                         msg += (f", EMBED INCOMPLETE: {n} of {len(nodes)} "
                                 f"({stopped})")
-                        partial += len(nodes) - n
+                        # Stored but not embedded: a different cause from `partial`, which
+                        # counts targets that could not be read, so the summary names each.
+                        unembedded += len(nodes) - n
                     else:
                         msg += (f", {n} embedded"
                                 + (f" ({n_vec} chunks)" if n_vec != n else ""))
@@ -545,12 +547,14 @@ def cmd_ingest(args) -> int:
             # clean "Ingest complete" and exited 0, however many targets were
             # unreachable -- so a content pipeline degrading one source at a time was
             # invisible until somebody noticed the answers had got worse.
-            if failed or partial:
+            if failed or partial or unembedded:
                 bits = []
                 if failed:
                     bits.append(f"{failed} source(s) failed")
                 if partial:
                     bits.append(f"{partial} target(s) unreadable")
+                if unembedded:
+                    bits.append(f"{unembedded} document(s) not embedded")
                 if not_run:
                     bits.append(f"{len(not_run)} source(s) not run")
                 if refused:

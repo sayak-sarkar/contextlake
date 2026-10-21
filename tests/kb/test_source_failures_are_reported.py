@@ -413,3 +413,36 @@ def test_a_missed_target_keeps_the_vectors_of_the_documents_it_keeps(
     down.add("http://pages.test/flip")
     assert _run_ingest(cfg, capsys)[0] == 1
     assert vector_rows() == 2, "the kept document lost its vector"
+
+
+def test_a_missed_target_and_an_embed_stop_are_counted_apart(tmp_path, monkeypatch, capsys):
+    """One page answers 500 and the embedder stops on the page that did answer. The summary
+    named both under "target(s) unreadable", which counted the page the embedder could not
+    reach as a page that could not be read."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    class _StopsAfterTheProbe:
+        name = "fake-embedder"
+        calls = 0
+
+        def embed(self, texts):
+            self.calls += 1
+            if self.calls > 1:
+                raise ConnectionError("embedder went down")
+            return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("contextlake.kb.embeddings.build_embedder",
+                        lambda cfg_: _StopsAfterTheProbe())
+    monkeypatch.setattr("contextlake.kb.embeddings.store.build_vector_store",
+                        lambda path, **kw: VectorStore(path))
+    _serve_pages(monkeypatch, {"http://pages.test/flip"})
+    cfg = _web_config(tmp_path, list(_PAGES))
+    cfg.write_text(cfg.read_text().replace("enabled = false", "enabled = true"))
+
+    code, printed = _run_ingest(cfg, capsys)
+
+    assert code == 1
+    assert "site: 1 document(s), 1 target(s) unreadable, EMBED INCOMPLETE: 0 of 1" in printed
+    assert ("Ingest incomplete: 1 document(s) aggregated "
+            "(1 target(s) unreadable; 1 document(s) not embedded)") in printed

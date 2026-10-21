@@ -211,6 +211,17 @@ def test_a_suffix_never_takes_an_id_that_a_later_record_has():
     assert len(set(out)) == len(out)
 
 
+def test_an_embed_stop_is_not_counted_as_an_unreadable_target(tmp_path, monkeypatch, capsys):
+    """Both documents were read and stored; only the embedder stopped. The summary added the
+    two to the count it prints as "target(s) unreadable", which sent a reader to the source
+    files or URLs instead of the embedder."""
+    assert _ingest(tmp_path, monkeypatch, _DeadEmbedder()) == 1
+
+    out = capsys.readouterr().out
+    assert "Ingest incomplete: 2 document(s) aggregated (2 document(s) not embedded)" in out
+    assert "unreadable" not in out
+
+
 class _IdentifiedEmbedder:
     """Differs from another instance only in `identity`, as two models do."""
 

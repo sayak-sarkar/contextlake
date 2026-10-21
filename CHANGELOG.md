@@ -222,6 +222,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--watch`, such a pass logs the line, writes nothing, and the loop runs the next pass. A
   one-shot run whose first embedder call fails once now exits 1 where it used to carry on; run
   `kb embed` again.
+- **`kb ingest` no longer counts documents it could not embed as unreadable targets.** When the
+  embedder stopped, the summary added the documents it left without vectors to the count it
+  prints as `target(s) unreadable`. A run with a dead embedder and two documents, both read and
+  stored, said `2 target(s) unreadable`. The summary now prints `document(s) not embedded` for
+  them and keeps `target(s) unreadable` for the pages, URLs and files a source could not read.
+  The exit code is unchanged. A script that matched `unreadable` to catch an embedder stop must
+  match `not embedded` instead.
 
 ### Fixed
 
