@@ -144,6 +144,10 @@ with another vector length fails the check after the clear. The source then keep
 documents and has no vectors, the sources after it do not run, and the exit code is 1. Run
 `kb ingest` again to rebuild the vectors.
 
+A later batch of another vector length stops the embed phase for that source. The vectors of
+the earlier batches stay, `kb ingest` prints `EMBED INCOMPLETE` with the lengths, and the exit
+code is 1.
+
 `kb enrich` and `kb wiki` take one probe vector per run, before their first write. A refused
 run prints the error and `This run changed nothing`, exits 1 and keeps the stored vectors.
 `kb wiki` takes the probe after it has checked the repo ids you named. When the probe gets no

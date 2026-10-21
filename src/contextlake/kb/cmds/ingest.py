@@ -120,6 +120,7 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
     embedded_nodes: set = set()
     stopped_early: str | None = None
     swept = not sweep
+    first_len: int | None = None
     for i in range(0, len(units), batch_size):
         batch = units[i:i + batch_size]
         try:
@@ -130,6 +131,12 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
                 # checks only the first vector, and the strict zip or the vector store
                 # would raise after the sweep had run.
                 raise ValueError("embedder returned no usable vector for this batch")
+            if first_len is not None and len(vecs[0]) != first_len:
+                # The guard runs on the first batch only. A later batch of another length
+                # made sqlite-vec raise out of `upsert` (outside this try, so the run died
+                # with a bare error) and made the brute store write a row its search skips.
+                raise ValueError(f"embedder returned vectors of length {len(vecs[0])} "
+                                 f"after vectors of length {first_len}")
         except Exception as e:  # noqa: BLE001 - an unreachable embedder ends the phase
             # The count below used to be returned bare, so an embedder that died at
             # batch 3 of 200 produced `128 embedded`, exit 0 and no line saying the
@@ -145,6 +152,7 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
                 guard_store_identity(vs, _embedder_identity(embedder), len(vecs[0]))
             except ValueError as e:
                 raise _EmbedderRefused(str(e)) from e
+            first_len = len(vecs[0])
         if not swept:
             vs.clear_repo(repo_id)
             swept = True

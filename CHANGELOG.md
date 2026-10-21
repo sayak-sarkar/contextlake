@@ -591,6 +591,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model can still remove the vectors. With embeddings on, a run of either command that passes
   its up-front checks sends one extra embed call, the probe, before its first write. Switching
   models still needs a fresh `embeddings.sqlite`.
+- **`kb ingest` stops its embed phase when a later batch returns vectors of another length.**
+  The identity guard checks the first batch only. With the sqlite-vec store a later batch of
+  another length made the run end with a bare `Dimension mismatch` error. With the brute store
+  it wrote a row that search skips, and the run exited 0. The embed phase now stops with `EMBED
+  INCOMPLETE` and exit 1, and keeps the earlier batches.
 
 ### Security
 

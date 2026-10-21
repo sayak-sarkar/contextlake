@@ -531,3 +531,53 @@ def test_a_sweep_behind_the_guard_still_clears_when_every_body_is_empty(tmp_path
             assert vs.count_repo("@ingest:alpha") == 0
         finally:
             vs.close()
+
+
+class _WidthEmbedder:
+    """Answers each call with vectors of the next width in ``widths``, then keeps the last."""
+
+    name = "width"
+
+    def __init__(self, widths):
+        self._widths = list(widths)
+        self.calls = 0
+
+    def embed(self, texts):
+        width = self._widths[min(self.calls, len(self._widths) - 1)]
+        self.calls += 1
+        return [[1.0] * width for _ in texts]
+
+
+@pytest.mark.parametrize("backend", ["brute", "sqlite-vec"])
+def test_a_later_batch_of_another_vector_length_stops_the_embed_phase(
+        tmp_path, monkeypatch, capsys, backend):
+    """The identity guard checks the first batch only. A later batch of another length made
+    sqlite-vec raise out of `upsert`, so the run died with a bare error, and made the brute
+    store write a row its search skips, so the run ended `2 embedded` and exit 0 with one
+    document that no query could find."""
+    if backend == "sqlite-vec":
+        pytest.importorskip("sqlite_vec")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    for name in ("a.md", "b.md"):
+        (docs / name).write_text(f"# {name}\n{name} body\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n\n[embeddings]\nenabled = true\n'
+                   f'provider = "ollama"\nbatch_size = 1\nvector_backend = "{backend}"\n')
+    # Call 1 is the probe and call 2 the first batch, both of length 2; the second batch
+    # comes back at length 3.
+    monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: _WidthEmbedder([2, 2, 3]))
+
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "ingest", "--path", str(docs), "--config", str(cfg)])
+
+    out = capsys.readouterr().out
+    assert e.value.code == 1
+    assert "EMBED INCOMPLETE: 1 of 2" in out
+    assert "vectors of length 3 after vectors of length 2" in out
+    vs = build_vector_store(tmp_path / "kb" / "embeddings.sqlite", backend=backend)
+    try:
+        assert vs.count_repo("@ingest:cli") == 1
+    finally:
+        vs.close()

@@ -4483,6 +4483,10 @@ with another vector length fails the check after the clear. The source then keep
 documents and has no vectors, the sources after it do not run, and the exit code is 1. Run
 `kb ingest` again to rebuild the vectors.
 
+A later batch of another vector length stops the embed phase for that source. The vectors of
+the earlier batches stay, `kb ingest` prints `EMBED INCOMPLETE` with the lengths, and the exit
+code is 1.
+
 `kb enrich` and `kb wiki` take one probe vector per run, before their first write. A refused
 run prints the error and `This run changed nothing`, exits 1 and keeps the stored vectors.
 `kb wiki` takes the probe after it has checked the repo ids you named. When the probe gets no
@@ -10833,6 +10837,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model can still remove the vectors. With embeddings on, a run of either command that passes
   its up-front checks sends one extra embed call, the probe, before its first write. Switching
   models still needs a fresh `embeddings.sqlite`.
+- **`kb ingest` stops its embed phase when a later batch returns vectors of another length.**
+  The identity guard checks the first batch only. With the sqlite-vec store a later batch of
+  another length made the run end with a bare `Dimension mismatch` error. With the brute store
+  it wrote a row that search skips, and the run exited 0. The embed phase now stops with `EMBED
+  INCOMPLETE` and exit 1, and keeps the earlier batches.
 
 ### Security
 
