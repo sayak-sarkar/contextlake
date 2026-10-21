@@ -171,8 +171,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`kb ingest` keeps every record whose id repeats or is missing.** Records of one source that
   shared an id became one graph node, and each record with a null id got the id `None`. The
   later record replaced the earlier one, and the summary counted the list: 4 records read as 4
-  documents and 4 embedded while the store held 2 nodes and 2 vectors. A repeated id is now
-  stored as `<id>#2`, `<id>#3` and so on, with a line that gives the count. An `api` or
+  documents and 4 embedded while the store held 2 nodes and 2 vectors. A repeated id now gets a
+  `#2`, `#3` suffix and so on, skipping any id the source already has, with a line that gives
+  the count. An `api` or
   `graphql` record with no id, or a null or empty one, now gets an id made from its title and
   text, such as `noid-9c68432722b2`. An absent id used to take the position of the record, which
   `kb enrich` could confuse with a real id. A store built earlier holds those nodes under the
@@ -506,11 +507,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `contextlake kb index`. A run over every repo still skips such a repo without a message.
   10.0.0rc4 and earlier are affected.
 - **The wiki docs now say a missing review key or a review CLI not on PATH fails the page.**
-  `generating-the-wiki.md` said a missing key for a hosted `review_provider` rejects every page
+  `generating-the-wiki.md` said a missing key for the `review_provider` rejects every page
   with `N reviewer(s) returned nothing parseable`, and `console-output.md` listed a missing API
   key and a review CLI not on PATH as causes of that count. Both stop the page instead: the
   provider's refusal arrives as an HTTP error, and a missing command logs `llm provider=cli:
-  command '<name>' not found on PATH`. The run reads `1 failed`, not `1 rejected`. A review CLI
+  command '<name>' not found on PATH`. The page counts as failed, not rejected. A review CLI
   that is installed but exits with an error, times out or prints nothing abstains, and rejects
   every page that reaches the council. The docs for 10.0.0rc4 and earlier carry the wrong text.
 - **`kb ingest --path` names the documents it replaces.** Every `--path` run writes the one

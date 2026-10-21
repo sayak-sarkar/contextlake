@@ -452,7 +452,7 @@ def _abstain_note(gate: dict) -> str:
 
     Worth surfacing because a *broken* reviewer and a *strict* one look identical
     otherwise: a reviewer that errors back an empty string (a CLI on PATH that
-    exits non-zero, which CliLlm turns into "" rather than raising) abstains on
+    exits non-zero, which CliLlm turns into "" instead of raising) abstains on
     every lens, which rejects every page that reaches the council at score 0.0.
     Without this the run reads as a page-quality problem instead of a
     misconfiguration. A CLI not on PATH raises instead, and the page fails.

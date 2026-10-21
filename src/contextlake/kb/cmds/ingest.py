@@ -140,7 +140,7 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
 
 
 def _distinct_id(doc_id: str, taken: set[str], reserved: frozenset[str] = frozenset()) -> str:
-    """``doc_id``, or ``doc_id#2``, ``doc_id#3`` and so on when ``taken`` already holds it.
+    """``doc_id``, or ``doc_id#N`` (N counting up from 2) when ``taken`` already holds it.
 
     A node id is the partition plus the document id, so two documents of one source with
     the same id are ONE node: the later replaced the earlier, while the summary counted
@@ -362,7 +362,8 @@ def cmd_ingest(args) -> int:
                     fix = (". Set id_field to a field that is unique per record"
                            if stype in ("api", "graphql") else "")
                     log(f"  {name}: {repeated} document(s) repeated the id of an earlier "
-                        f"one, so they are stored as <id>#2, <id>#3 and so on{fix}",
+                        f"one, so they are stored as <id>#N, with N counting up from 2 and "
+                        f"skipping any id another record of the source has{fix}",
                         inline=True)
                 misses = list(getattr(src, "failures", ()))
                 if not nodes:

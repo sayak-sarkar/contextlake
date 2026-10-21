@@ -238,10 +238,10 @@ token_env = "EXAMPLE_API_TOKEN"  # the secret comes from this env var
 such as `fields.summary`. A record with no text at that path is skipped.
 
 A record with no id, or a null or empty one, gets an id made from its title and text, such as
-`noid-9c68432722b2`. The same record keeps its id on every run. Two documents of one source must
-not share an id, because the id names the graph node. When they do, `kb ingest` keeps both. It
-stores the later ones as `<id>#2`, `<id>#3` and so on, and prints a line with the count. Point
-`id_field` at a field that is unique per record to avoid the suffix.
+`noid-9c68432722b2`. The same record keeps its id on every run. An id names the graph node, so two
+documents of one source must not share one. When they do, `kb ingest` keeps both: it adds `#2`,
+`#3` and so on to the later ones, skipping ids the source already has, and prints the count.
+Point `id_field` at a field that is unique per record to avoid the suffix.
 
 An `api` source with a `search_url` and no `url` sends no request at ingest time. `kb enrich`
 queries it (see [Connecting and enriching](connecting-and-enriching.md)). `kb ingest` prints

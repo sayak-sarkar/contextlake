@@ -91,8 +91,9 @@ def id_without_one(title, text) -> str:
     A record's position ("0", "1") was used before. It repeats across searches and across
     sources, so it took the id of a real record, and `kb enrich` kept only the first of the
     two. The title and text of a record are the same wherever it turns up, so one record
-    keeps one id and a different record does not take it. `hashlib`, because `hash()` is
-    seeded per process and the id would change on every run.
+    keeps one id. Two records with the same title and text share an id: `kb ingest` keeps
+    both, the second with a ``#N`` suffix, and `kb enrich` keeps the first. `hashlib`,
+    because `hash()` is seeded per process and the id would change on every run.
     """
     digest = hashlib.sha256(f"{title or ''}\x00{text or ''}".encode()).hexdigest()
     return f"noid-{digest[:12]}"
