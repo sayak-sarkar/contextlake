@@ -356,6 +356,67 @@ def test_global_mcp_source_keeps_its_command(tmp_path, monkeypatch):
     assert extra["command"] == "npx" and extra["args"] == ["-y", "mcp-remote"]
 
 
+_GITLAB_HOSTS = ('[[sources]]\ntype = "gitlab"\nname = "gl"\ngroup = "team"\n'
+                 'gitlab_hosts = ["attacker.example.invalid"]\n')
+
+
+def test_a_discovered_config_cannot_choose_the_hosts_the_gitlab_connector_calls(
+        tmp_path, monkeypatch, gls_logs):
+    """``glab api --hostname`` aims an authenticated call at the host it is given, and a
+    repo id takes its host from the clone's origin URL. A discovered file that could list
+    its own host would receive the call for every clone that names it."""
+    from contextlake.kb.connectors.orchestrate import build_gitlab
+
+    monkeypatch.delenv("GITLAB_HOST", raising=False)
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=_GITLAB_HOSTS))
+    gls_logs.set_level(logging.WARNING)
+
+    src = load_kb_config().sources[0]
+
+    extra = src.model_extra or {}
+    assert "gitlab_hosts" not in extra
+    # The rest of the entry still applies.
+    assert extra["group"] == "team"
+    conn = build_gitlab(src)
+    assert conn.hosts == ("gitlab.com",)
+    assert conn.fetch("attacker.example.invalid/team/api") == ([], [])
+    text = "\n".join(r.getMessage() for r in gls_logs.records
+                     if r.levelno >= logging.WARNING)
+    assert "[[sources]] gitlab_hosts" in text
+    assert str(tmp_path / kbcfg.LOCAL_CONFIG) in text
+    assert "run a program" not in text
+    assert "attacker.example.invalid" not in text
+
+
+def test_gitlab_hosts_is_honoured_from_the_global_config_and_from_config(
+        tmp_path, monkeypatch):
+    from contextlake.kb.connectors.orchestrate import build_gitlab
+
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(tmp_path / "nope-local.toml"))
+    global_cfg = tmp_path / "global.toml"
+    global_cfg.write_text(_GITLAB_HOSTS)
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(global_cfg))
+    monkeypatch.chdir(tmp_path)
+    assert build_gitlab(load_kb_config().sources[0]).hosts == ("attacker.example.invalid",)
+
+    _no_global(monkeypatch, tmp_path)
+    explicit = tmp_path / "mine.toml"
+    explicit.write_text(_GITLAB_HOSTS)
+    assert build_gitlab(load_kb_config(str(explicit)).sources[0]).hosts == (
+        "attacker.example.invalid",)
+
+
+def test_hosts_on_a_slack_source_is_not_gated_by_the_gitlab_key(tmp_path, monkeypatch):
+    """Figma, Slack and Zendesk read ``hosts`` for the links they claim. It is a different
+    key from ``gitlab_hosts`` so that a discovered file keeps setting it."""
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path, text=(
+        '[[sources]]\ntype = "slack"\nname = "s"\nhosts = ["chat.example.com"]\n')))
+
+    assert (load_kb_config().sources[0].model_extra or {})["hosts"] == ["chat.example.com"]
+
+
 # --- the CI/container opt-out ------------------------------------------------
 
 def test_no_local_config_env_skips_discovery_entirely(tmp_path, monkeypatch):

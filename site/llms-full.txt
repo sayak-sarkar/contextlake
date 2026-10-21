@@ -2267,6 +2267,7 @@ you pass to `--config`:
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the env var read for an api/graphql source's token |
 | `[[sources]] search_url` | the host `kb enrich` sends search terms built from your code to |
+| `[[sources]] gitlab_hosts` | the hosts a GitLab source passes to `glab api --hostname` |
 | `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host prompts and indexed code are posted to |
@@ -2344,7 +2345,7 @@ That last point changes what `contextlake kb source add ... --local` can scope. 
 document source still works from a local file over its `url`; its `command` has to live in the
 global file, or be reached with `--config`. A **connector** source (`atlassian`, `figma`, `slack`)
 reaches its server through `mcp` / `mcp_command`, and both of those are now global-only, as are
-`token_env`, `auth`, `user`, `auth_dir` and `search_url` on any source.
+`token_env`, `auth`, `user`, `auth_dir`, `search_url` and `gitlab_hosts` on any source.
 
 ### The mirror config, `.contextlake.ini`
 
@@ -3403,8 +3404,25 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
 - **GitLab**: links each repo to its open **merge requests and issues** (read through your authenticated
-  `glab`). contextlake drops the host from the repo id and passes none to `glab`, so `glab` chooses the
-  host. Use it with repos from one GitLab host.
+  `glab`). A repo is read only when the host at the start of its id is in the source's `gitlab_hosts`
+  list. Every call then runs `glab api --hostname HOST` with that listed host.
+
+    Unset, the list holds `GITLAB_HOST` when that variable is set, else `gitlab.com`. A self-hosted
+    GitLab needs `gitlab_hosts = ["git.example.com"]` on the source, or `GITLAB_HOST`. The source key
+    wins over the variable.
+
+    A repo on any other host is skipped and makes no request. The run logs one line for each skipped
+    host and ends with a warning that counts the repos no GitLab source read. A skip is not a failure,
+    so the exit code does not change. On a run where every source answers, the skipped repo's earlier
+    GitLab links are cleared.
+
+    The log advises `gitlab_hosts` as "if HOST runs GitLab". It gives no advice for `github.com` or
+    another host known to run a different product.
+
+    The host in a repo id comes from the clone's origin URL, ssh port included: an ssh URL with the
+    port 2222 gives `git.example.com:2222`. `glab` takes each entry as an HTTP host, so list the host
+    as GitLab serves its API. The entry `git.example.com` does not match that id, and the repo is
+    skipped.
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
   (`repo --documented_by--> document`).
@@ -4085,6 +4103,20 @@ accept:
   `conversations_history`).
 - `group`: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
   The group is not added to the path. Other repos are skipped with no message.
+- `gitlab_hosts`: the hosts a GitLab source may call, as a list of hostnames such as
+  `["git.example.com", "git.example.com:8443"]`. A single string is read as one hostname. Unset, it is
+  `GITLAB_HOST` when that variable is set, else `["gitlab.com"]`. A value set here replaces that default,
+  so list `gitlab.com` too if you use it. Global config or `--config` only (see
+  [Configuration](configuration.md)).
+
+    A repo is read only when the host at the start of its id equals an entry, port included and case
+    ignored. `git.example.com` does not match `git.example.com:8443`. Another repo is skipped with a log
+    line, and each call passes the entry to `glab api --hostname`. A port is 1 to 65535.
+
+    A repo id takes its host from the clone's origin URL. An ssh URL with a port, such as
+    `ssh://git@git.example.com:2222/ns/p`, gives `git.example.com:2222`. `glab` takes an entry as an
+    HTTP host, so list the host as GitLab serves its API. The entry `git.example.com` does not match
+    that id, and the repo is skipped.
 - `per_page`: for a GitLab source, how many open merge requests and issues one call asks for
   (default `50`). No other source type reads it.
 - `max_pages`: for an `api` source, the most pages it reads when the response links to a next page
@@ -10395,6 +10427,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gate refuse the tag. The full image is still built at the tag of a full release.
   `dependabot.yml` now tells Dependabot to ignore `python` 3.14 and later. If you extend the
   published image and need Python 3.14, use a release from 7.0.0 to 9.8.3.
+- **The GitLab connector now reads a repo only when its host is in the source's `gitlab_hosts`,
+  and calls `glab api --hostname` with that host.** `kb connect` dropped the host from the repo
+  id and passed none to `glab`, so `glab` chose the host, and a repo on another host was looked
+  up there by its project path. `gitlab_hosts` defaults to `GITLAB_HOST` when that variable is
+  set, else `gitlab.com`. A port in an entry must be 1 to 65535. A repo on any other host is
+  skipped. The run logs one line for each skipped host and ends with a warning that counts the
+  skipped repos that no GitLab source read. The advice in these messages is "if HOST runs
+  GitLab", and is left out for `github.com`, other hosts known to run another product, and hosts
+  that another GitLab source lists. The exit code does not change. On a run where every source
+  answers, the skipped repo's earlier GitLab links are cleared. If you read GitLab repos from a
+  self-hosted host, set `gitlab_hosts = ["git.example.com"]` on the source in
+  `~/.contextlake/kb.toml` or in a file passed to `--config`, or export `GITLAB_HOST`. List the
+  host as GitLab serves its API: an ssh remote with a port gives the id host
+  `git.example.com:2222`, and `glab` takes that as an HTTP host. A file found by walking up from
+  the current directory may not set `gitlab_hosts`.
 
 ### Fixed
 

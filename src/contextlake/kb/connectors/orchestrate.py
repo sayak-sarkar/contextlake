@@ -74,6 +74,9 @@ def build_gitlab(src):
     return GitLabConnector(
         src.name,
         group=extra.get("group"),
+        # None (key unset) means GITLAB_HOST, else gitlab.com. Not `hosts`: Figma, Slack
+        # and Zendesk read that key for the links they claim.
+        hosts=extra.get("gitlab_hosts"),
         timeout=_num(extra, "timeout", 30, float),
         per_page=_num(extra, "per_page", 50, int),
     )

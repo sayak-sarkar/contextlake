@@ -99,7 +99,8 @@ class _StagedVectors:
         return getattr(self._real, name)
 
 
-def _build_enrichers(sources, store, *, embedder=None, vector_store=None, dropped=None):
+def _build_enrichers(sources, store, *, embedder=None, vector_store=None, dropped=None,
+                     gitlab=None):
     """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
     that return ``(nodes, edges)``. Atlassian sources discover their sites up front
     and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
@@ -113,7 +114,11 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None, droppe
     site) is dropped from the result. When ``dropped`` is a list, the name of each such
     source is appended to it, so the caller can tell "this source was never asked"
     from "this source has nothing to say".
+    When ``gitlab`` is a list, each GitLab connector built is appended to it as
+    ``(name, connector)``, so the caller can read which repos it read and which it
+    skipped for their host.
     Returns ``(enrichers, names)``."""
+    from ..connectors.gitlab import GitLabConnector
     from ..connectors.orchestrate import (
         build_atlassian,
         build_figma,
@@ -168,6 +173,8 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None, droppe
             names.append(s.name)
         elif s.type == "gitlab":
             conn = build_gitlab(s)
+            if gitlab is not None and isinstance(conn, GitLabConnector):
+                gitlab.append((s.name, conn))
             log(f"  source {s.name!r} (gitlab): ready")
             enrichers.append(
                 lambda repo_id, keys, links, symbol_keys, c=conn, st=store,
@@ -219,6 +226,7 @@ def _symbol_keys_for(store_dir, repo_id: str, path: str, pattern: str | None) ->
 
 
 def cmd_connect(args) -> int:
+    from ..connectors.gitlab import skip_advice
     from ..connectors.orchestrate import connect_partition
     from ..model import EXTERNAL_REPO
     from ..references import extract_issue_keys, scrape_links
@@ -264,11 +272,17 @@ def cmd_connect(args) -> int:
         # vectors swept. See `_StagedVectors` and the flush in `_one_repo`.
         staged = _StagedVectors(vector_store) if vector_store is not None else None
         dropped: list[str] = []
+        gitlab_sources: list = []
         enrichers, names = _build_enrichers(
-            sources, store, embedder=embedder, vector_store=staged, dropped=dropped)
+            sources, store, embedder=embedder, vector_store=staged, dropped=dropped,
+            gitlab=gitlab_sources)
         if not enrichers:
             log("No usable connector sources; nothing to connect")
             return 1
+        # A host that one GitLab source lists is not a host another one is missing.
+        for _name, conn in gitlab_sources:
+            conn.other_hosts = frozenset(
+                h for _other, c in gitlab_sources if c is not conn for h in c.hosts)
 
         def _connect_once() -> int:
             from ..resilience import degraded_calls
@@ -278,6 +292,8 @@ def cmd_connect(args) -> int:
             # makes the per-source try/except below blind to them, so the run's
             # verdict is taken from what the calls themselves reported instead.
             degraded_before = degraded_calls()
+            for _name, conn in gitlab_sources:
+                conn.begin_run()
             targets = _connect_targets(args, store)
             if not targets:
                 log("No repos to enrich (index some first, or pass --workspace/--source)")
@@ -406,9 +422,31 @@ def cmd_connect(args) -> int:
             # between iterations depends on it having run.
             store.prune_orphan_nodes(EXTERNAL_REPO)
             degraded = degraded_calls() - degraded_before
+            # Another GitLab source may read a repo this one skipped for its host, as two
+            # sources that list different hosts do. Only a repo no source read is counted.
+            read = set().union(*(conn.read_repos for _name, conn in gitlab_sources))
+            host_skips = []
+            for name, conn in gitlab_sources:
+                unread = {h: ids - read for h, ids in conn.skipped_hosts.items()}
+                unread = {h: ids for h, ids in unread.items() if ids}
+                if unread:
+                    host_skips.append((name, conn, unread))
             log(style.summary_line(
-                "ok" if not (degraded or repo_failed or kept) else "warn",
+                "ok" if not (degraded or repo_failed or kept or host_skips) else "warn",
                 f"Connect complete: {total_edges} external link(s) stored"))
+            # A repo on a host outside `gitlab_hosts` is skipped by design, so it is not a
+            # failure and does not change the exit code. Left unsaid, a run where every
+            # repo is on such a host reads as a quiet fleet with nothing to link.
+            others = " and no other gitlab source read them" if len(gitlab_sources) > 1 else ""
+            for name, conn, by_host in host_skips:
+                n = len(set().union(*by_host.values()))
+                of = "all" if n == len(targets) else f"{n} of"
+                hosts = ", ".join(f"{h} ({len(ids)})" for h, ids in sorted(by_host.items()))
+                advice = skip_advice(h for h in by_host if h not in conn.other_hosts)
+                log(style.warn(
+                    f"gitlab source {name!r} skipped {of} {len(targets)} repo(s) because "
+                    f"their host is not in its gitlab_hosts{others}: {hosts}."
+                    f"{' ' + advice if advice else ''}"))
             if kept:
                 log(style.warn(
                     f"{kept} of {len(targets)} repo(s) kept their previous links because a "

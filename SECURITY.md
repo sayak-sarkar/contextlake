@@ -73,6 +73,7 @@ environment variable holds that request's credential:
 | `[[sources]] mcp` | the host the `npx mcp-remote` OAuth bridge is pointed at |
 | `[[sources]] token_env` | the environment variable read for an api/graphql source's token |
 | `[[sources]] search_url` | the host `kb enrich` sends search terms built from your code to |
+| `[[sources]] gitlab_hosts` | the hosts a GitLab source passes to `glab api --hostname`, which aims an authenticated call at the host it names |
 | `[[sources]] auth`, `user` | how an api source sends that token (`bearer` or `basic`) and the username paired with it |
 | `[[sources]] auth_dir` | the directory `mcp-remote` writes its OAuth refresh token into |
 | `[llm] base_url`, `[embeddings] base_url` | the host every prompt, or every chunk of indexed code, is posted to |

@@ -197,6 +197,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gate refuse the tag. The full image is still built at the tag of a full release.
   `dependabot.yml` now tells Dependabot to ignore `python` 3.14 and later. If you extend the
   published image and need Python 3.14, use a release from 7.0.0 to 9.8.3.
+- **The GitLab connector now reads a repo only when its host is in the source's `gitlab_hosts`,
+  and calls `glab api --hostname` with that host.** `kb connect` dropped the host from the repo
+  id and passed none to `glab`, so `glab` chose the host, and a repo on another host was looked
+  up there by its project path. `gitlab_hosts` defaults to `GITLAB_HOST` when that variable is
+  set, else `gitlab.com`. A port in an entry must be 1 to 65535. A repo on any other host is
+  skipped. The run logs one line for each skipped host and ends with a warning that counts the
+  skipped repos that no GitLab source read. The advice in these messages is "if HOST runs
+  GitLab", and is left out for `github.com`, other hosts known to run another product, and hosts
+  that another GitLab source lists. The exit code does not change. On a run where every source
+  answers, the skipped repo's earlier GitLab links are cleared. If you read GitLab repos from a
+  self-hosted host, set `gitlab_hosts = ["git.example.com"]` on the source in
+  `~/.contextlake/kb.toml` or in a file passed to `--config`, or export `GITLAB_HOST`. List the
+  host as GitLab serves its API: an ssh remote with a port gives the id host
+  `git.example.com:2222`, and `glab` takes that as an HTTP host. A file found by walking up from
+  the current directory may not set `gitlab_hosts`.
 
 ### Fixed
 

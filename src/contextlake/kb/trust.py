@@ -244,7 +244,16 @@ SOURCE_ARGV_KEYS = frozenset({"command", "args", "mcp_command"})
 # `search_url` is gated where `url` is not. `url` is a page an ingest READS; `search_url`
 # is where `kb enrich` SENDS search terms built from the repo's own symbol names, so a
 # discovered file setting it would choose a host that receives code-derived data.
-SOURCE_EGRESS_KEYS = frozenset({"mcp", "token_env", "search_url"})
+# `gitlab_hosts` lists the hosts the GitLab connector passes to `glab api --hostname`
+# (connectors/gitlab.py), which aims an authenticated call at the host it names. A repo id
+# takes its host from the clone's origin URL, which the clone controls, so the list is what
+# stops a clone from choosing the host that gets the call.
+# The key is not called `hosts`: the Figma, Slack and Zendesk sources read that name for
+# the links they claim, and this set is checked on every source type, so gating it would
+# drop it from those three as well. Dropping `gitlab_hosts` needs no tier-off. The connector
+# falls back to GITLAB_HOST, else gitlab.com, which are the user's own environment and the
+# public default, and it still matches each repo to a host one at a time.
+SOURCE_EGRESS_KEYS = frozenset({"mcp", "token_env", "search_url", "gitlab_hosts"})
 # `auth` and `user` join `auth_dir` here rather than being left ungated. Neither is a
 # secret, and that is the point: they decide how the secret named by `token_env` is
 # PRESENTED, so a discovered file could flip a bearer token into the username half of a

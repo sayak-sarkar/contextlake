@@ -43,8 +43,25 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
 - **GitLab**: links each repo to its open **merge requests and issues** (read through your authenticated
-  `glab`). contextlake drops the host from the repo id and passes none to `glab`, so `glab` chooses the
-  host. Use it with repos from one GitLab host.
+  `glab`). A repo is read only when the host at the start of its id is in the source's `gitlab_hosts`
+  list. Every call then runs `glab api --hostname HOST` with that listed host.
+
+    Unset, the list holds `GITLAB_HOST` when that variable is set, else `gitlab.com`. A self-hosted
+    GitLab needs `gitlab_hosts = ["git.example.com"]` on the source, or `GITLAB_HOST`. The source key
+    wins over the variable.
+
+    A repo on any other host is skipped and makes no request. The run logs one line for each skipped
+    host and ends with a warning that counts the repos no GitLab source read. A skip is not a failure,
+    so the exit code does not change. On a run where every source answers, the skipped repo's earlier
+    GitLab links are cleared.
+
+    The log advises `gitlab_hosts` as "if HOST runs GitLab". It gives no advice for `github.com` or
+    another host known to run a different product.
+
+    The host in a repo id comes from the clone's origin URL, ssh port included: an ssh URL with the
+    port 2222 gives `git.example.com:2222`. `glab` takes each entry as an HTTP host, so list the host
+    as GitLab serves its API. The entry `git.example.com` does not match that id, and the repo is
+    skipped.
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
   (`repo --documented_by--> document`).

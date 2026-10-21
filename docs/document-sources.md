@@ -378,6 +378,20 @@ accept:
   `conversations_history`).
 - `group`: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
   The group is not added to the path. Other repos are skipped with no message.
+- `gitlab_hosts`: the hosts a GitLab source may call, as a list of hostnames such as
+  `["git.example.com", "git.example.com:8443"]`. A single string is read as one hostname. Unset, it is
+  `GITLAB_HOST` when that variable is set, else `["gitlab.com"]`. A value set here replaces that default,
+  so list `gitlab.com` too if you use it. Global config or `--config` only (see
+  [Configuration](configuration.md)).
+
+    A repo is read only when the host at the start of its id equals an entry, port included and case
+    ignored. `git.example.com` does not match `git.example.com:8443`. Another repo is skipped with a log
+    line, and each call passes the entry to `glab api --hostname`. A port is 1 to 65535.
+
+    A repo id takes its host from the clone's origin URL. An ssh URL with a port, such as
+    `ssh://git@git.example.com:2222/ns/p`, gives `git.example.com:2222`. `glab` takes an entry as an
+    HTTP host, so list the host as GitLab serves its API. The entry `git.example.com` does not match
+    that id, and the repo is skipped.
 - `per_page`: for a GitLab source, how many open merge requests and issues one call asks for
   (default `50`). No other source type reads it.
 - `max_pages`: for an `api` source, the most pages it reads when the response links to a next page
