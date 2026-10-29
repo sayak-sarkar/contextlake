@@ -183,7 +183,8 @@ def test_the_placeholder_warning_marks_a_discovered_directory_absent(
         tmp_path, monkeypatch, make, mark):
     """The warning lists each place it looked and whether a config was there. `exists` said
     [found] for a directory named `.contextlake.ini`, which the loader then skips, so the
-    list claimed a config that was never read. A regular file is still [found].
+    list claimed a config that was never read. A directory is not discovered, so the list
+    holds the one line for a search that found nothing. A regular file is [found].
 
     Reads the lines handed to `config.log` rather than the logger's output: the package
     logger does not propagate, so a capture through it depends on test order."""
@@ -197,8 +198,29 @@ def test_the_placeholder_warning_marks_a_discovered_directory_absent(
 
     listed = "\n".join(lines)
     assert "still the placeholder" in listed, "the warning did not fire"
-    marks = re.findall(r"\[(found|absent)\] .*/\.contextlake\.ini$", listed, re.MULTILINE)
+    marks = re.findall(r"\[(found|absent)\] \S*\.contextlake\.ini\b", listed)
     assert marks == [mark], listed
+
+
+def test_the_placeholder_warning_marks_a_global_directory_absent(tmp_path, monkeypatch):
+    """The global config path is checked as a file as well. A directory named like it is
+    skipped by the loader, so the list must not say [found] for it.
+
+    The test above no longer reaches this check: the walk skips a directory, so no discovered
+    path is a directory. The global path is the one a directory can still reach."""
+    global_dir = tmp_path / "global.ini"
+    global_dir.mkdir()
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(global_dir))
+    monkeypatch.setattr("contextlake.config.LOCAL_CONFIG_FILE", str(tmp_path / "no-local.ini"))
+    monkeypatch.chdir(tmp_path)
+    lines = []
+    monkeypatch.setattr("contextlake.config.log", lambda message, *a, **k: lines.append(message))
+
+    load_config()
+
+    listed = "\n".join(lines)
+    assert "still the placeholder" in listed, "the warning did not fire"
+    assert re.findall(r"\[(found|absent)\] \S*global\.ini\b", listed) == ["absent"], listed
 
 
 _EXAMPLE_KB_TOML = (Path(__file__).resolve().parents[1] / "examples" / "kb.toml.example")
@@ -667,3 +689,21 @@ def test_load_config_inherits_local_config_from_a_parent_directory(tmp_path, mon
 
     config = load_config()
     assert config["gitlab_group"] == "inherited-group"
+
+
+def test_a_directory_named_like_the_config_does_not_hide_the_one_in_a_parent(
+        tmp_path, monkeypatch):
+    """The walk looks for a file. A directory called `.contextlake.ini` in a child directory
+    is not a config, so it must not stop the walk: the file in the parent still counts.
+    `os.path.exists` said yes to the directory, `find_ancestor_config` returned it, the
+    loader skipped it, and the parent's `gitlab_group` was never read."""
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "none.ini"))
+    parent_file = tmp_path / ".contextlake.ini"
+    parent_file.write_text("[contextlake]\ngitlab_group = parent-group\n")
+    child = tmp_path / "child"
+    (child / ".contextlake.ini").mkdir(parents=True)
+
+    assert find_ancestor_config(".contextlake.ini", start=str(child)) == str(parent_file)
+
+    monkeypatch.chdir(child)
+    assert load_config()["gitlab_group"] == "parent-group"

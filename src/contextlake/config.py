@@ -198,7 +198,8 @@ def find_ancestor_config(filename, start=None):
     directory = os.path.abspath(start or os.getcwd())
     while True:
         candidate = os.path.join(directory, filename)
-        if os.path.exists(candidate):
+        # A file only: a directory of this name is no config and must not end the walk.
+        if os.path.isfile(candidate):
             return candidate
         parent = os.path.dirname(directory)
         if parent == directory:  # reached filesystem root

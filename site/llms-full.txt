@@ -10980,6 +10980,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning marks each config path it checked as `[found]` or `[absent]`. A directory with that
   name in the working directory was marked `[found]`, though the loader skips it. It now reads
   `[absent]`. An unreadable regular file still reads `[found]`.
+- **A directory named `.contextlake.ini` no longer hides the config in a parent directory.**
+  Run from a subdirectory that held a directory with that name, `mirror status` stopped the
+  search there, skipped the directory as not a file, and never read the `.contextlake.ini` above
+  it: it printed the no-group warning and exited 2. The search now passes over a directory and
+  finds the file above. The search for `.contextlake.kb.toml` skips a directory too. You do not
+  need to change anything.
 
 ### Security
 
