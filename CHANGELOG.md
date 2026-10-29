@@ -27,9 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A blank `[serve] keys_file` now stops `kb serve` and `kb keys` instead of falling back to
   the default key file.** `keys_file = ""`, `false` and `0` in `~/.contextlake/kb.toml` or the
   `--config` file read as unset. On a network start with no key file at the default path, `kb
-  serve` then minted one unscoped shared token, printed it and exited 0. A blank `--keys-file`
-  or `CONTEXTLAKE_KEYS_FILE` already refused. Both now exit 1 and name the key, and `kb keys
-  --json` writes a `key_file_error` document. If your config has a blank `keys_file`, give it
+  serve` then minted one unscoped shared token, printed it and served. A blank
+  `CONTEXTLAKE_KEYS_FILE` already refused, and a blank `--keys-file` now refuses too (see the
+  entry above). A blank `keys_file` now exits 1 and names the key, and `kb keys --json` writes a
+  `key_file_error` document. If your config has a blank `keys_file`, give it
   the path to your key file or remove the line.
 - **`kb eval` scores MRR and hit-rate on the first `--limit` results only.** 10.0.0rc4 fetched
   as many results as the golden entry has `expected` ids when that is more than `--limit`, and
@@ -98,15 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a job named like the code stays an error. 10.0.0rc4 matched the bare code in `uninstall` for
   AWS and Azure, so a denied delete for such a job dropped the job record while the schedule
   kept running. `uninstall` now keeps the record and exits 1.
-- **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
-  `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
-  the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
-  was built for that vendor, and each review posted your API key, the source facts and the draft
-  page to it, whatever `provider` said. A `review_provider` in `~/.contextlake/kb.toml` or a
-  `--config` file is unchanged and wins over a discovered one. If a project-local file sets
-  `review_provider` to `openai` or `anthropic`, move it to `~/.contextlake/kb.toml` or pass
-  `--config PATH`. A local reviewer such as `ollama` still works from a local file. `kb wiki`
-  now also warns when `review_provider` is a remote provider that will see contributor names.
 - **A `.contextlake.kb.toml` found by walking up from the current directory can no longer choose
   `[llm] review_provider = "openai"` or `"anthropic"`.** The key is dropped with a warning, and
   the wiki council reviews with the model that wrote the page. 10.0.0rc4 kept it: the reviewer
@@ -198,7 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on every push to `main`, pull request and manual run. A red `docker` job makes the `verify-ci`
   gate refuse the tag. The full image is still built at the tag of a full release.
   `dependabot.yml` now tells Dependabot to ignore `python` 3.14 and later. If you extend the
-  published image and need Python 3.14, use a release from 7.0.0 to 9.8.3.
+  published image and need Python 3.14, use a release from 7.0.0 to 10.0.0rc4.
 - **The GitLab connector now reads a repo only when its host is in the source's `gitlab_hosts`,
   and calls `glab api --hostname` with that host.** `kb connect` dropped the host from the repo
   id and passed none to `glab`, so `glab` chose the host, and a repo on another host was looked
@@ -241,19 +233,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rewrites skill and workflow files that still hold the old unedited text and keeps an edited
   one until you pass `--force`. A wiki page already on disk keeps its old heading until
   `kb wiki` writes it again; `--force` regenerates pages even when the graph is unchanged.
-- **`bootstrap --config` reads a file's kind the way `mirror status --config` does, so a mirror
-  INI whose text holds `[kb]` is accepted.** A file with a `[contextlake]` header is a mirror
-  INI, also when it is named `*.toml` or starts with a UTF-8 BOM. `bootstrap` exited 2 with
-  "looks like a knowledge config" for such a file when its text held `[kb]` (for example `notes
-  = see the [kb] docs`), when it had a `[kb]` header, or when it was named `*.toml` with no
-  repeated key; it now exits 0. Other exit codes that change: a `*.toml` mirror INI with a
-  repeated key exits 1 with the parse error under `bootstrap` (it exited 2), and with a BOM also
-  under `mirror status`; a file with no `[contextlake]` header and `[kb]` only as text exits 1
-  under `bootstrap` (it exited 2), with "a setting comes before any [contextlake] header" when
-  it has no header and "has no [contextlake] section" under another header; a BOM file with only
-  a `[kb]` header exits 2 under `mirror status` (it exited 1); a BOM file with only an `[llm]`,
-  `[sources]`, `[embeddings]` or `[rules]` header exits 2 under both commands (it exited 1).
-  Update any script that matches the old exit code or text.
+- **`bootstrap --config` and `mirror status --config` now decide a file's kind the same way, and
+  refuse a file that is not a mirror INI.** Both commands apply three rules in order. A file
+  with a `[contextlake]` header is a mirror INI, also when it is named `*.toml`, starts with a
+  UTF-8 BOM, has a `[kb]` header or mentions `[kb]` in a value; if it does not parse, for
+  example because a key repeats, the command exits 1 with an error that names the file.
+  Otherwise a file with a knowledge header (`[kb]`, `[llm]`, `[sources]`, `[embeddings]` or
+  `[rules]`), or a file named `*.toml`, is refused with exit 2 and a message that names
+  `--kb-config`. Any other file exits 1 with an error that names the file. 10.0.0rc4 loaded the
+  file first: a BOM, a repeated key or section, or a setting above the first header ended in a
+  configparser traceback (exit 1), and a file with no `[contextlake]` section loaded as empty,
+  so `mirror status` ran on the defaults. `bootstrap` then refused any file whose text held
+  `[kb]` or that was named `*.toml` (exit 2), mirror INIs included. Update any script that
+  matches the old exit code or text.
 
 ### Fixed
 
@@ -293,7 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create --expires 3000000d` (and `rotate --expires`, `rotate --overlap`, `usage --since`)
   exited 1 with "date value out of range" or "Python int too large to convert to C int", with no
   flag named. They now exit 2 like any other bad duration, with the flag and the longest allowed
-  value, for example `--expires '3000000d' is out of range (the longest is 2912152d)`. The key
+  value, for example `--expires '3000000d' is out of range (the longest is 2912141d)`; the
+  longest value falls by one each day. The key
   file is unchanged. A script that matched exit 1 for this input now gets 2.
 - **The key docs no longer say `graph_health` refuses a `--repos` or `--no-external` key.**
   `docs/cli-reference.md` listed it beside `get_fleet_doc` as a tool that refuses such a key. It
@@ -514,9 +507,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`bootstrap --config kb.toml` now always prints the message that names `--kb-config`.** On
   `bootstrap`, `--config` is the mirror INI, and the check for a knowledge config ran after the
   config loaded. Without `--group`, the user got "No group configured ... or pass --config PATH"
-  instead, which repeats the mistake. With a real kb.toml, `--group` did not help: the run ended
-  in "Cannot read the config file: a section appears twice". The check now runs first and exits
-  2.
+  instead, which repeats the mistake. With `--group`, a kb.toml with two `[[sources]]` tables
+  ended in a configparser `DuplicateSectionError` traceback and exit 1 in 10.0.0rc4; a kb.toml
+  without a repeated table already exited 2 with the knowledge-config message. The check now
+  runs first and exits 2.
 - **`init` and `completion` name a file they cannot write instead of printing a traceback.**
   Adding a data source to a `kb.toml` that already exists in a read-only directory, and
   appending to a read-only `~/.bashrc` or `~/.zshrc`, ended in a Python traceback. `init` now
