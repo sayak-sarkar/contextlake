@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc5] - 2026-10-29
+
 ### Changed
 
 - **`kb serve --keys-file ""` now exits 1 instead of starting on a shared token.** A blank
