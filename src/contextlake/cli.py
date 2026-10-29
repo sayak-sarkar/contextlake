@@ -2299,18 +2299,12 @@ def _refuse_kb_config_as_mirror_ini(args):
     ``--config PATH``, which is the mistake already made, and a kb.toml with two ``[[sources]]``
     tables failed to parse as an INI ("a section appears twice") before this was reached.
     """
-    from pathlib import Path
-
     from . import style
+    from .config import _wrong_kind
 
-    given = Path(expand_path(args.config))
-    looks_like_kb = given.suffix.lower() == ".toml"
-    if not looks_like_kb and given.is_file():
-        try:
-            looks_like_kb = "[kb]" in given.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            looks_like_kb = False
-    if not looks_like_kb:
+    # The loader's own test, so this door and `mirror status --config` agree: a
+    # `[contextlake]` header means a mirror INI whatever else the text holds.
+    if _wrong_kind(expand_path(args.config)) is None:
         return False
     log(style.fail(
         f"--config {args.config} looks like a knowledge config, but on "

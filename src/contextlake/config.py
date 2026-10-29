@@ -265,7 +265,9 @@ def _wrong_kind(path):
     the file is called, so a broken one gets its own parse error.
     """
     try:
-        with open(path, errors='replace') as f:
+        # utf-8-sig, as the loader reads the file: a BOM in front of the first header is not
+        # whitespace to the regex below and would hide a leading [contextlake] header.
+        with open(path, encoding='utf-8-sig', errors='replace') as f:
             text = f.read()
     except OSError:
         text = ''

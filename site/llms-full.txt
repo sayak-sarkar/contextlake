@@ -10572,6 +10572,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rewrites skill and workflow files that still hold the old unedited text and keeps an edited
   one until you pass `--force`. A wiki page already on disk keeps its old heading until
   `kb wiki` writes it again; `--force` regenerates pages even when the graph is unchanged.
+- **`bootstrap --config` reads a file's kind the way `mirror status --config` does, so a mirror
+  INI whose text holds `[kb]` is accepted.** A file with a `[contextlake]` header is a mirror
+  INI, also when it is named `*.toml` or starts with a UTF-8 BOM. `bootstrap` exited 2 with
+  "looks like a knowledge config" for such a file when its text held `[kb]` (for example `notes
+  = see the [kb] docs`), when it had a `[kb]` header, or when it was named `*.toml` with no
+  repeated key; it now exits 0. Other exit codes that change: a `*.toml` mirror INI with a
+  repeated key exits 1 with the parse error under `bootstrap` (it exited 2), and with a BOM also
+  under `mirror status`; a file with no `[contextlake]` header and `[kb]` only as text exits 1
+  under `bootstrap` (it exited 2), with "a setting comes before any [contextlake] header" when
+  it has no header and "has no [contextlake] section" under another header; a BOM file with only
+  a `[kb]` header exits 2 under `mirror status` (it exited 1); a BOM file with only an `[llm]`,
+  `[sources]`, `[embeddings]` or `[rules]` header exits 2 under both commands (it exited 1).
+  Update any script that matches the old exit code or text.
 
 ### Fixed
 

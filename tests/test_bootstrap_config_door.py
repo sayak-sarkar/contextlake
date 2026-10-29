@@ -147,6 +147,73 @@ def test_a_mirror_ini_passed_to_bootstrap_config_is_not_refused(tmp_path):
     assert "looks like a knowledge config" not in out
 
 
+@pytest.mark.parametrize("name, text, refused", [
+    ("mirror-text.ini", "[contextlake]\ngitlab_host = gitlab.invalid\nnotes = see the [kb] docs\n",
+     False),
+    ("mirror-header.ini", "[contextlake]\ngitlab_host = gitlab.invalid\n[kb]\nnotes = x\n", False),
+    ("knowledge.cfg", "[kb]\nnotes = x\n", True),
+    ("llm-only.cfg", "[llm]\nprovider = openai\n", True),
+    ("bom-mirror-text.ini",
+     "\ufeff[contextlake]\ngitlab_host = gitlab.invalid\nnotes = see the [kb] docs\n", False),
+    ("bom-mirror-header.ini",
+     "\ufeff[contextlake]\ngitlab_host = gitlab.invalid\n[kb]\nnotes = x\n", False),
+    ("bom-knowledge.cfg", "\ufeff[kb]\nnotes = x\n", True),
+], ids=["mirror-ini-with-kb-text", "mirror-ini-with-kb-header", "kb-header-no-suffix",
+        "llm-header-no-suffix", "bom-mirror-ini-with-kb-text", "bom-mirror-ini-with-kb-header",
+        "bom-kb-header-no-suffix"])
+def test_the_refusal_follows_the_header_the_loader_reads(tmp_path, name, text, refused):
+    """A `[contextlake]` header makes a mirror INI, whatever else the text holds. The loader
+    (`config._wrong_kind`) already reads it so, and `mirror status --config` accepts the file.
+    `bootstrap` tested the raw text for `[kb]`, so a mirror INI with `notes = see the [kb]
+    docs` got "looks like a knowledge config" and a hint to pass `--kb-config`, the wrong flag
+    for that file. A file with only a knowledge header is still refused, with the message
+    `bootstrap` prints before the config loads (the loader's own refusal reads differently).
+    A UTF-8 BOM before the first header changes neither result: the loader reads the file as
+    utf-8-sig, and `_wrong_kind` now reads it the same way."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    given = tmp_path / name
+    given.write_text(text, encoding="utf-8")
+
+    r = _run(["bootstrap", "--config", str(given), "--group", "demo-org", "--dry-run",
+              "--no-sync"], cwd=tmp_path, home=home)
+    out = r.stdout + r.stderr
+
+    if refused:
+        assert r.returncode == 2, out[-2000:]
+        assert "looks like a knowledge config, but on `bootstrap` --config is the mirror INI" in out
+    else:
+        assert r.returncode == 0, out[-2000:]
+        assert "looks like a knowledge config" not in out
+        assert "--kb-config" not in out
+
+
+@pytest.mark.parametrize("verb, name, text, code", [
+    ("bootstrap", "bom-llm-only.cfg", "﻿[llm]\nprovider = openai\n", 2),
+    ("mirror", "bom-llm-only.cfg", "﻿[llm]\nprovider = openai\n", 2),
+    ("bootstrap", "kbtext-noheader.cfg", "note = see [kb] docs\n", 1),
+    ("bootstrap", "kbtext-foo.cfg", "[foo]\nnote = see [kb] docs\n", 1),
+], ids=["bootstrap-bom-llm-only", "mirror-status-bom-llm-only", "bootstrap-kb-text-no-header",
+        "bootstrap-kb-text-other-header"])
+def test_the_exit_code_for_a_file_the_header_test_settles(tmp_path, verb, name, text, code):
+    """A BOM file with only a knowledge header is a knowledge config for both commands, exit 2.
+    It exited 1 with "has no [contextlake] section" while the BOM hid the header. A file with
+    `[kb]` only as text and no `[contextlake]` header is not a knowledge config, so the loader's
+    error applies, exit 1, where `bootstrap` used to refuse it as one: "a setting comes before
+    any [contextlake] header" with no header at all, "has no [contextlake] section" under another
+    header."""
+    home = tmp_path / "home"
+    (home / ".contextlake").mkdir(parents=True)
+    given = tmp_path / name
+    given.write_text(text, encoding="utf-8")
+    args = (["bootstrap", "--config", str(given), "--group", "demo-org", "--dry-run", "--no-sync"]
+            if verb == "bootstrap" else ["mirror", "status", "--config", str(given)])
+
+    r = _run(args, cwd=tmp_path, home=home)
+
+    assert r.returncode == code, (r.stdout + r.stderr)[-2000:]
+
+
 # --- B0-5 / B0-6: a partial success is not a failure, and a supplied --group is a group --
 
 def test_the_no_config_warning_does_not_fire_when_group_was_supplied(tmp_path):
