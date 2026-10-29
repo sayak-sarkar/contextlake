@@ -883,5 +883,5 @@ def test_the_docs_say_to_list_the_host_as_gitlab_serves_its_api(page):
     root = Path(__file__).resolve().parents[2]
     text = " ".join((root / page).read_text(encoding="utf-8").split())
     assert "ssh://git@git.example.com:2222/ns/p" in text or "port 2222" in text
-    assert "git.example.com:2222" in text
+    assert text.count("git.example.com:2222") >= 1   # docs text, not a URL check
     assert "list the host as GitLab serves its API" in text
