@@ -139,7 +139,7 @@ def build_site_server(store: Store, *, host: str = "127.0.0.1", port: int = 8765
             n["href"] = pages[n["id"]]
     overview_html = to_html(to_payload(ov_nodes, ov_edges, meta), layout=overview_layout,
                             assets="sibling", site=True, live=True,
-                            title="contextlake — fleet overview").encode("utf-8")
+                            title="contextlake: fleet overview").encode("utf-8")
     index_html = _site_index(repos_with_nodes, sizes, pages).encode("utf-8")
     assets = {"app.css": (_read_static_raw("app.css"), "text/css"),
               "app.js": (_read_static_raw("app.js"), "application/javascript"),
@@ -156,7 +156,7 @@ def build_site_server(store: Store, *, host: str = "127.0.0.1", port: int = 8765
             rn, re_ = repo_subgraph(req, repo, max_nodes=repo_max_nodes, meta=m)
             body = to_html(to_payload(rn, re_, m), layout=repo_layout,
                            assets="sibling", site=True, live=True,
-                           title=f"contextlake — {repo}").encode("utf-8")
+                           title=f"contextlake: {repo}").encode("utf-8")
         finally:
             if req is not store:
                 req.close()

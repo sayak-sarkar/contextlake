@@ -7,7 +7,7 @@
      on every page load and the server 404s it. A data URI costs no request and
      survives an offline export, which a linked .ico would not. -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23137A8B'/%3E%3Cpath d='M6 20c3-2 5-2 8 0s5 2 8 0M6 14c3-2 5-2 8 0s5 2 8 0' stroke='%23EAF4F4' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>contextlake — knowledge dashboard</title>
+<title>contextlake: knowledge dashboard</title>
 <meta name="color-scheme" content="light dark">
 <!-- inline data-URI favicon (offline, no extra route): a pebble in the lake, brand teal -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23137A8B'/%3E%3Cpath d='M5 12 Q16 6 27 12' fill='none' stroke='%232BB3A3' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='19' r='6' fill='%23EAF4F4'/%3E%3C/svg%3E">
@@ -68,7 +68,7 @@
 </svg>
 
 <header class="cl-ctxbar" role="banner">
-  <a class="cl-wordmark" href="#/fleet" aria-label="contextlake — fleet overview">
+  <a class="cl-wordmark" href="#/fleet" aria-label="contextlake: fleet overview">
     <svg class="cl-glyph" aria-hidden="true"><use href="#ui-fleet"/></svg>
     <h1 class="cl-wordmark__text">contextlake</h1>
   </a>
@@ -85,9 +85,9 @@
   </button>
   <div class="cl-groundtruth" role="group" aria-label="Filter what's shown by confidence">
     <span class="cl-gt__label" aria-hidden="true">Show</span>
-    <button type="button" class="cl-gt cl-gt--extracted" data-conf="EXTRACTED" aria-pressed="true" title="Extracted — direct from source (AST / manifest). Click to show/hide.">Extracted</button>
-    <button type="button" class="cl-gt cl-gt--inferred" data-conf="INFERRED" aria-pressed="true" title="Inferred — heuristic / pattern-matched. Click to show/hide.">Inferred</button>
-    <button type="button" class="cl-gt cl-gt--ambiguous" data-conf="AMBIGUOUS" aria-pressed="true" title="Ambiguous — flagged for review. Click to show/hide.">Ambiguous</button>
+    <button type="button" class="cl-gt cl-gt--extracted" data-conf="EXTRACTED" aria-pressed="true" title="Extracted: direct from source (AST / manifest). Click to show/hide.">Extracted</button>
+    <button type="button" class="cl-gt cl-gt--inferred" data-conf="INFERRED" aria-pressed="true" title="Inferred: heuristic / pattern-matched. Click to show/hide.">Inferred</button>
+    <button type="button" class="cl-gt cl-gt--ambiguous" data-conf="AMBIGUOUS" aria-pressed="true" title="Ambiguous: flagged for review. Click to show/hide.">Ambiguous</button>
   </div>
   <span id="cl-mode" class="cl-mode" aria-live="polite" title="Data source">Live</span>
   <span id="cl-fresh" class="cl-fresh" hidden></span>
@@ -116,16 +116,16 @@
   </div>
   <dl class="cl-infopop__body">
     <dt><svg class="cl-ic" aria-hidden="true"><use href="#g-class"/></svg> Nodes</dt>
-    <dd>Code entities the graph tracks — repos, files, classes, functions, packages.</dd>
+    <dd>Code entities the graph tracks: repos, files, classes, functions, packages.</dd>
     <dt><svg class="cl-ic" aria-hidden="true"><use href="#ui-arch"/></svg> Edges</dt>
-    <dd>Relationships between nodes — calls, imports, depends-on, HTTP / event flow.</dd>
+    <dd>Relationships between nodes: calls, imports, depends-on, HTTP / event flow.</dd>
     <dt><span class="cl-conf__glyph cl-conf__glyph--extracted"></span> Confidence</dt>
     <dd><b>Extracted</b> = read directly from source (AST / manifest). <b>Inferred</b> =
       heuristic / pattern-matched. <b>Ambiguous</b> = flagged for review. The chips up top
       toggle each level on or off across the whole view.</dd>
     <dt><svg class="cl-ic" aria-hidden="true"><use href="#ui-info"/></svg> Data source</dt>
     <dd><b>Live</b> serves your full store on demand. <b>Static · date</b> is a fixed snapshot
-      export (a representative slice) — run <code>contextlake kb dashboard --serve</code> for the
+      export (a representative slice) - run <code>contextlake kb dashboard --serve</code> for the
       complete, always-current view.</dd>
   </dl>
   <div class="cl-infopop__pref">
@@ -214,7 +214,7 @@
     <span class="cl-conf cl-conf--inferred"><span class="cl-conf__glyph" aria-hidden="true"></span>Inferred</span>
     <span class="cl-conf cl-conf--ambiguous"><span class="cl-conf__glyph" aria-hidden="true"></span>Ambiguous</span>
   </span>
-  <span class="cl-footer__note">Every fact wears its receipt — open the provenance drawer for source.</span>
+  <span class="cl-footer__note">Every fact wears its receipt: open the provenance drawer for source.</span>
 </footer>
 
 <div id="cl-live" class="cl-visually-hidden" aria-live="polite"></div>

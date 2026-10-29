@@ -172,7 +172,7 @@ def _write(path: str, content: str, *, force: bool) -> bool:
     Returns True if written."""
     p = Path(path)
     if p.exists() and not force:
-        log(f"  {style.warn('exists')} {path} — kept (use --force to overwrite)")
+        log(f"  {style.warn('exists')} {path} - kept (use --force to overwrite)")
         return False
     p.parent.mkdir(parents=True, exist_ok=True)
     # Owner-only, and the mode is set as the file is created rather than
@@ -315,7 +315,7 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
             _mark_completion_decided("registered:fish")
     else:
         log(f"{style.warn('completion')} unrecognized shell "
-            f"({shell_path or '$SHELL not set'}) — see "
+            f"({shell_path or '$SHELL not set'}): see "
             "docs/cli-reference.md#shell-completion for manual setup "
             "(bash/zsh/fish).")
         _mark_completion_decided(f"unrecognized-shell:{shell_name or 'unset'}")
@@ -356,7 +356,7 @@ def cmd_completion(args) -> int:
     cli.py for why) -- same pattern as `init`'s own `--platform` check."""
     shell = getattr(args, "shell", None)
     if shell is not None and shell not in _COMPLETION_SHELLS:
-        log(style.warn(f"Unknown shell {shell!r} — expected one of "
+        log(style.warn(f"Unknown shell {shell!r}: expected one of "
                        f"{', '.join(_COMPLETION_SHELLS)}"))
         return 2
     ok = _setup_shell_completion(interactive=False, default_on=True, shell_override=shell)
@@ -415,7 +415,7 @@ def cmd_init(args) -> int:
         mirror_config_file = CONFIG_FILE
         kb_config_file = _KB_CONFIG
 
-    log(style.bold("contextlake init") + " — let's set up your workspace.\n")
+    log(style.bold("contextlake init") + ": let's set up your workspace.\n")
 
     # --- platform -----------------------------------------------------------
     platform_in = getattr(args, "platform", None) or "gitlab"
@@ -424,7 +424,7 @@ def cmd_init(args) -> int:
     try:
         platform = platform_name({"platform": platform_in})
     except Exception:  # noqa: BLE001 - normalize an unknown choice to a clean error
-        log(style.warn(f"Unknown platform {platform_in!r} — expected one of "
+        log(style.warn(f"Unknown platform {platform_in!r}: expected one of "
                        f"{', '.join(_PLATFORMS)}"))
         return 2
 
@@ -627,7 +627,7 @@ def cmd_init(args) -> int:
     env, is_set = _token_status(platform)
     log("")
     if is_set:
-        log(f"{style.ok('auth')} {env} is set — mirroring will use it.")
+        log(f"{style.ok('auth')} {env} is set - mirroring will use it.")
     elif platform == "gitlab":
         log(f"{style.warn('auth')} Set {env} (a read_api + read_repository token), "
             "or run `glab auth login`. Public groups need neither.")
@@ -655,7 +655,7 @@ def cmd_init(args) -> int:
         _setup_shell_completion(interactive=False, default_on=True)
     else:
         log("")
-        log(f"{style.warn('completion')} shell tab-completion not registered — a "
+        log(f"{style.warn('completion')} shell tab-completion not registered: a "
             "non-interactive run does not modify your shell startup file.")
         log(f"  Run {style.cyan('contextlake completion')} (or "
             f"{style.cyan('init --completion')}) when you want it.")
@@ -696,5 +696,5 @@ def cmd_init(args) -> int:
         log("Next: mirror your repositories:")
         log(f"  {style.cyan('contextlake mirror sync')}")
     if not wrote_any and not force:
-        log(style.dim("\n(nothing written — config already existed; --force to overwrite)"))
+        log(style.dim("\n(nothing written: config already existed; --force to overwrite)"))
     return 0

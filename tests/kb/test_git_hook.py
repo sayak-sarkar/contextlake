@@ -595,3 +595,123 @@ def test_hook_install_on_an_empty_store_pins_the_origin_id_not_the_directory_nam
     hook = repo / ".git" / "hooks" / "post-commit"
     assert "--repo git.example.org/team/gamma" in hook.read_text()
     assert "--repo gamma" not in hook.read_text()
+
+
+# --- the begin marker lost its em-dash; hooks written with it must still be recognised ----
+
+
+def _as_an_old_hook(hook):
+    """Rewrite a hook this version wrote into the spelling earlier versions wrote."""
+    text = hook.read_text(encoding="utf-8")
+    assert git_hook.MARK_BEGIN in text and "uninstall: do not hand-edit" in text
+    hook.write_text(
+        text.replace(git_hook.MARK_BEGIN, git_hook.LEGACY_MARK_BEGIN)
+            .replace("uninstall: do not hand-edit", "uninstall  \u2014 do not hand-edit"),
+        encoding="utf-8")
+
+
+def test_a_new_hook_holds_no_em_dash(tmp_path):
+    _repo(tmp_path)
+    git_hook.install(str(tmp_path), "team/app")
+    body = (tmp_path / ".git" / "hooks" / "post-commit").read_text(encoding="utf-8")
+    assert "\u2014" not in body
+    assert git_hook.MARK_BEGIN in body and git_hook.LEGACY_MARK_BEGIN not in body
+
+
+def test_the_old_marker_is_the_new_one_with_the_dash_restored():
+    assert "\u2014" in git_hook.LEGACY_MARK_BEGIN and "\u2014" not in git_hook.MARK_BEGIN
+    assert git_hook.LEGACY_MARK_BEGIN.replace(" \u2014 ", ": ") == git_hook.MARK_BEGIN
+    assert not git_hook.LEGACY_MARK_BEGIN.startswith(git_hook.MARK_BEGIN)
+    assert not git_hook.MARK_BEGIN.startswith(git_hook.LEGACY_MARK_BEGIN)
+
+
+def test_install_refreshes_a_block_written_with_the_old_marker_in_place(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.write_text("#!/bin/sh\necho custom\n")
+    assert git_hook.install(str(tmp_path), "app") == "appended"
+    _as_an_old_hook(hook)
+
+    assert git_hook.install(str(tmp_path), "app") == "refreshed"
+    body = hook.read_text(encoding="utf-8")
+    assert body.count(git_hook.MARK_BEGIN) == 1 and body.count(git_hook.MARK_END) == 1
+    assert git_hook.LEGACY_MARK_BEGIN not in body and "\u2014" not in body
+    assert body.startswith("#!/bin/sh\necho custom\n")
+    assert git_hook.is_installed(str(tmp_path))
+
+
+def test_two_old_blocks_become_one_new_block(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    git_hook.install(str(tmp_path), "app")
+    _as_an_old_hook(hook)
+    one = hook.read_text(encoding="utf-8")
+    hook.write_text(one + one.split("\n", 1)[1], encoding="utf-8")   # a second copy
+    assert hook.read_text(encoding="utf-8").count(git_hook.LEGACY_MARK_BEGIN) == 2
+
+    assert git_hook.install(str(tmp_path), "app") == "refreshed"
+    body = hook.read_text(encoding="utf-8")
+    assert body.count(git_hook.MARK_BEGIN) == 1 and git_hook.LEGACY_MARK_BEGIN not in body
+
+
+def test_uninstall_removes_a_block_written_with_the_old_marker(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.write_text("#!/bin/sh\necho custom\n")
+    git_hook.install(str(tmp_path), "app")
+    _as_an_old_hook(hook)
+
+    assert git_hook.uninstall(str(tmp_path)) == "removed"
+    body = hook.read_text(encoding="utf-8")
+    assert "echo custom" in body and "contextlake" not in body and "\u2014" not in body
+
+
+def test_uninstall_deletes_a_hook_that_held_only_an_old_block(tmp_path):
+    _repo(tmp_path)
+    git_hook.install(str(tmp_path), "app")
+    _as_an_old_hook(tmp_path / ".git" / "hooks" / "post-commit")
+    assert git_hook.uninstall(str(tmp_path)) == "removed"
+    assert not (tmp_path / ".git" / "hooks" / "post-commit").exists()
+
+
+def test_is_installed_reads_the_old_marker(tmp_path):
+    _repo(tmp_path)
+    git_hook.install(str(tmp_path), "app")
+    _as_an_old_hook(tmp_path / ".git" / "hooks" / "post-commit")
+    assert git_hook.is_installed(str(tmp_path))
+
+
+def test_an_old_block_after_an_exec_is_moved_above_it(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\necho framework\nexec true\n\n"
+                    f"{git_hook.LEGACY_MARK_BEGIN}\nold body\n{git_hook.MARK_END}\n",
+                    encoding="utf-8")
+    assert not git_hook.is_installed(str(tmp_path))
+
+    assert git_hook.install(str(tmp_path), "app") == "refreshed"
+    body = hook.read_text(encoding="utf-8")
+    assert body.index(git_hook.MARK_BEGIN) < body.index("exec true")
+    assert "old body" not in body and git_hook.LEGACY_MARK_BEGIN not in body
+
+
+def test_an_old_marker_in_a_python_hook_is_not_reported_present(tmp_path):
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/usr/bin/env python3\n"
+                    f"{git_hook.LEGACY_MARK_BEGIN}\nx\n{git_hook.MARK_END}\n", encoding="utf-8")
+    assert not git_hook.is_installed(str(tmp_path))
+
+
+def test_a_second_checkout_does_not_repoint_a_block_written_with_the_old_marker(tmp_path):
+    main, wt = _with_worktree(tmp_path)
+    git_hook.install(str(main), "app")
+    hook = main / ".git" / "hooks" / "post-commit"
+    _as_an_old_hook(hook)
+    before = hook.read_text(encoding="utf-8")
+
+    assert git_hook.install(str(wt), "app") == "shared"
+    assert hook.read_text(encoding="utf-8") == before
+    assert git_hook.install(str(main), "app") == "refreshed"

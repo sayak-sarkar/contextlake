@@ -93,7 +93,7 @@ def cmd_steer(args) -> int:
         session_hook_entry,
         workspace_facts,
     )
-    from ..steer.skills import skill_files
+    from ..steer.skills import is_legacy_copy, skill_files
 
     def _upsert_block(path: Path, body: str) -> bool:
         """Write our managed block, preserving any existing user content.
@@ -167,7 +167,7 @@ def cmd_steer(args) -> int:
         malformed = [rel for rel, content in steering.items()
                      if not _upsert_block(out / rel, content)]
         if malformed:
-            log(style.warn(f"Skipped refreshing {', '.join(malformed)} — its BEGIN/END "
+            log(style.warn(f"Skipped refreshing {', '.join(malformed)}: its BEGIN/END "
                             "contextlake marker appears more than once or out of order; "
                             "fix the file manually, then re-run"))
 
@@ -179,14 +179,17 @@ def cmd_steer(args) -> int:
         # contextlake-managed file from one the user has since modified. The safe
         # default is to only refresh a file whose on-disk content is byte-identical
         # to what we're about to write (a true no-op) or that doesn't exist yet;
-        # anything else -- foreign or locally edited -- is kept.
+        # anything else -- foreign or locally edited -- is kept. The one exception is a
+        # file that is the unedited copy written before the em-dashes were removed (see
+        # `LEGACY_SKILL_SHA256`), which is rewritten to the current text.
         skills = skill_files()
         skipped = 0
         for rel, content in skills.items():
             p = out / rel
             if p.exists() and not force and p.read_text(errors="ignore") != content:
-                skipped += 1
-                continue
+                if not is_legacy_copy(rel, p.read_text(encoding="utf-8", errors="ignore")):
+                    skipped += 1
+                    continue
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
         log(f"  {style.ok(f'steering enhanced + {len(skills) // 2} skills')} "
@@ -283,7 +286,7 @@ def cmd_steer(args) -> int:
                         # JSON, but not settings we can merge into (a top-level array, a
                         # `hooks` that is not an object): replacing it loses the user's.
                         log(style.warn("  .claude/settings.json is not the settings shape "
-                                       "contextlake merges into — leaving it alone; the "
+                                       "contextlake merges into: leaving it alone; the "
                                        "session hook was not installed"))
                         return
                     data = parsed if isinstance(parsed, dict) else {}

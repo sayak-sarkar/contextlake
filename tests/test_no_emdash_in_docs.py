@@ -115,10 +115,14 @@ def test_de_emdash_leaves_fenced_console_output_byte_exact():
 
     `de_emdash` was a blanket `str.replace` over the whole markdown file, so it also
     rewrote captured CLI output. Five ```console blocks replaced five stale screenshots
-    in the docs, and contextlake's own output uses em-dashes (`✓ config loads — 1
-    file(s)`). Under the blanket rewrite the published transcript would have read
-    `config loads, 1 file(s)`, which the program never printed: a documented output that
-    disagrees with the program, which is the defect the screenshots were removed to end.
+    in the docs, and contextlake's own output then used the character U+2014 as the
+    separator in a line such as `✓ config loads`, U+2014, `1 file(s)`. Under the blanket
+    rewrite the published transcript would have read `config loads, 1 file(s)`, which the
+    program never printed: a documented output that disagrees with the program, which is
+    the defect the screenshots were removed to end.
+
+    The program no longer prints em-dashes (tests/test_no_emdash_in_output.py), so the
+    sample below is input for `de_emdash`, not a copy of what the program prints.
 
     The guard is written against a sample that would have been rewritten, so reverting
     `de_emdash` to a blanket replace fails here rather than shipping a wrong transcript.

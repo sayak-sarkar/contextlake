@@ -491,3 +491,109 @@ def test_implicit_binding_stays_quiet_when_the_ancestor_sets_no_store(tmp_path):
 def test_implicit_binding_is_quiet_when_no_config_exists(tmp_path):
     cfg = SimpleNamespace(loaded_from=[], store_path=tmp_path / "kb")
     assert _implicit_binding(cfg, tmp_path / "ws") == (None, None)
+
+
+# --- no em-dash in what steer writes ---------------------------------------------------
+
+_EM = "\u2014"
+
+# The body of ship-safely as written before the em-dashes were removed. The table of
+# legacy hashes is only worth having if it matches a real older file, so this literal is
+# checked against it below.
+_OLD_SHIP_SAFELY_BODY = (
+    "1. Sync the base branch and run the full test suite locally first.\n"
+    "2. Update the changelog / version if the project tracks them.\n"
+    "3. Work on a feature branch and open a PR " + _EM + " do not push directly to a "
+    "protected branch.\n"
+    "4. Never force-push a shared branch; never discard someone else's uncommitted work.\n"
+    "5. After landing, record what changed and why for the next person.")
+_SHIP_SAFELY = ".claude/skills/ship-safely/SKILL.md"
+
+
+def _old_ship_safely() -> str:
+    skill = next(s for s in SKILLS if s["name"] == "ship-safely")
+    return skill_md({**skill, "body": _OLD_SHIP_SAFELY_BODY})
+
+
+def test_no_skill_or_workflow_file_holds_an_em_dash_and_each_description_is_yaml_safe():
+    for rel, text in skill_files().items():
+        assert _EM not in text, rel
+    for skill in SKILLS:
+        # `description: <text>` is a plain YAML scalar: a colon followed by a space ends it.
+        assert ": " not in skill["desc"], skill["name"]
+
+
+def test_the_empty_cells_in_agents_md_are_a_hyphen(tmp_path):
+    store = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        check_schema(store)
+        md = render_agents_md(workspace_facts(store, tmp_path), config_path=None)
+    finally:
+        store.close()
+    assert "- **Languages:** -\n" in md and "- **Most-shared dependencies:** -\n" in md
+    assert _EM not in md
+
+
+def test_generated_steering_holds_no_em_dash(tmp_path):
+    store = _seed(tmp_path)
+    try:
+        facts = workspace_facts(store, tmp_path)
+        from contextlake.kb.steer.generate import (
+            render_claude_md,
+            render_kiro_steering,
+            render_windsurfrules,
+        )
+        for text in (render_agents_md(facts, config_path="/c/kb.toml"),
+                     render_claude_md("/c/kb.toml"),
+                     render_windsurfrules(facts, config_path="/c/kb.toml"),
+                     render_kiro_steering(facts, config_path="/c/kb.toml")):
+            assert _EM not in text
+    finally:
+        store.close()
+
+
+def test_the_legacy_table_names_every_skill_file_and_none_is_the_current_text():
+    import hashlib
+
+    from contextlake.kb.steer.skills import LEGACY_SKILL_SHA256
+
+    assert set(LEGACY_SKILL_SHA256) == set(skill_files())
+    for rel, digest in LEGACY_SKILL_SHA256.items():
+        assert len(digest) == 64 and int(digest, 16) >= 0
+        current = hashlib.sha256(skill_files()[rel].encode("utf-8")).hexdigest()
+        assert digest != current, f"{rel}: the legacy hash is the current text"
+
+
+def test_the_legacy_hash_of_ship_safely_is_the_real_older_file():
+    import hashlib
+
+    from contextlake.kb.steer.skills import LEGACY_SKILL_SHA256
+
+    old = _old_ship_safely()
+    assert _EM in old and old != skill_files()[_SHIP_SAFELY]
+    assert hashlib.sha256(old.encode("utf-8")).hexdigest() == LEGACY_SKILL_SHA256[_SHIP_SAFELY]
+
+
+def test_steer_rewrites_an_unedited_older_skill_file_without_force(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    p = out / _SHIP_SAFELY
+    p.parent.mkdir(parents=True)
+    p.write_text(_old_ship_safely(), encoding="utf-8")
+
+    assert cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False)) == 0
+    assert p.read_text(encoding="utf-8") == skill_files()[_SHIP_SAFELY]
+
+
+def test_steer_keeps_an_older_skill_file_the_user_edited(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    p = out / _SHIP_SAFELY
+    p.parent.mkdir(parents=True)
+    edited = _old_ship_safely() + "\n<!-- my own note -->\n"
+    p.write_text(edited, encoding="utf-8")
+
+    assert cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False)) == 0
+    assert p.read_text(encoding="utf-8") == edited

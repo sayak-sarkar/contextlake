@@ -181,7 +181,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   if(META.truncated){
     var tb = document.getElementById("trunc");
     tb.textContent = "\u26a0 showing " + cy.nodes().length
-      + (META.total ? " of " + META.total : "") + " \u2014 truncated; raise --max-nodes";
+      + (META.total ? " of " + META.total : "") + ": truncated; raise --max-nodes";
     tb.classList.add("show");
   }
 
@@ -413,7 +413,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(domOn || !HAS_DOMNODE) return;
     var nodes = cy.nodes();
     if(nodes.length > DOM_NODE_CAP){
-      noteMode("card view off — " + nodes.length + " nodes (cap " + DOM_NODE_CAP + ")");
+      noteMode("card view off: " + nodes.length + " nodes (cap " + DOM_NODE_CAP + ")");
       return;
     }
     // Own the layer rather than letting the extension create one: destroy() detaches
@@ -542,7 +542,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       add.push({ group: "edges", data: { id: "agg:" + k, source: "ns:" + p[0],
         target: "ns:" + p[1], relation: rel, confidence: "INFERRED",
         weight: n, aggregated: true,
-        context: p[0] + (rel === "flow" ? " calls " : " depends on ") + p[1] + " — " + what } });
+        context: p[0] + (rel === "flow" ? " calls " : " depends on ") + p[1] + ": " + what } });
     });
     cy.add(add);
   }
@@ -1205,7 +1205,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     });
     if(es.length > cap){
       items += '<li><button type="button" class="rmore">+' + (es.length - cap)
-        + " more — show all</button></li>";
+        + " more - show all</button></li>";
     }
     return '<div class="conns"><h3>connections <span class="cc">' + es.length
       + "</span></h3><ul>" + items + "</ul></div>";
@@ -1271,7 +1271,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       + (n.outgoers("edge").length
           ? '<button type="button" class="tracebtn" id="tracedown">Trace downstream \u2192</button>'
             + '<div class="hint">Follows edge direction as far as it goes, through the graph'
-            + (LIVE ? ' currently loaded — expand further to widen it.' : '.') + '</div>'
+            + (LIVE ? ' currently loaded - expand further to widen it.' : '.') + '</div>'
           : "")
       + connList(n, allConns)
       + (LIVE ? '<div class="hint">select any node to expand its neighbours</div>' : "");
@@ -1581,7 +1581,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       });
       if(es.length > TV_MAX_EDGES){
         ul.appendChild(el("li", "tv-more", "+" + (es.length - TV_MAX_EDGES)
-          + " more connections — open this node to see them all"));
+          + " more connections - open this node to see them all"));
       }
       li.appendChild(ul);
     }
@@ -1614,7 +1614,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     tvNote.textContent = vis.length + (vis.length === 1 ? " node" : " nodes") + " and "
       + edgeCount + (edgeCount === 1 ? " connection" : " connections") + " in view"
       + (vis.length > TV_MAX_NODES
-          ? "; listing the first " + TV_MAX_NODES + " — use search or the filters to narrow"
+          ? "; listing the first " + TV_MAX_NODES + " - use search or the filters to narrow"
           : "")
       + ". Activate a node to select it and open its details.";
   }

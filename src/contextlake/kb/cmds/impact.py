@@ -65,7 +65,7 @@ def cmd_impact(args) -> int:
                                   for r, c in by_repo.items()],
                 }, indent=2))
                 return 1
-            log(f"{style.cyan(target)} is ambiguous — defined in {len(by_repo)} repos. "
+            log(f"{style.cyan(target)} is ambiguous - defined in {len(by_repo)} repos. "
                 f"Narrow it with --repo:")
             for r, c in list(by_repo.items())[:10]:
                 log(f"  --repo {r}   ({c.kind} {c.name})")
@@ -74,7 +74,7 @@ def cmd_impact(args) -> int:
             if as_json:
                 print(json.dumps({"error": "not_found", "target": target}, indent=2))
                 return 1
-            log(f"No node matches {target!r} — index first, or try `query`")
+            log(f"No node matches {target!r}: index first, or try `query`")
             return 1
         # Which of several same-named definitions this answer is about. The seed
         # used to be picked silently, so a result about a JavaScript close() read

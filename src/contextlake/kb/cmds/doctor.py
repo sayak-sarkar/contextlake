@@ -74,7 +74,7 @@ def _check(label: str, ok, detail: str = "") -> bool:
     else:
         mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
         fault = ok is not None and not ok
-    _say(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
+    _say(f"  {mark} {label}" + (f" {style.dim('- ' + detail)}" if detail else ""))
     if fault:
         _FAULTS.append(label.strip())
     # `ok is True`, not `bool(ok)`: bool(UNTESTED) is True, so an untested check
@@ -131,7 +131,7 @@ def _builtin_model_present(cache_dir, model_id: str) -> bool:
 
 
 def cmd_doctor(args) -> int:
-    _say("contextlake knowledge layer — doctor")
+    _say("contextlake knowledge layer - doctor")
     _start_report()
     cfg = None
 
@@ -303,8 +303,8 @@ def cmd_doctor(args) -> int:
             except Exception:  # noqa: BLE001 - any import/load failure means no ANN
                 ann = False
             _check("  ANN index (sqlite-vec)", True if ann else None,
-                   "available — native KNN" if ann else
-                   "not loadable — brute-force cosine (ok at small scale; install sqlite-vec "
+                   "available - native KNN" if ann else
+                   "not loadable - brute-force cosine (ok at small scale; install sqlite-vec "
                    "+ a sqlite3 that allows extensions for ANN at scale)")
 
         llm = cfg.llm
@@ -371,7 +371,7 @@ def cmd_doctor(args) -> int:
     # them as the checks that failed keeps the labels usable in the summary.
     _say(style.bold(style.green("OK")) if ok
          else style.bold(style.red(
-             f"Problems found — {len(_FAULTS)} check(s) failed: {', '.join(_FAULTS)}")))
+             f"Problems found - {len(_FAULTS)} check(s) failed: {', '.join(_FAULTS)}")))
 
     # --fix is strictly additive: the report above and the verdict line are
     # untouched, so a plain `doctor` (the diagnostic everything else points at)

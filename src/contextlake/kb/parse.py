@@ -3541,7 +3541,7 @@ def index_repo_dir(
         total = sum(counts.unsupported_exts.values())
         if counts.files == 0:
             log(style.warn(
-                f"  no file in this repository has a supported parser — {total} file(s) "
+                f"  no file in this repository has a supported parser: {total} file(s) "
                 f"skipped: {shown}{more}"))
             # Counted, never written down: a literal here goes stale the moment a
             # grammar is added, which is the same docs-vs-code drift this release is

@@ -139,7 +139,7 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None, droppe
             try:
                 sites = conn.discover_sites()
             except Exception as e:  # noqa: BLE001 - a dead source must not abort the run
-                log(f"  source {s.name!r}: site discovery failed — {e}")
+                log(f"  source {s.name!r}: site discovery failed: {e}")
                 if dropped is not None:
                     dropped.append(s.name)
                 continue
@@ -463,7 +463,7 @@ def cmd_connect(args) -> int:
             # Honest exit: every source call attempted failed (e.g. an unreachable
             # connector) -> a failure, even though per-repo errors were logged.
             if attempts and src_failed == attempts:
-                log(style.warn(f"All {attempts} source call(s) failed — no links stored"))
+                log(style.warn(f"All {attempts} source call(s) failed: no links stored"))
                 return 1
             # Nothing stored *and* calls were written off is not an empty result,
             # it is a failed one: an expired token, a dead host and a 404 all land

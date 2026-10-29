@@ -244,7 +244,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     with using(anonymizer):
         overview_html = viz.to_html(
             viz.to_payload(ov_nodes, ov_edges, ov_meta), assets="inline", live=True,
-            layout="concentric", title="contextlake — fleet overview").encode("utf-8")
+            layout="concentric", title="contextlake: fleet overview").encode("utf-8")
 
     def _open_store():
         return store_factory(store_path) if store_path else store
@@ -287,7 +287,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                            "wiki_scoped": True}
                 rn, re_ = viz.repo_subgraph(req, repo, meta=m)
                 body = viz.to_html(viz.to_payload(rn, re_, m), assets="inline", live=True,
-                                   layout="cose", title=f"contextlake — {repo}").encode("utf-8")
+                                   layout="cose", title=f"contextlake: {repo}").encode("utf-8")
             finally:
                 if req is not store:
                     req.close()
@@ -794,7 +794,7 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
             # a previous `dashboard --serve` still running, most often) is a
             # bad first impression for an error this ordinary and this
             # actionable.
-            log(style.warn(f"Could not start the dashboard on {host}:{port} — {e}"))
+            log(style.warn(f"Could not start the dashboard on {host}:{port}: {e}"))
             if e.errno == errno.EADDRINUSE:
                 log(style.dim("  Another `contextlake kb dashboard --serve` may already be "
                               "running on this port -- pick another with --port, or stop "

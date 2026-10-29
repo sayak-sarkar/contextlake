@@ -359,7 +359,7 @@
     else {
       var r = lastReceipt;
       var dl = h("dl", { class: "cl-provrow" });
-      function row(k, v) { dl.appendChild(h("dt", null, k)); dl.appendChild(h("dd", null, v || "—")); }
+      function row(k, v) { dl.appendChild(h("dt", null, k)); dl.appendChild(h("dd", null, v || "-")); }
       if (r.claim) body.appendChild(h("p", { class: "cl-state__title" }, r.claim));
       if (r.confidence) body.appendChild(h("p", null, confChip(r.confidence)));
       row("Repo", r.repo);
@@ -614,7 +614,7 @@
     return i < 0 ? { base: id, parent: "" } : { base: id.slice(i + 1), parent: id.slice(0, i) };
   }
   function repoMeta(r) {
-    return (r.node_count || 0) + " nodes · " + (r.default_branch || "—") +
+    return (r.node_count || 0) + " nodes · " + (r.default_branch || "-") +
       (r.head_commit ? " · " + String(r.head_commit).slice(0, 8) : "");
   }
   // Visible text for the health chip -- the chip used to be colour (well, a
@@ -640,7 +640,7 @@
         lettermarks(r.langs),
         h("span", { class: "cl-repocard__stat", title: "Graph nodes in this repo" },
           (r.node_count || 0) + " nodes"),
-        h("span", { class: "cl-repocard__stat" }, r.default_branch || "—")));
+        h("span", { class: "cl-repocard__stat" }, r.default_branch || "-")));
   }
   // Squarified treemap. Sized by node_count, which spans five thousandfold across a
   // real fleet -- a bar chart of that is one visible bar and a row of slivers, which is
@@ -706,7 +706,7 @@
         var lift = 0.18 + 0.62 * Math.sqrt(r.node_count / max);
         var big = t.w > 8.5 && t.h > 7;
         map.appendChild(h("button", {
-          type: "button", class: "cl-tile", title: r.id + " \u2014 " + num(r.node_count) + " nodes",
+          type: "button", class: "cl-tile", title: r.id + ": " + num(r.node_count) + " nodes",
           "aria-label": r.id + ", " + num(r.node_count) + " nodes",
           style: "left:" + (t.x / W * 100) + "%;top:" + (t.y / H * 100) + "%;width:"
             + (t.w / W * 100) + "%;height:" + (t.h / H * 100) + "%;--lift:" + lift.toFixed(3),
@@ -741,7 +741,7 @@
       h("span", { class: "cl-reporow__name" }, nm.base),
       h("span", { class: "cl-reporow__path" }, nm.parent),
       h("span", { class: "cl-reporow__meta" }, (r.node_count || 0) + " nodes"),
-      h("span", { class: "cl-reporow__meta" }, r.default_branch || "—"),
+      h("span", { class: "cl-reporow__meta" }, r.default_branch || "-"),
       lettermarks(r.langs),
       h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)));
   }
@@ -757,7 +757,7 @@
         h("td", { class: "cl-repotable__name" }, r.id),
         h("td", null, lettermarks(r.langs)),
         h("td", { class: "cl-num" }, String(r.node_count || 0)),
-        h("td", null, r.default_branch || "—"),
+        h("td", null, r.default_branch || "-"),
         h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)))));
     });
     return h("table", { class: "cl-repotable" },
@@ -845,7 +845,7 @@
           t.file ? h("span", { class: "cl-muted" }, t.file) : null,
           h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/symbol/" + (t.name || "")); } },
             h("span", { html: icon("ui-blast") }), "Blast radius"),
-          citeButton({ claim: t.name, repo: d.repo, source: t.file || "—", confidence: "EXTRACTED", note: t.signature || "" }));
+          citeButton({ claim: t.name, repo: d.repo, source: t.file || "-", confidence: "EXTRACTED", note: t.signature || "" }));
         top.appendChild(row);
       });
       if (b.top_symbols && b.top_symbols.length) pane.appendChild(top);
@@ -861,7 +861,7 @@
           if (!rows.length) return null;
           return h("div", null, h("p", { class: "cl-muted" }, title),
             table(["symbol", "file", countLabel, ""], rows.map(function (t) {
-              return [t.name, t.file || "—", String(t.count),
+              return [t.name, t.file || "-", String(t.count),
                 h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/symbol/" + (t.name || "")); } },
                   h("span", { html: icon("ui-blast") }), "Blast radius")];
             }), [false, false, true, false]));
@@ -876,7 +876,7 @@
       }
     } else if (tab === "readme") {
       if (d.readme_html) pane.appendChild(h("div", { class: "cl-card" },
-        h("p", { class: "cl-muted" }, "README — verbatim from source" + (b.head ? " @ " + String(b.head).slice(0, 8) : "")),
+        h("p", { class: "cl-muted" }, "README: verbatim from source" + (b.head ? " @ " + String(b.head).slice(0, 8) : "")),
         h("div", { class: "cl-md", html: d.readme_html })));
       else pane.appendChild(stateBlock({ kind: "empty", title: "No README found in this repo" }));
     } else if (tab === "wiki") {
@@ -884,7 +884,7 @@
     } else if (tab === "docs") {
       renderDocsTab(pane, d, id);
     } else if (tab === "owners") {
-      if (!d.owners || !d.owners.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No owners", msg: "Derived from git history — none available." })); return; }
+      if (!d.owners || !d.owners.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No owners", msg: "Derived from git history: none available." })); return; }
       var ot = table(["Owner", "Commits", "Lines", "Share", ""],
         d.owners.map(function (o) {
           return [o.name, num(o.commits), num(o.lines), Math.round((o.share || 0) * 100) + "%",
@@ -961,12 +961,12 @@
   }
   function wikiContentNode(w, id, forWhat, opts) {
     if (!w || !w.found) return wikiEmptyState(id, forWhat, opts);
-    var wikiHeader = [h("strong", null, "Curated wiki — advisory")];
+    var wikiHeader = [h("strong", null, "Curated wiki: advisory")];
     if (w.stale) wikiHeader.push(h("span", { class: "cl-healthchip cl-healthchip--stale" },
-      "STALE — code changed since generation"));
+      "STALE: code changed since generation"));
     return h("div", { class: "cl-advisory" },
       h("div", { class: "cl-row" }, wikiHeader),
-      h("p", { class: "cl-muted" }, "Not ground truth — verify against the cited source."),
+      h("p", { class: "cl-muted" }, "Not ground truth: verify against the cited source."),
       h("div", { class: "cl-md", html: w.html || "" }));
   }
   // Longest module prefix that CONTAINS this file, matched on a SEGMENT boundary.
@@ -1049,7 +1049,7 @@
       var select = h("select", {
         class: "cl-select", "aria-label": "Wiki scope",
         onchange: function (ev) { loadScope(ev.target.value || null); }
-      }, [h("option", { value: "" }, "Whole repo — overview")].concat(
+      }, [h("option", { value: "" }, "Whole repo: overview")].concat(
         mods.map(function (m) {
           // `selected` as an ATTRIBUTE, not `select.value = ...` after the fact.
           // Both pick the option, but only this one is visible in the document, so
@@ -1107,9 +1107,9 @@
     // collapsing them would throw away the difference it went to trouble to keep.
     if (doc.stale) {
       var why;
-      if (!doc.doc_commit) why = "STALE — this page carries no commit";
-      else if (doc.doc_commit === "unknown") why = "STALE — generated at an unknown commit";
-      else why = "STALE — generated at " + String(doc.doc_commit).slice(0, 8);
+      if (!doc.doc_commit) why = "STALE: this page carries no commit";
+      else if (doc.doc_commit === "unknown") why = "STALE: generated at an unknown commit";
+      else why = "STALE: generated at " + String(doc.doc_commit).slice(0, 8);
       head.push(h("span", { class: "cl-healthchip cl-healthchip--stale" }, why));
     }
     return h("div", { class: "cl-card" },
@@ -1358,7 +1358,7 @@
       }
       if (!mods.length) {
         if (truncated) scopeWrap.appendChild(h("p", { class: "cl-muted" },
-          "Still too large to show in full — no further breakdown available for " +
+          "Still too large to show in full: no further breakdown available for " +
           (currentModule ? "this module" : "this repo") + "."));
         return;
       }
@@ -1370,7 +1370,7 @@
            return h("option", { value: m.prefix }, m.prefix.split("/").pop() + " (" + m.nodes + ")");
          }));
       scopeWrap.appendChild(h("label", { class: "cl-diagram-scope__label" },
-        (currentModule ? "This module" : "This repo") + " is too large to show in one diagram — ", select));
+        (currentModule ? "This module" : "This repo") + " is too large to show in one diagram: ", select));
     }
 
     var currentFmt = null;
@@ -1516,7 +1516,7 @@
                   style: "width:" + Math.max(6, Math.round((e.weight || 1) / maxW * 60)) + "px" }),
                 h("span", null, num(e.weight || 1))),
               h("span", null, linkable ? graphLinkButton(e.src, e.dst) : null,
-                citeButton({ claim: e.src + " → " + e.dst, repo: e.src, source: e.context || "manifest/regex", confidence: e.confidence, note: e.confidence === "AMBIGUOUS" ? "Flagged uncertain — verify." : "" }))];
+                citeButton({ claim: e.src + " → " + e.dst, repo: e.src, source: e.context || "manifest/regex", confidence: e.confidence, note: e.confidence === "AMBIGUOUS" ? "Flagged uncertain: verify." : "" }))];
           }), [false, false, false, false, true, false],
           rows.map(function (e) { return e.confidence === "AMBIGUOUS"; })));
       }
@@ -1642,8 +1642,8 @@
         var repos = {}; hits.forEach(function (hi) { repos[hi.repo] = 1; });
         dynWrap.appendChild(h("p", { role: "status" },
           "Changing this touches " + Object.keys(repos).length + " repos, " + hits.length + " symbols. " +
-          hits.filter(function (x) { return x.confidence === "INFERRED"; }).length + " paths are inferred — treat as possible, not certain."));
-        if (imp.truncated) dynWrap.appendChild(h("div", { class: "cl-truncbanner" }, "Showing first " + (imp.total || hits.length) + " — narrow relations or hops to see fewer."));
+          hits.filter(function (x) { return x.confidence === "INFERRED"; }).length + " paths are inferred: treat as possible, not certain."));
+        if (imp.truncated) dynWrap.appendChild(h("div", { class: "cl-truncbanner" }, "Showing first " + (imp.total || hits.length) + " - narrow relations or hops to see fewer."));
         if (!hits.length) { dynWrap.appendChild(stateBlock({ kind: "empty", title: "No downstream dependents", msg: "This symbol is a leaf at these settings." })); return; }
         var lanes = h("div", { class: "cl-lanes" });
         [1, 2, 3].slice(0, blastCfg.hops).forEach(function (hop) {
@@ -1878,7 +1878,7 @@
       CL.data.search(q, null, repo).then(function (res) {
         clear(results);
         if (!res.results.length) { results.appendChild(stateBlock({ kind: "empty", title: "No symbols match \"" + q + "\"" })); return; }
-        if (searchState.mode === "semantic" && !res.semantic) results.appendChild(h("p", { class: "cl-muted" }, "Semantic unavailable — showing lexical matches."));
+        if (searchState.mode === "semantic" && !res.semantic) results.appendChild(h("p", { class: "cl-muted" }, "Semantic unavailable: showing lexical matches."));
         res.results.forEach(function (n) {
           // Two SIBLING buttons in a plain row, never a button inside a button --
           // the outer control used to absorb "Blast" into its own accessible name
@@ -2060,7 +2060,7 @@
     var row = h("div", { class: "cl-row" },
       h("span", null, "Status"),
       h("span", null, status.running
-        ? ("Running — pid " + status.pid + " on " + status.host + ":" + status.port)
+        ? ("Running: pid " + status.pid + " on " + status.host + ":" + status.port)
         : "Stopped"));
     card.appendChild(row);
     // The HTTP transport requires Authorization: Bearer <token>. The server is
@@ -2122,17 +2122,17 @@
     var myGen = ++wikiPollGen;
     var noPage = !!(repoId && missing);
     var card = h("div", { class: "cl-card cl-card--wikigen" },
-      h("strong", null, (noPage ? "Generate wiki" : "Regenerate wiki") + (repoId ? "" : " — fleet-wide")),
+      h("strong", null, (noPage ? "Generate wiki" : "Regenerate wiki") + (repoId ? "" : " - fleet-wide")),
       h("p", { class: "cl-muted" },
         repoId ? "Runs contextlake kb wiki for this repo only."
-              : "Runs contextlake kb wiki for every indexed repo — skips repos already up to date unless Force is checked."));
+              : "Runs contextlake kb wiki for every indexed repo - skips repos already up to date unless Force is checked."));
     var statusLine = h("div", { class: "cl-row" }, h("span", null, "Idle"));
     var forceCheck = h("input", { type: "checkbox" });
     var logBox = h("pre", { class: "cl-snippet", hidden: true });
     var btn = h("button", { class: "cl-btn cl-btn--primary", type: "button" },
       (noPage ? "Generate" : "Regenerate") + (repoId ? "" : " (fleet-wide)"));
     card.appendChild(statusLine);
-    card.appendChild(h("label", { class: "cl-row" }, forceCheck, "Force (ignore freshness — regenerate every targeted repo)"));
+    card.appendChild(h("label", { class: "cl-row" }, forceCheck, "Force (ignore freshness: regenerate every targeted repo)"));
     card.appendChild(h("div", { class: "cl-actions" }, btn));
     card.appendChild(logBox);
 
@@ -2147,10 +2147,10 @@
         if (myGen !== wikiPollGen) return;
         if (s.log_tail) { logBox.hidden = false; logBox.textContent = s.log_tail; }
         if (s.running) {
-          setStatus("Running — pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
+          setStatus("Running: pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
           setTimeout(poll, 2000);
         } else {
-          setStatus(s.finished ? "Finished — see log below" : "Idle", false);
+          setStatus(s.finished ? "Finished: see log below" : "Idle", false);
         }
       }).catch(function () { /* static mode / not yet started -- leave as Idle */ });
     }
@@ -2159,7 +2159,7 @@
       CL.data.wikiEstimate(repoId, forceCheck.checked).then(function (est) {
         if (est.total === 0) { window.alert("No indexed repos match this scope."); btn.disabled = false; return null; }
         var msg = forceCheck.checked
-          ? ("This bypasses the freshness check — all " + est.total + " repo(s) will regenerate. Continue?")
+          ? ("This bypasses the freshness check: all " + est.total + " repo(s) will regenerate. Continue?")
           : (est.would_regenerate + " of " + est.total + " repo(s) will regenerate (" +
             est.unchanged + " already up to date). Continue?");
         if (!window.confirm(msg)) { btn.disabled = false; return null; }
@@ -2216,12 +2216,12 @@
         if (myGen !== docsPollGen) return;
         if (s.log_tail) { logBox.hidden = false; logBox.textContent = s.log_tail; }
         if (s.running) {
-          setStatus("Running — pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
+          setStatus("Running: pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
           setTimeout(poll, 2000);
         } else if (s.finished) {
           // The count rides this one tick: it is computed just before the pidfile
           // is cleared, so a reload after it shows Idle and the durable log.
-          setStatus("Finished — " + (s.documents_written == null ? "see log below"
+          setStatus("Finished: " + (s.documents_written == null ? "see log below"
             : s.documents_written + " document(s) written"), false);
         } else {
           setStatus("Idle", false);
@@ -2247,7 +2247,7 @@
     return card;
   }
   function fmtBytes(n) {
-    if (n == null) return "—";
+    if (n == null) return "-";
     var units = ["B", "KB", "MB", "GB", "TB"], i = 0, v = n;
     while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
     return (i === 0 ? v : v.toFixed(1)) + " " + units[i];
@@ -2287,14 +2287,14 @@
       } else {
         body.appendChild(stateBlock({ kind: "empty", title: "No connectors configured", cmd: "contextlake kb source add <name> --type <type>" }));
       }
-      body.appendChild(h("p", { class: "cl-muted" }, "Read-only — edit ", h("code", null, "kb.toml"), " directly to change any of this."));
+      body.appendChild(h("p", { class: "cl-muted" }, "Read-only: edit ", h("code", null, "kb.toml"), " directly to change any of this."));
       return body;
     });
   }
 
   // ---- generic table (with pagination) ----------------------------------
   function num(n) {
-    if (n == null) return "—";
+    if (n == null) return "-";
     try { return Number(n).toLocaleString(); } catch (e) { return String(n); }
   }
   function table(headers, rows, numCols, ambFlags) {

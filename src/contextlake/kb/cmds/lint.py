@@ -423,7 +423,7 @@ def cmd_lint(args) -> int:
                                   "shared_file_nodes_sample": []},
                                  indent=2))
                 return 0
-            log("Nothing indexed yet — run index first.")
+            log("Nothing indexed yet: run index first.")
             return 0
         res = lint_result(store, store_dir)
         # Computed here rather than inside `lint_result` so the dashboard's
@@ -446,7 +446,7 @@ def cmd_lint(args) -> int:
             print(json.dumps(res, indent=2))
             return 0 if clean else 1
         for rid in res["stale_repos"]:
-            log(f"  stale: {rid} (HEAD moved or never finished — re-run index)")
+            log(f"  stale: {rid} (HEAD moved or never finished: re-run index)")
         for rid in res["empty_repos"]:
             log(f"  empty: {rid} (the repository has no commits, so there is nothing "
                 f"to index -- this will not clear by re-indexing)")
@@ -459,7 +459,7 @@ def cmd_lint(args) -> int:
             log(f"  unreadable: {d['repo']} ({why}: {d['path'] or 'no path recorded'} -- "
                 f"re-clone it, or drop it from the store)")
         for rid in res["parser_stale_repos"]:
-            log(f"  parser-stale: {rid} (built by an older parser — `contextlake kb "
+            log(f"  parser-stale: {rid} (built by an older parser: `contextlake kb "
                 f"index` rebuilds it; not counted in this command's exit code)")
         for part in res["orphan_vector_partitions"]:
             log(f"  orphan vectors: {part} (vectors with no nodes behind them, "
@@ -488,7 +488,7 @@ def cmd_lint(args) -> int:
                        if res["orphan_vectors"] else "")
         shared_note = (f", {res['shared_file_nodes']} shared file node(s)"
                        if res["shared_file_nodes"] else "")
-        log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
+        log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked - "
             f"{res['dangling']} dangling, {res['stale']} stale"
             f"{unreadable_note}{empty_note}{shard_note}{parser_note}{orphan_note}"
             f"{shared_note}")

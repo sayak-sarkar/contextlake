@@ -70,6 +70,6 @@ def cmd_owners(args) -> int:
         return 0
     log(f"Owners / SMEs for {style.cyan(scope)} (recency-weighted):")
     for i, o in enumerate(owners, 1):
-        log(f"  {i}. {o.name}  —  {o.commits} commit(s), {o.lines} line(s), "
+        log(f"  {i}. {o.name}: {o.commits} commit(s), {o.lines} line(s), "
             f"last {o.last_active}, {o.share * 100:.0f}%")
     return 0

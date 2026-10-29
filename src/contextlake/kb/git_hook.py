@@ -18,8 +18,22 @@ from pathlib import Path
 
 # A guarded block so we can refresh or remove our lines without clobbering a
 # pre-existing user hook (we append to it, never overwrite it).
-MARK_BEGIN = "# >>> contextlake (managed) — do not edit this block >>>"
+MARK_BEGIN = "# >>> contextlake (managed): do not edit this block >>>"
 MARK_END = "# <<< contextlake (managed) <<<"
+
+# The begin marker earlier releases wrote, with an em-dash after "(managed)". It is read
+# and never written: a hook that carries it is refreshed in place by `install` and removed
+# by `uninstall`, so upgrading does not leave two blocks in the file. Spelled as an escape
+# so this file holds no literal em-dash; tests/test_no_emdash_in_output.py allows this
+# value by name.
+LEGACY_MARK_BEGIN = "# >>> contextlake (managed) \u2014 do not edit this block >>>"
+_BEGINS = (MARK_BEGIN, LEGACY_MARK_BEGIN)
+
+
+def _begin_at(text: str) -> int:
+    """Offset of the first managed-block begin marker, new or legacy spelling, or -1."""
+    found = [i for i in (text.find(m) for m in _BEGINS) if i >= 0]
+    return min(found) if found else -1
 
 
 def git_dir(repo_path: Path) -> Path | None:
@@ -158,7 +172,7 @@ def _runs(text: str) -> bool:
     `exec` or `exit` above it."""
     if _interpreter(text) not in (None, *SHELLS):
         return False
-    return _ENDS.search(text[:text.index(MARK_BEGIN)]) is None
+    return _ENDS.search(text[:_begin_at(text)]) is None
 
 
 def refusal(repo_path: str, status: str) -> str:
@@ -202,7 +216,7 @@ def _block(repo_path: str, repo_id: str, config: str | None) -> str:
         f"{MARK_BEGIN}\n"
         "# Re-index this repository into the contextlake knowledge store after each\n"
         "# commit. Detached (&) so the commit returns immediately. Managed by\n"
-        "#   contextlake kb hook install / uninstall  — do not hand-edit.\n"
+        "#   contextlake kb hook install / uninstall: do not hand-edit.\n"
         f'# Errors land in $(git rev-parse --git-dir)/{HOOK_LOG_NAME}.\n'
         f'_cl_log="$(git rev-parse --git-dir)/{HOOK_LOG_NAME}"\n'
         f"( {launch_command()}{cfg} kb index {shlex.quote(repo_path)} "
@@ -217,7 +231,7 @@ def _strip_block(text: str) -> str:
     out: list[str] = []
     skipping = False
     for line in text.splitlines(keepends=True):
-        if line.startswith(MARK_BEGIN):
+        if line.startswith(_BEGINS):
             skipping = True
             continue
         if skipping:
@@ -246,12 +260,12 @@ def install(repo_path: str, repo_id: str, config: str | None = None) -> str:
 
     if hook.exists():
         existing = hook.read_text(encoding="utf-8")
-        if (MARK_BEGIN in existing and where != (gd / "hooks").resolve()
+        if (_begin_at(existing) >= 0 and where != (gd / "hooks").resolve()
                 and f" kb index {shlex.quote(repo_str)} --repo " not in existing):
             # A linked worktree writes into the main checkout's hook, so a refresh would
             # quietly point that checkout's commits at this path.
             return "shared"
-        if MARK_BEGIN in existing:
+        if _begin_at(existing) >= 0:
             rest, sep, status = _strip_block(existing), "\n", "refreshed"
         elif existing.strip():
             rest = existing if existing.lstrip().startswith("#!") else "#!/bin/sh\n" + existing
@@ -286,7 +300,7 @@ def uninstall(repo_path: str) -> str:
     found = False
     for hook in dict.fromkeys([hooks_dir(repo, gd) / "post-commit",
                                gd / "hooks" / "post-commit"]):
-        if not hook.exists() or MARK_BEGIN not in hook.read_text(encoding="utf-8"):
+        if not hook.exists() or _begin_at(hook.read_text(encoding="utf-8")) < 0:
             continue
         stripped = _strip_block(hook.read_text(encoding="utf-8"))
         if stripped.strip() in ("", "#!/bin/sh"):
@@ -307,4 +321,4 @@ def is_installed(repo_path: str) -> bool:
     if not hook.exists():
         return False
     text = hook.read_text(encoding="utf-8")
-    return MARK_BEGIN in text and _runs(text)
+    return _begin_at(text) >= 0 and _runs(text)

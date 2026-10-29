@@ -130,14 +130,14 @@ def generate_docs(store, store_dir, targets, *, llm=None, max_symbols=None,
             # promises to tell those apart.
             if unreadable is not None:
                 unreadable.append(repo_id)
-            log(f"  {style.warn(repo_id)}: no reference — the store lists this repo but "
+            log(f"  {style.warn(repo_id)}: no reference - the store lists this repo but "
                 f"its shard could not be read", inline=True)
             continue
         if not shard.nodes:
             # Counted, not silent, and NOT an error: a repository that indexed to no
             # symbols has no interface to document, which is a fact worth one line.
             skipped += 1
-            log(f"  {style.warn(repo_id)}: no reference — the repository indexed to "
+            log(f"  {style.warn(repo_id)}: no reference - the repository indexed to "
                 f"0 symbols", inline=True)
             continue
         by_name = {n.id: n.name for n in shard.nodes if n.kind == "package"}
@@ -220,7 +220,7 @@ def cmd_docs(args) -> int:
         if not targets:
             wanted = [a for a in (getattr(args, "args", None) or []) if a]
             if wanted:
-                log(f"No indexed repo matches {', '.join(wanted)} — check the exact repo id "
+                log(f"No indexed repo matches {', '.join(wanted)}: check the exact repo id "
                     "(see `contextlake kb lint`).")
                 return 1
             log("No indexed repos (run `contextlake kb index` first)")

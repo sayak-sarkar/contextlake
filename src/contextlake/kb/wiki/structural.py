@@ -120,7 +120,7 @@ def _getting_started(brief: dict, owners: list[dict] | None) -> list[str]:
             what.append(_plural(requires_total, "package") + " declared at runtime")
         if setup:
             what.append(f"build files including `{_md_cell(setup[0])}`")
-        steps.append(f"**Install what it declares** — {', and '.join(what)}. "
+        steps.append(f"**Install what it declares**: {', and '.join(what)}. "
                      f"The full lists are under *{SECTION_TITLES['install']}*.")
 
     entries = [r for r in brief.get("top_symbols") or [] if r.get("kind") in _ENTRY_KINDS]
@@ -128,7 +128,7 @@ def _getting_started(brief: dict, owners: list[dict] | None) -> list[str]:
         e = entries[0]
         where = f" in `{_md_cell(e.get('file'))}`" if e.get("file") else ""
         how_many = f"one of {len(entries)} ways in" if len(entries) > 1 else "the way in"
-        steps.append(f"**Run it** — `{_md_cell(e.get('name'))}`{where} is {how_many}. "
+        steps.append(f"**Run it**: `{_md_cell(e.get('name'))}`{where} is {how_many}. "
                      f"The rest are under *{SECTION_TITLES['entry_points']}*.")
 
     hubs = brief.get("hubs") or []
@@ -139,19 +139,19 @@ def _getting_started(brief: dict, owners: list[dict] | None) -> list[str]:
         # Incoming references, the table's word for this number: it counts every
         # relation, so a symbol nothing calls still has one from the file that holds it.
         refs = f", with {_plural(count, 'incoming reference')}" if count else ""
-        steps.append(f"**Read `{_md_cell(hb.get('name'))}` first**{where}{refs} — more of "
+        steps.append(f"**Read `{_md_cell(hb.get('name'))}` first**{where}{refs}: more of "
                      f"the surface is under *{SECTION_TITLES['surface']}*.")
 
     tests = (brief.get("kinds") or {}).get("test")
     if tests:
-        steps.append(f"**Run the tests** — {_plural(tests, 'test symbol')} "
+        steps.append(f"**Run the tests**: {_plural(tests, 'test symbol')} "
                      f"{'is' if tests == 1 else 'are'} indexed, so there is something to "
                      f"run before you change anything.")
 
     if owners:
         top = owners[0]
         share = round(100 * float(top.get("share") or 0))
-        steps.append(f"**Ask {_md_cell(top.get('name'))}** — {share}% of recent work here. "
+        steps.append(f"**Ask {_md_cell(top.get('name'))}**: {share}% of recent work here. "
                      f"Others are under *{SECTION_TITLES['ownership']}*.")
 
     if not steps:
@@ -388,7 +388,7 @@ def render_structural_page(
     }
 
     if path_prefix:
-        head = [f"# {repo_id} — {path_prefix}", "",
+        head = [f"# {repo_id}: {path_prefix}", "",
                 f"*This page covers only the `{path_prefix}` module of `{repo_id}`, "
                 f"not the repository as a whole.*"]
     else:

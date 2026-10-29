@@ -125,7 +125,7 @@ def _guard_store(store_dir, command: str) -> bool:
     except StoreBusy as e:
         h = e.holder
         age = max(0, int(time.time()) - int(h.get("started", 0)))
-        log(style.warn("Another contextlake process is writing this store — refusing to "
+        log(style.warn("Another contextlake process is writing this store: refusing to "
                        "run concurrently (avoids interleaved, corrupting writes)."))
         log(f"  holder: pid {h.get('pid')} · {h.get('command')} · ~{age}s ago · {h.get('host')}")
         log(f"  store:  {store_dir}")

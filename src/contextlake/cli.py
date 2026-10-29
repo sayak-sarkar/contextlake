@@ -607,12 +607,12 @@ def _add_global(p):
                    help="append a full timestamped log to this file")
     g.add_argument("--log-format", dest="log_format", choices=list(LOG_FORMATS), default=_S,
                    help="text (default, human) or json (one JSON object per line, "
-                        "carrying the run id, command, repo and duration — for "
+                        "carrying the run id, command, repo and duration - for "
                         "unattended runs shipped to a log collector)")
     g.add_argument("--metrics-file", dest="metrics_file", default=_S, metavar="PATH",
                    help="after the run, write Prometheus textfile-collector metrics "
                         "(run duration, repo counts, graph size, last success) to this "
-                        "path — point node_exporter's textfile collector at its "
+                        "path: point node_exporter's textfile collector at its "
                         "directory to monitor the systemd timer in examples/")
     g.add_argument("--redact", dest="redact", action="store_true", default=_S,
                    help="scrub workspace paths and group names out of the console too "
@@ -645,7 +645,7 @@ def _add_mirror(p, hidden=False):
     add("--group", help="GitLab group (overrides config file)")
     add("--repos", metavar="PATTERN",
         help="mirror/index only repos matching this comma-separated glob filter "
-             "(e.g. 'acme/forecast-api,alerts,console-*') — great for a demo subset. "
+             "(e.g. 'acme/forecast-api,alerts,console-*') - great for a demo subset. "
              "Patterns are anchored: a plain name matches that repo exactly, never "
              "one that merely contains it. For a substring match, glob it: '*api*'")
     add("--branch", metavar="NAME",
@@ -1844,7 +1844,7 @@ Examples:
     p.add_argument("--limit", type=_COUNT, default=_S, help="k for precision@k (default 10)")
     p.add_argument("--verify-citations", action="store_true", default=_S,
                    help="also check every returned node's file:line still contains that "
-                        "symbol on disk — retrieval metrics say the right node came back, "
+                        "symbol on disk: retrieval metrics say the right node came back, "
                         "this says the citation an agent is told to go read is real")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text "
@@ -2397,13 +2397,13 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             resume = "contextlake bootstrap" + (
                 f" --llm {args.llm}" if getattr(args, "llm", None) else "")
             log("")
-            log(style.warn("⚠ Could not reach GitLab to mirror — likely a VPN/network drop."))
+            log(style.warn("⚠ Could not reach GitLab to mirror: likely a VPN/network drop."))
             log(f"    {e}")
             log("    → Continuing: building the knowledge layer from the repositories "
                 "already on disk.")
             log(style.bold("    → When your connection is back, re-run to finish the mirror:"))
             log(style.bold(f"        {resume}"))
-            log("      It is incremental and idempotent — it fetches/clones only what is "
+            log("      It is incremental and idempotent: it fetches/clones only what is "
                 "still missing and re-indexes only what changed.")
             failures.append(f"{_mirror_stage_label(config)} (network)")
     elif not offline_mirror:
@@ -2426,7 +2426,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         # via the bare ./run-contextlake.py (which uses the system Python) while the
         # `[kb]` extra was installed into a virtualenv. Point at the exact interpreter
         # so the fix is unambiguous.
-        log(style.warn("Knowledge layer not installed — skipping index/connect/embed/wiki/steer."))
+        log(style.warn("Knowledge layer not installed: skipping index/connect/embed/wiki/steer."))
         log(f"  Running under: {sys.executable}  (missing: {e})")
         log(f"  Fix (this interpreter): {sys.executable} -m pip install 'contextlake[kb]'")
         log("  Or, if you installed contextlake[kb] in a virtualenv, run bootstrap via that venv's "
@@ -2486,7 +2486,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             rc = fn(kb_args)
         except Exception as e:  # noqa: BLE001 - one stage must not abort bootstrap
             rc = 1
-            log(f"  {style.warn(title + ' failed')} — {e}",
+            log(f"  {style.warn(title + ' failed')}: {e}",
                 error_type=type(e).__name__, error=str(e))
             # Re-raising is not an option here (the remaining stages must still
             # run), so the traceback goes out at DEBUG instead: --verbose shows
@@ -2505,7 +2505,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             # that built it. A partial graph is a usable one, and the failed repos are
             # already reported by `cmd_index` itself.
             if fn is kb.cmd_index and not _store_has_repos(kb_args):
-                log(style.warn("Bootstrap aborted — the code graph could not be built; "
+                log(style.warn("Bootstrap aborted: the code graph could not be built; "
                                "nothing downstream can run."))
                 log(f"  Indexed workspace: {kb_args.workspace}. If that is not where "
                     "your repos live, pass --workspace DIR (or set work_dir in the config).")
@@ -2519,7 +2519,7 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         log(f"  Workspace is at {work_dir}; re-run after fixing the above. "
             f"Start the server only once healthy: {serve}")
         sys.exit(1)
-    log(style.ok(f"Bootstrap complete — workspace ready at {work_dir}."))
+    log(style.ok(f"Bootstrap complete: workspace ready at {work_dir}."))
     log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
 
 
@@ -2907,7 +2907,7 @@ def _run(argv, metrics):
         # placeholder the same way -- the inconsistency was that every mirror
         # command instead carried on, read whatever cache happened to be there,
         # and printed a plausible sync report against a group that does not exist.
-        log(style.fail(f"No group configured — refusing to run "
+        log(style.fail(f"No group configured: refusing to run "
                        f"'{_qualified(args.command)}' against the placeholder "
                        f"{DEFAULT_CONFIG['gitlab_group']!r}."))
         log("  Set gitlab_group in a config file (run 'contextlake init'), or pass "
@@ -3034,7 +3034,7 @@ def _run(argv, metrics):
             log(style.dim(f"{result.failed} operation(s) failed; exiting 0 "
                           "(--exit-zero-on-partial)"))
         else:
-            log(style.warn(f"{result.failed} operation(s) failed — exiting "
+            log(style.warn(f"{result.failed} operation(s) failed: exiting "
                            f"{result.exit_code}. Pass --exit-zero-on-partial to keep "
                            "the previous always-zero exit status."))
             sys.exit(result.exit_code)

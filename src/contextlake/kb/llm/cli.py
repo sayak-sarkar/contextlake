@@ -107,7 +107,7 @@ class CliLlm(LlmClient):
         except FileNotFoundError as e:
             # Misconfiguration, not a transient failure — fail fast, actionably.
             raise RuntimeError(
-                f"llm provider=cli: command {self.command!r} not found on PATH — "
+                f"llm provider=cli: command {self.command!r} not found on PATH: "
                 f"install it or set [llm] command to a valid CLI") from e
         except (OSError, subprocess.TimeoutExpired) as e:
             log(f"  cli llm ({self.command}) failed: {e}")

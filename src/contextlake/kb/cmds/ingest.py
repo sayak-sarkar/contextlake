@@ -330,7 +330,7 @@ def cmd_ingest(args) -> int:
         for name, _t, _o, for_repo in jobs:
             if for_repo and not symbol_nodes_for_repo(store, for_repo):
                 log(style.summary_line(
-                    "warn", f"{name}: {for_repo!r} has no indexed symbols — its documents "
+                    "warn", f"{name}: {for_repo!r} has no indexed symbols - its documents "
                             "will be stored but linked to nothing (index that repo first)"))
 
         # Seeded with the sources this build could not construct at all. They are as
@@ -402,7 +402,7 @@ def cmd_ingest(args) -> int:
                     if misses:
                         first = ", ".join(f"{tgt} ({why})" for tgt, why in misses[:2])
                         more = f" (+{len(misses) - 2} more)" if len(misses) > 2 else ""
-                        log(f"  {name}: FAILED — could not read {len(misses)} target(s): "
+                        log(f"  {name}: FAILED - could not read {len(misses)} target(s): "
                             f"{first}{more}", inline=True)
                         failed += 1
                     elif getattr(src, "no_request_reason", None):
@@ -431,7 +431,7 @@ def cmd_ingest(args) -> int:
                     # Asked to link and linked nothing: the documents name no symbol the
                     # graph knows. Not a failure -- but "0 edges" is the whole point of
                     # having passed --for-repo, so it cannot be silent.
-                    log(f"  {name}: linked to no code in {for_repo!r} — no document "
+                    log(f"  {name}: linked to no code in {for_repo!r} - no document "
                         f"named a symbol the graph knows", inline=True)
                 if vs is not None and not probed:
                     # Before the first vector is cleared or row written. Every source shares

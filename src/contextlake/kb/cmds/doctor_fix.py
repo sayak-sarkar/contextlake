@@ -382,7 +382,7 @@ def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
     ok = True
     for r in plan:
         tier = "system package" if r.privileged else "python package"
-        report_line(f"  {style.cyan(r.key)} {style.dim('— ' + r.summary)} [{tier}]")
+        report_line(f"  {style.cyan(r.key)} {style.dim('- ' + r.summary)} [{tier}]")
         for note in r.notes:
             _print_wrapped(note)
         # The command is always printed before anything can run it, both tiers.
@@ -395,7 +395,7 @@ def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
         if r.privileged:
             if not interactive:
                 report_line(f"    {style.yellow('not run')} "
-                      + style.dim("— needs administrator rights, and this is not an "
+                      + style.dim("- needs administrator rights, and this is not an "
                                   "interactive terminal"))
                 report_line("    " + style.dim("run the command above yourself, then re-run "
                                          "contextlake doctor"))

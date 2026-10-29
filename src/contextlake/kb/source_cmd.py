@@ -754,7 +754,7 @@ def cmd_source_test(args) -> int:
         # "this source failed" about something that was never asked. The defect
         # was the green tick, and 0 stops reading as a pass once the tick is
         # gone and the line says what happened.
-        log(f"{style.skip(label)}: DISABLED — not dialled.")
+        log(f"{style.skip(label)}: DISABLED - not dialled.")
         log(f"  `contextlake kb source list` reports it ENABLED=no, and "
             f"`contextlake kb connect` and `contextlake kb ingest` skip it. "
             f"Nothing here says it works. Run `contextlake kb source enable "
@@ -770,7 +770,7 @@ def cmd_source_test(args) -> int:
         # like -- so the five unprobed types, three of which swallowed every network
         # error, all reported success no matter what was wrong with them. Those three
         # are now genuinely probed; what is left says plainly that nothing was tested.
-        log(f"{style.warn(label)}: NOT TESTED — {detail}")
+        log(f"{style.warn(label)}: NOT TESTED - {detail}")
         log("  The source is configured and this command cannot verify it. Nothing "
             "here says it works.")
         return 0
@@ -811,7 +811,7 @@ def _wizard_survey(cfg) -> None:
         # `.get`, not `[state]`: a state added later degrades to ⊘ ("nothing was
         # tested"), the same safe default is_probed_type documents, rather than
         # raising KeyError in the middle of a survey.
-        log(f"  {_SURVEY_MARK.get(state, style.skip)(label)} — {detail}")
+        log(f"  {_SURVEY_MARK.get(state, style.skip)(label)}: {detail}")
         untested += state in (SURVEY_UNTESTED, SURVEY_DISABLED)
     if untested:
         # Said out loud because the two reasons for the same mark are different

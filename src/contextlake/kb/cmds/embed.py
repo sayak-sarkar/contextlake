@@ -35,7 +35,7 @@ def _embed_unavailable_hint(cfg) -> str:
                 + 'set [embeddings] enabled = true in kb.toml (provider "auto"). '
                 "The first embed downloads a small CPU model (~30MB, one-time).")
     if not has_local:
-        return ("Embeddings are enabled but no embedder is installed — "
+        return ("Embeddings are enabled but no embedder is installed - "
                 "install one with: pip install 'contextlake[kb-full]' (built-in CPU model), "
                 "or run a local Ollama.")
     return ("Embeddings are enabled but no embedder resolved (no local Ollama, and the built-in "
@@ -85,7 +85,7 @@ def cmd_embed(args) -> int:
             stored_cv = get_content_version(vs)
             if incremental and vs.count() and stored_cv != EMBED_CONTENT_VERSION:
                 log(f"Embedding text format changed (v{stored_cv} -> "
-                    f"v{EMBED_CONTENT_VERSION}) — re-embedding everything once")
+                    f"v{EMBED_CONTENT_VERSION}): re-embedding everything once")
                 incremental = False
 
             def _embed_once() -> int:
@@ -109,7 +109,7 @@ def cmd_embed(args) -> int:
                     # to a human. The exception's own class name is nearly free
                     # to add and turns "guess which of these it is" into a
                     # one-line answer.
-                    log(style.warn(f"Embedder unavailable — {type(e).__name__}: {e}"))
+                    log(style.warn(f"Embedder unavailable: {type(e).__name__}: {e}"))
                     log(style.dim("  No vectors written. Fix the embedder above, then "
                                   "re-run: contextlake kb embed"))
                     return 1
@@ -180,7 +180,7 @@ def cmd_embed(args) -> int:
                 attempted = len(pass_targets) - skipped
                 if attempted and failed == attempted:
                     log(style.warn(
-                        f"Embed failed for all {attempted} repo(s) — no vectors written"))
+                        f"Embed failed for all {attempted} repo(s): no vectors written"))
                     return 1
                 if failed:
                     log("  See the log above for which repos failed. Re-run to retry.")

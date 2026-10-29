@@ -790,7 +790,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     (out / "overview.html").write_text(
         to_html(to_payload(nodes, edges, meta, fold_leaves=True), cdn=cdn,
                 layout=overview_layout, assets="sibling", site=True,
-                title="contextlake — fleet overview"), encoding="utf-8")
+                title="contextlake: fleet overview"), encoding="utf-8")
 
     for r in repos_with_nodes:
         m: dict = {}
@@ -799,7 +799,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
         (out / pages[r]).write_text(
             to_html(to_payload(rn, re_, m, fold_leaves=True), cdn=cdn,
                     layout=repo_layout, assets="sibling", site=True,
-                    title=f"contextlake — {r}"), encoding="utf-8")
+                    title=f"contextlake: {r}"), encoding="utf-8")
         if r in wiki_srcs:
             (out / wiki_pages[r]).write_text(
                 _wiki_page(r, wiki_srcs[r].read_text(encoding="utf-8", errors="replace"), store),
@@ -859,9 +859,9 @@ __LIB_TAG__
              that (kept in sync by setMode). -->
         <div class="seg" role="group" aria-label="Overview mode">
           <button class="segbtn on" id="vm-clusters" aria-pressed="true"
-            title="Namespace clusters — the repo tree, drill in on click">Namespace</button>
+            title="Namespace clusters: the repo tree, drill in on click">Namespace</button>
           <button class="segbtn" id="vm-flow" aria-pressed="false"
-            title="Dependency clusters — connected repos grouped by what they depend on"
+            title="Dependency clusters: connected repos grouped by what they depend on"
             >Dependencies</button>
         </div>
       </div>
@@ -882,7 +882,7 @@ __LIB_TAG__
         <button class="btn primary" id="png" title="Save a PNG snapshot"><svg viewBox="0 0 16 16"
           fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>PNG</button>
-        <button class="btn" id="svg" title="Save an SVG snapshot — vector, and the only format that keeps the dagre preview's HTML cards"><svg viewBox="0 0 16 16" fill="none"
+        <button class="btn" id="svg" title="Save an SVG snapshot: vector, and the only format that keeps the dagre preview's HTML cards"><svg viewBox="0 0 16 16" fill="none"
           stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>SVG</button>
       </div>
@@ -936,7 +936,7 @@ __LIB_TAG__
          focused canvas, +/- zoom, 0 fits. Exposing a 180x130 canvas that can only be
          driven by dragging would announce a control with no keyboard behaviour. -->
     <canvas id="minimap" width="180" height="130" aria-hidden="true"
-      title="Overview map — click or drag to navigate"></canvas>
+      title="Overview map: click or drag to navigate"></canvas>
     <p id="cy-help" class="cl-sr">Interactive diagram. Arrow keys pan, plus and minus
       zoom, 0 fits the view, Enter opens the text list of the same nodes and their
       connections. Escape clears the current selection.</p>

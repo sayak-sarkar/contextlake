@@ -22,7 +22,7 @@ GUARDRAILS = """\
 ## Guardrails (non-negotiable)
 
 - **Cite, don't guess.** Every claim about a repo, API, file, or behavior must trace
-  to a file you actually read this session — use the knowledge tools below to find
+  to a file you actually read this session - use the knowledge tools below to find
   and open it. No source means say so and go read it; do not invent.
 - **Protect work in progress.** Never switch branches, reset, or discard uncommitted
   changes. Assume every checked-out branch is someone's live work.
@@ -95,19 +95,19 @@ def _md_safe(s: str) -> str:
 def _repo_lines(facts: dict, limit: int = 40) -> str:
     rows = facts["per_repo"][:limit]
     out = "\n".join(
-        f"- `{_md_safe(r['id'])}` — {r['nodes']} symbols"
+        f"- `{_md_safe(r['id'])}`: {r['nodes']} symbols"
         + (f" ({', '.join(_md_safe(lang) for lang in r['langs'])})" if r["langs"] else "")
         for r in rows
     )
     if len(facts["per_repo"]) > limit:
         out += f"\n- … and {len(facts['per_repo']) - limit} more"
-    return out or "- (none indexed yet — run `contextlake kb index --workspace .`)"
+    return out or "- (none indexed yet: run `contextlake kb index --workspace .`)"
 
 
 def render_agents_md(facts: dict, *, config_path: str | None = None) -> str:
-    langs = ", ".join(facts["languages"]) or "—"
-    pkgs = ", ".join(f"`{_md_safe(p)}`" for p in facts["top_packages"][:10]) or "—"
-    return f"""# AGENTS.md — Workspace guide for AI coding agents
+    langs = ", ".join(facts["languages"]) or "-"
+    pkgs = ", ".join(f"`{_md_safe(p)}`" for p in facts["top_packages"][:10]) or "-"
+    return f"""# AGENTS.md: Workspace guide for AI coding agents
 
 This directory mirrors **{_repos(facts['count'])}** in their original namespace
 structure, each parked on its most active branch. A local knowledge graph
@@ -123,7 +123,7 @@ separately.
 
 ## Get context before grepping
 
-A knowledge server exposes the graph over MCP — prefer it over brute-force search:
+A knowledge server exposes the graph over MCP - prefer it over brute-force search:
 
 ```
 {_serve_cmd(config_path)}
@@ -131,8 +131,8 @@ A knowledge server exposes the graph over MCP — prefer it over brute-force sea
 
 Tools it provides: `search_code` (find symbols), `find_definition`, `find_callers`
 and `find_callees` (both cite the line the call is written on),
-`find_dependents`, `shortest_path`, `graph_stats`, and — when embeddings are enabled
-— `semantic_search` / `hybrid_search` for natural-language queries. Curated wiki
+`find_dependents`, `shortest_path`, `graph_stats`, and - when embeddings are
+enabled - `semantic_search` / `hybrid_search` for natural-language queries. Curated wiki
 pages (if generated) live under the knowledge store's `wiki/`.
 
 ## Repositories
@@ -145,7 +145,7 @@ pages (if generated) live under the knowledge store's `wiki/`.
 def render_claude_md(config_path: str | None = None) -> str:
     return f"""# CLAUDE.md
 
-See @AGENTS.md for the workspace overview, the knowledge tools, and the guardrails —
+See @AGENTS.md for the workspace overview, the knowledge tools, and the guardrails:
 they apply here verbatim.
 
 The knowledge-graph MCP server is configured for this workspace in `.mcp.json`

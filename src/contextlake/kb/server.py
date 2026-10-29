@@ -1359,7 +1359,7 @@ def build_server(
         """List edges incident to a node (EXTRACTED-first), capped at `limit`.
 
         direction: in | out | both; optional relation filter. `truncated`/`total`
-        report when a hub has more edges than returned — raise `limit` or filter by
+        report when a hub has more edges than returned: raise `limit` or filter by
         relation rather than assuming the list is complete.
         """
         edges = sorted(
@@ -1447,7 +1447,7 @@ def build_server(
     def find_definition(
         name: str, kind: str | None = None, repo: str | None = None
     ) -> NodesOut:
-        """Find definition(s) with an exact name — 'where is X defined?'.
+        """Find definition(s) with an exact name: 'where is X defined?'.
 
         Empty carries a `note` saying WHICH of the two happened: the name is not in the
         graph at all, or it is but the kind/repo filter excluded every match. A bare list
@@ -1501,14 +1501,14 @@ def build_server(
     @bounded_tool
     def find_callers(node_id: str | None = None, name: str | None = None,
                      limit: int = 50) -> NodesOut:
-        """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
+        """Find the definitions that call a node: 'who calls X?' (incoming calls edges).
 
         Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
         name (e.g. ``ForecastService``), resolved to its first matching definition.
         EXTRACTED-first, capped at `limit`.
 
-        Each entry carries `call_file`/`call_line` — the line the call is written on,
-        which is what you quote as evidence — while `file`/`line_start` on the same
+        Each entry carries `call_file`/`call_line`: the line the call is written on,
+        which is what you quote as evidence - while `file`/`line_start` on the same
         object stay the caller's own definition, usually a different line entirely.
         `confidence` is that call edge's (EXTRACTED | INFERRED | AMBIGUOUS): verify an
         INFERRED or AMBIGUOUS site against the cited line before relying on it.
@@ -1551,11 +1551,11 @@ def build_server(
     @bounded_tool
     def find_callees(node_id: str | None = None, name: str | None = None,
                      limit: int = 50) -> NodesOut:
-        """Find what a node calls — 'what does X call?' (outgoing calls edges).
+        """Find what a node calls: 'what does X call?' (outgoing calls edges).
 
         The mirror of `find_callers`, and the other half of the call graph: reading a
         function you did not write, this is "what does this reach", where `find_callers`
-        is "who depends on this". Same arguments, same budgeting, same contract — one
+        is "who depends on this". Same arguments, same budgeting, same contract: one
         entry per recorded call edge, each carrying the `call_file`/`call_line` the call
         is written on and that edge's `confidence` (see `find_callers` on why one edge
         is currently one callee), and
@@ -1582,7 +1582,7 @@ def build_server(
     @bounded_tool
     def find_dependents(package: str, limit: int = 50,
                         repo: str | None = None) -> NodesOut:
-        """Find files/repos that depend on a package — cross-repo 'who uses X?'.
+        """Find files/repos that depend on a package: cross-repo 'who uses X?'.
 
         `repo` scopes the answer to dependents inside one repository (the package
         node itself is shared across repos, so it is the dependents that get
@@ -1660,7 +1660,7 @@ def build_server(
         From the package two-hop (publishes ⨝ depends_on): edges are
         ``dependent --depends_on--> publisher``, weight = shared package count.
         direction: out (what `repo` depends on) | in (who depends on `repo`) | both.
-        INFERRED, manifest-derived — a likely undercount; verify against the cited repo.
+        INFERRED, manifest-derived - a likely undercount; verify against the cited repo.
         ``found=False`` when no repo with that id is indexed, so a mistyped id is
         not read as "this repo depends on nothing".
         """
@@ -1682,7 +1682,7 @@ def build_server(
         From the endpoint two-hop (exposes ⨝ calls_http): edges are
         ``caller --flow--> exposer`` (the direction a request travels), weight =
         shared endpoint count. direction: out (endpoints `repo` calls) | in (callers
-        of `repo`'s endpoints) | both. INFERRED, regex+path-matched — an undercount
+        of `repo`'s endpoints) | both. INFERRED, regex+path-matched - an undercount
         that omits async/event coupling; verify against the cited repo.
         ``found=False`` when no repo with that id is indexed.
         """
@@ -1705,7 +1705,7 @@ def build_server(
         ``publisher --flow--> consumer`` (the direction an event travels), weight =
         shared topic count. direction: out (topics `repo` publishes that others consume)
         | in (publishers `repo` consumes from) | both. INFERRED, regex-detected literal
-        topics — an undercount that omits config-variable topics; verify against the repo.
+        topics - an undercount that omits config-variable topics; verify against the repo.
         ``found=False`` when no repo with that id is indexed.
         """
         from .arch.resolve import repo_event_flow_edges
@@ -1722,14 +1722,14 @@ def build_server(
     def blast_radius(node_id: str | None = None, name: str | None = None, hops: int = 3,
                      relations: list[str] | None = None,
                      limit: int = 100) -> BlastRadiusOut:
-        """What could break if you change this node — bounded transitive REVERSE reach.
+        """What could break if you change this node: bounded transitive REVERSE reach.
 
         Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
         name (e.g. ``ForecastService``),
         resolved to its first matching definition. Walks INCOMING edges (who calls /
         depends on / subclasses the node) breadth-first up to `hops`, capped at
         `limit`, over `relations` (default calls + depends_on + inherits).
-        Each hit carries its hop distance, the relation, and confidence —
+        Each hit carries its hop distance, the relation, and confidence -
         EXTRACTED-first; verify INFERRED/AMBIGUOUS against the cited source. A
         bounded impact slice, never an exhaustive guarantee (`truncated` says when
         the cap was hit). An unresolvable symbol returns `note` saying so, rather
@@ -1861,7 +1861,7 @@ def build_server(
         Pass a repo id for its page, or a namespace prefix (e.g. ``team/api``)
         for the cluster page narrating that group's cross-repo coupling.
 
-        **Advisory, not ground truth** — synthesized text to verify against the
+        **Advisory, not ground truth**: synthesized text to verify against the
         cited sources/graph; it never outranks EXTRACTED facts. ``stale`` is true
         when a repo wiki was generated from a different commit than the repo's
         current indexed head (or either is unknown), so an agent never cites prose
@@ -2058,7 +2058,7 @@ def build_server(
     def get_readme(repo: str) -> ReadmeOut:
         """The repo's own README, read from its local clone (offline).
 
-        Ground truth — the maintainers' own words, straight from the working tree —
+        Ground truth: the maintainers' own words, straight from the working tree -
         distinct from the synthesized, advisory ``get_wiki`` prose. Returns the first
         README-like file found, or ``found=False`` if the clone has none.
         """
@@ -2087,7 +2087,7 @@ def build_server(
 
     @bounded_tool
     def get_repo_brief(repo: str) -> RepoBriefOut:
-        """A repo's 'anatomy' — grounded facts from its indexed graph (offline).
+        """A repo's 'anatomy': grounded facts from its indexed graph (offline).
 
         node/edge counts, kind + language breakdown, the top symbols by connectivity,
         packages, and a file sample. ``found=False`` if the repo has no indexed shard.
@@ -2117,7 +2117,7 @@ def build_server(
 
     @bounded_tool
     def list_repos(include_stats: bool = True, limit: int = 500) -> ReposOut:
-        """The repo fleet — the dashboard's repository list (offline).
+        """The repo fleet: the dashboard's repository list (offline).
 
         Each entry carries the branch, indexed head, and last-index time; with
         ``include_stats`` (default) also the indexed node count. Capped at ``limit``.
@@ -2165,8 +2165,8 @@ def build_server(
 
     @bounded_tool
     def get_repo_links(repo: str) -> RepoLinksOut:
-        """A repo's cross-links to external knowledge — Jira / Confluence / Figma /
-        GitLab / Slack — grouped by relation (tracked_by / documented_by /
+        """A repo's cross-links to external knowledge - Jira / Confluence / Figma /
+        GitLab / Slack - grouped by relation (tracked_by / documented_by /
         designed_in / has_merge_request / has_issue / touched_by / discussed_in /
         referenced_in). Populated by `connect`; served offline after.
         ``found=False`` when no repo with that id is indexed, so a mistyped id is
@@ -2195,7 +2195,7 @@ def build_server(
 
     @bounded_tool
     def graph_health() -> GraphHealthOut:
-        """Knowledge-graph health — stale repos (local HEAD moved past the index),
+        """Knowledge-graph health: stale repos (local HEAD moved past the index),
         repos whose graph an older parser built (re-index to refresh), and dangling
         edges (pointing at a missing node). The dashboard's health panel; offline
         (reads local git HEADs).
@@ -2309,14 +2309,14 @@ def build_server(
         @bounded_tool
         def semantic_search(query: str, k: int = 10,
                             repo: str | None = None) -> NodesOut:
-            """Semantic (embedding) search over indexed nodes — for natural-language
+            """Semantic (embedding) search over indexed nodes - for natural-language
             queries where exact names are unknown. Results are ranked by similarity,
             and each hit carries its `score` (0..1 cosine) so you can judge the
             ranking rather than take it on trust. Empty when nothing in the query is
             indexed at all: a nearest-neighbour index has no concept of "no match"
             and would otherwise return its k nearest regardless.
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
-            ingested), not extracted code facts — verify against the cited file."""
+            ingested), not extracted code facts - verify against the cited file."""
             # No schema lower bound on `k`: a negative one sliced the hits from the END
             # and reported a shortened list as complete. Floored at 0 like `_budget`.
             k = max(k, 0)
@@ -2375,14 +2375,14 @@ def build_server(
 
     @bounded_tool
     def ask(question: str, k: int = 8, repo: str | None = None) -> AskOut:
-        """One question, auto-routed to the right substrate — for agents that would
+        """One question, auto-routed to the right substrate - for agents that would
         rather ask in plain language than pick among the graph tools.
 
         Classifies the question (definition / callers / dependents / impact / owners /
         explain / search), resolves the symbol or repo it is about, and returns a
         single labeled answer. Graph routes are cited and confidence-tagged; the
         'explain' route returns ADVISORY wiki prose. When unsure, prefer the specific
-        tool (find_definition, find_callers, blast_radius, …) — this is the convenience
+        tool (find_definition, find_callers, blast_radius, …): this is the convenience
         front door over them, not a replacement. "What does X depend on?" has no route
         and is a search; for that, use repo_dependencies with direction "out"."""
         # `k` reaches the slices and the vector search below as given. See `semantic_search`;
@@ -2453,7 +2453,7 @@ def build_server(
             found = find_definition(target, repo=repo) if target else None
             hits = found.nodes if found else []
             if hits:
-                return _out(f"Definition(s) of {target!r} — EXTRACTED, cited.", nodes=hits)
+                return _out(f"Definition(s) of {target!r}: EXTRACTED, cited.", nodes=hits)
             # Still fall through to a search (the definition rule also fires on genuine
             # prose questions like "where is configuration loaded"), but carry the miss
             # out with the answer instead of discarding it.
@@ -2474,10 +2474,10 @@ def build_server(
                 # such repo" as False cases, and the dependents route beside them
                 # already did it, so this was an omission in one family of routes
                 # rather than a distinction being drawn.
-                return _out(f"Couldn't resolve a symbol to find callers of — {why}.",
+                return _out(f"Couldn't resolve a symbol to find callers of: {why}.",
                             answered=False)
             res = find_callers(nid, limit=k)
-            return _out(f"Callers of {target!r} — incoming calls, EXTRACTED-first"
+            return _out(f"Callers of {target!r}: incoming calls, EXTRACTED-first"
                         + (why or "") + ".", nodes=res.nodes, truncated=res.truncated)
 
         if route == DEPENDENTS:
@@ -2494,7 +2494,7 @@ def build_server(
             if res.note:
                 return _out(f"Couldn't resolve a package to find dependents of -- "
                             f"{res.note[0].lower()}{res.note[1:-1]}.", answered=False)
-            return _out(f"Repos/files depending on package {target!r} — INFERRED from "
+            return _out(f"Repos/files depending on package {target!r}: INFERRED from "
                         "manifests, verify against the cited file.",
                         nodes=res.nodes, truncated=res.truncated)
 
@@ -2502,7 +2502,7 @@ def build_server(
             nid, why = _resolve_id(target)
             if nid is None:
                 # answered=False for the reason given on the callers route above.
-                return _out(f"Couldn't resolve a type to find subclasses of — {why}.",
+                return _out(f"Couldn't resolve a type to find subclasses of: {why}.",
                             answered=False)
             # incoming `inherits` edges are the types that extend/implement this one
             subs, seen = [], set()
@@ -2513,7 +2513,7 @@ def build_server(
                 if (n := store.get_node(e.src)):
                     subs.append(_node_out(n, edge=e, as_edge_provenance=True))
             return _out(f"Types that extend or implement {target!r}"
-                        + (why or "") + f" — {len(subs)} found via inherits edges.",
+                        + (why or "") + f": {len(subs)} found via inherits edges.",
                         nodes=subs[:k], truncated=len(subs) > k)
 
         if route == IMPACT:
@@ -2523,7 +2523,7 @@ def build_server(
                 # matters most here: an impact question is asked to decide whether a
                 # change is safe, and "answered, nothing found" is the reading that
                 # green-lights it.
-                return _out(f"Couldn't resolve a symbol for blast radius — {why}.",
+                return _out(f"Couldn't resolve a symbol for blast radius: {why}.",
                             answered=False)
             # `k` is advertised on `ask` and honoured by callers, subclasses and
             # dependents; this route dropped it and let blast_radius apply its own
@@ -2536,7 +2536,7 @@ def build_server(
                      else f"{res.total} node(s)")
             return _out(f"Blast radius of {target!r}: {reach} within 3 hops"
                         + (why or "") + ". Reverse reach over calls+depends_on+inherits; "
-                        "INFERRED/AMBIGUOUS hits may under- or over-count — verify.",
+                        "INFERRED/AMBIGUOUS hits may under- or over-count - verify.",
                         blast=res, truncated=res.truncated)
 
         if route == OWNERS:
@@ -2545,7 +2545,7 @@ def build_server(
                 # answered=False for the reason given on the callers route above. This
                 # is the branch `AskOut.answered` names literally ("no such repo"), and
                 # the sibling return ten lines down already set it.
-                return _out(f"Couldn't tell which repo to find owners for — {why}.",
+                return _out(f"Couldn't tell which repo to find owners for: {why}.",
                             answered=False)
             res = who_knows(rid, limit=k)
             if not res.owners:
@@ -2556,7 +2556,7 @@ def build_server(
                 # empty result all the same. Nothing was ranked; say which of
                 # the two ways that came about.
                 return _out(f"No owners could be ranked for {target!r}" + (why or "")
-                            + f" — {res.ranking_gap}.", owners=res, answered=False)
+                            + f": {res.ranking_gap}.", owners=res, answered=False)
             return _out(f"Likely owners / SMEs for {target!r}" + (why or "")
                         + ", ranked from git history.", owners=res)
 
@@ -2566,16 +2566,16 @@ def build_server(
                 if rid is not None:
                     w = get_wiki(rid)
                     if w.found:
-                        stale = " (STALE — the code changed since)" if w.stale else ""
+                        stale = " (STALE: the code changed since)" if w.stale else ""
                         return _out(f"Curated wiki for {target!r}{stale}" + (why or "")
-                                    + " — ADVISORY prose, grounded in the graph; verify "
+                                    + ": ADVISORY prose, grounded in the graph; verify "
                                     "specifics against code.", wiki=w)
                     # No wiki page — a structured brief (real anatomy) beats a blind
                     # search for an "explain this repo" question.
                     b = get_repo_brief(rid)
                     if b.found:
                         return _out(f"No wiki for {target!r} yet" + (why or "")
-                                    + " — here is its grounded anatomy (top symbols, "
+                                    + ": here is its grounded anatomy (top symbols, "
                                     "packages, languages) from the graph. Run "
                                     "`contextlake kb wiki` for prose.", brief=b)
             # Not a repo we know. Degrade to a search, but say what was established:

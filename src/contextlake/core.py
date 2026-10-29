@@ -854,10 +854,10 @@ def fetch_gitlab_projects(gitlab_group, config):
     _record_cache_filter(cache_json, patterns)
     if not all_projects:
         if patterns:
-            log(style.warn(f"No projects matched --repos {patterns} — "
+            log(style.warn(f"No projects matched --repos {patterns}: "
                            "check the pattern against `contextlake mirror status`"))
         else:
-            log(style.warn("Fetched 0 projects — check the group name and your token's "
+            log(style.warn("Fetched 0 projects: check the group name and your token's "
                            "read_api access before trusting this result"))
     else:
         label = "matching" if patterns else "total"
@@ -993,7 +993,7 @@ def _apply_repo_filter(projects, config):
         # this correctly for the live-enumeration case; this is the same event read from
         # cache, so it gets the same sentence. Said once here rather than at five call
         # sites, since every one of them was wrong in the same way.
-        log(f"No cached project matches --repos {', '.join(patterns)} — "
+        log(f"No cached project matches --repos {', '.join(patterns)}: "
             f"{len(projects)} project(s) are cached, none of them matching. Check the "
             f"pattern; re-running `fetch` will not change it.")
     return kept
@@ -1599,7 +1599,7 @@ def _update_synced(local_path, full_path, config, stashed=False):
             detail = (merge.stderr or merge.stdout or "").strip()
             if classify_error(detail) == "diverged":
                 return ("skip", local_path,
-                        f"Diverged from origin/{current} — skipped (manual reconcile)")
+                        f"Diverged from origin/{current}: skipped (manual reconcile)")
             return ("error", local_path, _first_line(detail) or "fast-forward failed")
 
         after = _rev_parse(full_path, "HEAD")

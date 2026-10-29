@@ -234,7 +234,7 @@ def cmd_serve(args) -> int:
             # Say so out loud: these two tools silently vanishing from the MCP tool
             # list otherwise reads as a broken server, not an unconfigured tier.
             why = ("no [embeddings] config" if candidate is None
-                   else "no vector store yet — run: contextlake kb embed")
+                   else "no vector store yet - run: contextlake kb embed")
             log(style.dim(f"semantic_search / hybrid_search not registered ({why}); "
                           "graph search and every other tool work without them"))
 
@@ -506,7 +506,7 @@ def cmd_serve(args) -> int:
                 log(style.warn(
                     f"--allow-remote: bound to {host}, so anyone who can route here and "
                     "holds the token above can read the entire graph. Nothing is "
-                    "encrypted in transit — put TLS in front of it, or tunnel instead."))
+                    "encrypted in transit: put TLS in front of it, or tunnel instead."))
                 # Same reasoning as http_base.host_pinning_hint (say it once at
                 # startup, not per-request), but deliberately not that function:
                 # its wording describes the *stdlib* servers' allow-set

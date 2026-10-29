@@ -234,9 +234,9 @@ contextlake kb who-knows acme/sensor-ingest --json          # the same command
 ```console
 $ contextlake kb owners acme/sensor-ingest
 Owners / SMEs for acme/sensor-ingest (recency-weighted):
-  1. Ada Rowan  —  2 commit(s), 14 line(s), last 2026-09-01, 43%
-  2. Ben Okafor  —  1 commit(s), 16 line(s), last 2026-07-14, 38%
-  3. Chen Wei  —  1 commit(s), 6 line(s), last 2026-08-18, 18%
+  1. Ada Rowan: 2 commit(s), 14 line(s), last 2026-09-01, 43%
+  2. Ben Okafor: 1 commit(s), 16 line(s), last 2026-07-14, 38%
+  3. Chen Wei: 1 commit(s), 6 line(s), last 2026-08-18, 18%
 ```
 
 | Flag | What it does | Default |

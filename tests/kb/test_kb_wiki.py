@@ -757,7 +757,7 @@ def test_generate_page_module_scoped_is_labeled_as_a_module_not_the_whole_repo(t
                          path_prefix="moda")
     # Title says the module AND the repo, not just "# r" (which would read as
     # a whole-repo page).
-    assert page.startswith("# r — moda\n")
+    assert page.startswith("# r: moda\n")
     assert "moda" in page.splitlines()[2]   # the "only this module" caption line
     # Footer must not claim to describe the whole repo's knowledge graph.
     assert "the `moda` module of `r`" in page
@@ -771,7 +771,7 @@ def test_generate_page_whole_repo_unaffected_by_module_scoping_changes(tmp_path)
     _shard(tmp_path)
     page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21))
     assert page.startswith("# r\n\n")
-    assert " — " not in page.splitlines()[0]
+    assert ": " not in page.splitlines()[0]
     assert "knowledge graph of `r` at commit" in page
 
 
@@ -1895,7 +1895,7 @@ def test_cmd_wiki_generates_subsystem_pages_for_a_federated_repo(tmp_path, monke
         page_file = modules_dir / f"fed__mod{m}.md"
         assert page_file.exists(), f"expected a subsystem page for mod{m}"
         text = page_file.read_text()
-        assert text.startswith(f"# fed — mod{m}\n")
+        assert text.startswith(f"# fed: mod{m}\n")
         assert "module/subsystem of `fed`" in text
         assert f"the `mod{m}` module of `fed`" in text
         assert "knowledge graph of `fed` at commit" not in text  # not mislabeled whole-repo
@@ -2839,8 +2839,8 @@ def test_the_all_failed_message_counts_pages_not_repos(tmp_path, monkeypatch, gl
     out = gls_logs.text
     assert "none written" in out, "nothing captured; the check below would be vacuous"
 
-    assert "page(s) — none written" in out, out
-    assert "repo(s) — none written" not in out, out
+    assert "page(s): none written" in out, out
+    assert "repo(s): none written" not in out, out
 
 
 def _cap_starved_nodes(pairs: int = 6, *, link_symbols: bool = True):

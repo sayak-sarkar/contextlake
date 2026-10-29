@@ -26,7 +26,7 @@
         "signature": null
       }
     ],
-    "note": "Callers of 'ingest' \u2014 incoming calls, EXTRACTED-first.",
+    "note": "Callers of 'ingest': incoming calls, EXTRACTED-first.",
     "owners": null,
     "question": "who calls ingest",
     "route": "callers",

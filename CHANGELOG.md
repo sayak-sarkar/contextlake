@@ -229,6 +229,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them and keeps `target(s) unreadable` for the pages, URLs and files a source could not read.
   The exit code is unchanged. A script that matched `unreadable` to catch an embedder stop must
   match `not embedded` instead.
+- **Printed text no longer contains the em-dash.** CLI messages and help, the `doctor` and
+  `owners` lines, MCP tool descriptions and `ask` notes, the dashboard and graph pages, steering
+  and skill files, wiki page headings and the hook block now use a colon or a hyphen, and an
+  empty cell shows `-`. A script that matches the old text must match the new text: the `doctor`
+  summary now reads `Problems found - N check(s) failed` and the `ask` callers note reads
+  `Callers of 'x': incoming calls`. A hook written by an earlier version keeps working:
+  `kb hook install` rewrites its block in place and `kb hook uninstall` removes it. `kb steer`
+  rewrites skill and workflow files that still hold the old unedited text and keeps an edited
+  one until you pass `--force`. A wiki page already on disk keeps its old heading until
+  `kb wiki` writes it again; `--force` regenerates pages even when the graph is unchanged.
 
 ### Fixed
 

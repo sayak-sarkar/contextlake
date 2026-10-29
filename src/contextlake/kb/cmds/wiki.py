@@ -801,7 +801,7 @@ def cmd_wiki(args) -> int:
             # release exists to close.
             missing = sorted(wanted - known)
             if missing:
-                log(f"No indexed repo matches {', '.join(missing)} — check the exact "
+                log(f"No indexed repo matches {', '.join(missing)}: check the exact "
                     f"repo id (see `contextlake kb lint`).")
                 if len(missing) < len(wanted):
                     log(f"  {len(wanted) - len(missing)} of the {len(wanted)} requested "
@@ -912,7 +912,7 @@ def cmd_wiki(args) -> int:
         if not targets:
             wanted = [a for a in (getattr(args, "args", None) or []) if a]
             if wanted:
-                log(f"No indexed repo matches {', '.join(wanted)} — check the exact repo id "
+                log(f"No indexed repo matches {', '.join(wanted)}: check the exact repo id "
                     "(see `contextlake mirror status`).")
                 return 1
             log("No indexed repos (run index first, or pass --workspace/--source)")
@@ -1058,7 +1058,7 @@ def cmd_wiki(args) -> int:
             # ungrounded page already on disk is not kept alive by the backfill
             # below, which is the one path that makes a page newly searchable.
             if not shard.nodes:
-                log(f"  {style.warn(label)}: no page — {repo_id} indexed to 0 symbols, so "
+                log(f"  {style.warn(label)}: no page - {repo_id} indexed to 0 symbols, so "
                     "there is nothing to ground one in"
                     + (f" (delete the stale {rel_filename} by hand)"
                        if wiki_file.exists() else ""), inline=True)
@@ -1201,7 +1201,7 @@ def cmd_wiki(args) -> int:
             # ratio uses, so the refusal and the disclosure cannot disagree
             # about what grounding means for one page.
             if not grounded_symbol_count(brief):
-                log(f"  {style.warn(label)}: no page — 0 file-backed symbols in scope, so "
+                log(f"  {style.warn(label)}: no page - 0 file-backed symbols in scope, so "
                     "nothing in it would be derived from the code", inline=True)
                 return "rejected"
             try:
@@ -1318,7 +1318,7 @@ def cmd_wiki(args) -> int:
                 # _MAX_MODULE_PAGES_PER_REPO module pages too. Reporting the
                 # failure now costs 1 round trip instead of 21.
                 suppressed += len(selected)
-                log(f"  {repo_id}: whole-repo page failed — not attempting its "
+                log(f"  {repo_id}: whole-repo page failed - not attempting its "
                     f"{len(selected)} subsystem page(s) this run", inline=True)
                 progress.advance(repo_id)
                 continue
@@ -1379,7 +1379,7 @@ def cmd_wiki(args) -> int:
             # per whole-repo page and once per module page, and this line used to
             # call that total "repo(s)", so a run that lost three module pages of
             # one repository reported "failed for all 3 repo(s)".
-            log(style.warn(f"Wiki generation failed for all {failed} page(s) — none written"))
+            log(style.warn(f"Wiki generation failed for all {failed} page(s): none written"))
             return 1
         if failed:
             log("  See the log above for which pages failed. Re-run to retry.")

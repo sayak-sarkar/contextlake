@@ -24,7 +24,7 @@
 
 # ---- contextlake.service ----
 [Unit]
-Description=contextlake — refresh mirror + knowledge layer
+Description=contextlake: refresh mirror + knowledge layer
 After=network-online.target
 
 [Service]

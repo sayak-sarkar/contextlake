@@ -44,18 +44,18 @@ doubles as a CI health gate:
 
 ```console
 $ contextlake doctor --config /tmp/sample-kb.toml
-contextlake knowledge layer — doctor
+contextlake knowledge layer - doctor
   ✓ SQLite FTS5 available
   ✓ git on PATH
   ✓ glab on PATH (for syncing)
-  ✓ config loads — 1 file(s), 0 source(s), 0 rule(s)
+  ✓ config loads - 1 file(s), 0 source(s), 0 rule(s)
       /tmp/sample-kb.toml
-  ✓ store reachable — /tmp/sample-kb · 7 repos, 44 nodes, 36 edges
+  ✓ store reachable - /tmp/sample-kb · 7 repos, 44 nodes, 36 edges
   ✓ shards up to date with the current parser
-  ✓ embeddings — auto · sqlite-vec · 26 vector(s)
-  ✓   built-in embedder model — minishlab/potion-base-8M · downloaded · /tmp/cl-home/.contextlake/models
-  ✓   ANN index (sqlite-vec) — available — native KNN
-  ✓ wiki LLM — not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER); the local runtime (openvino-genai) is not installed either: contextlake doctor --fix llm-local
+  ✓ embeddings - auto · sqlite-vec · 26 vector(s)
+  ✓   built-in embedder model - minishlab/potion-base-8M · downloaded · /tmp/cl-home/.contextlake/models
+  ✓   ANN index (sqlite-vec) - available - native KNN
+  ✓ wiki LLM - not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER); the local runtime (openvino-genai) is not installed either: contextlake doctor --fix llm-local
 OK
 ```
 

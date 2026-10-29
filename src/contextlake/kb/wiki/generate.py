@@ -1242,7 +1242,7 @@ def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = No
         raise RuntimeError("the model returned no text, so there is no page to write")
     if path_prefix:
         title = (
-            f"# {repo_id} — {path_prefix}\n\n"
+            f"# {repo_id}: {path_prefix}\n\n"
             f"*This page covers only the `{path_prefix}` module/subsystem of "
             f"`{repo_id}`, not the repository as a whole.*"
         )

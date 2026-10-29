@@ -493,7 +493,7 @@ def load_config(config_path=None, cli_group=None):
         # No usable config was found -- show the exact paths searched (absolute)
         # and whether each exists, so a config that lives one directory up (or in
         # the wrong spot entirely) isn't a silent mystery.
-        log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group' — "
+        log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group': "
             "no config with your group was found. Searched (low to high precedence):")
         for path in (CONFIG_FILE, local_config_file, config_path):
             if not path:

@@ -166,7 +166,7 @@ def test_the_page_ends_with_exactly_one_newline():
 
 def test_a_module_page_says_it_covers_only_that_module():
     page = _full(path_prefix="api")
-    assert page.startswith("# team/app — api")
+    assert page.startswith("# team/app: api")
     assert "covers only the `api` module" in page
 
 

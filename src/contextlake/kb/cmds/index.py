@@ -120,7 +120,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         # An empty workspace must fail loudly: an agent cannot cite from an empty
         # graph, so "success" here would be the hollow kind.
         extra = f" matching --repos {repo_filter!r}" if repo_filter else ""
-        log(style.warn(f"No git repositories found under {workspace}{extra} — "
+        log(style.warn(f"No git repositories found under {workspace}{extra}: "
                        "nothing indexed."))
         log("  Point --workspace at a directory that contains git clones.")
         return 1

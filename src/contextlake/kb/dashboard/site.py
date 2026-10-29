@@ -48,14 +48,14 @@ _IMPACT_KINDS = {k for k, s in KIND_REGISTRY.items() if s.impact_precompute}
 
 _PUBLISH_WARNING = (
     "WARNING: this --site snapshot was built from a REAL store. Do NOT publish it "
-    "unscrubbed — it contains repo names + git author identities + connector URLs. "
+    "unscrubbed: it contains repo names + git author identities + connector URLs. "
     "Use --anonymize for a shareable build, or --sample for the public showcase."
 )
 
 _PUBLISH_WARNING_ANON = (
     "WARNING: this --site snapshot was built from a REAL store with --anonymize. "
     "Author identities are hashed, link URLs and README/wiki prose are omitted, but "
-    "repo names + structural facts remain — review before publishing. Use --sample "
+    "repo names + structural facts remain - review before publishing. Use --sample "
     "for a guaranteed-generic public showcase."
 )
 
@@ -89,7 +89,7 @@ def _sample_store(tmp: Path):
     fixture = _fixture_path()
     if not fixture.is_file():
         raise FileNotFoundError(
-            f"demo fixture not found at {fixture} — it ships with the package, so a "
+            f"demo fixture not found at {fixture}: it ships with the package, so a "
             "missing file means a broken install. Reinstall: pip install --force-reinstall "
             "'contextlake[kb]'")
     import json
