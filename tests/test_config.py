@@ -2,6 +2,7 @@
 
 import builtins
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -172,6 +173,32 @@ def test_a_discovered_config_that_cannot_be_opened_is_skipped(tmp_path, monkeypa
     monkeypatch.chdir(tmp_path)
 
     assert load_config()["gitlab_group"] == DEFAULT_CONFIG["gitlab_group"]
+
+
+@pytest.mark.parametrize("make, mark", [
+    (lambda p: p.mkdir(), "absent"),
+    (lambda p: p.write_text("[contextlake]\nmax_workers = 3\n"), "found"),
+], ids=["directory", "file"])
+def test_the_placeholder_warning_marks_a_discovered_directory_absent(
+        tmp_path, monkeypatch, make, mark):
+    """The warning lists each place it looked and whether a config was there. `exists` said
+    [found] for a directory named `.contextlake.ini`, which the loader then skips, so the
+    list claimed a config that was never read. A regular file is still [found].
+
+    Reads the lines handed to `config.log` rather than the logger's output: the package
+    logger does not propagate, so a capture through it depends on test order."""
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "none.ini"))
+    make(tmp_path / ".contextlake.ini")
+    monkeypatch.chdir(tmp_path)
+    lines = []
+    monkeypatch.setattr("contextlake.config.log", lambda message, *a, **k: lines.append(message))
+
+    load_config()
+
+    listed = "\n".join(lines)
+    assert "still the placeholder" in listed, "the warning did not fire"
+    marks = re.findall(r"\[(found|absent)\] .*/\.contextlake\.ini$", listed, re.MULTILINE)
+    assert marks == [mark], listed
 
 
 _EXAMPLE_KB_TOML = (Path(__file__).resolve().parents[1] / "examples" / "kb.toml.example")

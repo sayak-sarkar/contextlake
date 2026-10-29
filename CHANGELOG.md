@@ -643,6 +643,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `contextlake schedule install` again, from the same directory or with the same `--config` (add
   `--job NAME` for a job made with `schedule interval`, and `--interval DURATION` to keep a
   pinned interval).
+- **The no-group warning no longer lists a directory named `.contextlake.ini` as found.** The
+  warning marks each config path it checked as `[found]` or `[absent]`. A directory with that
+  name in the working directory was marked `[found]`, though the loader skips it. It now reads
+  `[absent]`. An unreadable regular file still reads `[found]`.
 
 ### Security
 

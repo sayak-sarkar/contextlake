@@ -500,7 +500,7 @@ def load_config(config_path=None, cli_group=None):
         for path in (CONFIG_FILE, local_config_file, config_path):
             if not path:
                 continue
-            mark = "found" if os.path.exists(path) else "absent"
+            mark = "found" if os.path.isfile(path) else "absent"
             log(f"    [{mark}] {os.path.abspath(path)}")
         if not local_config_file:
             log(f"    [absent] {LOCAL_CONFIG_FILE} (searched this directory and "
