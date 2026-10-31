@@ -412,13 +412,13 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys, monkeypatch):
     assert "not downloaded" in out
 
 
-def _doctor_embedder_line(tmp_path, capsys) -> str:
+def _doctor_embedder_line(tmp_path, capsys, engine: str = "model2vec") -> str:
     """The `built-in embedder model` line of a doctor run whose configured cache_dir holds
     no model."""
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
         f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
-        f'[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        f'[embeddings]\nenabled = true\nprovider = "builtin"\nengine = "{engine}"\n'
         f'cache_dir = "{tmp_path / "models"}"\n'
     )
     capsys.readouterr()
@@ -476,6 +476,38 @@ def test_doctor_still_looks_in_cache_dir_when_no_hugging_face_variable_is_set(
 
     line = _doctor_embedder_line(tmp_path, capsys)
     assert "not downloaded" not in line and "downloaded" in line
+
+
+def _fastembed_copy(cache_dir: Path) -> None:
+    """The default fastembed model as the fastembed engine keeps it: a Hub-style folder
+    directly under cache_dir, with no `hub` folder in between."""
+    snap = cache_dir / "models--Qdrant--bge-small-en-v1.5-onnx-Q" / "snapshots" / "abc123"
+    snap.mkdir(parents=True)
+    for name in ("model_optimized.onnx", "tokenizer.json", "tokenizer_config.json"):
+        (snap / name).write_text("{}")
+
+
+def test_doctor_finds_the_fastembed_model_in_cache_dir_and_names_that_folder(
+        tmp_path, capsys, monkeypatch):
+    """The fastembed engine reads `cache_dir`, not `cache_dir/hub`, and a Qdrant folder is
+    not the BAAI folder `is_cached` looks for. doctor printed "not downloaded (run embed to
+    fetch)" and the `hub` folder for a model the engine loads from disk with no network."""
+    _clear_hf_env(monkeypatch)
+    _fastembed_copy(tmp_path / "models")
+
+    line = _doctor_embedder_line(tmp_path, capsys, engine="fastembed")
+    assert "not downloaded" not in line and "downloaded" in line
+    assert line.endswith(str(tmp_path / "models"))     # the folder the engine reads
+
+
+def test_doctor_names_cache_dir_for_a_fastembed_model_that_is_not_there(
+        tmp_path, capsys, monkeypatch):
+    _clear_hf_env(monkeypatch)
+    (tmp_path / "models" / "hub" / "models--BAAI--bge-small-en-v1.5").mkdir(parents=True)
+
+    line = _doctor_embedder_line(tmp_path, capsys, engine="fastembed")
+    assert "not downloaded" in line     # the engine never reads that BAAI folder
+    assert line.endswith(str(tmp_path / "models"))
 
 
 def test_doctor_warns_when_builtin_llm_runtime_missing(tmp_path, capsys, monkeypatch):

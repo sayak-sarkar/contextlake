@@ -344,6 +344,9 @@ Four things do not, so "delete the store" is not the same as "delete everything"
   `HF_HOME/hub`, else `<cache_dir>/hub`. The Docker image sets `HF_HOME` to
   `/opt/contextlake/models`, where its models are baked in, and `doctor` prints the `hub` folder
   it checked.
+    - The default model of `engine = "fastembed"` is the exception. Its loader reads `<cache_dir>`
+      itself, in fastembed's own folder layout, and does not read `HF_HOME`. `doctor` and the
+      `serve` banner check that layout, and `doctor` prints `<cache_dir>`.
 - **The mirror's repository-list cache**, under `cache_dir` as described above.
 - **The mirror audit report**, written next to that cache as `repo_audit.json` and a matching
   `.csv`, or wherever `--report` points. A `--report` name ending in `.csv` is the CSV path, and the

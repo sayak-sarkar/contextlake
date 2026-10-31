@@ -120,14 +120,15 @@ def _refused_tier_detail(table: str) -> str:
             "See SECURITY.md, 'Workspace trust'")
 
 
-def _builtin_model_present(cache_dir, model_id: str) -> bool:
-    """True if a HuggingFace-cached model dir exists where the loader looks for it:
-    ``HF_HUB_CACHE``, ``HF_HOME/hub``, else ``cache_dir/hub`` (see ``model_cache.hub_dir``).
+def _builtin_model_present(cache_dir, model_id: str, engine: str | None = None) -> bool:
+    """True if the model is on disk where the loader looks for it: ``HF_HUB_CACHE``,
+    ``HF_HOME/hub``, else ``cache_dir/hub`` (see ``model_cache.hub_dir``). With the embedder
+    ``engine`` "fastembed" and its default model, a complete copy under ``cache_dir`` itself.
 
     Filesystem-only — never imports the heavy dep or triggers a download."""
-    from ..model_cache import is_cached
+    from ..embeddings.builtin import model_cached
 
-    return is_cached(cache_dir, model_id)
+    return model_cached(engine or "", model_id, cache_dir)
 
 
 def cmd_doctor(args) -> int:
@@ -285,13 +286,13 @@ def cmd_doctor(args) -> int:
                 be = BuiltinEmbedder(engine=getattr(emb, "engine", "model2vec"),
                                      model=getattr(emb, "model", None),
                                      cache_dir=getattr(emb, "cache_dir", None))
-                from ..model_cache import hub_dir
+                from ..embeddings.builtin import model_folder
 
-                present = _builtin_model_present(be.cache_dir, be.model_id)
+                present = _builtin_model_present(be.cache_dir, be.model_id, be.engine)
                 _check("  built-in embedder model", True,
                        f"{be.model_id} · "
                        f"{'downloaded' if present else 'not downloaded (run embed to fetch)'}"
-                       f" · {hub_dir(be.cache_dir)}")
+                       f" · {model_folder(be.engine, be.model_id, be.cache_dir)}")
 
             # ANN capability: can sqlite-vec actually load here? (else semantic
             # search silently uses brute-force cosine — fine small, slow at scale)

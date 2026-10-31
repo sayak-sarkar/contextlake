@@ -516,7 +516,7 @@ def test_allow_remote_starts_the_server_and_warns(tmp_path, gls_logs, monkeypatc
 # while claiming to answer the second.
 
 
-def _semantic_serve_args(tmp_path, monkeypatch):
+def _semantic_serve_args(tmp_path, monkeypatch, engine="model2vec"):
     """A serve invocation that reaches the semantic banner: embeddings enabled
     and a vector-store file on disk (serve.py gates the banner on both).
 
@@ -531,6 +531,7 @@ def _semantic_serve_args(tmp_path, monkeypatch):
     cfg.write_text(
         f'[kb]\nstore_dir = "{store_dir}"\n'
         '\n[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        f'engine = "{engine}"\n'
         f'cache_dir = "{tmp_path / "models"}"\n'
     )
     store_dir.mkdir(parents=True, exist_ok=True)
@@ -583,6 +584,34 @@ def test_serve_banner_flags_a_model_that_still_has_to_be_downloaded(
     msgs = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "Semantic search enabled" in msgs  # it does work, given network
     assert "not downloaded" in msgs and "offline" in msgs
+
+
+@pytest.mark.parametrize("copy_on_disk", [True, False])
+def test_serve_banner_looks_for_the_fastembed_model_where_its_loader_does(
+    tmp_path, gls_logs, monkeypatch, copy_on_disk,
+):
+    """The default fastembed model sits in a Qdrant folder directly under cache_dir, and its
+    loader reads it from there with no network. The banner looked for a BAAI folder under
+    `hub`, so it said the first query fetches the model and fails offline."""
+    import importlib.util as _u
+
+    args = _semantic_serve_args(tmp_path, monkeypatch, engine="fastembed")
+    if copy_on_disk:
+        snap = (tmp_path / "models" / "models--Qdrant--bge-small-en-v1.5-onnx-Q"
+                / "snapshots" / "abc123")
+        snap.mkdir(parents=True)
+        for name in ("model_optimized.onnx", "tokenizer.json", "tokenizer_config.json"):
+            (snap / name).write_text("{}")
+    real = _u.find_spec
+    four = ("numpy", "onnxruntime", "tokenizers", "huggingface_hub")   # the kb-fastembed extra
+    monkeypatch.setattr(_u, "find_spec",
+                        lambda name, *a, **k: object() if name in four else real(name, *a, **k))
+
+    assert commands_mod.cmd_serve(args) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Semantic search enabled" in msgs
+    assert ("not downloaded" in msgs) is (not copy_on_disk)
 
 
 def test_serve_banner_stays_plain_when_the_embedder_is_ready(

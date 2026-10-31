@@ -68,6 +68,35 @@ def install_command(engine: str, model_id: str | None = None) -> str:
     return f"pip install 'contextlake[{_ENGINE_EXTRA.get(engine, 'kb-local')}]'"
 
 
+def model_folder(engine: str, model_id: str | None, cache_dir) -> Path:
+    """The folder ``engine`` reads ``model_id`` from, worked out the way the loader does.
+
+    The default fastembed model is read from ``cache_dir`` itself, in fastembed's layout
+    (``onnx_bge.cached_folder``). Every other engine and model reads the Hub cache folder,
+    which ``HF_HUB_CACHE`` or ``HF_HOME`` can move (``model_cache.hub_dir``).
+    """
+    if engine == "fastembed" and onnx_bge.is_default_model(model_id):
+        return Path(cache_dir)
+    from ..model_cache import hub_dir
+
+    return hub_dir(cache_dir)
+
+
+def model_cached(engine: str, model_id: str, cache_dir) -> bool:
+    """True if ``engine`` finds ``model_id`` on disk, so a load needs no network.
+
+    ``doctor`` and the ``serve`` banner both ask here, so they give one answer. The default
+    fastembed model is found only as a complete copy (``onnx_bge.cached_folder``), the same
+    test its loader uses. Other models need a Hub cache folder (``model_cache.is_cached``).
+    Imports nothing heavy.
+    """
+    if engine == "fastembed" and onnx_bge.is_default_model(model_id):
+        return onnx_bge.cached_folder(cache_dir) is not None
+    from ..model_cache import is_cached
+
+    return is_cached(cache_dir, model_id)
+
+
 class BuiltinEmbedder(Embedder):
     """A local CPU embedder backed by ``model2vec`` (default) or ``fastembed``."""
 

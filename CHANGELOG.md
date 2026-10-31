@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host GitLab serves its API on, run `contextlake kb index --source PATH` (or `--workspace DIR`)
   on the clone, and list that host. If you followed the old advice for an ssh port, remove that
   entry and use the new route.
+- **`doctor` and the `serve` banner now look for the default `fastembed` model in `cache_dir`.**
+  With the `kb-fastembed` extra installed, `engine = "fastembed"` and the default model
+  `BAAI/bge-small-en-v1.5`, both looked for a `models--BAAI--bge-small-en-v1.5` folder in the
+  Hub cache folder (`cache_dir/hub` unless `HF_HOME` or `HF_HUB_CACHE` moves it). The engine
+  keeps its copy in `models--Qdrant--bge-small-en-v1.5-onnx-Q` directly under `cache_dir`, and
+  loads it from disk. A complete copy there made `doctor` print
+  "not downloaded (run embed to fetch)" and made `serve` log a "not downloaded yet" line, which
+  says the first query fetches the model and fails offline. A copy named
+  `models--BAAI--bge-small-en-v1.5` in the Hub cache folder, which the engine never reads, made
+  `doctor` print "downloaded" and `serve` log no such line. Both now use the test the loader
+  uses, a complete copy under `cache_dir`. The copy there prints "downloaded". The BAAI-named
+  copy no longer counts: `doctor` prints "not downloaded (run embed to fetch)" and `serve` logs
+  the "not downloaded yet" line. For the default model, the `doctor` line ends with `cache_dir`,
+  where it ended with the Hub cache folder. Other engines and other `fastembed` models are
+  unchanged. No action is needed on a machine that is online: the first query downloads the
+  model into `cache_dir`. Offline, the model must already be in `cache_dir`.
 
 ## [10.0.0rc5] - 2026-10-29
 

@@ -69,14 +69,12 @@ def embedder_runtime_state(embedder) -> tuple[bool | None, str]:
     # carrying the same three attributes deserves the same answer.
     if not (engine and model_id and cache_dir):
         return True, ""
-    from .builtin import engine_installed, install_command
+    from .builtin import engine_installed, install_command, model_cached
 
     if not engine_installed(engine, model_id):
         return False, (f"the {engine!r} engine is not installed "
                        f"({install_command(engine, model_id)})")
-    from ..model_cache import is_cached
-
-    if not is_cached(cache_dir, model_id):
+    if not model_cached(engine, model_id, cache_dir):
         return None, (f"model {model_id} is not downloaded yet; the first query "
                       "fetches it, and fails if this machine is offline")
     return True, ""

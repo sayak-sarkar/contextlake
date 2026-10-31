@@ -541,3 +541,38 @@ def test_the_serve_banner_calls_the_fastembed_engine_usable_without_the_library(
     monkeypatch.setattr(util, "find_spec", lambda name, *a, **k: None)
     ready, why = embedder_runtime_state(embedder)
     assert ready is False and "kb-fastembed" in why
+
+
+def _baai_hub_folder(cache):
+    (cache / "hub" / "models--BAAI--bge-small-en-v1.5").mkdir(parents=True)
+
+
+@pytest.mark.parametrize("lay_out, present", [
+    (lambda cache: _hub(cache), True),
+    (lambda cache: _hub(cache, name="models--qdrant--bge-small-en-v1.5-onnx-q"), True),
+    (lambda cache: _folder(cache / "bge-small-en-v1.5"), True),
+    (lambda cache: _hub(cache, model=False), False),     # no model file: the loader skips it
+    (_baai_hub_folder, False),                           # the loader never reads this one
+    (lambda cache: None, False),
+], ids=["hub-folder", "other-letter-case", "archive-folder", "incomplete", "baai-hub", "empty"])
+def test_doctor_and_the_serve_banner_agree_on_the_fastembed_cache(
+        tmp_path, monkeypatch, lay_out, present):
+    """doctor and the serve banner asked `is_cached`, which looks for a BAAI folder under
+    `hub`. The engine reads `cache_dir` for a Qdrant copy, so a model it held was called
+    "not downloaded". Both now ask the test the loader uses."""
+    import importlib.util as util
+
+    from contextlake.kb.cmds.doctor import _builtin_model_present
+    from contextlake.kb.embeddings import embedder_runtime_state
+
+    for name in ("HF_HOME", "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(util, "find_spec",
+                        lambda name, *a, **k: object() if name in FOUR else None)
+    lay_out(tmp_path)
+
+    embedder = BuiltinEmbedder(engine="fastembed", cache_dir=str(tmp_path))
+    ready, _ = embedder_runtime_state(embedder)
+    assert ready is (True if present else None)
+    assert _builtin_model_present(tmp_path, embedder.model_id, "fastembed") is present
+    assert (onnx_bge.cached_folder(tmp_path) is not None) is present     # what the loader does
