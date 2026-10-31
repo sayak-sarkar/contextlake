@@ -10393,6 +10393,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0rc6] - 2026-10-31
+
 ### Changed
 
 - **The skip advice no longer tells you to list an ssh port in `gitlab_hosts`.** For a skipped
