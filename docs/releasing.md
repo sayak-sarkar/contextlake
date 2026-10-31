@@ -365,9 +365,9 @@ Nothing needs to be preinstalled, not even Python.
 Binaries are uploaded as assets on the same GitHub Release that `release.yml` creates. Whichever
 workflow finishes first creates the release; the other uploads onto it.
 
-`llm-local` rides along and needs no special pip flags: `openvino-genai` is an
-ordinary manylinux wheel, so the first run installs it on a machine chosen for
-having nothing installed. Earlier releases set `PYAPP_PIP_EXTRA_ARGS` to attach a
+`llm-local` rides along and needs no special pip flags: `openvino-genai` has a prebuilt
+wheel for each of the three launcher platforms, so the first run installs it on a machine
+chosen for having nothing installed. Earlier releases set `PYAPP_PIP_EXTRA_ARGS` to attach a
 per-accelerator wheel index for `llama-cpp-python`; that variable is gone, and
 re-adding it would point at a package contextlake no longer depends on.
 
@@ -410,9 +410,9 @@ bytes on the index with the bytes the run built. It does not read the attestatio
 
 ## Troubleshooting
 
-**A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** Transient, and it has
-recurred often enough to expect it. The launchers themselves built fine; only the signing call
-failed. Re-run the failed jobs, the same remedy as a tripped CI gate:
+**A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** Past release runs
+hit it, and re-running the failed jobs passed. The launchers themselves built fine; only the
+signing call failed. Re-run the failed jobs, the same remedy as a tripped CI gate:
 
 ```bash
 gh run rerun <run-id> --failed
@@ -439,8 +439,10 @@ export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt        # stdlib ssl
 Do **not** disable verification (`--insecure` / `verify=False`), reuse the real
 root from your OS store instead.
 
-**`File already exists`** on upload. PyPI is immutable: a version can never be
-re-uploaded, even after deletion. Bump to a new `PATCH` version and release again.
+**`File already exists`** on upload. PyPI is immutable for file names: a file name can never be
+uploaded again, even after deletion. For a deleted file the message reads
+`This filename was previously used by a file that has since been deleted`. Bump to a new
+`PATCH` version and release again.
 
 ## See also
 

@@ -110,8 +110,11 @@ Everything persists in two SQLite databases plus a tree of JSON files, under one
 directory. That defaults to `~/.contextlake/kb`, set as `DEFAULT_STORE_DIR` in
 `src/contextlake/kb/config.py`.
 
-What that buys you: no daemon to start, no port to bind, no credential to manage. SQLite ships
-inside Python, so the graph tier adds no install surface beyond the parsers.
+What that buys you: no daemon to start, no port to bind, no credential to manage. Python's
+`sqlite3` module is optional and uses a SQLite library, and the graph tier needs that library
+built with FTS5. CPython's own macOS and Windows build scripts enable FTS5, so on those builds
+the graph tier adds no install surface beyond the parsers. On any other build, check that
+`import sqlite3` works and that `PRAGMA compile_options` lists `ENABLE_FTS5`.
 
 Keyword search is the `node_fts` FTS5 virtual table in that same schema, not a separate search
 engine.

@@ -46,7 +46,8 @@ the model pulled, and otherwise to the built-in CPU model.
     onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
     fastembed model needs `pip install fastembed`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
-    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
+    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel on Linux with
+    glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs: no
     compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
@@ -162,7 +163,8 @@ CLI flags override the toml and now work on **`bootstrap`** too:
 contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]"
 ```
 
-An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
+An ordinary wheel install on Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows
+x86-64 and Apple silicon Macs. No compiler, no custom index, no `--only-binary` pin.
 [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
 including why the standalone binary and the full Docker image need nothing at all.
 
@@ -259,11 +261,11 @@ contextlake bootstrap --llm ollama --llm-model qwen2.5:3b   # whole layer in one
 
 contextlake defaults `base_url` to `http://127.0.0.1:11434`, so usually nothing else to set.
 
-**B) Ollama on Windows, contextlake in WSL** (the cross-boundary case). WSL2 is a separate network
-namespace, so a Windows Ollama bound to `127.0.0.1` is **not reachable from WSL** (`localhost:11434` →
-connection refused). Two fixes:
+**B) Ollama on Windows, contextlake in WSL** (the cross-boundary case). In the default NAT mode,
+WSL2 has its own IP address, so a Windows Ollama bound to `127.0.0.1` is **not reachable from WSL**
+(`localhost:11434` → connection refused). Two fixes:
 
-- *Easiest, mirrored networking.* In `%UserProfile%\.wslconfig` add:
+- *Easiest, mirrored networking (Windows 11 22H2 or later).* In `%UserProfile%\.wslconfig` add:
   ```ini
   [wsl2]
   networkingMode=mirrored

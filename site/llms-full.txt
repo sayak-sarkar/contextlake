@@ -179,7 +179,8 @@ It mirrors hundreds of repos at once, with an adaptive worker pool and retries t
 
 > **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API calls
 > time out? Set `GITLAB_TOKEN` (a `read_api` token) and contextlake enumerates projects via
-> its own HTTP client, which tolerates the slow DNS where `glab`'s short dial timeout fails.
+> its own HTTP client, which tolerates slow DNS. The default `glab` dial timeout is 5 seconds,
+> and the DNS lookup counts toward it. With a CA file set, it is 30 seconds.
 
 ## Commands at a glance
 
@@ -504,8 +505,11 @@ Everything persists in two SQLite databases plus a tree of JSON files, under one
 directory. That defaults to `~/.contextlake/kb`, set as `DEFAULT_STORE_DIR` in
 `src/contextlake/kb/config.py`.
 
-What that buys you: no daemon to start, no port to bind, no credential to manage. SQLite ships
-inside Python, so the graph tier adds no install surface beyond the parsers.
+What that buys you: no daemon to start, no port to bind, no credential to manage. Python's
+`sqlite3` module is optional and uses a SQLite library, and the graph tier needs that library
+built with FTS5. CPython's own macOS and Windows build scripts enable FTS5, so on those builds
+the graph tier adds no install surface beyond the parsers. On any other build, check that
+`import sqlite3` works and that `PRAGMA compile_options` lists `ENABLE_FTS5`.
 
 Keyword search is the `node_fts` FTS5 virtual table in that same schema, not a separate search
 engine.
@@ -947,7 +951,9 @@ environment you already manage.
   you already have on disk needs no token at all.
 
 None of the channels below need a C or C++ compiler. If an install starts building from source
-anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+anyway, it is a tree-sitter grammar with no wheel for your platform. It builds from its source
+archive, which needs a compiler. The Dockerfile grammar (`[kb-dockerfile]`) has no source
+archive, so on such a platform it fails to install. The remedy is in
 [The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
 ## Install
@@ -1016,8 +1022,11 @@ runs it. By hand it is:
 pip install "contextlake[llm-local]"
 ```
 
-No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
-first run, and the full Docker image ships the runtime and the 0.5B model baked in.
+No compiler, no wheel index and no `--only-binary` pin, on Linux with glibc 2.28 or newer on
+x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs. Current `openvino-genai` releases
+have no wheel for Intel Macs or for musl Linux (such as Alpine), and no source archive. The
+standalone binary installs it on first run, and the full Docker image ships the runtime and the
+0.5B model baked in.
 
 The model itself downloads on the first wiki run, not at install time. With no model set, that
 run picks a size from the free RAM and prints the download size before it starts: 349 MB
@@ -1082,8 +1091,9 @@ docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 If the machine has no Python at all, the release assets are self-contained launchers built
 with [PyApp](https://ofek.dev/pyapp/). The launcher bootstraps a private Python plus
 `contextlake[kb-full,llm-local]` into its own cache on first run, which needs network once;
-every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
-PyPI, so there is no compiler to install and nothing for you to pass.
+every run after that is instant. The `openvino-genai` package it installs comes from a prebuilt
+wheel on PyPI on each of the three platforms below, so there is no compiler to install for it
+and nothing for you to pass.
 
 Three assets are published per release, one per build platform:
 
@@ -1347,7 +1357,8 @@ Real setups and the exact command for each.
 The flags worth knowing when you write one of these by hand:
 
 - **`-U` / `--upgrade`** moves an already-installed contextlake to the newest version.
-  Without it, pip sees the package installed and does nothing.
+  Without it, pip keeps the installed version. It still installs any dependency that is
+  missing, including one that an extra you name needs.
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
   "no matching distribution" message. Name the one native package when you still want a source
@@ -4004,7 +4015,7 @@ origin is still followed, but without the header. A redirect within the same ori
 
 **Two auth schemes.** `auth = "bearer"` is the default and sends
 `Authorization: Bearer <secret>`. `auth = "basic"` sends
-`Authorization: Basic base64(user:secret)`, which is what an API token needs on Atlassian
+`Authorization: Basic base64(user:secret)`, which is what a user API token needs on Atlassian
 Cloud, Jira and Confluence:
 
 ```toml
@@ -4024,6 +4035,12 @@ token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environme
 Create the token under **Account settings → Security → API tokens** in your Atlassian
 profile, then export it as `ATLASSIAN_API_TOKEN`.
 
+Atlassian documents Basic auth for user API tokens, so use `auth = "basic"` for them. A Bearer
+header with a user API token against Atlassian Cloud returned 401 when the project tested it.
+That example assumes an unscoped user token at the site URL. A scoped user token needs an
+`api.atlassian.com` URL. A service account token can use Basic or Bearer, but only at an
+`api.atlassian.com` URL.
+
 The Jira search address:
 
 - **Use `/rest/api/3/search/jql`.** The older `/rest/api/3/search` now answers 410 Gone.
@@ -4031,9 +4048,7 @@ The Jira search address:
   "Unbounded JQL queries are not allowed"), so name a project or a text match in the `jql`.
 - **Expect one page.** It pages with a `nextPageToken` value in the response body, and
   `next_field` expects a link, not a token. Set `maxResults` (up to 100) to choose how many
-  issues that page holds. A bearer header against Atlassian Cloud
-returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
-than a preference.
+  issues that page holds.
 
 > [!NOTE]
 > `auth`, `user` and `token_env` are privileged keys: a config file contextlake *discovered*
@@ -5349,7 +5364,8 @@ the model pulled, and otherwise to the built-in CPU model.
     onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
     fastembed model needs `pip install fastembed`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
-    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
+    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel on Linux with
+    glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs: no
     compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
@@ -5465,7 +5481,8 @@ CLI flags override the toml and now work on **`bootstrap`** too:
 contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]"
 ```
 
-An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
+An ordinary wheel install on Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows
+x86-64 and Apple silicon Macs. No compiler, no custom index, no `--only-binary` pin.
 [Install and upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
 including why the standalone binary and the full Docker image need nothing at all.
 
@@ -5562,11 +5579,11 @@ contextlake bootstrap --llm ollama --llm-model qwen2.5:3b   # whole layer in one
 
 contextlake defaults `base_url` to `http://127.0.0.1:11434`, so usually nothing else to set.
 
-**B) Ollama on Windows, contextlake in WSL** (the cross-boundary case). WSL2 is a separate network
-namespace, so a Windows Ollama bound to `127.0.0.1` is **not reachable from WSL** (`localhost:11434` →
-connection refused). Two fixes:
+**B) Ollama on Windows, contextlake in WSL** (the cross-boundary case). In the default NAT mode,
+WSL2 has its own IP address, so a Windows Ollama bound to `127.0.0.1` is **not reachable from WSL**
+(`localhost:11434` → connection refused). Two fixes:
 
-- *Easiest, mirrored networking.* In `%UserProfile%\.wslconfig` add:
+- *Easiest, mirrored networking (Windows 11 22H2 or later).* In `%UserProfile%\.wslconfig` add:
   ```ini
   [wsl2]
   networkingMode=mirrored
@@ -7735,9 +7752,9 @@ server natively:
 
 - **`AGENTS.md`** (overview, the knowledge tools, and guardrails), a thin **`CLAUDE.md`** that
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
-- A merged **`.mcp.json`** entry for the `contextlake kb serve` server (Claude Code, Windsurf,
-  Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
-  VS Code, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
+- A merged **`.mcp.json`** entry for the `contextlake kb serve` server (read by Claude Code and
+  by VS Code's portable Copilot format) and a merged **`.vscode/mcp.json`** entry for VS Code's
+  own format, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
   schema, so it gets its own file rather than reusing `.mcp.json`.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
@@ -10215,16 +10232,19 @@ flowchart TD
 ## The knowledge layer will not install
 
 `[kb]` needs Python 3.10 or newer, because the `mcp` SDK does. The mirror side of contextlake
-needs 3.10 or newer as well, so pip refuses the install outright rather than
-leaving you a half-working one. Check with
+needs 3.10 or newer as well. On Python 3.9, a plain `pip install contextlake` does not stop.
+It installs an older release that still supports 3.9, not this one. Check with
 `python3 --version`.
 
 The extra also pulls a tree-sitter grammar per supported language, several with native
-wheels. On a platform without prebuilt wheels those build from source, which is slow rather
-than broken. **This is the only place a compiler error can come from**, so if a build starts and
-fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]` is an
-ordinary wheel, see the next section). Either install your platform's build tools and let it
-finish, or pin the install to wheels only:
+wheels. On a platform without prebuilt wheels those build from their source archive, which
+needs a C or C++ compiler and is slow but still finishes. The Dockerfile grammar
+(`[kb-dockerfile]`) has no source archive, so on such a platform it fails to install.
+
+**This is the only place a compiler error can come from**, so if a build starts and
+fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]`
+never builds from source, see the next section). Either install your platform's build tools
+and let it finish, or pin the install to wheels only:
 
 ```bash
 pip install -U --only-binary :all: "contextlake[kb-full]"
@@ -10242,9 +10262,10 @@ Install it into the interpreter contextlake is running in:
 contextlake doctor --fix llm-local          # --dry-run prints the command and stops
 ```
 
-It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
-The standalone binary installs it on first run and the full Docker image ships it baked in,
-so neither channel hits this. See [Install and
+On Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon
+Macs it is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin
+involved. The standalone binary installs it on first run and the full Docker image ships it
+baked in, so neither channel hits this. See [Install and
 upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](model-providers.md#installing-the-built-in-llm).
 
@@ -10423,6 +10444,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   batch holds a vector that passes the check. If the probe answers and the first batch then
   fails, both still clear first, as `kb ingest` does, and the partition ends with 0 vectors. If
   every document body is empty, no batch runs and the old vectors are cleared at the end.
+- **The README and docs now state what other tools do, as their own docs and source show.**
+  The Sigstore 502 and the Atlassian Bearer 401 are now stated as the project's own records.
+  Corrected:
+  - a root `.mcp.json` is read by Claude Code and by VS Code's portable Copilot format. Cursor
+    reads `.cursor/mcp.json` and Windsurf a global file;
+  - py-tree-sitter builds each capture list from a set, so its order is not defined;
+  - the graph tier needs a SQLite build with FTS5. CPython's macOS and Windows build scripts
+    enable it. On another build, check that `PRAGMA compile_options` lists `ENABLE_FTS5`;
+  - Atlassian documents Basic auth for user API tokens. A scoped user token, or a service
+    account token, needs an `api.atlassian.com` URL;
+  - `openvino-genai` has wheels for Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64),
+    Windows x86-64 and Apple silicon Macs. It has no wheel for Intel Macs or musl Linux, and no
+    source archive;
+  - without `-U`, pip keeps the installed version and still installs a missing dependency;
+  - a tree-sitter grammar with no wheel for your platform builds from its source archive and
+    needs a compiler. The Dockerfile grammar has no source archive, so on such a platform it
+    fails to install;
+  - on Python 3.9, `pip install contextlake` installs an older release. It does not refuse;
+  - the default `glab` dial timeout is 5 seconds, DNS lookup included, and 30 seconds with a CA
+    file set;
+  - in WSL2's default NAT mode, a Windows Ollama bound to `127.0.0.1` is not reachable. Mirrored
+    mode needs Windows 11 22H2 or later;
+  - PyPI blocks a file name for good, even after its file is deleted.
 
 ## [10.0.0rc5] - 2026-10-29
 
@@ -22421,8 +22465,8 @@ other entry point. Missing the third is the first row of the silent-skip table a
 
 ### Do not introduce anything order-dependent
 
-Capture extraction is canonicalised on purpose: tree-sitter returns capture lists in an order that
-varies run to run and even within one process, and a test pins shard bytes across five consecutive
+Capture extraction is canonicalised on purpose: py-tree-sitter builds each capture list from a
+set, so its order is not defined, and a test pins shard bytes across five consecutive
 indexes. Anything you add must not depend on capture order, and must never tiebreak on a node id,
 which is pointer-derived.
 

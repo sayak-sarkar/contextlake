@@ -40,7 +40,9 @@ environment you already manage.
   you already have on disk needs no token at all.
 
 None of the channels below need a C or C++ compiler. If an install starts building from source
-anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+anyway, it is a tree-sitter grammar with no wheel for your platform. It builds from its source
+archive, which needs a compiler. The Dockerfile grammar (`[kb-dockerfile]`) has no source
+archive, so on such a platform it fails to install. The remedy is in
 [The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
 ## Install
@@ -109,8 +111,11 @@ runs it. By hand it is:
 pip install "contextlake[llm-local]"
 ```
 
-No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
-first run, and the full Docker image ships the runtime and the 0.5B model baked in.
+No compiler, no wheel index and no `--only-binary` pin, on Linux with glibc 2.28 or newer on
+x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs. Current `openvino-genai` releases
+have no wheel for Intel Macs or for musl Linux (such as Alpine), and no source archive. The
+standalone binary installs it on first run, and the full Docker image ships the runtime and the
+0.5B model baked in.
 
 The model itself downloads on the first wiki run, not at install time. With no model set, that
 run picks a size from the free RAM and prints the download size before it starts: 349 MB
@@ -175,8 +180,9 @@ docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 If the machine has no Python at all, the release assets are self-contained launchers built
 with [PyApp](https://ofek.dev/pyapp/). The launcher bootstraps a private Python plus
 `contextlake[kb-full,llm-local]` into its own cache on first run, which needs network once;
-every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
-PyPI, so there is no compiler to install and nothing for you to pass.
+every run after that is instant. The `openvino-genai` package it installs comes from a prebuilt
+wheel on PyPI on each of the three platforms below, so there is no compiler to install for it
+and nothing for you to pass.
 
 Three assets are published per release, one per build platform:
 
@@ -440,7 +446,8 @@ Real setups and the exact command for each.
 The flags worth knowing when you write one of these by hand:
 
 - **`-U` / `--upgrade`** moves an already-installed contextlake to the newest version.
-  Without it, pip sees the package installed and does nothing.
+  Without it, pip keeps the installed version. It still installs any dependency that is
+  missing, including one that an extra you name needs.
 - **`--only-binary NAME`** installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
   "no matching distribution" message. Name the one native package when you still want a source

@@ -492,8 +492,8 @@ other entry point. Missing the third is the first row of the silent-skip table a
 
 ### Do not introduce anything order-dependent
 
-Capture extraction is canonicalised on purpose: tree-sitter returns capture lists in an order that
-varies run to run and even within one process, and a test pins shard bytes across five consecutive
+Capture extraction is canonicalised on purpose: py-tree-sitter builds each capture list from a
+set, so its order is not defined, and a test pins shard bytes across five consecutive
 indexes. Anything you add must not depend on capture order, and must never tiebreak on a node id,
 which is pointer-derived.
 

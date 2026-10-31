@@ -32,16 +32,19 @@ flowchart TD
 ## The knowledge layer will not install
 
 `[kb]` needs Python 3.10 or newer, because the `mcp` SDK does. The mirror side of contextlake
-needs 3.10 or newer as well, so pip refuses the install outright rather than
-leaving you a half-working one. Check with
+needs 3.10 or newer as well. On Python 3.9, a plain `pip install contextlake` does not stop.
+It installs an older release that still supports 3.9, not this one. Check with
 `python3 --version`.
 
 The extra also pulls a tree-sitter grammar per supported language, several with native
-wheels. On a platform without prebuilt wheels those build from source, which is slow rather
-than broken. **This is the only place a compiler error can come from**, so if a build starts and
-fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]` is an
-ordinary wheel, see the next section). Either install your platform's build tools and let it
-finish, or pin the install to wheels only:
+wheels. On a platform without prebuilt wheels those build from their source archive, which
+needs a C or C++ compiler and is slow but still finishes. The Dockerfile grammar
+(`[kb-dockerfile]`) has no source archive, so on such a platform it fails to install.
+
+**This is the only place a compiler error can come from**, so if a build starts and
+fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (`[llm-local]`
+never builds from source, see the next section). Either install your platform's build tools
+and let it finish, or pin the install to wheels only:
 
 ```bash
 pip install -U --only-binary :all: "contextlake[kb-full]"
@@ -59,9 +62,10 @@ Install it into the interpreter contextlake is running in:
 contextlake doctor --fix llm-local          # --dry-run prints the command and stops
 ```
 
-It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
-The standalone binary installs it on first run and the full Docker image ships it baked in,
-so neither channel hits this. See [Install and
+On Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon
+Macs it is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin
+involved. The standalone binary installs it on first run and the full Docker image ships it
+baked in, so neither channel hits this. See [Install and
 upgrade](installing.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
 LLM](model-providers.md#installing-the-built-in-llm).
 

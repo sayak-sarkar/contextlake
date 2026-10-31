@@ -58,6 +58,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   batch holds a vector that passes the check. If the probe answers and the first batch then
   fails, both still clear first, as `kb ingest` does, and the partition ends with 0 vectors. If
   every document body is empty, no batch runs and the old vectors are cleared at the end.
+- **The README and docs now state what other tools do, as their own docs and source show.**
+  The Sigstore 502 and the Atlassian Bearer 401 are now stated as the project's own records.
+  Corrected:
+  - a root `.mcp.json` is read by Claude Code and by VS Code's portable Copilot format. Cursor
+    reads `.cursor/mcp.json` and Windsurf a global file;
+  - py-tree-sitter builds each capture list from a set, so its order is not defined;
+  - the graph tier needs a SQLite build with FTS5. CPython's macOS and Windows build scripts
+    enable it. On another build, check that `PRAGMA compile_options` lists `ENABLE_FTS5`;
+  - Atlassian documents Basic auth for user API tokens. A scoped user token, or a service
+    account token, needs an `api.atlassian.com` URL;
+  - `openvino-genai` has wheels for Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64),
+    Windows x86-64 and Apple silicon Macs. It has no wheel for Intel Macs or musl Linux, and no
+    source archive;
+  - without `-U`, pip keeps the installed version and still installs a missing dependency;
+  - a tree-sitter grammar with no wheel for your platform builds from its source archive and
+    needs a compiler. The Dockerfile grammar has no source archive, so on such a platform it
+    fails to install;
+  - on Python 3.9, `pip install contextlake` installs an older release. It does not refuse;
+  - the default `glab` dial timeout is 5 seconds, DNS lookup included, and 30 seconds with a CA
+    file set;
+  - in WSL2's default NAT mode, a Windows Ollama bound to `127.0.0.1` is not reachable. Mirrored
+    mode needs Windows 11 22H2 or later;
+  - PyPI blocks a file name for good, even after its file is deleted.
 
 ## [10.0.0rc5] - 2026-10-29
 

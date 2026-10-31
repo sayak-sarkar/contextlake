@@ -272,7 +272,7 @@ origin is still followed, but without the header. A redirect within the same ori
 
 **Two auth schemes.** `auth = "bearer"` is the default and sends
 `Authorization: Bearer <secret>`. `auth = "basic"` sends
-`Authorization: Basic base64(user:secret)`, which is what an API token needs on Atlassian
+`Authorization: Basic base64(user:secret)`, which is what a user API token needs on Atlassian
 Cloud, Jira and Confluence:
 
 ```toml
@@ -292,6 +292,12 @@ token_env = "ATLASSIAN_API_TOKEN"   # the token is, so it stays in the environme
 Create the token under **Account settings → Security → API tokens** in your Atlassian
 profile, then export it as `ATLASSIAN_API_TOKEN`.
 
+Atlassian documents Basic auth for user API tokens, so use `auth = "basic"` for them. A Bearer
+header with a user API token against Atlassian Cloud returned 401 when the project tested it.
+That example assumes an unscoped user token at the site URL. A scoped user token needs an
+`api.atlassian.com` URL. A service account token can use Basic or Bearer, but only at an
+`api.atlassian.com` URL.
+
 The Jira search address:
 
 - **Use `/rest/api/3/search/jql`.** The older `/rest/api/3/search` now answers 410 Gone.
@@ -299,9 +305,7 @@ The Jira search address:
   "Unbounded JQL queries are not allowed"), so name a project or a text match in the `jql`.
 - **Expect one page.** It pages with a `nextPageToken` value in the response body, and
   `next_field` expects a link, not a token. Set `maxResults` (up to 100) to choose how many
-  issues that page holds. A bearer header against Atlassian Cloud
-returns 401 with a body that does not explain why, so `auth = "basic"` is required rather
-than a preference.
+  issues that page holds.
 
 > [!NOTE]
 > `auth`, `user` and `token_env` are privileged keys: a config file contextlake *discovered*

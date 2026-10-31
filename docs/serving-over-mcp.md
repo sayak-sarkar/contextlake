@@ -142,9 +142,9 @@ server natively:
 
 - **`AGENTS.md`** (overview, the knowledge tools, and guardrails), a thin **`CLAUDE.md`** that
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
-- A merged **`.mcp.json`** entry for the `contextlake kb serve` server (Claude Code, Windsurf,
-  Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
-  VS Code, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
+- A merged **`.mcp.json`** entry for the `contextlake kb serve` server (read by Claude Code and
+  by VS Code's portable Copilot format) and a merged **`.vscode/mcp.json`** entry for VS Code's
+  own format, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
   schema, so it gets its own file rather than reusing `.mcp.json`.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,

@@ -167,7 +167,8 @@ It mirrors hundreds of repos at once, with an adaptive worker pool and retries t
 
 > **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API calls
 > time out? Set `GITLAB_TOKEN` (a `read_api` token) and contextlake enumerates projects via
-> its own HTTP client, which tolerates the slow DNS where `glab`'s short dial timeout fails.
+> its own HTTP client, which tolerates slow DNS. The default `glab` dial timeout is 5 seconds,
+> and the DNS lookup counts toward it. With a CA file set, it is 30 seconds.
 
 ## Commands at a glance
 
