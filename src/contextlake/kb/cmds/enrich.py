@@ -13,7 +13,7 @@ from ._common import (
     _report_unknown_repos,
     kb_config,
 )
-from .ingest import _embedder_refused
+from .ingest import _probe_embedder
 
 
 def _print_plan(store_dir, targets, sources) -> int:
@@ -104,9 +104,14 @@ def cmd_enrich(args) -> int:
         try:
             # Before any source is searched or partition rewritten: `run_enrich_repo` clears
             # a repo's vectors before it embeds, so a changed `[embeddings]` model would
-            # otherwise delete them and then be refused by the store's identity guard.
-            if vector_store is not None and _embedder_refused(vector_store, embedder):
-                return 1
+            # otherwise delete them and then be refused by the store's identity guard. A
+            # probe with no answer proves nothing, so `run_enrich_repo` then clears only
+            # after its first batch holds a vector.
+            embedder_checked = False
+            if vector_store is not None:
+                refused, embedder_checked = _probe_embedder(vector_store, embedder)
+                if refused:
+                    return 1
             from ..resilience import degraded_calls
 
             # The verdict is taken from the calls, not from exceptions. Source methods
@@ -143,7 +148,8 @@ def cmd_enrich(args) -> int:
                 try:
                     counts = run_enrich_repo(store, store_dir, cfg, repo_id,
                                              embedder=embedder, vector_store=vector_store,
-                                             budget=budget)
+                                             budget=budget,
+                                             embedder_checked=embedder_checked)
                 except (OSError, sqlite3.Error) as e:
                     # Narrow on purpose. `search_source` is contractually non-raising,
                     # so the only failures that reach here are the store and shard

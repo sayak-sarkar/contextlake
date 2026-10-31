@@ -24,7 +24,7 @@ from ._common import (
     _open_store,
     kb_config,
 )
-from .ingest import _embed_documents, _embedder_refused
+from .ingest import _embed_documents, _probe_embedder
 
 
 def _wiki_partition(repo_id: str) -> str:
@@ -110,7 +110,8 @@ def _partition_needs_backfill(store, wiki_key: str) -> bool:
 
 def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
                           embedder=None, vs=None, batch_size=64, *,
-                          source_repo: str | None = None) -> int:
+                          source_repo: str | None = None,
+                          embedder_checked: bool = False) -> int:
     """(Re)write a repo's ``@wiki`` partition from its page and embed the sections
     when the semantic tier is up. Returns the number of sections embedded.
 
@@ -128,6 +129,11 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     repo-level edge feeds the "external knowledge" panels (``get_repo_links``,
     the dashboard's ``_links_for``), and a wiki page is contextlake's own output,
     not a third-party cross-link like a Jira issue or a Figma frame.
+
+    ``embedder_checked`` is True when the run's probe vector passed the store's identity
+    guard (``_probe_embedder``). Otherwise the guard has not run, so the page's old vectors
+    are cleared after the first batch of the new ones passes it, not before: an embedder
+    that stays down clears nothing.
     """
     part = _wiki_partition(repo_id)
     if not is_plain_id(part):
@@ -155,7 +161,14 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     # Placed ABOVE the early return: an empty page produces no nodes, and returning
     # there without this would strand every vector the previous page wrote, not only
     # the tail.
-    if vs is not None:
+    #
+    # Held back until the first batch holds a vector when the probe got no answer and a
+    # batch will run: the clear is then `_embed_documents`'s `sweep`, and the shard and
+    # rows are written first. Cleared up front, an embedder that is down left the page with
+    # no vectors.
+    defer_clear = bool(embedder is not None and vs is not None and nodes
+                       and not embedder_checked)
+    if vs is not None and not defer_clear:
         vs.clear_repo(part)
     if not nodes:
         store.clear_repo(part)
@@ -179,7 +192,7 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
         # the WARNING the helper logs rather than threaded up. Returning the tuple here
         # would make this function's own contract (an int) quietly untrue.
         written, _vectors, _stopped = _embed_documents(vs, embedder, part, nodes, texts,
-                                                       batch_size)
+                                                       batch_size, sweep=defer_clear)
         return written
     return 0
 
@@ -522,7 +535,8 @@ def _wanted_repo_ids(args) -> set[str]:
 
 
 def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
-                      embedder=None, vs=None) -> tuple[int, dict, dict, dict]:
+                      embedder=None, vs=None,
+                      embedder_checked: bool = False) -> tuple[int, dict, dict, dict]:
     """Write every repository's structural page and its module pages, unconditionally.
 
     Runs BEFORE the LLM is built and regardless of whether one is configured, because
@@ -652,7 +666,8 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
             _store_wiki_partition(store, store_dir, repo_id, page,
                                   whole.relative_to(wiki_dir).as_posix(),
                                   brief.get("head"), embedder, vs,
-                                  cfg.embeddings.batch_size)
+                                  cfg.embeddings.batch_size,
+                                  embedder_checked=embedder_checked)
         planned = modules[:_MAX_STRUCTURAL_MODULE_PAGES]
         if len(modules) > len(planned):
             log(f"  {repo_id}: {len(modules)} modules qualify; writing structural pages "
@@ -683,7 +698,8 @@ def _structural_stage(store, store_dir, args, cfg, wiki_dir, *,
                 _store_wiki_partition(store, store_dir, f"{repo_id}::{prefix}", mod_page,
                                       mod_file.relative_to(wiki_dir).as_posix(),
                                       scoped.get("head"), embedder, vs,
-                                      cfg.embeddings.batch_size, source_repo=repo_id)
+                                      cfg.embeddings.batch_size, source_repo=repo_id,
+                                      embedder_checked=embedder_checked)
     return written, briefs, pages, plans
 
 
@@ -823,16 +839,22 @@ def cmd_wiki(args) -> int:
         # After the repo filter, so a mistyped id costs no embed call, and before any page is
         # stored: `_store_wiki_partition` clears a partition's vectors before it embeds, so a
         # changed `[embeddings]` model would otherwise delete them and then be refused by the
-        # store's identity guard. Covers the structural, module, cluster and LLM pages.
-        if embedder is not None and vs is not None and _embedder_refused(vs, embedder):
-            return 1
+        # store's identity guard. Covers the structural, module, cluster and LLM pages. A
+        # probe with no answer proves nothing, so `_store_wiki_partition` then clears only
+        # after its first batch holds a vector.
+        embedder_checked = False
+        if embedder is not None and vs is not None:
+            refused, embedder_checked = _probe_embedder(vs, embedder)
+            if refused:
+                return 1
 
         structural_briefs: dict = {}
         structural_pages: dict = {}
         structural_plans: dict = {}
         if not (getattr(args, "namespace", None) or getattr(args, "namespaces", False)):
             n, structural_briefs, structural_pages, structural_plans = _structural_stage(
-                store, store_dir, args, cfg, wiki_dir, embedder=embedder, vs=vs)
+                store, store_dir, args, cfg, wiki_dir, embedder=embedder, vs=vs,
+                embedder_checked=embedder_checked)
             if n:
                 log(f"Wrote {n} structural page(s) → {wiki_dir}")
 
@@ -994,7 +1016,8 @@ def cmd_wiki(args) -> int:
                         # cited to its real file under `_clusters/`.
                         _store_wiki_partition(store, store_dir, ns, page,
                                               cluster_page_name(ns), None,
-                                              embedder, vs, cfg.embeddings.batch_size)
+                                              embedder, vs, cfg.embeddings.batch_size,
+                                              embedder_checked=embedder_checked)
                     written += 1
                     log(f"  {style.ok(ns)}: written (score {gate['score']})", inline=True)
                 else:
@@ -1135,7 +1158,8 @@ def cmd_wiki(args) -> int:
                             _store_wiki_partition(store, store_dir, wiki_key, prev,
                                                   rel_filename, head, embedder, vs,
                                                   cfg.embeddings.batch_size,
-                                                  source_repo=repo_id)
+                                                  source_repo=repo_id,
+                                                  embedder_checked=embedder_checked)
                         return "skipped"
             # `store` unlocks two repo-root-only, never-path_prefix-scoped
             # live-checkout reads inside repo_brief (readme_excerpt, and
@@ -1242,7 +1266,8 @@ def cmd_wiki(args) -> int:
                 wiki_file.write_text(page, encoding="utf-8")
                 _store_wiki_partition(store, store_dir, wiki_key, page, rel_filename,
                                       brief.get("head"), embedder, vs,
-                                      cfg.embeddings.batch_size, source_repo=repo_id)
+                                      cfg.embeddings.batch_size, source_repo=repo_id,
+                                      embedder_checked=embedder_checked)
                 log(f"  {style.ok(label)}: written (score {gate['score']})", inline=True)
                 return "written"
             _log_rejection(label, gate)

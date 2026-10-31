@@ -393,14 +393,17 @@ provider = "ollama"
 class _ModelEmbedder:
     """Two instances differ only in `identity` and `dim`, as two models do."""
 
-    def __init__(self, identity, dim=2, *, flaky_first=False):
+    def __init__(self, identity, dim=2, *, flaky_first=False, down=False):
         self.identity = self.name = identity
         self.dim = dim
         self._flaky_first = flaky_first
+        self._down = down
         self.calls = 0
 
     def embed(self, texts):
         self.calls += 1
+        if self._down:
+            raise ConnectionError("embedder is down")
         if self._flaky_first and self.calls == 1:
             raise ConnectionError("first call timed out")
         return [[1.0] + [float(i)] * (self.dim - 1) for i, _ in enumerate(texts)]
@@ -464,3 +467,77 @@ def test_enrich_goes_on_when_the_probe_got_no_answer(tmp_path, monkeypatch, gls_
     assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO])) == 0
     assert _vectors_of(store_dir, enrich_partition(REPO)) == 1
     assert "This run changed nothing" not in gls_logs.text
+
+
+def _enrich_twice(tmp_path, monkeypatch, second, second_docs):
+    """Enrich ``REPO`` with a working embedder (two documents, two vectors), then again with
+    ``second`` and ``second_docs``. Returns ``(store dir, partition)``."""
+    cfg, store_dir, _calls = _seed_enrich_store(
+        tmp_path, monkeypatch, config=_CONFIG_FAKE_EMBED)
+    docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1"),
+            Document(id="d2", title="Design doc", text="architecture notes", uri="https://x/2")]
+    part = enrich_partition(REPO)
+
+    def run(embedder, found):
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, **_kw: found)
+        monkeypatch.setattr(embeddings, "build_embedder", lambda _cfg: embedder)
+        return cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO]))
+
+    run(_ModelEmbedder("openai:fake-a"), docs)
+    assert _vectors_of(store_dir, part) == 2, "setup: the first run stored no vectors"
+    run(second, second_docs if second_docs is not None else docs)
+    return store_dir, part
+
+
+def test_enrich_keeps_the_vectors_when_the_embedder_never_answers(
+        tmp_path, monkeypatch, gls_logs):
+    """The probe got no answer, so the guard had not run when `run_enrich_repo` cleared the
+    partition's vectors. An embedder that stayed down for the batch too left the partition
+    with 0 vectors, and the run still ended with `Enrich complete`."""
+    store_dir, part = _enrich_twice(
+        tmp_path, monkeypatch, _ModelEmbedder("openai:fake-a", down=True), None)
+
+    assert "embed: stopped after 0 of 2 document(s)" in gls_logs.text, (
+        "the embed phase never failed, so the count below proves nothing")
+    assert _vectors_of(store_dir, part) == 2
+
+
+def test_enrich_clears_the_old_vectors_when_every_document_body_is_empty_and_the_embedder_is_down(
+        tmp_path, monkeypatch):
+    """The one exception to the keep rule: no batch runs, so nothing waits on a first batch,
+    and the old vectors belong to text that no longer exists."""
+    docs = [Document(id="d1", title="Runbook", text="", uri="https://x/1"),
+            Document(id="d2", title="Design doc", text="", uri="https://x/2")]
+    store_dir, part = _enrich_twice(
+        tmp_path, monkeypatch, _ModelEmbedder("openai:fake-a", down=True), docs)
+
+    assert _vectors_of(store_dir, part) == 0
+
+
+def test_enrich_clears_the_old_vectors_once_the_first_batch_after_an_unanswered_probe_passes(
+        tmp_path, monkeypatch):
+    """The clear waits for the first batch, it is not dropped: d2 is gone from the source,
+    so its vector goes when the first batch of the new run holds a vector."""
+    docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
+    store_dir, part = _enrich_twice(
+        tmp_path, monkeypatch, _ModelEmbedder("openai:fake-a", flaky_first=True), docs)
+
+    assert _vectors_of(store_dir, part) == 1
+
+
+@pytest.mark.parametrize(("flaky_first", "checked"), [(False, True), (True, False)],
+                         ids=["probe-answers", "probe-gets-no-answer"])
+def test_enrich_tells_each_repo_run_whether_the_probe_passed_the_guard(
+        tmp_path, monkeypatch, flaky_first, checked):
+    cfg, _store_dir, _calls = _seed_enrich_store(
+        tmp_path, monkeypatch, config=_CONFIG_FAKE_EMBED)
+    seen = []
+    real = enrich.run_enrich_repo
+    monkeypatch.setattr(enrich, "run_enrich_repo",
+                        lambda *a, **k: (seen.append(k["embedder_checked"]), real(*a, **k))[1])
+    monkeypatch.setattr(embeddings, "build_embedder",
+                        lambda _cfg: _ModelEmbedder("openai:fake-a", flaky_first=flaky_first))
+
+    assert cmd_enrich(Namespace(config=str(cfg), workspace=None, args=[REPO])) == 0
+
+    assert seen == [checked]

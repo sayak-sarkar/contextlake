@@ -290,7 +290,7 @@ def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
 
 def run_enrich_repo(
     store, store_dir, cfg, repo_id: str, *, embedder=None, vector_store=None,
-    budget: EnrichBudget | None = None,
+    budget: EnrichBudget | None = None, embedder_checked: bool = False,
 ) -> EnrichCounts:
     """Build query terms from ``repo_id``'s codebase, search every enabled source
     in ``cfg.sources``, and store the results in its ``@enrich:<repo_id>``
@@ -308,6 +308,11 @@ def run_enrich_repo(
     partition with an empty one. The healthy sources' fresh results are dropped with
     it, since the partition is one unit and a failed source's share of the old one
     cannot be told apart from the rest.
+
+    ``embedder_checked`` is True when the caller's probe vector passed the store's identity
+    guard (``_probe_embedder``). Otherwise the guard has not run, so the partition's old
+    vectors are cleared after the first batch of the new ones passes it, not before: an
+    embedder that stays down clears nothing.
 
     Returns :class:`EnrichCounts`: terms tried, documents stored, and edges
     attached to this repo's code. The first three are zero when the repo has no shard
@@ -359,15 +364,20 @@ def run_enrich_repo(
     # or returns none at all, would otherwise leave orphaned vectors. Vectors FIRST, then the
     # shard, then the rows in one transaction, the order `kb ingest` and `kb index` use: a
     # stop part way leaves documents with no vectors, which re-embedding repairs, rather
-    # than vectors for documents the partition no longer holds.
-    if vector_store is not None:
+    # than vectors for documents the partition no longer holds. That order needs a checked
+    # probe. Without one, an embedder that is down would leave the partition with no vectors,
+    # so `_embed_documents` clears after the first batch holds a vector (`sweep`) and the
+    # shard and rows are written first. With no batch to run, the clear stays up front.
+    embeds = bool(embedder and vector_store and nodes)
+    defer_clear = embeds and not embedder_checked
+    if vector_store is not None and not defer_clear:
         vector_store.clear_repo(part)
     write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=edges))
     store_partition(store, part, nodes, edges)
-    if embedder and vector_store and nodes:
+    if embeds:
         from ..commands import _embed_documents
         batch = getattr(cfg.embeddings, "batch_size", 64)
-        _embed_documents(vector_store, embedder, part, nodes, texts, batch)
+        _embed_documents(vector_store, embedder, part, nodes, texts, batch, sweep=defer_clear)
 
     # The edge count is returned beside the document count, not discarded. It was
     # computed above, stored on the line after it, and then thrown away, so every

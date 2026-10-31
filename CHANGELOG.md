@@ -34,6 +34,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged. No action is needed on a machine that is online: the first query downloads the
   model into `cache_dir`. Offline, the model must already be in `cache_dir`.
 
+### Fixed
+
+- **`kb enrich` and `kb wiki` keep a partition's vectors when the probe before the run gets no
+  answer.** With no answer, the identity check had not run, and both commands cleared the
+  partition's vectors before the first batch. An embedder that stayed down left the partition
+  with 0 vectors. Now both write the new rows first and clear the old vectors after the first
+  batch holds a vector that passes the check. If the probe answers and the first batch then
+  fails, both still clear first, as `kb ingest` does, and the partition ends with 0 vectors. If
+  every document body is empty, no batch runs and the old vectors are cleared at the end.
+
 ## [10.0.0rc5] - 2026-10-29
 
 ### Changed

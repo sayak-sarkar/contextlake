@@ -189,14 +189,17 @@ def test_pruning_a_module_page_clears_its_vectors_before_its_nodes(tmp_path):
 class _ModelEmbedder:
     """Two instances differ only in `identity` and `dim`, as two models do."""
 
-    def __init__(self, identity, dim=2, *, flaky_first=False):
+    def __init__(self, identity, dim=2, *, flaky_first=False, down=False):
         self.identity = self.name = identity
         self.dim = dim
         self._flaky_first = flaky_first
+        self._down = down
         self.calls = 0
 
     def embed(self, texts):
         self.calls += 1
+        if self._down:
+            raise ConnectionError("embedder is down")
         if self._flaky_first and self.calls == 1:
             raise ConnectionError("first call timed out")
         return [[1.0] + [float(i)] * (self.dim - 1) for i, _ in enumerate(texts)]
@@ -278,3 +281,60 @@ def test_wiki_goes_on_when_the_probe_got_no_answer(tmp_path, monkeypatch, capsys
 
     assert _vector_count(store_dir, _wiki_partition("r")) > 0
     assert "This run changed nothing" not in capsys.readouterr().out
+
+
+def test_wiki_keeps_the_vectors_when_the_embedder_never_answers(tmp_path, monkeypatch, capsys):
+    """The probe got no answer, so the guard had not run when `_store_wiki_partition` cleared
+    the page's vectors. An embedder that stayed down for the batch too left the partition
+    with 0 vectors."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir, cfg = _wiki_fixture(tmp_path)
+    part = _wiki_partition("r")
+    assert _run_wiki(monkeypatch, cfg, _ModelEmbedder("openai:fake-a")) == 0
+    seeded = _vector_count(store_dir, part)
+    assert seeded > 0, "setup: the first run stored no vectors"
+    capsys.readouterr()
+
+    _run_wiki(monkeypatch, cfg, _ModelEmbedder("openai:fake-a", down=True))
+
+    assert "embed: stopped after 0 of" in capsys.readouterr().out, (
+        "the embed phase never failed, so the count below proves nothing")
+    assert _vector_count(store_dir, part) == seeded
+
+
+def test_wiki_clears_the_old_vectors_once_the_first_batch_after_an_unanswered_probe_passes(
+        tmp_path, monkeypatch):
+    """The clear waits for the first batch, it is not dropped: a vector the new page does not
+    write goes when the first batch of the run holds a vector."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir, cfg = _wiki_fixture(tmp_path)
+    part = _wiki_partition("r")
+    assert _run_wiki(monkeypatch, cfg, _ModelEmbedder("openai:fake-a")) == 0
+    vs = build_vector_store(store_dir / "embeddings.sqlite")
+    try:
+        vs.upsert([("stale-key", part, [1.0, 0.0])])
+        seeded = vs.count_repo(part)
+    finally:
+        vs.close()
+
+    assert _run_wiki(monkeypatch, cfg, _ModelEmbedder("openai:fake-a", flaky_first=True)) == 0
+
+    assert _vector_count(store_dir, part) == seeded - 1
+
+
+@pytest.mark.parametrize(("flaky_first", "checked"), [(False, True), (True, False)],
+                         ids=["probe-answers", "probe-gets-no-answer"])
+def test_wiki_tells_each_page_store_whether_the_probe_passed_the_guard(
+        tmp_path, monkeypatch, flaky_first, checked):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _store_dir, cfg = _wiki_fixture(tmp_path)
+    seen = []
+    real_store = wiki_cmd._store_wiki_partition
+    monkeypatch.setattr(wiki_cmd, "_store_wiki_partition",
+                        lambda *a, **k: (seen.append(k["embedder_checked"]),
+                                         real_store(*a, **k))[1])
+
+    assert _run_wiki(monkeypatch, cfg,
+                     _ModelEmbedder("openai:fake-a", flaky_first=flaky_first)) == 0
+
+    assert seen and set(seen) == {checked}

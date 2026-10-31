@@ -7,7 +7,9 @@ two left vectors answering queries for documents the partition no longer held.
 
 All three now go through `store_partition` (the transaction `reindex_shard` already gave a
 code repo), and ingest and enrich clear vectors before anything else, then write the shard,
-then the rows: the order `kb forget` and `kb index` use.
+then the rows: the order `kb forget` and `kb index` use. That holds once the embedder has passed the
+identity check. After a probe that got no answer they write the shard and the rows first and clear
+the vectors when the first batch holds a vector.
 """
 
 from __future__ import annotations
@@ -283,7 +285,107 @@ def test_enrich_clears_vectors_before_the_shard_and_the_rows(tmp_path, monkeypat
     assert order == ["vectors", "shard", "rows"], order
 
 
+def _enrich_with_embedder(tmp_path, monkeypatch, runs):
+    """Run ``run_enrich_repo`` once per ``(embedder_checked, documents)`` in ``runs``, with a
+    working embedder and a real vector store. Returns the order in which the last run cleared
+    vectors and rows and wrote the shard, and the partition's vector count after it."""
+    store_dir = tmp_path / "kb"
+    store = _seed(store_dir)
+    order: list[str] = []
+    vs = vector_store_mod.build_vector_store(store_dir / "embeddings.sqlite")
+    try:
+        real_clear = vs.clear_repo
+        vs.clear_repo = lambda part: (order.append("vectors"), real_clear(part))[1]
+        real_write = enrich.write_shard
+        monkeypatch.setattr(enrich, "write_shard",
+                            lambda *a, **k: (order.append("shard"), real_write(*a, **k))[1])
+        real_rows = SqliteStore.clear_repo
+        monkeypatch.setattr(SqliteStore, "clear_repo",
+                            lambda self, part: (order.append("rows"), real_rows(self, part))[1])
+        for checked, docs in runs:
+            order.clear()
+            monkeypatch.setattr(enrich, "search_source", _found(docs))
+            run_enrich_repo(store, store_dir, _cfg(), REPO, embedder=_FakeEmbedder(),
+                            vector_store=vs, embedder_checked=checked)
+        return order, vs.count_repo(enrich_partition(REPO))
+    finally:
+        vs.close()
+        store.close()
+
+
+_ONE_DOC = [Document(id="d1", title="Runbook", text="page", uri="https://x/1")]
+
+
+def test_enrich_with_a_checked_probe_clears_vectors_before_the_shard_and_the_rows(
+        tmp_path, monkeypatch):
+    order, vectors = _enrich_with_embedder(tmp_path, monkeypatch, [(True, _ONE_DOC)])
+    assert order == ["vectors", "shard", "rows"], order
+    assert vectors == 1
+
+
+def test_enrich_with_no_probe_answer_clears_vectors_after_the_shard_and_the_rows(
+        tmp_path, monkeypatch):
+    """The clear is `_embed_documents`'s sweep, taken once the first batch holds a vector.
+    Before it, an embedder that never answered left the partition with no vectors."""
+    order, vectors = _enrich_with_embedder(tmp_path, monkeypatch, [(False, _ONE_DOC)])
+    assert order == ["shard", "rows", "vectors"], order
+    assert vectors == 1
+
+
+def test_enrich_with_no_probe_answer_still_clears_up_front_when_nothing_is_embedded(
+        tmp_path, monkeypatch):
+    """A source that answers with no documents clears the partition: no batch runs, so there
+    is no first batch to wait for."""
+    order, vectors = _enrich_with_embedder(
+        tmp_path, monkeypatch, [(True, _ONE_DOC), (False, [])])
+    assert order == ["vectors", "shard", "rows"], order
+    assert vectors == 0
+
+
 # --- kb wiki ------------------------------------------------------------------------------
+
+def _wiki_with_embedder(tmp_path, monkeypatch, *, checked):
+    """Store a wiki page with a working embedder, over a page already stored, and return the
+    order in which vectors, shard and rows were cleared or written."""
+    import contextlake.kb.cmds.wiki as wiki_cmd
+    from contextlake.kb.cmds.wiki import _store_wiki_partition
+
+    db = tmp_path / "index.sqlite"
+    store = SqliteStore(db)
+    vs = vector_store_mod.build_vector_store(tmp_path / "embeddings.sqlite")
+    order: list[str] = []
+    try:
+        check_schema(store)
+        page = "# app\n\n## Overview\nThe first version.\n\n## Usage\nRun it.\n"
+        _store_wiki_partition(store, tmp_path, REPO, page, "app.md", "h1",
+                              embedder=_FakeEmbedder(), vs=vs, embedder_checked=True)
+        real_clear = vs.clear_repo
+        vs.clear_repo = lambda part: (order.append("vectors"), real_clear(part))[1]
+        real_write = wiki_cmd.write_shard
+        monkeypatch.setattr(wiki_cmd, "write_shard",
+                            lambda *a, **k: (order.append("shard"), real_write(*a, **k))[1])
+        real_rows = SqliteStore.clear_repo
+        monkeypatch.setattr(SqliteStore, "clear_repo",
+                            lambda self, part: (order.append("rows"), real_rows(self, part))[1])
+        _store_wiki_partition(store, tmp_path, REPO, page, "app.md", "h2",
+                              embedder=_FakeEmbedder(), vs=vs, embedder_checked=checked)
+    finally:
+        vs.close()
+        store.close()
+    return order
+
+
+def test_wiki_with_a_checked_probe_clears_vectors_before_the_shard_and_the_rows(
+        tmp_path, monkeypatch):
+    order = _wiki_with_embedder(tmp_path, monkeypatch, checked=True)
+    assert order == ["vectors", "shard", "rows"], order
+
+
+def test_wiki_with_no_probe_answer_clears_vectors_after_the_shard_and_the_rows(
+        tmp_path, monkeypatch):
+    order = _wiki_with_embedder(tmp_path, monkeypatch, checked=False)
+    assert order == ["shard", "rows", "vectors"], order
+
 
 def test_a_wiki_page_replace_that_fails_keeps_the_old_partition(tmp_path, monkeypatch):
     """`kb wiki --force` replaced a page's `@wiki` partition in three commits: a reader saw

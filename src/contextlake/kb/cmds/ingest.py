@@ -53,22 +53,25 @@ def _check_embedder(vs, embedder) -> tuple[bool, str | None]:
     return True, None
 
 
-def _embedder_refused(vs, embedder) -> bool:
-    """Probe ``embedder`` against the identity guard of ``vs``; log why and return True if refused.
+def _probe_embedder(vs, embedder) -> tuple[bool, bool]:
+    """Probe ``embedder`` against the identity guard of ``vs``; log why and return
+    ``(refused, checked)``.
 
     For a command that clears a partition's vectors before it embeds (`kb enrich`,
-    `kb wiki`). Called before the command's first write, so on True the caller returns 1
-    and the stored graph, files and vectors are as the last run left them. False when the
-    guard passed, and also when the probe got no answer: `_check_embedder` explains why that
-    is not a pass.
+    `kb wiki`). Called before the command's first write, so when ``refused`` is True the
+    caller returns 1 and the stored graph, files and vectors are as the last run left
+    them. ``checked`` is True only when a vector was taken and the guard passed. With
+    ``(False, False)`` the probe got no answer and nothing was proved, so the caller must
+    not clear a partition before the first batch holds a vector (`_embed_documents`
+    ``sweep``). `_check_embedder` explains why that is not a pass.
     """
-    _checked, refusal = _check_embedder(vs, embedder)
+    checked, refusal = _check_embedder(vs, embedder)
     if not refusal:
-        return False
+        return False, checked
     log(style.fail(refusal))
     log("  This run changed nothing: the graph, the files and the vectors are as the last "
         "run left them.")
-    return True
+    return True, True
 
 
 def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=False
@@ -95,12 +98,10 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size, sweep=Fals
     an embedder that never answers clears nothing, and a refused one leaves the vectors as
     they were. The one exception is a source whose document bodies are all empty: no batch
     runs, so the sweep clears the partition at the end, because the old vectors belong to
-    text that no longer exists. `cmd_ingest` is the only caller that passes `sweep`. It
-    clears before the call only after a probe or an earlier source has passed the guard, so
-    a refusal after that clear means the first batch came back with another vector length.
-    `kb enrich` and `kb wiki` clear before they call this. Each probes the embedder first
-    (`_embedder_refused`), so a changed model is refused before the clear. When that probe
-    got no answer they clear anyway, and an identity refusal here can still follow the clear.
+    text that no longer exists. `kb enrich` and `kb wiki` pass `sweep` when their probe got no
+    answer and the partition has nodes. After an answered probe, or once an earlier source
+    has passed the guard in `cmd_ingest`, each caller clears before the call, so a refusal
+    after that clear means the first batch came back with another vector length.
     """
     from ..embeddings.chunk import split_document
     from ..embeddings.store import chunk_key, guard_store_identity

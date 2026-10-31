@@ -156,9 +156,15 @@ command: `contextlake --exit-zero-on-partial kb ingest`.
 
 `kb enrich` and `kb wiki` take one probe vector per run, before their first write. A refused
 run prints the error and `This run changed nothing`, exits 1 and keeps the stored vectors.
-`kb wiki` takes the probe after it has checked the repo ids you named. When the probe gets no
-answer they go on, and the guard can still refuse the first batch after they have cleared a
-partition's vectors.
+`kb wiki` takes the probe after it has checked the repo ids you named.
+
+When the probe gets no answer they go on. They write the new rows first and clear a
+partition's old vectors only after the first batch holds a vector that passes the check. An
+embedder that never answers clears nothing, so the partition keeps its old vectors, unless
+every document body is empty: then no batch runs and the old vectors are cleared at the end.
+
+After a probe that answered, they clear before the first batch, so a batch that then fails
+leaves the partition with no vectors. A partition with no documents is cleared at once.
 
 `kb embed` runs the check on the probe vector it takes at the start of each pass, `--watch`
 passes included. A refused run prints the error and exits 1 before it embeds any repo. In a
