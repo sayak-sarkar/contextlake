@@ -58,10 +58,17 @@ Each stage writes its own partition, so re-indexing a repo's code never disturbs
     The log advises `gitlab_hosts` as "if HOST runs GitLab". It gives no advice for `github.com` or
     another host known to run a different product.
 
-    The host in a repo id comes from the clone's origin URL, ssh port included: an ssh URL with the
-    port 2222 gives `git.example.com:2222`. `glab` takes each entry as an HTTP host, so list the host
-    as GitLab serves its API. The entry `git.example.com` does not match that id, and the repo is
-    skipped.
+    The host in a repo id comes from the clone's origin URL, port included: an ssh URL with the
+    port 2222 gives `git.example.com:2222`, and an https URL with the port 8443 gives
+    `git.example.com:8443`. `glab` takes each entry as an HTTP host, so list the host as GitLab
+    serves its API. Do not list an ssh port. The entry `git.example.com` does not match the id
+    `git.example.com:2222`, and the repo is skipped.
+
+    To read a repo whose origin is an ssh URL with a port, set the origin to an https URL on the
+    host GitLab serves its API on, or to `git@git.example.com:ns/p` with the port set in
+    `~/.ssh/config`. Run `contextlake kb index --source PATH` or `--workspace DIR` on the clone so
+    the repo id changes, then list that host. Indexing by the old repo id keeps the old id. The log
+    advises the https route for a skipped host that carries a port.
 - **Zendesk**: links repos to the support tickets and Help Center articles about them, classifying
   `*.zendesk.com` URLs to a ticket id (`repo --discussed_in--> issue`) or an article id
   (`repo --documented_by--> document`).

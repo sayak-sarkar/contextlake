@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The skip advice no longer tells you to list an ssh port in `gitlab_hosts`.** For a skipped
+  host with a port, such as `git.example.com:2222`, the connect log said to add that name to
+  `gitlab_hosts`. For an ssh port, contextlake then ran glab with the host
+  `git.example.com:2222`. The log now says to list the name when the port is the one GitLab
+  serves its API on. For an ssh port it says to set the clone's origin to an https URL on the
+  host GitLab serves its API on, run `contextlake kb index --source PATH` (or `--workspace DIR`)
+  on the clone, and list that host. If you followed the old advice for an ssh port, remove that
+  entry and use the new route.
+
 ## [10.0.0rc5] - 2026-10-29
 
 ### Changed

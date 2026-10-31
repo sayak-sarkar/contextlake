@@ -269,6 +269,28 @@ def test_skip_advice_gives_none_for_text_that_is_not_a_valid_entry():
     assert skip_advice(["git.corp:0", "no good"]) == ""
 
 
+def test_skip_advice_for_a_port_does_not_tell_the_user_to_list_an_ssh_port():
+    """The id keeps the port of the origin URL, so 2222 may be an ssh port. Listing it ran
+    glab api --hostname git.example.com:2222. The advice gives both routes."""
+    one = skip_advice(["git.b:2222"])
+    assert one == (
+        "If git.b:2222 runs GitLab, add it to gitlab_hosts on that source when 2222 is the "
+        "port GitLab serves its API on. When 2222 is an ssh port, do not list it: set the "
+        "clone's origin to an https URL on the host GitLab serves its API on, run "
+        "contextlake kb index --source PATH (or --workspace DIR) on the clone, and list "
+        "that host.")
+    assert "to read its repos" not in one
+    # A name without a port keeps its own sentence, and comes first.
+    mixed = skip_advice(["git.b:2222", "git.a"])
+    assert mixed.startswith(skip_advice(["git.a"]) + " If git.b:2222 runs GitLab, add it")
+    many = skip_advice(["git.c:8443", "git.b:2222"])
+    assert many.startswith("For each of git.b:2222, git.c:8443 that runs GitLab, add it to "
+                           "gitlab_hosts on that source when its port is the port GitLab ")
+    assert "When its port is an ssh port, do not list it" in many
+    # A host known not to run GitLab still gets none, port or not.
+    assert skip_advice(["github.com:22"]) == ""
+
+
 def test_the_skip_log_line_does_not_advise_gitlab_hosts_for_github_com(gls_logs):
     conn = GitLabConnector("gl", hosts=["git.corp"], runner=_FakeGlab())
     conn.fetch("github.com/org/repo")
@@ -876,6 +898,31 @@ def test_the_connect_warning_advises_only_the_hosts_that_may_run_gitlab(
     assert "If github.com" not in line and "github.com runs" not in line
 
 
+def test_the_skip_and_connect_lines_name_the_ssh_port_route(
+        tmp_path, monkeypatch, gls_logs):
+    """A repo whose origin is ssh://git@git.example.com:2222/ns/p has the id host
+    git.example.com:2222. Both lines that advise `gitlab_hosts` must not say to list it
+    unconditionally."""
+    from contextlake.kb.resilience import reset_breakers
+
+    reset_breakers()
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _store_with_repos(tmp_path, "git.example.com:2222/ns/p")
+    calls = _glab_calls(monkeypatch)
+
+    assert cmd_connect(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert calls == []
+    lines = {r.getMessage() for r in gls_logs.records
+             if "git.example.com:2222" in r.getMessage()}
+    skip, warn = sorted(lines, key=lambda m: "skipping repos on" not in m)
+    for line in (skip, warn):
+        assert "When 2222 is an ssh port, do not list it" in line
+        assert "https URL on the host GitLab serves its API on" in line
+        assert "contextlake kb index --source PATH (or --workspace DIR)" in line
+        assert "to read its repos" not in line
+
+
 # --- the docs say what the code does with a host that carries a port --------------
 
 @pytest.mark.parametrize("page", ["docs/document-sources.md", "docs/connecting-and-enriching.md"])
@@ -885,3 +932,13 @@ def test_the_docs_say_to_list_the_host_as_gitlab_serves_its_api(page):
     assert "ssh://git@git.example.com:2222/ns/p" in text or "port 2222" in text
     assert text.count("git.example.com:2222") >= 1   # docs text, not a URL check
     assert "list the host as GitLab serves its API" in text
+
+
+@pytest.mark.parametrize("page", ["docs/document-sources.md", "docs/connecting-and-enriching.md"])
+def test_the_docs_say_how_to_read_a_repo_whose_origin_has_an_ssh_port(page):
+    root = Path(__file__).resolve().parents[2]
+    text = " ".join((root / page).read_text(encoding="utf-8").split())
+    assert "Do not list an ssh port." in text
+    assert "an https URL on the host GitLab serves its API on" in text
+    assert "`contextlake kb index --source PATH`" in text
+    assert "Indexing by the old repo id keeps the old id." in text

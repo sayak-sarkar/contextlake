@@ -388,10 +388,17 @@ accept:
     ignored. `git.example.com` does not match `git.example.com:8443`. Another repo is skipped with a log
     line, and each call passes the entry to `glab api --hostname`. A port is 1 to 65535.
 
-    A repo id takes its host from the clone's origin URL. An ssh URL with a port, such as
-    `ssh://git@git.example.com:2222/ns/p`, gives `git.example.com:2222`. `glab` takes an entry as an
-    HTTP host, so list the host as GitLab serves its API. The entry `git.example.com` does not match
-    that id, and the repo is skipped.
+    A repo id takes its host from the clone's origin URL, port included. An ssh URL with a port, such
+    as `ssh://git@git.example.com:2222/ns/p`, gives `git.example.com:2222`. `glab` takes an entry as an
+    HTTP host, so list the host as GitLab serves its API. Do not list an ssh port. The entry
+    `git.example.com` does not match that id, and the repo is skipped.
+
+    To read such a repo, set its origin to an https URL on the host GitLab serves its API on, or to
+    `git@git.example.com:ns/p` with the port set in `~/.ssh/config`. Run
+    `contextlake kb index --source PATH` or `--workspace DIR` on the clone so the id changes, then
+    list that host. Indexing by the old repo id keeps the old id. An https origin with a port, such as
+    `https://git.example.com:8443/ns/p`, gives `git.example.com:8443`, which you list as written when
+    8443 is the port GitLab serves its API on.
 - `per_page`: for a GitLab source, how many open merge requests and issues one call asks for
   (default `50`). No other source type reads it.
 - `max_pages`: for an `api` source, the most pages it reads when the response links to a next page

@@ -71,16 +71,36 @@ def skip_advice(hosts) -> str:
     The advice is conditional, because a repo id names the clone's host and says nothing
     about what runs there. A host that is not a valid ``gitlab_hosts`` entry gets none,
     as does one in :data:`NOT_GITLAB_HOSTS`, with or without a port or a trailing dot.
+
+    A name with a port gets its own advice, with two routes, in place of that sentence. The
+    id keeps the port of the clone's URL, and the id cannot say whether that is the port
+    GitLab serves its API on or the port of an ``ssh://`` origin. Listing an ssh port runs
+    ``glab api --hostname`` with that port, so the second route tells the user to change the
+    origin to an https URL and list the host GitLab serves its API on. The id changes only
+    when the clone is indexed by its path: indexing by the old repo id keeps the old id.
     """
     names = sorted(h for h in hosts if normalize_host(h) is not None
                    and re.sub(r":[0-9]+$", "", h).rstrip(".") not in NOT_GITLAB_HOSTS)
-    if not names:
-        return ""
-    if len(names) == 1:
-        return (f"If {names[0]} runs GitLab, add it to gitlab_hosts on that source to read "
-                "its repos.")
-    return (f"For each of {', '.join(names)} that runs GitLab, add it to gitlab_hosts on "
-            "that source to read its repos.")
+    ported = [h for h in names if re.search(r":[0-9]+$", h)]
+    plain = [h for h in names if h not in ported]
+    advice = []
+    if len(plain) == 1:
+        advice.append(f"If {plain[0]} runs GitLab, add it to gitlab_hosts on that source to "
+                      "read its repos.")
+    elif plain:
+        advice.append(f"For each of {', '.join(plain)} that runs GitLab, add it to "
+                      "gitlab_hosts on that source to read its repos.")
+    if ported:
+        who = f"If {ported[0]} runs GitLab" if len(ported) == 1 else (
+            f"For each of {', '.join(ported)} that runs GitLab")
+        port = "its port" if len(ported) > 1 else ported[0].rsplit(":", 1)[1]
+        advice.append(
+            f"{who}, add it to gitlab_hosts on that source when {port} is the port "
+            f"GitLab serves its API on. When {port} is an ssh port, do not list it: set the "
+            "clone's origin to an https URL on the host GitLab serves its API on, run "
+            "contextlake kb index --source PATH (or --workspace DIR) on the clone, and list "
+            "that host.")
+    return " ".join(advice)
 
 
 class GitLabConnector:
