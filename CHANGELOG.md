@@ -33,6 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where it ended with the Hub cache folder. Other engines and other `fastembed` models are
   unchanged. No action is needed on a machine that is online: the first query downloads the
   model into `cache_dir`. Offline, the model must already be in `cache_dir`.
+- **The `install` command that `schedule status` prints now names the job, its interval and its
+  config files.** The note "This job is recorded but its unit is NOT installed" and the note
+  about an interpreter that "has moved or been deleted" printed `contextlake schedule install`.
+  Pasted for a job such as `nightly`, that command installs the `default` job at interval `auto`
+  with no config pins. The missing-directory note printed `--config` for a config you named, and
+  no `--kb-config`. The note about a unit that starts with no `--config` printed `--config` only
+  when you gave `status` one, and never `--kb-config`. Installing from those two notes wrote the
+  job record without the knowledge config you had named. All four notes now print `--job` for a
+  job that is not `default`, `--interval` when it is not `auto`, and the files you named
+  (`--config`, `--kb-config`), for example `contextlake --config /home/me/my.ini --kb-config
+  /home/me/kb.toml schedule --job nightly --interval 2h install`. The no-config note prints the
+  `--config` you gave `status`, which replaces the file the job names. Without one, it prints
+  the file you named for the job, and its lead reads "To make the job use the config it names".
+  A config found by walking up is not printed as a flag: run the command from the directory the
+  job was installed from to keep it. A script that matches the old note text needs the new text.
 
 ### Fixed
 

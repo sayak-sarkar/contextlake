@@ -230,22 +230,43 @@ def _print_orphans(orphans, unchecked) -> None:
           "the unit on the platform.")
 
 
-def _schedule_command(name, action, config=None, cwd=None, interval=None) -> str:
-    """The `schedule` command a person can paste, with ``--config`` and a directory to start in
-    when the job has them. ``--job`` is added for a job that is not the default one. ``--interval``
-    is added, before the action, for an interval other than ``auto``: ``install`` sets ``auto``
-    unless it is given one, so a hint without it would unpin a job."""
+def _schedule_command(name, action, config=None, cwd=None, interval=None,
+                      kb_config=None) -> str:
+    """The `schedule` command a person can paste, with ``--config``, ``--kb-config`` and a
+    directory to start in when the job has them. Both flags go before ``schedule``, which takes
+    ``--kb-config`` only there. ``--job`` is added for a job that is not the default one.
+    ``--interval`` is added, before the action, for an interval other than ``auto``: ``install``
+    sets ``auto`` unless it is given one, so a hint without it would unpin a job."""
     import shlex
 
     from . import jobs as jobstore
 
-    words = ["contextlake"] + (["--config", config] if config else []) + ["schedule"]
+    words = (["contextlake"] + (["--config", config] if config else [])
+             + (["--kb-config", kb_config] if kb_config else []) + ["schedule"])
     if name != jobstore.DEFAULT_JOB:
         words += ["--job", name]
     if interval and str(interval).strip().lower() != "auto":
         words += ["--interval", str(interval)]
     command = shlex.join(words + [action])
     return f"cd {shlex.quote(cwd)} && {command}" if cwd else command
+
+
+def _explicit(path, source):
+    """``path`` when the user named it, else ``None``. Only a named path is printed as a flag: a
+    discovered one is reached by the job's working directory, and ``--config`` would raise it to
+    the trust of a file the user named. See ``jobs.EXPLICIT``."""
+    from . import jobs as jobstore
+
+    return path if path and source == jobstore.EXPLICIT else None
+
+
+def _install_hint(job) -> str:
+    """The command that installs ``job`` again as it was: its name, its interval, and the
+    config files the user named for it. Without them the install it names would write the
+    default job, set the interval to ``auto``, or drop the pins of the record."""
+    return _schedule_command(job.name, "install", interval=job.interval,
+                             config=_explicit(job.config, job.config_source),
+                             kb_config=_explicit(job.kb_config, job.kb_config_source))
 
 
 # The platforms where a missing directory was checked to stop the command. systemd: the
@@ -285,9 +306,7 @@ def _missing_directory_note(job, launch):
                   "was not checked.")
     found = (job.config if job.config and job.config_source == jobstore.DISCOVERED
              and os.path.isfile(job.config) else None)
-    again = _schedule_command(job.name, "install", interval=job.interval,
-                              config=job.config if job.config_source == jobstore.EXPLICIT
-                              else None)
+    again = _install_hint(job)
     sentences = [f"{subject}, {directory}, is not an existing directory.", effect]
     if found:
         sentences.append(f"The config it reads, {found}, was found from that directory.")
@@ -319,12 +338,18 @@ def _config_notes(args, job, launch) -> list:
     if (loaded and launch is not None and launch.get("cwd") is None
             and "--config" not in launch.get("argv", [])):
         named = getattr(args, "config", None)
+        # This run's --config wins. Without one, the file the record names is kept: the loaded
+        # one may be a found file, and the install would then replace the pin with it.
+        # The lead names the file the command keeps for the unit's --config.
+        pinned = None if named else _explicit(job.config, job.config_source)
         again = _schedule_command(job.name, "install", interval=job.interval,
-                                  config=adapters._absolute(named) if named else None)
+                                  config=adapters._absolute(named) if named else pinned,
+                                  kb_config=_explicit(job.kb_config, job.kb_config_source))
+        lead = ("To make the job use the config it names" if pinned
+                else "To make the job use that config")
         return [f"The unit for this job starts with no --config and no working directory, so "
                 f"it reads only the global config. This command loaded {', '.join(loaded)}. "
-                f"To make the job use that config, install it again from this directory: "
-                f"{again}"]
+                f"{lead}, install it again from this directory: {again}"]
     if job.config and not any(adapters._same_file(job.config, path) for path in loaded):
         explicit = job.config_source == jobstore.EXPLICIT
         how = "named with --config" if explicit else f"found from {job.cwd}"
@@ -436,7 +461,7 @@ def cmd_status(args, config) -> int:
         installed = state.get("installed")
         if installed is False:
             notes.append("This job is recorded but its unit is NOT installed. "
-                         "Re-run `contextlake schedule install` to put it back.")
+                         f"Re-run `{_install_hint(job)}` to put it back.")
         origin_text[name] = adapters.origin_lines(job) if host_config else []
         if host_config:
             for note in _config_notes(args, job, state.get("launch")):
@@ -454,7 +479,7 @@ def cmd_status(args, config) -> int:
         if gone:
             notes.append(f"The interpreter this job runs ({gone}) has moved or been "
                          f"deleted, so every run fails silently. Re-run "
-                         f"`contextlake schedule install` from the current install.")
+                         f"`{_install_hint(job)}` from the current install.")
         # The adapter's own state() may already say this (cron's does, on every
         # installed job); matching on the phrase rather than the whole
         # sentence keeps the line from printing twice for the one backend

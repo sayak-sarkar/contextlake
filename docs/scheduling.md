@@ -117,6 +117,15 @@ The run exited 2.
   [Configuration](configuration.md#directory-scoped-config).
 - **Neither.** The unit uses the global config, `~/.contextlake.ini`.
 
+The `install` command that `schedule status` prints for a recorded job names the job (`--job`,
+left out for `default`), the interval when it is not `auto` (`--interval`), and each file you
+named (`--config`, `--kb-config`). Run as printed, it installs the same job again. A file found by
+walking up is not printed as a flag. To keep it, run the command from the directory the job was
+installed from.
+
+One note differs. When the unit starts with no `--config` and you gave `status` a `--config`, the
+printed command pins that file in place of the one the job has.
+
 When the unit fires, `schedule run` passes the files it was given to the command it starts:
 
 | The job runs | The command gets |
@@ -482,11 +491,11 @@ measured history, and reports every way they disagree:
 1. **Linger is off (systemd only).** A user timer does not fire while you are logged out unless
    linger is on. `status` reports this; fix it with `loginctl enable-linger $USER`.
 2. **The interpreter has moved.** `status` resolves the path the installed unit runs and reports
-   it missing if the venv was moved or deleted. Re-run `contextlake schedule install`
-   from the current install to fix it.
+   it missing if the venv was moved or deleted. Run the `install` command that `status` prints,
+   from the current install, to fix it.
 3. **The unit was removed outside contextlake.** `status` reports "recorded but NOT installed"
-   when the job record exists but the systemd timer or crontab block does not. Re-run
-   `contextlake schedule install`. On Kubernetes, AWS and Azure it says this only when the
+   when the job record exists but the systemd timer or crontab block does not. Run the `install`
+   command that `status` prints. On Kubernetes, AWS and Azure it says this only when the
    cluster or cloud answers that the job is not there.
 
     If the answer is an error instead, such as an expired login, a denied permission or no route

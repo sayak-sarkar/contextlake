@@ -575,6 +575,7 @@ def test_status_suggests_installing_from_here_when_the_config_was_found_by_walki
     out = _status(tmp_path, monkeypatch, capsys, launch=UNIT_WITHOUT_CONFIG)
     assert "install it again from this directory: contextlake schedule install" in out
     assert "--config" not in out.split("install it again")[1]
+    assert "To make the job use that config, install it again" in out
 
 
 @pytest.mark.parametrize("launch, why", [
@@ -779,17 +780,19 @@ def test_the_install_hint_for_a_missing_directory_keeps_the_job_the_interval_and
         tmp_path, monkeypatch, capsys, _here):
     """Installing again from the hint must not unpin the job or drop a config it was given."""
     ini = _ini(tmp_path / "a", "custom.ini")
+    kb = _ini(tmp_path / "a", "kb.toml")
     gone = tmp_path / "ws gone"
     jobs.write_job(jobs.jobs_path(_config(tmp_path)), jobs.new_job(
         "wiki", ["bootstrap"], "2h", "systemd",
-        origin={"cwd": str(gone), "config": str(ini), "config_source": jobs.EXPLICIT}))
+        origin={"cwd": str(gone), "config": str(ini), "config_source": jobs.EXPLICIT,
+                "kb_config": str(kb), "kb_config_source": jobs.EXPLICIT}))
     monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(
         launch={**UNIT_WITHOUT_CONFIG, "cwd": str(gone),
                 "argv": UNIT_ARGV[:3] + ["--config", str(ini)] + UNIT_ARGV[3:]}))
     out = _run_status(tmp_path, capsys, config=str(ini))
     parsed = _hint(out, after="Install the job again from a directory that exists: ")
-    assert (parsed.command, parsed.action, parsed.job, parsed.interval, parsed.config) == (
-        "schedule", "install", "wiki", "2h", str(ini))
+    assert (parsed.command, parsed.action, parsed.job, parsed.interval, parsed.config,
+            parsed.kb_config) == ("schedule", "install", "wiki", "2h", str(ini), str(kb))
 
 
 def test_status_does_not_warn_about_a_directory_the_unit_does_not_use(
@@ -941,12 +944,13 @@ def test_status_gives_a_container_job_no_host_config_lines_or_warnings(
 
 # `install` sets the interval to auto unless it is given one.
 
-def _hint(out, after="install it again from this directory: "):
+def _hint(out, after="install it again from this directory: ", until=None):
     import shlex
 
     from contextlake.cli import build_parser
 
-    words = shlex.split(out.split(after)[1].splitlines()[0])
+    line = out.split(after)[1].splitlines()[0]
+    words = shlex.split(line.split(until)[0] if until else line)
     assert words[0] == "contextlake"
     return build_parser().parse_args(words[1:])
 
@@ -984,3 +988,140 @@ def test_the_status_hint_for_a_pinned_job_has_no_interval_flag(
     out = _status(tmp_path, monkeypatch, capsys)
     assert f"run: contextlake --config {ini} schedule status" in out
     assert "--interval" not in out
+
+
+# The install hints in the "not installed" and "interpreter moved" notes name the job, the
+# interval and the config files the user named. Run as printed they install the same job again.
+
+REINSTALL = "Re-run `"
+
+
+def _named_job(tmp_path, source=jobs.EXPLICIT):
+    """A job called ``nightly``, pinned at 2h, with a sync INI and a knowledge config."""
+    ini = _ini(tmp_path / "my configs", "custom.ini")
+    kb = _ini(tmp_path / "my configs", "kb.toml")
+    _record(tmp_path, "nightly", interval="2h", config=str(ini), config_source=source,
+            kb_config=str(kb), kb_config_source=source)
+    return ini, kb
+
+
+@pytest.mark.parametrize("state", [
+    pytest.param({"installed": False}, id="unit-not-installed"),
+    pytest.param({"exec_path": "/gone/venv/bin/python"}, id="interpreter-moved"),
+    # The install that made the record had the files, so the install that replaces it does too.
+    pytest.param({"installed": False, "reads_host_config": False}, id="container-job"),
+])
+def test_the_reinstall_hint_names_the_job_the_interval_and_the_named_configs(
+        tmp_path, monkeypatch, capsys, _here, state):
+    """The hint was `contextlake schedule install`. For `nightly` that installs the default job
+    and leaves `nightly` unscheduled, and for a job with a pin it writes a record without it."""
+    ini, kb = _named_job(tmp_path)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(**state))
+    out = _run_status(tmp_path, capsys)
+    assert REINSTALL in out
+    parsed = _hint(out, after=REINSTALL, until="`")
+    assert (parsed.command, parsed.action, parsed.job, parsed.interval, parsed.config,
+            parsed.kb_config) == ("schedule", "install", "nightly", "2h", str(ini), str(kb))
+
+
+@pytest.mark.parametrize("state", [
+    pytest.param({"installed": False}, id="unit-not-installed"),
+    pytest.param({"exec_path": "/gone/venv/bin/python"}, id="interpreter-moved"),
+])
+def test_the_reinstall_hint_never_prints_a_discovered_config_as_a_flag(
+        tmp_path, monkeypatch, capsys, _here, state):
+    """A found `.contextlake.ini` keeps its limits only while it is reached through the job's
+    directory. `--config` would raise it to the trust of a file the user named."""
+    _named_job(tmp_path, source=jobs.DISCOVERED)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(**state))
+    out = _run_status(tmp_path, capsys)
+    parsed = _hint(out, after=REINSTALL, until="`")
+    assert (parsed.job, parsed.interval, parsed.config, parsed.kb_config) == (
+        "nightly", "2h", None, None)
+
+
+def test_the_reinstall_hint_for_a_default_auto_job_is_the_bare_command(
+        tmp_path, monkeypatch, capsys, _here):
+    _record(tmp_path)
+    monkeypatch.setattr(adapters, "_adapter_for", lambda *a, **k: _FakeAdapter(installed=False))
+    assert ("Re-run `contextlake schedule install` to put it back." in _run_status(
+        tmp_path, capsys))
+    monkeypatch.setattr(adapters, "_adapter_for",
+                        lambda *a, **k: _FakeAdapter(exec_path="/gone/venv/bin/python"))
+    assert "Re-run `contextlake schedule install` from the current install." in _run_status(
+        tmp_path, capsys)
+
+
+def test_the_hint_for_a_unit_with_no_config_keeps_the_knowledge_config_of_the_job(
+        tmp_path, monkeypatch, capsys, _here):
+    """The hint installs again from the sync INI this command loaded. The record names a
+    knowledge config too, and an install without it would write the record without the pin."""
+    ini = _ini(tmp_path / "a", "custom.ini")
+    kb = _ini(tmp_path / "a", "kb.toml")
+    _record(tmp_path, "nightly", kb_config=str(kb), kb_config_source=jobs.EXPLICIT)
+    out = _status(tmp_path, monkeypatch, capsys, launch=UNIT_WITHOUT_CONFIG, config=str(ini))
+    parsed = _hint(out)
+    assert (parsed.job, parsed.config, parsed.kb_config) == ("nightly", str(ini), str(kb))
+
+
+def test_the_hint_for_a_unit_with_no_config_keeps_the_config_the_job_is_pinned_to(
+        tmp_path, monkeypatch, capsys, _here):
+    """Status run without --config, from a directory with a found config. The unit lost its
+    --config, but the record still names the file: the install must not swap it for the found
+    one, which would run with the limits of a found file."""
+    proj = _here / "proj"
+    _ini(proj, ".contextlake.ini")
+    monkeypatch.chdir(proj)
+    ini = _ini(tmp_path / "a", "custom.ini")
+    kb = _ini(tmp_path / "a", "kb.toml")
+    _record(tmp_path, "nightly", interval="2h", config=str(ini), config_source=jobs.EXPLICIT,
+            kb_config=str(kb), kb_config_source=jobs.EXPLICIT)
+    out = _status(tmp_path, monkeypatch, capsys, launch=UNIT_WITHOUT_CONFIG)
+    assert "starts with no --config" in out
+    # The command pins the file the job has, so the lead names that file.
+    assert "To make the job use the config it names, install it again" in out
+    assert "use that config" not in out
+    parsed = _hint(out)
+    assert (parsed.job, parsed.interval, parsed.config, parsed.kb_config) == (
+        "nightly", "2h", str(ini), str(kb))
+
+
+def test_the_hint_for_a_unit_with_no_config_names_the_config_given_to_status_over_the_record(
+        tmp_path, monkeypatch, capsys, _here):
+    """`status --config X` asks how to make the job use X, so X wins over the file the record
+    names."""
+    named = _ini(tmp_path / "a", "named.ini")
+    pinned = _ini(tmp_path / "a", "pinned.ini")
+    _record(tmp_path, "nightly", config=str(pinned), config_source=jobs.EXPLICIT)
+    out = _status(tmp_path, monkeypatch, capsys, launch=UNIT_WITHOUT_CONFIG, config=str(named))
+    assert _hint(out).config == str(named)
+    assert "To make the job use that config, install it again" in out
+    assert "use the config it names" not in out
+
+
+def test_schedule_command_puts_both_config_flags_before_schedule_and_quotes_them():
+    assert report._schedule_command(
+        "wiki", "install", config="/a b/c.ini", kb_config="/k.toml", interval="2h") == (
+        "contextlake --config '/a b/c.ini' --kb-config /k.toml schedule --job wiki "
+        "--interval 2h install")
+    assert report._schedule_command(jobs.DEFAULT_JOB, "status") == "contextlake schedule status"
+
+
+
+
+def test_the_no_config_hint_never_prints_a_discovered_config_or_kb_config_as_a_flag(
+        tmp_path, monkeypatch, capsys, _here):
+    """The unit has no --config. The record holds a config and a knowledge config that were
+    found by walking up, not named. The hint must print neither as a flag."""
+    proj = _here / "proj"
+    _ini(proj, ".contextlake.ini")
+    monkeypatch.chdir(proj)
+    ini = _ini(tmp_path / "a", ".contextlake.ini")
+    kb = _ini(tmp_path / "a", ".contextlake.kb.toml")
+    _record(tmp_path, "nightly", interval="2h", config=str(ini), config_source=jobs.DISCOVERED,
+            kb_config=str(kb), kb_config_source=jobs.DISCOVERED, cwd=str(ini.parent))
+    out = _status(tmp_path, monkeypatch, capsys, launch=UNIT_WITHOUT_CONFIG)
+    assert "To make the job use that config, install it again" in out
+    parsed = _hint(out)
+    assert (parsed.job, parsed.interval, parsed.config, parsed.kb_config) == (
+        "nightly", "2h", None, None)
