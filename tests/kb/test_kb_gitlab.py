@@ -914,7 +914,7 @@ def test_the_skip_and_connect_lines_name_the_ssh_port_route(
 
     assert calls == []
     lines = {r.getMessage() for r in gls_logs.records
-             if "git.example.com:2222" in r.getMessage()}
+             if r.getMessage().count("git.example.com:2222") >= 1}   # log text, not a URL check
     skip, warn = sorted(lines, key=lambda m: "skipping repos on" not in m)
     for line in (skip, warn):
         assert "When 2222 is an ssh port, do not list it" in line
