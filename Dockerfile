@@ -33,7 +33,7 @@
 # the matrix and the pyproject classifiers add it. Re-resolve when bumping:
 #   docker pull python:3.13-slim && \
 #   docker inspect python:3.13-slim --format '{{index .RepoDigests 0}}'
-FROM python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f AS base
+FROM python:3.13-slim@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb AS base
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
