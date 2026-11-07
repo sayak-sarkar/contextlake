@@ -242,6 +242,12 @@ Follow the steps above, with these changes:
 - **The full release.** Merge every rc section into one `## [X.Y.Z] - YYYY-MM-DD` section, and
   add the changes made after the last rc. The notes of the full release then list every change
   since the last full release. Skip no step: run steps 9 and 10.
+- **When the merged section is too long for a GitHub Release.** A Release body holds at most
+  125,000 characters, and `release.yml` takes the notes from the version's section alone.
+  Measure the rc sections together first (`wc -m`). If they come close to the limit, keep them
+  as they are and give `## [X.Y.Z]` a short section of its own: the upgrade steps, the changes
+  made after the last rc, and a pointer to the rc sections below it. 10.0.0 did this: its six
+  rc sections came to 123,815 characters.
 
 ## Tokenless publishing via GitHub Actions (recommended)
 
@@ -410,9 +416,9 @@ bytes on the index with the bytes the run built. It does not read the attestatio
 
 ## Troubleshooting
 
-**A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** Past release runs
-hit it, and re-running the failed jobs passed. The launchers themselves built fine; only the
-signing call failed. Re-run the failed jobs, the same remedy as a tripped CI gate:
+**A red `binaries.yml` on the attestation step, with a `502` from Sigstore.** A `502` is an
+error on Sigstore's side, in the signing call, not in the build. Re-run the failed jobs, the
+same remedy as a tripped CI gate:
 
 ```bash
 gh run rerun <run-id> --failed

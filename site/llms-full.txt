@@ -10393,6 +10393,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0] - 2026-11-08
+
+10.0.0 ships the code of 10.0.0rc6 unchanged. The changes since 9.8.3 are in the six
+release-candidate sections below this one, 10.0.0rc6 back to 10.0.0rc1. They are also on the
+[changelog page](https://sayak.in/contextlake/changelog.html) and in each candidate's
+[GitHub Release](https://github.com/sayak-sarkar/contextlake/releases). Where an entry says
+what an rc did, it describes that rc, and 9.8.3 may have done otherwise.
+
+### Upgrading from 9.x: node ids change, so index and embed again once
+
+Parser version 14 (9.8.3 has 12) changes the ids of files and of the names inside them (see
+10.0.0rc1, Fixed: D05 and F1). After upgrading:
+
+1. `contextlake kb index` re-indexes every repository (the version change makes it do so).
+2. `contextlake kb embed` re-embeds, if you use semantic search.
+3. Re-run `kb connect` and `kb enrich` if you use them. Their links to files, tables and routes
+   are stored apart from the repository and point at the old ids until they run again. Both
+   need the network, and an API source may cost.
+4. Generated wiki pages are regenerated on the next `kb wiki`, because the parser version
+   moved. With a hosted model that costs model time.
+
+Until step 3 runs, `kb lint` reports those links as dangling edges and exits non-zero. A CI step
+that runs `kb lint` fails for that reason alone, and the same commands clear it.
+
+Ids saved outside the store stop resolving: an MCP client that kept node ids, an eval golden
+set with `match: "id"`, a dashboard `#/symbol/<id>` link, and GraphML or Cypher exports.
+`--as-of` matches by name and keeps working.
+
+### Changed since 10.0.0rc6
+
+- **Documentation only; no code changed.** `docs/releasing.md` no longer says past release runs
+  hit a Sigstore `502`, because no record shows one, and it now says when to keep the rc
+  sections apart, as this release does. The 10.0.0rc6 entry on other tools' MCP files no longer
+  names Cursor's and Windsurf's files, which the docs do not cover.
+
 ## [10.0.0rc6] - 2026-10-31
 
 ### Changed
@@ -10449,8 +10484,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The README and docs now state what other tools do, as their own docs and source show.**
   The Sigstore 502 and the Atlassian Bearer 401 are now stated as the project's own records.
   Corrected:
-  - a root `.mcp.json` is read by Claude Code and by VS Code's portable Copilot format. Cursor
-    reads `.cursor/mcp.json` and Windsurf a global file;
+  - a root `.mcp.json` is read by Claude Code and by VS Code's portable Copilot format. The
+    docs no longer list Cursor or Windsurf for it;
   - py-tree-sitter builds each capture list from a set, so its order is not defined;
   - the graph tier needs a SQLite build with FTS5. CPython's macOS and Windows build scripts
     enable it. On another build, check that `PRAGMA compile_options` lists `ENABLE_FTS5`;
