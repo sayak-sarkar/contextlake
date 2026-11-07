@@ -32,11 +32,12 @@
 <meta name="twitter:description" content="Mirror your repos, index them into a knowledge graph, serve it over MCP so agents answer from real source instead of guessing. Offline-first.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta name="twitter:image:alt" content="contextlake social card: the wordmark, the tagline, and Pebble the otter surfacing from the lake with a glowing pebble of context.">
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#137A8B">
+<meta name="theme-color" content="#0E2A33">
 <!-- Preload the hero (a CSS background is otherwise discovered late, after CSS parse). Scoped by
      theme + viewport so only the one hero that will render is fetched, at high priority. -->
 <link rel="preload" as="image" href="hero-scene.webp" fetchpriority="high" media="(min-width: 821px) and (prefers-color-scheme: light)">
@@ -134,7 +135,22 @@
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink);transition:color .28s ease,text-shadow .28s ease}
   .brand:hover{text-decoration:none}
   .brand .l{color:inherit}
-  .brand .glyph{height:30px;width:auto;display:block}
+  /* the logo: the dark-surface version over the hero, the light-surface version on the
+     light frosted bar once scrolled (light theme only). Both sit in one grid cell and
+     cross-fade with the bar's own .3s colour change. */
+  .brand .logo{display:grid}
+  .brand .logo img{grid-area:1/1;height:40px;width:auto;display:block;transition:opacity .3s ease}
+  .brand .logo-light{opacity:0}
+  header.scrolled .brand .logo-dark{opacity:0}
+  header.scrolled .brand .logo-light{opacity:1}
+  :root[data-theme="dark"] header.scrolled .brand .logo-dark{opacity:1}
+  :root[data-theme="dark"] header.scrolled .brand .logo-light{opacity:0}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) header.scrolled .brand .logo-dark{opacity:1}
+    :root:not([data-theme="light"]) header.scrolled .brand .logo-light{opacity:0}
+  }
+  @media (max-width:420px){ .brand .logo img{height:34px} }
+  @media (prefers-reduced-motion: reduce){ .brand .logo img{transition:none} }
   .nav .spacer{flex:1}
   .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500;transition:color .28s ease,text-shadow .28s ease}
   .nav a.navlink:hover{color:var(--ink);text-decoration:none}
@@ -302,7 +318,7 @@
   :root[data-theme="dark"] .arch-core{background:linear-gradient(180deg,#14304C,#081D30);border-color:#274864}
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .arch-core{background:linear-gradient(180deg,#14304C,#081D30);border-color:#274864} }
   .arch-core-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
-  .arch-mark{width:32px;height:32px;flex:none}
+  .arch-mark{height:32px;width:auto;flex:none}
   .arch-core-head span{font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--mist)}
   .arch-layer{display:flex;align-items:center;gap:9px;background:rgba(234,244,244,.06);border:1px solid rgba(234,244,244,.11);border-radius:9px;padding:8px 11px;font-size:13px;color:var(--mist);margin-top:8px}
   .arch-layer svg{width:16px;height:16px;flex:none;stroke:var(--current);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -595,7 +611,7 @@
   footer a{color:var(--mist)}
   footer .f-links{display:flex;flex-wrap:wrap;gap:18px}
   footer .tagline{font-family:var(--ff-d);color:var(--mist);font-size:15px}
-  footer .pebble-mini{width:30px;height:30px;vertical-align:middle;margin-right:8px}
+  footer .pebble-mini{height:30px;width:auto;vertical-align:middle;margin-right:8px}
 </style>
 <script type="application/ld+json">
 {
@@ -625,8 +641,10 @@
 <header>
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="contextlake home">
-      <img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">
-      <span class="wm">contextlake</span>
+      <span class="logo">
+        <img class="logo-dark" src="logo-dark.webp" width="152" height="40" alt="">
+        <img class="logo-light" src="logo.webp" width="152" height="40" alt="">
+      </span>
     </a>
     <span class="spacer"></span>
     <nav class="nav-links" id="mnav" aria-label="Primary">
@@ -723,7 +741,7 @@
       </div>
       <div class="arch-corewrap">
         <div class="arch-core">
-        <div class="arch-core-head"><img src="mark.png" class="arch-mark" alt=""><span>contextlake</span></div>
+        <div class="arch-core-head"><img src="pebble-mark-dark.webp" class="arch-mark" width="35" height="32" alt=""><span>contextlake</span></div>
         <div class="arch-layer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="12" cy="18" r="2.3"/><path d="M7.6 7.4 11 16M16.4 7.4 13 16"/></svg>graph · embeddings</div>
         <div class="arch-layer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15.5"/><path d="M6 17h13"/></svg>wiki · connectors</div>
         <div class="arch-layer accent"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg>serve · MCP</div>
@@ -1067,7 +1085,7 @@
 <footer>
   <div class="wrap f-in">
     <div>
-      <span class="tagline"><img class="pebble-mini" src="mark.png" alt="" aria-hidden="true">Deep context. Clear answers.</span>
+      <span class="tagline"><img class="pebble-mini" src="pebble-mark-dark.webp" width="33" height="30" alt="" aria-hidden="true">Deep context. Clear answers.</span>
     </div>
     <nav class="f-links" aria-label="Footer">
       <a href="docs">Docs</a>

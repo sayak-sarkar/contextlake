@@ -36,6 +36,13 @@ contributing-languages.html
 
 # Shared brand assets are single-sourced in ../docs and synced in at build time
 icon-*.png
+favicon.ico
+favicon-*.png
+apple-touch-icon.png
+android-chrome-*.png
+logo.webp
+logo-dark.webp
+pebble-mark-dark.webp
 og-card.jpg
 graph.jpg
 mark.png

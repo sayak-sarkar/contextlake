@@ -69,7 +69,7 @@ for base in "${DEPLOY_PAGES[@]-}"; do
   [ -n "$base" ] && cp "$HERE/$base" "$WT"/
 done
 cp "$HERE"/docs.css "$HERE"/tokens.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/llms-full.txt "$HERE"/search-index.json "$WT"/
-cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
+cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$HERE"/*.ico "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
 # Replace demo/, do not merge into it. `cp -r` alone copied the new export over the old
 # one and left everything the new one no longer has: six repo-*.html pages under
