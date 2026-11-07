@@ -54,7 +54,18 @@ header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in s
 /* header width matches the content shell (1320) so the brand aligns with the page's left margin */
 .nav{display:flex;align-items:center;gap:16px;height:58px;max-width:1320px;margin:0 auto;padding:0 24px}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none}
-.brand .glyph{height:28px;width:auto;display:block}
+/* the logo: light-surface version in the light theme, dark-surface version in the dark */
+.brand .logo{display:block}
+.brand .logo img{height:38px;width:auto}
+.brand .logo .logo-light{display:block}
+.brand .logo .logo-dark{display:none}
+:root[data-theme="dark"] .brand .logo .logo-light{display:none}
+:root[data-theme="dark"] .brand .logo .logo-dark{display:block}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .brand .logo .logo-light{display:none}
+  :root:not([data-theme="light"]) .brand .logo .logo-dark{display:block}
+}
+@media (max-width:420px){ .brand .logo img{height:32px} }
 .nav .spacer{flex:1}
 /* Docs, Quickstart and Changelog in the header; below 860px the Browse docs disclosure carries them */
 .nav-links{display:flex;gap:18px;margin-left:12px}

@@ -18,10 +18,13 @@ BASE = "https://sayak.in/contextlake/"
 # Shared brand assets are single-sourced in docs/; the build copies them into
 # site/ (gitignored there) so the site stays self-contained without duplicating
 # them in git.
-SHARED_IMG = ["icon-16.png", "icon-32.png", "icon-48.png", "icon-64.png",
-              "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png",
-              "og-card.jpg", "graph.jpg"]
-SHARED_BRANDING = ["mark.png", "pebble-doc.png"]
+# The favicon set and the logo files are made by site/tools/gen_logo_assets.py from
+# docs/branding/logo-source.png.
+SHARED_IMG = ["favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "apple-touch-icon.png",
+              "android-chrome-192x192.png", "android-chrome-512x512.png",
+              "android-chrome-maskable-512x512.png", "og-card.jpg", "graph.jpg"]
+SHARED_BRANDING = ["logo.webp", "logo-dark.webp", "pebble-mark-dark.webp",
+                   "mark.png", "pebble-doc.png"]
 
 
 def prune_orphan_pages():
@@ -362,7 +365,12 @@ for _p in PAGES:
             raise SystemExit(f"build_docs: {_p[0]} links {_href} as {_label!r}, "
                              f"but its sidebar title is {TITLES[_href]!r}")
 
-GLYPH = '<img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">'
+# The header logo: one version per theme, swapped in docs.css. loading="lazy" keeps the
+# hidden one (display:none) from downloading at all.
+LOGO = ('<span class="logo">'
+        '<img class="logo-light" src="logo.webp" width="145" height="38" alt="" loading="lazy">'
+        '<img class="logo-dark" src="logo-dark.webp" width="145" height="38" alt="" loading="lazy">'
+        '</span>')
 GH_MARK = ('<svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" '
            'aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>')
 PYPI_MARK = ('<img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">')
@@ -383,8 +391,8 @@ FOOT_GH = ('<a href="https://github.com/sayak-sarkar/contextlake" rel="noopener"
            + GH_MARK + "GitHub</a>")
 FOOT_PYPI = ('<a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank">'
              + PYPI_MARK + "PyPI</a>")
-FOOT_MARK = ('<img src="mark.png" width="28" height="28" alt="" aria-hidden="true" '
-             'style="width:28px;height:28px;vertical-align:middle;margin-right:8px">')
+FOOT_MARK = ('<img src="pebble-mark-dark.webp" width="31" height="28" alt="" aria-hidden="true" '
+             'style="width:auto;height:28px;vertical-align:middle;margin-right:8px">')
 
 
 def de_emdash(text: str) -> str:
@@ -934,9 +942,12 @@ def shell(meta, body, toc_html) -> str:
 <meta name="twitter:description" content="{subtitle}">
 <meta name="twitter:image" content="{BASE}og-card.jpg">
 {jsonld}
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#137A8B">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E2A33">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
@@ -948,7 +959,7 @@ def shell(meta, body, toc_html) -> str:
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
-  <a class="brand" href="./" aria-label="contextlake home">{GLYPH}contextlake</a>
+  <a class="brand" href="./" aria-label="contextlake home">{LOGO}</a>
   <nav class="nav-links" aria-label="Primary">
     <a class="navlink" href="{linkify('docs.html')}">Docs</a>
     <a class="navlink" href="{linkify('quickstart.html')}">Quickstart</a>
@@ -1001,8 +1012,11 @@ def make404():
 <title>Lost in the fog · contextlake</title>
 <meta name="robots" content="noindex">
 <meta name="description" content="That page drifted off into the mist. Head back to the contextlake home page or read the docs.">
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E2A33">
 <link rel="stylesheet" href="fonts.css">
 <style>
@@ -1063,7 +1077,7 @@ def make404():
   .home{position:absolute;top:22px;left:24px;z-index:3;display:inline-flex;align-items:center;gap:9px;
     color:var(--mist);text-decoration:none;font-family:"Space Grotesk",sans-serif;font-weight:600;
     font-size:16px;opacity:.92;text-shadow:0 2px 16px rgba(0,0,0,.5)}
-  .home img{height:26px;width:auto;display:block}
+  .home img{height:34px;width:auto;display:block}
   .home:hover{opacity:1}
 
   @media (prefers-reduced-motion:reduce){ .scene::after{animation:none} }
@@ -1072,7 +1086,7 @@ def make404():
 <body>
 <main class="scene">
   <a class="home" href="./" aria-label="contextlake home">
-    <img src="icon-64.png" width="26" height="26" alt="">contextlake
+    <img src="logo-dark.webp" width="130" height="34" alt="">
   </a>
   <div class="content">
     <p class="eyebrow">404 · off the map</p>
