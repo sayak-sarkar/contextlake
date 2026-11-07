@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="The code graph model · contextlake docs">
 <meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -109,7 +109,7 @@ parser registry is pluggable.</p>
 <tr>
 <td>Components</td>
 <td>Svelte, Vue</td>
-<td>each <code>&lt;script&gt;</code> parsed as JavaScript and each <code>&lt;style&gt;</code> as CSS, reported at their line in the file</td>
+<td>each <code>&lt;script&gt;</code> parsed as JavaScript and each <code>&lt;style&gt;</code> as CSS, reported at their line in the file. A call at the top of a script resolves to JavaScript and TypeScript definitions, like a call inside a function</td>
 </tr>
 </tbody>
 </table>
@@ -171,6 +171,26 @@ file unsupported.</p>
 <p>Missing yours? "Pluggable" is a literal claim: a language is a grammar package plus a few table
 entries. <a href="adding-a-language">Adding a language</a> is the ordered recipe, with the verification
 commands that prove a new grammar works.</p>
+<h4 id="same-name-different-block">Same name, different block<a class="anchor" href="#same-name-different-block" title="Link to this section">#</a></h4>
+<p>Go, Rust and PHP put a symbol's block in its qualified name. Two symbols of one name in
+different blocks are therefore two nodes, and each keeps the calls from its own body. A call to
+their shared name gets an ambiguous edge to each of them, as it does for same-named functions in
+two files. The generated API reference shows the name in each heading, such as <code>Repo.Close</code>.</p>
+<ul>
+<li><strong>Go</strong> uses the receiver type. <code>func (r *Repo) Close</code> is <code>Repo.Close</code> and
+  <code>func (c *Client) Close</code> is <code>Client.Close</code>. A pointer, a value, an unnamed receiver and a
+  generic <code>Stack[T]</code> all name the base type.</li>
+<li><strong>Rust</strong> uses <code>impl</code> and <code>mod</code> blocks. <code>impl A { fn new }</code> is <code>A.new</code>, and <code>mod net { fn open }</code>
+  is <code>net.open</code>. A trait impl names both: <code>impl Display for A { fn fmt }</code> is <code>A as Display.fmt</code>,
+  apart from <code>A as Debug.fmt</code>. A module path stays, with <code>.</code> for <code>::</code>: <code>impl a::Tr for X</code> is
+  <code>X as a.Tr</code>, and <code>impl a::T</code> is <code>a.T</code>, as <code>mod a { impl T }</code> is. Generic arguments stay as
+  written, so <code>Into&lt;A&gt;</code> and <code>Into&lt;B&gt;</code> differ.</li>
+<li><strong>PHP</strong> uses the namespace, in both the <code>namespace A;</code> and the <code>namespace A { }</code> spelling.</li>
+</ul>
+<p>An <code>impl</code> or a <code>mod</code> is not a node. It adds a segment to the name and nothing else.</p>
+<p>Two symbols of one name in the same block still share one node. Two cases are known: Rust items
+in <code>#[cfg]</code>-gated copies of one <code>impl</code> or <code>mod</code>, and PHP functions defined in both branches of an
+<code>if</code>.</p>
 <h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
 <p>C and C++ get extra handling, because both languages spread one thing across several files.</p>
 <ul>
@@ -272,6 +292,11 @@ name nothing the graph holds.</p>
   belongs between a build file and a package. <code>.svg</code> is XML-shaped and is graphics.</li>
 <li><strong>A settings extension whose file is not XML costs nothing.</strong> The scanner is a regex over markup,
   so an INI-style <code>.config</code> yields no settings rather than raising.</li>
+<li><strong>A truncated file is read up to where it was cut.</strong> A comment, CDATA section or processing
+  instruction with no closer hides the rest of the file, because what follows its opener is not
+  markup. A tag with no <code>&gt;</code> before the next <code>&lt;</code> is dropped, and the next tag is read on its own
+  line. Parse time grows in step with the file size: 105 KB of <code>&lt;a</code> repeated takes 7 ms. The
+  <code>.xsd</code> and <code>.xsl</code> scanners follow the same rules.</li>
 </ul>
 <p>Like the SQL extractor, this is a scanner rather than a tree parser, and for the same three reasons:
 entity expansion on untrusted mirrored input, hand-edited files a strict parser abandons whole, and
@@ -361,7 +386,8 @@ explicitly if you do want that walk.</p>
 <p>A literal <code>SELECT ... FROM</code>, <code>INSERT INTO</code>, <code>UPDATE ... SET</code> or <code>DELETE FROM</code> inside a string
 becomes a <code>reads</code> or <code>writes</code> edge, from the file to the <code>table</code> or <code>view</code> node the SQL DDL
 extractor already found. This works in any language, because embedded SQL text looks the same
-wherever it sits. Names resolve across the whole repo, the same way a foreign-key <code>references</code>
+wherever it sits. A <code>SELECT</code> and its <code>FROM</code> must sit within 300 characters of each other to count
+as one statement. Names resolve across the whole repo, the same way a foreign-key <code>references</code>
 edge does.</p>
 <p>A query against a table this repo never defines is left unlinked. That is an honest miss, not a
 guessed link.</p>
@@ -394,7 +420,9 @@ default relation set, so <code>contextlake kb impact MAX_RETRY</code> answers "w
 <code>flow</code> edges, from the caller repo to the exposer repo. Detection is regex-based and framework-targeted,
 so read the list as what is matched:</p>
 <ul>
-<li><strong>Python</strong>: FastAPI and Flask decorator routing (<code>@app.get("...")</code>, <code>@router.route("...")</code>).</li>
+<li><strong>Python</strong>: FastAPI and Flask decorator routing (<code>@app.get("...")</code>, <code>@router.route("...")</code>).
+  A path parameter written <code>{id}</code>, <code>:id</code>, <code>${id}</code>, <code>&lt;id&gt;</code> or <code>&lt;int:id&gt;</code> becomes <code>{}</code>, so a Flask
+  route and a caller's <code>/users/42</code> land on the same endpoint.</li>
 <li><strong>JavaScript and TypeScript</strong>: the Express-shaped call form,
   <code>app</code>/<code>router</code>/<code>api</code>/<code>server</code> <code>.get|.post|.put|.delete|.patch("...")</code>. Fastify code that happens to
   use one of those variable names is caught incidentally. <strong>NestJS is not supported</strong>: its
@@ -449,6 +477,26 @@ to the same topic produce the identical node, which the store dedupes to one row
 reads as a pseudo-repo (<code>"(shared)"</code>, <code>"(packages)"</code>) rather than any one real repo, by design:
 which repos touch it is a question the cross-repo edges answer, not the node itself.</p>
 </div>
+<p>A <code>kb index</code> run removes a shared node once no edge from any repo reaches it. A deleted import,
+route or topic then leaves the graph and the search results, and a node another repo still uses
+stays.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>A relative import belongs to its repo.</strong> <code>'./utils'</code> and <code>'/billing/root'</code> in JavaScript or
+TypeScript and <code>.models</code> in Python name a file of the importing repo, not a package. Their
+<code>module</code> node is owned by that repo and is named by the path it resolves to, such as
+<code>web/utils</code>, <code>billing/root</code> or <code>pkg/models</code>. A package name stays a shared node: the bare
+<code>'utils'</code>, and the Python <code>billing.internal</code>. <code>from . import x</code> names the package directory. The
+extension is not probed, so <code>./utils</code> and <code>./utils.js</code> are two nodes.</p>
+</div>
+<p>Only JavaScript, TypeScript (a Vue or Svelte <code>&lt;script&gt;</code> counts as JavaScript) and Python resolve
+relative imports this way. A Go <code>import "./x"</code>, a C or C++ <code>#include "../x.h"</code> and a Rust
+<code>use crate::x</code> still make a shared node, which a key limited to other repositories can read. So does
+an absolute package name such as Python's <code>billing.internal</code>, which is shared by design.</p>
+<p>JavaScript and TypeScript resolve only a specifier that starts with <code>./</code>, <code>../</code> or <code>/</code>. Every other
+specifier reads as a package name and stays shared. That includes a path alias (<code>@/x</code>, <code>~/x</code>,
+<code>$lib/x</code>) and a baseUrl-style path (<code>src/components/Btn</code>). Resolving them needs the project's
+<code>tsconfig</code> or bundler config, and a baseUrl path looks the same as an npm subpath.</p>
 <h3 id="manifests-and-cross-repo-dependencies">Manifests and cross-repo dependencies<a class="anchor" href="#manifests-and-cross-repo-dependencies" title="Link to this section">#</a></h3>
 <p>Indexing also reads manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a
 <strong>cross-repo dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP, from
@@ -493,7 +541,7 @@ getting a silent best-guess.</p>
 <span class="go">  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]</span>
 </code></pre></div>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=fb53dd9c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=8b938c56"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -576,6 +624,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

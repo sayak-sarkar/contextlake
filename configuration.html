@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Configuration · contextlake docs">
 <meta name="twitter:description" content="Config-file precedence and the full settings reference for the mirror layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-21"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -80,6 +80,8 @@ run three directories below the config that ends up applying:</p>
 <p>Run <code>contextlake init --local</code> inside a project to create that project's local config
 (<code>.contextlake.ini</code> + <code>.contextlake/kb.toml</code>'s knowledge-layer equivalent, <code>.contextlake.kb.toml</code>) instead
 of the global one, see <a href="#directory-scoped-config">Directory-scoped config</a> below.</p>
+<p>If <code>init</code> cannot write a file, it names the file, stops, and exits with code 1. Pass <code>--config PATH</code>
+to write somewhere you can.</p>
 <p>An example <code>.contextlake.ini</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
@@ -98,14 +100,35 @@ of the global one, see <a href="#directory-scoped-config">Directory-scoped confi
 <span class="na">pull_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
 <span class="na">max_workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">8</span>
 </code></pre></div>
+<p>Values are read as written. A <code>%</code> is a plain percent sign, so <code>work_dir = ~/work/50%off</code> needs no
+escape, and <code>%(name)s</code> is not expanded. A file that cannot be parsed stops the run with a message that
+names the file and the line. Two causes are a setting above the <code>[contextlake]</code> header and a key set
+twice.</p>
+<p>The file is read as UTF-8, the encoding <code>contextlake init</code> writes, so a path with an accented letter
+means the same on every system. A leading byte order mark is accepted. A file saved in another
+encoding, such as the Windows ANSI code page, stops the run with a message that names the file. Save
+it as UTF-8.</p>
 <h2 id="overriding-on-the-command-line">Overriding on the command line<a class="anchor" href="#overriding-on-the-command-line" title="Link to this section">#</a></h2>
 <p>Any setting can be overridden per-invocation. The config file is the recommended home for persistent
 values; use flags for one-off overrides:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/workspace<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w">   </span><span class="c1"># override work_dir</span>
 contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-group<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w">          </span><span class="c1"># override the group</span>
 contextlake<span class="w"> </span>--config<span class="w"> </span>/path/to/custom.ini<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w">     </span><span class="c1"># use a different config file</span>
-contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>your-gitlab-group<span class="w"> </span>mirror<span class="w"> </span>status<span class="w">  </span><span class="c1"># combine</span>
+contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>my-gitlab-group<span class="w"> </span>mirror<span class="w"> </span>status<span class="w">  </span><span class="c1"># combine</span>
 </code></pre></div>
+<p>The <code>--config</code> path may start with <code>~</code> or hold <code>$VAR</code>. contextlake expands it, so
+<code>--config=~/ws/cfg.ini</code> works where the shell leaves the <code>~</code> as typed (after <code>=</code>, inside quotes, or in a
+systemd <code>ExecStart</code> line).</p>
+<p>A <code>--config</code> file for a <code>mirror</code>, <code>schedule</code> or <code>bootstrap</code> command must exist, be readable, and have a
+<code>[contextlake]</code> section. Section names are case-sensitive, so <code>[ContextLake]</code> does not count, and an
+empty file does not count either. If any of these fails, the command stops with an error and runs
+nothing. It does not fall back to <code>~/.contextlake.ini</code> or to the defaults. A <code>kb.toml</code> given here
+exits with <code>2</code>: pass it to a <code>kb</code> command with <code>--config</code>, or to <code>bootstrap</code> with <code>--kb-config</code>.</p>
+<p>Three kinds of config error name the file: a TOML or INI file that does not parse (with the line
+when the parser gives one), a <code>kb.toml</code> value that fails validation (with the table, key and
+reason), and a yes/no setting that is not a yes/no word. A validation error does not repeat the
+value. A yes/no setting quotes the word it read. When a <code>[contextlake]</code> INI file with a value TOML
+cannot read is given to a <code>kb</code> command, the error says it is a mirror INI.</p>
 <h2 id="directory-scoped-config">Directory-scoped config<a class="anchor" href="#directory-scoped-config" title="Link to this section">#</a></h2>
 <p>A single global config (<code>~/.contextlake.ini</code> + <code>~/.contextlake/kb.toml</code>) works well when you only ever
 mirror one org into one workspace. If you work across several orgs or projects, each with its own
@@ -114,6 +137,8 @@ platform, group, or knowledge-layer sources, scope a config to a project instead
 contextlake<span class="w"> </span>init<span class="w"> </span>--local<span class="w">        </span><span class="c1"># writes .contextlake.ini + .contextlake.kb.toml here</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w"> </span>jira<span class="w"> </span>--type<span class="w"> </span>atlassian<span class="w"> </span>--local<span class="w">   </span><span class="c1"># scopes a source the same way</span>
 </code></pre></div>
+<p><code>--config PATH</code> wins over <code>--local</code>: <code>init</code> writes the mirror config to <code>PATH</code> and <code>kb.toml</code> in
+the same folder.</p>
 <p>Every command run from that directory, or any subdirectory under it, picks up the local config
 automatically. You do not need to pass <code>--config</code>, and you do not need to be in the exact
 directory the file lives in.</p>
@@ -165,6 +190,14 @@ you pass to <code>--config</code>:</p>
 <td>the env var read for an api/graphql source's token</td>
 </tr>
 <tr>
+<td><code>[[sources]] search_url</code></td>
+<td>the host <code>kb enrich</code> sends search terms built from your code to</td>
+</tr>
+<tr>
+<td><code>[[sources]] gitlab_hosts</code></td>
+<td>the hosts a GitLab source passes to <code>glab api --hostname</code></td>
+</tr>
+<tr>
 <td><code>[[sources]] auth</code>, <code>user</code></td>
 <td>how an api source sends that token (<code>bearer</code> or <code>basic</code>) and the username paired with it</td>
 </tr>
@@ -180,16 +213,36 @@ you pass to <code>--config</code>:</p>
 <td><code>[llm] api_key_env</code>, <code>[embeddings] api_key_env</code></td>
 <td>the env var read for the credential sent to that host</td>
 </tr>
+<tr>
+<td><code>[llm] review_provider</code></td>
+<td>only when set to <code>"openai"</code> or <code>"anthropic"</code>: the vendor that receives your API key, the source facts and the draft page of every council review</td>
+</tr>
+<tr>
+<td><code>[llm] cache_dir</code>, <code>[embeddings] cache_dir</code></td>
+<td>the folder the built-in models are downloaded into</td>
+</tr>
 </tbody>
 </table>
 <p>The first three rows run a program. The rest are gated because an endpoint and a secret to send to
 it are the same capability in two pieces. <code>[embeddings]</code> is on by default and <code>bootstrap</code> runs
 <code>kb embed</code> as a stage, so a single planted <code>base_url</code> line, with no provider line, pointed the
 default setup at a host the file author picked.</p>
+<p><code>cache_dir</code> is gated for a different reason. The built-in embedder and the built-in LLM set <code>HF_HOME</code>
+to it on the first load when <code>HF_HOME</code> is unset, and download their models into it, so a planted
+path puts new model files in a folder you did not pick. A discovered <code>cache_dir</code> is dropped and the
+models go to the default folder, <code>~/.contextlake/models</code>, or <code>HF_HOME</code> when you set it. The tier
+keeps running.</p>
+<p>If a project keeps its models in a project-local
+<code>cache_dir</code>, move the key to <code>~/.contextlake/kb.toml</code>, or reach it with <code>--config PATH</code>.</p>
 <p>When a refusal leaves nothing but a default, the tier is switched off instead. A config file found
 by directory walk may not aim a credential-carrying tier it also chose. So when the <code>provider</code> that
 wins the merge for <code>[llm]</code> or <code>[embeddings]</code> is <code>openai</code> or <code>anthropic</code>, and that value came from a
 discovered file, the tier is off for that run. A second warning says so.</p>
+<p><code>[llm] review_provider</code> naming <code>openai</code> or <code>anthropic</code> is dropped instead, and the council reviews
+with the model that wrote the page. The generator keeps running. A <code>review_provider</code> in
+<code>~/.contextlake/kb.toml</code> or a <code>--config</code> file is untouched and wins over a discovered one. Move a
+project-local <code>review_provider = "openai"</code> or <code>"anthropic"</code> to <code>~/.contextlake/kb.toml</code>, or reach it
+with <code>--config</code>.</p>
 <p>Dropping <code>base_url = "http://127.0.0.1:1234/v1"</code> on a <code>provider = "openai"</code> tier would otherwise
 fall back to <code>api.openai.com</code> and send your <code>OPENAI_API_KEY</code> there, from a file that asked for
 loopback.</p>
@@ -212,25 +265,30 @@ project-local file.</p>
 <ul>
 <li><code>[kb] anonymize</code>: a discovered file may set it to <code>"always"</code> and may not set it to <code>"never"</code>.
   Turning anonymising on is always allowed; turning off the setting that hides contributor
-  identities on a dashboard you are about to share is not.</li>
+  identities on a dashboard you are about to share is not. A value that is not <code>"never"</code>, such as
+  the typo <code>"alway"</code> or <code>true</code>, anonymises, the same as in any other file.</li>
 <li><code>[[sources]] scopes</code>: a discovered file may narrow the OAuth scopes the Atlassian connector asks
   for, and may not widen them. A value that is not a subset of the read-only default is dropped,
   and the connector falls back to that default.</li>
 </ul>
 <p>In a discovered <code>.contextlake.kb.toml</code> those keys are ignored, with a warning naming the file and the
 key. The rest of the file still applies: <code>store_dir</code>, <code>languages</code>, <code>max_file_bytes</code>, <code>[[rules]]</code>,
-<code>[embeddings] provider</code>, and any non-<code>cli</code> LLM provider all keep working from a local file. What a
-local file can no longer do is name the host a request goes to, or the env var read for its
-credential, in <code>[llm]</code>, <code>[embeddings]</code> or <code>[[sources]]</code>.</p>
+and a <code>provider</code> that stays on your machine (<code>ollama</code>, <code>builtin</code>, <code>auto</code>) for <code>[llm]</code> or
+<code>[embeddings]</code> all keep working from a local file. What a local file can no longer do is name the
+host a request goes to, or the env var read for its credential, in <code>[llm]</code>, <code>[embeddings]</code> or
+<code>[[sources]]</code>.</p>
+<p>A local <code>provider = "openai"</code> or <code>"anthropic"</code> does not keep working. It switches its tier off, as
+described above, and a local <code>review_provider</code> that names either one is dropped. Move those
+settings to <code>~/.contextlake/kb.toml</code>, or reach them with <code>--config PATH</code>.</p>
 <p>That last point changes what <code>contextlake kb source add ... --local</code> can scope. A <code>type = "mcp"</code>
 document source still works from a local file over its <code>url</code>; its <code>command</code> has to live in the
 global file, or be reached with <code>--config</code>. A <strong>connector</strong> source (<code>atlassian</code>, <code>figma</code>, <code>slack</code>)
 reaches its server through <code>mcp</code> / <code>mcp_command</code>, and both of those are now global-only, as are
-<code>token_env</code>, <code>auth</code>, <code>user</code> and <code>auth_dir</code> on any source.</p>
+<code>token_env</code>, <code>auth</code>, <code>user</code>, <code>auth_dir</code>, <code>search_url</code> and <code>gitlab_hosts</code> on any source.</p>
 <h3 id="the-mirror-config-contextlakeini">The mirror config, <code>.contextlake.ini</code><a class="anchor" href="#the-mirror-config-contextlakeini" title="Link to this section">#</a></h3>
-<p>The same rule covers the mirror keys that decide where the forge token goes. A discovered
-<code>.contextlake.ini</code> may not set them. They are honoured only from <code>~/.contextlake.ini</code> or from a path
-you pass to <code>--config</code>:</p>
+<p>The same rule covers the mirror keys that decide where the forge token goes, and the keys that decide
+where the project cache is written. A discovered <code>.contextlake.ini</code> may not set them. They are honoured
+only from <code>~/.contextlake.ini</code> or from a path you pass to <code>--config</code>:</p>
 <table>
 <thead>
 <tr>
@@ -251,6 +309,14 @@ you pass to <code>--config</code>:</p>
 <td><code>token_env</code>, <code>gitlab_token_env</code></td>
 <td>the env var whose value is sent to that host as the token</td>
 </tr>
+<tr>
+<td><code>cache_dir</code></td>
+<td>the directory that holds the project cache, the audit report and the schedule history</td>
+</tr>
+<tr>
+<td><code>cache_file</code>, <code>cache_json</code></td>
+<td>the names of the two project cache files, which <code>mirror fetch</code> overwrites</td>
+</tr>
 </tbody>
 </table>
 <p>Before this gate, a <code>.contextlake.ini</code> inside a cloned repository could set <code>gitlab_host</code> to its own
@@ -267,14 +333,24 @@ instance would fall back to <code>gitlab.com</code>, and your token would go the
 <li>Other platforms see public repositories only.</li>
 <li>Clone and fetch run without the token.</li>
 </ul>
+<p>The three cache keys are ignored the same way, with a warning that names the key and the file. The
+forge token stays on, and the cache goes to the default location unless <code>~/.contextlake.ini</code> or
+<code>--config</code> sets it. Before this gate, a <code>.contextlake.ini</code> inside a cloned repository could set
+<code>cache_json</code> to an absolute path such as <code>~/.gitconfig</code>, or set <code>cache_dir</code> to your home directory,
+and the next <code>mirror fetch</code> run from inside that tree replaced that file with the project list.</p>
 <p><code>work_dir</code>, <code>gitlab_group</code> and <code>platform</code> keep working from a local file. They are all that
 <code>contextlake init --local</code> writes. To clear the warning, delete the keys from the file it names and
 set them in <code>~/.contextlake.ini</code> (or export <code>GITLAB_HOST</code>), or pass <code>--config</code> naming that file.</p>
 <p>Set <code>CONTEXTLAKE_NO_LOCAL_CONFIG=1</code> to skip ancestor discovery entirely, for both <code>.contextlake.ini</code> and
 <code>.contextlake.kb.toml</code>, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, <code>source add --local</code> writes to the global config too, rather than to a local file that
-would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">SECURITY.md<span class="ext-arrow" aria-hidden="true">↗</span></a> for the full model.</p>
+would never be read, and <code>init --local</code> stops with exit code 2 and writes nothing. Pass <code>init --config PATH</code>
+instead, or unset the variable. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">SECURITY.md<span class="ext-arrow" aria-hidden="true">↗</span></a> for the full model.</p>
 <h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
+<p>The yes/no settings are <code>dry_run</code>, <code>clean_corrupted</code>, <code>adaptive_workers</code>, <code>protect_working_branches</code>,
+<code>require_clean_workspace</code> and <code>auto_stash</code>. Write <code>true</code> or <code>false</code>. <code>yes</code>, <code>no</code>, <code>on</code>, <code>off</code>, <code>1</code> and
+<code>0</code> also work, in any letter case. Any other value stops the run with an error that names the key and
+the file that set it, before any repository is touched. A flag on the command line, such as <code>--dry-run</code>, wins over the file.</p>
 <table>
 <thead>
 <tr>
@@ -359,19 +435,19 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 </tr>
 <tr>
 <td><code>cache_dir</code></td>
-<td>Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of <code>~/.cache/contextlake</code> (<code>$XDG_CACHE_HOME/contextlake</code> when set), created <code>0700</code>. Set it and that exact directory is used, with no subdirectory.</td>
+<td>Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of <code>~/.cache/contextlake</code> (<code>$XDG_CACHE_HOME/contextlake</code> when set), created <code>0700</code>. Set it and that exact directory is used, with no subdirectory. Global config or <code>--config</code> only</td>
 <td><code>~/.cache/contextlake/&lt;workspace&gt;-&lt;id&gt;</code></td>
 <td><code>/srv/cache</code></td>
 </tr>
 <tr>
 <td><code>cache_file</code></td>
-<td>Name of projects cache file</td>
+<td>Name of projects cache file. Global config or <code>--config</code> only</td>
 <td><code>gitlab_projects.txt</code></td>
 <td><code>projects.txt</code></td>
 </tr>
 <tr>
 <td><code>cache_json</code></td>
-<td>Name of JSON cache file</td>
+<td>Name of JSON cache file. Global config or <code>--config</code> only</td>
 <td><code>gitlab_projects.json</code></td>
 <td><code>projects.json</code></td>
 </tr>
@@ -413,7 +489,7 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 </tr>
 <tr>
 <td><code>max_retries</code></td>
-<td>Maximum retry attempts for failed operations</td>
+<td>Total attempts for a failed operation, the first try included, so <code>3</code> means two retries. The minimum is <code>1</code>, which means try once and do not retry. <code>0</code> stops the run with an error</td>
 <td><code>3</code></td>
 <td><code>5</code></td>
 </tr>
@@ -461,7 +537,7 @@ would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/bl
 </tr>
 <tr>
 <td><code>branch</code></td>
-<td>Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported and left alone</td>
+<td>Pin every repository to this branch instead. Empty keeps the selection above; a repository without the branch is reported as not having it and put on its most active branch instead (a repository on a working branch is skipped)</td>
 <td><em>(empty)</em></td>
 <td><code>release/24.1</code></td>
 </tr>
@@ -642,6 +718,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Asking the graph · contextlake docs">
 <meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Asking the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/asking-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-29"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Asking the graph", "item": "https://sayak.in/contextlake/asking-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -79,11 +79,17 @@ than a path and it does open the store, only to find the clone.</p>
 </ul>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Query an empty store and you get <code>No matches</code>, exit <code>0</code>, which looks exactly like a genuine miss.
+<p>Query an empty store and you get <code>No matches</code>, exit <code>0</code>, the same first line as a genuine miss.
 Opening the store creates it if it is absent (<code>SqliteStore.__init__</code> in
 <code>src/contextlake/kb/store/sqlite_store.py</code> runs <code>mkdir(parents=True, exist_ok=True)</code> and applies a
-<code>CREATE TABLE IF NOT EXISTS</code> schema), so nothing tells you the index was never built. Run
-<code>contextlake doctor</code> if the counts look wrong; it reports the store's real node and edge totals.</p>
+<code>CREATE TABLE IF NOT EXISTS</code> schema), so a store you never indexed answers as if it were built.</p>
+<ul>
+<li>Text mode adds a second line, <code>This store is empty (no repositories indexed)</code>, with the store
+  path. The usual cause is the right command against the wrong store.</li>
+<li><code>--json</code> adds nothing. The output is <code>[]</code>, so a script cannot tell an empty store from a miss.</li>
+</ul>
+<p>Run <code>contextlake doctor</code> if the counts look wrong; it reports the store's real node and edge
+totals.</p>
 </div>
 <h2 id="find-something-kb-query">Find something: <code>kb query</code><a class="anchor" href="#find-something-kb-query" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;ForecastService&quot;</span>
@@ -108,7 +114,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w
 </tr>
 <tr>
 <td><code>--repo REPO</code></td>
-<td>Only this repository</td>
+<td>Only this repository. An id that is not indexed exits <code>1</code> and names the ids to try</td>
 <td>all repos</td>
 </tr>
 <tr>
@@ -168,19 +174,33 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w
 so <code>Forecast</code> finds <code>ForecastService</code> and <code>Service</code> does not
 (<code>_fts_query</code> in <code>src/contextlake/kb/store/sqlite_store.py</code>). Multiple words are an implicit AND of
 prefix terms. That is the single most common reason a query that "should" match comes back empty.</p>
-<p><strong>Semantic and hybrid degrade to <code>fts</code> rather than failing</strong>, and say so on stderr, when there is no
-embedder configured or the vector store cannot be opened
-(<code>src/contextlake/kb/cmds/query.py</code>, the <code>_semantic_results</code> fallbacks). One gap is worth knowing:
-if the vector store opens but is <em>empty</em>, the retriever returns no results rather than being
-unavailable, so there is no fallback and no warning. An unexpectedly empty
-<code>--retriever semantic</code> run usually means <code>contextlake kb embed</code> has not run yet.</p>
+<p><strong>Semantic and hybrid degrade to <code>fts</code> and do not fail</strong>, and say so (on stdout in text mode,
+on stderr with <code>--json</code>). That happens when there is no embedder configured, the vector store cannot
+be opened, or the vector store is <em>empty</em> (<code>src/contextlake/kb/cmds/query.py</code>, the
+<code>_semantic_results</code> fallbacks).</p>
+<p>On an empty vector store the notice is <code>Semantic search cannot answer: no vectors are stored, so
+semantic search has nothing to search -- run</code>contextlake kb embed<code>first. Showing fts results
+instead.</code> With <code>--repo</code>, a repo that has no vectors while others do gets a notice that names that
+repo. When you see either notice, the hits after it are <code>fts</code> hits and <code>contextlake kb embed</code> has
+not covered the store (or that repo) yet.</p>
 <p><strong><code>--kind</code> is applied differently per mode.</strong> On <code>fts</code> it is part of the SQL, so <code>--limit 20</code> gives
-you up to 20 matching nodes. On <code>semantic</code> and <code>hybrid</code> it is a filter applied <em>after</em> the retriever
-has already cut to <code>--limit</code>, so <code>--retriever semantic --kind function --limit 20</code> can return
-fewer than 20 functions even when the repo has hundreds.</p>
+you up to 20 matching nodes. On <code>semantic</code> and <code>hybrid</code> it is a filter applied <em>after</em> the search:</p>
+<ul>
+<li>The search looks at 10 times <code>--limit</code> nodes (at least 200, at most 512, or <code>--limit</code> itself
+  when that is larger), keeps the ones of that kind, and cuts to <code>--limit</code>.</li>
+<li><code>--retriever semantic --kind function --limit 20</code> can still return fewer than 20 functions,
+  and a node of that kind ranked past the window is not found.</li>
+<li>When nothing of that kind is in the window, the output says how many nodes it looked at.</li>
+<li><code>hybrid</code> starts from the 20 nearest vectors and their graph neighbours, so a node of that kind
+  outside both is not found either.</li>
+</ul>
 <p><strong><code>--as-of</code> is a different search, not the same search over old data.</strong> It reads the repo's stored
 shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor
 honours <code>--retriever</code>. It needs <code>--repo</code>, because history is kept per repository.</p>
+<p>With <code>--as-of</code>, a <code>--repo</code> that names nothing indexed gets the same <code>Unknown repo</code> answer as a
+search without it: exit <code>1</code>, the ids that match (or a note that the store holds none), and
+<code>"error": "unknown_repo"</code> under <code>--json</code>. A repo that is known but has no snapshot at that commit
+prints <code>No indexed snapshot</code> and exits <code>1</code>.</p>
 <h3 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>ForecastService<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
 </code></pre></div>
@@ -252,7 +272,7 @@ and a footer counts how much of the answer rests on name-only matching:</p>
 <div class="highlight"><pre><span></span><code>Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
   seed: function site/cmdk.js:113 (3 matched &#39;close&#39;; used the first)
         or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
-        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+        or: method src/contextlake/kb/store/sqlite_store.py:221  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_221
   h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
   1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
 </code></pre></div>
@@ -293,9 +313,9 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>who-knows<span clas
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/sensor-ingest
 <span class="go">Owners / SMEs for acme/sensor-ingest (recency-weighted):</span>
-<span class="go">  1. Ada Rowan  —  2 commit(s), 14 line(s), last 2026-09-01, 43%</span>
-<span class="go">  2. Ben Okafor  —  1 commit(s), 16 line(s), last 2026-07-14, 38%</span>
-<span class="go">  3. Chen Wei  —  1 commit(s), 6 line(s), last 2026-08-18, 18%</span>
+<span class="go">  1. Ada Rowan: 2 commit(s), 14 line(s), last 2026-09-01, 43%</span>
+<span class="go">  2. Ben Okafor: 1 commit(s), 16 line(s), last 2026-07-14, 38%</span>
+<span class="go">  3. Chen Wei: 1 commit(s), 6 line(s), last 2026-08-18, 18%</span>
 </code></pre></div>
 <table>
 <thead>
@@ -346,9 +366,20 @@ Contributors are aggregated by email where there is one, and shown under the nam
 recent commit.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code>owners</code> runs exactly one <code>git log --no-merges --numstat</code> and cannot tell you <em>why</em> it came back
-empty: no history, a path that matches nothing, <code>git</code> missing from PATH and the 30-second timeout
-all print <code>No commit history found for &lt;scope&gt;</code> and exit <code>0</code>.</p>
+<p><code>owners</code> reads history from the root of a git checkout only. A folder inside another repo ranks
+nothing, because git would report the outer repo's authors. Use <code>--path</code> for a sub-tree.</p>
+<ul>
+<li>It first runs <code>git log --no-merges --numstat --since="2160 days ago"</code>. If that finds no
+  commits, it walks the whole history, so a dormant repo still gets owners.</li>
+<li>Each walk has a 30-second limit. A timed-out walk is not retried. It logs <code>owners: git
+  history for &lt;repo&gt; could not be read within 30s</code>, then <code>This is a timeout, not an empty
+  history.</code></li>
+<li>With <code>git</code> missing from PATH, it logs <code>owners: git could not be run for &lt;repo&gt;, so no owners
+  are reported.</code></li>
+<li>An empty result prints <code>No commit history found for &lt;scope&gt;: &lt;reason&gt;</code> and exits <code>0</code>. The
+  reason says either that git could not be asked (<code>git</code> missing, not a checkout root, or no
+  repository or no commits yet) or that it read the history and matched nobody.</li>
+</ul>
 </div>
 <h3 id="verification_2">Verification<a class="anchor" href="#verification_2" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>.<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
@@ -380,15 +411,21 @@ followed by up to three numbered lines ending in a percentage.</p>
 <tr>
 <td><code>kb owners</code></td>
 <td>an <strong>object</strong></td>
-<td><code>repo</code>, <code>path</code>, <code>owners[]</code>; email and raw score are not included</td>
+<td><code>repo</code>, <code>path</code>, <code>owners[]</code>, <code>ranking_gap</code>; email and raw score are not included</td>
 </tr>
 </tbody>
 </table>
-<p>Three behaviours that bite scripts:</p>
+<p>Four behaviours that bite scripts:</p>
 <ul>
 <li><strong>An empty result is exit <code>0</code></strong>, in all three. Test the payload, not the exit code, to detect
   "found nothing". Exit <code>2</code> means you gave no search term; exit <code>1</code> means the target could not be
-  resolved.</li>
+  resolved, or <code>--repo</code> names no indexed repository. A repo id is the <code>origin</code> remote
+  (<code>github.com/acme/app</code>) or <code>name@&lt;root commit&gt;</code>, not the directory name; the message names the
+  ids that match.</li>
+<li><strong>An empty <code>owners</code> list does not mean nobody committed.</strong> <code>ranking_gap</code> is <code>null</code> when
+  <code>owners</code> has rows. When it is empty, <code>ranking_gap</code> says why: the clone directory is not there,
+  the path is not its own git checkout, git could not be run, or git read the history and matched
+  nobody. The text form prints the same reason.</li>
 <li><strong><code>--limit 0</code> and <code>--hops 0</code> are refused</strong>, with the argument error and exit <code>2</code>: <code>--limit</code> takes
   1 to 1,000,000 and <code>--hops</code> takes 1 to 1,000. Zero used to be read as "unset" and quietly became
   the default, which is why it is now an error. Neither ever meant "no limit".</li>
@@ -396,7 +433,7 @@ followed by up to three numbered lines ending in a percentage.</p>
   <code>--repo</code> prints a plain line to stderr and exits <code>2</code> with no JSON error object.</li>
 </ul>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=fb53dd9c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=8b938c56"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">Every answer on this page comes out of the same graph you are looking at. Search a symbol, then follow its edges. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -523,6 +560,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

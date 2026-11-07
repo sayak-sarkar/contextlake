@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Scheduling runs · contextlake docs">
 <meta name="twitter:description" content="Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Scheduling runs", "description": "Measure a run, work out an interval, and install a systemd timer or crontab entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval formula.", "url": "https://sayak.in/contextlake/scheduling", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Scheduling runs", "item": "https://sayak.in/contextlake/scheduling"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -57,7 +57,8 @@ and containers.</p>
 <h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
 <ul>
 <li>A configured workspace: <code>contextlake init</code>, or <code>.contextlake.ini</code> in place. See
-  <a href="configuration">Configuration</a>.</li>
+  <a href="configuration">Configuration</a>. The job keeps the config you install it with, see
+  <a href="#which-config-a-scheduled-run-reads">Which config a scheduled run reads</a>.</li>
 <li>Linux, with either a systemd user session or <code>crontab</code> available. Nothing else is supported
   yet; see <a href="#platform-differences">Platform differences</a>.</li>
 </ul>
@@ -98,7 +99,7 @@ it recomputes and rewrites the job in place. It writes to three places:</p>
 </thead>
 <tbody>
 <tr>
-<td>The job record (name, command, interval setting, failure count, last run)</td>
+<td>The job record (name, command, interval setting, failure count, last run, and the config files and directory it was installed with)</td>
 <td><code>schedule-jobs.json</code>, beside the project cache</td>
 </tr>
 <tr>
@@ -115,7 +116,7 @@ it recomputes and rewrites the job in place. It writes to three places:</p>
 resolves to: <code>~/.cache/contextlake/&lt;workspace&gt;-&lt;id&gt;</code> by default.</p>
 <p><code>install</code> picks systemd if a systemd user session answers, cron otherwise, and prints the
 platform's own unit file (or crontab line) when it cannot write one, so you can install it by
-hand. Force a specific platform with <code>--platform systemd</code> or <code>--platform cron</code>.</p>
+hand, and exits 1 because nothing was scheduled. Force a specific platform with <code>--platform systemd</code> or <code>--platform cron</code>.</p>
 <h3 id="how-the-cron-adapter-edits-your-crontab">How the cron adapter edits your crontab<a class="anchor" href="#how-the-cron-adapter-edits-your-crontab" title="Link to this section">#</a></h3>
 <p><code>crontab -</code> replaces the whole crontab, so the cron adapter guards what it writes:</p>
 <ul>
@@ -127,11 +128,10 @@ hand. Force a specific platform with <code>--platform systemd</code> or <code>--
   path is printed. Only you can read the file. If the copy cannot be saved, nothing is written.</li>
 <li>If <code>crontab -l</code> fails for any reason other than "no crontab for <user>", the crontab is not
   changed and the error is printed. <code>install</code> then prints the crontab line so you can add it by
-  hand. <code>uninstall</code> still removes the job record.</li>
+  hand. <code>uninstall</code> keeps the job record and exits 1, so run it again once the error is fixed.</li>
 <li>If a <code># &gt;&gt;&gt; contextlake (&lt;name&gt;) &gt;&gt;&gt;</code> line has no matching end line, the crontab is not changed
-  and the error names the line. Fix it with <code>crontab -e</code>, then run <code>install</code> again. <code>uninstall</code>
-  still removes the job record, so <code>schedule list</code> then reports the block as an orphaned unit
-  until you delete it with <code>crontab -e</code>.</li>
+  and the error names the line. Fix it with <code>crontab -e</code>, then run <code>install</code> or <code>uninstall</code>
+  again. <code>uninstall</code> keeps the job record until then.</li>
 <li>The job's line sends its own output to <code>/dev/null</code>, so cron mails nothing for it. Earlier
   versions wrote <code>MAILTO=""</code> into the block instead, which cron also applied to every line below
   it. Running <code>install</code> again removes that line.</li>
@@ -139,6 +139,103 @@ hand. Force a specific platform with <code>--platform systemd</code> or <code>--
 <p>The default job runs <code>contextlake bootstrap</code> on most cycles, and switches to
 <code>contextlake bootstrap --force</code> (a full rebuild: every repository re-parsed, every node
 re-embedded) once <code>schedule_full_every</code> has passed since the last successful full run.</p>
+<p>Two scheduled runs never overlap on one machine. A run takes a lock file, <code>schedule-run.lock</code>,
+in the cache directory. A second run that finds a live holder logs <code>Skipping this run</code> and exits
+0. Runs that start in the same instant are decided one at a time through an OS lock on
+<code>schedule-run.lock.guard</code>, a file that stays on disk. A filesystem that cannot take OS locks
+leaves that step unguarded, so two runs that start in the same instant can both take the lock
+there. The lock covers one machine: a run on another host that shares the cache directory is
+not seen.</p>
+<h3 id="which-config-a-scheduled-run-reads">Which config a scheduled run reads<a class="anchor" href="#which-config-a-scheduled-run-reads" title="Link to this section">#</a></h3>
+<p><code>install</code> records the config files a run reads, so the unit uses them on each fire. Before, the unit
+carried no config and no directory, and loaded the global config. A job installed from another
+directory, or with <code>--config</code>, whose record sat under a different cache directory was not found.
+The run exited 2.</p>
+<ul>
+<li><strong>A file you name.</strong> <code>contextlake --config my.ini schedule install</code> puts the absolute path in the
+  unit's command. <code>contextlake --kb-config kb.toml schedule install</code> does the same for the
+  knowledge config. Type both flags before <code>schedule</code>: it does not take <code>--kb-config</code> after its own
+  name.</li>
+<li><strong>A file found by walking up.</strong> Installed from a directory under a <code>.contextlake.ini</code> or a
+  <code>.contextlake.kb.toml</code>, the unit starts in that directory and finds the file the same way. The
+  path is not passed as <code>--config</code>, so a found <code>.contextlake.ini</code> keeps its limits: it cannot set
+  the forge host, the token variable or the cache location. See
+  <a href="configuration#directory-scoped-config">Configuration</a>.</li>
+<li><strong>Neither.</strong> The unit uses the global config, <code>~/.contextlake.ini</code>.</li>
+</ul>
+<p>The <code>install</code> command that <code>schedule status</code> prints for a recorded job names the job (<code>--job</code>,
+left out for <code>default</code>), the interval when it is not <code>auto</code> (<code>--interval</code>), and each file you
+named (<code>--config</code>, <code>--kb-config</code>). Run as printed, it installs the same job again. A file found by
+walking up is not printed as a flag. To keep it, run the command from the directory the job was
+installed from.</p>
+<p>One note differs. When the unit starts with no <code>--config</code> and you gave <code>status</code> a <code>--config</code>, the
+printed command pins that file in place of the one the job has.</p>
+<p>When the unit fires, <code>schedule run</code> passes the files it was given to the command it starts:</p>
+<table>
+<thead>
+<tr>
+<th>The job runs</th>
+<th>The command gets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootstrap</code> (the default job)</td>
+<td><code>--config</code> and <code>--kb-config</code></td>
+</tr>
+<tr>
+<td>a <code>mirror</code> command</td>
+<td><code>--config</code>, the sync INI</td>
+</tr>
+<tr>
+<td>a <code>kb</code> command, or <code>doctor</code></td>
+<td>the knowledge config, as <code>--config</code></td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>nothing</td>
+</tr>
+</tbody>
+</table>
+<p>A flag in the job's own command wins. A file found by walking up is not passed on: the command finds
+it from the directory it starts in. <code>schedule run --config my.ini</code> typed by hand, with or without
+<code>--foreground</code>, passes <code>my.ini</code> the same way.</p>
+<p><code>reset</code> and an existing <code>interval</code> job keep the files they were installed with, even when you run
+them from another directory. To move a job to another config, run <code>install</code> with it. For a job made
+with <code>schedule interval</code>, add <code>--job NAME</code>, and add <code>--interval DURATION</code> to keep a pinned interval:
+<code>install</code> sets <code>auto</code> unless you pass one.</p>
+<p>How each platform keeps the directory:</p>
+<ul>
+<li>systemd writes <code>WorkingDirectory=</code>, launchd writes <code>WorkingDirectory</code>, and cron writes <code>cd DIR &amp;&amp;</code>
+  before the command. cron also writes each <code>%</code> as <code>\%</code>, because an unescaped one ends a crontab
+  command.</li>
+<li>Task Scheduler has no start-in directory. A job with one runs
+  <code>cmd /d /s /c "cd /d "DIR" &amp;&amp; "WORD" "WORD" ..."</code>, with every word of the command in double quotes,
+  so that <code>&amp;</code>, <code>^</code>, <code>|</code>, <code>&lt;</code> and <code>&gt;</code> in a path stay text. Like the rest of that adapter, this form is
+  checked by rendering and parsing only, see <a href="#platform-differences">Platform differences</a>.</li>
+<li>In that form, a <code>%</code>, a <code>!</code> or a <code>"</code> in the directory or in any word is refused at install. <code>cmd</code>
+  expands <code>%</code> inside quotes. It expands <code>!</code> inside quotes when delayed expansion is on, a registry
+  setting that is off by default. A <code>"</code> ends the quoted text.</li>
+<li><code>k8s</code>, <code>aws</code> and <code>azure</code> start the image, not a process on this machine. They drop <code>--config</code> and
+  <code>--kb-config</code> from the container's arguments. When the job had a config or a directory, they print
+  one note: the container reads its own config.</li>
+<li>A directory or config path with a control character, such as a newline, is refused at install.</li>
+</ul>
+<p>A unit installed by an earlier version has no directory and no <code>--config</code>. If its record sits under
+another config's cache directory, the unit finds no record and exits 2. Run <code>schedule install</code> again,
+from the same directory or with the same <code>--config</code>, to rewrite it. For a job with a pinned interval,
+add <code>--interval DURATION</code>: <code>install</code> sets <code>auto</code> unless you pass one.</p>
+<p><code>schedule status</code> prints the files and directory a job was installed with. It warns in three cases:</p>
+<ul>
+<li>The job's config is not one this command loaded.</li>
+<li>The unit has no <code>--config</code> and no directory, but this command loaded a config.</li>
+<li>The directory the unit starts in no longer exists. systemd, cron and Task Scheduler then start no
+  run. What launchd does with a missing directory was not checked, and the warning says so. This
+  warning is printed alone, with the command that installs the job again. It names a config found
+  from that directory only while the file still exists.</li>
+</ul>
+<p>For a <code>k8s</code>, <code>aws</code> or <code>azure</code> job it prints neither the lines nor the warnings, because the container
+reads its own config. <code>--json</code> still lists what the record holds.</p>
 <h2 id="set-reset-and-unset">Set, reset, and unset<a class="anchor" href="#set-reset-and-unset" title="Link to this section">#</a></h2>
 <p>Three layers decide what interval a job runs on, and only one of them is read back as the truth:</p>
 <table>
@@ -162,7 +259,7 @@ re-embedded) once <code>schedule_full_every</code> has passed since the last suc
 </tr>
 <tr>
 <td>The platform unit (the systemd timer or the crontab line)</td>
-<td>Rendered <em>from</em> the job record's resolved interval. Never read back as truth; <code>status</code> reads it only to report drift or cron's rounding.</td>
+<td>Rendered <em>from</em> the job record's resolved interval. Never read back as truth; <code>status</code> reads it only to report drift, cron's rounding, and the command and directory it starts with.</td>
 <td>Rewritten every <code>install</code> / <code>reset</code> / <code>interval</code></td>
 </tr>
 </tbody>
@@ -180,6 +277,18 @@ re-embedded) once <code>schedule_full_every</code> has passed since the last suc
 <li><strong>Unset</strong> with <code>contextlake schedule uninstall</code>. Removes the job record and the installed unit.
   Add <code>--purge</code> to also discard the measurements. Without <code>--purge</code>, the history is kept, so
   installing again later starts warm instead of cold.</li>
+<li>If the unit cannot be removed, <code>uninstall</code> keeps the job record, prints the error and exits 1.
+  Examples are a unit directory you cannot write to, expired credentials, or a cluster you
+  cannot reach. Fix the cause and run it again. A unit that is already gone counts as removed.</li>
+<li>How <code>uninstall</code> tells "already gone" from a real failure depends on the backend. <code>systemd</code>,
+  <code>launchd</code> and <code>cron</code> look at the unit file or the crontab. <code>k8s</code>, <code>aws</code> and <code>azure</code> look for
+  the service's own not-found code in the error, in the brackets the CLI prints it in:
+  <code>(NotFound)</code>, <code>(ResourceNotFoundException)</code>, and <code>(ResourceNotFound)</code> or
+  <code>(ResourceGroupNotFound)</code>. A job named like one of these codes does not match, because its
+  name is not in brackets. Any other error keeps the job record.</li>
+<li><code>windows</code> cannot match text, because <code>schtasks</code> messages follow the language of Windows.
+  After a failed delete it lists every task. The unit counts as gone only when that listing
+  works and does not hold the task. If the listing fails too, <code>uninstall</code> keeps the job record.</li>
 </ul>
 <h3 id="discarding-history-is-recoverable">Discarding history is recoverable<a class="anchor" href="#discarding-history-is-recoverable" title="Link to this section">#</a></h3>
 <p><code>--purge</code> and <code>reset --history</code> both ask first, printing the count of runs and the span of days
@@ -292,11 +401,29 @@ deliberate:</p>
   re-indexes the whole fleet every run instead of doing an incremental pass, which
   <code>schedule run</code> refuses without <code>--allow-ephemeral</code>.</li>
 </ul>
+<p>The pod mounts that claim at <code>/work</code>, which is <code>HOME</code> in the image, so the store, config and caches
+land on the volume. Only the <code>CronJob</code> is applied. Create the claim yourself, in the same
+namespace, before the first run, or the pod stays <code>Pending</code>. Its name is the <code>CronJob</code> name plus
+<code>-state</code> (<code>contextlake-default-state</code> for the default job), and <code>schedule install</code> prints it. The
+size and storage class are yours to choose, so contextlake does not create it:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">contextlake-default-state</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">accessModes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">ReadWriteOnce</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">requests</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">storage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20Gi</span><span class="w">   </span><span class="c1"># an example; size it for your own mirror and store</span>
+</code></pre></div>
 <p>The schedule is a cron expression, so it rounds the way cron does and says when it rounded.
 Nothing is patched in the cluster on its own: changing an interval means re-running
 <code>schedule install</code>. A process that rewrote a <code>CronJob</code> in the background would need
 cluster-write rights for the life of the schedule, which is more authority than the benefit is
 worth.</p>
+<p>The <code>CronJob</code> goes into the <code>default</code> namespace, and <code>uninstall</code>, <code>status</code> and <code>list</code> name that
+namespace too. Before, they used the namespace of your current <code>kubectl</code> context, so on a context
+pointing elsewhere they never found it.</p>
 <h3 id="aws-and-azure">AWS and Azure<a class="anchor" href="#aws-and-azure" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>aws<span class="w"> </span>install<span class="w">       </span><span class="c1"># EventBridge Scheduler firing an ECS task</span>
 contextlake<span class="w"> </span>schedule<span class="w"> </span>--platform<span class="w"> </span>azure<span class="w"> </span>install<span class="w">     </span><span class="c1"># a Container Apps Job on a cron trigger</span>
@@ -318,6 +445,8 @@ incremental pass, which <code>schedule run</code> refuses without <code>--allow-
 <code>rate(N minutes)</code>, so AWS rounds to whole minutes. A Container Apps Job schedule trigger is a
 cron expression, so Azure rounds the way cron does and cannot express 70 minutes at all.</p>
 <p>Neither adapter ships an SDK. Both shell out to an already-authenticated <code>aws</code> or <code>az</code>.</p>
+<p>The Azure job goes into the <code>contextlake</code> resource group, and <code>uninstall</code> and <code>status</code> name that
+group too. Before, they named none, so they worked only when <code>az configure</code> held a default group.</p>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
 <p>Ten <code>schedule_*</code> keys, read from the same <code>.contextlake.ini</code> <code>[contextlake]</code> section as
 <code>work_dir</code> and the rest of the mirror settings. Full descriptions and defaults are in
@@ -420,6 +549,23 @@ the foreground instead:</p>
 </code></pre></div>
 <p><code>--foreground</code> loops here, sleeping between cycles, and does not re-read the config file
 mid-loop; restart the container to pick up an edited <code>schedule_interval</code>.</p>
+<p>Press Ctrl-C to stop it. While a cycle is running, the run sends SIGTERM to the child and
+everything the child started. It waits up to 5 seconds for all of them to end, sends SIGKILL to any
+that remain, waits up to 5 seconds more, and exits with code 130. A second Ctrl-C skips the SIGTERM
+wait and sends SIGKILL at once, then waits. A plain <code>schedule run</code> started by hand stops the same
+way. While the loop is asleep between cycles, Ctrl-C ends it with code 0.</p>
+<p>On Windows the run ends the child tree with <code>taskkill</code> and waits for the child only.</p>
+<p>Neither <code>--foreground</code> nor a pod needs <code>schedule install</code> first. With no job record, these run the
+built-in default job, <code>bootstrap</code>:</p>
+<ul>
+<li><code>schedule run --foreground</code>, anywhere.</li>
+<li><code>schedule run</code>, inside a container. The Kubernetes <code>CronJob</code> runs this.</li>
+</ul>
+<p>Nothing is recorded for that run. <code>schedule status</code> and <code>schedule list</code> do not show it, and a failed
+run adds no backoff, because the failure count lives in the record.</p>
+<p>Only the default job works this way. A job from <code>schedule interval ... run -- &lt;command&gt;</code> keeps its
+command in the record on the machine that created it, so a pod cannot run it. On a workstation
+without <code>--foreground</code>, the message is still "No schedule is installed".</p>
 <h2 id="troubleshooting-it-is-installed-but-nothing-runs">Troubleshooting: it is installed but nothing runs<a class="anchor" href="#troubleshooting-it-is-installed-but-nothing-runs" title="Link to this section">#</a></h2>
 <p>Start with <code>contextlake schedule status</code>. It reads the job record, the platform unit, and the
 measured history, and reports every way they disagree:</p>
@@ -427,17 +573,28 @@ measured history, and reports every way they disagree:</p>
 <li><strong>Linger is off (systemd only).</strong> A user timer does not fire while you are logged out unless
    linger is on. <code>status</code> reports this; fix it with <code>loginctl enable-linger $USER</code>.</li>
 <li><strong>The interpreter has moved.</strong> <code>status</code> resolves the path the installed unit runs and reports
-   it missing if the venv was moved or deleted. Re-run <code>contextlake schedule install</code>
-   from the current install to fix it.</li>
-<li><strong>The unit was removed outside contextlake.</strong> <code>status</code> reports "recorded but NOT installed"
-   when the job record exists but the systemd timer or crontab block does not. Re-run
-   <code>contextlake schedule install</code>.</li>
-<li><strong>The job record was removed and the unit was not.</strong> <code>schedule list</code> reports these as
+   it missing if the venv was moved or deleted. Run the <code>install</code> command that <code>status</code> prints,
+   from the current install, to fix it.</li>
+<li>
+<p><strong>The unit was removed outside contextlake.</strong> <code>status</code> reports "recorded but NOT installed"
+   when the job record exists but the systemd timer or crontab block does not. Run the <code>install</code>
+   command that <code>status</code> prints. On Kubernetes, AWS and Azure it says this only when the
+   cluster or cloud answers that the job is not there.</p>
+<p>If the answer is an error instead, such as an expired login, a denied permission or no route
+to the cluster, <code>status</code> prints <code>could not read the &lt;platform&gt; state:</code> and the first line of
+the error, and <code>schedule status --json</code> shows <code>"unit_installed": null</code>. A missing <code>kubectl</code>,
+<code>aws</code> or <code>az</code> shows its own error line, such as <code>aws is not on PATH</code>, and an adapter that
+cannot be built shows <code>could not build the &lt;platform&gt; adapter:</code>; both also give <code>null</code>. Fix
+the login, the network or the missing tool first: <code>install</code> needs the same access.</p>
+</li>
+<li>
+<p><strong>The job record was removed and the unit was not.</strong> <code>schedule list</code> reports these as
    orphaned units, by name and platform. Such a unit keeps firing on schedule, and <code>uninstall</code>
    cannot reach it, because it resolves a job name through the record that is gone. Recreate the
    record with <code>contextlake schedule --job NAME install</code> and then <code>uninstall</code> it, or delete the
    unit on the platform. <code>list</code> also names any platform it could not enumerate, so an empty
-   result is never mistaken for one that was checked.</li>
+   result is never mistaken for one that was checked.</p>
+</li>
 <li><strong><code>schedule_require_idle</code> is on and you expected it to gate a run.</strong> It cannot: see
    <a href="#platform-differences">Platform differences</a>.</li>
 <li><strong>Consecutive failures are backing off the interval.</strong> <code>status</code> reports the failure count. Fix
@@ -445,6 +602,22 @@ measured history, and reports every way they disagree:</p>
 <li><strong>Nothing has fired yet at all.</strong> Check the platform directly: <code>systemctl --user list-timers</code>
    for systemd, <code>crontab -l</code> for cron. A gap between what <code>status</code> reports and what the platform
    shows is the bug to chase.</li>
+<li><strong><code>schedule list</code> says the job store could not be read.</strong> <code>schedule-jobs.json</code> exists and is
+   not valid (bad JSON, no mapping of jobs, or not a file). Without records, <code>list</code> cannot tell
+   an orphaned unit from a job. An absent file is not an error: it means no jobs.
+   - <code>list</code> names the file, skips the orphan check, and exits 1. With <code>--json</code>, it adds
+     <code>_job_store_unreadable</code> (<code>path</code> and <code>reason</code>), an empty <code>_orphaned_units</code>, and every
+     registered platform in <code>_unchecked_platforms</code>, because none was checked.
+   - <code>schedule status</code> also exits 1, and does not say "No schedule installed".
+   - Repair or move the file, then run the command again.</li>
+<li><strong><code>status</code> says the unit has no <code>--config</code> and no working directory, or reads a config this
+   command did not load.</strong> The unit and this command use different configs. The warning prints the
+   command to run: <code>install</code> again for the first, <code>status</code> the way the unit runs for the second. See
+   <a href="#which-config-a-scheduled-run-reads">Which config a scheduled run reads</a>.</li>
+<li><strong><code>status</code> says the working directory is not an existing directory.</strong> The directory the job was
+    installed from was moved or deleted. The unit changes to it before it runs. systemd, cron and
+    Task Scheduler then start no run, and what launchd does with a missing directory was not
+    checked. Run the <code>install</code> command from the warning, in a directory that exists.</li>
 </ol>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
@@ -461,6 +634,7 @@ measured history, and reports every way they disagree:</p>
 <li><a href="#schedule-recommend-what-interval-your-measurements-suggest">schedule recommend: what interval your measurements suggest</a></li>
 <li><a href="#schedule-install-measure-decide-and-install">schedule install: measure, decide, and install</a><ul>
 <li><a href="#how-the-cron-adapter-edits-your-crontab">How the cron adapter edits your crontab</a></li>
+<li><a href="#which-config-a-scheduled-run-reads">Which config a scheduled run reads</a></li>
 </ul>
 </li>
 <li><a href="#set-reset-and-unset">Set, reset, and unset</a><ul>
@@ -508,6 +682,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

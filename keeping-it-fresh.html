@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Keeping it fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Keeping it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keeping-it-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-21"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Keeping it fresh", "item": "https://sayak.in/contextlake/keeping-it-fresh"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -146,6 +146,11 @@ else still runs.</p>
 </tr>
 <tr>
 <td>9</td>
+<td>Write the API reference and design notes</td>
+<td><code>--no-docs</code></td>
+</tr>
+<tr>
+<td>10</td>
 <td>Write editor steering (<code>.mcp.json</code>, <code>AGENTS.md</code>, and so on)</td>
 <td>not skippable</td>
 </tr>
@@ -155,11 +160,14 @@ else still runs.</p>
 store holding a single repository gets that repository's symbol graph (<code>graph.html</code>), and a store
 holding several gets the fleet map (<code>overview.html</code>). It reports the node and edge counts it drew,
 so a diagram with nothing in it says so rather than reporting a bare success.</p>
-<p>A failing knowledge-layer stage (3 to 9) warns, records the failure, and lets the rest of the run
-continue. <strong>Indexing is the exception</strong>: the graph is what every later stage reads, so if <code>index</code>
-fails the run stops there and exits <code>1</code> rather than building vectors and prose on top of nothing. An
-unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
-built from the clones already on disk.</p>
+<p>A failing knowledge-layer stage (3 to 10) warns, records the failure, and lets the rest of the run
+continue. At the end the run names each failed stage and exits <code>1</code>. An unreachable remote in stage 1
+is recorded and continued past in the same way, so the knowledge layer still gets built from the
+clones already on disk.</p>
+<p><strong>Indexing is the exception</strong>, but only when it leaves nothing behind. If <code>index</code> fails and the
+store holds no repository, the run stops there and exits <code>1</code> and does not build vectors and prose
+on top of nothing. If <code>index</code> fails on some repositories and indexed the others, the later stages
+run on that partial graph, and the run still exits <code>1</code> at the end.</p>
 <p>Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
 there, which in practice means failing to write the report file, ends the run before indexing starts.</p>
 <p>Both config files are read from their default locations: <code>~/.contextlake.ini</code> and
@@ -226,7 +234,9 @@ everything below still applies once a schedule is installed.</p>
 </div>
 <h3 id="before-your-first-cron-entry">Before your first cron entry<a class="anchor" href="#before-your-first-cron-entry" title="Link to this section">#</a></h3>
 <ol>
-<li><strong>Have a config file.</strong> Cron does not read the directory you happened to be in when you tested.</li>
+<li><strong>Have a config file.</strong> Cron does not read the directory you happened to be in when you tested.
+   <code>contextlake schedule install</code> keeps that directory and any <code>--config</code> for you, see
+   <a href="scheduling#which-config-a-scheduled-run-reads">Which config a scheduled run reads</a>.</li>
 </ol>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># writes the file for you, prompting for each value</span>
 <span class="c1"># or copy the shipped template and fill it in by hand:</span>
@@ -271,14 +281,37 @@ cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.
 <p>For freshness between scheduled runs, install a <code>post-commit</code> hook that re-indexes a repo the moment
 you commit to it:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>~/src/app<span class="w">                   </span><span class="c1"># one directory alone means install</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
 </code></pre></div>
+<p>A path that does not exist (for example <code>kb hook ~/missing/dir</code>) prints <code>No such directory: &lt;path&gt;</code>
+and exits 1. A plain word that is not an action prints the list of actions and exits 1.</p>
+<p>Install refuses, writes nothing and exits 1 when git would never run the hook it writes:</p>
+<ul>
+<li><code>core.hooksPath</code> sends git to another directory (Husky, lefthook and global hook guards do this).
+  That directory can be shared by many repos, so add the re-index call there yourself, or unset
+  <code>core.hooksPath</code> for the repo.</li>
+<li>The <code>post-commit</code> hook you already have is not a shell script (a <code>python</code> shebang, for example).</li>
+<li>It has an <code>exec</code> or <code>exit</code> line before its end, so a block added to it would never run. A single
+  closing <code>exec</code> or <code>exit</code> is fine: the block goes directly above it.</li>
+</ul>
+<p><code>kb hook status</code> counts a repo as wired only when a commit would reach the block, and prints its
+summary line with a warning mark when fewer repos are wired than you asked about.</p>
+<p>A linked worktree (<code>git worktree add</code>) has no hooks directory of its own: git reads the main
+checkout's. Install from a worktree writes there, so a commit in any checkout of the repo runs the
+hook, and the hook re-indexes the one path it was installed from. While the hook there names another
+path, install from a second checkout is refused and exits 1. Run <code>kb hook uninstall</code> first to
+replace it.</p>
 <p>The hook runs <code>contextlake kb index &lt;repo&gt;</code> detached, so the commit returns immediately, and it
-re-uses the repo's stored id so it updates the same graph node rather than creating a duplicate. It
-is written inside a delimited managed block, so a hook you already had is appended to rather than
-overwritten, and only that block is refreshed on re-runs.</p>
+re-uses the repo's stored id so it updates the same graph node and does not create a duplicate. When
+the store does not hold the repo yet, it uses the id the repo's <code>origin</code> gives, the same id a plain
+<code>kb index PATH</code> files it under.</p>
+<p>It is written inside a delimited managed block, so a hook you already had is appended to, not
+overwritten, and only that block is refreshed on re-runs. A <code>--config</code> path is stored as an
+absolute path, because git runs the hook from the repo root. <code>kb refresh --refresh</code> does the same
+for the background update it starts.</p>
 <p><code>kb index</code> rewrites that repo's API reference and design notes along with the graph, so the
 documents move with the commit. No model runs, and a repo whose head commit has not moved is
 skipped. Pass <code>--no-docs</code> in the hook command to leave the documents to <code>kb docs</code> instead.</p>
@@ -296,10 +329,21 @@ store can be arbitrarily out of date while every command it serves looks healthy
 <span class="go">  moved: console-ui</span>
 <span class="go">  checked 12/12 in 0.06s</span>
 </code></pre></div>
-<p>It reads only. Add <code>--refresh</code> and it starts <code>kb index</code> then <code>kb steer</code> <strong>in the background</strong> and
-returns immediately, so nothing waits on a re-index. <code>--budget</code> caps how long the check itself may
+<p>It reads only. Add <code>--refresh</code> and it starts <code>kb index</code> <strong>in the background</strong> and returns
+immediately, so nothing waits on a re-index. <code>--budget</code> caps how long the check itself may
 take on a large fleet; whatever it did not reach is reported as unchecked rather than passed over
 silently.</p>
+<p>After the index step, the background update runs <code>kb steer --out &lt;the directory you ran it from&gt;</code>.
+It does this only when that directory already holds steering from an earlier <code>kb steer</code>:</p>
+<ul>
+<li>a contextlake block in <code>AGENTS.md</code> or <code>CLAUDE.md</code>, or</li>
+<li>the session hook in <code>.claude/settings.json</code>.</li>
+</ul>
+<p>In any other directory it skips that step, so a refresh never creates steering files, or a session
+hook, where you did not ask for them.</p>
+<p>The update starts in the store directory. It cannot find a <code>.contextlake.kb.toml</code> that sits
+elsewhere and chose the store. In that case <code>kb refresh --refresh</code> says so and starts nothing.
+Pass <code>--config</code> with that file to run it in the background.</p>
 <p><code>contextlake kb steer</code> installs this as a <strong>Claude Code <code>SessionStart</code> hook</strong>, so every session
 opens with one line saying whether the graph describes today's code, and the update already running:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;SessionStart&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -484,6 +528,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

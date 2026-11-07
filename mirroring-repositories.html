@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -205,8 +205,14 @@ locally.</p>
 <p>This command:</p>
 <ul>
 <li>Uses the configured platform's REST API with pagination to fetch all projects</li>
+<li>Sends the token only to the host you chose. A redirect to another origin (scheme, host or
+  port) is followed without the token. A redirect inside the same origin keeps it.</li>
 <li>Includes subgroups automatically</li>
 <li>Skips archived repositories</li>
+<li>Tries a page up to 6 times when the forge times out, asks for a wait (408, 425, 429), fails
+  (5xx) or drops the connection. Any other HTTP status, such as 401, 403 or 404, stops the run
+  at once. That holds for <code>glab</code> too when its message ends with the status, such as
+  <code>glab: HTTP 401</code>. A <code>glab</code> message with no status is still retried</li>
 <li>Caches results in <code>gitlab_projects.txt</code> and <code>gitlab_projects.json</code>, under a
   per-workspace subdirectory of <code>~/.cache/contextlake</code> (override with <code>cache_dir</code>)</li>
 </ul>
@@ -241,6 +247,11 @@ host never receives your forge token.</p>
 <li><strong>Otherwise</strong>: plain <code>git clone</code> over HTTPS.</li>
 </ol>
 <p>Set <code>clone_method = git</code> or <code>clone_method = glab</code> to force one path.</p>
+<p><code>clone</code>, <code>update</code> and <code>branches</code> run git with <code>GIT_TERMINAL_PROMPT=0</code>, so git never stops to ask for a
+username or password on the terminal. A repository whose server answers 401 fails at once with
+<code>terminal prompts disabled</code>. It used to wait at a <code>Username for ...</code> prompt until the timeout, then
+retry. For a private repository, use a platform token or a git credential helper. To get the prompt
+back, set <code>GIT_TERMINAL_PROMPT=1</code> in your environment.</p>
 <p>A project whose path would land outside the work directory is skipped, with
 <code>Refused: this forge path is not inside the work directory</code> on its line. That covers an absolute
 path, a path with <code>..</code> in it, a path that resolves to the work directory itself, and one that
@@ -264,10 +275,10 @@ cloned into while <code>clean_corrupted</code> is on.</p>
 <li>When the branch it tracks is no longer on <code>origin</code> (merged and deleted, or renamed), switches
   to the most active remaining branch, the same choice <code>mirror branches</code> makes. It stays on
   the branch instead, and reports a skip, when that branch has commits no <code>origin</code> branch has,
-  when git cannot say whether it does, or while <code>--auto-stash</code> holds your edits for it.
-  A squash-merged branch whose <code>origin</code> ref git has pruned (<code>fetch.prune</code>) counts as having
-  such commits, because the squash put new commits on <code>origin</code>, not these; move it with
-  <code>mirror branches</code></li>
+  when git cannot say whether it does, or while <code>--auto-stash</code> holds your edits for it</li>
+<li>A squash-merged branch counts as having such commits, because the squash put new commits
+  on <code>origin</code>, not these; move it with <code>mirror branches</code>. The check runs after a fetch that
+  prunes, so the deleted branch's old <code>origin</code> ref is not counted as an <code>origin</code> branch</li>
 <li>Works on the clones in the work directory only. A checkout inside a clone (a vendored copy)
   and anything under <code>node_modules</code> are part of that clone, and are not fetched or switched.
   <code>mirror verify</code> still reports a repository nested in another one</li>
@@ -278,7 +289,8 @@ cloned into while <code>clean_corrupted</code> is on.</p>
 </code></pre></div>
 <p>This command:</p>
 <ul>
-<li>Fetches all remote branches for each repository</li>
+<li>Fetches all remote branches for each repository, and drops the local <code>origin</code> refs of
+  branches that were deleted on the remote</li>
 <li>Calculates commit count for each branch</li>
 <li>Identifies the branch with the most commits (most active)</li>
 <li>Switches to the most active branch if different from current</li>
@@ -294,13 +306,15 @@ detached-HEAD states are skipped.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>branches<span class="w"> </span>--branch<span class="w"> </span>release/24.1
 contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--branch<span class="w"> </span>main<span class="w">          </span><span class="c1"># every stage of a sync honours it</span>
 </code></pre></div>
-<p>A repository that does not have that branch is <strong>reported as not having it</strong> and stays on
-its most active branch. That is deliberate and it is the useful half of the feature: a
-release branch usually exists in a handful of repositories out of hundreds, so the run
-answers "which ones carry it" rather than leaving several hundred repositories reading as
-though they had done what was asked.</p>
+<p>A repository that does not have that branch is <strong>reported as not having it</strong> and is put on
+its most active branch instead, the choice <code>branches</code> makes with no pin. A repository on a
+working branch is still skipped (see <a href="#branch-safety">Branch safety</a>).</p>
+<p>Reporting the miss is deliberate and it is the useful half of the feature: a release branch
+usually exists in a handful of repositories out of hundreds, so the run answers "which ones
+carry it". Without the report, several hundred repositories would read as though they had
+done what was asked.</p>
 <div class="highlight"><pre><span></span><code>✓ Branch switch complete: 4 switched, 0 already, 0 skipped, 0 empty, 0 dry-run, 396 unpinned, 0 errors
-  396 repo(s) have no branch &#39;release/24.1&#39;; each stayed on its most active branch
+  396 repo(s) have no branch &#39;release/24.1&#39;; each is on its most active branch instead
 </code></pre></div>
 <p>The name is matched exactly. <code>--branch release/24</code> does not select <code>release/24.1</code>.</p>
 <p>Set it once in the config instead of passing it every run:</p>
@@ -317,8 +331,10 @@ though they had done what was asked.</p>
 <li><strong>First match wins,</strong> so list the specific entry before the glob that would also catch it.</li>
 <li>It <strong>beats</strong> <code>branch</code>. Anything the map does not match falls back to <code>branch</code>, and then to
   the most-active selection.</li>
-<li>A repository whose mapped branch does not exist is reported as <code>unpinned</code>, exactly as
-  <code>branch</code> does. It is never switched to something else instead.</li>
+<li>A repository whose mapped branch does not exist is reported as <code>unpinned</code>, as with
+  <code>branch</code>. It is put on its most active branch instead, and the run says so. The summary
+  line names the missing branch when the repositories share one. When the pins differ, it
+  says <code>no branch they are pinned to</code>, and each repository's own line names its branch.</li>
 <li>A malformed pair is dropped rather than guessed at. Pinning the wrong branch is worse than
   pinning none.</li>
 </ul>
@@ -357,11 +373,13 @@ other repository goes to <code>main</code>.</p>
 <h3 id="mirror-audit-repo-health-age-report"><code>mirror audit</code>: repo health &amp; age report<a class="anchor" href="#mirror-audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
 and how old or active they are. Runs automatically at the end of <code>sync</code>, and in <code>bootstrap</code> immediately after the mirror
-step (stage 2 of 8, before the knowledge layer is built), or on demand:</p>
+step (stage 2, before the knowledge layer is built), or on demand:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w">                       </span><span class="c1"># summary to console + report to &lt;cache_dir&gt;/repo_audit.json</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w"> </span>--report<span class="w"> </span>./audit.json<span class="w"> </span><span class="c1"># choose where the per-repo JSON + .csv are written</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--no-audit<span class="w">             </span><span class="c1"># run sync without the audit step</span>
 </code></pre></div>
+<p>A <code>--report</code> name that ends in <code>.csv</code> is the CSV path, and the JSON goes beside it with a <code>.json</code>
+name. Any other name is the JSON path, and the CSV goes beside it with a <code>.csv</code> name.</p>
 <p>It sorts each repo into one of four classes:</p>
 <ul>
 <li><strong>empty</strong>, no commits or files</li>
@@ -504,6 +522,13 @@ tree is clean.</p>
 <div class="highlight"><pre><span></span><code>⚠ backend/services/api-gateway: Changes stashed successfully
 [1/12] ✓ backend/services/api-gateway: Updated main
 </code></pre></div>
+<p>If putting your edits back conflicts with the update, that repository is reported as failed:</p>
+<div class="highlight"><pre><span></span><code>⚠ backend/services/api-gateway: your changes are still stashed -- CONFLICT (content): Merge conflict in app.py. The tree has unresolved conflicts in app.py: resolve them, `git add` or `git rm` each file, then `git stash drop`
+[1/12] ✗ backend/services/api-gateway: Updated, but restoring your stashed changes failed: CONFLICT (content): Merge conflict in app.py. The tree has unresolved conflicts in app.py: resolve them, `git add` or `git rm` each file, then `git stash drop`
+</code></pre></div>
+<p>The update itself is done. The tree holds the unresolved conflict, and the stash is kept until
+you drop it. A text conflict leaves markers in the file. A conflict where one side deleted the
+file, or where the file is binary, leaves none, so check <code>git status</code> for unmerged paths.</p>
 <p>The <code>[i/total]</code> counter is part of every per-repo status line. Redirect the output to a file and each
 line also carries a <code>[YYYY-MM-DD HH:MM:SS]</code> timestamp; on a terminal it does not, because the clock
 is rendered on the right instead. See <a href="console-output">Reading the console output</a>.</p>
@@ -604,6 +629,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Installing and upgrading · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -82,7 +82,9 @@ environment you already manage.</p>
   you already have on disk needs no token at all.</li>
 </ul>
 <p>None of the channels below need a C or C++ compiler. If an install starts building from source
-anyway, it is a tree-sitter grammar with no wheel for your platform, and the remedy is in
+anyway, it is a tree-sitter grammar with no wheel for your platform. It builds from its source
+archive, which needs a compiler. The Dockerfile grammar (<code>[kb-dockerfile]</code>) has no source
+archive, so on such a platform it fails to install. The remedy is in
 <a href="troubleshooting#the-knowledge-layer-will-not-install">The knowledge layer will not install</a>.</p>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
 <div class="tabs">
@@ -139,8 +141,8 @@ declares a single console script and ships no top-level launcher, so it is not t
 </tr>
 <tr>
 <td><code>[kb-fastembed]</code></td>
-<td>A higher-quality ONNX embedder (about 90 MB)</td>
-<td>Better semantic ranking, at a larger download</td>
+<td>A higher-quality ONNX embedder (model about 67 MB). It installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library</td>
+<td>Better semantic ranking, at a larger download. The vectors are the same ones the fastembed library gave, so a store built before needs no re-embed</td>
 </tr>
 <tr>
 <td><code>[kb-pdf]</code></td>
@@ -174,6 +176,10 @@ declares a single console script and ships no top-level launcher, so it is not t
 </tr>
 </tbody>
 </table>
+<p><code>[kb-ocr]</code>, <code>[kb-video]</code> and <code>[kb-transcribe]</code> need Pillow 13, which has the fixes for eight
+security advisories in Pillow 12. Pillow 13 needs Python 3.11 or newer. On Python 3.10 these
+three fail to install, because no Pillow 13 exists for 3.10. Use Python 3.11 or newer for them.
+See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#pillow-12-eight-advisories" target="_blank" rel="noopener">SECURITY.md<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <p>Contributors also have <code>[dev]</code> (pytest, ruff, pre-commit) and <code>[release]</code>. See
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h3 id="the-built-in-wiki-llm-is-one-extra">The built-in wiki LLM is one extra<a class="anchor" href="#the-built-in-wiki-llm-is-one-extra" title="Link to this section">#</a></h3>
@@ -184,16 +190,25 @@ declares a single console script and ships no top-level launcher, so it is not t
 runs it. By hand it is:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span>
 </code></pre></div>
-<p>No compiler, no wheel index and no <code>--only-binary</code> pin. The standalone binary installs it on
-first run, and the full Docker image ships the runtime and the model baked in.</p>
-<p>The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
-which backend to choose and why, see
+<p>No compiler, no wheel index and no <code>--only-binary</code> pin, on Linux with glibc 2.28 or newer on
+x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs. Current <code>openvino-genai</code> releases
+have no wheel for Intel Macs or for musl Linux (such as Alpine), and no source archive. The
+standalone binary installs it on first run, and the full Docker image ships the runtime and the
+0.5B model baked in.</p>
+<p>The model itself downloads on the first wiki run, not at install time. With no model set, that
+run picks a size from the free RAM and prints the download size before it starts: 349 MB
+(Apache-2.0) for the 0.5B, up to 8.5 GB for the largest. For which backend to choose and why, see
 <a href="model-providers#installing-the-built-in-llm">Installing the built-in LLM</a>.</p>
 <h3 id="docker">Docker<a class="anchor" href="#docker" title="Link to this section">#</a></h3>
 <p>The published image at <code>ghcr.io/sayak-sarkar/contextlake</code> carries the knowledge layer plus
-the built-in CPU models (the embedder and a small wiki LLM), so it runs with no Ollama, no
-API key, and no model download at runtime. Reach for it on locked-down or offline machines;
-the PyPI wheel stays the primary install. It runs as a non-root user.</p>
+the built-in CPU models (the embedder and the 0.5B wiki LLM), so it runs with no Ollama and
+no API key. Reach for it on locked-down or offline machines; the PyPI wheel stays the primary
+install. It runs as a non-root user.</p>
+<p>The image holds only the 0.5B. A <code>kb wiki</code> run with no model set picks the largest size that
+fits the free RAM and does not prefer the copy on disk, so it can download a larger one. To
+stay on the baked model, pass <code>--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov</code>, set
+<code>CONTEXTLAKE_OFFLINE=1</code>, or set <code>[llm] builtin_model</code> to that id. See
+<a href="model-providers#installing-the-built-in-llm">The first run picks a size</a>.</p>
 <p>One thing the default image does <strong>not</strong> carry is the <code>sqlite-vec</code> ANN backend (<code>[kb-vec]</code>): it is
 built from <code>[kb,kb-local,llm-local]</code>. Semantic search still works there, on the pure-Python exact
 scan, which is the slower path on a large store. If that matters more to you than a baked-in wiki
@@ -226,8 +241,9 @@ wiki tier at Ollama, OpenAI, Anthropic or <code>cli</code> instead of the built-
 <p>If the machine has no Python at all, the release assets are self-contained launchers built
 with <a href="https://ofek.dev/pyapp/" target="_blank" rel="noopener">PyApp<span class="ext-arrow" aria-hidden="true">↗</span></a>. The launcher bootstraps a private Python plus
 <code>contextlake[kb-full,llm-local]</code> into its own cache on first run, which needs network once;
-every run after that is instant. Everything it installs comes from an ordinary prebuilt wheel on
-PyPI, so there is no compiler to install and nothing for you to pass.</p>
+every run after that is instant. The <code>openvino-genai</code> package it installs comes from a prebuilt
+wheel on PyPI on each of the three platforms below, so there is no compiler to install for it
+and nothing for you to pass.</p>
 <p>Three assets are published per release, one per build platform:</p>
 <table>
 <thead>
@@ -342,7 +358,7 @@ the local built-in runtime. Name a capability to install it regardless of config
 </tr>
 <tr>
 <td><code>--fix &lt;capability&gt;</code></td>
-<td>Install one: <code>git</code>, <code>embedder</code>, <code>vectors</code>, <code>llm-local</code> (<code>embedder</code> resolves against your config: <code>[kb-fastembed]</code> when <code>engine = "fastembed"</code>, <code>[kb-local]</code> otherwise)</td>
+<td>Install one: <code>git</code>, <code>embedder</code>, <code>vectors</code>, <code>llm-local</code> (<code>embedder</code> resolves against your config: <code>[kb-fastembed]</code> when <code>engine = "fastembed"</code>, <code>fastembed</code> itself for another fastembed model, <code>[kb-local]</code> otherwise)</td>
 </tr>
 <tr>
 <td><code>--dry-run</code> (<code>-n</code>)</td>
@@ -492,7 +508,8 @@ separate cache elsewhere in your home directory.</p>
 <p>The flags worth knowing when you write one of these by hand:</p>
 <ul>
 <li><strong><code>-U</code> / <code>--upgrade</code></strong> moves an already-installed contextlake to the newest version.
-  Without it, pip sees the package installed and does nothing.</li>
+  Without it, pip keeps the installed version. It still installs any dependency that is
+  missing, including one that an extra you name needs.</li>
 <li><strong><code>--only-binary NAME</code></strong> installs that package from a prebuilt wheel only, never building
   from source. On a machine with no compiler it turns a wall of build errors into a clean
   "no matching distribution" message. Name the one native package when you still want a source
@@ -603,6 +620,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Document sources and RAG · contextlake docs">
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -83,6 +83,18 @@ layer, they become <code>kind="document"</code> graph nodes and, when embeddings
 semantic search spans code <em>and</em> docs together:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w"> </span>--for-repo<span class="w"> </span>group/app<span class="w">   </span><span class="c1"># …and link it to that repo&#39;s code</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>https://example.com/changelog<span class="w"> </span>--source-type<span class="w"> </span>web<span class="w">   </span><span class="c1"># one web page</span>
+</code></pre></div>
+<p><code>--path</code> sets the <code>path</code> of a <code>files</code> source. For <code>--source-type web</code> or <code>api</code> it sets the <code>url</code>. For
+<code>--source-type mcp</code> it sets the <code>url</code> when the value starts with <code>http://</code> or <code>https://</code>. It sets one
+option only, so it cannot drive a <code>graphql</code> source, which needs a <code>query</code> as well. Use a <code>[[sources]]</code>
+entry in <code>kb.toml</code> for that. When <code>--path</code> names a target and no request goes out for it, the source's
+line reads <code>cli: FAILED, nothing was sent for '...'</code> with the reason, and the run exits 1.</p>
+<p>Every <code>--path</code> run writes the same set of documents (the <code>@ingest:cli</code> partition), so a run on a
+second folder replaces the documents of the first. The run prints a line with the count and the first
+three names it replaced. To keep several, add each as its own source and run <code>kb ingest</code> with no
+<code>--path</code>. A <code>web</code> or <code>api</code> source takes <code>url</code> where a <code>files</code> source takes <code>path</code>:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w"> </span>notes<span class="w"> </span>--type<span class="w"> </span>files<span class="w"> </span>--set<span class="w"> </span><span class="nv">path</span><span class="o">=</span>./notes
 </code></pre></div>
 <p><code>--for-repo</code> names the <strong>already-indexed repo the documents are about</strong>. Every symbol a document mentions
 by name gets a <code>documented_by</code> edge to that document, so "where is this function explained?" is a graph
@@ -97,6 +109,10 @@ The per-source equivalent is <code>for_repo = "group/app"</code> on a <code>[[so
 <span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/notes&quot;</span>
 <span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.txt&quot;</span><span class="p">]</span>
 </code></pre></div>
+<p>A leading <code>~</code> in <code>path</code> means your home directory.</p>
+<p>A text file is skipped, with a warning that names it, when it is over <code>max_bytes</code> or is not valid
+UTF-8. Neither fails the run. A file that exists but cannot be opened (a permission error) is
+reported as unreadable, and the run exits 1.</p>
 <h3 id="pdfs-the-text-layer-and-nothing-pretending-to-be-more">PDFs: the text layer, and nothing pretending to be more<a class="anchor" href="#pdfs-the-text-layer-and-nothing-pretending-to-be-more" title="Link to this section">#</a></h3>
 <p>Design docs, RFCs and architecture decisions arrive as PDFs, so the <code>files</code> source reads
 them as well. <code>*.pdf</code> is one of its default globs, and the text comes from the PDF's <strong>text layer</strong>
@@ -105,7 +121,8 @@ via <code>pypdf</code>, which rides in its own extra so the core stays a single 
 </code></pre></div>
 <p><code>[kb-pdf]</code> is deliberately not part of <code>[kb-full]</code>; see <a href="installing#the-extras-and-which-one-you-want">the extras
 table</a>. If you set <code>include</code> yourself, list <code>"*.pdf"</code>
-in it, a custom <code>include</code> replaces the defaults rather than adding to them.</p>
+in it, a custom <code>include</code> replaces the defaults; it does not add to them. A single string, such as
+<code>--set include='*.md'</code>, is read as one glob.</p>
 <p>What the PDF path does <strong>not</strong> do is the load-bearing half:</p>
 <ul>
 <li>no OCR</li>
@@ -146,6 +163,10 @@ time, to a third party.</p>
 leaves the machine. The offline boundary holds for images exactly as it does for code.</p>
 <p>It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
 separate from <code>[kb]</code> and from <code>[kb-full]</code>, the same call <code>[kb-fastembed]</code> makes.</p>
+<p>rapidocr opens each image file with Pillow, so a Pillow advisory reaches files in your
+repositories that this tool did not write. <code>[kb-ocr]</code> therefore requires Pillow 13 or newer.
+Pillow 13 needs Python 3.11 or newer. On Python 3.10 the extra fails to install: pip reports
+no matching Pillow, because the only Pillow for 3.10 is version 12, which has eight advisories.</p>
 <p>An OCR'd document is marked. Its node carries <code>ocr = true</code> in <code>attrs</code>, because OCR misreads and a
 reader deciding how far to trust a line should not have to infer that from a file extension.</p>
 <p>The quiet outcome is the common one and it is still loud: an image the engine reads no words in --
@@ -226,17 +247,39 @@ secret read from an env var (never the config file):</p>
 </code></pre></div>
 <p><code>id_field</code>, <code>title_field</code> and <code>text_field</code> take a plain key or a dotted path into the record,
 such as <code>fields.summary</code>. A record with no text at that path is skipped.</p>
+<p>A record with no id, or a null or empty one, gets an id made from its title and text, such as
+<code>noid-9c68432722b2</code>. The same record keeps its id on every run. An id names the graph node, so two
+documents of one source must not share one. When they do, <code>kb ingest</code> keeps both: it adds <code>#2</code>,
+<code>#3</code> and so on to the later ones, skipping ids the source already has, and prints the count.
+Point <code>id_field</code> at a field that is unique per record to avoid the suffix.</p>
+<p>An <code>api</code> source with a <code>search_url</code> and no <code>url</code> sends no request at ingest time. <code>kb enrich</code>
+queries it (see <a href="connecting-and-enriching">Connecting and enriching</a>). <code>kb ingest</code> prints
+<code>&lt;name&gt;: nothing to ingest: an api source with only search_url is queried by kb enrich, not kb ingest</code>
+for it and exits 0. The line <code>no documents (source reachable, nothing to ingest)</code> is kept for a
+source that sent a request and got nothing back. Any <code>web</code>, <code>api</code>, <code>graphql</code> or <code>mcp</code> <code>[[sources]]</code>
+entry that sent no request prints the same <code>nothing to ingest:</code> line with its own reason. The reasons are a
+missing <code>url</code>, <code>query</code> or <code>command</code>, and a URL that is not http or https.</p>
+<p><strong>A target that cannot be read does not delete its document.</strong> Say some targets of a source answer and
+others fail (a page that returns a 500, a file that cannot be opened). <code>kb ingest</code> then stores the new
+documents and keeps what the last run stored for everything it did not read again. The source's line
+says so, for example <code>site: 1 document(s), kept 1 from the last run, 1 target(s) unreadable</code>, and the
+run exits 1.</p>
+<ul>
+<li>A run that reads every target replaces the whole set, so a page you removed from the config leaves
+  on that run.</li>
+<li>If no target answers, the earlier documents stay as they were.</li>
+</ul>
 <p><strong>The credential stays on one host.</strong> The <code>Authorization</code> header goes only to the origin
 (scheme, host and port) of <code>url</code>. A redirect, or a next-page link, that points at a different
 origin is still followed, but without the header. A redirect within the same origin keeps it.</p>
 <p><strong>Two auth schemes.</strong> <code>auth = "bearer"</code> is the default and sends
 <code>Authorization: Bearer &lt;secret&gt;</code>. <code>auth = "basic"</code> sends
-<code>Authorization: Basic base64(user:secret)</code>, which is what an API token needs on Atlassian
+<code>Authorization: Basic base64(user:secret)</code>, which is what a user API token needs on Atlassian
 Cloud, Jira and Confluence:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
-<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/rest/api/3/search?jql=order+by+updated&quot;</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%3DACME+order+by+updated&amp;fields=summary&amp;maxResults=100&quot;</span>
 <span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
 <span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
 <span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
@@ -246,9 +289,21 @@ Cloud, Jira and Confluence:</p>
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ATLASSIAN_API_TOKEN&quot;</span><span class="w">   </span><span class="c1"># the token is, so it stays in the environment</span>
 </code></pre></div>
 <p>Create the token under <strong>Account settings → Security → API tokens</strong> in your Atlassian
-profile, then export it as <code>ATLASSIAN_API_TOKEN</code>. A bearer header against Atlassian Cloud
-returns 401 with a body that does not explain why, so <code>auth = "basic"</code> is required rather
-than a preference.</p>
+profile, then export it as <code>ATLASSIAN_API_TOKEN</code>.</p>
+<p>Atlassian documents Basic auth for user API tokens, so use <code>auth = "basic"</code> for them. A Bearer
+header with a user API token against Atlassian Cloud returned 401 when the project tested it.
+That example assumes an unscoped user token at the site URL. A scoped user token needs an
+<code>api.atlassian.com</code> URL. A service account token can use Basic or Bearer, but only at an
+<code>api.atlassian.com</code> URL.</p>
+<p>The Jira search address:</p>
+<ul>
+<li><strong>Use <code>/rest/api/3/search/jql</code>.</strong> The older <code>/rest/api/3/search</code> now answers 410 Gone.</li>
+<li><strong>Restrict the query.</strong> The new address refuses a query with no restriction (400,
+  "Unbounded JQL queries are not allowed"), so name a project or a text match in the <code>jql</code>.</li>
+<li><strong>Expect one page.</strong> It pages with a <code>nextPageToken</code> value in the response body, and
+  <code>next_field</code> expects a link, not a token. Set <code>maxResults</code> (up to 100) to choose how many
+  issues that page holds.</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><code>auth</code>, <code>user</code> and <code>token_env</code> are privileged keys: a config file contextlake <em>discovered</em>
@@ -299,15 +354,47 @@ accept:</p>
 <ul>
 <li><code>auth_dir</code>: an isolated OAuth-cache directory. Set a distinct one per Atlassian org so their
   <code>mcp-remote</code> caches never collide.</li>
+<li><code>scopes</code>: the OAuth scopes an Atlassian source asks for, as one space-separated string. The default is
+  the read-only set. <code>connect</code> and <code>enrich</code> both pass it to the connector. A discovered config file may
+  only narrow it (see <a href="configuration">Configuration</a>).</li>
+<li><code>timeout</code>: seconds to wait for one call to the source. The default is <code>120</code> for an Atlassian, Figma or
+  Slack source, <code>30</code> for a GitLab source, <code>60</code> for an <code>mcp</code> source and <code>20</code> for an <code>api</code>, <code>web</code> or
+  <code>graphql</code> source.</li>
 <li><code>mcp_command</code>: a local stdio MCP command to launch instead of a remote endpoint (for example
   <code>"figma-mcp --stdio"</code> or <code>"slack-mcp --stdio"</code>).</li>
 <li><code>hosts</code>: the list of hostnames a Figma, Slack or Zendesk source claims links for (defaults to
-  <code>["figma.com"]</code>, <code>["slack.com"]</code> and <code>["zendesk.com"]</code>).</li>
+  <code>["figma.com"]</code>, <code>["slack.com"]</code> and <code>["zendesk.com"]</code>). A single string is read as one hostname.</li>
 <li><code>verify_tool</code>: the Slack MCP tool name used for reachability checks (default <code>conversations_info</code>).</li>
 <li><code>history_tool</code>: the Slack MCP tool name used to read a channel's messages (default
   <code>conversations_history</code>).</li>
-<li><code>group</code>: a GitLab group prefixed to each repo's path to form the project id.</li>
-<li><code>per_page</code>: the API page size (default <code>50</code>).</li>
+<li><code>group</code>: a filter for a GitLab source. Only a repo whose path is this group, or inside it, is read.
+  The group is not added to the path. Other repos are skipped with no message.</li>
+<li>
+<p><code>gitlab_hosts</code>: the hosts a GitLab source may call, as a list of hostnames such as
+  <code>["git.example.com", "git.example.com:8443"]</code>. A single string is read as one hostname. Unset, it is
+  <code>GITLAB_HOST</code> when that variable is set, else <code>["gitlab.com"]</code>. A value set here replaces that default,
+  so list <code>gitlab.com</code> too if you use it. Global config or <code>--config</code> only (see
+  <a href="configuration">Configuration</a>).</p>
+<p>A repo is read only when the host at the start of its id equals an entry, port included and case
+ignored. <code>git.example.com</code> does not match <code>git.example.com:8443</code>. Another repo is skipped with a log
+line, and each call passes the entry to <code>glab api --hostname</code>. A port is 1 to 65535.</p>
+<p>A repo id takes its host from the clone's origin URL, port included. An ssh URL with a port, such
+as <code>ssh://git@git.example.com:2222/ns/p</code>, gives <code>git.example.com:2222</code>. <code>glab</code> takes an entry as an
+HTTP host, so list the host as GitLab serves its API. Do not list an ssh port. The entry
+<code>git.example.com</code> does not match that id, and the repo is skipped.</p>
+<p>To read such a repo, set its origin to an https URL on the host GitLab serves its API on, or to
+<code>git@git.example.com:ns/p</code> with the port set in <code>~/.ssh/config</code>. Run
+<code>contextlake kb index --source PATH</code> or <code>--workspace DIR</code> on the clone so the id changes, then
+list that host. Indexing by the old repo id keeps the old id. An https origin with a port, such as
+<code>https://git.example.com:8443/ns/p</code>, gives <code>git.example.com:8443</code>, which you list as written when
+8443 is the port GitLab serves its API on.
+- <code>per_page</code>: for a GitLab source, how many open merge requests and issues one call asks for
+  (default <code>50</code>). No other source type reads it.
+- <code>max_pages</code>: for an <code>api</code> source, the most pages it reads when the response links to a next page
+  (default <code>50</code>). If more pages remain at the cap, the run logs
+  <code>api source: stopped at the 50-page cap with more pages available</code> and keeps what it read.
+  Raise <code>max_pages</code> to read the rest.</p>
+</li>
 </ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
@@ -357,6 +444,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

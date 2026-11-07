@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -202,7 +202,8 @@ line and nothing else:</p>
 <h2 id="sharing-a-log-redact">Sharing a log: <code>--redact</code><a class="anchor" href="#sharing-a-log-redact" title="Link to this section">#</a></h2>
 <p><code>--log-file PATH</code> keeps a full-detail copy of the run. That copy is <strong>redacted by default</strong>: workspace
 paths, <code>$HOME</code>, the group/org name, a self-hosted forge hostname and repository names are replaced with
-placeholders, so it can be attached to a bug report as-is.</p>
+placeholders, so it can be attached to a bug report as-is. The filesystem root (<code>/</code>) is never replaced,
+so a <code>$HOME</code> or workspace of <code>/</code> leaves the log readable.</p>
 <div class="highlight"><pre><span></span><code>[2026-08-04 05:48:49] Working directory: &lt;workspace&gt;
 [2026-08-04 05:48:49] Gitlab group: &lt;group&gt;
 [2026-08-04 05:48:49] Missing repositories:
@@ -273,9 +274,11 @@ separately.</p>
   as zero.</li>
 <li><strong><code>N reviewer(s) returned nothing parseable</code></strong>, on a rejection, tells you how many lenses
   abstained. When that count equals your <code>council_size</code> on every page, suspect a <em>misconfigured
-  reviewer</em> (missing API key, review CLI not on PATH) rather than weak pages. A reviewer that
-  returns nothing rejects everything at score 0.0, which otherwise looks identical to a strict
-  council.</li>
+  reviewer</em> (a review CLI that is installed but exits with an error) instead of weak pages. A
+  reviewer that returns nothing rejects every page that reaches the council at score 0.0, which
+  otherwise looks identical to a strict council. A missing API key or a review CLI not on PATH
+  fails the page instead, with an HTTP error or <code>llm provider=cli: command '&lt;name&gt;' not found on
+  PATH</code>.</li>
 <li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> as the last line before it
   opens the socket, so you don't have to guess the host/port/path before pointing an editor at it.
   For <code>http</code> the line is <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code>; for <code>sse</code>
@@ -328,7 +331,7 @@ progress still shows.</p>
 <tr>
 <td><code>1</code></td>
 <td>Something failed</td>
-<td>Any repo failed in <code>mirror fetch</code> / <code>clone</code> / <code>update</code> / <code>branches</code> / <code>verify</code> / <code>sync</code>; a failed <code>bootstrap</code> stage; a <code>kb</code> command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad <code>--config</code> path; <code>doctor</code> when the report found a problem</td>
+<td>Any repo failed in <code>mirror fetch</code> / <code>clone</code> / <code>update</code> / <code>branches</code> / <code>verify</code> / <code>sync</code>; a failed <code>bootstrap</code> stage; a <code>kb</code> command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad <code>--config</code> path; <code>doctor</code> when the report found a problem; a <code>schedule install</code> that could not install its unit</td>
 </tr>
 <tr>
 <td><code>2</code></td>
@@ -342,10 +345,14 @@ progress still shows.</p>
 </tr>
 </tbody>
 </table>
-<p><strong><code>schedule install</code> exits <code>0</code> when it could not install the unit.</strong> It prints <code>✗ Could not
-install</code>, then the unit itself and how to install it by hand, because a read-only home or a
-missing service manager is a situation to work around rather than a failed run. Check for that
-line, not the exit code, if a script needs to know the unit is in place.</p>
+<p><strong><code>schedule install</code> exits <code>1</code> when it could not install the unit.</strong> It still prints <code>✗ Could
+not install</code>, then the unit itself and how to install it by hand, so a read-only home or a
+missing service manager can be worked around. Nothing is scheduled until you do.</p>
+<p><strong><code>Ctrl-C</code> during <code>mirror clone</code>, <code>update</code> or <code>branches</code> stops the queue.</strong> The same holds for those
+stages of <code>sync</code>. Repositories already running finish that repository, so an <code>--auto-stash</code> is put
+back. Repositories not yet started are skipped. The run prints <code>Stopping: repositories already in
+progress will finish first</code>, then <code>Operation cancelled by user</code>, and exits <code>130</code>. The audit at the end
+of <code>sync</code> is not covered: it finishes its scan first.</p>
 <p><strong>The long-running commands are the exception, and deliberately so.</strong> <code>kb serve</code>,
 <code>kb dashboard --serve</code>, <code>kb graph --serve</code> and <code>kb graph --site --serve</code> are meant to be ended by
 you. Each says <code>Ctrl-C to stop</code> on the line announcing where it listens (<code>kb serve --transport
@@ -452,6 +459,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -81,12 +81,17 @@ the model pulled, and otherwise to the built-in CPU model.</p>
   failing on first real use. So the semantic/wiki tiers work the moment you set <code>enabled = true</code>,
   with no daemon and no API key.</li>
 <li><strong><code>builtin</code></strong>, a small model that runs <strong>in-process on CPU</strong>, auto-downloaded once to <code>cache_dir</code>
-  (default <code>~/.contextlake/models</code>). Zero daemon, zero API key.</li>
+  (default <code>~/.contextlake/models</code>). Zero daemon, zero API key. <code>cache_dir</code> is read only from
+  <code>~/.contextlake/kb.toml</code> or a <code>--config</code> file, never from a <code>.contextlake.kb.toml</code> found by
+  walking up from the current directory.</li>
 <li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code> (~30MB, MIT), numpy inference,
     fast at scale, <code>pip install "contextlake[kb-local]"</code>. Or <code>engine = "fastembed"</code>: ONNX <code>bge-small</code>
-    (~90MB, MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>.</li>
+    (~67MB, MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>. That extra installs
+    onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
+    fastembed model needs <code>pip install fastembed</code>.</li>
 <li><em>Wiki LLM</em>, a <code>Qwen2.5-Coder-0.5B-Instruct</code> int4 OpenVINO IR model (Apache-2.0, 349 MB)
-    via <code>openvino-genai</code>, <code>contextlake doctor --fix llm-local</code> (an ordinary wheel: no
+    via <code>openvino-genai</code>, <code>contextlake doctor --fix llm-local</code> (an ordinary wheel on Linux with
+    glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs: no
     compiler, no custom index).
     Fast to set up, but <strong>0.5B is a modest writer</strong> (good for coverage, not
     polished prose) and CPU generation is <strong>slow</strong> (~4 calls/repo). Prefer Ollama at any real scale. See
@@ -135,6 +140,9 @@ works from a local file as usual.</p>
 <p>A discovered file that picks <code>openai</code> or <code>anthropic</code> switches that tier off for the run: a file
 found by directory walk may not aim a credential-carrying tier. Pass <code>--llm PROVIDER</code>, or
 <code>--config PATH</code>, or set the tier in <code>~/.contextlake/kb.toml</code>, to clear that. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">Workspace trust<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
+<p>A discovered <code>review_provider</code> that picks <code>openai</code> or <code>anthropic</code> is dropped, and the council
+reviews with the model that wrote the page. Set it in <code>~/.contextlake/kb.toml</code> or pass
+<code>--config PATH</code> to keep it. A local reviewer such as <code>ollama</code> works from a local file.</p>
 </li>
 </ul>
 <p><strong>Data-sharing posture per backend.</strong> Pick by what may leave your machine:</p>
@@ -227,12 +235,16 @@ API key that happens to be in your environment. See
 </table>
 <p><code>base_url</code> is resolved per provider, so you only set it to reach a proxy or a local
 openai-compatible server, never just to make <code>anthropic</code>/<code>openai</code> work.</p>
+<p>The API key goes only to the origin (scheme, host and port) of <code>base_url</code>. If a proxy or gateway
+answers with a redirect to a different origin, contextlake follows it without the <code>Authorization</code>
+or <code>x-api-key</code> header. The same rule covers <code>[embeddings]</code> with <code>provider = "openai"</code>.</p>
 <p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
 <code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
 <h2 id="installing-the-built-in-llm">Installing the built-in LLM<a class="anchor" href="#installing-the-built-in-llm" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># or: pip install &quot;contextlake[llm-local]&quot;</span>
 </code></pre></div>
-<p>An ordinary wheel install. No compiler, no custom index, no <code>--only-binary</code> pin.
+<p>An ordinary wheel install on Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows
+x86-64 and Apple silicon Macs. No compiler, no custom index, no <code>--only-binary</code> pin.
 <a href="installing#the-built-in-wiki-llm-is-one-extra">Install and upgrade</a> covers each channel,
 including why the standalone binary and the full Docker image need nothing at all.</p>
 <h3 id="what-it-runs-and-what-it-costs-you">What it runs, and what it costs you<a class="anchor" href="#what-it-runs-and-what-it-costs-you" title="Link to this section">#</a></h3>
@@ -240,6 +252,92 @@ including why the standalone binary and the full Docker image need nothing at al
 <a href="https://github.com/openvinotoolkit/openvino.genai" target="_blank" rel="noopener"><code>openvino-genai</code><span class="ext-arrow" aria-hidden="true">↗</span></a>. The default is
 <code>OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov</code>: Apache-2.0, published pre-converted by the
 OpenVINO project, <strong>349 MB</strong>, downloaded on first wiki run into <code>~/.contextlake/models</code>.</p>
+<p><strong>Which size can this machine run?</strong> <code>contextlake kb wiki --model-check</code> prints a table and
+generates nothing. It reads the free RAM (a container's own memory limit, where there is one)
+and the free disk, and lists five sizes of the same model family:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Download</th>
+<th>RAM need</th>
+<th>One page (draft and 3 reviews)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.5B (default)</td>
+<td>349 MB</td>
+<td>2.5 GB</td>
+<td>about 1 min</td>
+</tr>
+<tr>
+<td>1.5B</td>
+<td>941 MB</td>
+<td>3.9 GB</td>
+<td>about 2 min</td>
+</tr>
+<tr>
+<td>3B</td>
+<td>1.8 GB</td>
+<td>5.9 GB</td>
+<td>about 5 min</td>
+</tr>
+<tr>
+<td>7B</td>
+<td>4.5 GB</td>
+<td>13 GB</td>
+<td>about 11 min (extrapolated)</td>
+</tr>
+<tr>
+<td>14B</td>
+<td>8.5 GB</td>
+<td>23 GB</td>
+<td>about 21 min (extrapolated)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>A model fits when its RAM need is at most 80% of the RAM free now, and its download leaves
+  1 GB of disk free. A model already on disk needs no download.</li>
+<li>The table also counts the pages the next run would write (for the repos you name, else all
+  of them) and multiplies out the whole run. Counting builds a brief per repository: 5 s for
+  a 47,838-node repository, so a large fleet takes longer.</li>
+<li>The times were measured on one machine (a WSL2 VM with 22 vCPUs and 16 GB RAM) on a
+  47,838-node repository, so the table shows each as a range. RAM need is the peak of the
+  whole run, store included.</li>
+<li>To use a size, set <code>[llm] builtin_model</code> to its repo id, for example
+  <code>OpenVINO/Qwen2.5-Coder-3B-Instruct-int4-ov</code>. <code>builtin_model</code> is read by the built-in
+  model only, so it never reaches Ollama or a hosted provider. An <code>[llm] model</code> you set
+  yourself still wins.</li>
+</ul>
+<p><strong>The first run picks a size when you have not.</strong> When <code>kb wiki</code> will use the built-in model
+and neither <code>[llm] builtin_model</code> nor <code>[llm] model</code> is set:</p>
+<ul>
+<li>On a terminal, it prints the table and asks for a number. Enter takes the largest size that
+  fits. A size that does not fit needs a yes.</li>
+<li>With no terminal (a script, CI, a scheduled run), it takes the largest size that fits and
+  prints its name and download size before anything is downloaded. If no size fits, it takes
+  the default and says so. With <code>--offline</code>, only a size already on disk is a candidate.</li>
+<li>Either way the pick is saved as <code>[llm] builtin_model</code>, so later runs ask nothing and an
+  unattended run keeps the same size when the free RAM changes. It is saved to the file
+  passed with <code>--config</code>, else to the global <code>~/.contextlake/kb.toml</code>, never to a file found
+  by walking up folders. Only that key is written; your other <code>[llm]</code> settings stay as they
+  are. To change it, run <code>kb wiki --model-check</code> and edit the key.</li>
+<li>A scheduled run never waits at the question: its child process gets no terminal.</li>
+<li><code>contextlake init</code> asks the same question during setup (default no), without the page
+  totals: there is no store yet.</li>
+<li>The full Docker image holds only the 0.5B, and the pick does not prefer a size already on
+  disk. So a run with no model set can download a larger size, and on a host with no network
+  that download fails. To stay on the baked 0.5B, pass
+  <code>--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov</code>, set <code>CONTEXTLAKE_OFFLINE=1</code> (only
+  a size on disk is a candidate), or set <code>[llm] builtin_model</code> to that id.</li>
+</ul>
+<p><strong>A model is downloaded once.</strong> Each load looks on disk first: the pinned commit of the
+default model, then any copy of the same model already in the cache (from an older install,
+or baked into the container image). Only when there is none does it go online, and never
+with <code>--offline</code>. The built-in embedder follows the same rule. Before this, every load asked
+the Hub for the latest commit, so an upstream change pulled a second copy.</p>
 <p>The runtime pulls <code>openvino</code> and <code>openvino-tokenizers</code> and nothing else -- in particular
 <strong>neither torch nor transformers</strong>, which is why a local generative tier does not cost you a
 multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
@@ -263,11 +361,11 @@ contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span c
 <span class="c1"># or per repo:  contextlake kb wiki &lt;repo&gt; --llm ollama --llm-model qwen2.5:3b</span>
 </code></pre></div>
 <p>contextlake defaults <code>base_url</code> to <code>http://127.0.0.1:11434</code>, so usually nothing else to set.</p>
-<p><strong>B) Ollama on Windows, contextlake in WSL</strong> (the cross-boundary case). WSL2 is a separate network
-namespace, so a Windows Ollama bound to <code>127.0.0.1</code> is <strong>not reachable from WSL</strong> (<code>localhost:11434</code> →
-connection refused). Two fixes:</p>
+<p><strong>B) Ollama on Windows, contextlake in WSL</strong> (the cross-boundary case). In the default NAT mode,
+WSL2 has its own IP address, so a Windows Ollama bound to <code>127.0.0.1</code> is <strong>not reachable from WSL</strong>
+(<code>localhost:11434</code> → connection refused). Two fixes:</p>
 <ul>
-<li><em>Easiest, mirrored networking.</em> In <code>%UserProfile%\.wslconfig</code> add:
+<li><em>Easiest, mirrored networking (Windows 11 22H2 or later).</em> In <code>%UserProfile%\.wslconfig</code> add:
   <div class="highlight"><pre><span></span><code><span class="k">[wsl2]</span>
 <span class="na">networkingMode</span><span class="o">=</span><span class="s">mirrored</span>
 </code></pre></div>
@@ -327,8 +425,9 @@ are left.</p>
 <p>Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (<code>export REQUESTS_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code>; see <code>docs/releasing.md</code>). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the
-mismatch. The prebuilt Docker image (<code>ghcr.io/sayak-sarkar/contextlake</code>) bundles these models so nothing
-downloads at runtime. See <code>examples/kb.toml.example</code>.</p>
+mismatch. The prebuilt Docker image (<code>ghcr.io/sayak-sarkar/contextlake</code>) bundles the embedder and the
+0.5B wiki model; see <a href="#installing-the-built-in-llm">The first run picks a size</a> for when it still
+downloads. See <code>examples/kb.toml.example</code>.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="generating-the-wiki">Generate the wiki</a></li>
@@ -420,6 +519,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

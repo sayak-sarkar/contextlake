@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generating the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -91,9 +91,12 @@ absence never reads as an oversight:</p>
    nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
 3. <strong>Architecture</strong> -- the repository's modules and their sizes.
 4. <strong>Ownership and activity</strong> -- who has been working here lately, as a share rather than a commit
-   scoreboard. Pseudonymised when <code>[kb] anonymize = "always"</code>.
-5. <strong>The public surface</strong> -- the named symbols, most-called first, with caller counts where the graph
-   records any.
+   scoreboard. Pseudonymised when <code>[kb] anonymize = "always"</code>, with a key made fresh for each
+   <code>kb wiki</code> run: one person reads the same on every page of one run, and can read differently
+   on pages from another run.
+5. <strong>The public surface</strong> -- the named symbols, most-referenced first, with an incoming-reference count
+   where the graph records any. The count covers every relation, so a symbol that is only declared
+   in its file already has 1. It is not a caller count.
 6. <strong>Installation and usage</strong> -- the build and packaging files the repository has.
 7. <strong>What this repository contains</strong> -- languages, node kinds, and <strong>the repositories it depends on and
    that depend on it</strong>. That last pair is a cross-repository answer no single-repo tool can give, and it
@@ -125,6 +128,9 @@ which is what makes publishing from a cheap local generator safe.</p>
 </ul>
 <p>For example, <code>contextlake kb wiki acme/forecast-api --llm builtin</code> enables the tier and scopes
 generation to that repo.</p>
+<p>A repo id you name must be indexed, with a graph shard on disk. If any id matches no indexed repo,
+or matches a repo whose shard is gone (after a partial copy of the store, for example), the run
+exits 1 and writes nothing. Re-index the repo with <code>contextlake kb index</code>.</p>
 <p><code>auto</code> picks for you, in order: a reachable local Ollama that already has the model pulled, else
 the built-in CPU model, else it skips the tier. See <a href="model-providers">Model providers</a>.</p>
 <p>On a <code>pip</code> install, <code>--llm builtin</code> needs one extra step first, <code>contextlake doctor --fix llm-local</code>
@@ -135,7 +141,10 @@ facts: top symbols, dependencies and files.</p>
 <p>When the repo's own checkout is available, it also uses an excerpt of the README and which
 conventional entry-point or config files exist, such as <code>package.json</code>, <code>Dockerfile</code> or
 <code>manage.py</code>.</p>
-<p>Every page carries a provenance footer citing the commit and the sources.</p>
+<p>Every page carries a provenance footer citing the commit and the sources. It also records
+how many connected-source items the prompt carried (<code>Connector items: N</code>). A network key
+without connector access does not see a page whose count is above 0 or missing (see
+<a href="cli-reference#kb-keys"><code>kb keys</code></a>).</p>
 <p>The draft then goes through a <strong>verification council</strong>. Reviewers score it for accuracy,
 completeness and clarity, and a chairman publishes only pages above a configurable threshold.
 <strong>Nothing that fails review is written.</strong></p>
@@ -149,12 +158,21 @@ everything. To gate a cheap local generator with a stronger judge, point the cou
 </code></pre></div>
 <p><code>review_provider</code> takes the same values as <code>provider</code>, and always wins. So the reverse split
 also works: generate with a strong model, review with a cheap one.</p>
+<p>The reviewer is sent the same source facts as the generator, ownership section included. When
+<code>review_provider</code> is a remote provider and <code>[kb] anonymize</code> is not <code>"always"</code>, <code>kb wiki</code> prints one
+warning that names every remote provider that will see contributor names.</p>
+<p>A <code>.contextlake.kb.toml</code> found by walking up from the current directory cannot set <code>review_provider</code>
+to <code>openai</code> or <code>anthropic</code>, because that file picks the vendor that receives your API key. Set it in
+<code>~/.contextlake/kb.toml</code>, or pass <code>--config PATH</code>. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">Workspace trust<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <p>It is strictly opt-in, and never inferred from a stray API key in your environment, because it
 is not free. A run makes <strong>pages x <code>council_size</code></strong> review calls against that provider. The
 default is 3 lenses per page. Set <code>council_size = 1</code> to cut that threefold.</p>
 <p>One thing to watch: <code>contextlake doctor</code> checks the <em>generation</em> provider only. A missing key for
-the review provider shows up as a run where every page is rejected with
-<code>N reviewer(s) returned nothing parseable</code>, not as a doctor warning.</p>
+a hosted review provider (<code>anthropic</code>, <code>openai</code>) does not reject pages. The provider's refusal
+reaches <code>kb wiki</code> as an HTTP error, and the page fails. A review CLI that is installed but exits
+with an error rejects every page that reaches the council instead, with <code>N reviewer(s) returned
+nothing parseable</code>. A review CLI that is not on PATH fails the page, with <code>llm provider=cli:
+command '&lt;name&gt;' not found on PATH</code>.</p>
 <p>The number of symbols sampled into that grounding set scales with the repo's size, rather than
 being a flat 15:</p>
 <div class="codehilite"><pre><span></span><code>max(15, min(80, node_count // 1500))
@@ -170,8 +188,8 @@ being a flat 15:</p>
 <ul>
 <li><strong><code>top_symbols</code> reserves at least one slot per symbol kind.</strong> A SQL table node has no call
   edges, so pure degree ranking would squeeze it out entirely.</li>
-<li><strong><code>hubs</code> and <code>dispatchers</code> do not backfill.</strong> Both carry a real caller or callee count, and
-  padding them with a fabricated zero-count row would make that claim false.</li>
+<li><strong><code>hubs</code> and <code>dispatchers</code> do not backfill.</strong> Both carry a real incoming or outgoing reference
+  count, and padding them with a fabricated zero-count row would make that claim false.</li>
 <li><strong>A file-less <code>module</code> node gets no reserved slot.</strong> It is an import target, not a symbol the
   repo defines. It can still rank in on its own degree, as a heavily-included header does.</li>
 </ul>
@@ -188,9 +206,10 @@ for a section gets fewer sections, never an empty heading.</p>
 <li><strong>Setup &amp; Run</strong> needs a README excerpt or a detected config file. It also flags any indexed
   file under a directory named <code>generated/</code>, so the model is warned off presenting generated
   code as hand-written design.</li>
-<li><strong>Gotchas</strong> needs at least one symbol with real callers. It states only the count, for
-  example "N caller(s) in the graph, worth extra care when changed". The model is told not to
-  explain <em>why</em> a symbol has many callers, so it cannot invent a label like "foundational".</li>
+<li><strong>Gotchas</strong> needs at least one symbol with incoming references. It states only the count, for
+  example "N incoming reference(s) in the graph, worth extra care when changed". The model is
+  told not to explain <em>why</em> a symbol has many references, and not to call them callers, so it
+  cannot invent a label like "foundational".</li>
 </ul>
 <p><code>setup_signals</code> also counts legacy C and C++ project files such as <code>.vcxproj</code> and <code>.dsp</code>, and
 reports them by category ("3 legacy MSVC6 project (.dsp) file(s) detected"). Those extensions
@@ -232,6 +251,15 @@ could not have passed.</p>
 and the reported issues are the reviewers' own. In every case the page is <strong>skipped, not rewritten</strong>,
 so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
 backend, or a stronger reviewer, and it is attempted again from scratch.</p>
+<p>A page can also <strong>fail</strong>, which is not a rejection. A backend that returns no text fails it.
+Causes include an agent CLI that exits non-zero (an expired login, say), times out, or
+cannot start for an OS reason such as a permission error. A CLI in those states logs a
+reason on the line before. Other empty replies, such as a CLI that exits zero with no output
+or an API or local model reply with no text, log only that the model returned no text.</p>
+<p>The summary counts the page under <code>failed</code>, and the page on disk stays as it was. If a page fails
+and nothing is written or rejected, <code>kb wiki</code> exits 1.</p>
+<p>A separate <code>review_provider</code> that returns nothing is not a failed page. It still shows as a
+rejection, with the count of reviewers whose reply did not parse.</p>
 <h2 id="steering-it-from-the-repository-contextlakewikitoml">Steering it from the repository: <code>.contextlake/wiki.toml</code><a class="anchor" href="#steering-it-from-the-repository-contextlakewikitoml" title="Link to this section">#</a></h2>
 <p>A repository can have a say in its own page. Drop a <code>.contextlake/wiki.toml</code> in its root:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Free text the page quotes, attributed, above the sections.</span>
@@ -254,12 +282,20 @@ found; anything unmatched is dropped with a warning. A file inside a cloned repo
 untrusted input, and this is the line that keeps it unable to fabricate a page.</p>
 <p>When every name is unknown, the automatic heuristic runs instead of producing nothing. So one typo
 cannot silently delete a repository's whole module set on the next prune. The list is the whole set
-on both paths: a run with an LLM writes and keeps exactly the listed module pages, and prunes the
-generated pages of modules that are not on it.</p>
+on both paths: a run writes and keeps exactly the listed module pages, and prunes the pages of
+modules that are not on it. A run with no LLM prunes too, because pruning needs no model.</p>
+<p>At most 50 names are used, and a name repeated in the list counts once. A longer list is cut at 50
+and the run warns with the number ignored. A cut list is not the whole set, so no module page is
+pruned on that run. Trim the list to 50 names to resume pruning.</p>
 <p>Nothing here runs a program, which is why it is honoured from an in-repo file at all: settings
 that would execute something are refused from files found this way (<code>kb/trust.py</code>). Quoting a
 repository's own prose is the same trust level as the README excerpt the page has always
 carried.</p>
+<p>The file is read contained. A <code>wiki.toml</code> that is a symlink to a file outside the clone, or that
+sits under a <code>.contextlake</code> directory linked outside the clone, is not read, and the page is
+generated as if the file were absent. The notes land in a stored page that every key that may read
+the repo can see, so a link must not pull in a file from elsewhere on the machine. A link that
+stays inside the clone is read.</p>
 <h2 id="per-subsystem-pages-for-large-federated-repos">Per-subsystem pages for large, federated repos<a class="anchor" href="#per-subsystem-pages-for-large-federated-repos" title="Link to this section">#</a></h2>
 <p>A repo qualifies as <strong>federated</strong> when it has at least 5,000 graph nodes and no
 single top-level module owns more than 60% of them. One big source directory does not qualify.
@@ -291,6 +327,10 @@ re-picking the same top 20 forever.</p>
 
 <p><strong>Once subsystem pages exist</strong>, the whole-repo overview names and briefly describes each one and
 links to it, instead of summarising their internals inline.</p>
+<p>The overview names only the subsystems that have a page on disk or are picked for one in that
+run. This matters above 200 qualifying modules: the structural pages cover the largest 200, and
+the overview names those until later runs reach the rest. On an unchanged commit it is not
+regenerated.</p>
 <p>One catch: the overview only picks that up the next time it is regenerated. A repo
 already wiki'd at its current commit has its overview skipped as unchanged, though subsystem
 pages still generate. So an existing store gets the naming after its next commit, or on a
@@ -335,6 +375,12 @@ and cited. When the graph shows no coupling, it says so instead of inventing a l
 <p>Both come straight off data the cluster brief already computes. No new metric.</p>
 <p>You can reach cluster pages over MCP by passing a namespace to <code>get_wiki</code>, and they appear per
 group in the dashboard's fleet overview.</p>
+<p>A cluster page's sections are searchable like any other, and they cite the page file under
+<code>wiki/_clusters/</code>. One case is not stored for search: a namespace that is also a repo id, such as
+<code>--namespace acme/stations/api</code> when that repo exists. It is a cluster of one. The page is written,
+but its sections share their search key with the repo's own page, and storing them would replace
+the repo's rows. The run says so. If an earlier release already did this, run
+<code>contextlake kb wiki --force &lt;repo id&gt;</code> to restore the repo's rows.</p>
 <h2 id="incorporating-connector-enrichment">Incorporating connector enrichment<a class="anchor" href="#incorporating-connector-enrichment" title="Link to this section">#</a></h2>
 <p>Once <code>contextlake kb enrich</code> has populated a repo's <code>@enrich:&lt;repo&gt;</code> documents, from Atlassian
 or MCP search sources, the wiki adds an <strong>External context</strong> section to that repo's page.</p>
@@ -450,6 +496,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

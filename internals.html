@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Architecture and internals · contextlake docs">
 <meta name="twitter:description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -352,9 +352,11 @@ hashes between machines or CI runners (<code>src/contextlake/kb/store/shards.py<
 </tr>
 </tbody>
 </table>
-<p>Five indexes: <code>edges.src</code>, <code>edges.dst</code>, <code>edges.cross_repo</code>, <code>nodes.repo_id</code> and <code>nodes.kind</code>. Those
-are exactly the columns a traversal filters on, which is to say "what does this call", "what calls
-this", and "what crosses a repository boundary".</p>
+<p>Six indexes: <code>edges.src</code>, <code>edges.dst</code>, <code>edges.cross_repo</code>, <code>edges.repo_id</code>, <code>nodes.repo_id</code> and
+<code>nodes.kind</code>. The first three are the columns a traversal filters on, which is to say "what does
+this call", "what calls this", and "what crosses a repository boundary". The other three filter
+by repository or by kind. <code>edges.repo_id</code> serves <code>repo_counts</code> and <code>clear_repo</code>, which would
+otherwise scan every edge once per repository.</p>
 <p>Migrations are additive only, by <code>ALTER TABLE ... ADD COLUMN</code>, so an older store opens without a
 rebuild.</p>
 <h3 id="three-version-numbers-three-different-questions">Three version numbers, three different questions<a class="anchor" href="#three-version-numbers-three-different-questions" title="Link to this section">#</a></h3>
@@ -423,10 +425,15 @@ serial.</p>
 pid, command, host and start time. A second process on the same host is refused by name rather than
 allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
 <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code> overrides it and is rarely correct.</p>
-<p>Today <code>kb index</code>, <code>kb embed</code>, <code>kb wiki</code> and the dashboard's mutating routes take that lock; the
-dashboard holds it for the one mutation only, never for the server's lifetime, and answers <code>409</code> with
-the current holder's details if something else has it. <code>connect</code>, <code>ingest</code> and <code>enrich</code> write without
-it.</p>
+<p>Checking the holder and taking the lock is one step. It runs under a short OS lock on
+<code>&lt;store_dir&gt;/.contextlake.lock.guard</code>, so two processes that start at the same moment cannot both
+take a lock left by a dead one. The kernel drops the guard when its holder exits. A process that
+cannot get the guard in 5 seconds is refused as busy. A filesystem that cannot lock files runs
+without the guard.</p>
+<p>Today <code>kb index</code>, <code>kb embed</code>, <code>kb wiki</code>, <code>kb connect</code>, <code>kb ingest</code>, <code>kb enrich</code>, <code>kb docs</code>,
+<code>kb forget</code> and the dashboard's mutating routes take that lock; the dashboard holds it for the one
+mutation only, never for the server's lifetime, and answers <code>409</code> with the current holder's details
+if something else has it. A command that only reads the store, such as <code>kb query</code>, does not take it.</p>
 <p>SQLite runs in WAL mode with <strong>one connection per thread</strong>, not one per store. That is forced by
 serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no
 opt-out, so a store that outlives a single call cannot hand the same connection to every thread.</p>
@@ -473,6 +480,10 @@ opt-out, so a store that outlives a single call cannot hand the same connection 
 <td><code>.contextlake.lock</code></td>
 <td>The advisory single-writer lock</td>
 </tr>
+<tr>
+<td><code>.contextlake.lock.guard</code></td>
+<td>The OS lock held while the single-writer lock is checked and taken</td>
+</tr>
 </tbody>
 </table>
 <h3 id="what-lives-outside-the-store-and-why">What lives outside the store, and why<a class="anchor" href="#what-lives-outside-the-store-and-why" title="Link to this section">#</a></h3>
@@ -481,10 +492,20 @@ opt-out, so a store that outlives a single call cannot hand the same connection 
 <li><strong>Downloaded CPU models</strong>, at <code>~/.contextlake/models</code> (<code>DEFAULT_CACHE_DIR</code> in
   <code>src/contextlake/kb/embeddings/builtin.py</code> and <code>src/contextlake/kb/llm/builtin.py</code>). That is a
   <em>sibling</em> of the default store, not a directory inside it, so a store pointed elsewhere does not
-  move the models. Both also set <code>HF_HOME</code> to that directory unless you already set it.</li>
+  move the models. Both also set <code>HF_HOME</code> to that directory unless you already set it.
+  <code>doctor</code> and the <code>serve</code> banner look in the folder the loader reads: <code>HF_HUB_CACHE</code>, else
+  <code>HF_HOME/hub</code>, else <code>&lt;cache_dir&gt;/hub</code>. The Docker image sets <code>HF_HOME</code> to
+  <code>/opt/contextlake/models</code>, where its models are baked in, and <code>doctor</code> prints the <code>hub</code> folder
+  it checked.<ul>
+<li>The default model of <code>engine = "fastembed"</code> is the exception. Its loader reads <code>&lt;cache_dir&gt;</code>
+  itself, in fastembed's own folder layout, and does not read <code>HF_HOME</code>. <code>doctor</code> and the
+  <code>serve</code> banner check that layout, and <code>doctor</code> prints <code>&lt;cache_dir&gt;</code>.</li>
+</ul>
+</li>
 <li><strong>The mirror's repository-list cache</strong>, under <code>cache_dir</code> as described above.</li>
 <li><strong>The mirror audit report</strong>, written next to that cache as <code>repo_audit.json</code> and a matching
-  <code>.csv</code>, or wherever <code>--report</code> points.</li>
+  <code>.csv</code>, or wherever <code>--report</code> points. A <code>--report</code> name ending in <code>.csv</code> is the CSV path, and the
+  JSON goes beside it as <code>.json</code>.</li>
 <li><strong>Shell completion</strong>, which is a delimited block in <code>~/.bashrc</code> or <code>~/.zshrc</code>, or a file at
   <code>~/.config/fish/completions/contextlake.fish</code>, plus a marker at
   <code>~/.contextlake/.completion_setup_done</code> recording your decision. Only written when an interactive
@@ -637,6 +658,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

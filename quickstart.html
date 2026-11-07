@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Quickstart · contextlake docs">
 <meta name="twitter:description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-17"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -118,15 +118,17 @@ graph → connectors → semantic vectors → <strong>curated wiki</strong> → 
 generated (graph, vectors, wiki pages, exports) lands under a single <code>store_dir</code>, so
 pointing that at a workspace folder (e.g. <code>store_dir = "~/work/my-kb"</code>) keeps the whole
 knowledge base in one easy-to-find place.</p>
-<p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
+<p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-Coder, downloaded once) via
 the <code>llm-local</code> extra. The <strong>standalone binary</strong> already has it configured (it installs it on
-first run) and the <strong>full Docker image</strong> ships it baked in, so neither needs anything here.
+first run) and the <strong>full Docker image</strong> ships it baked in with the 0.5B model, so neither
+needs the install step here. With no model set, the first wiki run picks a size from the free
+RAM (0.5B to 14B) and prints its download size first; on a terminal it asks you.
 On a pip install:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local
 </code></pre></div>
 <p>That installs into the interpreter contextlake is running in and prints the exact command
 before running it (<code>--dry-run</code> prints it and stops). It is an ordinary wheel: no compiler, no
-index URL. The model itself (~349 MB) downloads on the first wiki run. See <a href="installing#the-built-in-wiki-llm-is-one-extra">Install and
+index URL. The model itself downloads on the first wiki run (349 MB for the 0.5B). See <a href="installing#the-built-in-wiki-llm-is-one-extra">Install and
 upgrade</a> and <a href="model-providers#installing-the-built-in-llm">Installing the built-in
 LLM</a>.</p>
 <p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
@@ -205,6 +207,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

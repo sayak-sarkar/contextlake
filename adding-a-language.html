@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Adding a language · contextlake docs">
 <meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -177,7 +177,8 @@ that forced it, 282 false positives on one real repo, precision 1 in 282.</p>
 <p>Add your language to a group <strong>only if it interoperates</strong> with the ones already in it.</p>
 <p>The existing groups are:</p>
 <ul>
-<li><code>js</code>: JavaScript, TypeScript, TSX</li>
+<li><code>js</code>: JavaScript, TypeScript, TSX, and the file node of a Vue or Svelte component, whose
+  <code>&lt;script&gt;</code> is JavaScript</li>
 <li><code>c</code>: C and C++</li>
 <li><code>jvm</code>: Java, Kotlin, Scala</li>
 </ul>
@@ -242,8 +243,10 @@ language shares a grammar with an existing id, the two numbers move independentl
 <p>No test pins the phrase. This step is guarded by review, and it is the one most likely to be
 forgotten.</p>
 <h3 id="9-regenerate-the-site-then-write-the-changelog">9. Regenerate the site, then write the changelog<a class="anchor" href="#9-regenerate-the-site-then-write-the-changelog" title="Link to this section">#</a></h3>
-<p><code>site/llms.txt</code> and <code>site/llms-full.txt</code> are generated from the docs, and a test recomputes them and
-compares byte for byte. Editing <code>README.md</code> or any <code>docs/*.md</code> fails that test until you regenerate:</p>
+<p><code>site/llms-full.txt</code> is generated from the docs, and a test recomputes it and compares byte for byte.
+Editing <code>README.md</code> or any <code>docs/*.md</code> fails that test until you regenerate. The builder also writes
+<code>site/llms.txt</code>, a list of the pages. Git ignores that file, every deploy rebuilds it, and no test
+checks it. Regenerate with:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>site/build_docs.py
 </code></pre></div>
 <p>Most of what the builder writes into <code>site/</code> is gitignored and rebuilt on every deploy, so the only
@@ -395,7 +398,7 @@ two things to look for, because they are what the normalisation strips.</p>
 <span class="w">  </span>tests/kb/test_retrieval_quality.py<span class="w"> </span>tests/kb/test_dashboard_kind_glyph_parity.py<span class="w"> </span>-q
 python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_llms_full_is_in_sync.py<span class="w"> </span>tests/test_no_emdash_in_docs.py<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>tests/test_doc_links_resolve.py<span class="w"> </span>-q
-ruff<span class="w"> </span>check<span class="w"> </span>src<span class="w"> </span>tests
+ruff<span class="w"> </span>check<span class="w"> </span>src<span class="w"> </span>tests<span class="w"> </span>scripts<span class="w"> </span>benchmarks
 </code></pre></div>
 <p>The golden and retrieval-quality tests are in that list not because they should change, but as proof
 that they did not: they are the two a language addition can move by accident.</p>
@@ -491,8 +494,8 @@ downstream. Omitting the language self-isolates it, which is always safe. See st
 <code>_DEF_TYPES</code> alias, the <code>_QUERIES</code> alias, and a distinct <code>_language()</code> branch naming the grammar's
 other entry point. Missing the third is the first row of the silent-skip table above.</p>
 <h3 id="do-not-introduce-anything-order-dependent">Do not introduce anything order-dependent<a class="anchor" href="#do-not-introduce-anything-order-dependent" title="Link to this section">#</a></h3>
-<p>Capture extraction is canonicalised on purpose: tree-sitter returns capture lists in an order that
-varies run to run and even within one process, and a test pins shard bytes across five consecutive
+<p>Capture extraction is canonicalised on purpose: py-tree-sitter builds each capture list from a
+set, so its order is not defined, and a test pins shard bytes across five consecutive
 indexes. Anything you add must not depend on capture order, and must never tiebreak on a node id,
 which is pointer-derived.</p>
 <h3 id="never-let-an-unhandled-shape-return-empty">Never let an unhandled shape return empty<a class="anchor" href="#never-let-an-unhandled-shape-return-empty" title="Link to this section">#</a></h3>
@@ -648,6 +651,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Indexing the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -147,6 +147,10 @@ forget &lt;repo-id&gt;</code> removes a bundle you did not mean to create.</p>
 last index, so a scheduled run stays cheap.</p>
 <ul>
 <li><code>--force</code> rebuilds everything.</li>
+<li>A repo whose HEAD has not moved is not parsed again, but its row takes the path of the clone the
+  run found. After you move a workspace, one <code>kb index --workspace NEW</code> points every row at the new
+  location, and <code>kb index --source NEW/repo</code> does the same for one repo. <code>kb refresh</code>, <code>kb lint</code> and
+  <code>kb index --source ID</code> then use it.</li>
 <li><code>--watch [--interval N]</code> keeps re-indexing in a loop. The same two flags also drive <code>connect</code>
   and <code>embed</code>.</li>
 </ul>
@@ -168,9 +172,17 @@ filed under a different name:</p>
 <div class="codehilite"><pre><span></span><code>contextlake kb index --source ./widgets --repo team/widgets
 </code></pre></div>
 
-<p>Without it, the id falls back to the directory name. That is exactly the fragile, path-dependent
-id this section exists to avoid. Name it once, rather than living with a repo filed as <code>widgets</code>
-because that is what the folder happened to be called.</p>
+<p>Without it, the id comes from the <code>origin</code> remote. A git repository with no <code>origin</code> is filed as
+<code>name@&lt;first 12 characters of its root commit&gt;</code>, for example <code>widgets@3f9c2a71b0de</code>, where <code>name</code> is
+the folder name. Only a directory that is not a git repository is filed under its bare folder name.
+The name half still depends on where the clone sits on disk, which is the fragility this section
+exists to avoid. Name it once with <code>--repo</code>, and use the id <code>kb index</code> prints in <code>kb query --repo</code>
+and <code>kb forget</code>.</p>
+<p>A named id is kept. Each later <code>kb index ... --repo team/widgets</code> updates the same row and keeps
+its history snapshots, so <code>--as-of</code> still reaches old commits. A later run that names no id and
+covers the checkout (a plain <code>kb index PATH</code>, or a <code>--workspace</code> run that does not filter it out
+with <code>--repos</code>) files it under the id its <code>origin</code> gives and replaces the row you named. A run
+never changes the row of a repo it does not index.</p>
 <h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
 <p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
 serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
@@ -186,9 +198,27 @@ match:</p>
 </ul>
 <p>The marker list catches more than it looks. A file whose banner only says "DO NOT EDIT" is
 skipped too.</p>
-<p>All of that is derived noise rather than real source, and <strong>every skip is reported</strong>, so there
-are no silent gaps. To index them anyway, set <code>[kb] skip_generated = false</code> or raise
+<p>All of that is derived noise, not real source. A run that skips generated or oversized
+files prints one line for each group with the first five paths, such as
+<code>1 file(s) over max_file_bytes skipped: big.py</code>. <code>-v</code> prints a line for every skipped file. A run
+that skips none prints nothing. To index them anyway, set <code>[kb] skip_generated = false</code> or raise
 <code>max_file_bytes</code>.</p>
+<p>Files matched by <code>.contextlakeignore</code> are only counted, in the <code>-v</code> summary, because you chose
+those patterns.</p>
+<h3 id="source-encodings">Source encodings<a class="anchor" href="#source-encodings" title="Link to this section">#</a></h3>
+<p>The grammars read UTF-8. The parser converts any other code file to UTF-8 before it parses, so
+names and line numbers come out right:</p>
+<ul>
+<li>A file that starts with a UTF-16 or UTF-32 byte order mark is read in that encoding.</li>
+<li>A Python file with a <code># -*- coding: latin-1 -*-</code> line (PEP 263) in its first two lines is read
+  in the encoding it names.</li>
+<li>Any other bytes that are not valid UTF-8, such as C# or C on a Windows code page, are read as
+  Windows-1252, one byte at a time. The valid UTF-8 around them is kept.</li>
+</ul>
+<p>A file is never skipped for its encoding. <code>-v</code> prints <code>read as &lt;encoding&gt;</code> for each file that
+was converted. These are not detected: UTF-16 without a byte order mark, and the declarations of
+languages other than Python. SQL, Terraform, XML and the other non-code kinds are read as
+UTF-8, as before.</p>
 <h3 id="the-per-repository-memory-budget">The per-repository memory budget<a class="anchor" href="#the-per-repository-memory-budget" title="Link to this section">#</a></h3>
 <p><code>max_file_bytes</code> bounds one FILE. It cannot bound a repository that is wide rather than deep,
 and that distinction is not theoretical: one repository in a 660-repo fleet took a 15.4 GB
@@ -316,26 +346,30 @@ either of them:</p>
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.</li>
 </ul>
 <h3 id="shared-file-nodes">Shared file nodes<a class="anchor" href="#shared-file-nodes" title="Link to this section">#</a></h3>
-<p>Every file in the graph has a node. Its id is built from the repo id and the file path. The id
-builder lowercases the text and turns every run of punctuation into one <code>_</code>. So these names get
-the same id:</p>
+<p>Every file in the graph has a node. Before parser version 13, its id was built from the repo id
+and the file path by lowercasing the text and turning every run of punctuation into one <code>_</code>. So
+these names got the same id:</p>
 <ul>
 <li><code>a-b.py</code>, <code>a_b.py</code> and <code>A_B.py</code> in one repo</li>
 <li><code>pkg/__main__.py</code> and <code>pkg/main.py</code></li>
 <li><code>numpy/_core/records.py</code> and <code>numpy/core/records.py</code></li>
 <li>the repos <code>grp/a-b</code> and <code>grp/a/b</code>, for a file with the same path in both</li>
 </ul>
-<p>The store keeps one row per id. The files share one file node, so all but one of them are
-missing from the graph as files. The symbols inside every file are still indexed. They hang off
-the one shared node.</p>
+<p>The store keeps one row per id, so all but one of those files were missing from the graph.</p>
+<p><strong>Since parser version 13, each of them has its own node.</strong> A file id keeps the readable form
+above and adds 8 hex of a hash over the exact repo id and path. The same holds for the names
+inside a file: tables, config keys, Terraform resources, XSD and XSL items, ADRs, entry points
+and web routes. The path is written one way on every system (<code>/</code> separators, no leading <code>./</code>),
+so Linux and Windows give a file the same id. SQL object names still ignore case, as SQL does.</p>
 <p><code>kb lint</code> names each such node, with the repo and every path it can see:</p>
-<div class="highlight"><pre><span></span><code>  shared file node: &lt;repo&gt;: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (known id limitation, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command&#39;s exit code)
+<div class="highlight"><pre><span></span><code>  shared file node: &lt;repo&gt;: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (indexed before parser 13; `kb index` re-indexes it, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command&#39;s exit code)
 </code></pre></div>
 <p>When two repos share the node, the line says <code>across repos</code> and puts the repo in front of each
 path. The summary line ends with <code>N shared file node(s)</code>.</p>
-<p>This is a known limitation of the id scheme. The check reports it and changes nothing. It does
-not affect the exit code. Re-indexing does not clear it. Renaming a file so that its name differs
-by more than case and punctuation, then re-indexing, takes that file out of the report.</p>
+<p>On a store indexed by parser version 13 or later the check reports nothing. A report means a
+repo was last indexed by an older version: <code>kb index</code> re-indexes it (the version change makes it
+do so) and the report clears. The check changes nothing itself and does not affect the exit
+code.</p>
 <p>The check is a lower bound. The tables keep a trace of a file only through its node row and its
 <code>contains</code> edges. A colliding file that has no definitions, and is not the file the node row
 names, leaves no trace, so lint cannot see it.</p>
@@ -371,7 +405,7 @@ edges it took 0.45 s.</p>
 </table>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=fb53dd9c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=8b938c56"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -390,6 +424,7 @@ offline with no network calls.</p>
 <li><a href="#incremental-and-time-travel">Incremental and time-travel</a></li>
 <li><a href="#re-indexing-one-repository-by-its-id">Re-indexing one repository by its id</a></li>
 <li><a href="#parallelism-and-noise-pruning">Parallelism and noise-pruning</a><ul>
+<li><a href="#source-encodings">Source encodings</a></li>
 <li><a href="#the-per-repository-memory-budget">The per-repository memory budget</a></li>
 </ul>
 </li>
@@ -491,6 +526,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

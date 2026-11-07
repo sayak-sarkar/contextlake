@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Visualizing the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualizing the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in any of 11 formats, HTML, DOT, JSON, GraphML, Cypher and six Mermaid diagram types, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualizing-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-17"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualizing the graph", "item": "https://sayak.in/contextlake/visualizing-the-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -143,6 +143,15 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
   <code>grid</code>, <code>dagre</code>) in the page. Set the initial one with <code>--layout</code>.</li>
 <li><code>dagre</code> is a preview: it is layered and directed rather than organic, and below 400 nodes it
   renders each node as an HTML card instead of a dot.</li>
+<li><code>--site DIR</code> writes into a new or empty folder, or into a folder an earlier <code>--site</code> export
+  made. Each export leaves a <code>.contextlake-export</code> file in the folders it writes and looks
+  for it on the next run.</li>
+<li>A folder that holds files and has no such file is refused and
+  nothing is written, even when its files are named like the export's own, such as
+  <code>index.html</code>. A folder that holds a file the export does not write is refused too.</li>
+<li>For a folder an older version made, run <code>touch DIR/.contextlake-export</code> once. Other dotfiles,
+  such as <code>.nojekyll</code>, are ignored. <code>kb dashboard --site</code> follows the same rule for its top
+  level and for its <code>graph/</code> folder, so an older dashboard export needs the marker in both.</li>
 </ul>
 </li>
 <li><strong><code>dot</code></strong>, Graphviz (<code>contextlake kb graph ... --format dot | dot -Tsvg &gt; g.svg</code>).</li>
@@ -302,13 +311,10 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w
 <li><strong><code>dot</code></strong>, Graphviz clustered DOT with <code>subgraph cluster_*</code> boundaries</li>
 <li><strong><code>json</code></strong>, the raw payload</li>
 </ul>
-<p><strong>Not supported with <code>--c4</code>:</strong> <code>mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>, <code>statediagram</code>,
-<code>erdiagram</code> and <code>deploymentdiagram</code>. The command exits with an error. <code>--serve</code> does not apply
-either, since the C4 view is a generated file, not a live server.</p>
-<p><strong>One rough edge.</strong> <code>--format graphml</code> and <code>--format cypher</code> are neither rejected nor honoured.
-<code>--c4</code> falls through to the HTML renderer, and because the output path is only defaulted for
-<code>--format html</code>, it prints that HTML to stdout. If you hit this, pass <code>--output &lt;path&gt;</code>, and use
-<code>dot</code> or <code>json</code> for a real C4 export.</p>
+<p><strong>Not supported with <code>--c4</code>:</strong> <code>graphml</code>, <code>cypher</code>, <code>mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
+<code>statediagram</code>, <code>erdiagram</code> and <code>deploymentdiagram</code>. The command exits with an error and writes
+nothing. Use <code>dot</code> or <code>json</code> for a C4 export. <code>--serve</code> does not apply either, since the C4 view is
+a generated file, not a live server.</p>
 <h3 id="c1-external-systems">C1: external systems<a class="anchor" href="#c1-external-systems" title="Link to this section">#</a></h3>
 <p><code>--c4 --c1</code> adds a layer on top of the same view: one dashed box per distinct host an indexed repo
 calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
@@ -322,7 +328,7 @@ box labels yourself; you'll recognize your own internal hosts. <code>--c1</code>
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=fb53dd9c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=8b938c56"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -444,6 +450,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="MCP transports and limits · contextlake docs">
 <meta name="twitter:description" content="stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "MCP transports and limits", "description": "stdio, HTTP and SSE side by side, how many tool calls run at once, and the provenance every cited node carries.", "url": "https://sayak.in/contextlake/mcp-transports", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "MCP transports and limits", "item": "https://sayak.in/contextlake/mcp-transports"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -170,6 +170,8 @@ refused unless you pass <code>--allow-remote</code>, and prints a warning when y
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w">        </span><span class="c1"># refused, exits 1</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--allow-remote
 </code></pre></div>
+<p>An IPv6 address can be typed bare or in brackets: <code>--host ::1</code> and <code>--host '[::1]'</code> both bind
+<code>::1</code>, and the startup line prints the URL with brackets, <code>http://[::1]:8765/mcp</code>.</p>
 <p>Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
 to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (<code>0.0.0.0</code>) only
 answers requests whose <code>Host</code> is a loopback name, because the Host check has no way to know which
@@ -382,7 +384,7 @@ as the answer is built:</p>
 </tr>
 <tr>
 <td><code>unverifiable</code></td>
-<td>the citation could not be checked at all: no local checkout, an unreadable file, or a repo that carries no index timestamp</td>
+<td>the citation could not be checked at all: no local checkout, an unreadable file, a cited line past line 200,000, or a repo that carries no index timestamp</td>
 </tr>
 </tbody>
 </table>
@@ -464,6 +466,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

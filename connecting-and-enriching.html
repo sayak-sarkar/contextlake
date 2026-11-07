@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connecting and enriching · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connecting and enriching", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connecting-and-enriching", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connecting and enriching", "item": "https://sayak.in/contextlake/connecting-and-enriching"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -86,10 +86,30 @@ page shows it as the <strong>Ticket</strong> breadcrumb, distinct from the repo-
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.</p>
 </li>
-<li><strong>GitLab</strong>: links each repo to its open <strong>merge requests and issues</strong> (read through your authenticated
-  <code>glab</code>).</li>
 <li>
-<p><strong>Zendesk</strong>: links repos to the support tickets and Help Center articles about them, classifying
+<p><strong>GitLab</strong>: links each repo to its open <strong>merge requests and issues</strong> (read through your authenticated
+  <code>glab</code>). A repo is read only when the host at the start of its id is in the source's <code>gitlab_hosts</code>
+  list. Every call then runs <code>glab api --hostname HOST</code> with that listed host.</p>
+<p>Unset, the list holds <code>GITLAB_HOST</code> when that variable is set, else <code>gitlab.com</code>. A self-hosted
+GitLab needs <code>gitlab_hosts = ["git.example.com"]</code> on the source, or <code>GITLAB_HOST</code>. The source key
+wins over the variable.</p>
+<p>A repo on any other host is skipped and makes no request. The run logs one line for each skipped
+host and ends with a warning that counts the repos no GitLab source read. A skip is not a failure,
+so the exit code does not change. On a run where every source answers, the skipped repo's earlier
+GitLab links are cleared.</p>
+<p>The log advises <code>gitlab_hosts</code> as "if HOST runs GitLab". It gives no advice for <code>github.com</code> or
+another host known to run a different product.</p>
+<p>The host in a repo id comes from the clone's origin URL, port included: an ssh URL with the
+port 2222 gives <code>git.example.com:2222</code>, and an https URL with the port 8443 gives
+<code>git.example.com:8443</code>. <code>glab</code> takes each entry as an HTTP host, so list the host as GitLab
+serves its API. Do not list an ssh port. The entry <code>git.example.com</code> does not match the id
+<code>git.example.com:2222</code>, and the repo is skipped.</p>
+<p>To read a repo whose origin is an ssh URL with a port, set the origin to an https URL on the
+host GitLab serves its API on, or to <code>git@git.example.com:ns/p</code> with the port set in
+<code>~/.ssh/config</code>. Run <code>contextlake kb index --source PATH</code> or <code>--workspace DIR</code> on the clone so
+the repo id changes, then list that host. Indexing by the old repo id keeps the old id. The log
+advises the https route for a skipped host that carries a port.
+- <strong>Zendesk</strong>: links repos to the support tickets and Help Center articles about them, classifying
   <code>*.zendesk.com</code> URLs to a ticket id (<code>repo --discussed_in--&gt; issue</code>) or an article id
   (<code>repo --documented_by--&gt; document</code>).</p>
 <p><strong>It makes no network call</strong>, which makes it the one connector that runs inside the offline
@@ -128,7 +148,11 @@ and work alongside hand-editing if you mix approaches.</p>
   <code>api</code>, <code>graphql</code>, <code>mcp</code>) and any installed plugin. It proposes defaults and writes the entry to
   <code>kb.toml</code>. Without a terminal, a missing name or type exits 2 and prints the form to use.</p>
 <p><code>--mcp URL</code> sets the MCP server URL and <code>--local</code> targets a project-level file (<code>--help</code>
-shows all). <code>--set KEY=VALUE</code> (repeatable) writes any other connector option <code>kb.toml</code> accepts.</p>
+shows all). <code>--set KEY=VALUE</code> (repeatable) writes any other connector option <code>kb.toml</code> accepts.
+It writes the value as a string. A number such as <code>timeout</code> is read from that string
+(<code>--set timeout=2.5</code> works). A list option (<code>include</code>, <code>hosts</code>, <code>urls</code>, <code>args</code>) set this
+way holds one item, so <code>--set include='*.md'</code> means the one glob <code>*.md</code>. To give two or
+more, edit <code>kb.toml</code> and write a list.</p>
 <p><strong>A credential never goes on the command line.</strong> Store the name of the environment variable that holds
 it, and contextlake reads the value from your environment at run time: <code>--set token_env=MY_TOKEN</code>.
 <code>add</code> refuses a literal secret (a key such as <code>token</code>, <code>api_key</code>, <code>password</code> or <code>secret</code>) from <code>--set</code>
@@ -149,6 +173,15 @@ one non-secret option from stdin instead of the command line, so it stays out of
   can pause one without deleting it.</li>
 <li><strong><code>contextlake kb source remove SOURCE</code></strong>: delete a connector entry by name.</li>
 </ul>
+<p><code>add</code>, <code>remove</code>, <code>enable</code> and <code>disable</code> lock the file while they change it. When two run at the same
+time, both changes are kept. The lock is an empty file beside the config (<code>kb.toml.lock</code>, or
+<code>.contextlake.kb.toml.lock</code> for a project file). Leave it in place, and add it to <code>.gitignore</code> in a
+project. A command that waits 10 seconds for the lock exits 1 and changes nothing.</p>
+<p>If the config you name with <code>--config</code>, or the global <code>kb.toml</code>, is a symbolic link, these commands
+write to the file the link points to, in whatever folder it is, and keep the link. The lock sits
+beside that file. A project <code>.contextlake.kb.toml</code> that the command finds by walking up from the
+working directory is not followed: a link there is replaced by a regular file, and the file it
+pointed to is not touched.</p>
 <p>An example workflow:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? what name? which MCP URL?</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
@@ -172,6 +205,11 @@ across the whole fleet or a single repo:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>acme/forecast-api<span class="w">        </span><span class="c1"># one repo</span>
 </code></pre></div>
+<p><code>kb enrich</code> and <code>kb connect</code> stop with exit code 1 when an id you name is not in the store. They
+print <code>Unknown repo '&lt;id&gt;'</code> with the closest stored ids, and run nothing, even if the other ids are
+valid. This check comes first, so it holds when no source is configured. <code>--workspace</code> and
+<code>kb connect --source &lt;dir&gt;</code> do not read the ids. An empty store with no id named still prints
+<code>No repos to enrich (index some first ...)</code> and exits 0.</p>
 <p><strong>Which symbols become terms.</strong> Ranking is by graph degree, and by nothing else. There is no
 per-kind quota, so a repo whose highest-degree definitions are all classes and functions gets
 classes and functions, and no <code>field</code> or <code>endpoint</code> name at all, even when it holds many of
@@ -180,11 +218,66 @@ each of the 19 embeddable kinds would leave the ranking two or three slots to de
 <p><strong>Prerequisites.</strong> Two things must be true:</p>
 <ol>
 <li>The code graph is indexed, via <code>contextlake kb index</code>.</li>
-<li>At least one term-searchable source is configured. That means either an <code>mcp</code> source with
-   <code>tool</code> and <code>arg_template</code> keys, or an <code>atlassian</code> source.</li>
+<li>At least one term-searchable source is configured. That means an <code>mcp</code> source with <code>tool</code>
+   and <code>arg_template</code> keys, an <code>atlassian</code> source, or an <code>api</code> source with a <code>search_url</code>
+   (next section).</li>
 </ol>
 <p>Sources without those capabilities, such as a plain <code>files</code> or <code>web</code> source, are skipped
 gracefully.</p>
+<h3 id="searching-jira-and-confluence-with-an-api-token">Searching Jira and Confluence with an API token<a class="anchor" href="#searching-jira-and-confluence-with-an-api-token" title="Link to this section">#</a></h3>
+<p>An <code>api</code> source with a <code>search_url</code> is searched once per term. Put <code>{term}</code> where the term goes;
+it is URL-encoded, and <code>"</code> and <code>\</code> are removed from it first so it cannot end a quoted JQL or
+CQL string. <code>{terms}</code> sends one search with every term joined instead.</p>
+<p><code>kb ingest</code> does not use <code>search_url</code>. A source that has only a <code>search_url</code> makes no ingest
+request, and <code>kb ingest</code> prints <code>nothing to ingest: an api source with only search_url is queried by
+kb enrich, not kb ingest</code> for it.</p>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;jira&quot;</span>
+<span class="n">search_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%20in%20(%22ACME%22,%22OPS%22)%20AND%20text%20~%20%22{term}%22&amp;fields=summary&amp;maxResults=20&quot;</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
+<span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
+<span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fields.summary&quot;</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fields.summary&quot;</span>
+<span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;basic&quot;</span>
+<span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;you@example.com&quot;</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ATLASSIAN_API_TOKEN&quot;</span>
+
+<span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;confluence&quot;</span>
+<span class="n">search_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/wiki/rest/api/search?cql=space%20in%20(ENG)%20AND%20text%20~%20%22{term}%22&amp;limit=20&quot;</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;results&quot;</span>
+<span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;content.id&quot;</span>
+<span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;title&quot;</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;excerpt&quot;</span>
+<span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;basic&quot;</span>
+<span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;you@example.com&quot;</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ATLASSIAN_API_TOKEN&quot;</span>
+</code></pre></div>
+<p>Put each Jira project key in double quotes (<code>%22</code> in the URL). A key that is also a JQL word,
+such as <code>IN</code>, otherwise fails every search with a 400, and every repo then keeps its previous
+results.</p>
+<p>What this path guarantees:</p>
+<ul>
+<li><strong>It only reads.</strong> Every request is a GET.</li>
+<li><strong>One page per search.</strong> <code>maxResults</code> or <code>limit</code> in the URL sets the size of that page.
+  <code>max_pages</code> has no effect on <code>kb enrich</code>. The log line <code>stopped at the 1-page cap</code> is expected
+  when the API has more pages.</li>
+<li><strong>The token stays on its host.</strong> A redirect to another origin is followed without it.</li>
+<li><strong>A failed search keeps the old results.</strong> A 401, 403, 429 or dead host counts as an
+  unavailable source, so the repo keeps what it had instead of being cleared.</li>
+<li><strong><code>search_url</code> is a privileged key.</strong> It decides where search terms built from your code
+  are sent, so only the global config or a file named with <code>--config</code> may set it.</li>
+</ul>
+<p>Before the first real run, <code>--dry-run</code> prints each repo's terms and every URL it would request,
+and sends nothing. <code>--max-documents N</code> stops sending searches once N documents were taken in the
+run. Repos it did not reach keep their previous results.</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--config<span class="w"> </span>~/enrich.toml<span class="w"> </span>--dry-run<span class="w"> </span>acme/forecast-api
+contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--config<span class="w"> </span>~/enrich.toml<span class="w"> </span>--max-documents<span class="w"> </span><span class="m">200</span><span class="w"> </span>acme/forecast-api
+</code></pre></div>
+<p>A known limit: each stored document links to the search request that found it, not to the
+issue or page itself.</p>
 <p><strong>What you get.</strong> Each repo's enrichment documents live in their own partition, so they can be
 re-fetched without clobbering earlier results.</p>
 <p>With the semantic tier enabled they are embedded too, so they appear in semantic search as
@@ -195,8 +288,8 @@ edge, so the enrichment lands <strong>on</strong> the graph rather than beside i
 edges attached to code. Both numbers are reported because they answer different questions:
 documents returned says whether your sources had anything, edges to code says whether a
 question about the code can reach it.</p>
-<p>The closing line puts every targeted repo in one of five buckets, and the five add up to the
-number of repos the run planned to touch:</p>
+<p>The closing line puts every targeted repo in one bucket, and the buckets add up to the number
+of repos the run planned to touch:</p>
 <table>
 <thead>
 <tr>
@@ -225,6 +318,14 @@ number of repos the run planned to touch:</p>
 <td><code>skipped</code></td>
 <td>No graph shard, so no terms were built. Run <code>kb index</code> first.</td>
 </tr>
+<tr>
+<td><code>kept previous results</code></td>
+<td>A source could not be reached, so the repo's earlier results stay.</td>
+</tr>
+<tr>
+<td><code>not searched (cap reached)</code></td>
+<td><code>--max-documents</code> was reached first; earlier results stay.</td>
+</tr>
 </tbody>
 </table>
 <p><code>returned but unattached</code> is a normal outcome, not a failure, and the run still ends with a
@@ -252,7 +353,8 @@ resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open af
 since a hosted MCP endpoint can carry a token in its path or query.</p>
 <p>Failures the <em>server</em> rejected rather than failed on, an unknown tool, a bad token, are reported as
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise <code>timeout</code> on the
-source if the server is merely slow.</p>
+source if the server is merely slow. <code>kb enrich</code> reads it for an Atlassian source and for an <code>mcp</code> source
+with a <code>tool</code>.</p>
 <h2 id="when-one-repository-is-unreadable">When one repository is unreadable<a class="anchor" href="#when-one-repository-is-unreadable" title="Link to this section">#</a></h2>
 <p>A repository that fails outright costs that repository, not the run. <code>connect</code> names it, skips it, and
 carries on with the rest:</p>
@@ -271,6 +373,9 @@ for, so the run should not read as clean.</p>
 <li>The exit code is 1 when nothing was stored at all, and 0 with that warning when other repos got
   results.</li>
 <li>A source that answers with no results still clears the repo's previous ones.</li>
+<li>A repo whose docs and commits no longer mention any issue key or link has its previous links
+  cleared too (the run logs <code>cleared the previous links</code>). A repo folder that is missing keeps
+  them.</li>
 <li>With several sources, one that stays unreachable keeps every affected repo's previous results,
   so the other sources' results for those repos wait too. The run exits 1 until that source is
   fixed or removed from the config.</li>
@@ -287,7 +392,10 @@ for, so the run should not read as clean.</p>
 <ul>
 <li><a href="#connectors">Connectors</a></li>
 <li><a href="#managing-sources-the-source-command-family">Managing sources: the source command family</a></li>
-<li><a href="#query-driven-enrichment">Query-driven enrichment</a></li>
+<li><a href="#query-driven-enrichment">Query-driven enrichment</a><ul>
+<li><a href="#searching-jira-and-confluence-with-an-api-token">Searching Jira and Confluence with an API token</a></li>
+</ul>
+</li>
 <li><a href="#when-a-source-stops-answering">When a source stops answering</a></li>
 <li><a href="#when-one-repository-is-unreadable">When one repository is unreadable</a></li>
 <li><a href="#see-also">See also</a></li>
@@ -363,6 +471,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

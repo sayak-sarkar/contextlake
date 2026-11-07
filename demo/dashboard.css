@@ -665,6 +665,15 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-md { font-size: var(--fs-300); line-height: 1.6; overflow-wrap: anywhere; }
 .cl-md pre, .cl-md code { font-family: var(--cl-font-mono); background: var(--cl-surface-2); }
 .cl-md pre { padding: var(--sp-3); border-radius: var(--cl-radius-sm); overflow-x: auto; }
+.cl-md .md-table { overflow-x: auto; margin: var(--sp-3) 0; }
+.cl-md table { border-collapse: collapse; }
+/* `.cl-md` breaks text anywhere, which also shrinks a column to one character and shreds
+   its words. `break-word` keeps a word whole, so a narrow screen scrolls the table instead. */
+.cl-md th, .cl-md td { padding: var(--sp-1) var(--sp-3); text-align: left; vertical-align: top;
+  border: 1px solid var(--cl-line); overflow-wrap: break-word; }
+.cl-md th { background: var(--cl-surface-2); }
+.cl-md blockquote { margin: var(--sp-3) 0; padding: 0 var(--sp-3);
+  border-left: 3px solid var(--cl-line); color: var(--cl-ink-muted); }
 
 /* ---- Copyable snippet blocks (MCP console: .mcp.json / .vscode/mcp.json) - */
 .cl-snippet { font-family: var(--cl-font-mono); font-size: var(--fs-200);

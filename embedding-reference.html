@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Embeddings and models · contextlake docs">
 <meta name="twitter:description" content="What gets embedded, how a chunk is built, and which embedding model to pick for your hardware.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Embeddings and models", "description": "What gets embedded, how a chunk is built, and which embedding model to pick for your hardware.", "url": "https://sayak.in/contextlake/embedding-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Embeddings and models", "item": "https://sayak.in/contextlake/embedding-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Embeddings and models", "description": "What gets embedded, how a chunk is built, and which embedding model to pick for your hardware.", "url": "https://sayak.in/contextlake/embedding-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Embeddings and models", "item": "https://sayak.in/contextlake/embedding-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -191,8 +191,10 @@ longer the one running.</p>
 <h3 id="upgrading-an-existing-store">Upgrading an existing store<a class="anchor" href="#upgrading-an-existing-store" title="Link to this section">#</a></h3>
 <p>Document vectors are only rewritten by <code>kb ingest</code>, so an existing store keeps its old
 whole-document vectors until you re-run it. <code>kb ingest</code> clears the ingest partition's vectors
-before it writes, so a re-run replaces them cleanly and no stale chunk survives a document
-that shrank.</p>
+and then stores the new ones, so a re-run replaces them cleanly and no stale chunk survives a
+document that shrank. On a run whose probe got no answer, the first source clears after its
+first batch passes the check, or at the end of the source when every body is empty (see
+<a href="#choosing-a-model">Choosing a model</a>).</p>
 <h2 id="choosing-a-model">Choosing a model<a class="anchor" href="#choosing-a-model" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -216,12 +218,51 @@ that shrank.</p>
 <tr>
 <td><code>bge-small</code> (ONNX)</td>
 <td>the <code>kb-fastembed</code> extra plus <code>engine = "fastembed"</code></td>
-<td>A real transformer instead of a static lookup.</td>
+<td>A real transformer instead of a static lookup. The extra installs onnxruntime, tokenizers, huggingface_hub and numpy, not the fastembed library. The vectors match fastembed 0.9.0, so a store built with it needs no re-embed. Another fastembed model needs <code>pip install fastembed</code>.</td>
 </tr>
 </tbody>
 </table>
 <p>On a store that already holds vectors the identity guard refuses to mix models, so switch on
-a fresh vector store.</p>
+a fresh vector store. <code>kb ingest</code> takes one probe vector. When the embedder answers, the
+check runs before any vector is cleared or any document is rewritten. A run refused at that
+check prints the error and <code>This run changed nothing</code>.</p>
+<p>If the embedder gives no answer to the probe, nothing was proved. <code>kb ingest</code> still rewrites
+the documents. Until one source has passed the check, it clears a source's old vectors only
+after a batch of that source holds a vector that passes. A reply whose vectors are missing,
+empty or of different lengths does not pass. An embedder that never answers clears nothing.
+If every document body is empty, no batch runs and <code>kb ingest</code> clears the vectors at the end
+of the source.</p>
+<p>A refusal at that check keeps the vectors and ends the run after that source. The source keeps
+its new documents, the sources after it do not run, and the exit code is 1.</p>
+<p>Once one source has passed the check, each later source clears its vectors before it writes,
+as on a run whose probe answered. If the embedder stops after that, the next source has no
+vectors until you run <code>kb ingest</code> again.</p>
+<p>A source that clears before it writes can still be refused: the first batch that comes back
+with another vector length fails the check after the clear. The source then keeps its new
+documents and has no vectors, the sources after it do not run, and the exit code is 1. Run
+<code>kb ingest</code> again to rebuild the vectors.</p>
+<p>A later batch of another vector length stops the embed phase for that source. The vectors of
+the earlier batches stay, <code>kb ingest</code> prints <code>EMBED INCOMPLETE</code> with the lengths, and the exit
+code is 1.</p>
+<p>When the embed phase of a source stops early, because the embedder stopped answering or a batch
+came back unusable, the summary counts the documents left without vectors as
+<code>document(s) not embedded</code>. <code>target(s) unreadable</code> counts the targets a source could not read,
+such as pages, URLs and files. Both make the run exit 1. To exit 0, put the flag before the
+command: <code>contextlake --exit-zero-on-partial kb ingest</code>.</p>
+<p><code>kb enrich</code> and <code>kb wiki</code> take one probe vector per run, before their first write. A refused
+run prints the error and <code>This run changed nothing</code>, exits 1 and keeps the stored vectors.
+<code>kb wiki</code> takes the probe after it has checked the repo ids you named.</p>
+<p>When the probe gets no answer they go on. They write the new rows first and clear a
+partition's old vectors only after the first batch holds a vector that passes the check. An
+embedder that never answers clears nothing, so the partition keeps its old vectors, unless
+every document body is empty: then no batch runs and the old vectors are cleared at the end.</p>
+<p>After a probe that answered, they clear before the first batch, so a batch that then fails
+leaves the partition with no vectors. A partition with no documents is cleared at once.</p>
+<p><code>kb embed</code> runs the check on the probe vector it takes at the start of each pass, <code>--watch</code>
+passes included. A refused run prints the error and exits 1 before it embeds any repo. In a
+one-shot run, a probe that fails or returns no vector also ends the run with exit 1 and writes
+no vectors. With <code>--watch</code>, that pass logs the same line, writes nothing, and the loop runs
+the next pass.</p>
 <p>Which one is better <strong>on your code</strong> has a local answer, and
 <a href="searching-semantically#measuring-retrieval-quality"><code>kb eval</code></a> is how to get it: build a
 golden set from queries your team types, embed with one model, score, re-embed with
@@ -291,6 +332,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

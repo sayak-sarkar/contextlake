@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Using the dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -103,7 +103,7 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--site DIR</code></td>
-<td>Export a <strong>static</strong> <code>file://</code>-safe copy (a representative slice).</td>
+<td>Export a <strong>static</strong> <code>file://</code>-safe copy (a representative slice). Writes into a new, empty or earlier-exported directory (the export leaves a <code>.contextlake-export</code> file to mark it). Refuses any other directory that holds files, and writes nothing; for an export made by an older version, run <code>touch DIR/.contextlake-export</code> and <code>touch DIR/graph/.contextlake-export</code>.</td>
 </tr>
 <tr>
 <td><code>--repos PATTERN</code></td>
@@ -139,7 +139,7 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--host HOST</code></td>
-<td><code>--serve</code> only: bind address (default <code>127.0.0.1</code>). See §11 for what a non-loopback host costs you.</td>
+<td><code>--serve</code> only: bind address (default <code>127.0.0.1</code>). IPv4 only, so <code>::1</code> cannot bind. See §11 for what a non-loopback host costs you.</td>
 </tr>
 <tr>
 <td><code>--port PORT</code></td>
@@ -171,9 +171,9 @@ names, their docstrings, and the headings of wiki sections in search results sti
 <li><strong>Web addresses:</strong> every web address in any text the dashboard shows becomes <code>url-</code> and a
   short code, docstrings included. A document with no title is named by its address, so it
   shows that code.</li>
-<li><strong>The codes</strong> come from a key made fresh for every export and every server start, so they
-  never match across two of them. An anonymized connector item does not open, and neither
-  does a document whose id holds an address.</li>
+<li><strong>The codes</strong>, author pseudonyms included, come from a key made fresh for every export and
+  every server start, so they never match across two of them. An anonymized connector item does
+  not open, and neither does a document whose id holds an address.</li>
 <li><strong>Still shows:</strong> repository ids (which name the forge host), symbol names and their
   docstrings (with any web address in them replaced), file paths inside your repositories,
   the headings of wiki sections, and the titles of documents and decision records (their
@@ -218,11 +218,17 @@ edges, the three confidence levels, and the Live vs. Static data source:</p>
 <p>Click any repo for its <strong>anatomy</strong> (node kinds and top symbols) plus README, curated
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click <strong>Blast radius</strong>, and every fact carries its provenance.</p>
+<p>The README panel in <code>--serve</code> follows a <code>README.md</code> that is a link to a file elsewhere on your
+disk. A <code>--site</code> export reads a README only from inside the repo's clone and skips a link that
+leads out, because an export is made to be shared.</p>
 <p><img class="ss ss-light" alt="A repo's anatomy: kinds and top symbols" src="img/dashboard/repo-anatomy.png" /><img class="ss ss-dark" alt="A repo's anatomy: kinds and top symbols" src="img/dashboard/repo-anatomy-dark.png" /></p>
-<p>Below Top symbols, a <strong>Hotspots</strong> section ranks the same call-graph degree data two
+<p>Below Top symbols, a <strong>Hotspots</strong> section ranks the same graph degree data two
 other ways: <strong>hubs</strong> (most depended-on, worth protecting with tests) and
 <strong>dispatchers</strong> (widest fan-out, where behavior branches). Nothing new is extracted;
-it's the same index-time centrality data, split by direction instead of combined.</p>
+it's the same index-time centrality data, split by direction instead of combined.
+The two columns are <strong>incoming references</strong> and <strong>outgoing references</strong>. They count every
+relation, so a symbol that is only declared in its file already has 1 incoming reference.
+They are not caller and callee counts.</p>
 <h2 id="5-diagrams">5. Diagrams<a class="anchor" href="#5-diagrams" title="Link to this section">#</a></h2>
 <p>A repo's <strong>Diagrams</strong> tab renders the same Mermaid text <code>contextlake kb graph --repo &lt;id&gt;
 --format &lt;fmt&gt;</code> produces, inline as SVG: <strong>Relations</strong> (the generic relation graph,
@@ -350,6 +356,9 @@ write:</p>
 <p>A positional repo id limits generation to that one repo.</p>
 <p>Once generated, the page renders straight in the Wiki tab. No click-through. It is grounded in
 the repo's real symbols, and in its README and conventional config files when those exist.</p>
+<p>The Wiki and Docs tabs, the README panel and the static <code>--site</code> wiki pages draw headings, bulleted
+and numbered lists, tables, block quotes, code and inline formatting. Raw HTML in the text is
+escaped, never run.</p>
 <p>Sections follow a fixed order: Overview, Setup &amp; Run, Architecture, Dependencies, Gotchas,
 Decisions. A section with nothing to ground it is left out, never written empty. When connected
 sources have real data to cite, an attributed "external context" block is added. A provenance
@@ -446,16 +455,17 @@ to confirm in the browser first.</p>
   so there is no token cost to preview first, and <code>kb docs</code> has no <code>--force</code> flag to offer.</li>
 </ul>
 <p>Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
-are already up to date". A <strong>Force</strong> checkbox skips that freshness check and regenerates
+are already up to date". A page that plain <code>kb wiki</code> wrote without a model (a structural page)
+counts as one to regenerate, because a run replaces it. A <strong>Force</strong> checkbox skips that freshness check and regenerates
 everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).</p>
 <p>The MCP server this card starts is authenticated. Its HTTP transport needs
 <code>Authorization: Bearer &lt;token&gt;</code> on every request. See
 <a href="mcp-transports#authenticating-the-network-transports">Authenticating the network transports</a>.</p>
-<p>The dashboard spawns that server with its output discarded, so the server cannot print a token
-where you would see it. The dashboard mints the token itself and shows it on the card, next to
-the endpoint. <strong>That card is the only place it appears.</strong></p>
+<p>The dashboard mints the token itself and hands it to the server through its environment. The
+server reads it and never prints it. The card shows the token next to the endpoint. <strong>That card
+is the only place it appears.</strong></p>
 <p>Two things follow:</p>
 <ul>
 <li><strong>Restart mints a new token.</strong> Any client pinned to the old one has to be re-pointed at the
@@ -463,11 +473,25 @@ the endpoint. <strong>That card is the only place it appears.</strong></p>
 <li>The token lives in <code>&lt;store&gt;/dashboard/mcp-server.pid</code>, created <code>0600</code>, so it survives a page
   reload.</li>
 </ul>
+<p>What <strong>Start</strong> does:</p>
+<ol>
+<li>It refuses a port that already has a listener.</li>
+<li>It waits up to 5 seconds for the new server to listen on its port.</li>
+<li>If the server exits first, the card shows an alert with the exit code and the end of the
+   server's output.</li>
+</ol>
+<p>The server's output goes to <code>&lt;store&gt;/dashboard/mcp-server.log</code>, created <code>0600</code> and replaced on
+each start. A server that dies after Start returned shows as <strong>Stopped</strong> on the next refresh,
+and that refresh deletes its pidfile. The pidfile also records the server's start time, on
+systems that have <code>/proc</code>. <strong>Stop</strong> signals a pid only when that start time still matches. A pid
+that another process has taken shows as <strong>Stopped</strong> and is left alone. Without <code>/proc</code>, the pid
+alone decides.</p>
 <p>Mutating routes are refused in two cases:</p>
 <ul>
 <li><strong>With <code>--sample</code>.</strong> The demo fleet is fictional, so there is nothing on disk to sync or clone.</li>
 <li><strong>With any non-loopback <code>--host</code>.</strong> Only <code>127.0.0.1</code>, <code>localhost</code> and <code>::1</code> count as loopback.
-  Mutating routes are loopback-only by design.</li>
+  Mutating routes are loopback-only by design. The dashboard server binds IPv4 only, so
+  <code>--host ::1</code> passes this check and then fails to bind.</li>
 </ul>
 <p>Two checks protect every <code>POST</code>:</p>
 <ol>
@@ -478,8 +502,11 @@ the endpoint. <strong>That card is the only place it appears.</strong></p>
    rebinding, where a hostile site resolves a name to <code>127.0.0.1</code> to reach past the loopback
    bind.</li>
 </ol>
-<p>A mutation holds the store's single-writer lock only while it runs. A concurrent CLI command
-gets a clean <code>409</code> rather than an interleaved write.</p>
+<p>Sync now, Add repo and the MCP actions hold the store's single-writer lock only while they run.
+A dashboard action that finds the store locked gets HTTP <code>409</code> (<code>store is busy</code>) with the
+holder's pid. A CLI command that finds it locked prints the holder and exits 1. Neither case
+interleaves a write. Regenerate and Generate documents start a CLI child, and the child takes
+the lock itself, so it follows the CLI rule.</p>
 <p>The MCP server those Start/Restart actions spawn is constrained to a loopback bind
 and an unprivileged port (1024-65535), whatever the request asks for. That transport
 has no authentication of its own, so a caller-chosen bind would let one token turn
@@ -631,6 +658,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>

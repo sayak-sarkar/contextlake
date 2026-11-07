@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>contextlake — acme/shared-lib</title>
+<title>contextlake: acme/shared-lib</title>
 <!-- Inline, not a linked file: without any icon the browser requests /favicon.ico
      on every page load and the server 404s it. A data URI costs no request and
      survives an offline export, which a linked .ico would not. -->
@@ -15,7 +15,7 @@
 </head>
 <body data-theme="light" data-sidebar="open" data-inspect="closed">
 <a class="cl-skip" href="#textview">Skip to the graph as text</a>
-<h1 class="cl-sr">contextlake — acme/shared-lib</h1>
+<h1 class="cl-sr">contextlake: acme/shared-lib</h1>
 <div id="app">
   <header id="topbar">
     <button class="ibtn" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar"><svg
@@ -43,9 +43,9 @@
              that (kept in sync by setMode). -->
         <div class="seg" role="group" aria-label="Overview mode">
           <button class="segbtn on" id="vm-clusters" aria-pressed="true"
-            title="Namespace clusters — the repo tree, drill in on click">Namespace</button>
+            title="Namespace clusters: the repo tree, drill in on click">Namespace</button>
           <button class="segbtn" id="vm-flow" aria-pressed="false"
-            title="Dependency clusters — connected repos grouped by what they depend on"
+            title="Dependency clusters: connected repos grouped by what they depend on"
             >Dependencies</button>
         </div>
       </div>
@@ -66,7 +66,7 @@
         <button class="btn primary" id="png" title="Save a PNG snapshot"><svg viewBox="0 0 16 16"
           fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>PNG</button>
-        <button class="btn" id="svg" title="Save an SVG snapshot — vector, and the only format that keeps the dagre preview's HTML cards"><svg viewBox="0 0 16 16" fill="none"
+        <button class="btn" id="svg" title="Save an SVG snapshot: vector, and the only format that keeps the dagre preview's HTML cards"><svg viewBox="0 0 16 16" fill="none"
           stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>SVG</button>
       </div>
@@ -120,7 +120,7 @@
          focused canvas, +/- zoom, 0 fits. Exposing a 180x130 canvas that can only be
          driven by dragging would announce a control with no keyboard behaviour. -->
     <canvas id="minimap" width="180" height="130" aria-hidden="true"
-      title="Overview map — click or drag to navigate"></canvas>
+      title="Overview map: click or drag to navigate"></canvas>
     <p id="cy-help" class="cl-sr">Interactive diagram. Arrow keys pan, plus and minus
       zoom, 0 fits the view, Enter opens the text list of the same nodes and their
       connections. Escape clears the current selection.</p>

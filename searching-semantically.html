@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Searching semantically · contextlake docs">
 <meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fb53dd9c">
-<link rel="stylesheet" href="tokens.css?v=fb53dd9c">
-<link rel="stylesheet" href="docs.css?v=fb53dd9c">
-<link rel="stylesheet" href="cmdk.css?v=fb53dd9c">
+<link rel="stylesheet" href="fonts.css?v=8b938c56">
+<link rel="stylesheet" href="tokens.css?v=8b938c56">
+<link rel="stylesheet" href="docs.css?v=8b938c56">
+<link rel="stylesheet" href="cmdk.css?v=8b938c56">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -48,10 +48,10 @@
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Searching semantically</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Searching semantically</h1><p class="doc-sub">Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<p>Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Set <code>enabled = true</code> under <code>[embeddings]</code> in the config,
-run <code>contextlake kb embed</code> to vectorize the indexed nodes into a local store, and <code>serve</code> then exposes two
-retrieval tools:</p>
+<p>Semantic search adds natural-language retrieval on top of the graph, so you can find code by
+what it does even when you don't know its name. It is on by default since 7.7.0. Set
+<code>enabled = false</code> under <code>[embeddings]</code> to turn it off. Run <code>contextlake kb embed</code> to
+vectorize the indexed nodes into a local store, and <code>serve</code> then exposes two retrieval tools:</p>
 <ul>
 <li><strong><code>semantic_search</code></strong> for queries where the exact symbol name is unknown.</li>
 <li><strong><code>hybrid_search</code></strong>, which seeds Personalized PageRank with the embedding hits and propagates relevance
@@ -148,6 +148,8 @@ dimension (estimated tokens per query, and precision per 1k tokens), so "route t
 source" becomes a number, not a vibe. Score any retriever with <code>--retriever fts|semantic|hybrid</code>
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.</p>
+<p>All four numbers read the first <code>k</code> results, set with <code>--limit</code> (default 10). A right node ranked
+after <code>k</code> is a miss in precision, recall, MRR and hit-rate, however many ids the golden entry lists.</p>
 <h3 id="which-metric-to-gate-on">Which metric to gate on<a class="anchor" href="#which-metric-to-gate-on" title="Link to this section">#</a></h3>
 <p>If you wire <code>kb eval</code> into CI, gate on <strong>MRR</strong>, not on hit-rate alone. Hit-rate asks whether the
 right node came back inside <code>k</code>. It cannot see a <strong>ranking</strong> regression, where the answer is still
@@ -176,15 +178,23 @@ go and read. A wrong citation is worse than a miss, because it looks like an ans
 there:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>--golden<span class="w"> </span>queries.json<span class="w"> </span>--verify-citations
 <span class="go">Citations: 178/180 verified (98.9%) of 184 distinct nodes</span>
-<span class="go">  4 unverifiable (no local checkout for the repo)</span>
+<span class="go">  4 unverifiable (not checked; the reasons are below)</span>
+<span class="go">  checkout_missing: 4</span>
 <span class="go">  name_absent: 2</span>
 <span class="go">    src/ingest/backfill.py:88  (name_absent)</span>
 </code></pre></div>
-<p>Failures are named rather than counted: <code>file_missing</code> (the graph outlived the file), <code>line_out_of_range</code>
-(the file shrank under a stale index), <code>name_absent</code> (the line exists, the symbol is not on it),
-<code>no_citation</code> (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
-this machine is reported as <strong>unverifiable</strong> and kept out of the rate, so a run without the mirror reads as
-"nothing was checked" rather than as a pass.</p>
+<p>Failures are named, not counted:</p>
+<ul>
+<li><code>file_missing</code>: the graph outlived the file.</li>
+<li><code>not_a_file</code>: the path exists but is a directory, a device or a pipe. It is never opened.</li>
+<li><code>line_out_of_range</code>: the file shrank under a stale index.</li>
+<li><code>name_absent</code>: the line exists, the symbol is not on it.</li>
+<li><code>no_citation</code>: a symbol node carrying no file or line at all.</li>
+</ul>
+<p>A citation that could not be checked is reported as <strong>unverifiable</strong> and kept out of the rate, so a run
+without the mirror reads as "nothing was checked", not as a pass. The reasons are <code>checkout_missing</code> (the
+recorded clone is not on this machine), <code>file_unreadable</code>, and <code>file_too_large</code> (the cited line is past
+line 200,000, where the check stops reading).</p>
 <p>It is off by default: it does filesystem work proportional to the results and needs the checkout present.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
@@ -280,6 +290,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=fb53dd9c"></script>
+<script defer src="cmdk.js?v=8b938c56"></script>
 </body>
 </html>
