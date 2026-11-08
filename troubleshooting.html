@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Troubleshooting · contextlake docs">
 <meta name="twitter:description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -82,15 +82,14 @@ is worth more to this page than a guess.</p>
 is wrong, so it is almost always faster than reading down this page:</p>
 <pre class="mermaid">flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
-  Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
+  Q -->|"an import or extra is missing"| I(["the knowledge layer<br/>will not install"])
   Q -->|"a compiler error"| I
-  Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
-  Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
-  Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
+  Q -->|"externally managed<br/>environment"| E(["pip refuses to<br/>install into the system"])
+  Q -->|"it printed a sudo<br/>command"| S(["doctor --fix declined<br/>to run it for you"])
+  Q -->|"all green, but a<br/>repo is wrong"| M(["the mirror"])
   Q -->|"nothing above"| O(["open an issue"])</pre>
 <div class="dg-key">
-  <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
-  <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point: the command, or the section below that covers the symptom</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
@@ -318,6 +317,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

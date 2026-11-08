@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Using the dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -108,7 +108,7 @@ build step, one command and it opens in your browser. Read-only by default; see
 tiers do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
 </blockquote>
 <pre class="mermaid">flowchart LR
-  G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
+  G[("the code graph")] --> A(["Fleet, Repo (with its Diagrams tab),<br/>Architecture, Blast radius, Path,<br/>Health, Search"])
   W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
   G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
   P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])</pre>
@@ -776,6 +776,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

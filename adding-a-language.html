@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Adding a language · contextlake docs">
 <meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -206,17 +206,17 @@ a generic supertype such as <code>Comparable&lt;Order&gt;</code> and a dotted on
 reduce to the bare name. If your language has neither shape, the strips are no-ops.</p>
 <p>Alias a shared query the same way you aliased the kinds: <code>_QUERIES["tsx"] = _QUERIES["typescript"]</code>.</p>
 <h3 id="5-load-the-grammar">5. Load the grammar<a class="anchor" href="#5-load-the-grammar" title="Link to this section">#</a></h3>
-<p><code>_language()</code> is an explicit <code>if</code>/<code>elif</code> chain of lazy imports ending in
-<code>raise ValueError(f"unsupported language: {lang}")</code>. Add a branch:</p>
-<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">&quot;&lt;lang&gt;&quot;</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">tree_sitter_</span><span class="o">&lt;</span><span class="n">lang</span><span class="o">&gt;</span> <span class="k">as</span> <span class="n">g</span>
-    <span class="n">fn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">language</span>
+<p>Grammar loading is a table, <code>_GRAMMARS</code>, with one row per language. <code>_language()</code> looks the row up
+and imports the package lazily. An id with no row raises
+<code>ValueError(f"unsupported language: {lang}")</code>. Add one row:</p>
+<div class="highlight"><pre><span></span><code><span class="s2">&quot;&lt;lang&gt;&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;tree_sitter_&lt;lang&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;language&quot;</span><span class="p">),</span>
 </code></pre></div>
-<p><strong>Keep the import inside the function.</strong> The laziness is load-bearing: the core tier of contextlake
-must work with no tree-sitter installed at all, and two tests police that boundary.</p>
-<p>Read the grammar package before you write <code>fn = g.language</code>. Some expose more than one entry point:
-the TypeScript wheel provides <code>language_typescript</code> and <code>language_tsx</code>, and the PHP wheel provides
-<code>language_php</code>.</p>
+<p><strong>Keep the import lazy.</strong> The row holds the module name as a string, and <code>_language()</code> imports it
+on first use. Do not add a top-level <code>import</code>. The laziness is load-bearing: the core tier of
+contextlake must work with no tree-sitter installed at all, and two tests police that boundary.</p>
+<p>Read the grammar package before you write the factory name in the row. Some expose more than one
+entry point: the TypeScript wheel provides <code>language_typescript</code> and <code>language_tsx</code>, and the PHP wheel
+provides <code>language_php</code>. The C# package is <code>tree_sitter_c_sharp</code>.</p>
 <p>The parser cache and the query cache need no change. Both are keyed by the same language id and pick
 your language up for free.</p>
 <h3 id="6-decide-the-interop-family">6. Decide the interop family<a class="anchor" href="#6-decide-the-interop-family" title="Link to this section">#</a></h3>
@@ -276,7 +276,7 @@ five hand-written places:</p>
 <td>the count in the knowledge-graph bullet</td>
 </tr>
 <tr>
-<td><code>docs/indexing-the-code-graph.md</code></td>
+<td><code>docs/code-graph-model.md</code></td>
 <td>the count in the <a href="code-graph-model#languages">Languages</a> section, <strong>and</strong> a new row in the Ecosystem table</td>
 </tr>
 <tr>
@@ -412,7 +412,7 @@ directory.</p>
 <div class="highlight"><pre><span></span><code>grammar + query OK
 </code></pre></div>
 <p>This is the cheapest check and the one that separates the three most common failures from each other:
-it proves the <code>pyproject.toml</code> entry installed, that your <code>_language</code> branch names the right entry
+it proves the <code>pyproject.toml</code> entry installed, that your <code>_GRAMMARS</code> row names the right entry
 point, and that your query compiles against <strong>that</strong> grammar version.</p>
 <p>The compile step is strict, which is why it is worth a contributor's time. A node type your
 grammar does not have fails at construction, naming the row and column:</p>
@@ -511,7 +511,7 @@ still reports success:</p>
 </thead>
 <tbody>
 <tr>
-<td>the <code>_language()</code> branch</td>
+<td>the <code>_GRAMMARS</code> row</td>
 <td><code>ValueError: unsupported language: &lt;lang&gt;</code></td>
 </tr>
 <tr>
@@ -542,8 +542,8 @@ only while no language shares a name with a kind. Run the <code>KIND_REGISTRY</c
 downstream. Omitting the language self-isolates it, which is always safe. See step 6.</p>
 <h3 id="aliasing-a-grammar-is-three-edits-not-one">Aliasing a grammar is three edits, not one<a class="anchor" href="#aliasing-a-grammar-is-three-edits-not-one" title="Link to this section">#</a></h3>
 <p>If two ids share one grammar, all three tables need the pairing and each is a separate statement: the
-<code>_DEF_TYPES</code> alias, the <code>_QUERIES</code> alias, and a distinct <code>_language()</code> branch naming the grammar's
-other entry point. Missing the third is the first row of the silent-skip table above.</p>
+<code>_DEF_TYPES</code> alias, the <code>_QUERIES</code> alias, and a <code>_GRAMMARS</code> row naming the grammar package and its
+factory. A shared package needs one row per id. Missing the third is the first row of the silent-skip table above.</p>
 <h3 id="do-not-introduce-anything-order-dependent">Do not introduce anything order-dependent<a class="anchor" href="#do-not-introduce-anything-order-dependent" title="Link to this section">#</a></h3>
 <p>Capture extraction is canonicalised on purpose: py-tree-sitter builds each capture list from a
 set, so its order is not defined, and a test pins shard bytes across five consecutive
@@ -589,8 +589,8 @@ makes it a useful template: it shows which parts are required.</p>
 </tr>
 <tr>
 <td>5</td>
-<td><code>kb/parse.py</code>, <code>_language()</code></td>
-<td><code>elif lang == "kotlin": import tree_sitter_kotlin as g; fn = g.language</code></td>
+<td><code>kb/parse.py</code>, <code>_GRAMMARS</code></td>
+<td><code>"kotlin": ("tree_sitter_kotlin", "language"),</code></td>
 </tr>
 <tr>
 <td>6</td>
@@ -706,6 +706,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

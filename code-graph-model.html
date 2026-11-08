@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="The code graph model · contextlake docs">
 <meta name="twitter:description" content="Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "The code graph model", "description": "Every node kind and edge kind the parser emits, language by language, plus Terraform, SQL and web topology.", "url": "https://sayak.in/contextlake/code-graph-model", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "The code graph model", "item": "https://sayak.in/contextlake/code-graph-model"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -119,8 +119,8 @@ dashboard use, so node kinds look the same everywhere. Most edge relations match
 </p>
 
 <h3 id="languages">Languages<a class="anchor" href="#languages" title="Link to this section">#</a></h3>
-<p>tree-sitter covers <strong>27 languages across 25 grammars</strong> (TypeScript and TSX share one grammar), and the
-parser registry is pluggable.</p>
+<p>tree-sitter covers <strong>27 languages across 25 grammars</strong> (TypeScript and TSX share one package, and
+Vue shares HTML's), and the parser registry is pluggable.</p>
 <p>Depth differs across four tiers, and a single number would hide it.</p>
 <table>
 <thead>
@@ -197,12 +197,24 @@ file unsupported.</p>
 <td>JavaScript, TypeScript, TSX</td>
 </tr>
 <tr>
+<td>Web markup and components</td>
+<td>HTML, CSS, Svelte, Vue</td>
+</tr>
+<tr>
 <td>Systems</td>
-<td>C, C++, Rust, Go</td>
+<td>C, C++, Rust, Go, Zig</td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>Swift, Dart</td>
 </tr>
 <tr>
 <td>Scripting</td>
-<td>Python, Ruby, PHP</td>
+<td>Python, Ruby, PHP, Perl, Bash, Elixir</td>
+</tr>
+<tr>
+<td>Build and config</td>
+<td>Nix, Make, Dockerfile</td>
 </tr>
 </tbody>
 </table>
@@ -581,7 +593,7 @@ getting a silent best-guess.</p>
 <span class="go">  h3  acme/alerts:Notifier  (class, src/Notifier.js)  via calls at src/x:1  [extracted]</span>
 </code></pre></div>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=88fb540c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=aff23986"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The model on this page, drawn. Node colour is the kind, edge colour is the relationship, and edge style is the confidence. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -668,6 +680,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

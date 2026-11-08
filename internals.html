@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Architecture and internals · contextlake docs">
 <meta name="twitter:description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -157,7 +157,7 @@ then the nearest ancestor directory's local file, then an explicit <code>--confi
 </table>
 <p>Discovery walks up from the current directory to the filesystem root, the way git finds <code>.git</code>.</p>
 <p align="center">
-  <img src="img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="960">
 </p>
 
 <p>One carve-out matters for safety.</p>
@@ -573,8 +573,9 @@ exercised by that test today.</p>
 <h3 id="inv-2-the-offline-boundary">INV-2: the offline boundary<a class="anchor" href="#inv-2-the-offline-boundary" title="Link to this section">#</a></h3>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Parsing, the graph, FTS, query, visualization and embedding all run with no network. The
-connectors are the opt-in exception, and even they degrade rather than fail.</p>
+<p>Parsing, the graph, FTS, query, visualization and embedding all run with no network, after the
+one-time download of the built-in embedding model. The connectors are the opt-in exception, and
+they degrade instead of failing.</p>
 </div>
 <p><code>tests/kb/test_offline_boundary.py</code> enforces it by patching <code>socket.getaddrinfo</code> and
 <code>socket.create_connection</code> to raise, then asserting that <code>kb index</code>, <code>kb query</code>, <code>kb graph
@@ -703,6 +704,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

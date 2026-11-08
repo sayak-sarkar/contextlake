@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Indexing the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Indexing the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 27 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/indexing-the-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Indexing the code graph", "item": "https://sayak.in/contextlake/indexing-the-code-graph"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -105,12 +105,16 @@ stays on screen is one line per repository and the summary:</p>
   B -->|yes| ONE["indexed as one repository"]
   B -->|no| G{"is it itself a git repo?"}
   G -->|yes| ONE
-  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
-  S -->|no| ONE
+  G -->|no| S{"does it hold several git repos, with only a<br/>trivial share of files outside them?"}
   S -->|yes| R(["refused, naming the command that fits"])
-  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
+  S -->|no| O{"does it hold one git repo,<br/>with nothing outside it?"}
+  O -->|yes| R2(["refused, naming the command that fits"])
+  O -->|no| ONE
+  R -.->|"several repos:<br/>kb index --workspace"| EACH["each repo indexed under its own id"]
+  R2 -.->|"kb index on that repo"| SOLO["that repo indexed under its own id"]
   ONE --> GR[("the graph")]
-  EACH --> GR</pre>
+  EACH --> GR
+  SOLO --> GR</pre>
 <div class="dg-key">
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
@@ -154,7 +158,7 @@ Only then does it decide:</p>
 </thead>
 <tbody>
 <tr>
-<td>Several repositories, and nothing of your own outside them</td>
+<td>Several repositories, and little of your own outside them (10 files or fewer, or 5% or less of the indexable files)</td>
 <td>refused; run <code>--workspace &lt;dir&gt;</code></td>
 </tr>
 <tr>
@@ -453,7 +457,7 @@ edges it took 0.45 s.</p>
 </table>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="what-an-index-produces">What an index produces<a class="anchor" href="#what-an-index-produces" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=88fb540c"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=aff23986"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -580,6 +584,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

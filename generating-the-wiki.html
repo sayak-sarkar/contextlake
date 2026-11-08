@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Generating the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generating the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generating-the-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generating the wiki", "item": "https://sayak.in/contextlake/generating-the-wiki"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -78,7 +78,10 @@
 <code>contextlake kb wiki</code> writes a <strong>structural page</strong> built entirely from the graph, the manifests and
 the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
 page, and the prose replaces it only when the prose is at least as accurate and as complete.</p>
-<p>So the page you read is one of two things, and it always says which.</p>
+<p>So the page you read is one of two things, and it always says which. The diagram below is the
+per-repository path. A cluster page (<code>--namespace</code>) skips the "accurate and at least as complete"
+step, because it has no structural page to replace. It goes from the structural check straight to
+the council. See <a href="#cluster-namespace-wiki">cluster pages</a>.</p>
 <pre class="mermaid">flowchart TD
   G[("the graph")] -->|"entry points, modules, ownership,<br/>public surface, install, dependencies"| ST["render the structural page<br/>no model call"]
   ST --> W[("the repository's wiki page")]
@@ -91,7 +94,7 @@ page, and the prose replaces it only when the prose is at least as accurate and 
   SG -->|yes| RG{"accurate and at least<br/>as complete?"}
   RG -->|no| K
   RG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
+  C --> S{"mean score at or above accept_score?"}
   S -->|no| K
   S -->|yes| W</pre>
 <div class="dg-key">
@@ -153,8 +156,9 @@ which is what makes publishing from a cheap local generator safe.</p>
 <h2 id="running-it">Running it<a class="anchor" href="#running-it" title="Link to this section">#</a></h2>
 <p>Two ways to turn the tier on.</p>
 <ul>
-<li><strong>In the config</strong>, by enabling <code>[llm]</code>. Generation runs on a local Ollama model by default, so
-  prompts never leave the machine.</li>
+<li><strong>In the config</strong>, by enabling <code>[llm]</code>. With <code>[llm]</code> enabled, <code>provider = "auto"</code> (the default) uses a
+  local Ollama if it has the model, else the built-in CPU model. The built-in model runs in-process. Ollama runs on this machine
+  while <code>base_url</code> is loopback (the default).</li>
 <li><strong>Inline</strong>, with <code>--llm &lt;provider&gt;</code>, skipping the toml entirely. Providers: <code>builtin</code>,
   <code>ollama</code>, <code>openai</code>, <code>anthropic</code>, <code>cli</code>, <code>auto</code>.</li>
 </ul>
@@ -546,6 +550,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

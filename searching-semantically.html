@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Searching semantically · contextlake docs">
 <meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Searching semantically", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/searching-semantically", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Searching semantically", "item": "https://sayak.in/contextlake/searching-semantically"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -92,7 +92,8 @@ vectorize the indexed nodes into a local store, and <code>serve</code> then expo
   A -->|yes| R["semantic or hybrid retrieval"]
   V --> R
   G[("the graph")] -.->|"hybrid propagates<br/>relevance across it"| R
-  R --> H(["cited hits: repo, file:line,<br/>kind, name"])</pre>
+  R --> H(["cited hits: repo, file:line,<br/>kind, name"])
+  R -.->|"kb query only: no embedder,<br/>no vectors yet, or the retriever failed"| FTS(["full-text (fts) results<br/>instead"])</pre>
 <div class="dg-key">
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
@@ -344,6 +345,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -420,7 +420,7 @@ other repository goes to <code>main</code>.</p>
 <li><code>verify</code> - Verify structure</li>
 <li><code>audit</code> - Report repo health &amp; age (skip with <code>--no-audit</code>)</li>
 </ol>
-<aside class="pebble-tip" role="note"><img class="pebble-tip-icon" src="img/pebble-tip.png" alt="" aria-hidden="true" width="56" height="49" loading="lazy"><div class="pebble-tip-body"><p class="pebble-tip-label">Pebble's tip</p><p>Run <code>contextlake mirror sync --dry-run</code> before your first full sync. It shows what would happen and changes nothing.</p>
+<aside class="pebble-tip" role="note"><img class="pebble-tip-icon" src="img/pebble-tip.png" alt="" aria-hidden="true" width="56" height="49" loading="lazy"><div class="pebble-tip-body"><p class="pebble-tip-label">Pebble's tip</p><p>Run <code>contextlake mirror sync --dry-run</code> before your first full sync. It clones, updates and switches nothing. It still refreshes the project-list cache.</p>
 </div></aside>
 <h3 id="mirror-audit-repo-health-age-report"><code>mirror audit</code>: repo health &amp; age report<a class="anchor" href="#mirror-audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
@@ -704,6 +704,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

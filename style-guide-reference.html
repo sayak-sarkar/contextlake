@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Word reference · contextlake docs">
 <meta name="twitter:description" content="The house-style decision cache, before and after rewrites, and the A-to-Z term reference.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Word reference", "description": "The house-style decision cache, before and after rewrites, and the A-to-Z term reference.", "url": "https://sayak.in/contextlake/style-guide-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-09-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Word reference", "item": "https://sayak.in/contextlake/style-guide-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Word reference", "description": "The house-style decision cache, before and after rewrites, and the A-to-Z term reference.", "url": "https://sayak.in/contextlake/style-guide-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Word reference", "item": "https://sayak.in/contextlake/style-guide-reference"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -88,9 +88,10 @@ micro-choices, so no contributor, and no agent, re-decides them.</p>
 <li><strong>a repo</strong> in running prose (match the CLI), not "repository".</li>
 <li>command names (<code>sync</code>, <code>index</code>, <code>graph</code>, <code>wiki</code>, <code>serve</code>) are lowercase and in <code>code</code>.</li>
 <li><strong>The language count:</strong> "27 languages across 25 tree-sitter grammars" (<code>.tsx</code> shares the TypeScript
-  grammar). Use this exact phrasing everywhere. <code>tests/kb/test_docs_language_count.py</code> derives both
-  numbers from <code>ALL_LANGS</code> and <code>_GRAMMARS</code> and fails if a doc drifts from the code, so adding a
-  grammar means updating this line and the pages that quote it, not hunting for them later.
+  package, and Vue shares HTML's). Use this exact phrasing everywhere.
+  <code>tests/kb/test_docs_language_count.py</code> derives both numbers from <code>ALL_LANGS</code> and <code>_GRAMMARS</code> and
+  fails if a doc drifts from the code, so adding a grammar means updating this line and the pages
+  that quote it, not hunting for them later.
   <code>ALL_LANGS</code>, not <code>LANG_BY_EXT</code>: a file can reach a grammar by NAME as well as by extension,
   and counting extensions alone under-reports the total while reading as a complete count.</li>
 <li><strong>Depth is part of the claim.</strong> Not every language is extracted to the same depth, and a single
@@ -281,6 +282,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>

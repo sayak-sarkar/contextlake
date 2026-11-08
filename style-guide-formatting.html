@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fb540c">
-<link rel="stylesheet" href="tokens.css?v=88fb540c">
-<link rel="stylesheet" href="docs.css?v=88fb540c">
-<link rel="stylesheet" href="cmdk.css?v=88fb540c">
+<link rel="stylesheet" href="fonts.css?v=aff23986">
+<link rel="stylesheet" href="tokens.css?v=aff23986">
+<link rel="stylesheet" href="docs.css?v=aff23986">
+<link rel="stylesheet" href="cmdk.css?v=aff23986">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -245,7 +245,9 @@ Never default to "he" or "she". Use diverse, realistic names in examples.</p>
   imports its colors from <code>kb/visualize.py</code> so it matches <code>contextlake kb graph</code> output exactly.</li>
 <li><strong>Generated, not hand-drawn.</strong> Flat diagrams come from <code>site/tools/gen_diagrams.py</code> (SVG, brand palette,
   transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
-  diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.</li>
+  diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.
+  Mermaid diagrams are the exception: they are hand-written as fences in the page source, and
+  their node, edge and legend text must match the code.</li>
 <li><strong>Lead with real CLI screenshots</strong> where they teach best, a code-grounded diagram where a picture
   replaces more than a hundred words of prose, and painterly Pebble art where a picture helps explain
   something.</li>
@@ -335,6 +337,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=88fb540c"></script>
+<script defer src="cmdk.js?v=aff23986"></script>
 </body>
 </html>
