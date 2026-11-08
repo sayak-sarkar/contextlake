@@ -639,6 +639,8 @@ archive, which needs a compiler. The Dockerfile grammar (`[kb-dockerfile]`) has 
 archive, so on such a platform it fails to install. The remedy is in
 [The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/installing.webp" alt="Pebble on a jetty, where lines of light from several directions meet at the glowing pebble: several install routes reach the same place." width="1200" height="800" loading="lazy">
+
 ## Install
 
 <div class="tabs">
@@ -6350,6 +6352,8 @@ its own runs only. Without that, a rebuild by one job satisfied `schedule_full_e
 of them, and a two-minute `kb index` and a forty-minute `bootstrap` shared one median. Records
 written before the job name was recorded carry no job and count as the default job's.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/scheduling.webp" alt="Even ripples spread across a lake at dusk while Pebble holds the glowing pebble: a scheduled job runs at a steady interval." width="1200" height="800" loading="lazy">
+
 ## The interval formula
 
 ```
@@ -7356,6 +7360,8 @@ are looking at**. Never cross-repo.
 Data flow is also **live-only**. It is a separate fetch with its own row shape, and a `--site` export
 has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
 "(0)": nothing is missing from your graph, it just is not in the export.
+
+![The Data flow tab on the live dashboard: each row names a file, the line, the table or view it reads or writes, and the relation](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/data-flow.png)
 
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
@@ -10582,6 +10588,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [10.0.2] - 2026-11-08
+
+A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs
+site build.
+
+### Fixed
+
+- **Docs pages no longer scroll sideways on phones.** At 375px the header was 6px wider than the
+  screen (10.0.0 and 10.0.1 have it too). Below 480px the GitHub button shows its icon only and
+  keeps its accessible name.
+- **The docs navigation works without JavaScript on phones.** Below 860px it hid behind the
+  "Browse docs" toggle, which needs JavaScript to open, so with JavaScript off it could not be
+  reached. It now hides behind the toggle only when JavaScript runs.
+
+### Changed
+
+- The installing and scheduling pages have their Pebble pictures.
+- `docs/using-the-dashboard.md` shows the Data flow tab, in light and dark, from a live dashboard.
 
 ## [10.0.1] - 2026-11-08
 

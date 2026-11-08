@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){document.documentElement.classList.add("js");try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Document sources and RAG · contextlake docs</title>
 <meta name="description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -20,21 +20,24 @@
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#137A8B">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E2A33">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8111ea69">
-<link rel="stylesheet" href="tokens.css?v=8111ea69">
-<link rel="stylesheet" href="docs.css?v=8111ea69">
-<link rel="stylesheet" href="cmdk.css?v=8111ea69">
+<link rel="stylesheet" href="fonts.css?v=07152f40">
+<link rel="stylesheet" href="tokens.css?v=07152f40">
+<link rel="stylesheet" href="docs.css?v=07152f40">
+<link rel="stylesheet" href="cmdk.css?v=07152f40">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
-  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <a class="brand" href="./" aria-label="contextlake home"><span class="logo"><img class="logo-light" src="logo.webp" width="145" height="38" alt="" loading="lazy"><img class="logo-dark" src="logo-dark.webp" width="145" height="38" alt="" loading="lazy"></span></a>
   <nav class="nav-links" aria-label="Primary">
     <a class="navlink" href="docs">Docs</a>
     <a class="navlink" href="quickstart">Quickstart</a>
@@ -45,7 +48,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
-  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank" aria-label="GitHub"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg><span class="hbtn-lbl">GitHub</span></a></span>
 </div></header>
 <div class="shell">
   <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources" class="active" aria-current="page">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
@@ -108,7 +111,7 @@ one extracts, what it refuses to guess at, and every key you can set.</p>
 layer, they become <code>kind="document"</code> graph nodes and, when embeddings are on, their bodies are embedded so
 semantic search spans code <em>and</em> docs together:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w"> </span>--for-repo<span class="w"> </span>group/app<span class="w">   </span><span class="c1"># …and link it to that repo&#39;s code</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w"> </span>--for-repo<span class="w"> </span>group/app<span class="w">   </span><span class="c1"># …and link it to that repo's code</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>https://example.com/changelog<span class="w"> </span>--source-type<span class="w"> </span>web<span class="w">   </span><span class="c1"># one web page</span>
 </code></pre></div>
 <p><code>--path</code> sets the <code>path</code> of a <code>files</code> source. For <code>--source-type web</code> or <code>api</code> it sets the <code>url</code>. For
@@ -128,12 +131,12 @@ hop instead of a search. Without it, documents are still stored and embedded, bu
 The per-source equivalent is <code>for_repo = "group/app"</code> on a <code>[[sources]]</code> entry.</p>
 <p>Sources follow a tiny seam, so common ones are <strong>built-in and config-only</strong> while anything heavier is a
 <strong>loosely-coupled plugin</strong>: bake in the common, plugin the rest:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># kb.toml, built-in &quot;files&quot; source (no code, no extra install)</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># kb.toml, built-in "files" source (no code, no extra install)</span>
 <span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;files&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;handbook&quot;</span>
-<span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/notes&quot;</span>
-<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.txt&quot;</span><span class="p">]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"files"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"handbook"</span>
+<span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/notes"</span>
+<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"*.md"</span><span class="p">,</span><span class="w"> </span><span class="s2">"*.txt"</span><span class="p">]</span>
 </code></pre></div>
 <p>A leading <code>~</code> in <code>path</code> means your home directory.</p>
 <p>A text file is skipped, with a warning that names it, when it is over <code>max_bytes</code> or is not valid
@@ -143,7 +146,7 @@ reported as unreadable, and the run exits 1.</p>
 <p>Design docs, RFCs and architecture decisions arrive as PDFs, so the <code>files</code> source reads
 them as well. <code>*.pdf</code> is one of its default globs, and the text comes from the PDF's <strong>text layer</strong>
 through <code>pypdf</code>, which rides in its own extra so the core stays a single dependency:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-pdf]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-pdf]"</span>
 </code></pre></div>
 <p><code>[kb-pdf]</code> is deliberately not part of <code>[kb-full]</code>; see <a href="installing#the-extras-and-which-one-you-want">the extras
 table</a>. If you set <code>include</code> yourself, list <code>"*.pdf"</code>
@@ -161,7 +164,7 @@ rasterised to reach that path.</p>
 alternative would be aggregating an empty document that looks like knowledge in search results
 and in the wiki:</p>
 <div class="highlight"><pre><span></span><code>files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake reads
-  a PDF&#39;s text layer only; a scanned or image-only PDF has none and is not OCR&#39;d.
+  a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
 </code></pre></div>
 <p>Three other outcomes are just as loud, because a skipped PDF and a directory with no PDFs must
 never look the same:</p>
@@ -179,7 +182,7 @@ here: it gates the file on disk, and it bounds the text pulled out of it.</p>
 <p>Screenshots, exported diagrams and photographed whiteboards carry text that is otherwise invisible
 to search. <code>*.png</code>, <code>*.jpg</code>, <code>*.jpeg</code>, <code>*.webp</code> and <code>*.bmp</code> are default globs, and the text comes
 from a <strong>local</strong> OCR engine in its own extra:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-ocr]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-ocr]"</span>
 </code></pre></div>
 <p>The choice of engine is the whole point of this feature.</p>
 <p>The obvious way to read an image is to send it to a vision model. That would have made this the
@@ -207,8 +210,8 @@ command, the same shape the PDF reader uses.</p>
 <p>A recorded design review holds two kinds of text, and contextlake reads them with two
 separate extras so you can take one without the other. <code>*.mp4</code>, <code>*.mov</code>, <code>*.mkv</code> and <code>*.webm</code>
 are default globs.</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-video]&quot;</span><span class="w">        </span><span class="c1"># decode + on-screen text</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-transcribe]&quot;</span><span class="w">   </span><span class="c1"># ...and the spoken track</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-video]"</span><span class="w">        </span><span class="c1"># decode + on-screen text</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-transcribe]"</span><span class="w">   </span><span class="c1"># ...and the spoken track</span>
 </code></pre></div>
 <p><strong><code>[kb-video]</code></strong> decodes the file and runs sampled frames through the same local OCR engine
 images use. It adds <code>av</code>, which bundles its own ffmpeg, so there is <strong>no system package to
@@ -245,36 +248,36 @@ The document's <code>uri</code> stays the plain file path, so it is still a cita
 <h3 id="writing-a-plugin">Writing a plugin<a class="anchor" href="#writing-a-plugin" title="Link to this section">#</a></h3>
 <p><strong>Writing a plugin</strong> is one class with <code>iter_documents()</code> and one entry point, no fork, no core
 dependency:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># in your plugin package&#39;s pyproject.toml</span>
-<span class="k">[project.entry-points.</span><span class="s2">&quot;contextlake.sources&quot;</span><span class="k">]</span>
-<span class="n">confluence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg.sources:ConfluenceSource&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># in your plugin package's pyproject.toml</span>
+<span class="k">[project.entry-points.</span><span class="s2">"contextlake.sources"</span><span class="k">]</span>
+<span class="n">confluence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"my_pkg.sources:ConfluenceSource"</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">contextlake.kb.sources</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>          <span class="c1"># the whole contract</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ConfluenceSource</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">space</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">iter_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">"123"</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">"Runbook"</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">"..."</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">"https://..."</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="built-in-sources">Built-in sources<a class="anchor" href="#built-in-sources" title="Link to this section">#</a></h3>
 <p><code>contextlake kb ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
 <code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text
 (stdlib-only):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;web&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>
-<span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://example.com/changelog&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;https://example.com/roadmap&quot;</span><span class="p">]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"web"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"changelog"</span>
+<span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"https://example.com/changelog"</span><span class="p">,</span><span class="w"> </span><span class="s2">"https://example.com/roadmap"</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="api-sources">API sources<a class="anchor" href="#api-sources" title="Link to this section">#</a></h3>
 <p>An <strong><code>api</code></strong> source ships built-in too: GET a JSON endpoint and map its records to documents, with the
 secret read from an env var (never the config file):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span>
-<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/v1/articles&quot;</span>
-<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;data.articles&quot;</span><span class="w">        </span><span class="c1"># dotted path to the record list</span>
-<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
-<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># the secret comes from this env var</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"api"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tickets"</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://api.example.com/v1/articles"</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"data.articles"</span><span class="w">        </span><span class="c1"># dotted path to the record list</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"body"</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"EXAMPLE_API_TOKEN"</span><span class="w">  </span><span class="c1"># the secret comes from this env var</span>
 </code></pre></div>
 <p><code>id_field</code>, <code>title_field</code> and <code>text_field</code> take a plain key or a dotted path into the record,
 such as <code>fields.summary</code>. A record with no text at that path is skipped.</p>
@@ -310,16 +313,16 @@ origin is still followed, but without the header. A redirect within the same ori
 <code>Authorization: Basic base64(user:secret)</code>, which is what a user API token needs on Atlassian
 Cloud, Jira and Confluence:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
-<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%3DACME+order+by+updated&amp;fields=summary&amp;maxResults=100&quot;</span>
-<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
-<span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
-<span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key&quot;</span>
-<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fields.summary&quot;</span>
-<span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;basic&quot;</span>
-<span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;you@example.com&quot;</span><span class="w">        </span><span class="c1"># the account email; not a secret, so config is fine</span>
-<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ATLASSIAN_API_TOKEN&quot;</span><span class="w">   </span><span class="c1"># the token is, so it stays in the environment</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"api"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"issues"</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://your-site.atlassian.net/rest/api/3/search/jql?jql=project%3DACME+order+by+updated&amp;fields=summary&amp;maxResults=100"</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"issues"</span>
+<span class="n">id_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"key"</span>
+<span class="n">title_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"key"</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"fields.summary"</span>
+<span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"basic"</span>
+<span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"you@example.com"</span><span class="w">        </span><span class="c1"># the account email; not a secret, so config is fine</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ATLASSIAN_API_TOKEN"</span><span class="w">   </span><span class="c1"># the token is, so it stays in the environment</span>
 </code></pre></div>
 <p>Create the token under <strong>Account settings → Security → API tokens</strong> in your Atlassian
 profile, then export it as <code>ATLASSIAN_API_TOKEN</code>.</p>
@@ -348,24 +351,24 @@ use them.</p>
 <p>A <strong><code>graphql</code></strong> source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way <code>api</code> maps a REST response:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;graphql&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
-<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/graphql&quot;</span>
-<span class="n">query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{ repository { issues { nodes { id title body } } } }&quot;</span>
-<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository.issues.nodes&quot;</span><span class="w">   </span><span class="c1"># dotted path into the response, rooted at `data`</span>
-<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span>
-<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">     </span><span class="c1"># bearer token comes from this env var</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"graphql"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"issues"</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://api.example.com/graphql"</span>
+<span class="n">query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{ repository { issues { nodes { id title body } } } }"</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"repository.issues.nodes"</span><span class="w">   </span><span class="c1"># dotted path into the response, rooted at `data`</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"body"</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"EXAMPLE_API_TOKEN"</span><span class="w">     </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
 <h3 id="mcp-sources">MCP sources<a class="anchor" href="#mcp-sources" title="Link to this section">#</a></h3>
 <p>An <strong><code>mcp</code></strong> source ships built-in as well: contextlake connects as an MCP <em>client</em> (stdio or
 streamable-HTTP) to another MCP server, lists its resources, and ingests each:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-kb&quot;</span>
-<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span><span class="w">                 </span><span class="c1"># stdio transport: a server to launch...</span>
-<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;some-mcp-server&quot;</span><span class="p">]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"mcp"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"team-kb"</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"uvx"</span><span class="w">                 </span><span class="c1"># stdio transport: a server to launch...</span>
+<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"some-mcp-server"</span><span class="p">]</span>
 <span class="c1"># ...or an HTTP endpoint instead:</span>
-<span class="c1"># url = &quot;https://mcp.example.com/sse&quot;</span>
+<span class="c1"># url = "https://mcp.example.com/sse"</span>
 </code></pre></div>
 <p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers' resources into
 it: the loop closes on the same seam.</p>
@@ -373,13 +376,13 @@ it: the loop closes on the same seam.</p>
 codebase-derived terms into the tool's arguments. This is what powers query-driven enrichment in the
 <code>enrich</code> stage (above). Declare the tool name and an argument template with substitution placeholders:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-search&quot;</span>
-<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span>
-<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;some-mcp-server&quot;</span><span class="p">]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"mcp"</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"team-search"</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"uvx"</span>
+<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"some-mcp-server"</span><span class="p">]</span>
 <span class="c1"># Optional: call a search tool on the server, templating repo/symbol terms</span>
-<span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="w">                 </span><span class="c1"># the tool name on the server</span>
-<span class="n">arg_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;{terms}&quot;</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># {terms} substituted with codebase-derived terms</span>
+<span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"search"</span><span class="w">                 </span><span class="c1"># the tool name on the server</span>
+<span class="n">arg_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"{terms}"</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># {terms} substituted with codebase-derived terms</span>
 </code></pre></div>
 <p>Both transports work with tool calling: <code>command</code> and <code>args</code> for stdio, or <code>url</code> for streamable-HTTP. The
 tool is called with the templated arguments during enrichment, returning documents grounded to the
@@ -463,7 +466,7 @@ list that host. Indexing by the old repo id keeps the old id. An https origin wi
 </nav></aside>
 </div>
 <footer><div class="f-in">
-  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <span class="tagline"><img src="pebble-mark-dark.webp" width="31" height="28" alt="" aria-hidden="true" style="width:auto;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
     <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
@@ -493,6 +496,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8111ea69"></script>
+<script defer src="cmdk.js?v=07152f40"></script>
 </body>
 </html>

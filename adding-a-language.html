@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){document.documentElement.classList.add("js");try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Adding a language · contextlake docs</title>
 <meta name="description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -20,21 +20,24 @@
 <meta name="twitter:description" content="The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Adding a language", "description": "The ordered contributor recipe for teaching contextlake a new source language: the nine edits, the parts to leave alone, and the commands that prove the grammar works.", "url": "https://sayak.in/contextlake/adding-a-language", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Adding a language", "item": "https://sayak.in/contextlake/adding-a-language"}]}]}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#137A8B">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E2A33">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8111ea69">
-<link rel="stylesheet" href="tokens.css?v=8111ea69">
-<link rel="stylesheet" href="docs.css?v=8111ea69">
-<link rel="stylesheet" href="cmdk.css?v=8111ea69">
+<link rel="stylesheet" href="fonts.css?v=07152f40">
+<link rel="stylesheet" href="tokens.css?v=07152f40">
+<link rel="stylesheet" href="docs.css?v=07152f40">
+<link rel="stylesheet" href="cmdk.css?v=07152f40">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
-  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <a class="brand" href="./" aria-label="contextlake home"><span class="logo"><img class="logo-light" src="logo.webp" width="145" height="38" alt="" loading="lazy"><img class="logo-dark" src="logo-dark.webp" width="145" height="38" alt="" loading="lazy"></span></a>
   <nav class="nav-links" aria-label="Primary">
     <a class="navlink" href="docs">Docs</a>
     <a class="navlink" href="quickstart">Quickstart</a>
@@ -45,7 +48,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
-  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank" aria-label="GitHub"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg><span class="hbtn-lbl">GitHub</span></a></span>
 </div></header>
 <div class="shell">
   <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language" class="active" aria-current="page">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
@@ -121,7 +124,7 @@ language.</p>
 <p>One check before you commit to an id. The parser cache and the extraction-kind registry are both keyed
 by string, and they were once the same variable, so a language named after a node kind silently
 returned the wrong object. Confirm your id is not already a kind:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from contextlake.kb.kinds import KIND_REGISTRY; print(&#39;mylang&#39; in KIND_REGISTRY)&quot;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"from contextlake.kb.kinds import KIND_REGISTRY; print('mylang' in KIND_REGISTRY)"</span>
 </code></pre></div>
 <p><code>False</code> is the answer you want. <code>data</code>, <code>local</code>, <code>output</code>, <code>state</code>, <code>table</code>, <code>variable</code> and <code>view</code> are
 among the names already taken.</p>
@@ -133,7 +136,7 @@ because it is the reason this list is ordered the way it is.</p>
 <h3 id="1-declare-the-grammar-dependency">1. Declare the grammar dependency<a class="anchor" href="#1-declare-the-grammar-dependency" title="Link to this section">#</a></h3>
 <p>In <code>pyproject.toml</code>, find the <code>kb</code> optional extra and its tree-sitter block, commented "Code parsing:
 the tree-sitter runtime plus per-language grammar packages". Add your grammar to that list:</p>
-<div class="highlight"><pre><span></span><code><span class="s2">&quot;tree-sitter-&lt;lang&gt;&gt;=X.Y&quot;</span><span class="err">,</span>
+<div class="highlight"><pre><span></span><code><span class="s2">"tree-sitter-&lt;lang&gt;&gt;=X.Y"</span><span class="err">,</span>
 </code></pre></div>
 <p>Pin the floor to the version whose <code>language()</code> entry point you import against, not to a
 house number. The existing pins vary for that reason. Nothing else needs editing: the <code>kb-full</code> extra
@@ -205,7 +208,7 @@ reduce to the bare name. If your language has neither shape, the strips are no-o
 <h3 id="5-load-the-grammar">5. Load the grammar<a class="anchor" href="#5-load-the-grammar" title="Link to this section">#</a></h3>
 <p><code>_language()</code> is an explicit <code>if</code>/<code>elif</code> chain of lazy imports ending in
 <code>raise ValueError(f"unsupported language: {lang}")</code>. Add a branch:</p>
-<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">&quot;&lt;lang&gt;&quot;</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">"&lt;lang&gt;"</span><span class="p">:</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">tree_sitter_</span><span class="o">&lt;</span><span class="n">lang</span><span class="o">&gt;</span> <span class="k">as</span> <span class="n">g</span>
     <span class="n">fn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">language</span>
 </code></pre></div>
@@ -400,11 +403,11 @@ not part of adding a language.</p>
 <p>Run these in order. The first three are offline and touch nothing outside the repo and a scratch
 directory.</p>
 <h3 id="the-grammar-loads-and-the-query-compiles">The grammar loads and the query compiles<a class="anchor" href="#the-grammar-loads-and-the-query-compiles" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span>
 <span class="s2">from contextlake.kb.parse import _language, _query, _parser</span>
-<span class="s2">_language(&#39;&lt;lang&gt;&#39;); _query(&#39;&lt;lang&gt;&#39;); _parser(&#39;&lt;lang&gt;&#39;)</span>
-<span class="s2">print(&#39;grammar + query OK&#39;)</span>
-<span class="s2">&quot;</span>
+<span class="s2">_language('&lt;lang&gt;'); _query('&lt;lang&gt;'); _parser('&lt;lang&gt;')</span>
+<span class="s2">print('grammar + query OK')</span>
+<span class="s2">"</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>grammar + query OK
 </code></pre></div>
@@ -419,22 +422,22 @@ grammar does not have fails at construction, naming the row and column:</p>
 node <strong>types</strong>, not capture names. A capture name the parser does not read compiles cleanly and stays
 silent.</p>
 <h3 id="the-parser-produces-the-nodes-calls-and-bases-you-expect">The parser produces the nodes, calls and bases you expect<a class="anchor" href="#the-parser-produces-the-nodes-calls-and-bases-you-expect" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span>
 <span class="s2">from contextlake.kb.parse import parse_source</span>
-<span class="s2">src = open(&#39;/path/to/sample.&lt;ext&gt;&#39;,&#39;rb&#39;).read()</span>
-<span class="s2">nodes, edges, calls, inherits = parse_source(&#39;demo/&lt;lang&gt;&#39;, &#39;sample.&lt;ext&gt;&#39;, src, &#39;&lt;lang&gt;&#39;)</span>
+<span class="s2">src = open('/path/to/sample.&lt;ext&gt;','rb').read()</span>
+<span class="s2">nodes, edges, calls, inherits = parse_source('demo/&lt;lang&gt;', 'sample.&lt;ext&gt;', src, '&lt;lang&gt;')</span>
 <span class="s2">for n in nodes: print(n.kind, n.name, n.qualified_name, n.line_start)</span>
-<span class="s2">print(&#39;calls   &#39;, sorted({c[1] for c in calls}))</span>
-<span class="s2">print(&#39;inherits&#39;, sorted({i[1] for i in inherits}))</span>
-<span class="s2">&quot;</span>
+<span class="s2">print('calls   ', sorted({c[1] for c in calls}))</span>
+<span class="s2">print('inherits', sorted({i[1] for i in inherits}))</span>
+<span class="s2">"</span>
 </code></pre></div>
 <p>On a small Kotlin sample holding one class with one method, one import, one call and one base type:</p>
 <div class="highlight"><pre><span></span><code>file Svc.kt None None
 class GaugeService Svc.kt::GaugeService 5
 method process Svc.kt::GaugeService.process 6
 module com.example.Base None None
-calls    [&#39;helper&#39;]
-inherits [&#39;Base&#39;]
+calls    ['helper']
+inherits ['Base']
 </code></pre></div>
 <p>Read all four streams. <code>class</code> and <code>method</code> prove your <code>_DEF_TYPES</code> mapping and the method promotion;
 the <code>module</code> node proves <code>@import</code>; and the two lists prove <code>@call</code> and <code>@base</code> captured names with
@@ -458,7 +461,7 @@ that they did not: they are the two a language addition can move by accident.</p
 would write into your live store. Point it at a throwaway config whose <code>store_dir</code> is somewhere
 disposable:</p>
 <div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>/tmp/lang-check/demo-repo<span class="w"> </span>/tmp/lang-check/store
-<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[kb]\nstore_dir = &quot;/tmp/lang-check/store&quot;\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>/tmp/lang-check/kb.toml
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'[kb]\nstore_dir = "/tmp/lang-check/store"\n'</span><span class="w"> </span>&gt;<span class="w"> </span>/tmp/lang-check/kb.toml
 cp<span class="w"> </span>sample.&lt;ext&gt;<span class="w"> </span>/tmp/lang-check/demo-repo/
 </code></pre></div>
 <p>Index it, and read the count:</p>
@@ -495,7 +498,7 @@ message in this repo.</p>
 <p>This is the headline, and it is the reason to run the cheap grammar check before the CLI. Every file's
 parse is wrapped in a blanket handler, because one bad file must not abort a repo:</p>
 <div class="highlight"><pre><span></span><code><span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 - one bad file must not abort the repo</span>
-    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  skip </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">rel</span><span class="si">}</span><span class="s2">: parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  skip </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">rel</span><span class="si">}</span><span class="s2">: parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <p>So all three half-registered states collapse into one log line at normal verbosity, and the index
 still reports success:</p>
@@ -673,7 +676,7 @@ to hold your query to.</p>
 </nav></aside>
 </div>
 <footer><div class="f-in">
-  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <span class="tagline"><img src="pebble-mark-dark.webp" width="31" height="28" alt="" aria-hidden="true" style="width:auto;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
     <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
@@ -703,6 +706,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8111ea69"></script>
+<script defer src="cmdk.js?v=07152f40"></script>
 </body>
 </html>

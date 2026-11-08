@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){document.documentElement.classList.add("js");try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Installing and upgrading · contextlake docs</title>
 <meta name="description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -20,21 +20,24 @@
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Installing and upgrading", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/installing", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Installing and upgrading", "item": "https://sayak.in/contextlake/installing"}]}]}</script>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#137A8B">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E2A33">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8111ea69">
-<link rel="stylesheet" href="tokens.css?v=8111ea69">
-<link rel="stylesheet" href="docs.css?v=8111ea69">
-<link rel="stylesheet" href="cmdk.css?v=8111ea69">
+<link rel="stylesheet" href="fonts.css?v=07152f40">
+<link rel="stylesheet" href="tokens.css?v=07152f40">
+<link rel="stylesheet" href="docs.css?v=07152f40">
+<link rel="stylesheet" href="cmdk.css?v=07152f40">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
-  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <a class="brand" href="./" aria-label="contextlake home"><span class="logo"><img class="logo-light" src="logo.webp" width="145" height="38" alt="" loading="lazy"><img class="logo-dark" src="logo-dark.webp" width="145" height="38" alt="" loading="lazy"></span></a>
   <nav class="nav-links" aria-label="Primary">
     <a class="navlink" href="docs">Docs</a>
     <a class="navlink" href="quickstart">Quickstart</a>
@@ -45,7 +48,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
-  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank" aria-label="GitHub"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg><span class="hbtn-lbl">GitHub</span></a></span>
 </div></header>
 <div class="shell">
   <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing" class="active" aria-current="page">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
@@ -116,6 +119,7 @@ anyway, it is a tree-sitter grammar with no wheel for your platform. It builds f
 archive, which needs a compiler. The Dockerfile grammar (<code>[kb-dockerfile]</code>) has no source
 archive, so on such a platform it fails to install. The remedy is in
 <a href="troubleshooting#the-knowledge-layer-will-not-install">The knowledge layer will not install</a>.</p>
+<p><img src="img/pebble/installing.webp" alt="Pebble on a jetty, where lines of light from several directions meet at the glowing pebble: several install routes reach the same place." width="1200" height="800" loading="lazy"></p>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
 <div class="tabs">
 <div class="tab" data-label="pipx"><pre><code>pipx install "contextlake[kb-full]"</code></pre></div>
@@ -237,7 +241,7 @@ See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#p
 </code></pre></div>
 <p>That runs pip in the interpreter contextlake is running in, and prints the command before it
 runs it. By hand it is:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[llm-local]"</span>
 </code></pre></div>
 <p>No compiler, no wheel index and no <code>--only-binary</code> pin, on Linux with glibc 2.28 or newer on
 x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs. Current <code>openvino-genai</code> releases
@@ -262,8 +266,8 @@ stay on the baked model, pass <code>--llm-model OpenVINO/Qwen2.5-Coder-0.5B-Inst
 built from <code>[kb,kb-local,llm-local]</code>. Semantic search still works there, on the pure-Python exact
 scan, which is the slower path on a large store. If that matters more to you than a baked-in wiki
 LLM, <code>:slim</code> is the tag that ships <code>kb-vec</code>.</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>doctor
-docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>doctor
+docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
 </code></pre></div>
 <p>The <code>-v</code> mount is what makes the run worth doing. Everything contextlake persists, the
 knowledge store included, is written under it as <code>.contextlake/</code>, so it is still on the host
@@ -275,7 +279,7 @@ directory). See <a href="indexing-the-code-graph#which-command-for-which-directo
 directory</a>.</p>
 <p>The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">"</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
 </code></pre></div>
 <p>It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
 container instead, so the run appeared to succeed and the index was gone the moment the
@@ -284,7 +288,7 @@ container exited.</p>
 wiki-LLM model, a smaller pull, and the <code>sqlite-vec</code> ANN backend the default image leaves out.
 Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or <code>cli</code> instead of the built-in LLM.</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake:slim<span class="w"> </span>doctor
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake:slim<span class="w"> </span>doctor
 </code></pre></div>
 <h3 id="the-standalone-binary">The standalone binary<a class="anchor" href="#the-standalone-binary" title="Link to this section">#</a></h3>
 <p>If the machine has no Python at all, the release assets are self-contained launchers built
@@ -354,7 +358,7 @@ is outside what the SBOM enumerates.</p>
 <h3 id="from-source">From source<a class="anchor" href="#from-source" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sayak-sarkar/contextlake<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>contextlake
 python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>.<span class="w"> </span>.venv/bin/activate
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[kb]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[kb]"</span>
 </code></pre></div>
 <p>Contributors should use <code>pip install -e ".[dev,kb]"</code> and read
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a> for the test loop.</p>
@@ -436,7 +440,7 @@ or no matching distribution. Nothing planned is ever run before it has been prin
 found a problem <code>--fix</code> has no remedy for. The exit code reflects the report, not the installs.</p>
 <h2 id="upgrade">Upgrade<a class="anchor" href="#upgrade" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># pipx</span>
-pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># pip</span>
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">"contextlake[kb-full]"</span><span class="w">   </span><span class="c1"># pip</span>
 uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># uv</span>
 docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># image</span>
 </code></pre></div>
@@ -533,13 +537,13 @@ uninstalling it cannot touch your source. To also remove what it created, delete
 you do not want to keep:</p>
 <div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">        </span><span class="c1"># store, kb.toml, downloaded CPU models, graph/wiki exports</span>
 rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span class="w">    </span><span class="c1"># mirror config</span>
-rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/contextlake<span class="w">  </span><span class="c1"># the mirror&#39;s repository-list cache</span>
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/contextlake<span class="w">  </span><span class="c1"># the mirror's repository-list cache</span>
 <span class="c1"># your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:</span>
 <span class="c1"># rm -rf ~/work</span>
 </code></pre></div>
 <p><code>~/.cache/contextlake</code> is only the default. If <code>XDG_CACHE_HOME</code> is set in your shell, the cache is at
 <code>$XDG_CACHE_HOME/contextlake</code> instead, so remove that path:</p>
-<div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CACHE_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.cache</span><span class="si">}</span><span class="s2">/contextlake&quot;</span>
+<div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">XDG_CACHE_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.cache</span><span class="si">}</span><span class="s2">/contextlake"</span>
 </code></pre></div>
 <p><code>~/.contextlake</code> covers the built-in CPU models too: they download to
 <code>~/.contextlake/models</code> (<code>DEFAULT_CACHE_DIR</code> in <code>src/contextlake/kb/embeddings/builtin.py</code>
@@ -641,7 +645,7 @@ separate cache elsewhere in your home directory.</p>
 </nav></aside>
 </div>
 <footer><div class="f-in">
-  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <span class="tagline"><img src="pebble-mark-dark.webp" width="31" height="28" alt="" aria-hidden="true" style="width:auto;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
     <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
@@ -713,6 +717,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8111ea69"></script>
+<script defer src="cmdk.js?v=07152f40"></script>
 </body>
 </html>
