@@ -10589,7 +10589,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.0.2] - 2026-11-08
+## [10.0.2] - 2026-11-09
 
 A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs
 site build.
@@ -10608,6 +10608,10 @@ site build.
 
 ### Changed
 
+- The site uses the new contextlake logo and favicon set: the landing, docs and 404 headers, both
+  footers and the browser icons.
+- The docs header Pebble is a painterly version of the original 10.0.0 picture, made with a
+  transparent background, so it has no cutout edge on the dark theme.
 - The installing and scheduling pages have their Pebble pictures.
 - `docs/using-the-dashboard.md` shows the Data flow tab, in light and dark, from a live dashboard.
 
@@ -22055,7 +22059,8 @@ BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These ru
   and a natural river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
   5.10 to generate it. Generate the background with no text. Never ship AI-drawn lettering.
 - **Gaze.** Pebble looks at the content, the pebble or the passage the picture sits beside, never off the
-  page and never straight at the reader (BRANDING.md section 5.9).
+  page and never straight at the reader (BRANDING.md section 5.9). The docs header picture is the one
+  exception: it looks at the reader.
 - **Count.** Several per page are fine if each one explains something. Show one Pebble per screen.
 - **Placement.** Put the picture after the lead summary or between sections, next to the passage it
   explains. Never put it between a heading and that heading's first sentence. Pebble never covers code, a
@@ -22287,7 +22292,7 @@ cradling a glowing translucent context-pebble in both forepaws, offering it forw
 anti-hallucination promise made friendly.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter holding a glowing teal context-pebble in both forepaws and looking down at it." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter with a happy smile, holding a glowing teal context-pebble in both forepaws." width="240">
 </p>
 
 ## Color

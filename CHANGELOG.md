@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.0.2] - 2026-11-08
+## [10.0.2] - 2026-11-09
 
 A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs
 site build.
@@ -26,6 +26,10 @@ site build.
 
 ### Changed
 
+- The site uses the new contextlake logo and favicon set: the landing, docs and 404 headers, both
+  footers and the browser icons.
+- The docs header Pebble is a painterly version of the original 10.0.0 picture, made with a
+  transparent background, so it has no cutout edge on the dark theme.
 - The installing and scheduling pages have their Pebble pictures.
 - `docs/using-the-dashboard.md` shows the Data flow tab, in light and dark, from a live dashboard.
 
