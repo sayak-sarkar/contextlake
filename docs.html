@@ -19,355 +19,105 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs" class="active">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs" class="active" aria-current="page">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Understand it</span><span aria-hidden="true">/</span><span aria-current="page">Overview</span></nav>
-    <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake</h1><p class="doc-sub">A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake</h1><p class="doc-sub">A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#start-here">Start here</a></li>
+<li><a href="#the-three-layers">The three layers</a></li>
+<li><a href="#where-to-go-next">Where to go next</a></li>
+<li><a href="#commands">Commands</a></li>
+<li><a href="#local-by-default">Local by default</a></li>
+</ul>
+</nav></details>
     
-<h2 id="why-contextlake">Why contextlake<a class="anchor" href="#why-contextlake" title="Link to this section">#</a></h2>
-<p>Your AI assistant is only as good as what it can see. Point it at one file and
-it's sharp; ask it about <em>the system</em>, which service calls this API, who depends on that
-package, where a symbol is defined across dozens of repos, and it starts guessing.</p>
-<p><strong>contextlake gives your tools the real source to read.</strong> It mirrors your repositories to
-your machine, indexes them into a queryable knowledge graph, and serves that graph to your
-editor over <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP<span class="ext-arrow" aria-hidden="true">↗</span></a>. Everything runs locally and offline,
-no code leaves your machine, and it carries no credentials of its own.</p>
-<h2 id="how-it-works">How it works<a class="anchor" href="#how-it-works" title="Link to this section">#</a></h2>
-<p>contextlake is three layers you adopt one at a time. The mirror is useful on its own, and
-each layer above it is optional.</p>
-<p align="center">
-  <img src="img/architecture.png" width="860" alt="contextlake architecture. On the left, your repos: a GitLab group, plus optional Figma, Jira, and other MCP connectors. In the centre, contextlake indexes and mirrors them into a graph and embeddings, a wiki, and connectors. On the right, it serves the result over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor, and Postman.">
-</p>
-
+<p>For anyone new to contextlake who wants to know what it is and where to start.</p>
+<p>contextlake is a local context layer for your AI tools. It mirrors your repositories to your
+machine, indexes them into a knowledge graph, and serves that graph over MCP (the protocol AI
+tools use to call external tools). Your agent then answers from real source instead of guessing.</p>
+<p>The mirror and the knowledge layer run on your machine. A hosted model or a hosted connector is
+opt-in.</p>
+<p><img src="img/pebble/overview.webp" alt="Pebble surfacing at dawn on a calm lake, holding the glowing context-pebble, to introduce what contextlake does." width="1200" height="800" loading="lazy"></p>
+<h2 id="start-here">Start here<a class="anchor" href="#start-here" title="Link to this section">#</a></h2>
 <ol>
-<li>
-<p><strong>Mirror.</strong> Clone every repo you can reach into a local copy of its namespace tree. Works
-   with a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea, Codeberg or Forgejo
-   owner. Each repo lands on its most active branch. One command keeps them fresh, and
-   <code>contextlake schedule install</code> measures a run and installs a background job
-   entry that does it on its own.</p>
-</li>
-<li>
-<p><strong>Knowledge layer</strong> <em>(optional)</em>. Turn the mirror into a graph you can query.</p>
-</li>
+<li><a href="installing">Installing and upgrading</a>: pick a channel, run one command. It also holds the
+   <a href="installing#versioning-and-compatibility">versioning promise</a>.</li>
+<li><a href="quickstart">Quickstart</a>: <a href="quickstart#try-it-on-one-repo-no-setup">try it on one repo with no setup</a>,
+   then follow the whole fleet path.</li>
+<li><a href="explained">contextlake, explained</a>: what changes on your screen, and why it is built this way.</li>
 </ol>
-<ul>
-<li><strong>Code and dependencies</strong> across <strong>27 languages</strong>, plus Terraform, SQL and PL/SQL schema,
-     XML Schema, XSLT, Pro*C embedded SQL, and package manifests (npm, PyPI, NuGet, Maven).</li>
-<li><strong>Semantic search</strong>, so you can find code by what it does, not just by its name.</li>
-<li><strong>A wiki</strong>, reviewed and scored page by page. Pages that score low are dropped.</li>
-<li><strong>Connectors</strong> to Atlassian, Figma, GitLab, Slack and Zendesk.</li>
-<li><strong>Non-code content</strong>: Markdown and text, a PDF's text layer, text read out of images by a
-     local OCR engine, and a video's slides and spoken track.</li>
-</ul>
-<p>All of it runs locally. All of it is optional.</p>
-<ol start="3">
-<li><strong>Serve.</strong> Expose the result over MCP (the protocol AI tools use to call external tools),
-   plus an offline interactive graph viewer. Your agent can answer <em>"where is <code>X</code> defined?"</em> or
-   <em>"who calls <code>Y</code>?"</em> instead of grepping.</li>
+<h2 id="the-three-layers">The three layers<a class="anchor" href="#the-three-layers" title="Link to this section">#</a></h2>
+<p>You adopt the layers one at a time. The mirror is useful on its own.</p>
+<ol>
+<li><strong>Mirror.</strong> Clone every repository you can reach into a local copy of its namespace tree.
+   It works with GitLab, GitHub, Bitbucket, Gitea, Codeberg and Forgejo.</li>
+<li><strong>Knowledge layer</strong> (optional). Turn the mirror into a graph you can query, with semantic
+   search, a wiki and connectors.</li>
+<li><strong>Serve.</strong> Expose the result over MCP, and as an offline graph viewer and dashboard.</li>
 </ol>
-<p>Each layer has its own guide:</p>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" title="Link to this section">#</a></h2>
 <ul>
-<li><a href="mirroring-repositories">Mirror repositories</a></li>
-<li><a href="configuration">Configuration</a></li>
-<li><a href="knowledge-layer">Knowledge layer</a></li>
-<li><a href="quickstart">QUICKSTART</a>, the whole flow start to finish</li>
+<li><strong>Configure it:</strong> <a href="configuration">Configuration</a> says where settings live and which one wins.</li>
+<li><strong>Build and use a knowledge base:</strong> <a href="mirroring-repositories">Mirroring repositories</a>,
+  <a href="knowledge-layer">The knowledge layer</a>, <a href="serving-over-mcp">Serving over MCP</a> and
+  <a href="using-the-dashboard">Using the dashboard</a>.</li>
+<li><strong>Operate it:</strong> <a href="keeping-it-fresh">Keeping it fresh</a>, <a href="scheduling">Scheduling runs</a> and
+  <a href="troubleshooting">Troubleshooting</a>.</li>
+<li><strong>Look something up:</strong> <a href="cli-reference">Command reference</a> and <a href="console-output">Console output</a>.</li>
+<li><strong>Contribute:</strong> <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing<span class="ext-arrow" aria-hidden="true">↗</span></a> and <a href="style-guide">Writing style</a>.</li>
 </ul>
-<h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">       </span><span class="c1"># the full tool: mirror + graph, search, wiki, MCP server</span>
-pip<span class="w"> </span>install<span class="w"> </span>contextlake<span class="w">             </span><span class="c1"># mirror-only core (one dependency: argcomplete)</span>
-</code></pre></div>
-<p>Everything in the quickstart below needs the <code>[kb]</code> extra (Python 3.10+); the plain
-install is just the mirroring CLI. Both need Python 3.10 or newer: one floor for the whole
-tool, since the split floor the mirror core used to allow only ever surprised people.</p>
-<p>Prefer an isolated, zero-setup install? <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener"><code>uv</code><span class="ext-arrow" aria-hidden="true">↗</span></a> fetches the right
-Python and an isolated environment for you:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">            </span><span class="c1"># install the CLI on your PATH</span>
-uvx<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w"> </span>contextlake<span class="w"> </span>--help<span class="w">   </span><span class="c1"># …or run it once, without installing</span>
-<span class="c1"># pipx install &quot;contextlake[kb]&quot;             # pipx works too</span>
-</code></pre></div>
-<p>Docker, the standalone binaries, the full extras table, upgrading, and uninstalling all live
-on one page: <strong><a href="installing">Install and upgrade</a></strong>.
-If an install misbehaves, see
-<strong><a href="troubleshooting">Troubleshooting</a></strong>.</p>
-<p><strong>Prerequisites:</strong> <code>git</code>, and, only for fleet mirroring, the platform's token env var
-(<code>GITLAB_TOKEN</code> with <code>read_api</code> + <code>read_repository</code>, or <code>GITHUB_TOKEN</code> /
-<code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>); on GitLab an authenticated
-<a href="https://gitlab.com/gitlab-org/cli" target="_blank" rel="noopener"><code>glab</code><span class="ext-arrow" aria-hidden="true">↗</span></a> works instead. The knowledge layer needs
-neither. Once installed, <code>contextlake</code> and <code>python -m contextlake</code> are equivalent;
-<code>python3 run-contextlake.py</code> is a source-checkout launcher and is not part of the installed package.</p>
-<h2 id="quickstart-one-repo-no-setup">Quickstart: one repo, no setup<a class="anchor" href="#quickstart-one-repo-no-setup" title="Link to this section">#</a></h2>
-<p>You don't need GitLab or any config to try contextlake on a repo you already have.
-No install? Run it once with <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener"><code>uvx</code><span class="ext-arrow" aria-hidden="true">↗</span></a>: prefix any command
-below with <code>uvx --from "contextlake[kb]"</code> (e.g. <code>uvx --from "contextlake[kb]" contextlake kb index --source .</code>).</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w">                     </span><span class="c1"># parse the current repo into a local knowledge graph</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">   </span><span class="c1"># open the graph (it names your repo&#39;s own view next)</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w">                     </span><span class="c1"># …or serve it to your AI IDE over MCP</span>
-</code></pre></div>
-<p><strong>Wire it into your editor in one line</strong>, no config file needed (it uses the local
-<code>~/.contextlake/kb</code> store you just built):</p>
-<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w">      </span><span class="c1"># Claude Code</span>
-<span class="c1"># zero-install variant: claude mcp add contextlake-kb -- uvx --from &quot;contextlake[kb]&quot; contextlake kb serve</span>
-</code></pre></div>
-<p align="center">
-  <img src="img/graph.jpg" alt="The contextlake graph visualizer showing a repository's symbols as a navigable node graph, with a type-glyph legend, search, and a corner minimap" width="840">
-</p>
-<p align="center"><em><code>contextlake kb graph</code>, a whole codebase as one offline, navigable graph.</em></p>
-
-<p>Everything lands in a local store (<code>~/.contextlake/kb</code>), nothing leaves your machine. Index
-any path with <code>--source PATH</code>, or every git repo under a directory with <code>--workspace DIR</code>.</p>
-<blockquote>
-<p><strong>Want the full path</strong>, mirror a GitLab fleet → graph → wired editor in a few minutes?
-<a href="quickstart"><strong>QUICKSTART.md</strong></a> walks the whole flow.</p>
-</blockquote>
-<h2 id="fleet-mode-mirror-a-whole-org">Fleet mode: mirror a whole org<a class="anchor" href="#fleet-mode-mirror-a-whole-org" title="Link to this section">#</a></h2>
-<p>Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a <em>whole
-fleet</em>: a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea/Codeberg/Forgejo
-owner. Copy the example config and set your platform, group and workspace:</p>
-<p><div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>~/.contextlake.ini
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
-<span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
-<span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
-<span class="c1"># or any other platform:</span>
-<span class="c1"># platform = github</span>
-<span class="c1"># group = your-org</span>
-</code></pre></div></p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>status<span class="w">      </span><span class="c1"># see where you stand (read-only)</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w">        </span><span class="c1"># fetch → clone → update → branches → verify → audit</span>
-</code></pre></div>
-<p><strong>Auth is one environment variable.</strong> Set the token for your platform: <code>GITLAB_TOKEN</code>,
-<code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code> or <code>GITEA_TOKEN</code>.</p>
-<ul>
-<li>The token travels in request headers and the child environment. Never in a URL, never in
-  argv, so it cannot leak into your shell history or a process list.</li>
-<li><code>.contextlake.ini</code> holds only non-secret settings, and is gitignored by default.</li>
-<li>On GitLab an authenticated <code>glab</code> works instead. Public orgs on other platforms need no
-  token at all.</li>
-</ul>
-<p>It mirrors hundreds of repos at once, with an adaptive worker pool and retries that back off.
-<strong>It will not touch the feature branch you are working on.</strong></p>
-<blockquote>
-<p><strong>Behind a slow / TLS-inspecting corporate proxy</strong> (e.g. Zscaler) where <code>glab</code>'s API calls
-time out? Set <code>GITLAB_TOKEN</code> (a <code>read_api</code> token) and contextlake enumerates projects via
-its own HTTP client, which tolerates slow DNS. The default <code>glab</code> dial timeout is 5 seconds,
-and the DNS lookup counts toward it. With a CA file set, it is 30 seconds.</p>
-</blockquote>
-<h2 id="commands-at-a-glance">Commands at a glance<a class="anchor" href="#commands-at-a-glance" title="Link to this section">#</a></h2>
-<p>Run any command as <code>contextlake &lt;command&gt;</code>. Each one has its own help:
-<code>contextlake &lt;command&gt; --help</code>.</p>
-<p>Verbs sit under the noun they belong to:</p>
-<ul>
-<li><code>mirror</code> for mirroring git repositories</li>
-<li><code>kb</code> for the knowledge layer</li>
-<li><code>init</code>, <code>bootstrap</code>, <code>version</code>, <code>completion</code>, <code>doctor</code> and <code>schedule</code> sit at the top, because
-  they span both tiers or neither</li>
-</ul>
-<p>Per-command docs live with their layer. The mirror commands are in
-<a href="mirroring-repositories">Mirroring repositories</a>.
-The knowledge-layer build commands get a page each:
-<a href="indexing-the-code-graph">Indexing the code graph</a>,
-<a href="connecting-and-enriching">Connecting and enriching</a>,
-<a href="searching-semantically">Searching semantically</a>,
-<a href="generating-the-wiki">Generating the wiki</a>.</p>
-<p><strong>Global options</strong> work on any command: <code>-v</code> / <code>-q</code> for verbosity, <code>--log-file PATH</code>, and
-<code>--config PATH</code>.</p>
-<p><strong>Two more look global and are not:</strong></p>
-<ul>
-<li><code>--dry-run</code>, which previews without changing anything, belongs to the 8 <code>mirror</code> commands plus
-  <code>bootstrap</code>, <code>doctor</code> and <code>kb forget</code>. On <code>bootstrap</code> it prints the stages a real run would
-  perform and runs none of them.</li>
-<li><code>--version</code> belongs to the bare <code>contextlake</code> only. <code>contextlake version</code> is the form that
-  works everywhere.</li>
-</ul>
-<p>Pass either to a command that does not take it, and the command exits <code>2</code>, runs nothing, and names
-the commands that do take it. That holds in every position: <code>contextlake --dry-run kb index</code>,
-<code>contextlake kb --dry-run index</code> and <code>contextlake kb index --dry-run</code> all refuse.</p>
-<p>Output is colourised on a TTY and plain when piped. Set <code>NO_COLOR</code> to force it off.</p>
-<p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/tree/main/examples" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
-second set: <code>--log-format json</code> (one JSON object per line, every line stamped with a run id),
-<code>--metrics-file PATH</code> (Prometheus textfile-collector output), <code>--redact</code> (the <code>--log-file</code> copy
-is already scrubbed of workspace paths, group and repo names), and <code>--access-log</code>. See
-<a href="console-output">Reading the console output</a>.</p>
-<h2 id="knowledge-layer">Knowledge layer<a class="anchor" href="#knowledge-layer" title="Link to this section">#</a></h2>
-<p>Beyond mirroring, the optional <code>contextlake.kb</code> layer turns your repos into a <strong>knowledge graph</strong>
-and serves it to AI tools over <strong>MCP</strong>. It can:</p>
-<ul>
-<li>link repos to the Atlassian, Figma, GitLab, Slack and Zendesk items, and the code symbols, that
-  reference them</li>
-<li>add <strong>semantic search</strong></li>
-<li>write a curated <strong>wiki</strong></li>
-<li><strong>visualise</strong> the graph as offline interactive HTML: a fleet overview, a symbol's
-  neighbourhood, or a single repo</li>
-<li>generate per-tool <strong>steering files</strong> and a skills library</li>
-</ul>
-<p>Most of it needs no model. The rest works with a local Ollama, or any OpenAI-compatible
-endpoint.</p>
-<p>One command sets it all up (configs are read from their default locations):</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
-</code></pre></div>
-<p>Full guide: <strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>.</p>
-<h3 id="the-dashboard">The dashboard<a class="anchor" href="#the-dashboard" title="Link to this section">#</a></h3>
-<p><code>contextlake kb dashboard --serve</code> opens a local window into everything the knowledge layer
-builds. It works offline. Tabs cover:</p>
-<ul>
-<li>a fleet overview, and per-repo anatomy</li>
-<li>the cross-repo architecture graph</li>
-<li>change impact, so you can see what a change would touch</li>
-<li>health and search</li>
-<li><strong>Chat</strong>, to ask about the fleet in plain language</li>
-</ul>
-<p>Chat answers from the graph for free. Prose written by a model is opt-in, with <code>--llm-chat</code>.</p>
-<p>Want to look first? <code>contextlake kb dashboard --serve --sample</code> needs no setup at all.</p>
-<p align="center">
-  <img class="ss ss-light" src="img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table/Treemap layout switcher." width="820"><img class="ss ss-dark" src="img/dashboard/fleet-cards-dark.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table/Treemap layout switcher." width="820">
-</p>
-
-<p><strong><a href="using-the-dashboard">The dashboard: a guided tour</a></strong>, step by step, with screenshots.</p>
-<h2 id="local-by-default-and-you-can-prove-it">Local by default, and you can prove it<a class="anchor" href="#local-by-default-and-you-can-prove-it" title="Link to this section">#</a></h2>
-<p>There is no telemetry, no analytics, no usage reporting and no crash reporting in
-contextlake. There is nothing to opt out of, because there is nothing there.</p>
-<p>Any project can type that, so there is a switch that makes it checkable:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--offline<span class="w"> </span>kb<span class="w"> </span>index<span class="w">         </span><span class="c1"># or CONTEXTLAKE_OFFLINE=1</span>
-</code></pre></div>
-<p><code>--offline</code> refuses every outbound connection <strong>at the socket</strong>, so it covers not only
-contextlake's own requests but every library in the process, including the ones that
-download embedding or language models. Loopback stays open, because the MCP server, the
-dashboard, the graph viewer and a local Ollama all live there.</p>
-<p>Verified with the network blocked, on a fresh store: <code>kb index</code>, <code>kb query</code>, <code>kb embed</code>,
-semantic search, and <code>kb graph</code> (whose HTML output contains no remote references at all).
-The commands that need the network say so and stop rather than failing obscurely:
-mirroring from a forge refuses up front, and <code>bootstrap</code> skips the mirror stage and builds
-the knowledge layer from what is already on disk.</p>
-<p><strong>Two caveats, because they are the honest ones.</strong> The bundled embedding model is
-downloaded from Hugging Face the first time it is used; that fetch needs the network, and
-afterwards it loads from the local cache and semantic search works offline. And the wiki's
-LLM tier is only as local as the provider you point it at: the built-in <code>openvino-genai</code>
-model runs on your machine once cached, while <code>--llm openai</code> is a hosted API and <code>--offline</code>
-will and should block it.</p>
-<p>The boundary is worth stating plainly: this is an in-process guard, so <code>git</code> and <code>glab</code>
-subprocesses have their own sockets. That is why the mirror stages refuse up
-front under <code>--offline</code> instead of relying on the guard. Everything above is covered by
-tests that try to escape it, including one that goes out through <code>urllib</code> rather than
-through any of our own helpers.</p>
-<p>Two ways to reach outside are opt-in and named: a <strong>hosted model provider</strong>, if you
-configure one instead of the bundled local model, and <code>kb graph --cdn</code>, which swaps the
-inlined JavaScript for CDN script tags to make a smaller file. Default output inlines
-everything and opens in an air-gapped browser.</p>
-<h2 id="versioning-and-compatibility">Versioning and compatibility<a class="anchor" href="#versioning-and-compatibility" title="Link to this section">#</a></h2>
-<p>contextlake follows <a href="https://semver.org/" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>. <strong>From 8.0.0, no breaking
-change lands without a major bump</strong>, and 8.0.0 is out: the promise is in force. Breaks before
-it are named in <a href="changelog">CHANGELOG.md</a>
-with what to change.</p>
-<p>8.0.0 is the release the promise starts binding in, not a renumbering. A reset to 1.0.0 was
-considered and rejected: it would sort <em>below</em> every version already published, so nobody on
-7.x would ever be offered it.</p>
-<p>Four surfaces are covered. A change is <strong>breaking</strong> when it would stop something you wrote
-from working:</p>
-<ul>
-<li><strong>CLI verbs and flags.</strong> Removing or renaming a verb, removing a flag, or changing what a
-  flag means. Adding a verb or a flag is not breaking. Tightening a flag's <em>validation</em> is
-  not breaking either: rejecting <code>--max-symbols 0</code>, which silently meant "the default", is
-  a fix for a value that never did what it said.</li>
-<li><strong>Store layout.</strong> Anything that makes an existing store unreadable to the version that
-  wrote it, or that requires a manual migration. Re-indexing is not that.</li>
-<li><strong>MCP tool contracts.</strong> Removing a tool, removing a field a result carried, or changing
-  what a field means. Adding a field, or adding a tool, is not breaking.</li>
-<li><strong>Config keys.</strong> Removing a key or changing its default in a way that changes what a run
-  does.</li>
-</ul>
-<p><strong><code>PARSER_VERSION</code> is deliberately not on that list</strong>, even though it looks like it should
-be. Bumping it does not stop anything working: your store stays readable, every command keeps
-running, and nothing you wrote needs editing.</p>
-<p>A bump means that repositories indexed by an older parser now carry <em>less</em> than the current
-one would extract, so <code>kb index</code> rebuilds them instead of reporting them unchanged. <code>doctor</code>
-reports that as an advisory, not a fault, because a parser bump would otherwise turn
-every upgrade into a red check for something that is working correctly.</p>
-<h2 id="documentation">Documentation<a class="anchor" href="#documentation" title="Link to this section">#</a></h2>
-<ul>
-<li><strong><a href="quickstart">QUICKSTART.md</a></strong>, install → bootstrap → wire your editor, in minutes</li>
-<li><strong><a href="installing">docs/installing.md</a></strong>, every install channel, upgrading, and uninstalling</li>
-<li><strong><a href="troubleshooting">docs/troubleshooting.md</a></strong>, it broke, now what</li>
-<li><strong><a href="using-the-dashboard">docs/using-the-dashboard.md</a></strong>, the dashboard, a guided tour with screenshots</li>
-<li><strong><a href="cli-reference">docs/cli-reference.md</a></strong>, every command and flag, plus shell completion</li>
-<li><strong><a href="console-output">docs/console-output.md</a></strong>, decoding a run: glyphs, exit codes, JSON logs, metrics</li>
-<li><strong><a href="configuration">docs/configuration.md</a></strong>, where settings live and which one wins</li>
-<li><strong><a href="mirroring-repositories">docs/mirroring-repositories.md</a></strong>, the mirror commands and branch safety</li>
-<li><strong><a href="scheduling">docs/scheduling.md</a></strong>, <code>contextlake schedule</code>, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure</li>
-<li><strong><a href="knowledge-layer">docs/knowledge-layer.md</a></strong>, the map over the four build stages below</li>
-<li><strong><a href="indexing-the-code-graph">docs/indexing-the-code-graph.md</a></strong>, <code>kb index</code>, and what the graph captures</li>
-<li><strong><a href="connecting-and-enriching">docs/connecting-and-enriching.md</a></strong>, <code>kb connect</code> / <code>kb ingest</code> / <code>kb enrich</code>, the ten source types</li>
-<li><strong><a href="searching-semantically">docs/searching-semantically.md</a></strong>, <code>kb embed</code> / <code>kb eval</code>, vectors and retrieval quality</li>
-<li><strong><a href="generating-the-wiki">docs/generating-the-wiki.md</a></strong>, <code>kb wiki</code>, the review council, per-subsystem pages</li>
-<li><strong><a href="generating-documentation">docs/generating-documentation.md</a></strong>, <code>kb docs</code>, an API reference with real call sites, no model</li>
-<li><strong><a href="model-providers">docs/model-providers.md</a></strong>, choosing an embeddings and wiki backend</li>
-<li><strong><a href="visualizing-the-graph">docs/visualizing-the-graph.md</a></strong>, <code>kb graph</code>, all 11 formats and the C4 diagram</li>
-<li><strong><a href="asking-the-graph">docs/asking-the-graph.md</a></strong>, <code>kb query</code>, <code>kb impact</code>, <code>kb owners</code></li>
-<li><strong><a href="serving-over-mcp">docs/serving-over-mcp.md</a></strong>, serve the graph over MCP + wire your editor</li>
-<li><strong><a href="keeping-it-fresh">docs/keeping-it-fresh.md</a></strong>, bootstrap, scheduling, and re-indexing on commit</li>
-<li><strong><a href="explained">docs/explained.md</a></strong>, what changes for you, and why it is built this way</li>
-<li><strong><a href="benchmarks">docs/benchmarks.md</a></strong>, where the token/cost/correctness impact comes from, and how to measure it yourself</li>
-<li><strong><a href="internals">docs/internals.md</a></strong>, architecture and internals</li>
-<li><strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md" target="_blank" rel="noopener">docs/releasing.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong>, maintainer runbook: versioning, tagging, publishing</li>
-<li><strong><a href="style-guide">docs/style-guide.md</a></strong>, the documentation style guide (voice, structure, formatting, terms)</li>
-<li><strong><a href="brand">docs/brand.md</a></strong>, palette, mascot, and asset usage</li>
-<li><strong><a href="changelog">CHANGELOG.md</a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md" target="_blank" rel="noopener">ROADMAP.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> · <strong><a href="https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md" target="_blank" rel="noopener">BRANDING.md<span class="ext-arrow" aria-hidden="true">↗</span></a></strong></li>
-</ul>
-<h2 id="license">License<a class="anchor" href="#license" title="Link to this section">#</a></h2>
-<p>MIT, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE<span class="ext-arrow" aria-hidden="true">↗</span></a>. Pebble the otter is the project mascot; <em>deep context, clear answers.</em></p>
-<h2 id="documentation_1">Documentation<a class="anchor" href="#documentation_1" title="Link to this section">#</a></h2>
-<ul>
-<li><a href="docs">Full documentation</a></li>
-<li><a href="quickstart">Quickstart</a></li>
-<li><a href="installing">Installing and upgrading</a></li>
-<li><a href="cli-reference">Command reference</a></li>
-<li><a href="troubleshooting">Troubleshooting</a></li>
-<li><a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing<span class="ext-arrow" aria-hidden="true">↗</span></a></li>
-<li><a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md" target="_blank" rel="noopener">Security policy<span class="ext-arrow" aria-hidden="true">↗</span></a></li>
-</ul>
+<h2 id="commands">Commands<a class="anchor" href="#commands" title="Link to this section">#</a></h2>
+<p>Run any command as <code>contextlake &lt;command&gt;</code>, and add <code>--help</code> for its own help. Verbs sit under
+the noun they belong to: <code>mirror</code> for git repositories and <code>kb</code> for the knowledge layer.
+<code>init</code>, <code>bootstrap</code>, <code>version</code>, <code>completion</code>, <code>doctor</code> and <code>schedule</code> sit at the top, because they
+span both layers or neither. The command reference (linked above) lists every command, flag
+and exit code.</p>
+<h2 id="local-by-default">Local by default<a class="anchor" href="#local-by-default" title="Link to this section">#</a></h2>
+<p>contextlake has no telemetry, no analytics, no usage reporting and no crash reporting.</p>
+<p>To check that a run stays local, add <code>--offline</code> (or set <code>CONTEXTLAKE_OFFLINE=1</code>). It refuses
+every non-loopback connection this process makes, and keeps loopback open for the MCP server, the
+dashboard and a local Ollama. The <a href="cli-reference#global-flags">Command reference</a> says what
+<code>--offline</code> covers and what it does not.</p>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="explained"><span>contextlake, explained</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="installing"><span>Installing and upgrading</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="quickstart"><span>Quickstart</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#why-contextlake">Why contextlake</a></li>
-<li><a href="#how-it-works">How it works</a></li>
-<li><a href="#install">Install</a></li>
-<li><a href="#quickstart-one-repo-no-setup">Quickstart: one repo, no setup</a></li>
-<li><a href="#fleet-mode-mirror-a-whole-org">Fleet mode: mirror a whole org</a></li>
-<li><a href="#commands-at-a-glance">Commands at a glance</a></li>
-<li><a href="#knowledge-layer">Knowledge layer</a><ul>
-<li><a href="#the-dashboard">The dashboard</a></li>
-</ul>
-</li>
-<li><a href="#local-by-default-and-you-can-prove-it">Local by default, and you can prove it</a></li>
-<li><a href="#versioning-and-compatibility">Versioning and compatibility</a></li>
-<li><a href="#documentation">Documentation</a></li>
-<li><a href="#license">License</a></li>
-<li><a href="#documentation_1">Documentation</a></li>
+<li><a href="#start-here">Start here</a></li>
+<li><a href="#the-three-layers">The three layers</a></li>
+<li><a href="#where-to-go-next">Where to go next</a></li>
+<li><a href="#commands">Commands</a></li>
+<li><a href="#local-by-default">Local by default</a></li>
 </ul>
 </nav></aside>
 </div>
@@ -395,9 +145,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>

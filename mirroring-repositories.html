@@ -19,35 +19,74 @@
 <meta name="twitter:title" content="Mirroring repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirroring repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/mirroring-repositories", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirroring repositories", "item": "https://sayak.in/contextlake/mirroring-repositories"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories" class="active">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories" class="active" aria-current="page">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Mirroring repositories</span></nav>
-    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Mirroring repositories</h1><p class="doc-sub">Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Mirroring repositories</h1><p class="doc-sub">Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#command-reference">Command reference</a><ul>
+<li><a href="#pattern-syntax">Pattern syntax</a></li>
+<li><a href="#matching-a-repo-whose-name-contains-or">Matching a repo whose name contains * or ?</a></li>
+<li><a href="#mirror-status-check-current-synchronization-status">mirror status: check current synchronization status</a></li>
+<li><a href="#mirror-fetch-fetch-every-project-you-can-see">mirror fetch: fetch every project you can see</a></li>
+<li><a href="#mirror-clone-clone-missing-repositories">mirror clone: clone missing repositories</a></li>
+<li><a href="#mirror-update-update-existing-repositories">mirror update: update existing repositories</a></li>
+<li><a href="#mirror-branches-switch-to-most-active-branches">mirror branches: switch to most active branches</a></li>
+<li><a href="#mirror-verify-verify-repository-structure">mirror verify: verify repository structure</a></li>
+<li><a href="#mirror-sync-full-synchronization">mirror sync: full synchronization</a></li>
+<li><a href="#mirror-audit-repo-health-age-report">mirror audit: repo health &amp; age report</a></li>
+</ul>
+</li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#configuration">Configuration</a><ul>
+<li><a href="#making-a-scope-permanent">Making a scope permanent</a></li>
+</ul>
+</li>
+<li><a href="#branch-safety">Branch safety</a><ul>
+<li><a href="#the-three-checks">The three checks</a></li>
+<li><a href="#which-setting-affects-which-command">Which setting affects which command</a></li>
+<li><a href="#what-each-looks-like">What each looks like</a></li>
+<li><a href="#setting-them">Setting them</a></li>
+<li><a href="#disabling-a-safety-check">Disabling a safety check</a></li>
+</ul>
+</li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></details>
     
+<p>For anyone who keeps a local copy of a team's repositories and wants it to stay current.</p>
 <p>Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
 <a href="quickstart">Quickstart</a>. For settings see <a href="configuration">Configuration</a>; for scheduling a
@@ -67,6 +106,13 @@ Gitea, including its Codeberg and Forgejo flavors. Pick one with <code>platform<
 places: this page's wording, the <code>--group</code> help text, the cached project files
 (<code>gitlab_projects.txt</code> / <code>.json</code>) and the <code>GitLab projects (active)</code> line in <code>mirror status</code>. Read
 all of those as "the remote you configured", whichever one it is.</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li><code>git</code> on your <code>PATH</code>, and a platform token such as <code>GITLAB_TOKEN</code>. On GitLab an authenticated
+  <code>glab</code> works instead. See <a href="installing#prerequisites">Installing</a>.</li>
+<li>A config file that names your group and workspace. <code>contextlake init</code> writes one; see
+  <a href="configuration">Configuration</a>.</li>
+</ul>
 <h2 id="command-reference">Command reference<a class="anchor" href="#command-reference" title="Link to this section">#</a></h2>
 <p>Every command carries its own scoped help, <code>contextlake &lt;command&gt; --help</code> shows
 just that command's flags with worked examples, and bare <code>contextlake</code> prints the
@@ -189,7 +235,7 @@ available as its own command:</p>
 <p>A fully synced workspace shows <code>0</code> for both.</p>
 <p><strong>Workspaces holding more than one group.</strong> Local paths are relative to the group, so a clone of
 <code>alpha/team/api</code> and one of <code>beta/team/api</code> both land at <code>team/api</code> and the path cannot say which
-group a repo came from. <code>status</code>, <code>verify</code>, and the branch-switch pass therefore read each clone's
+group a repo came from, so <code>status</code>, <code>verify</code>, and the branch-switch pass read each clone's
 <code>origin</code> remote and leave repos from other groups out of scope:</p>
 <ul>
 <li>They are counted under <strong>Other groups</strong> rather than reported as <strong>Extra</strong>.</li>
@@ -197,6 +243,7 @@ group a repo came from. <code>status</code>, <code>verify</code>, and the branch
 </ul>
 <p>Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
 whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.</p>
+<p><img src="img/pebble/mirroring.webp" alt="Pebble on a sunlit lake floor among many smooth stones, a snorkel pushed up: fetching many repositories at once." width="1200" height="800" loading="lazy"></p>
 <h3 id="mirror-fetch-fetch-every-project-you-can-see"><code>mirror fetch</code>: fetch every project you can see<a class="anchor" href="#mirror-fetch-fetch-every-project-you-can-see" title="Link to this section">#</a></h3>
 <p>Retrieves all repositories from the configured group / org / workspace / owner and caches them
 locally.</p>
@@ -370,6 +417,8 @@ other repository goes to <code>main</code>.</p>
 <li><code>verify</code> - Verify structure</li>
 <li><code>audit</code> - Report repo health &amp; age (skip with <code>--no-audit</code>)</li>
 </ol>
+<aside class="pebble-tip" role="note"><img class="pebble-tip-icon" src="img/pebble-tip.png" alt="" aria-hidden="true" width="56" height="49" loading="lazy"><div class="pebble-tip-body"><p class="pebble-tip-label">Pebble's tip</p><p>Run <code>contextlake mirror sync --dry-run</code> before your first full sync. It shows what would happen and changes nothing.</p>
+</div></aside>
 <h3 id="mirror-audit-repo-health-age-report"><code>mirror audit</code>: repo health &amp; age report<a class="anchor" href="#mirror-audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos hold no real content (empty, README only, or boilerplate only)
 and how old or active they are. Runs automatically at the end of <code>sync</code>, and in <code>bootstrap</code> immediately after the mirror
@@ -392,6 +441,23 @@ falling back to the first git commit) and the <strong>last commit date</strong> 
 <p>The summary aggregates all of that: counts, oldest and newest, how many are stale over one and
 two years, and repos with no commits. The full per-repo table is written as both JSON and CSV.</p>
 <p>The scan is parallel, read-only, and works offline from the fetch cache.</p>
+<h2 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h2>
+<ol>
+<li>Run <code>contextlake mirror fetch</code> to refresh the project list. <code>status</code> reads that cache.</li>
+<li>Run <code>contextlake mirror status</code>. It changes nothing on disk.</li>
+<li>Read the counts. A fully synced workspace looks like this, with your own totals:</li>
+</ol>
+<div class="highlight"><pre><span></span><code>Synchronization status
+  • GitLab projects (active)  128
+  • Local repositories        128
+  ✓ Synchronized              128
+  · Missing                     0
+  · Extra                       0
+</code></pre></div>
+<ol start="4">
+<li>If <strong>Missing</strong> shows a number above <code>0</code>, run <code>contextlake mirror clone</code>. If <strong>Extra</strong> shows a number
+   above <code>0</code>, review those repos by hand; contextlake leaves them alone.</li>
+</ol>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
 <p>contextlake's config-file precedence and the full settings reference now have their own page: <strong><a href="configuration">Configuration</a></strong>.</p>
 <h3 id="making-a-scope-permanent">Making a scope permanent<a class="anchor" href="#making-a-scope-permanent" title="Link to this section">#</a></h3>
@@ -561,17 +627,18 @@ conflicts or lost work. <code>--no-protect-working-branches</code> has no effect
 looks in one place rather than guessing which page owns their symptom.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
-<li><a href="keeping-it-fresh">Bootstrap and keep it fresh</a>, scheduling a sync and re-indexing on commit</li>
+<li><a href="keeping-it-fresh">Keeping it fresh</a>, scheduling a sync and re-indexing on commit</li>
 <li><a href="scheduling">Scheduling runs</a>, a self-installed systemd timer or crontab entry</li>
 <li><a href="configuration">Configuration</a>, the full settings reference</li>
-<li><a href="console-output">Reading the console output</a>, the status glyphs and the exit codes</li>
-<li><a href="knowledge-layer">Knowledge layer</a>, what to build on top of the mirror</li>
+<li><a href="console-output">Console output</a>, the status glyphs and the exit codes</li>
+<li><a href="knowledge-layer">The knowledge layer</a>, what to build on top of the mirror</li>
 <li><a href="troubleshooting">Troubleshooting</a>, when a mirror command misbehaves</li>
 </ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer"><span>The knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="indexing-the-code-graph"><span>Indexing the code graph</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#command-reference">Command reference</a><ul>
 <li><a href="#pattern-syntax">Pattern syntax</a></li>
 <li><a href="#matching-a-repo-whose-name-contains-or">Matching a repo whose name contains * or ?</a></li>
@@ -585,6 +652,7 @@ looks in one place rather than guessing which page owns their symptom.</p>
 <li><a href="#mirror-audit-repo-health-age-report">mirror audit: repo health &amp; age report</a></li>
 </ul>
 </li>
+<li><a href="#verification">Verification</a></li>
 <li><a href="#configuration">Configuration</a><ul>
 <li><a href="#making-a-scope-permanent">Making a scope permanent</a></li>
 </ul>
@@ -626,9 +694,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>

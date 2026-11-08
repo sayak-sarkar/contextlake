@@ -7,6 +7,7 @@
   --code-bg:#e9f1f2; --code-ink:#0c3a44; --pre-bg:#0E2A33;
   --hover:#e9f4f5; --callout-bg:#eef7f8; --callout-ink:#2f4d55; --row-alt:#f6fafb;
   --iconbtn-hover:#eef6f7; --hero-tint:#dcecee; --card-shadow:rgba(14,42,51,.14);
+  --focus-gap:var(--mist);
 }
 /* dark theme: explicit toggle wins; otherwise follow the OS unless the reader chose light */
 :root[data-theme="dark"]{
@@ -14,6 +15,7 @@
   --code-bg:#142F49; --code-ink:#d6ecee; --pre-bg:#06182A;
   --hover:#1E3C58; --callout-bg:#132C48; --callout-ink:#c3d6d9; --row-alt:#112B44;
   --iconbtn-hover:#1E3C58; --hero-tint:#142F4A; --card-shadow:rgba(0,0,0,.4);
+  --focus-gap:var(--deepwater);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -21,6 +23,7 @@
     --code-bg:#142F49; --code-ink:#d6ecee; --pre-bg:#06182A;
     --hover:#1E3C58; --callout-bg:#132C48; --callout-ink:#c3d6d9; --row-alt:#112B44;
     --iconbtn-hover:#1E3C58; --hero-tint:#142F4A; --card-shadow:rgba(0,0,0,.4);
+    --focus-gap:var(--deepwater);
   }
 }
 *{box-sizing:border-box}
@@ -36,7 +39,9 @@ body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-h
 .shell,body>main{flex:1 0 auto}
 body>footer{flex-shrink:0}
 a{color:var(--link)} a:hover{color:var(--link-hover)}
-:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--current);border-radius:6px}
+/* BRANDING.md 3.7 dual-tone ring: a 2px --ink core (deepwater light, mist dark) outside a 2px gap
+   filled with the opposite tone. An outline, so Windows forced-colors mode keeps it. */
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;box-shadow:0 0 0 2px var(--focus-gap);border-radius:6px}
 .skip{position:absolute;left:-9999px;top:0;background:var(--deepwater);color:#fff;padding:10px 16px;border-radius:0 0 8px 0;z-index:100}
 .skip:focus{left:0}
 
@@ -51,6 +56,9 @@ header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in s
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none}
 .brand .glyph{height:28px;width:auto;display:block}
 .nav .spacer{flex:1}
+/* Docs, Quickstart and Changelog in the header; below 860px the Browse docs disclosure carries them */
+.nav-links{display:flex;gap:18px;margin-left:12px}
+@media (max-width:860px){.nav-links{display:none}}
 .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500;text-decoration:none}
 .nav a.navlink:hover{color:var(--ink)}
 .social-row{display:inline-flex;align-items:center;gap:8px}
@@ -81,9 +89,16 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .shell{display:grid;grid-template-columns:220px minmax(0,1fr) 200px;gap:40px;max-width:1320px;margin:0 auto;padding:30px 24px 80px}
 .side{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;
   border-right:1px solid var(--line);padding-right:20px}
-.side h2{font-family:var(--ff-d);font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+/* group labels are <summary> text, not headings, so the page h1 is the first heading a screen reader meets */
+.side .side-title{font-family:var(--ff-d);font-size:12px;letter-spacing:.05em;text-transform:uppercase;
   font-weight:700;color:var(--muted);margin:24px 0 7px;padding-left:12px}
-.side h2:first-of-type{margin-top:2px}
+.side .side-group:first-of-type .side-title{margin-top:2px}
+/* each band is a <details>: open everywhere, folded on phones by SIDE_JS except the band with the current page */
+.side .side-title{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.side .side-title::-webkit-details-marker{display:none}
+.side .side-title::after{display:none;content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg);margin:-3px 8px 0 0;transition:transform .15s;flex:none}
+.side .side-group:not([open]) .side-title::after{transform:rotate(-45deg);margin-top:0}
 .side nav a{display:block;padding:5px 12px;border-radius:8px;color:var(--muted);text-decoration:none;
   font-size:14px;font-weight:400;line-height:1.4}
 .side nav a:hover{background:var(--hover);color:var(--ink)}
@@ -99,7 +114,10 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose h1{font-family:var(--ff-d);font-size:clamp(28px,4vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin:.2em 0 .5em}
 .prose h2{font-family:var(--ff-d);font-size:24px;font-weight:600;letter-spacing:-.01em;margin:1.7em 0 .6em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
 .prose h3{font-family:var(--ff-d);font-size:18px;font-weight:600;margin:1.5em 0 .5em}
-.prose p,.prose li{font-size:15.5px;color:var(--prose-ink)}
+.prose p,.prose li{font-size:16px;color:var(--prose-ink)}
+/* reading measure: BRANDING.md 4.6 asks for 60 to 75 characters. Cap running text at 68ch and let
+   code blocks, tables and diagrams keep the full column. */
+.prose>:is(p,ul,ol,blockquote,.admonition){max-width:68ch}
 .prose p{margin:.8em 0}
 .prose ul,.prose ol{padding-left:1.3em;margin:.7em 0}
 .prose li{margin:.3em 0}
@@ -109,9 +127,9 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose a .ext-arrow{font-size:.7em;vertical-align:.35em;line-height:0;margin-left:1px;border:0;color:var(--link);opacity:.75}
 /* inline code may break so a long token (path, identifier) can't push the page wider than a
    phone viewport; inert on <pre> code (white-space:pre), which keeps its own horizontal scroll */
-.prose code{font-family:var(--ff-m);font-size:.86em;background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px;overflow-wrap:break-word}
+.prose code{font-family:var(--ff-m);font-size:max(14px,.9em);background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px;overflow-wrap:break-word}
 .prose pre{background:var(--pre-bg);color:var(--mist);padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line-2);
-  font-family:var(--ff-m);font-size:13.5px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
+  font-family:var(--ff-m);font-size:14px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
 .prose pre code{background:none;color:inherit;padding:0;font-size:inherit}
 /* copy-to-clipboard on code blocks (JS-injected; appears on hover; green check on success) */
 .prose pre.has-copy{position:relative}
@@ -119,6 +137,8 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
   padding:6px;border-radius:7px;cursor:pointer;border:1px solid rgba(234,244,244,.22);background:rgba(234,244,244,.08);
   color:var(--mist);opacity:0;transition:opacity .15s,background .15s,border-color .15s,color .15s}
 .prose pre.has-copy:hover .copy-btn,.prose pre .copy-btn:focus-visible{opacity:1}
+/* touch screens have no hover: keep the button visible there */
+@media (hover:none){.prose pre .copy-btn{opacity:.8}}
 .prose pre .copy-btn:hover{background:rgba(234,244,244,.16);border-color:rgba(234,244,244,.5)}
 .prose pre .copy-btn svg{width:15px;height:15px;display:block}
 .prose pre .copy-btn .ic-check{display:none}
@@ -135,9 +155,21 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .tab-btn[aria-selected="true"]{color:var(--lake);border-bottom-color:var(--lake)}
 .tabs-js .tab[hidden]{display:none}
 .tabs:not(.tabs-js) .tab{margin-top:.5em}
-.tabs:not(.tabs-js) .tab::before{content:attr(data-label);display:block;font-family:var(--ff-m);font-size:11px;
-  text-transform:uppercase;letter-spacing:.06em;color:var(--subtle);margin-bottom:4px}
+.tabs:not(.tabs-js) .tab::before{content:attr(data-label);display:block;font-family:var(--ff-m);font-size:12px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
 .prose blockquote{margin:1.1em 0;padding:2px 18px;border-left:3px solid var(--current);background:var(--callout-bg);border-radius:0 8px 8px 0;color:var(--callout-ink)}
+/* Pebble's tip: the only place Pebble speaks (rendered by render_pebble_tips in build_docs.py).
+   Colours come from the docs tokens, which already switch with the theme. */
+.prose .pebble-tip{display:flex;align-items:flex-start;gap:14px;margin:1.2em 0;padding:12px 18px 12px 14px;
+  max-width:68ch;border:1px solid var(--line-2);border-left:3px solid var(--lake);border-radius:0 12px 12px 0;
+  background:var(--callout-bg);color:var(--callout-ink)}
+.prose .pebble-tip-icon{width:56px;height:auto;flex:none;border-radius:0;margin-top:2px}
+.prose .pebble-tip-body{min-width:0}
+.prose .pebble-tip-label{font-family:var(--ff-d);font-weight:600;font-size:14px;color:var(--ink);margin:0 0 .25em}
+.prose .pebble-tip-body p{margin:.4em 0}
+.prose .pebble-tip-body .pebble-tip-label{margin:0 0 .25em}
+.prose .pebble-tip-body p:last-child{margin-bottom:0}
+@media (max-width:480px){ .prose .pebble-tip{gap:10px;padding-left:10px} .prose .pebble-tip-icon{width:44px} }
 /* Typed callouts (Python-Markdown's built-in `admonition` extension: `!!! note "Title"`),
    for the subset of notes that are a distinct kind of interruption -- an honest limitation,
    a must-not-skip guarantee, a risk before you act -- rather than a generic aside (which
@@ -188,7 +220,7 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 
 /* breadcrumbs */
 .crumbs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--ff-m);
-  font-size:12px;color:var(--subtle);margin:0 0 16px}
+  font-size:12px;color:var(--muted);margin:0 0 16px}
 .crumbs a{color:var(--muted);text-decoration:none}
 .crumbs a:hover{color:var(--ink)}
 .crumbs span[aria-hidden]{color:var(--line-2)}
@@ -203,20 +235,22 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .doc-hero,.prose{animation:docRise .6s both cubic-bezier(.2,.7,.2,1)}
 .prose{animation-delay:.08s}
 @media (prefers-reduced-motion: reduce){ .doc-hero,.prose{animation:none} }
-.doc-eyebrow{font-family:var(--ff-m);font-size:11px;font-weight:600;letter-spacing:.09em;
+.doc-eyebrow{font-family:var(--ff-m);font-size:12px;font-weight:600;letter-spacing:.09em;
   text-transform:uppercase;color:var(--lake);margin-bottom:10px;display:flex;align-items:center;gap:7px}
-.doc-eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.doc-eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--dot,currentColor);flex:none}
 /* per-page-type accent: which of the four core learning-journey groups this page belongs to
    (build_docs.py's GROUP_KIND) recolors just the eyebrow + its dot -- everything else on the
    page (headings, body, pebble) stays identical, so the signal reads as "where am I", not noise. */
-.doc-hero[data-kind="start"] .doc-eyebrow{color:var(--current)}
+/* --link is the AA-safe brand text colour in both themes (4.76:1 light, 6.10:1 dark); raw --current is 2.46:1 on the light canvas */
+.doc-hero[data-kind="start"] .doc-eyebrow{color:var(--link)}
 .doc-hero[data-kind="build"] .doc-eyebrow{color:var(--lake)}
-.doc-hero[data-kind="use"] .doc-eyebrow{color:#b8862b}
-.doc-hero[data-kind="understand"] .doc-eyebrow{color:#8a7550}
-:root[data-theme="dark"] .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun)}}
-:root[data-theme="dark"] .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore)}}
+/* light theme: the label text uses --muted (6.41:1); the band hue stays on the dot, which is decorative */
+.doc-hero[data-kind="use"] .doc-eyebrow{color:var(--muted);--dot:#b8862b}
+.doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--muted);--dot:#8a7550}
+:root[data-theme="dark"] .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun);--dot:currentColor}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun);--dot:currentColor}}
+:root[data-theme="dark"] .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore);--dot:currentColor}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore);--dot:currentColor}}
 .doc-hero h1{font-family:var(--ff-d);font-size:clamp(30px,4.2vw,40px);font-weight:700;
   letter-spacing:-.022em;line-height:1.12;margin:0}
 .doc-sub{font-size:16px;color:var(--muted);margin:.55em 0 0;max-width:40em;line-height:1.5}
@@ -225,8 +259,8 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 /* on-page TOC rail */
 .toc-rail{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;
   font-size:13px}
-.toc-title{font-family:var(--ff-m);font-size:11px;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--subtle);margin:0 0 10px}
+.toc-title{font-family:var(--ff-m);font-size:12px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 10px}
 .toc-rail nav>ul{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
 .toc-rail ul ul{list-style:none;margin:0;padding-left:12px}
 .toc-rail li{margin:0}
@@ -237,7 +271,7 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 /* next-steps footer */
 .next-steps{margin:48px 0 0;padding-top:26px;border-top:1px solid var(--line)}
 .next-steps h2{font-family:var(--ff-d);font-size:15px;font-weight:600;letter-spacing:.01em;
-  text-transform:none;color:var(--subtle);border:0;margin:0 0 14px;padding:0}
+  text-transform:none;color:var(--muted);border:0;margin:0 0 14px;padding:0}
 .next-grid{display:flex;flex-wrap:wrap;gap:12px}
 .next-card{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:11px;
   border:1px solid var(--line-2);background:var(--surface);color:var(--ink);text-decoration:none;
@@ -246,9 +280,21 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .next-card:hover{border-color:var(--lake);transform:translateY(-2px);box-shadow:0 10px 22px -14px rgba(14,42,51,.4)}
 .next-card:hover svg{transform:translateX(3px)}
 
+/* inline "On this page" disclosure: only where the right rail is hidden */
+.toc-inline{display:none}
+.toc-inline summary{cursor:pointer;font-family:var(--ff-d);font-size:14px;font-weight:600;color:var(--ink);
+  padding:10px 14px;background:var(--surface);border:1px solid var(--line-2);border-radius:11px}
+.toc-inline[open] summary{border-color:var(--lake);border-bottom-left-radius:0;border-bottom-right-radius:0}
+.toc-inline nav{border:1px solid var(--line-2);border-top:none;border-radius:0 0 11px 11px;padding:8px 14px 12px;
+  font-size:14px;margin-bottom:22px}
+.toc-inline ul{list-style:none;margin:0;padding:0}
+.toc-inline ul ul{padding-left:14px}
+.toc-inline a{display:block;padding:4px 0;color:var(--muted);text-decoration:none;border:0}
+.toc-inline a:hover{color:var(--ink)}
 @media (max-width:1080px){
   .shell{grid-template-columns:220px minmax(0,1fr)}
   .toc-rail{display:none}
+  .toc-inline{display:block;margin:0 0 22px}
 }
 @media (max-width:860px){
   .shell{grid-template-columns:1fr;gap:18px}
@@ -265,7 +311,9 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
   .side.open .side-toggle{border-color:var(--lake);border-bottom-left-radius:0;border-bottom-right-radius:0}
   .side-body{display:none;border:1px solid var(--line-2);border-top:none;border-radius:0 0 11px 11px;padding:6px 8px 12px}
   .side.open .side-body{display:block}
-  .side h2:first-of-type{margin-top:10px}
+  .side .side-group:first-of-type .side-title{margin-top:10px}
+  .side .side-title{cursor:pointer}
+  .side .side-title::after{display:block}
   .doc-pebble{width:88px}
 }
 @media (prefers-reduced-motion: reduce){ .side-toggle .chev{transition:none} }

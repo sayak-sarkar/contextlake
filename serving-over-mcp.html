@@ -19,38 +19,68 @@
 <meta name="twitter:title" content="Serving over MCP · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serving over MCP", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serving-over-mcp", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serving over MCP", "item": "https://sayak.in/contextlake/serving-over-mcp"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp" class="active">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp" class="active" aria-current="page">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Serving over MCP</span></nav>
-    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Serve it to your editor</h1><p class="doc-sub">Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Serve it to your editor</h1><p class="doc-sub">Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors</a><ul>
+<li><a href="#the-generated-agentsmd-names-the-store-it-was-built-from">The generated AGENTS.md names the store it was built from</a></li>
+<li><a href="#what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not">What the generated .mcp.json pins, and what it deliberately does not</a></li>
+</ul>
+</li>
+<li><a href="#wiring-it-by-hand">Wiring it by hand</a></li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#how-the-tools-behave">How the tools behave</a><ul>
+<li><a href="#start-with-ask">Start with ask</a></li>
+<li><a href="#the-graph-tools-need-no-model">The graph tools need no model</a></li>
+<li><a href="#get_readme-and-symlinks">get_readme and symlinks</a></li>
+<li><a href="#every-list-returning-tool-says-why-a-result-is-empty">Every list-returning tool says why a result is empty</a></li>
+<li><a href="#a-node-reached-through-an-edge-says-how-far-to-trust-that-edge">A node reached through an edge says how far to trust that edge</a></li>
+<li><a href="#generated-documents-and-staleness">Generated documents and staleness</a></li>
+<li><a href="#the-fleet-document">The fleet document</a></li>
+<li><a href="#the-two-tools-that-need-embeddings">The two tools that need embeddings</a></li>
+</ul>
+</li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></details>
     
-<p>The third layer. Once the <a href="knowledge-layer">knowledge layer</a> is built, <code>contextlake kb serve</code>
-exposes it as an <strong>MCP server</strong>, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
-Postman, …) can query the graph directly instead of grepping.</p>
+<p>For developers who want their editor or AI agent to query the graph.</p>
+<p><code>contextlake kb serve</code> runs the knowledge layer as an MCP (Model Context Protocol) server. Your editor connects to it and
+asks the graph questions instead of searching files with grep. This page wires up your editor and
+checks that it can see the graph.</p>
 <pre class="mermaid">flowchart LR
   CL(["your MCP client"]) -->|"stdio, http, or sse"| SRV["contextlake kb serve"]
   SRV --> ASK["ask"]
@@ -65,98 +95,14 @@ Postman, …) can query the graph directly instead of grepping.</p>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
 </div>
 
-<p>The transport only decides how your client reaches the server; the tool set behind it is the same
-whichever one you pick. <code>ask</code> is a front door onto those tools, not a layer above them, so an agent
-can call either.</p>
-<p><strong>Start with <code>ask</code>.</strong> One tool, natural language: <code>ask("who calls load_readings")</code> /
-<code>ask("what breaks if I change ReadingProcessor")</code> / <code>ask("what extends BaseController")</code> /
-<code>ask("explain the forecast-api")</code>. It classifies the question, routes it to the right
-substrate below (definition / callers / dependents / subclasses / impact / owners /
-explain / search), resolves the symbol or repo, and returns one labeled answer (graph
-facts cited; <code>explain</code> returns advisory wiki prose, or the repo's grounded anatomy when
-no wiki exists yet). An agent that would rather not choose among the tools can call <code>ask</code>.</p>
-<p><code>ask</code> has no route for what a repository depends on. "What does X depend on?" is answered by
-search. For the list, call <code>repo_dependencies</code> with <code>direction</code> set to <code>out</code>. "Who depends on X?"
-goes to <code>find_dependents</code>.</p>
-<p><strong>Most of it needs no model.</strong> The underlying graph tools work on their own:
-<code>search_code</code>, <code>find_definition</code>, <code>find_callers</code>, <code>find_callees</code>, <code>find_dependents</code>, <code>get_node</code>,
-<code>get_neighbors</code>, <code>shortest_path</code>, <code>graph_stats</code>, <code>repo_dependencies</code>, <code>repo_flow</code>,
-<code>repo_event_flow</code>, <code>blast_radius</code>, <code>who_knows</code>, <code>get_wiki</code>, <code>get_generated_doc</code>,
-<code>get_fleet_doc</code>, <code>get_readme</code>, <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>,
-<code>graph_health</code>, plus a <code>kb://stats</code> resource with the store counts.</p>
-<p><strong><code>get_readme</code> follows a symlinked README, unless the key was created with an access flag.</strong> It
-reads the README from the local clone and follows a link wherever it points. A key created with any
-of <code>--tools</code>, <code>--repos</code>, <code>--owners</code>, <code>--external</code>, <code>--no-external</code>, <code>--rate</code>, <code>--cost-budget</code>, or a
-<code>--burst</code> set beside a <code>--rate</code> reads only inside the clone, and a README linked to a file outside
-it is skipped. These callers follow the link:</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
 <ul>
-<li>stdio</li>
-<li>the shared token</li>
-<li>a key created with none of those flags</li>
+<li>An indexed store. Run <code>contextlake kb index</code> first (see <a href="indexing-the-code-graph">Indexing the code graph</a>).</li>
+<li>An MCP client: Claude Code, Windsurf, VS Code, Kiro, Cursor or Postman.</li>
+<li><code>contextlake</code> on the <code>PATH</code> of the editor, because every config below starts the server with <code>contextlake kb serve</code>.</li>
+<li>Optional: embeddings from <code>contextlake kb embed</code>, which add the <code>semantic_search</code> and <code>hybrid_search</code> tools.</li>
 </ul>
-<p>A <code>[serve]</code> default such as <code>default_rate</code> is a property of the server, not of the key, so it does
-not change this.</p>
-<p><strong>Every list-returning tool says why a result is empty.</strong> An empty list on its own carries two
-opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
-cannot see the store, so it reports the first as a fact about the codebase when the truth is the
-second.</p>
-<ul>
-<li><code>get_neighbors</code> names an id that is not in the graph rather than reporting it as a node without
-  edges.</li>
-<li><code>find_definition</code> says whether a name is absent entirely or merely excluded by a <code>kind</code>/<code>repo</code>
-  filter.</li>
-<li><code>search_code</code> says whether the query's terms are indexed at all, and carries <code>total</code>/<code>truncated</code>
-  like its siblings.</li>
-<li>A <code>repo</code> filter that names no indexed repository is answered with an empty result and a <code>note</code>
-  that starts <code>Unknown repo</code> and names the ids that match, in <code>search_code</code>, <code>find_definition</code>,
-  <code>find_dependents</code>, <code>semantic_search</code>, <code>hybrid_search</code> and <code>ask</code>. A repo outside the key's scope
-  gets the same note as one that does not exist.</li>
-</ul>
-<p><strong>A node reached through an edge says how far to trust that edge.</strong> <code>find_callers</code>,
-<code>find_callees</code>, <code>find_dependents</code>, the hops of <code>shortest_path</code>, and the callers, dependents and
-subclasses answers of <code>ask</code> return each node with a <code>confidence</code> field: <code>EXTRACTED</code>, <code>INFERRED</code>
-or <code>AMBIGUOUS</code>. It is the confidence of the edge that reached the node, the same edge whose
-line is in <code>call_line</code> or <code>edge_line</code>. Check an <code>INFERRED</code> or <code>AMBIGUOUS</code> entry against that
-line before relying on it.</p>
-<p>The field is <code>null</code> where the tool names no single edge that reached the node: <code>get_node</code>,
-<code>find_definition</code>, the searches (<code>search_code</code>, <code>semantic_search</code>, and <code>hybrid_search</code>, which ranks
-graph-expanded nodes by PageRank mass rather than by one edge), and the first node of a path.
-<code>null</code> does not mean <code>EXTRACTED</code>. Clients that ignore the field keep working.</p>
-<p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote:</p>
-<ul>
-<li><code>kind="api"</code> for the reference, with its real call sites</li>
-<li><code>kind="design"</code> for the design notes</li>
-</ul>
-<p>Neither involves a model, so neither carries the wiki's advisory caveat.</p>
-<p>Both carry <code>stale</code>. That is true when the page was generated from a different commit than the
-repo's current indexed head, <strong>and also when either is unknown</strong>. A page written before generated
-documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
-being out of date.</p>
-<p><code>get_fleet_doc</code> returns the one page that describes the <strong>whole store</strong>: which packages
-more than one repository requires, which of those are pinned differently across them, and
-which repositories declare no runtime dependency at all. It takes <strong>no <code>repo</code> argument</strong>,
-because there is one such page per store rather than one per repository -- which is also
-why it is a separate tool instead of a third <code>kind</code> on <code>get_generated_doc</code>.</p>
-<p>Its staleness means something different, and the difference matters.</p>
-<p>A per-repo page carries the commit it was generated from. This one spans many repos, so it
-carries a <strong>fingerprint of every member's commit and parser version</strong>. It is stale when that
-fingerprint no longer matches the store.</p>
-<p>That catches a case a single commit cannot express: <strong>a new repository joining makes the page
-wrong without any existing member moving</strong>, because the page's populations count a fleet that
-grew.</p>
-<p>A page carrying no fingerprint reports <code>stale=true</code> with <code>doc_fingerprint</code> absent. That means
-<strong>nothing is known</strong>, not known to be out of date, and the <code>note</code> says so.</p>
-<p>It is written only by an <strong>unscoped</strong> <code>kb docs</code> run. A fleet view of part of the store
-would report shares and disagreements that are not true of the whole, and a reader could
-not tell the page had been scoped, so a run naming particular repos skips it and says it
-did. <code>get_fleet_doc</code> names that as the likely cause when the page is missing.</p>
-<p><code>semantic_search</code> and <code>hybrid_search</code> are the two exceptions. They register <strong>only when
-embeddings exist</strong>, which takes an embedder that loads and a vector store. <code>[embeddings]</code> is on
-by default (since 7.7.0), so the embedder needs no setting unless <code>kb.toml</code> says
-<code>enabled = false</code>. It needs a provider: a local Ollama, the built-in CPU model
-(<code>pip install 'contextlake[kb-full]'</code>) or <code>provider = "openai"</code> with a key.
-<code>contextlake kb embed</code> creates the vector store. Without both, the server starts and says so,
-the two tools are absent, and everything above still works.</p>
+<p><img src="img/pebble/serve.webp" alt="Pebble on a dock handing the glowing context-pebble to a blank floating window, the way the MCP server hands context to an editor." width="1200" height="800" loading="lazy"></p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
@@ -201,7 +147,7 @@ separately.
 <li><strong>Where the files land</strong> comes from <code>--out</code>, or <code>--workspace</code>, or the current directory.</li>
 <li><strong>Which store the symbol counts and repo list come from</strong> comes from the config chain.</li>
 </ul>
-<p>Running <code>steer</code> from the wrong directory therefore rewrote a correct 5,500-symbol <code>AGENTS.md</code>
+<p>Running <code>steer</code> from the wrong directory rewrote a correct 5,500-symbol <code>AGENTS.md</code>
 down to a two-symbol one. Exit <code>0</code>, no warning, and every number in the replacement was accurate
 for the store that happened to resolve.</p>
 <p>Confident, tiny and wrong is the worst shape a steering file can take. An agent reading it has no
@@ -283,11 +229,130 @@ matters, when the workspace sits outside that config's directory <em>and</em> th
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>JSON does not expand <code>~</code>, but contextlake does: it expands <code>~</code> and environment variables in the
+<code>--config</code> value itself, so the <code>args</code> above work as written.</p>
 <p>Transport choices, concurrency limits and the provenance each cited node carries are in <a href="mcp-transports">MCP transports and limits</a>.</p>
-<h2 id="once-connected">Once connected<a class="anchor" href="#once-connected" title="Link to this section">#</a></h2>
-<p>Ask the agent things like <em>"where is <code>ForecastService</code> defined?"</em>, <em>"who calls <code>load_readings</code>?"</em>, or
-<em>"which repos depend on <code>shared-core</code>?"</em> and it calls the graph tools directly, you can even
+<h2 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h2>
+<ol>
+<li>Start the server by hand once. Run <code>contextlake kb serve --config ~/.contextlake/kb.toml</code>. The
+   server logs to standard error and waits for a client on standard input. Its first lines include:</li>
+</ol>
+<div class="highlight"><pre><span></span><code>Serving knowledge graph over MCP (stdio)
+</code></pre></div>
+<p>A store with no indexed repository logs <code>This store holds no indexed repository</code> first. Press
+   <code>Ctrl-C</code> to stop it.
+2. Open your editor's MCP panel or tool list. Check that <code>contextlake-kb</code> is listed and that its tools
+   include <code>ask</code>, <code>search_code</code>, <code>find_definition</code>, <code>list_repos</code> and <code>graph_stats</code>.
+   <code>semantic_search</code> and <code>hybrid_search</code> appear only when embeddings exist.
+3. Ask the agent <em>"which repos can you see?"</em>. Compare the repos it names with the repos in
+   your store. If they differ, check which store <code>contextlake kb serve</code> opened.</p>
+<p>Then ask things like <em>"where is <code>ForecastService</code> defined?"</em>, <em>"who calls <code>load_readings</code>?"</em> or
+<em>"which repos depend on <code>shared-core</code>?"</em>. The agent calls the graph tools directly. You can also
 have it draft wiki pages from the graph without the built-in <code>wiki</code> command.</p>
+<p>If the entry shows as failed, check that <code>contextlake</code> is on the editor's <code>PATH</code>. Check that the
+<code>--config</code> path exists too: a <code>--config</code> path that does not exist stops the server with
+<code>--config path not found</code> instead of falling back to another config.</p>
+<h2 id="how-the-tools-behave">How the tools behave<a class="anchor" href="#how-the-tools-behave" title="Link to this section">#</a></h2>
+<p>The transport only decides how your client reaches the server; the tool set behind it is the same
+whichever one you pick. <code>ask</code> is a front door onto those tools, not a layer above them, so an agent
+can call either.</p>
+<h3 id="start-with-ask">Start with <code>ask</code><a class="anchor" href="#start-with-ask" title="Link to this section">#</a></h3>
+<p>One tool, natural language: <code>ask("who calls load_readings")</code> /
+<code>ask("what breaks if I change ReadingProcessor")</code> / <code>ask("what extends BaseController")</code> /
+<code>ask("explain the forecast-api")</code>. It classifies the question, routes it to the right
+substrate below (definition / callers / dependents / subclasses / impact / owners /
+explain / search), resolves the symbol or repo, and returns one labeled answer (graph
+facts cited; <code>explain</code> returns advisory wiki prose, or the repo's grounded anatomy when
+no wiki exists yet). An agent that would prefer not to choose among the tools can call <code>ask</code>.</p>
+<p><code>ask</code> has no route for what a repository depends on. "What does X depend on?" is answered by
+search. For the list, call <code>repo_dependencies</code> with <code>direction</code> set to <code>out</code>. "Who depends on X?"
+goes to <code>find_dependents</code>.</p>
+<h3 id="the-graph-tools-need-no-model">The graph tools need no model<a class="anchor" href="#the-graph-tools-need-no-model" title="Link to this section">#</a></h3>
+<p>The underlying graph tools work on their own:
+<code>search_code</code>, <code>find_definition</code>, <code>find_callers</code>, <code>find_callees</code>, <code>find_dependents</code>, <code>get_node</code>,
+<code>get_neighbors</code>, <code>shortest_path</code>, <code>graph_stats</code>, <code>repo_dependencies</code>, <code>repo_flow</code>,
+<code>repo_event_flow</code>, <code>blast_radius</code>, <code>who_knows</code>, <code>get_wiki</code>, <code>get_generated_doc</code>,
+<code>get_fleet_doc</code>, <code>get_readme</code>, <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>,
+<code>graph_health</code>, plus a <code>kb://stats</code> resource with the store counts.</p>
+<h3 id="get_readme-and-symlinks"><code>get_readme</code> and symlinks<a class="anchor" href="#get_readme-and-symlinks" title="Link to this section">#</a></h3>
+<p><code>get_readme</code> follows a symlinked README, unless the key was created with an access flag. It
+reads the README from the local clone and follows a link wherever it points. A key created with any
+of <code>--tools</code>, <code>--repos</code>, <code>--owners</code>, <code>--external</code>, <code>--no-external</code>, <code>--rate</code>, <code>--cost-budget</code>, or a
+<code>--burst</code> set beside a <code>--rate</code> reads only inside the clone, and a README linked to a file outside
+it is skipped. These callers follow the link:</p>
+<ul>
+<li>stdio</li>
+<li>the shared token</li>
+<li>a key created with none of those flags</li>
+</ul>
+<p>A <code>[serve]</code> default such as <code>default_rate</code> is a property of the server, not of the key, so it does
+not change this.</p>
+<h3 id="every-list-returning-tool-says-why-a-result-is-empty">Every list-returning tool says why a result is empty<a class="anchor" href="#every-list-returning-tool-says-why-a-result-is-empty" title="Link to this section">#</a></h3>
+<p>An empty list on its own carries two
+opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
+cannot see the store, so it reports the first as a fact about the codebase when the truth is the
+second.</p>
+<ul>
+<li><code>get_neighbors</code> names an id that is not in the graph instead of reporting it as a node without
+  edges.</li>
+<li><code>find_definition</code> says whether a name is absent, or merely excluded by a <code>kind</code>/<code>repo</code>
+  filter.</li>
+<li><code>search_code</code> says whether the query's terms are indexed at all, and carries <code>total</code>/<code>truncated</code>
+  like its siblings.</li>
+<li>A <code>repo</code> filter that names no indexed repository is answered with an empty result and a <code>note</code>
+  that starts <code>Unknown repo</code> and names the ids that match, in <code>search_code</code>, <code>find_definition</code>,
+  <code>find_dependents</code>, <code>semantic_search</code>, <code>hybrid_search</code> and <code>ask</code>. A repo outside the key's scope
+  gets the same note as one that does not exist.</li>
+</ul>
+<h3 id="a-node-reached-through-an-edge-says-how-far-to-trust-that-edge">A node reached through an edge says how far to trust that edge<a class="anchor" href="#a-node-reached-through-an-edge-says-how-far-to-trust-that-edge" title="Link to this section">#</a></h3>
+<p><code>find_callers</code>,
+<code>find_callees</code>, <code>find_dependents</code>, the hops of <code>shortest_path</code>, and the callers, dependents and
+subclasses answers of <code>ask</code> return each node with a <code>confidence</code> field: <code>EXTRACTED</code>, <code>INFERRED</code>
+or <code>AMBIGUOUS</code>. It is the confidence of the edge that reached the node, the same edge whose
+line is in <code>call_line</code> or <code>edge_line</code>. Check an <code>INFERRED</code> or <code>AMBIGUOUS</code> entry against that
+line before relying on it.</p>
+<p>The field is <code>null</code> where the tool names no single edge that reached the node: <code>get_node</code>,
+<code>find_definition</code>, the searches (<code>search_code</code>, <code>semantic_search</code>, and <code>hybrid_search</code>, which ranks
+graph-expanded nodes by PageRank mass instead of by one edge), and the first node of a path.
+<code>null</code> does not mean <code>EXTRACTED</code>. Clients that ignore the field keep working.</p>
+<h3 id="generated-documents-and-staleness">Generated documents and staleness<a class="anchor" href="#generated-documents-and-staleness" title="Link to this section">#</a></h3>
+<p><code>get_generated_doc</code> returns what <code>kb docs</code> wrote:</p>
+<ul>
+<li><code>kind="api"</code> for the reference, with its real call sites</li>
+<li><code>kind="design"</code> for the design notes</li>
+</ul>
+<p>Neither involves a model, so neither carries the wiki's advisory caveat.</p>
+<p>Both carry <code>stale</code>. That is true when the page was generated from a different commit than the
+repo's current indexed head, <strong>and also when either is unknown</strong>. A page written before generated
+documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
+being out of date.</p>
+<h3 id="the-fleet-document">The fleet document<a class="anchor" href="#the-fleet-document" title="Link to this section">#</a></h3>
+<p><code>get_fleet_doc</code> returns the one page that describes the <strong>whole store</strong>: which packages
+more than one repository requires, which of those are pinned differently across them, and
+which repositories declare no runtime dependency at all. It takes <strong>no <code>repo</code> argument</strong>,
+because there is one such page per store, not one per repository, which is also
+why it is a separate tool instead of a third <code>kind</code> on <code>get_generated_doc</code>.</p>
+<p>Its staleness means something different, and the difference matters.</p>
+<p>A per-repo page carries the commit it was generated from. This one spans many repos, so it
+carries a <strong>fingerprint of every member's commit and parser version</strong>. It is stale when that
+fingerprint no longer matches the store.</p>
+<p>That catches a case a single commit cannot express: <strong>a new repository joining makes the page
+wrong without any existing member moving</strong>, because the page's populations count a fleet that
+grew.</p>
+<p>A page carrying no fingerprint reports <code>stale=true</code> with <code>doc_fingerprint</code> absent. That means
+<strong>nothing is known</strong>, not known to be out of date, and the <code>note</code> says so.</p>
+<p>It is written only by an <strong>unscoped</strong> <code>kb docs</code> run. A fleet view of part of the store
+would report shares and disagreements that are not true of the whole, and a reader could
+not tell the page had been scoped, so a run naming particular repos skips it and says it
+did. <code>get_fleet_doc</code> names that as the likely cause when the page is missing.</p>
+<h3 id="the-two-tools-that-need-embeddings">The two tools that need embeddings<a class="anchor" href="#the-two-tools-that-need-embeddings" title="Link to this section">#</a></h3>
+<p><code>semantic_search</code> and <code>hybrid_search</code> are the two exceptions. They register <strong>only when
+embeddings exist</strong>, which takes an embedder that loads and a vector store. <code>[embeddings]</code> is on
+by default (since 7.7.0), so the embedder needs no setting unless <code>kb.toml</code> says
+<code>enabled = false</code>. It needs a provider: a local Ollama, the built-in CPU model
+(<code>pip install 'contextlake[kb-full]'</code>) or <code>provider = "openai"</code> with a key.
+<code>contextlake kb embed</code> creates the vector store. Without both, the server starts and says so,
+the two tools are absent, and everything above still works.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="mcp-transports">MCP transports and limits</a></li>
@@ -299,13 +364,25 @@ have it draft wiki pages from the graph without the built-in <code>wiki</code> c
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors</a><ul>
 <li><a href="#the-generated-agentsmd-names-the-store-it-was-built-from">The generated AGENTS.md names the store it was built from</a></li>
 <li><a href="#what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not">What the generated .mcp.json pins, and what it deliberately does not</a></li>
 </ul>
 </li>
 <li><a href="#wiring-it-by-hand">Wiring it by hand</a></li>
-<li><a href="#once-connected">Once connected</a></li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#how-the-tools-behave">How the tools behave</a><ul>
+<li><a href="#start-with-ask">Start with ask</a></li>
+<li><a href="#the-graph-tools-need-no-model">The graph tools need no model</a></li>
+<li><a href="#get_readme-and-symlinks">get_readme and symlinks</a></li>
+<li><a href="#every-list-returning-tool-says-why-a-result-is-empty">Every list-returning tool says why a result is empty</a></li>
+<li><a href="#a-node-reached-through-an-edge-says-how-far-to-trust-that-edge">A node reached through an edge says how far to trust that edge</a></li>
+<li><a href="#generated-documents-and-staleness">Generated documents and staleness</a></li>
+<li><a href="#the-fleet-document">The fleet document</a></li>
+<li><a href="#the-two-tools-that-need-embeddings">The two tools that need embeddings</a></li>
+</ul>
+</li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -376,9 +453,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>

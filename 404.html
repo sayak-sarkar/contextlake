@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lost in the fog · contextlake</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="That page drifted off into the mist. Pebble will guide you back to contextlake.">
+<meta name="description" content="That page drifted off into the mist. Head back to the contextlake home page or read the docs.">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#0E2A33">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
 <style>
   :root{ --deepwater:#0E2A33; --abyss:#081a20; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4; }
   *{box-sizing:border-box}
@@ -58,6 +57,14 @@
   .btn.ghost:hover{border-color:var(--current);background:rgba(234,244,244,.12);transform:translateY(-1px)}
   :focus-visible{outline:none;box-shadow:0 0 0 2px var(--abyss),0 0 0 4px var(--current);border-radius:12px}
 
+  /* the one place Pebble speaks (owner decision 35): same box as the docs pages */
+  .pebble-tip{display:flex;align-items:flex-start;gap:12px;text-align:left;max-width:420px;margin:28px auto 0;
+    padding:12px 16px 12px 12px;background:rgba(8,26,32,.66);border:1px solid rgba(234,244,244,.24);
+    border-left:3px solid var(--current);border-radius:0 12px 12px 0;text-shadow:none}
+  .pebble-tip img{width:56px;height:auto;flex:none;margin-top:2px}
+  .pebble-tip p{margin:0;font-size:14.5px;line-height:1.5;color:#d7e9ec}
+  .pebble-tip .pebble-tip-label{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:14px;color:#fff;margin-bottom:3px}
+
   .home{position:absolute;top:22px;left:24px;z-index:3;display:inline-flex;align-items:center;gap:9px;
     color:var(--mist);text-decoration:none;font-family:"Space Grotesk",sans-serif;font-weight:600;
     font-size:16px;opacity:.92;text-shadow:0 2px 16px rgba(0,0,0,.5)}
@@ -75,12 +82,16 @@
   <div class="content">
     <p class="eyebrow">404 · off the map</p>
     <h1>Lost in the fog</h1>
-    <p class="sub">This page drifted off into the mist. <b>Pebble</b> can't find it
-      down here either, but the way back to shore is just a click away.</p>
+    <p class="sub">This page drifted off into the mist. The way back to shore is one click away.</p>
     <div class="actions">
       <a class="btn primary" href="./">Back to shore</a>
       <a class="btn ghost" href="docs">Read the docs</a>
     </div>
+    <aside class="pebble-tip" role="note">
+      <img src="img/pebble-tip.png" width="56" height="49" alt="" aria-hidden="true">
+      <div><p class="pebble-tip-label">Pebble's tip</p>
+      <p>The docs sidebar groups every page by task, from Get started to Reference.</p></div>
+    </aside>
   </div>
 </main>
 </body>

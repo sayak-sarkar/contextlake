@@ -19,40 +19,87 @@
 <meta name="twitter:title" content="Using the dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Using the dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/using-the-dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Using the dashboard", "item": "https://sayak.in/contextlake/using-the-dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard" class="active">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard" class="active" aria-current="page">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Using the dashboard</span></nav>
-    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>The dashboard</h1><p class="doc-sub">A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>The dashboard</h1><p class="doc-sub">A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#get-some-data-in-or-dont">Get some data in (or don't)</a><ul>
+<li><a href="#try-it-in-the-live-demo">Try it in the live demo</a></li>
+</ul>
+</li>
+<li><a href="#launch-it">Launch it</a><ul>
+<li><a href="#what-anonymize-changes-and-what-still-shows">What --anonymize changes, and what still shows</a></li>
+<li><a href="#making-it-the-default-on-this-machine">Making it the default on this machine</a></li>
+</ul>
+</li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#the-fleet-overview">The fleet overview</a><ul>
+<li><a href="#check-the-fleet-overview-against-the-demo">Check the fleet overview against the demo</a></li>
+</ul>
+</li>
+<li><a href="#a-repo-up-close">A repo up close</a></li>
+<li><a href="#diagrams">Diagrams</a></li>
+<li><a href="#how-repos-depend-on-each-other">How repos depend on each other</a></li>
+<li><a href="#change-impact-blast-radius">Change impact (blast radius)</a></li>
+<li><a href="#path">Path</a></li>
+<li><a href="#search">Search</a></li>
+<li><a href="#health">Health</a></li>
+<li><a href="#generate-a-wiki">Generate a wiki</a></li>
+<li><a href="#generate-the-documents">Generate the documents</a></li>
+<li><a href="#mcp-console-and-settings">MCP console and settings</a></li>
+<li><a href="#write-actions-you-can-turn-on">Write actions you can turn on</a><ul>
+<li><a href="#what-regenerate-shows-before-you-confirm">What Regenerate shows before you confirm</a></li>
+<li><a href="#the-mcp-server-card-and-its-token">The MCP server card and its token</a></li>
+<li><a href="#what-start-does">What Start does</a></li>
+<li><a href="#when-write-actions-are-refused">When write actions are refused</a></li>
+<li><a href="#the-two-checks-on-every-post">The two checks on every POST</a></li>
+<li><a href="#locking-and-the-port-limit">Locking and the port limit</a></li>
+<li><a href="#the-host-check-on-every-request">The Host check on every request</a></li>
+</ul>
+</li>
+<li><a href="#chat">Chat</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></details>
     
-<p>The dashboard is the human window into everything contextlake builds: a <strong>local,
-offline-first</strong> single-page app over your knowledge store. No accounts, no cloud, no
+<p>For anyone who wants to browse the graph in a browser instead of the terminal.</p>
+<p>The dashboard is the human window into everything contextlake builds: a <strong>local</strong>
+single-page app over your knowledge store that works with no internet connection. No accounts, no cloud, no
 build step, one command and it opens in your browser. Read-only by default; see
-<a href="#11-mutating-routes">§11</a> for the opt-in write actions and
-<a href="#12-chat">§12</a> to ask it questions directly.</p>
+<a href="#write-actions-you-can-turn-on">Write actions you can turn on</a> for the opt-in write actions and
+<a href="#chat">Chat</a> to ask it questions directly.</p>
 <blockquote>
 <p>New here? Skim <a href="quickstart">QUICKSTART</a> first. For what the graph/wiki/search
 tiers do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
@@ -71,7 +118,12 @@ tiers do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
 <p>Every read-only view here is a window onto a tier that <code>index</code>, <code>connect</code> or <code>wiki</code> already built, so
 nothing on this page runs an extraction pass of its own. MCP console and Settings are the odd pair
 out: they report on this machine and this process, not on your code.</p>
-<h2 id="1-get-some-data-in-or-dont">1. Get some data in (or don't)<a class="anchor" href="#1-get-some-data-in-or-dont" title="Link to this section">#</a></h2>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li>The knowledge layer installed (the <code>[kb]</code> extra). See <a href="installing">Installing</a>.</li>
+<li>An indexed store, or the bundled <code>--sample</code> fleet, which needs no data.</li>
+</ul>
+<h2 id="get-some-data-in-or-dont">Get some data in (or don't)<a class="anchor" href="#get-some-data-in-or-dont" title="Link to this section">#</a></h2>
 <p>The dashboard reads your indexed store. If you've already run <code>contextlake kb index</code> (or
 <code>contextlake bootstrap</code>), you're set. <strong>Just want to look around first?</strong> Every screen
 below works against a bundled, generic demo fleet, no setup, no real data:</p>
@@ -83,10 +135,22 @@ below works against a bundled, generic demo fleet, no setup, no real data:</p>
 regenerated by <code>site/deploy.sh</code> with <code>contextlake kb dashboard --site site/demo --sample</code>,
 the exact command above with <code>--site</code> in place of <code>--serve</code>, no separate script.</p>
 </blockquote>
+<h3 id="try-it-in-the-live-demo">Try it in the live demo<a class="anchor" href="#try-it-in-the-live-demo" title="Link to this section">#</a></h3>
+<p>You can look at a result before you install anything. The demo runs in your browser against the
+sample fleet.</p>
+<ol>
+<li>Open the <a href="https://sayak.in/contextlake/demo/" target="_blank" rel="noopener">live demo<span class="ext-arrow" aria-hidden="true">↗</span></a>.</li>
+<li>In the left rail, click <strong>Search</strong>. Keep the <strong>Symbols</strong> mode.</li>
+<li>Type part of a symbol name. Each row shows the symbol's kind, its qualified name and its repo.</li>
+<li>Click a row to open that repo's anatomy tab, or click <strong>Blast</strong> on the row to see its blast
+   radius.</li>
+</ol>
+<p>The demo is a static <code>--site</code> export. <strong>Semantic</strong> mode is live-only, so the demo says so and
+points you at a running server. Run the dashboard on your own store for semantic search.</p>
 <p>To build against your own repos, index a workspace once:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">        </span><span class="c1"># or `contextlake bootstrap` for the full pipeline</span>
 </code></pre></div>
-<h2 id="2-launch-it">2. Launch it<a class="anchor" href="#2-launch-it" title="Link to this section">#</a></h2>
+<h2 id="launch-it">Launch it<a class="anchor" href="#launch-it" title="Link to this section">#</a></h2>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--open<span class="w">         </span><span class="c1"># live, against your store; opens your browser</span>
 </code></pre></div>
 <table>
@@ -127,7 +191,7 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--allow-mutations</code></td>
-<td><code>--serve</code> only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with <code>--sample</code>.</td>
+<td><code>--serve</code> only: also expose sync/add-repo/MCP-server actions (see <a href="#write-actions-you-can-turn-on">Write actions you can turn on</a>). Loopback host only; refused with <code>--sample</code>.</td>
 </tr>
 <tr>
 <td><code>--workspace DIR</code></td>
@@ -135,11 +199,11 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--llm-chat</code></td>
-<td><code>--serve</code> only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured <code>[llm]</code> provider for prose (see §12). Real time/token cost per question. Loopback host only.</td>
+<td><code>--serve</code> only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured <code>[llm]</code> provider for prose (see <a href="#chat">Chat</a>). Real time/token cost per question. Loopback host only.</td>
 </tr>
 <tr>
 <td><code>--host HOST</code></td>
-<td><code>--serve</code> only: bind address (default <code>127.0.0.1</code>). IPv4 only, so <code>::1</code> cannot bind. See §11 for what a non-loopback host costs you.</td>
+<td><code>--serve</code> only: bind address (default <code>127.0.0.1</code>). IPv4 only, so <code>::1</code> cannot bind. See <a href="#write-actions-you-can-turn-on">Write actions you can turn on</a> for what a non-loopback host costs you.</td>
 </tr>
 <tr>
 <td><code>--port PORT</code></td>
@@ -204,7 +268,17 @@ made would be wrong for somebody, and wrong in the direction of showing a name.<
 </ul>
 <p>A <code>.contextlake.kb.toml</code> found by walking up from the current directory may turn this
 <strong>on</strong> but never off. See <a href="configuration">Configuration</a> for why.</p>
-<h2 id="3-the-fleet-overview">3. The fleet overview<a class="anchor" href="#3-the-fleet-overview" title="Link to this section">#</a></h2>
+<h2 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h2>
+<ol>
+<li>The command prints the address and stays running:</li>
+</ol>
+<div class="highlight"><pre><span></span><code>✓ Dashboard on http://127.0.0.1:8765  (Ctrl-C to stop)
+</code></pre></div>
+<p>With <code>--sample</code> it first prints <code>Serving the bundled demo fleet (fictional data, nothing local is read)…</code>.
+2. Open that address. The <strong>Fleet</strong> screen shows stat cards, the knowledge-confidence bar and your
+   repos.
+3. If the screen is empty, your store holds no indexed repos. Run <code>contextlake kb index</code>.</p>
+<h2 id="the-fleet-overview">The fleet overview<a class="anchor" href="#the-fleet-overview" title="Link to this section">#</a></h2>
 <p>Stat cards, a <strong>knowledge-confidence</strong> bar, and your repos grouped by namespace.</p>
 <p><img class="ss ss-light" alt="Fleet overview, cards layout" src="img/dashboard/fleet-cards.png" /><img class="ss ss-dark" alt="Fleet overview, cards layout" src="img/dashboard/fleet-cards-dark.png" /></p>
 <p>Prefer denser views? Switch the layout, <strong>Cards / List / Table / Treemap</strong> (your choice
@@ -214,7 +288,17 @@ is remembered):</p>
 <p>Not sure what a control means? The <strong>ⓘ "What am I looking at?"</strong> button explains nodes,
 edges, the three confidence levels, and the Live vs. Static data source:</p>
 <p><img class="ss ss-light" alt="The info popover explaining nodes, edges, confidence, and data source" src="img/dashboard/info-popover.png" /><img class="ss ss-dark" alt="The info popover explaining nodes, edges, confidence, and data source" src="img/dashboard/info-popover-dark.png" /></p>
-<h2 id="4-a-repo-up-close">4. A repo up close<a class="anchor" href="#4-a-repo-up-close" title="Link to this section">#</a></h2>
+<h3 id="check-the-fleet-overview-against-the-demo">Check the fleet overview against the demo<a class="anchor" href="#check-the-fleet-overview-against-the-demo" title="Link to this section">#</a></h3>
+<ol>
+<li>Open the <a href="https://sayak.in/contextlake/demo/" target="_blank" rel="noopener">live demo<span class="ext-arrow" aria-hidden="true">↗</span></a>. It opens on <strong>Fleet</strong>.</li>
+<li>Compare the stat cards and the <strong>knowledge-confidence</strong> bar at the top with the first
+   screenshot above. The layout and the kinds of counts match. The numbers depend on the fleet.</li>
+<li>Switch the layout between <strong>Cards</strong>, <strong>List</strong>, <strong>Table</strong> and <strong>Treemap</strong>. Your choice is
+   remembered.</li>
+<li>Click the <strong>ⓘ</strong> button. The popover explains nodes, edges, the three confidence levels and the
+   data source. The demo's mode badge starts with Static.</li>
+</ol>
+<h2 id="a-repo-up-close">A repo up close<a class="anchor" href="#a-repo-up-close" title="Link to this section">#</a></h2>
 <p>Click any repo for its <strong>anatomy</strong> (node kinds and top symbols) plus README, curated
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click <strong>Blast radius</strong>, and every fact carries its provenance.</p>
@@ -229,7 +313,7 @@ it's the same index-time centrality data, split by direction instead of combined
 The two columns are <strong>incoming references</strong> and <strong>outgoing references</strong>. They count every
 relation, so a symbol that is only declared in its file already has 1 incoming reference.
 They are not caller and callee counts.</p>
-<h2 id="5-diagrams">5. Diagrams<a class="anchor" href="#5-diagrams" title="Link to this section">#</a></h2>
+<h2 id="diagrams">Diagrams<a class="anchor" href="#diagrams" title="Link to this section">#</a></h2>
 <p>A repo's <strong>Diagrams</strong> tab renders the same Mermaid text <code>contextlake kb graph --repo &lt;id&gt;
 --format &lt;fmt&gt;</code> produces, inline as SVG: <strong>Relations</strong> (the generic relation graph,
 always available), <strong>Classes</strong> (classes/interfaces/structs/enums and their methods),
@@ -239,7 +323,7 @@ grouped by inferred category: network/compute/storage/database/security/other/mo
 the fall-through for a resource type no keyword list claims).</p>
 <p>A sixth format, <strong>Sequence</strong> (<code>--format sequencediagram</code>), needs a single symbol as its
 seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
-<strong>Call sequence</strong> card instead (§7).</p>
+<strong>Call sequence</strong> card instead (see <a href="#change-impact-blast-radius">Change impact</a>).</p>
 <p>No new extraction happens. Each tab renders data <code>index</code> already collected.</p>
 <p>A format is enabled only when the repo has the relevant node kind. <strong>Classes</strong> stays
 disabled for a repo with no classes, for instance. That comes from the same anatomy census the
@@ -254,7 +338,7 @@ view fits (or there's nowhere further to go). A breadcrumb trail (<code>Whole re
 out, or pick a different child from the narrow-further control to explore a sibling.</p>
 <p>Live-only (not part of a <code>--site</code> export, same as MCP console/Settings below), Mermaid
 itself is lazy-loaded into the page only the first time this tab is opened.</p>
-<h2 id="6-architecture-relationships">6. Architecture &amp; relationships<a class="anchor" href="#6-architecture-relationships" title="Link to this section">#</a></h2>
+<h2 id="how-repos-depend-on-each-other">How repos depend on each other<a class="anchor" href="#how-repos-depend-on-each-other" title="Link to this section">#</a></h2>
 <p>The cross-repo dependency graph, a <strong>namespace</strong> mindmap and a <strong>dependency</strong> flow,
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).</p>
@@ -278,10 +362,10 @@ are looking at</strong>. Never cross-repo.</p>
 has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
 "(0)": nothing is missing from your graph, it just is not in the export.</p>
 <p><img class="ss ss-light" alt="The architecture graph: cross-repo dependencies" src="img/dashboard/architecture.png" /><img class="ss ss-dark" alt="The architecture graph: cross-repo dependencies" src="img/dashboard/architecture-dark.png" /></p>
-<h2 id="7-change-impact-blast-radius">7. Change impact (blast radius)<a class="anchor" href="#7-change-impact-blast-radius" title="Link to this section">#</a></h2>
+<h2 id="change-impact-blast-radius">Change impact (blast radius)<a class="anchor" href="#change-impact-blast-radius" title="Link to this section">#</a></h2>
 <p>Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
 hop by hop, with the confidence of each path. A <strong>Call sequence</strong> card renders that same
-neighborhood as a Mermaid sequence diagram (<code>--format sequencediagram</code>, §5) seeded by
+neighborhood as a Mermaid sequence diagram (<code>--format sequencediagram</code>, see <a href="#diagrams">Diagrams</a>) seeded by
 the symbol you're on.</p>
 <p><img class="ss ss-light" alt="Blast radius for GridSampler: the hops a change would touch, and the Call sequence diagram for the same neighborhood" src="img/dashboard/blast-radius.png" /><img class="ss ss-dark" alt="Blast radius for GridSampler: the hops a change would touch, and the Call sequence diagram for the same neighborhood" src="img/dashboard/blast-radius-dark.png" /></p>
 <p>The breadcrumb keeps going: <strong>repo, symbol, Diagram, Wiki, Links, Ticket</strong>. Each is one click
@@ -294,8 +378,8 @@ specific symbol</em>, taken from its docstring or from the git-blame commit mess
 where it is defined. See
 <a href="connecting-and-enriching#connectors">Connectors</a>. It is confirmed by live JQL, the same way
 a branch-derived key is. Clicking it opens the real tracker URL, not another dashboard view.</p>
-<h2 id="8-path">8. Path<a class="anchor" href="#8-path" title="Link to this section">#</a></h2>
-<p>Sometimes the question is not "what does this touch" (§7) but "how does A reach B". That wants a
+<h2 id="path">Path<a class="anchor" href="#path" title="Link to this section">#</a></h2>
+<p>Sometimes the question is not "what does this touch" (see <a href="#change-impact-blast-radius">Change impact</a>) but "how does A reach B". That wants a
 single route, not a diagram.</p>
 <p>The <strong>Path</strong> tab takes two symbol names, or node ids, and shows the shortest route as numbered
 steps.</p>
@@ -305,7 +389,7 @@ steps.</p>
   or a name unique to one repo, resolves straight through.</li>
 <li><strong>No route within the hop limit.</strong> It says so plainly, instead of showing an empty diagram.</li>
 </ul>
-<h2 id="8b-search">8b. Search<a class="anchor" href="#8b-search" title="Link to this section">#</a></h2>
+<h2 id="search">Search<a class="anchor" href="#search" title="Link to this section">#</a></h2>
 <p><strong>Search</strong> is a lens in its own right, not only the box that feeds the other tabs.</p>
 <ul>
 <li>Two modes: <strong>Symbols</strong> and <strong>Semantic</strong>.</li>
@@ -319,7 +403,7 @@ steps.</p>
 server. On a live server with no embedder wired up it does not fail either: it returns lexical
 matches and labels them as such, saying semantic is unavailable, so a result set never claims to be
 something it is not.</p>
-<h2 id="8c-health">8c. Health<a class="anchor" href="#8c-health" title="Link to this section">#</a></h2>
+<h2 id="health">Health<a class="anchor" href="#health" title="Link to this section">#</a></h2>
 <p>The <strong>Health</strong> rail item is the dashboard's view of the same audit <code>contextlake kb lint</code> performs.
 Four stat tiles (<strong>Checked</strong>, <strong>Stale repos</strong>, <strong>Unreadable</strong>, <strong>Dangling edges</strong>), and then, only
 when something is wrong, the detail:</p>
@@ -333,12 +417,12 @@ when something is wrong, the detail:</p>
 <p>A clean store gets a single "Clear water" panel instead of empty tables. Unlike most of the
 dashboard, Health is in a <code>--site</code> export too, so a shared snapshot carries the same verdict the
 live server would have given at export time.</p>
-<h2 id="9-generate-a-wiki">9. Generate a wiki<a class="anchor" href="#9-generate-a-wiki" title="Link to this section">#</a></h2>
+<h2 id="generate-a-wiki">Generate a wiki<a class="anchor" href="#generate-a-wiki" title="Link to this section">#</a></h2>
 <p>No wiki for a repo yet? What the <strong>Wiki</strong> tab offers depends on whether the server can
 write:</p>
 <ul>
 <li>Started with <code>--allow-mutations</code>, the tab carries a <strong>Generate wiki</strong> card that runs
-  the CLI for you. See <a href="#11-mutating-routes">§11</a>.</li>
+  the CLI for you. See <a href="#write-actions-you-can-turn-on">write actions</a>.</li>
 <li>Started without it, the tab hands you the exact command instead (one click to copy).
   A button that only copies text is the honest control for a server that cannot run
   anything.</li>
@@ -378,9 +462,9 @@ option that would 404. Live-only, like MCP console/Settings above (no <code>--si
 per subsystem, and the card below it covers the whole repo. There is no module-scoped
 run, because <code>contextlake kb wiki</code> takes a repo.</p>
 <p>With <code>--allow-mutations</code>, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
-carry a <strong>Regenerate</strong> button, see <a href="#11-mutating-routes">§11</a>.</p>
+carry a <strong>Regenerate</strong> button, see <a href="#write-actions-you-can-turn-on">write actions</a>.</p>
 <p>See <a href="generating-the-wiki">Generate the wiki</a>.</p>
-<h2 id="9b-generate-the-documents">9b. Generate the documents<a class="anchor" href="#9b-generate-the-documents" title="Link to this section">#</a></h2>
+<h2 id="generate-the-documents">Generate the documents<a class="anchor" href="#generate-the-documents" title="Link to this section">#</a></h2>
 <p>The <strong>Docs</strong> tab holds the two generated documents for a repo, the API reference and the
 design notes. It works the same way the Wiki tab does:</p>
 <ul>
@@ -396,7 +480,7 @@ not what it produced.</p>
 <p>Live-only: a <code>--site</code> export carries no generated documents, so it does not offer the
 tab at all.</p>
 <p>See <a href="generating-documentation">Generating documentation</a>.</p>
-<h2 id="10-mcp-console-and-settings">10. MCP console and settings<a class="anchor" href="#10-mcp-console-and-settings" title="Link to this section">#</a></h2>
+<h2 id="mcp-console-and-settings">MCP console and settings<a class="anchor" href="#mcp-console-and-settings" title="Link to this section">#</a></h2>
 <p>Two read-only panels, live-only (not part of a <code>--site</code> export; both describe this
 machine/process, not the graph itself):</p>
 <p><strong>MCP</strong>: the live tool catalog for <code>contextlake kb serve</code> against this store (introspected
@@ -405,7 +489,8 @@ copyable <code>.mcp.json</code> / <code>.vscode/mcp.json</code> snippet for wiri
 <p><strong>Settings</strong>: the active <code>kb.toml</code> at a glance: store path/size/schema version, the
 mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit <code>kb.toml</code> directly to change anything.</p>
-<h2 id="11-mutating-routes">11. Mutating routes<a class="anchor" href="#11-mutating-routes" title="Link to this section">#</a></h2>
+<p><a id="11-mutating-routes"></a></p>
+<h2 id="write-actions-you-can-turn-on">Write actions you can turn on<a class="anchor" href="#write-actions-you-can-turn-on" title="Link to this section">#</a></h2>
 <p>Everything above is read-only.</p>
 <p><code>contextlake kb dashboard --serve --allow-mutations</code> adds five write actions. Each one asks you
 to confirm in the browser first.</p>
@@ -454,12 +539,14 @@ to confirm in the browser first.</p>
 <li>Generate documents has no estimate step and no Force box. The run is model-free by default,
   so there is no token cost to preview first, and <code>kb docs</code> has no <code>--force</code> flag to offer.</li>
 </ul>
+<h3 id="what-regenerate-shows-before-you-confirm">What Regenerate shows before you confirm<a class="anchor" href="#what-regenerate-shows-before-you-confirm" title="Link to this section">#</a></h3>
 <p>Regenerate always shows a real count before you confirm: "N of M repos will regenerate, the rest
 are already up to date". A page that plain <code>kb wiki</code> wrote without a model (a structural page)
 counts as one to regenerate, because a run replaces it. A <strong>Force</strong> checkbox skips that freshness check and regenerates
 everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).</p>
+<h3 id="the-mcp-server-card-and-its-token">The MCP server card and its token<a class="anchor" href="#the-mcp-server-card-and-its-token" title="Link to this section">#</a></h3>
 <p>The MCP server this card starts is authenticated. Its HTTP transport needs
 <code>Authorization: Bearer &lt;token&gt;</code> on every request. See
 <a href="mcp-transports#authenticating-the-network-transports">Authenticating the network transports</a>.</p>
@@ -473,6 +560,7 @@ is the only place it appears.</strong></p>
 <li>The token lives in <code>&lt;store&gt;/dashboard/mcp-server.pid</code>, created <code>0600</code>, so it survives a page
   reload.</li>
 </ul>
+<h3 id="what-start-does">What Start does<a class="anchor" href="#what-start-does" title="Link to this section">#</a></h3>
 <p>What <strong>Start</strong> does:</p>
 <ol>
 <li>It refuses a port that already has a listener.</li>
@@ -486,6 +574,7 @@ and that refresh deletes its pidfile. The pidfile also records the server's star
 systems that have <code>/proc</code>. <strong>Stop</strong> signals a pid only when that start time still matches. A pid
 that another process has taken shows as <strong>Stopped</strong> and is left alone. Without <code>/proc</code>, the pid
 alone decides.</p>
+<h3 id="when-write-actions-are-refused">When write actions are refused<a class="anchor" href="#when-write-actions-are-refused" title="Link to this section">#</a></h3>
 <p>Mutating routes are refused in two cases:</p>
 <ul>
 <li><strong>With <code>--sample</code>.</strong> The demo fleet is fictional, so there is nothing on disk to sync or clone.</li>
@@ -493,6 +582,7 @@ alone decides.</p>
   Mutating routes are loopback-only by design. The dashboard server binds IPv4 only, so
   <code>--host ::1</code> passes this check and then fails to bind.</li>
 </ul>
+<h3 id="the-two-checks-on-every-post">The two checks on every POST<a class="anchor" href="#the-two-checks-on-every-post" title="Link to this section">#</a></h3>
 <p>Two checks protect every <code>POST</code>:</p>
 <ol>
 <li><strong>A per-launch token.</strong> A random token is minted at startup and wired into the served page.
@@ -502,6 +592,7 @@ alone decides.</p>
    rebinding, where a hostile site resolves a name to <code>127.0.0.1</code> to reach past the loopback
    bind.</li>
 </ol>
+<h3 id="locking-and-the-port-limit">Locking and the port limit<a class="anchor" href="#locking-and-the-port-limit" title="Link to this section">#</a></h3>
 <p>Sync now, Add repo and the MCP actions hold the store's single-writer lock only while they run.
 A dashboard action that finds the store locked gets HTTP <code>409</code> (<code>store is busy</code>) with the
 holder's pid. A CLI command that finds it locked prints the holder and exits 1. Neither case
@@ -511,6 +602,7 @@ the lock itself, so it follows the CLI rule.</p>
 and an unprivileged port (1024-65535), whatever the request asks for. That transport
 has no authentication of its own, so a caller-chosen bind would let one token turn
 this loopback-only dashboard into a public graph server that outlives it.</p>
+<h3 id="the-host-check-on-every-request">The Host check on every request<a class="anchor" href="#the-host-check-on-every-request" title="Link to this section">#</a></h3>
 <p>The <code>Host</code> check applies to <strong>every</strong> request. That includes <code>GET</code>, and every route, static
 assets included. Two reasons: the read API is your whole code graph, and the served
 <code>dashboard.js</code> carries the per-launch token. The same rule guards
@@ -523,8 +615,9 @@ with <code>--host</code>, or <code>localhost</code>, each with the port.</p>
 <li>bind that address directly, <code>--host 192.0.2.10</code></li>
 <li>or reach it as <code>http://localhost:PORT</code></li>
 </ul>
-<h2 id="12-chat">12. Chat<a class="anchor" href="#12-chat" title="Link to this section">#</a></h2>
-<p>Ask a question about the fleet in plain language -- "who calls X", "what depends on
+<p><a id="12-chat"></a></p>
+<h2 id="chat">Chat<a class="anchor" href="#chat" title="Link to this section">#</a></h2>
+<p>Ask a question about the fleet in plain language, such as "who calls X", "what depends on
 Y", "explain repo Z". Two layers, always shown together:</p>
 <ul>
 <li><strong>Free graph router (always on).</strong> The same deterministic <code>ask</code> classifier
@@ -543,18 +636,18 @@ Y", "explain repo Z". Two layers, always shown together:</p>
 so on), that turn shows a <strong>Retry</strong> button instead of leaving you to retype it, it
 resends the same question in place.</p>
 <p><code>--llm-chat</code> is opt-in at server start, never toggled per-question: it mints the same
-per-launch token <code>--allow-mutations</code> uses (§11), and every chat request while it's on
-must carry that token -- a page other than this dashboard can't silently trigger a
+per-launch token <code>--allow-mutations</code> uses (<a href="#write-actions-you-can-turn-on">Write actions</a>), and every chat request while it's on
+must carry that token, so a page other than this dashboard can't silently trigger a
 paid call. The free layer needs no token, same risk level as any other read-only
 <code>/api/*</code> route. Live-only, like MCP console/Settings above (no <code>--site</code> export).</p>
-<p>Loopback host only, for the same reason <code>--allow-mutations</code> is (§11): that token is
+<p>Loopback host only, for the same reason <code>--allow-mutations</code> is (<a href="#write-actions-you-can-turn-on">Write actions</a>): that token is
 served inside <code>/dashboard.js</code>, so on a non-loopback bind anyone who can reach the port
 can read it and spend your provider budget. <code>--llm-chat --host 0.0.0.0</code> is refused at
 startup.</p>
 <hr />
 <p>Everything here runs entirely on your machine, and is read-only unless you opt into
-<code>--allow-mutations</code> (§11) or <code>--llm-chat</code> (§12, which sends questions to your
-configured <code>[llm]</code> provider -- everything else stays local).</p>
+<code>--allow-mutations</code> (<a href="#write-actions-you-can-turn-on">Write actions</a>) or <code>--llm-chat</code> (<a href="#chat">Chat</a>, which sends questions to your
+configured <code>[llm]</code> provider; everything else stays local).</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="visualizing-the-graph">Visualizing the graph</a></li>
@@ -566,25 +659,42 @@ configured <code>[llm]</code> provider -- everything else stays local).</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#1-get-some-data-in-or-dont">1. Get some data in (or don't)</a></li>
-<li><a href="#2-launch-it">2. Launch it</a><ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#get-some-data-in-or-dont">Get some data in (or don't)</a><ul>
+<li><a href="#try-it-in-the-live-demo">Try it in the live demo</a></li>
+</ul>
+</li>
+<li><a href="#launch-it">Launch it</a><ul>
 <li><a href="#what-anonymize-changes-and-what-still-shows">What --anonymize changes, and what still shows</a></li>
 <li><a href="#making-it-the-default-on-this-machine">Making it the default on this machine</a></li>
 </ul>
 </li>
-<li><a href="#3-the-fleet-overview">3. The fleet overview</a></li>
-<li><a href="#4-a-repo-up-close">4. A repo up close</a></li>
-<li><a href="#5-diagrams">5. Diagrams</a></li>
-<li><a href="#6-architecture-relationships">6. Architecture &amp; relationships</a></li>
-<li><a href="#7-change-impact-blast-radius">7. Change impact (blast radius)</a></li>
-<li><a href="#8-path">8. Path</a></li>
-<li><a href="#8b-search">8b. Search</a></li>
-<li><a href="#8c-health">8c. Health</a></li>
-<li><a href="#9-generate-a-wiki">9. Generate a wiki</a></li>
-<li><a href="#9b-generate-the-documents">9b. Generate the documents</a></li>
-<li><a href="#10-mcp-console-and-settings">10. MCP console and settings</a></li>
-<li><a href="#11-mutating-routes">11. Mutating routes</a></li>
-<li><a href="#12-chat">12. Chat</a></li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#the-fleet-overview">The fleet overview</a><ul>
+<li><a href="#check-the-fleet-overview-against-the-demo">Check the fleet overview against the demo</a></li>
+</ul>
+</li>
+<li><a href="#a-repo-up-close">A repo up close</a></li>
+<li><a href="#diagrams">Diagrams</a></li>
+<li><a href="#how-repos-depend-on-each-other">How repos depend on each other</a></li>
+<li><a href="#change-impact-blast-radius">Change impact (blast radius)</a></li>
+<li><a href="#path">Path</a></li>
+<li><a href="#search">Search</a></li>
+<li><a href="#health">Health</a></li>
+<li><a href="#generate-a-wiki">Generate a wiki</a></li>
+<li><a href="#generate-the-documents">Generate the documents</a></li>
+<li><a href="#mcp-console-and-settings">MCP console and settings</a></li>
+<li><a href="#write-actions-you-can-turn-on">Write actions you can turn on</a><ul>
+<li><a href="#what-regenerate-shows-before-you-confirm">What Regenerate shows before you confirm</a></li>
+<li><a href="#the-mcp-server-card-and-its-token">The MCP server card and its token</a></li>
+<li><a href="#what-start-does">What Start does</a></li>
+<li><a href="#when-write-actions-are-refused">When write actions are refused</a></li>
+<li><a href="#the-two-checks-on-every-post">The two checks on every POST</a></li>
+<li><a href="#locking-and-the-port-limit">Locking and the port limit</a></li>
+<li><a href="#the-host-check-on-every-request">The Host check on every request</a></li>
+</ul>
+</li>
+<li><a href="#chat">Chat</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -655,9 +765,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>

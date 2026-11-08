@@ -19,35 +19,61 @@
 <meta name="twitter:title" content="Document sources and RAG · contextlake docs">
 <meta name="twitter:description" content="Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-31"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Document sources and RAG", "description": "Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.", "url": "https://sayak.in/contextlake/document-sources", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Document sources and RAG", "item": "https://sayak.in/contextlake/document-sources"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources" class="active">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources" class="active" aria-current="page">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Document sources and RAG</span></nav>
-    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Document sources and RAG</h1><p class="doc-sub">Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Document sources and RAG</h1><p class="doc-sub">Configure the built-in files source, a plugin package or an MCP endpoint, and aggregate documents into the knowledge layer.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#aggregating-documents">Aggregating documents</a><ul>
+<li><a href="#pdfs-the-text-layer-and-nothing-pretending-to-be-more">PDFs: the text layer, and nothing pretending to be more</a></li>
+<li><a href="#images-read-locally-or-not-at-all">Images: read locally, or not at all</a></li>
+<li><a href="#video-two-layers-because-they-promise-different-things">Video: two layers, because they promise different things</a></li>
+<li><a href="#page-numbers">Page numbers</a></li>
+<li><a href="#writing-a-plugin">Writing a plugin</a></li>
+<li><a href="#built-in-sources">Built-in sources</a></li>
+<li><a href="#api-sources">API sources</a></li>
+<li><a href="#targets-that-cannot-be-read">Targets that cannot be read</a></li>
+<li><a href="#authentication">Authentication</a></li>
+<li><a href="#graphql-sources">GraphQL sources</a></li>
+<li><a href="#mcp-sources">MCP sources</a></li>
+<li><a href="#additional-keys">Additional keys</a></li>
+</ul>
+</li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></details>
     
+<p><strong>Who this is for:</strong> operators who bring documents, tickets and web pages into the graph.</p>
 <p>Not everything worth retrieving lives in code. This page is the reference for
 <code>contextlake kb ingest</code> and the <code>[[sources]]</code> block: which source types are built in, what each
 one extracts, what it refuses to guess at, and every key you can set.</p>
@@ -116,7 +142,7 @@ reported as unreadable, and the run exits 1.</p>
 <h3 id="pdfs-the-text-layer-and-nothing-pretending-to-be-more">PDFs: the text layer, and nothing pretending to be more<a class="anchor" href="#pdfs-the-text-layer-and-nothing-pretending-to-be-more" title="Link to this section">#</a></h3>
 <p>Design docs, RFCs and architecture decisions arrive as PDFs, so the <code>files</code> source reads
 them as well. <code>*.pdf</code> is one of its default globs, and the text comes from the PDF's <strong>text layer</strong>
-via <code>pypdf</code>, which rides in its own extra so the core stays a single dependency:</p>
+through <code>pypdf</code>, which rides in its own extra so the core stays a single dependency:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-pdf]&quot;</span>
 </code></pre></div>
 <p><code>[kb-pdf]</code> is deliberately not part of <code>[kb-full]</code>; see <a href="installing#the-extras-and-which-one-you-want">the extras
@@ -161,16 +187,16 @@ first ingest path to leave local-first: every image would go over the network, o
 time, to a third party.</p>
 <p><code>[kb-ocr]</code> ships its models inside the wheel instead. A first run downloads nothing, and no image
 leaves the machine. The offline boundary holds for images exactly as it does for code.</p>
-<p>It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
+<p>It is a large extra, an estimated 390 MB once onnxruntime and opencv land, which is why it is
 separate from <code>[kb]</code> and from <code>[kb-full]</code>, the same call <code>[kb-fastembed]</code> makes.</p>
 <p>rapidocr opens each image file with Pillow, so a Pillow advisory reaches files in your
-repositories that this tool did not write. <code>[kb-ocr]</code> therefore requires Pillow 13 or newer.
+repositories that this tool did not write. That is why <code>[kb-ocr]</code> requires Pillow 13 or newer.
 Pillow 13 needs Python 3.11 or newer. On Python 3.10 the extra fails to install: pip reports
 no matching Pillow, because the only Pillow for 3.10 is version 12, which has eight advisories.</p>
 <p>An OCR'd document is marked. Its node carries <code>ocr = true</code> in <code>attrs</code>, because OCR misreads and a
 reader deciding how far to trust a line should not have to infer that from a file extension.</p>
-<p>The quiet outcome is the common one and it is still loud: an image the engine reads no words in --
-a logo, an icon, a photograph -- is reported and stored as nothing, rather than becoming an empty
+<p>The quiet outcome is the common one and it is still loud: an image the engine reads no words in
+(a logo, an icon, a photograph) is reported and stored as nothing, instead of becoming an empty
 document that looks like knowledge:</p>
 <div class="highlight"><pre><span></span><code>files: skipping logo.png -- the OCR engine read no text in it. An image with no words in it
   (a logo, an icon, a photograph) is expected to land here.
@@ -188,19 +214,20 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot
 images use. It adds <code>av</code>, which bundles its own ffmpeg, so there is <strong>no system package to
 install first</strong> and nothing is downloaded at runtime: as offline as image ingestion. It reads
 the slides, the terminal and the UI.</p>
-<p><strong><code>[kb-transcribe]</code></strong> adds the spoken track via a local speech model. That model is fetched
+<p><strong><code>[kb-transcribe]</code></strong> adds the spoken track with a local speech model. That model is fetched
 once on first use and cached under <code>~/.contextlake/models</code>, the same way <code>[kb-local]</code>'s
-embedder is -- a weaker offline promise than frame OCR's, which is why it is a
+embedder is. That is a weaker offline promise than frame OCR's, which is why it is a
 separate extra rather than folded into the first. <code>CONTEXTLAKE_WHISPER_MODEL</code> picks the size;
 the default is the smallest useful one, because a first run downloads it.</p>
-<p><strong>The work is bounded, not the file.</strong></p>
+<h4 id="the-work-is-bounded-not-the-file">The work is bounded, not the file<a class="anchor" href="#the-work-is-bounded-not-the-file" title="Link to this section">#</a></h4>
 <p><code>max_bytes</code> gates every other type because file size predicts how much text a document
 contributes. For a video it predicts resolution and length instead, so a 1 MB cap would reject
 every real recording.</p>
 <p>What is capped is the sampling: one frame every 5 seconds, at most 60 frames. A two-hour
-recording therefore costs the same as a ten-minute one.</p>
+recording costs the same as a ten-minute one.</p>
 <p>Repeated on-screen lines are said once. A slide holds still across many samples, and keeping
 every hit would drown the transcript in its own echo.</p>
+<h4 id="three-outcomes">Three outcomes<a class="anchor" href="#three-outcomes" title="Link to this section">#</a></h4>
 <p>Three outcomes are stated rather than implied:</p>
 <ul>
 <li><strong>No transcriber installed.</strong> The video is still ingested from its frames, the document
@@ -210,10 +237,12 @@ every hit would drown the transcript in its own echo.</p>
   reported as a recording with no audio, not as a failed transcription.</li>
 <li><strong>Nothing readable either way.</strong> Reported and stored as nothing, never as an empty document.</li>
 </ul>
+<h3 id="page-numbers">Page numbers<a class="anchor" href="#page-numbers" title="Link to this section">#</a></h3>
 <p>Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
 document carries <code>pages</code> (how many the file has), <code>pages_read</code> and <code>page_offsets</code> (the character
 offset in the document's text where each page starts) in the <code>attrs</code> that land on its graph node.
 The document's <code>uri</code> stays the plain file path, so it is still a citable path on disk.</p>
+<h3 id="writing-a-plugin">Writing a plugin<a class="anchor" href="#writing-a-plugin" title="Link to this section">#</a></h3>
 <p><strong>Writing a plugin</strong> is one class with <code>iter_documents()</code> and one entry point, no fork, no core
 dependency:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># in your plugin package&#39;s pyproject.toml</span>
@@ -227,6 +256,7 @@ dependency:</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">iter_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span>
 </code></pre></div>
+<h3 id="built-in-sources">Built-in sources<a class="anchor" href="#built-in-sources" title="Link to this section">#</a></h3>
 <p><code>contextlake kb ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
 <code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text
 (stdlib-only):</p>
@@ -235,6 +265,7 @@ dependency:</p>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>
 <span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://example.com/changelog&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;https://example.com/roadmap&quot;</span><span class="p">]</span>
 </code></pre></div>
+<h3 id="api-sources">API sources<a class="anchor" href="#api-sources" title="Link to this section">#</a></h3>
 <p>An <strong><code>api</code></strong> source ships built-in too: GET a JSON endpoint and map its records to documents, with the
 secret read from an env var (never the config file):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
@@ -259,6 +290,7 @@ for it and exits 0. The line <code>no documents (source reachable, nothing to in
 source that sent a request and got nothing back. Any <code>web</code>, <code>api</code>, <code>graphql</code> or <code>mcp</code> <code>[[sources]]</code>
 entry that sent no request prints the same <code>nothing to ingest:</code> line with its own reason. The reasons are a
 missing <code>url</code>, <code>query</code> or <code>command</code>, and a URL that is not http or https.</p>
+<h3 id="targets-that-cannot-be-read">Targets that cannot be read<a class="anchor" href="#targets-that-cannot-be-read" title="Link to this section">#</a></h3>
 <p><strong>A target that cannot be read does not delete its document.</strong> Say some targets of a source answer and
 others fail (a page that returns a 500, a file that cannot be opened). <code>kb ingest</code> then stores the new
 documents and keeps what the last run stored for everything it did not read again. The source's line
@@ -269,6 +301,7 @@ run exits 1.</p>
   on that run.</li>
 <li>If no target answers, the earlier documents stay as they were.</li>
 </ul>
+<h3 id="authentication">Authentication<a class="anchor" href="#authentication" title="Link to this section">#</a></h3>
 <p><strong>The credential stays on one host.</strong> The <code>Authorization</code> header goes only to the origin
 (scheme, host and port) of <code>url</code>. A redirect, or a next-page link, that points at a different
 origin is still followed, but without the header. A redirect within the same origin keeps it.</p>
@@ -311,6 +344,7 @@ by walking up from the working directory may not set them, because together they
 where a secret is sent and how it is spent. Name the config explicitly with <code>--config</code> to
 use them.</p>
 </div>
+<h3 id="graphql-sources">GraphQL sources<a class="anchor" href="#graphql-sources" title="Link to this section">#</a></h3>
 <p>A <strong><code>graphql</code></strong> source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way <code>api</code> maps a REST response:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
@@ -322,6 +356,7 @@ the response to documents, the same way <code>api</code> maps a REST response:</
 <span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span>
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">     </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
+<h3 id="mcp-sources">MCP sources<a class="anchor" href="#mcp-sources" title="Link to this section">#</a></h3>
 <p>An <strong><code>mcp</code></strong> source ships built-in as well: contextlake connects as an MCP <em>client</em> (stdio or
 streamable-HTTP) to another MCP server, lists its resources, and ingests each:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
@@ -349,6 +384,7 @@ codebase-derived terms into the tool's arguments. This is what powers query-driv
 <p>Both transports work with tool calling: <code>command</code> and <code>args</code> for stdio, or <code>url</code> for streamable-HTTP. The
 tool is called with the templated arguments during enrichment, returning documents grounded to the
 codebase's query context.</p>
+<h3 id="additional-keys">Additional keys<a class="anchor" href="#additional-keys" title="Link to this section">#</a></h3>
 <p><strong>Additional <code>[[sources]]</code> keys.</strong> Beyond the per-type keys above, connector and ingest sources also
 accept:</p>
 <ul>
@@ -411,6 +447,15 @@ list that host. Indexing by the old repo id keeps the old id. An https origin wi
 <li><a href="#pdfs-the-text-layer-and-nothing-pretending-to-be-more">PDFs: the text layer, and nothing pretending to be more</a></li>
 <li><a href="#images-read-locally-or-not-at-all">Images: read locally, or not at all</a></li>
 <li><a href="#video-two-layers-because-they-promise-different-things">Video: two layers, because they promise different things</a></li>
+<li><a href="#page-numbers">Page numbers</a></li>
+<li><a href="#writing-a-plugin">Writing a plugin</a></li>
+<li><a href="#built-in-sources">Built-in sources</a></li>
+<li><a href="#api-sources">API sources</a></li>
+<li><a href="#targets-that-cannot-be-read">Targets that cannot be read</a></li>
+<li><a href="#authentication">Authentication</a></li>
+<li><a href="#graphql-sources">GraphQL sources</a></li>
+<li><a href="#mcp-sources">MCP sources</a></li>
+<li><a href="#additional-keys">Additional keys</a></li>
 </ul>
 </li>
 <li><a href="#see-also">See also</a></li>
@@ -441,9 +486,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>

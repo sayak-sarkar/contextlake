@@ -19,39 +19,65 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-10-19"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8b938c56">
-<link rel="stylesheet" href="tokens.css?v=8b938c56">
-<link rel="stylesheet" href="docs.css?v=8b938c56">
-<link rel="stylesheet" href="cmdk.css?v=8b938c56">
+<link rel="stylesheet" href="fonts.css?v=8111ea69">
+<link rel="stylesheet" href="tokens.css?v=8111ea69">
+<link rel="stylesheet" href="docs.css?v=8111ea69">
+<link rel="stylesheet" href="cmdk.css?v=8111ea69">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="docs">Docs</a>
+    <a class="navlink" href="quickstart">Quickstart</a>
+    <a class="navlink" href="changelog">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="installing">Installing and upgrading</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference" class="active">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><details class="side-group" open><summary class="side-title" id="side-understand-it">Understand it</summary><nav aria-labelledby="side-understand-it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav></details><details class="side-group" open><summary class="side-title" id="side-get-started">Get started</summary><nav aria-labelledby="side-get-started"><a href="quickstart">Quickstart</a><a href="installing">Installing and upgrading</a><a href="configuration">Configuration</a></nav></details><details class="side-group" open><summary class="side-title" id="side-build-your-knowledge-base">Build your knowledge base</summary><nav aria-labelledby="side-build-your-knowledge-base"><a href="knowledge-layer">The knowledge layer</a><a href="mirroring-repositories">Mirroring repositories</a><a href="indexing-the-code-graph">Indexing the code graph</a><a href="code-graph-model">The code graph model</a><a href="connecting-and-enriching">Connecting and enriching</a><a href="document-sources">Document sources and RAG</a><a href="searching-semantically">Searching semantically</a><a href="embedding-reference">Embeddings and models</a><a href="model-providers">Model providers</a><a href="generating-the-wiki">Generating the wiki</a><a href="generating-documentation">Generating documentation</a><a href="generated-docs-reference">What the generator produces</a></nav></details><details class="side-group" open><summary class="side-title" id="side-use-it">Use it</summary><nav aria-labelledby="side-use-it"><a href="asking-the-graph">Asking the graph</a><a href="serving-over-mcp">Serving over MCP</a><a href="mcp-transports">MCP transports and limits</a><a href="using-the-dashboard">Using the dashboard</a><a href="visualizing-the-graph">Visualizing the graph</a></nav></details><details class="side-group" open><summary class="side-title" id="side-operate-it">Operate it</summary><nav aria-labelledby="side-operate-it"><a href="keeping-it-fresh">Keeping it fresh</a><a href="scheduling">Scheduling runs</a><a href="console-output">Console output</a><a href="troubleshooting">Troubleshooting</a></nav></details><details class="side-group" open><summary class="side-title" id="side-reference">Reference</summary><nav aria-labelledby="side-reference"><a href="internals">Architecture and internals</a><a href="cli-reference" class="active" aria-current="page">Command reference</a><a href="changelog">Changelog</a></nav></details><details class="side-group" open><summary class="side-title" id="side-project">Project</summary><nav aria-labelledby="side-project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a><a href="adding-a-language">Adding a language</a></nav></details><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Reference</span><span aria-hidden="true">/</span><span aria-current="page">Command reference</span></nav>
-    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>contextlake command reference</h1><p class="doc-sub">Every contextlake command at a glance, with links to the page that documents each in depth.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>contextlake command reference</h1><p class="doc-sub">Every contextlake command at a glance, with links to the page that documents each in depth.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="104" height="112" fetchpriority="high"></header>
+    <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
+<ul>
+<li><a href="#shell-completion">Shell completion</a></li>
+<li><a href="#global-flags">Global flags</a><ul>
+<li><a href="#what-offline-covers-and-what-it-does-not">What --offline covers, and what it does not</a></li>
+</ul>
+</li>
+<li><a href="#advancedresilience-flags">Advanced/resilience flags</a></li>
+<li><a href="#the-command-surface">The command surface</a><ul>
+<li><a href="#top-level-commands">Top-level commands</a></li>
+<li><a href="#mirror-commands">Mirror commands</a></li>
+<li><a href="#knowledge-layer-commands">Knowledge-layer commands</a></li>
+<li><a href="#kb-serve-which-key-file-and-whether-it-may-mint">kb serve: which key file, and whether it may mint</a></li>
+<li><a href="#kb-keys">kb keys</a></li>
+</ul>
+</li>
+<li><a href="#exit-codes">Exit codes</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></details>
     
-<p>Every flag and every command, in one place. Each command also carries scoped help via
+<p><strong>Who this is for:</strong> anyone who runs contextlake from a terminal and needs the exact flag or command.</p>
+<p>Every flag and every command, in one place. Each command also carries scoped help through
 <code>contextlake &lt;command&gt; --help</code>, and each command's own page (linked below) covers it in depth.
 For what the CLI says back when a name or a flag is wrong, see
-<a href="console-output#when-you-mistype-a-command-or-a-flag">Reading the console output</a>.</p>
+<a href="console-output#when-you-mistype-a-command-or-a-flag">Console output</a>.</p>
 <h2 id="shell-completion">Shell completion<a class="anchor" href="#shell-completion" title="Link to this section">#</a></h2>
 <p><code>argcomplete</code> is a core dependency, so <code>pip install contextlake</code> alone is enough.</p>
 <p>A plain pip install has no post-install hook to run anything at. That is a Python packaging
@@ -148,14 +174,16 @@ behind is all there is.</p>
 <li><strong><code>--offline</code></strong> is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is <code>CONTEXTLAKE_OFFLINE=1</code>.</li>
 </ul>
-<p><code>--dry-run</code> looks global too, and is not. It belongs to the 8 <code>mirror</code> commands, <code>bootstrap</code>,
-<code>doctor</code> and <code>kb forget</code>. Any other command refuses it with exit <code>2</code> and runs nothing, wherever the
+<p><code>--dry-run</code> looks global too, and is not. It belongs to 13 commands: the 8 <code>mirror</code> commands,
+<code>bootstrap</code>, <code>doctor</code>, <code>kb enrich</code>, <code>kb forget</code> and <code>schedule</code>. Any other command refuses it with exit <code>2</code> and runs nothing, wherever the
 flag is typed (<code>contextlake --dry-run kb index</code> as much as <code>contextlake kb index --dry-run</code>). The
 message names the commands that do take it.</p>
 <p><code>bootstrap --dry-run</code> prints the stages a real run would perform and runs none of them: no mirror,
 no audit, no index, no model call, and no store, cache, metrics or history file is written (a
 <code>--log-file</code> you ask for still is). <code>mirror sync --dry-run</code> previews what the mirror stages would
-change.</p>
+change. <code>kb enrich --dry-run</code> prints each repo's search terms and the queries it would send, and sends
+and stores nothing. <code>schedule install --dry-run</code> prints the unit or manifest it would install and the
+interval, and installs and records nothing.</p>
 <h3 id="what-offline-covers-and-what-it-does-not">What <code>--offline</code> covers, and what it does not<a class="anchor" href="#what-offline-covers-and-what-it-does-not" title="Link to this section">#</a></h3>
 <p>It blocks at the socket, inside this process. Every client here inherits the block: <code>urllib</code>,
 <code>requests</code>, <code>httpx</code>, and the model downloaders inside the embedding and LLM libraries. Loopback
@@ -371,7 +399,7 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>kb graph</code></td>
-<td>Visualize the graph. <code>--format</code> takes 11 values: <code>html</code> (offline interactive, the default), <code>dot</code>, <code>json</code>, <code>graphml</code>, <code>cypher</code>, and the six Mermaid ones (<code>mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>, <code>statediagram</code>, <code>erdiagram</code>, <code>deploymentdiagram</code>); or a composed namespace C4 diagram with <code>--c4</code>. All of them, with what each is for, are on <a href="visualizing-the-graph">Visualize the graph</a></td>
+<td>Visualize the graph. <code>--format</code> takes 11 values: <code>html</code> (offline interactive, the default), <code>dot</code>, <code>json</code>, <code>graphml</code>, <code>cypher</code>, and the six Mermaid ones (<code>mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>, <code>statediagram</code>, <code>erdiagram</code>, <code>deploymentdiagram</code>); or a composed namespace C4 diagram with <code>--c4</code>. All of them, with what each is for, are on <a href="visualizing-the-graph">Visualizing the graph</a></td>
 </tr>
 <tr>
 <td><code>kb dashboard</code></td>
@@ -481,6 +509,7 @@ reads <code>live</code>, <code>revoked</code> or <code>expired</code> on each ro
 that lands past the year 9999 (or, for <code>--since</code>, before the year 1) exits <code>2</code>, names the flag
 and gives the longest allowed. Nothing is written. Use <code>--expires never</code> for a key that does
 not expire.</p>
+<h4 id="create-and-capture-a-key">Create and capture a key<a class="anchor" href="#create-and-capture-a-key" title="Link to this section">#</a></h4>
 <p><strong>The key is shown once, and only once.</strong> It is printed to standard error at creation and
 never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
 to print later. A key nobody wrote down is rotated, never recovered:
@@ -489,7 +518,7 @@ to print later. A key nobody wrote down is rotated, never recovered:
 <p>Three ways to capture it at creation:</p>
 <ul>
 <li>Read it off the screen. This is the default.</li>
-<li><code>--print-key</code> writes the bare key to standard output for a pipe, e.g.
+<li><code>--print-key</code> writes the bare key to standard output for a pipe, for example:
   <code>contextlake kb keys create ci --print-key | pass insert -e contextlake</code>. It refuses a
   terminal, because on one the key lands in the scrollback instead of a secret store.</li>
 <li><code>--out FILE</code> writes the key to a file at mode <code>0600</code>. The file is created with <code>O_EXCL</code>,
@@ -497,6 +526,7 @@ to print later. A key nobody wrote down is rotated, never recovered:
   script: it is the only one where the mode is set at creation rather than inherited from
   the caller's umask.</li>
 </ul>
+<h4 id="write-verbs-and-the-lock">Write verbs and the lock<a class="anchor" href="#write-verbs-and-the-lock" title="Link to this section">#</a></h4>
 <p><strong>Write verbs take turns.</strong> <code>create</code>, <code>revoke</code>, <code>rotate</code> and <code>prune</code> each hold a lock,
 <code>&lt;key file&gt;.lock</code> beside the key file at mode <code>0600</code>, from reading the file until writing
 it. A second write verb waits up to 10 seconds for the first, then exits <code>1</code> with
@@ -507,6 +537,7 @@ never a stale one to delete. The lock file stays on disk.</p>
 nowhere else either.</p>
 <p>The key never reaches standard output on the default path and never reaches <code>--log-file</code>,
 which is a rotating file that outlives the process.</p>
+<h4 id="check-a-key">Check a key<a class="anchor" href="#check-a-key" title="Link to this section">#</a></h4>
 <p><strong><code>check</code> reads the key from standard input only.</strong> A key typed on a command line lands in
 shell history and shows in <code>ps</code> to every account on the machine, so
 <code>contextlake kb keys check &lt;key&gt;</code> is refused with exit 2. A terminal with nothing piped in
@@ -517,6 +548,7 @@ stores, not what a server would allow.</p>
 <p><strong>The checksum in a key is a typo filter, not a security control.</strong> It catches a key
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.</p>
+<h4 id="limits-on-a-key">Limits on a key<a class="anchor" href="#limits-on-a-key" title="Link to this section">#</a></h4>
 <p><strong>All eight key flags are enforced, and the marker beside each value says so.</strong> <code>--tools</code>
 and <code>--owners</code> are read on every call a networked server serves. <code>--rate</code>, <code>--burst</code> and
 <code>--cost-budget</code> are checked at the gate, before a call reaches a tool. <code>--repos</code>,
@@ -542,6 +574,7 @@ it, and refuse <code>ask</code> with it. There is no anonymiser on the network p
 so a key that asked for pseudonyms gets no names, not real ones. A wiki page lists
 the people who commit to its repository, so <code>get_wiki</code> returns a notice in place of the page
 text for those two keys. Add <code>--owners real</code> to read the pages.</p>
+<h4 id="-repos"><code>--repos</code><a class="anchor" href="#-repos" title="Link to this section">#</a></h4>
 <p><strong><code>--repos</code> limits what the key can read.</strong> A key created <code>--repos 'gitlab.example.com/acme/*'</code>
 sees only repositories that match one of its globs. Search, graph, repo-list and stats answers
 leave the others out. A tool that reads a whole-fleet document (<code>get_fleet_doc</code>) refuses a
@@ -570,6 +603,7 @@ the server logs <code>scoped vector search stopped at &lt;n&gt; rows</code>.</p>
 <p>A <code>--repos</code> value that names no repository, such as <code>""</code>, <code>,</code> or a space, is refused at
 <code>create</code>: the server would read it as no limit. A key file edited by hand to hold such a value
 reads nothing.</p>
+<h4 id="-external-and-no-external"><code>--external</code> and <code>--no-external</code><a class="anchor" href="#-external-and-no-external" title="Link to this section">#</a></h4>
 <p><strong><code>--external</code> GRANTS access.</strong> It is not a label. A key that has <code>--repos</code> and not
 <code>--external</code> cannot read connector content:</p>
 <ul>
@@ -605,6 +639,7 @@ earlier release, a key created <code>--tools none --repos nothing-matches/*</cod
 <code>tools/list</code> answered with all 23 registered tools, after which <code>graph_stats</code> ran and
 returned a result. The same key on the same server now gets an empty tool list and a
 refusal on <code>graph_stats</code>.</p>
+<h4 id="quotas">Quotas<a class="anchor" href="#quotas" title="Link to this section">#</a></h4>
 <p><strong><code>--rate</code>, <code>--burst</code> and <code>--cost-budget</code> are enforced.</strong> A key over its quota gets <code>429</code>
 with a <code>Retry-After</code> header, refused at the gate before the request reaches any tool. Values
 are validated at the flag, so a typo cannot be minted onto a key, and again when a key file
@@ -618,6 +653,7 @@ values a running server will apply, and <code>"limits_source"</code> saying whet
 key, from <code>[serve]</code> in kb.toml, or from nowhere.</p>
 <p>Scoping is a NETWORK control. stdio serves one local user who already has the files, so
 nothing on that transport reads a key or a policy.</p>
+<h4 id="-client"><code>--client</code><a class="anchor" href="#-client" title="Link to this section">#</a></h4>
 <p><strong><code>--client</code> prints the config snippet for the editor that will hold the key</strong>
 (<code>claude-code</code>, <code>cursor</code>, <code>vscode</code>, <code>windsurf</code>, <code>zed</code>). Every snippet reads the key from a
 variable rather than inlining it, except Zed, whose <code>context_servers</code> documents no
@@ -696,6 +732,7 @@ leaves a parseable file.</p>
 date, <code>never</code> or <code>-</code>. Read <code>policy</code>, <code>expires_at</code> and <code>last_used_at</code> instead.
 <code>last_used_state</code> is the sibling that keeps a null from meaning two things: <code>not-recorded</code>
 (no usage file), <code>no-rows</code> (a file with no call for this key) or <code>measured</code>.</p>
+<h4 id="exit-codes-of-kb-keys">Exit codes of <code>kb keys</code><a class="anchor" href="#exit-codes-of-kb-keys" title="Link to this section">#</a></h4>
 <p><strong>Exit codes.</strong></p>
 <ul>
 <li><code>0</code> on success, including <code>list</code> on a key file that does not exist yet, and including <code>usage</code>
@@ -726,15 +763,15 @@ concurrency slot carries none and prints <code>-</code> rather than <code>0ms</c
 mid-job. The long-running servers are not in that last one: <code>Ctrl-C</code> is how you are told to stop
 them, so they exit <code>0</code>, and <code>kb serve --transport http</code>/<code>sse</code> exits <code>143</code> on <code>SIGTERM</code> after
 uvicorn's graceful shutdown. The conditions behind each are on
-<a href="console-output#what-it-exited-with">Reading the console output</a>.</p>
+<a href="console-output#what-it-exited-with">Console output</a>.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="scheduling">Scheduling runs</a>, the <code>schedule</code> command in depth</li>
-<li><a href="asking-the-graph">Ask the graph</a>, <code>kb query</code>, <code>kb impact</code> and <code>kb owners</code> in depth</li>
-<li><a href="indexing-the-code-graph">Index the code graph</a></li>
-<li><a href="serving-over-mcp">Serve it to your editor</a></li>
-<li><a href="console-output">Reading the console output</a></li>
-<li><a href="installing">Install and upgrade</a>, the commands <code>--fix</code> runs for you, written out</li>
+<li><a href="asking-the-graph">Asking the graph</a>, <code>kb query</code>, <code>kb impact</code> and <code>kb owners</code> in depth</li>
+<li><a href="indexing-the-code-graph">Indexing the code graph</a></li>
+<li><a href="serving-over-mcp">Serving over MCP</a></li>
+<li><a href="console-output">Console output</a></li>
+<li><a href="installing">Installing and upgrading</a>, the commands <code>--fix</code> runs for you, written out</li>
 <li><a href="troubleshooting">Troubleshooting</a>, when one of them fails</li>
 </ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="console-output"><span>Console output</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="docs"><span>Overview</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
@@ -784,9 +821,13 @@ strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=8b938c56"></script>
+<script defer src="cmdk.js?v=8111ea69"></script>
 </body>
 </html>
