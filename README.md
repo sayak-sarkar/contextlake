@@ -197,9 +197,11 @@ The knowledge-layer build commands get a page each:
 
 **Two more look global and are not:**
 
-- `--dry-run`, which previews without changing anything, belongs to the 8 `mirror` commands plus
-  `bootstrap`, `doctor` and `kb forget`. On `bootstrap` it prints the stages a real run would
-  perform and runs none of them.
+- `--dry-run` belongs to the 8 `mirror` commands plus `bootstrap`, `doctor`, `kb enrich`, `kb forget`
+  and `schedule install`. On every `mirror` command it clones, updates and switches nothing.
+  `mirror fetch` and `mirror sync` still write the project-list cache. `clone` and `branches`
+  write it only when the cache is missing or invalid. `update` never reads or writes it. On
+  `bootstrap` it prints the stages a real run would perform and runs none of them.
 - `--version` belongs to the bare `contextlake` only. `contextlake version` is the form that
   works everywhere.
 

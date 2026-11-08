@@ -381,8 +381,9 @@ exercised by that test today.
 ### INV-2: the offline boundary
 
 > [!IMPORTANT]
-> Parsing, the graph, FTS, query, visualization and embedding all run with no network. The
-> connectors are the opt-in exception, and even they degrade rather than fail.
+> Parsing, the graph, FTS, query, visualization and embedding all run with no network, after the
+> one-time download of the built-in embedding model. The connectors are the opt-in exception, and
+> they degrade instead of failing.
 
 `tests/kb/test_offline_boundary.py` enforces it by patching `socket.getaddrinfo` and
 `socket.create_connection` to raise, then asserting that `kb index`, `kb query`, `kb graph

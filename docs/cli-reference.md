@@ -193,7 +193,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki` | Structural wiki pages from the graph, with no LLM by default. With `--llm`, adds council-verified LLM prose (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb docs` | Generated documentation, no model involved: an API reference per repository listing each symbol's real call sites, plus design notes recording the dependencies its manifests declare and the values its code reads most. `--max-symbols N` bounds the reference (default 500) and every page states what it left out |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |

@@ -360,8 +360,8 @@ inserted above it. The answer still says 88.
 
 A confidently wrong citation is worse than a miss, because the agent goes and reads it.
 
-Every node a tool returns carries **`citation_status`**, decided against the file on disk
-as the answer is built:
+Every node with a file carries **`citation_status`**, decided against the file on disk
+as the answer is built. A node with no file gets `None`:
 
 | value | what it means |
 |---|---|

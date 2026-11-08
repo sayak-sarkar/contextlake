@@ -135,6 +135,8 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 - **Generated, not hand-drawn.** Flat diagrams come from `site/tools/gen_diagrams.py` (SVG, brand palette,
   transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
   diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.
+  Mermaid diagrams are the exception: they are hand-written as fences in the page source, and
+  their node, edge and legend text must match the code.
 - **Lead with real CLI screenshots** where they teach best, a code-grounded diagram where a picture
   replaces more than a hundred words of prose, and painterly Pebble art where a picture helps explain
   something.

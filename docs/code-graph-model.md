@@ -46,8 +46,8 @@ dashboard use, so node kinds look the same everywhere. Most edge relations match
 
 ### Languages
 
-tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
-parser registry is pluggable.
+tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one package, and
+Vue shares HTML's), and the parser registry is pluggable.
 
 Depth differs across four tiers, and a single number would hide it.
 
@@ -94,8 +94,11 @@ Two gaps, named here so you do not have to find them yourself:
 | JVM | Java, Kotlin, Scala |
 | .NET | C# |
 | Web / JS | JavaScript, TypeScript, TSX |
-| Systems | C, C++, Rust, Go |
-| Scripting | Python, Ruby, PHP |
+| Web markup and components | HTML, CSS, Svelte, Vue |
+| Systems | C, C++, Rust, Go, Zig |
+| Mobile | Swift, Dart |
+| Scripting | Python, Ruby, PHP, Perl, Bash, Elixir |
+| Build and config | Nix, Make, Dockerfile |
 
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.

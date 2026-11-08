@@ -386,7 +386,7 @@ This command executes:
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
 
-> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It shows what would happen and changes nothing.
+> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It clones, updates and switches nothing. It still refreshes the project-list cache.
 
 ### `mirror audit`: repo health & age report
 

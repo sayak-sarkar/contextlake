@@ -115,21 +115,21 @@ Alias a shared query the same way you aliased the kinds: `_QUERIES["tsx"] = _QUE
 
 ### 5. Load the grammar
 
-`_language()` is an explicit `if`/`elif` chain of lazy imports ending in
-`raise ValueError(f"unsupported language: {lang}")`. Add a branch:
+Grammar loading is a table, `_GRAMMARS`, with one row per language. `_language()` looks the row up
+and imports the package lazily. An id with no row raises
+`ValueError(f"unsupported language: {lang}")`. Add one row:
 
 ```python
-elif lang == "<lang>":
-    import tree_sitter_<lang> as g
-    fn = g.language
+"<lang>": ("tree_sitter_<lang>", "language"),
 ```
 
-**Keep the import inside the function.** The laziness is load-bearing: the core tier of contextlake
-must work with no tree-sitter installed at all, and two tests police that boundary.
+**Keep the import lazy.** The row holds the module name as a string, and `_language()` imports it
+on first use. Do not add a top-level `import`. The laziness is load-bearing: the core tier of
+contextlake must work with no tree-sitter installed at all, and two tests police that boundary.
 
-Read the grammar package before you write `fn = g.language`. Some expose more than one entry point:
-the TypeScript wheel provides `language_typescript` and `language_tsx`, and the PHP wheel provides
-`language_php`.
+Read the grammar package before you write the factory name in the row. Some expose more than one
+entry point: the TypeScript wheel provides `language_typescript` and `language_tsx`, and the PHP wheel
+provides `language_php`. The C# package is `tree_sitter_c_sharp`.
 
 The parser cache and the query cache need no change. Both are keyed by the same language id and pick
 your language up for free.
@@ -190,7 +190,7 @@ five hand-written places:
 | --- | --- |
 | `README.md` | the count in the feature list |
 | `ROADMAP.md` | the count in the knowledge-graph bullet |
-| `docs/indexing-the-code-graph.md` | the count in the [Languages](code-graph-model.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/code-graph-model.md` | the count in the [Languages](code-graph-model.md#languages) section, **and** a new row in the Ecosystem table |
 | `docs/style-guide-reference.md` | the mandated phrasing itself |
 | `site/build_docs.py` | the "Index the code graph" page subtitle |
 
@@ -318,7 +318,7 @@ grammar + query OK
 ```
 
 This is the cheapest check and the one that separates the three most common failures from each other:
-it proves the `pyproject.toml` entry installed, that your `_language` branch names the right entry
+it proves the `pyproject.toml` entry installed, that your `_GRAMMARS` row names the right entry
 point, and that your query compiles against **that** grammar version.
 
 The compile step is strict, which is why it is worth a contributor's time. A node type your
@@ -459,7 +459,7 @@ still reports success:
 
 | What you forgot | What it raises |
 | --- | --- |
-| the `_language()` branch | `ValueError: unsupported language: <lang>` |
+| the `_GRAMMARS` row | `ValueError: unsupported language: <lang>` |
 | the `_DEF_TYPES` row | `KeyError` on `_DEF_TYPES[lang]` |
 | the `_QUERIES` row | `KeyError` on `_QUERIES[lang]` |
 
@@ -489,8 +489,8 @@ downstream. Omitting the language self-isolates it, which is always safe. See st
 ### Aliasing a grammar is three edits, not one
 
 If two ids share one grammar, all three tables need the pairing and each is a separate statement: the
-`_DEF_TYPES` alias, the `_QUERIES` alias, and a distinct `_language()` branch naming the grammar's
-other entry point. Missing the third is the first row of the silent-skip table above.
+`_DEF_TYPES` alias, the `_QUERIES` alias, and a `_GRAMMARS` row naming the grammar package and its
+factory. A shared package needs one row per id. Missing the third is the first row of the silent-skip table above.
 
 ### Do not introduce anything order-dependent
 
@@ -519,7 +519,7 @@ makes it a useful template: it shows which parts are required.
 | 2 | `kb/parse.py`, `LANG_BY_EXT` | `".kt": "kotlin", ".kts": "kotlin",` |
 | 3 | `kb/parse.py`, `_DEF_TYPES` | `class_declaration` and `object_declaration` to `class`, `function_declaration` to `function` |
 | 4 | `kb/parse.py`, `_QUERIES` | three `@def` patterns, one `@import`, one `@call`, two `@base` |
-| 5 | `kb/parse.py`, `_language()` | `elif lang == "kotlin": import tree_sitter_kotlin as g; fn = g.language` |
+| 5 | `kb/parse.py`, `_GRAMMARS` | `"kotlin": ("tree_sitter_kotlin", "language"),` |
 | 6 | `kb/parse.py`, `_LANG_FAMILY` | `"kotlin": "jvm",` alongside Java and Scala |
 | 7 | `tests/kb/test_kb_parse.py` | `test_parse_kotlin()`, plus `".kt"`, `".kts"` and the `.kts` mapping assertion |
 | 8 | five doc sites | the published count moved by one in all five |

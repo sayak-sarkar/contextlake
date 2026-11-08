@@ -70,7 +70,7 @@ contextlake kb docs acme/forecast-api acme/alerts
 | Code | Meaning |
 | --- | --- |
 | `0` | Every requested repository was documented, or had no symbols to document |
-| `1` | A shard could not be read, or nothing could be written at all |
+| `1` | A shard could not be read, or nothing could be written at all, or a repository's documents failed to render or write (the run names the repository) |
 
 A repository that indexed to zero symbols is reported and is **not** a failure: a repository
 of build and configuration files has no interface to document. A shard the store lists but
