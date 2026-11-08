@@ -58,7 +58,7 @@ Match the tone to what the reader is doing.
 
 - **Concept and overview pages.** One warm, plain sentence of personality is fine, in the project's voice.
 - **Success and completion.** A short note of celebration fits.
-- **Warnings, errors, troubleshooting and Verification steps.** Stay serious and exact. Add no joke, and place no Pebble's tip in these sections.
+- **Warnings, errors, troubleshooting, reference tables and Verification steps.** Stay serious and exact. Add no joke, and place no Pebble's tip in these sections.
 
 ## Pebble's tip
 

@@ -145,15 +145,19 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These rules apply to each one.
 
 - **Style.** Painterly only, as in BRANDING.md section 5.8: no hard outlines, no pure black, blue-grey fur
-  as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section 5.10 to generate it. Generate the
-  background with no text. Never ship AI-drawn lettering.
+  and a slim river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
+  5.10 to generate it. Generate the background with no text. Never ship AI-drawn lettering.
+- **Gaze.** Pebble looks at the content, the pebble or the passage the picture sits beside, never off the
+  page and never straight at the reader (BRANDING.md section 5.9).
 - **Count.** Several per page are fine if each one explains something. Show one Pebble per screen.
 - **Placement.** Put the picture after the lead summary or between sections, next to the passage it
   explains. Never put it between a heading and that heading's first sentence. Pebble never covers code, a
-  graph or a table, and never sits inside a numbered step or a callout.
+  graph, a table or a screenshot, and never sits inside a numbered step or a callout.
 - **Size.** Set `width` and `height` on the image so the page does not jump while it loads. The picture
   fits inside the prose column and does not push text into a narrow strip. The header mark is 104px wide
-  on desktop and 88px on phones. A section banner is at least 320px tall.
+  on desktop and 88px on phones. A section banner is at least 320px tall. Screenshots fill the prose
+  column.
+- **Format.** Ship a new Pebble picture as WebP, 1200px wide, at most 160 KB. Screenshots stay PNG.
 - **Alt text.** A picture that explains something gets alt text that names what it shows and why it is
   there, in one plain sentence. A purely decorative picture gets `alt=""` and `aria-hidden="true"`. Pebble adds no text of its
   own to the picture: any words belong in the page text, so the page works with the picture removed.
