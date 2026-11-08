@@ -86,17 +86,17 @@ flowchart LR
   G --> SS["search by meaning"]
   G --> OC["read text in images<br/>and screenshots"]
   G --> VD["read a video"]
-  M --> N["no extra: the plain install"]
-  CG --> KB["install [kb]"]
-  SS --> KF["install [kb-full]"]
-  OC --> KO["install [kb-ocr]"]
-  VD --> KV["install [kb-video]"]
-  KV -.->|"add the spoken track"| KT["install [kb-transcribe]"]
+  M --> N(["no extra: the plain install"])
+  CG --> KB(["install [kb]"])
+  SS --> KF(["install [kb-full]"])
+  OC --> KO(["install [kb-ocr]"])
+  VD --> KV(["install [kb-video]"])
+  KV -.->|"add the spoken track"| KT(["install [kb-transcribe]"])
 ```
 
 <div class="dg-key">
-  <i><b class="dg-sh-step"></b>a rectangle is an install choice</i>
-  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a goal</i>
+  <i><b class="dg-sh-act"></b>a rounded box is the question, or the extra to install</i>
 </div>
 
 A scanned PDF has no text layer, and OCR does not cover it. See [Document sources](document-sources.md).
